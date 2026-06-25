@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and fill in once an AWS account exists.
+# terraform.tfvars is git-ignored.
+
+aws_region  = "eu-west-2"
+environment = "dev"
+app_name    = "weave"
+
+# Image URIs are normally supplied by CI after pushing to ECR.
+backend_image  = ""
+frontend_image = ""
+
+# Prefer injecting this via AWS Secrets Manager rather than a tfvars file.
+# anthropic_api_key = ""

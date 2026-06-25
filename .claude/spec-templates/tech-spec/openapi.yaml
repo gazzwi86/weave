@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: "{{PROJECT_NAME}} API"
+  version: "0.1.0"
+  description: "{{API description}}"
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+
+paths:
+  /example:
+    get:
+      summary: "{{Endpoint summary}}"
+      operationId: getExample
+      tags:
+        - "{{Tag}}"
+      parameters:
+        - name: id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExampleResponse"
+        "400":
+          description: Bad request
+        "500":
+          description: Internal server error
+
+components:
+  schemas:
+    ExampleResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: "{{Response data description}}"
+      required:
+        - data

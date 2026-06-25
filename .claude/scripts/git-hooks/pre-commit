@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit:
+#   1. Scan staged files for hardcoded secrets.
+#   2. Refresh anatomy/wiki for staged source changes (if claude CLI is available).
+# Skip with `git commit --no-verify` when truly necessary.
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# --- Secret scan (blocking) -------------------------------------------------
+# Blocks on patterns that look like real credentials in staged content.
+echo "$STAGED" | while IFS= read -r f; do
+  if [ -f "$f" ] && grep -qE \
+    '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{48}|password\s*=\s*["\047][^"\047]{8,})' \
+    "$f" 2>/dev/null; then
+    echo "pre-commit: possible secret in $f — use --no-verify only if this is a false positive" >&2
+    exit 1
+  fi
+done
+
+# --- Anatomy / wiki refresh (advisory) -------------------------------------
+if ! command -v claude >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Only refresh for source under wiki-mapped roots. Keep this list in sync with the single source
+# of truth, common.py::TRACKED_ROOTS (apps/packages/infra/src/lib) — area_for_path only maps these.
+# Docs, prototypes, and .claude/ config never have a wiki page, so skipping them avoids spawning an
+# expensive `claude -p` subprocess on every commit.
+TRACKED=$(echo "$STAGED" | grep -E '^(apps|packages|infra|src|lib)/' || true)
+if [ -n "$TRACKED" ]; then
+  echo "pre-commit: refreshing anatomy/wiki for tracked files..." >&2
+  REFRESH="/anatomy refresh $(echo "$TRACKED" | tr '\n' ' ')"
+  claude -p "$REFRESH" --output-format text 2>/dev/null || {
+    echo "pre-commit: /anatomy refresh failed (continuing commit)" >&2
+  }
+  git add ANATOMY.md docs/wiki/ 2>/dev/null || true
+fi

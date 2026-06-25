@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-push: run /security-review on pending branch changes.
+# Blocks the push on security findings. Skip with `git push --no-verify`.
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+
+# Check if the anatomy is stale (only meaningful once there are commits).
+if git rev-parse HEAD >/dev/null 2>&1; then
+  if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh 2>/dev/null; then
+    echo "pre-push: anatomy may be stale; consider refreshing before push" >&2
+  fi
+fi
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "pre-push: claude CLI not found, skipping /security-review" >&2
+  exit 0
+fi
+
+# Determine diff range. On a fresh repo or branch with no upstream, skip.
+RANGE=""
+if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
+  UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')
+  RANGE="$UPSTREAM..HEAD"
+elif git rev-parse main >/dev/null 2>&1; then
+  RANGE="main..HEAD"
+elif git rev-parse HEAD >/dev/null 2>&1; then
+  # First push — diff entire HEAD tree vs empty
+  RANGE="HEAD"
+fi
+
+if [ -z "$RANGE" ] || [ -z "$(git log "$RANGE" --oneline 2>/dev/null || true)" ]; then
+  exit 0
+fi
+
+# [blocking] /security-review pass.
+echo "pre-push: [blocking] running /security-review on $RANGE ..." >&2
+PROMPT="/security-review Review changes in range $RANGE. Output JSON: {\"findings\":[...],\"block\":true|false}. Block on credentials, eval/Function, SQL injection, command injection."
+RESULT=$(claude -p "$PROMPT" --output-format text 2>&1) || {
+  echo "$RESULT" >&2
+  echo "pre-push: /security-review failed; use --no-verify to bypass" >&2
+  exit 1
+}
+
+if echo "$RESULT" | grep -qE '"block"[[:space:]]*:[[:space:]]*true'; then
+  echo "$RESULT" >&2
+  echo "pre-push: push blocked due to security findings (use --no-verify to bypass)" >&2
+  exit 1
+fi
+
+echo "pre-push: /security-review passed" >&2

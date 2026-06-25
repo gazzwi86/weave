@@ -1,0 +1,199 @@
+---
+name: qa
+description: Validate implementation against task briefs, acceptance criteria, Definition of Done, and design decisions, extending tests for edge cases and producing structured pass/fail reports. Invoked by /implement during the ASSESS phase, or standalone via /qa.
+---
+
+# Quality Assurance
+
+Validate implementation against task briefs, acceptance criteria, Definition of Done, and design decisions. Extend tests for edge cases. Produce structured pass/fail reports.
+
+## Trigger
+
+- Called by `/implement` during the ASSESS phase of each task
+- Can be invoked standalone: `/qa`
+- Arguments: none (QA all completed tasks), `TASK-{NNN}` (specific task), `--full` (full QA including edge case extension)
+
+## Instructions
+
+### Step 0: Preflight — Progress Summary Check
+
+Before any other validation, read `.claude/state/summaries/TASK-{NNN}.md`. Verify:
+1. The file exists
+2. "Assumptions Made" section has content (even if "None — brief was fully specified")
+3. "Decisions Made" section has content
+
+If the summary is absent or either section contains only template placeholders, return `QA_RESULT: FAIL` immediately with reason: "Progress summary incomplete — Engineer must document decisions and assumptions before QA."
+
+### Step 1: Determine Scope
+
+1. Read `.claude/state/progress.json` for task statuses
+2. If a task ID is provided as argument, validate that specific task
+3. If no argument, validate all tasks in "done" status that have not been QA'd
+
+### Step 2: Announce Review Plan
+
+Before reviewing, tell the user what will be checked:
+
+```
+QA Review for {TASK_ID}. I will validate in this order:
+1. Acceptance criteria (each AC has a passing test)
+2. Test coverage (>= 80%)
+3. Code quality (complexity, lint, JSDoc)
+4. Design decision compliance
+5. Diagram compliance
+6. PO review (delivers user value?)
+7. Git hygiene
+8. Edge case extension
+```
+
+### Step 3: Validation Checklist (Per Task)
+
+For each task being validated, read the task brief from `docs/specs/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
+
+#### 3a. Acceptance Criteria Met
+- Read the task brief's AC table
+- For each AC, verify:
+  - The behaviour works as specified
+  - A test exists that validates this AC
+  - The test passes
+
+#### 3b. Test Coverage
+- Run `npm run test:coverage`
+- Verify coverage >= 80% for changed files
+- Verify all test types required by the task brief exist:
+  - Unit test count meets minimum
+  - Integration test count meets minimum (if specified)
+  - E2E test count meets minimum (if specified)
+- Check AC-to-test mapping: every AC has at least one test
+
+#### 3c. Code Quality
+- Run `npm run lint`
+- Verify zero lint errors
+- Check cyclomatic complexity <= 10 per function
+- Check cognitive complexity <= 15 per function
+- Check function length <= 50 lines
+- Verify JSDoc on all public functions/components
+
+#### 3d. Design Decision Compliance
+- Read the design decisions referenced in the task brief
+- Verify implementation follows them
+- Flag any deviations
+
+#### 3e. Diagram Compliance
+- Read the diagram references in the task brief (sequence, state, ERD)
+- Verify implementation matches the specified flows and data structures
+
+#### 3f. PO Review
+- Re-read the user story
+- Ask: "Does this implementation deliver what the user actually needs?"
+- Check for anything that works technically but misses the intent
+
+#### 3g. Git Hygiene
+- Verify commits follow conventional format
+- Verify each commit is a logical unit
+- Verify PR description references epic and task
+
+#### 3h. Performance (page-affecting stories only)
+
+**Smart detection:** Only run if the task brief mentions page, component, UI, or frontend.
+- Run Lighthouse audit (performance + best practices scores)
+- Check scores against targets in `docs/specs/tech-spec/testing-strategy.md`
+- Check bundle size if applicable
+
+#### 3i. Accessibility (UI-affecting stories only)
+
+**Smart detection:** Only run if the task brief mentions UI, component, page, or user interaction.
+- Run Lighthouse accessibility audit
+- Check WCAG 2.1 AA compliance (axe-core if available)
+- Verify keyboard navigation for interactive elements
+- Check colour contrast ratios
+
+#### 3j. API Performance (API-affecting stories only)
+
+**Smart detection:** Only run if the task brief mentions API endpoint, route handler, or backend service.
+- Measure response times against targets in `docs/specs/tech-spec/testing-strategy.md`
+- Basic load test if applicable (10 concurrent requests)
+
+### Step 4: Edge Case Extension
+
+After validation, identify edge cases NOT covered by existing tests:
+- Boundary values (empty arrays, zero, null, max values)
+- Error conditions (network failure, invalid input, timeout)
+- Race conditions (if applicable)
+- State transitions not covered by happy path
+
+Write additional tests for discovered edge cases. Commit: `test: add edge case tests for TASK-{NNN}`
+
+### Step 5: Report
+
+#### Pass Report Format
+```
+# QA Report: TASK-{NNN}
+
+## Status: PASS
+
+## Summary
+All acceptance criteria met. {count} tests passing. Coverage: {%}.
+Edge cases added: {count} additional tests.
+
+## Checklist
+- [x] All AC met
+- [x] Test coverage >= 80%
+- [x] Lint passes
+- [x] Complexity within thresholds
+- [x] Design decisions followed
+- [x] Diagram compliance verified
+- [x] PO review: delivers user value
+- [x] Git hygiene verified
+```
+
+If ALL checks pass, output: `QA_RESULT: PASS`
+
+#### Failure Report Format
+```
+# QA Failure Report: TASK-{NNN}
+
+## Status: FAIL
+
+## Failures
+
+### 1. {Category}: {What failed}
+- **Expected:** {What should happen}
+- **Actual:** {What actually happens}
+- **Location:** {File path and line number}
+- **AC Reference:** {Which acceptance criterion}
+- **Suggested Fix:** {How to resolve}
+
+## Test Gaps Identified
+- {Edge case 1 that needs a test}
+
+## Summary
+{1-2 sentences on overall assessment}
+Failures: {count} | Warnings: {count} | Edge cases added: {count}
+```
+
+If ANY check fails, output: `QA_RESULT: FAIL`
+
+### Boundaries
+
+- Do NOT modify implementation code (only add tests)
+- Do NOT make architectural decisions
+- Do NOT skip any validation category
+- Do NOT pass a task that has failing tests
+- Do NOT pass a task that does not meet coverage thresholds
+
+## Evaluation Criteria
+
+When testing this skill, verify:
+
+- **Catches real issues**: Identifies actual bugs, test gaps, and standards violations rather than false positives
+- **Report format correct**: Pass and fail reports follow the structured templates with all required fields
+- **Edge cases identified**: Additional tests cover boundary values, error conditions, and untested state transitions
+- **All validation categories checked**: None of the 7 validation categories (AC, coverage, quality, design decisions, diagrams, PO review, git hygiene) are skipped
+- **Incremental presentation**: Findings are presented one category at a time, not as a monolithic dump
+- **AC-to-test mapping verified**: Every acceptance criterion has a corresponding passing test
+- **Coverage threshold enforced**: Tasks below 80% coverage are failed
+- **Complexity thresholds enforced**: Functions exceeding cyclomatic (10) or cognitive (15) limits are flagged
+- **PO review perspective**: Report assesses whether the implementation delivers actual user value, not just technical correctness
+- **Failure reports are actionable**: Each failure includes location, expected/actual, and a suggested fix
+- **QA_RESULT line present**: Output includes exactly `QA_RESULT: PASS` or `QA_RESULT: FAIL` for machine parsing

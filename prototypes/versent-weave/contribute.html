@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Versent · Contribute to the AI-First Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* Shares the strategy graph's palette/fonts so the two pages feel like one product. */
+  :root{
+    --bg:#000; --panel:#0c0e0c; --panel-edge:#1c211c;
+    --green:#4ade80; --green-bright:#39ff7a; --cyan:#5ec8ff; --amber:#ffb84d;
+    --coral:#ff7a6b; --violet:#c08bff; --grey:#c8cdd6; --muted:#7c828b;
+    --ink:#eef1ee; --ink-dim:#9aa0a2;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased}
+  a{color:var(--green);text-decoration:none}
+  a:hover{color:var(--green-bright)}
+
+  header{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--panel-edge);background:linear-gradient(180deg,#0a0d0a,#000);position:sticky;top:0;z-index:5}
+  .brand{display:flex;flex-direction:column;line-height:1.05}
+  .brand .t{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.2px}
+  .brand .t b{color:var(--green-bright)}
+  .brand .s{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);letter-spacing:.3px;margin-top:3px}
+  .spacer{flex:1}
+  .btn{font-family:var(--mono);font-size:11px;color:var(--ink);background:#10130f;border:1px solid var(--panel-edge);border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:var(--green);background:#121611}
+  .btn.primary{border-color:var(--green);color:var(--green-bright)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 80px}
+  .ident{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;background:var(--panel);border:1px solid var(--panel-edge);border-radius:12px;margin-bottom:16px}
+  .ident label{font-family:var(--mono);font-size:11px;color:var(--ink-dim)}
+  input[type=text],select,textarea{font-family:var(--body);font-size:13px;color:var(--ink);background:#10130f;border:1px solid var(--panel-edge);border-radius:8px;padding:8px 10px}
+  input[type=text]:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
+  textarea{width:100%;min-height:70px;resize:vertical;line-height:1.5}
+  .ident input{min-width:160px}
+
+  .cols{display:grid;grid-template-columns:300px 1fr;gap:16px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--panel-edge);border-radius:12px;padding:14px}
+  .panel h3{font-family:var(--disp);font-size:13px;margin:0 0 10px;letter-spacing:.3px}
+  .hint{font-size:12px;color:var(--ink-dim);line-height:1.5}
+
+  /* directory */
+  #dirSearch{width:100%;margin-bottom:10px}
+  .dir{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:2px}
+  .dirItem{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  .dirItem:hover{background:#121611}
+  .dirItem.sel{border-color:var(--green);background:#11160f}
+  .dirItem .lab{font-size:12.5px;flex:1;line-height:1.2}
+  .dirItem .cls{font-family:var(--mono);font-size:9px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.4px}
+  .dot{width:10px;height:10px;border-radius:50%;border:2px solid;flex:none}
+  .dirGroupHdr{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 8px 3px}
+
+  /* capture */
+  .ctx{display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--panel-edge)}
+  .ctx .lab{font-family:var(--disp);font-size:16px;font-weight:600}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tab{font-family:var(--mono);font-size:11px;color:var(--ink-dim);background:#10130f;border:1px solid var(--panel-edge);border-radius:8px;padding:7px 11px;cursor:pointer}
+  .tab.on{border-color:var(--green);color:var(--green-bright)}
+  .q{margin-bottom:12px}
+  .q .ql{display:block;font-size:13px;font-weight:500;margin-bottom:5px}
+  .field{margin-bottom:11px}
+  .field label{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-bottom:4px}
+  .field select,.field input[type=text]{width:100%}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .saveBar{display:flex;gap:9px;align-items:center;margin-top:8px}
+  .ok{color:var(--green);font-family:var(--mono);font-size:11px}
+
+  /* my contributions */
+  .myList{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+  .item{background:#0a0d0a;border:1px solid var(--panel-edge);border-radius:9px;padding:9px 11px;font-size:12.5px}
+  .item .meta{font-family:var(--mono);font-size:10px;color:var(--ink-dim);display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+  .item .kind{color:var(--cyan)}
+  .item .del{float:right;cursor:pointer;color:var(--muted);border:none;background:none;font-size:13px}
+  .item .del:hover{color:var(--coral)}
+  .empty{font-size:12px;color:var(--ink-dim);padding:10px 0}
+  .count{font-family:var(--mono);font-size:11px;color:var(--green)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="t">Versent <b>AI-First</b> · Contribute</div>
+    <div class="s">capture &rarr; export &rarr; a curator reconciles into the graph</div>
+  </div>
+  <div class="spacer"></div>
+  <a class="btn" href="versent-ai-first-network.html">&larr; View the graph</a>
+  <button class="btn primary" id="exportBtn">&darr; Download contributions (.md)</button>
+</header>
+
+<div class="wrap">
+  <!-- who -->
+  <div class="ident">
+    <label for="cName">You</label>
+    <input type="text" id="cName" placeholder="Name" autocomplete="name">
+    <input type="text" id="cTeam" placeholder="Team / practice" autocomplete="organization">
+    <span class="hint">Saved in this browser only — gives your contributions attribution, no login needed.</span>
+  </div>
+
+  <div class="cols">
+    <!-- left: pick context -->
+    <div class="panel">
+      <h3>1 · Pick what you're contributing about</h3>
+      <input type="text" id="dirSearch" placeholder="Search the map…">
+      <div class="dir" id="dir"></div>
+    </div>
+
+    <!-- right: capture -->
+    <div class="panel">
+      <div class="ctx">
+        <span class="dot" id="ctxDot" style="border-color:var(--muted)"></span>
+        <span class="lab" id="ctxLabel">General feedback</span>
+        <span class="cls" id="ctxCls" style="font-family:var(--mono);font-size:10px;color:var(--ink-dim)"></span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab on" data-mode="questionnaire">Questionnaire</div>
+        <div class="tab" data-mode="freeform">Free-form / feedback</div>
+        <div class="tab" data-mode="change">Propose a change</div>
+      </div>
+
+      <div id="formArea"></div>
+
+      <div class="saveBar">
+        <button class="btn primary" id="saveBtn">+ Add contribution</button>
+        <span class="ok" id="savedMsg"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- my contributions -->
+  <div class="panel" style="margin-top:16px">
+    <h3>2 · Your contributions <span class="count" id="cCount"></span></h3>
+    <div class="hint">These accumulate in this browser. When you're ready, <b>Download</b> the markdown and send it to the curator (or drop it in the repo's <code>contributions/</code> folder). Nothing is uploaded.</div>
+    <div class="myList" id="myList"></div>
+  </div>
+</div>
+
+<script>
+/* ====================================================================
+   NODE DIRECTORY — mirrors id/label/cls from versent-ai-first-network.html.
+   Kept in parity by .claude/validate-graph.cjs (warns on drift). When the
+   graph's NODES change, update this list in the same pass.
+   ==================================================================== */
+const DIR = [
+  {id:"aifirst",label:"AI-First",cls:"core"},{id:"principles",label:"Principles",cls:"pillar"},{id:"people",label:"People + Agents",cls:"pillar"},{id:"toolkit",label:"Toolkit",cls:"pillar"},{id:"knowledge",label:"Knowledge",cls:"pillar"},{id:"culture",label:"Culture",cls:"pillar"},{id:"notion",label:"Notion",cls:"tool"},{id:"anthropic",label:"Anthropic",cls:"tool"},{id:"claudedesktop",label:"Claude Desktop",cls:"tool"},{id:"lucid",label:"Lucid",cls:"tool"},{id:"figma",label:"Figma",cls:"tool"},{id:"vscode",label:"VS Code",cls:"tool"},{id:"skillsrepo",label:"Plugins & Skills Repo",cls:"tool"},{id:"slack",label:"Slack",cls:"tool"},{id:"sharepoint",label:"SharePoint",cls:"tool"},{id:"blushift",label:"BluShift",cls:"asset"},{id:"veep",label:"VEEP",cls:"asset"},{id:"claudecode",label:"Claude Code",cls:"tool"},{id:"agenticeng",label:"Agentic Engineering",cls:"cap"},{id:"ontologies",label:"Ontologies",cls:"cap"},{id:"agenticexp",label:"Agentic Experience",cls:"offering"},{id:"aipathfinder",label:"AI Pathfinder",cls:"offering"},{id:"datapathfinder",label:"Data Pathfinder",cls:"offering"},{id:"aira",label:"AI Readiness Assessment",cls:"offering"},{id:"contentarama",label:"Contentarama",cls:"ritual"},{id:"certapalooza",label:"Certapalooza",cls:"ritual"},{id:"backtobase",label:"Back to Base",cls:"ritual"},{id:"aiguild",label:"AI Guild",cls:"ritual"},{id:"awsguild",label:"AWS Guild",cls:"ritual"},{id:"msguild",label:"Microsoft Guild",cls:"ritual"},{id:"mobileguild",label:"Mobile Apps Guild",cls:"ritual"},{id:"ccarchitect",label:"Claude Certified Architect",cls:"asset"},{id:"digitalai",label:"Digital + AI",cls:"practice"},{id:"dataai",label:"Data & AI",cls:"practice"},{id:"secid",label:"Security & Identity",cls:"practice"},{id:"cloud",label:"Cloud",cls:"practice"},{id:"growth",label:"Growth",cls:"practice"},{id:"modernisation",label:"Modernisation",cls:"practice"},{id:"opmodel",label:"Operating Model",cls:"practice"},{id:"awspartner",label:"AWS",cls:"partner"},{id:"microsoft",label:"Microsoft",cls:"partner"},{id:"ping",label:"Ping Identity",cls:"partner"},{id:"hashicorp",label:"HashiCorp",cls:"partner"},{id:"databricks",label:"Databricks",cls:"partner"},{id:"snowflake",label:"Snowflake",cls:"partner"},{id:"devexp",label:"Developer Experience",cls:"offering"},{id:"futurework",label:"Future of Work",cls:"offering"},{id:"dataaccel",label:"Data Accelerators",cls:"offering"},{id:"ciam",label:"Customer Identity (CIAM)",cls:"offering"},{id:"awssca",label:"AWS SCA",cls:"initiative"},{id:"scamig",label:"AI-Led Cloud Migrations",cls:"offering"},{id:"scaagentic",label:"Agentic AI Modernisation",cls:"offering"},{id:"scasov",label:"Sovereign-by-Design Cloud",cls:"offering"},{id:"appxray",label:"App Xray",cls:"tool"},{id:"comp_cloudmig",label:"Cloud Migration & Modernisation",cls:"cap"},{id:"comp_solarch",label:"Solution Architecture",cls:"cap"},{id:"comp_appdev",label:"Application Engineering",cls:"cap"},{id:"comp_dataeng",label:"Data Engineering",cls:"cap"},{id:"comp_mlops",label:"MLOps & AI Engineering",cls:"cap"},{id:"comp_iam",label:"Identity & Access (IAM/CIAM)",cls:"cap"},{id:"comp_cyber",label:"Cyber Security",cls:"cap"},{id:"comp_sre",label:"SRE & CloudOps",cls:"cap"},{id:"comp_advisory",label:"Advisory & Sales",cls:"cap"}
+];
+
+/* class metadata — colour + display name (mirrors CLS in the graph) */
+const CLS = {
+  core:{c:'#39ff7a',n:'Goal'}, pillar:{c:'#62d98a',n:'Pillar'}, cap:{c:'#ffb84d',n:'Capability'},
+  asset:{c:'#ff6b6b',n:'Asset'}, offering:{c:'#c08bff',n:'Offering'}, initiative:{c:'#ff9d3c',n:'Initiative'},
+  tool:{c:'#c8cdd6',n:'Tool'}, ritual:{c:'#8fd6ff',n:'Ritual'}, practice:{c:'#3fd9c4',n:'Practice'},
+  partner:{c:'#9aa6b8',n:'Partner'}
+};
+const VERBS = ['enables','comprises','delivers','uses','intersects','instance-of','informs'];
+
+/* Context-aware questionnaire templates, keyed by node class. The brief's
+   examples drive these — initiatives→capabilities/tools/assets, caps→certs, etc. */
+const QUESTIONS = {
+  initiative:[
+    'What initiatives or workstreams exist under this? (name any you know of)',
+    'What capabilities do those initiatives require to be delivered?',
+    'What tools would be used to deliver them?',
+    'What assets must be created or reused to deliver them?',
+    'Which offerings would make use of what this initiative produces?'
+  ],
+  offering:[
+    'What capabilities does this offering require to deliver?',
+    'What assets does it depend on, or should produce?',
+    'What tools and partners are involved?',
+    'How would we advertise it (e.g. via Contentarama)? What proof points exist?'
+  ],
+  cap:[
+    'What certifications or training would empower people in this capability?',
+    'What assets help develop or scale it (templates, skills, accelerators)?',
+    'Which offerings or initiatives draw on this capability?',
+    'What tools amplify it?'
+  ],
+  asset:[
+    'What is required to create or further develop this asset?',
+    'Which capabilities or initiatives produce it?',
+    'Which offerings, agents or teams use it?',
+    'What would "done / production-ready" look like?'
+  ],
+  tool:[
+    'How is this tool used today, and by whom?',
+    'Which capabilities or assets depend on it?',
+    'What would unlock more value from it (training, integration, skills)?'
+  ],
+  practice:[
+    'What offerings does this practice deliver (or should)?',
+    'What capabilities does it need to build?',
+    'What assets or tools would accelerate it?'
+  ],
+  partner:[
+    'What does this partnership enable for our AI-first push?',
+    'Which initiatives or offerings does it support?',
+    'What joint assets or go-to-market exist or should exist?'
+  ],
+  ritual:[
+    'What capabilities does this ritual grow?',
+    'How could it better drive the AI-first agenda?',
+    'What assets or content come out of it?'
+  ],
+  pillar:[
+    'What is working well here, and what is missing?',
+    'What capabilities, tools or assets would strengthen this pillar?'
+  ],
+  core:[
+    'What is the single biggest lever to becoming AI-first that the map is missing?',
+    'Where do you see misalignment between teams on the AI-first direction?'
+  ]
+};
+const GENERAL_Q = [
+  'What initiatives, capabilities, tools or assets do you know of that are missing from the map?',
+  'Where is the map wrong or out of date?',
+  'What would make the AI-first story clearer?'
+];
+
+/* ---------- storage ---------- */
+const LS_ME='vsn:contrib:me', LS_LIST='vsn:contribs';
+function load(k,d){ try{const r=localStorage.getItem(k);return r?JSON.parse(r):d;}catch{return d;} }
+function save(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch{} }
+let me = load(LS_ME,{name:'',team:''});
+let contribs = load(LS_LIST,[]);
+
+/* ---------- state ---------- */
+let ctx = null;        // selected node {id,label,cls} or null (=general)
+let mode = 'questionnaire';
+
+/* ---------- identity ---------- */
+const nameEl=document.getElementById('cName'), teamEl=document.getElementById('cTeam');
+nameEl.value=me.name; teamEl.value=me.team;
+function syncMe(){ me={name:nameEl.value.trim(),team:teamEl.value.trim()}; save(LS_ME,me); }
+nameEl.addEventListener('input',syncMe); teamEl.addEventListener('input',syncMe);
+
+/* ---------- directory ---------- */
+const dirEl=document.getElementById('dir');
+function renderDir(filter){
+  filter=(filter||'').toLowerCase();
+  dirEl.innerHTML='';
+  // "General" pseudo-item first
+  const gen=document.createElement('div');
+  gen.className='dirItem'+(ctx===null?' sel':'');
+  gen.innerHTML='<span class="dot" style="border-color:var(--muted)"></span><span class="lab">General / not node-specific</span>';
+  gen.addEventListener('click',()=>{ctx=null;refresh();});
+  dirEl.appendChild(gen);
+  // group by class, in CLS order
+  Object.keys(CLS).forEach(cl=>{
+    const items=DIR.filter(n=>n.cls===cl && (!filter || n.label.toLowerCase().includes(filter)));
+    if(!items.length) return;
+    const h=document.createElement('div'); h.className='dirGroupHdr'; h.textContent=CLS[cl].n;
+    dirEl.appendChild(h);
+    items.forEach(n=>{
+      const d=document.createElement('div');
+      d.className='dirItem'+(ctx&&ctx.id===n.id?' sel':'');
+      d.innerHTML=`<span class="dot" style="border-color:${CLS[n.cls].c}"></span><span class="lab">${esc(n.label)}</span><span class="cls">${CLS[n.cls].n}</span>`;
+      d.addEventListener('click',()=>{ctx=n;refresh();});
+      dirEl.appendChild(d);
+    });
+  });
+}
+document.getElementById('dirSearch').addEventListener('input',e=>renderDir(e.target.value));
+
+/* ---------- capture form ---------- */
+const formArea=document.getElementById('formArea');
+function nodeOptions(sel){
+  return '<option value="">— choose —</option>'+DIR.map(n=>`<option value="${n.id}"${sel===n.id?' selected':''}>${esc(n.label)} · ${CLS[n.cls].n}</option>`).join('');
+}
+function renderForm(){
+  if(mode==='questionnaire'){
+    const qs = ctx ? (QUESTIONS[ctx.cls]||GENERAL_Q) : GENERAL_Q;
+    formArea.innerHTML = qs.map((q,i)=>`<div class="q"><label class="ql">${esc(q)}</label><textarea data-q="${esc(q)}" placeholder="Your answer (optional — skip what you don't know)"></textarea></div>`).join('')
+      + `<div class="hint">Answer what you can. Blank answers are dropped on save.</div>`;
+  } else if(mode==='freeform'){
+    formArea.innerHTML = `<div class="q"><label class="ql">Free-form feedback, notes, or a question${ctx?` about <b>${esc(ctx.label)}</b>`:''}</label><textarea id="ffText" style="min-height:150px" placeholder="Anything — an observation, a correction, a question for the curator…"></textarea></div>`;
+  } else { // change
+    formArea.innerHTML = `
+      <div class="field"><label>What kind of change?</label>
+        <select id="chType">
+          <option value="add-node">Add a new node (capability, asset, offering, tool…)</option>
+          <option value="add-edge">Add a relationship between two nodes</option>
+          <option value="edit">Edit / correct an existing node</option>
+        </select></div>
+      <div id="chBody"></div>`;
+    document.getElementById('chType').addEventListener('change',renderChange);
+    renderChange();
+  }
+}
+function renderChange(){
+  const t=document.getElementById('chType').value, b=document.getElementById('chBody');
+  const clsOpts=Object.keys(CLS).map(c=>`<option value="${c}">${CLS[c].n} (${c})</option>`).join('');
+  const verbOpts=VERBS.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if(t==='add-node'){
+    b.innerHTML=`
+      <div class="field"><label>Label</label><input type="text" id="nLabel" placeholder="e.g. Prompt Engineering Guild"></div>
+      <div class="row2">
+        <div class="field"><label>Class</label><select id="nCls">${clsOpts}</select></div>
+        <div class="field"><label>Status</label><select id="nStatus"><option value="emerging">emerging</option><option value="live">live</option></select></div>
+      </div>
+      <div class="field"><label>Description</label><textarea id="nDesc" placeholder="One or two sentences on what it is and why it's AI-first relevant."></textarea></div>
+      <div class="hint">A new node needs a home — how does it connect?</div>
+      <div class="row2">
+        <div class="field"><label>Relates to</label><select id="nParent">${nodeOptions(ctx&&ctx.id)}</select></div>
+        <div class="field"><label>Relationship</label><select id="nVerb">${verbOpts}</select></div>
+      </div>`;
+  } else if(t==='add-edge'){
+    b.innerHTML=`
+      <div class="field"><label>From</label><select id="eFrom">${nodeOptions(ctx&&ctx.id)}</select></div>
+      <div class="field"><label>Relationship</label><select id="eVerb">${verbOpts}</select></div>
+      <div class="field"><label>To</label><select id="eTo">${nodeOptions()}</select></div>`;
+  } else {
+    b.innerHTML=`
+      <div class="field"><label>Node</label><select id="edNode">${nodeOptions(ctx&&ctx.id)}</select></div>
+      <div class="field"><label>Field</label><select id="edField"><option value="desc">description</option><option value="label">label</option><option value="status">status (live/emerging)</option></select></div>
+      <div class="field"><label>Proposed new value</label><textarea id="edVal" placeholder="The corrected value."></textarea></div>`;
+  }
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); mode=t.dataset.mode; renderForm();
+}));
+
+/* ---------- context header ---------- */
+function refresh(){
+  document.getElementById('ctxLabel').textContent = ctx? ctx.label : 'General feedback';
+  document.getElementById('ctxCls').textContent = ctx? CLS[ctx.cls].n : '';
+  document.getElementById('ctxDot').style.borderColor = ctx? CLS[ctx.cls].c : 'var(--muted)';
+  renderDir(document.getElementById('dirSearch').value);
+  renderForm();
+}
+
+/* ---------- save a contribution ---------- */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+document.getElementById('saveBtn').addEventListener('click',()=>{
+  syncMe();
+  if(!me.name){ flash('Add your name first ↑',true); nameEl.focus(); return; }
+  let data, kind=mode;
+  if(mode==='questionnaire'){
+    const answers=[...formArea.querySelectorAll('textarea')].map(t=>({q:t.dataset.q,a:t.value.trim()})).filter(x=>x.a);
+    if(!answers.length){ flash('Answer at least one question.',true); return; }
+    data={answers};
+  } else if(mode==='freeform'){
+    const text=document.getElementById('ffText').value.trim();
+    if(!text){ flash('Write something first.',true); return; }
+    data={text};
+  } else {
+    const t=document.getElementById('chType').value;
+    if(t==='add-node'){
+      const label=val('nLabel'); if(!label){ flash('Give the node a label.',true); return; }
+      data={changeType:'add-node',label,cls:val('nCls'),status:val('nStatus'),desc:val('nDesc'),parent:val('nParent'),verb:val('nVerb')};
+    } else if(t==='add-edge'){
+      const from=val('eFrom'),to=val('eTo'); if(!from||!to){ flash('Pick both ends of the relationship.',true); return; }
+      data={changeType:'add-edge',from,verb:val('eVerb'),to};
+    } else {
+      const node=val('edNode'),value=val('edVal'); if(!node||!value){ flash('Pick a node and enter the new value.',true); return; }
+      data={changeType:'edit',node,field:val('edField'),value};
+    }
+    kind='proposed-change';
+  }
+  contribs.push({ id:uid(), at:new Date().toISOString(), by:{...me}, context: ctx? {id:ctx.id,label:ctx.label,cls:ctx.cls}:null, kind, data });
+  save(LS_LIST,contribs);
+  renderForm(); renderMy(); flash('Added ✓');
+});
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function flash(msg,warn){ const m=document.getElementById('savedMsg'); m.textContent=msg; m.style.color=warn?'var(--coral)':'var(--green)'; setTimeout(()=>{if(m.textContent===msg)m.textContent='';},2600); }
+
+/* ---------- my contributions ---------- */
+function renderMy(){
+  document.getElementById('cCount').textContent = contribs.length? `(${contribs.length})`:'';
+  const wrap=document.getElementById('myList');
+  document.getElementById('exportBtn').disabled = !contribs.length;
+  if(!contribs.length){ wrap.innerHTML='<div class="empty">Nothing yet. Pick something on the left and add a contribution.</div>'; return; }
+  wrap.innerHTML='';
+  contribs.slice().reverse().forEach(c=>{
+    const d=document.createElement('div'); d.className='item';
+    d.innerHTML=`<button class="del" title="Remove" data-id="${c.id}">✕</button>
+      <div class="meta"><span class="kind">${c.kind}</span><span>${c.context?esc(c.context.label):'General'}</span><span>${new Date(c.at).toLocaleString()}</span></div>
+      <div>${esc(summary(c))}</div>`;
+    wrap.appendChild(d);
+  });
+  wrap.querySelectorAll('.del').forEach(b=>b.addEventListener('click',()=>{
+    contribs=contribs.filter(c=>c.id!==b.dataset.id); save(LS_LIST,contribs); renderMy();
+  }));
+}
+function summary(c){
+  if(c.kind==='questionnaire') return c.data.answers.map(a=>a.a).join(' · ').slice(0,160);
+  if(c.kind==='freeform') return c.data.text.slice(0,160);
+  const d=c.data;
+  if(d.changeType==='add-node') return `add node "${d.label}" (${d.cls}) — ${d.verb} ${labelOf(d.parent)}`;
+  if(d.changeType==='add-edge') return `${labelOf(d.from)} ${d.verb} ${labelOf(d.to)}`;
+  return `edit ${labelOf(d.node)}.${d.field} → ${d.value.slice(0,80)}`;
+}
+function labelOf(id){ const n=DIR.find(x=>x.id===id); return n?n.label:(id||'?'); }
+
+/* ---------- export to markdown ---------- */
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  if(!contribs.length) return;
+  const md=toMarkdown(contribs,me);
+  const safe=(me.name||'anon').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const fname=`contribution-${safe}-${new Date().toISOString().slice(0,10)}.md`;
+  const blob=new Blob([md],{type:'text/markdown'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+function toMarkdown(list,me){
+  const fm=['---',`contributor: { name: ${q(me.name)}, team: ${q(me.team)} }`,`exported: ${new Date().toISOString()}`,`count: ${list.length}`,'---','',
+    `# Contributions from ${me.name||'anonymous'}`,'',
+    '> Generated by contribute.html. Hand to the curator or drop in `contributions/`.',
+    '> Each item below is a proposal; the curator reconciles into the graph and flags conflicts.',''];
+  list.forEach((c,i)=>{
+    fm.push(`## ${i+1}. ${c.kind} — ${c.context?c.context.label:'General'}`);
+    fm.push('');
+    fm.push('```yaml');
+    fm.push(`kind: ${c.kind}`);
+    fm.push(`context_node: ${c.context?c.context.id:'null'}`);
+    fm.push(`at: ${c.at}`);
+    fm.push('```');
+    fm.push('');
+    if(c.kind==='questionnaire'){
+      c.data.answers.forEach(a=>{ fm.push(`**Q: ${a.q}**`); fm.push(''); fm.push(a.a); fm.push(''); });
+    } else if(c.kind==='freeform'){
+      fm.push(c.data.text); fm.push('');
+    } else {
+      const d=c.data;
+      if(d.changeType==='add-node'){
+        fm.push('**Proposed: add-node**'); fm.push('');
+        fm.push('```');
+        fm.push(`add-node: { label: ${q(d.label)}, cls: ${d.cls}, status: ${d.status}, desc: ${q(d.desc)} }`);
+        fm.push(`add-edge: [${d.parent||'?'}, <new>, ${d.verb}]`);
+        fm.push('```'); fm.push('');
+      } else if(d.changeType==='add-edge'){
+        fm.push('**Proposed: add-edge**'); fm.push('');
+        fm.push('```'); fm.push(`add-edge: [${d.from}, ${d.to}, ${d.verb}]`); fm.push('```'); fm.push('');
+      } else {
+        fm.push('**Proposed: edit**'); fm.push('');
+        fm.push('```'); fm.push(`edit: { id: ${d.node}, field: ${d.field}, value: ${q(d.value)} }`); fm.push('```'); fm.push('');
+      }
+    }
+  });
+  return fm.join('\n');
+}
+function q(s){ return JSON.stringify(s||''); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- boot ---------- */
+refresh(); renderMy();
+</script>
+</body>
+</html>

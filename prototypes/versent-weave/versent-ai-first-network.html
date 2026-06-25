@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Versent · AI-First Network</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+  :root{
+    --bg:#000; --panel:#0c0e0c; --panel-edge:#1c211c;
+    --green:#4ade80; --green-bright:#39ff7a; --cyan:#5ec8ff; --amber:#ffb84d;
+    --coral:#ff7a6b; --violet:#c08bff; --grey:#c8cdd6; --muted:#7c828b;
+    --ink:#eef1ee; --ink-dim:#9aa0a2;
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow:hidden}
+  #app{position:fixed;inset:0;display:flex;flex-direction:column}
+
+  /* top bar */
+  header{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--panel-edge);background:linear-gradient(180deg,#0a0d0a,#000);z-index:5}
+  .brand{display:flex;flex-direction:column;line-height:1.05}
+  .brand .t{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.2px}
+  .brand .t b{color:var(--green-bright)}
+  .brand .s{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);letter-spacing:.3px;margin-top:3px}
+  .spacer{flex:1}
+  .btn{font-family:var(--mono);font-size:11px;color:var(--ink);background:#10130f;border:1px solid var(--panel-edge);border-radius:8px;padding:7px 11px;cursor:pointer;white-space:nowrap;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:var(--green);background:#121611}
+  .btn.on{border-color:var(--green);color:var(--green-bright)}
+  .btn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+  #cy{flex:1;width:100%;display:block;touch-action:none}
+
+  /* legend / filter dock */
+  .dock{position:absolute;top:64px;left:14px;width:206px;background:rgba(7,9,7,.86);backdrop-filter:blur(8px);border:1px solid var(--panel-edge);border-radius:12px;padding:12px;z-index:4;transition:transform .25s ease,opacity .2s;max-height:calc(100% - 88px);overflow:auto}
+  .dock.hidden{transform:translateX(-118%);opacity:0;pointer-events:none}
+  .dock h4{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
+  .row{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;user-select:none;font-size:12px;width:100%;text-align:left;background:none;border:none;color:inherit;font-family:inherit}
+  .row:focus-visible{outline:2px solid var(--green);outline-offset:2px;border-radius:4px}
+  .swatch{width:26px;height:0;border-top-width:2px;border-top-style:solid;flex:none;border-radius:2px}
+  .dot{width:11px;height:11px;border-radius:50%;border:2px solid;flex:none}
+  .row.off{opacity:.34}
+  .dock .sep{height:1px;background:var(--panel-edge);margin:11px 0}
+  .hint{font-size:10.5px;color:var(--muted);line-height:1.5;font-family:var(--mono)}
+
+  /* detail drawer */
+  .drawer{position:absolute;top:0;right:0;height:100%;width:380px;max-width:88vw;background:linear-gradient(180deg,#0b0e0b,#070807);border-left:1px solid var(--panel-edge);z-index:6;transform:translateX(102%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+  .drawer.open{transform:translateX(0)}
+  .dhead{padding:18px 20px 14px;border-bottom:1px solid var(--panel-edge)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.5px;padding:3px 8px;border-radius:999px;border:1px solid currentColor;text-transform:uppercase}
+  .chip.status-live{color:var(--green)} .chip.status-emerging{color:var(--amber)}
+  .dtitle{font-family:var(--disp);font-weight:700;font-size:23px;line-height:1.1;margin:2px 0 0}
+  .ddesc{padding:14px 20px;font-size:13.5px;line-height:1.55;color:var(--ink-dim)}
+  .dbody{flex:1;overflow:auto;padding:0 20px 20px}
+  .dbody h5{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+  .rel{display:flex;align-items:baseline;gap:8px;padding:5px 0;font-size:13px;border-bottom:1px solid #14171401}
+  .rel .verb{font-family:var(--mono);font-size:10px;color:var(--muted);min-width:74px;flex:none}
+  .rel a{color:var(--ink);text-decoration:none;border-bottom:1px dashed #2c322c;cursor:pointer}
+  .rel a:hover{color:var(--green-bright);border-color:var(--green)}
+  .notes{display:flex;flex-direction:column;gap:8px}
+  .note{background:#0f120e;border:1px solid var(--panel-edge);border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.5}
+  .note .meta{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:6px}
+  .note .del{float:right;color:var(--muted);cursor:pointer;font-size:11px}
+  .note .del:hover{color:var(--coral)}
+  textarea{width:100%;background:#0f120e;border:1px solid var(--panel-edge);border-radius:9px;color:var(--ink);font-family:var(--body);font-size:13px;padding:10px;resize:vertical;min-height:62px}
+  textarea:focus{outline:none;border-color:var(--green)}
+  .addrow{display:flex;gap:8px;margin-top:8px}
+  .addrow .btn{flex:1;text-align:center}
+  .close{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:8px;border:1px solid var(--panel-edge);background:#10130f;color:var(--ink);cursor:pointer;font-size:15px;line-height:1}
+  .close:hover{border-color:var(--coral);color:var(--coral)}
+  .savenote{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:6px}
+
+  /* parking lot / about modal */
+  .modal{position:absolute;inset:0;background:rgba(0,0,0,.62);z-index:8;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.open{display:flex}
+  .card{width:520px;max-width:100%;max-height:84vh;overflow:auto;background:linear-gradient(180deg,#0b0e0b,#070807);border:1px solid var(--panel-edge);border-radius:14px;padding:22px}
+  .card h3{font-family:var(--disp);font-weight:700;margin:0 0 4px;font-size:20px}
+  .card h3 b{color:var(--green-bright)}
+  .card p{font-size:13px;line-height:1.6;color:var(--ink-dim)}
+  .card .leg{font-family:var(--mono);font-size:11px;color:var(--ink-dim);line-height:1.7}
+  .card .verbk{color:var(--ink)}
+
+  .fab{position:absolute;bottom:18px;left:14px;z-index:4;display:flex;gap:8px}
+
+  /* hover tooltip */
+  .tip{position:fixed;z-index:9;max-width:268px;pointer-events:none;display:none;
+    background:rgba(8,11,8,.97);border:1px solid var(--panel-edge);border-radius:10px;
+    padding:9px 11px;box-shadow:0 10px 30px rgba(0,0,0,.55);font-size:12px;line-height:1.45}
+  .tip .tt{display:flex;align-items:center;gap:7px;font-family:var(--disp);font-size:13px}
+  .tip .ttdot{width:9px;height:9px;border-radius:50%;flex:none}
+  .tip .ttk{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .tip .ttverb{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .tip .ttd{color:var(--ink-dim);margin-top:5px}
+  .tip .tth{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px}
+  .tip .tth b{color:var(--green)}
+
+  /* search */
+  .search{position:relative}
+  .search input{font-family:var(--mono);font-size:12px;color:var(--ink);background:#10130f;border:1px solid var(--panel-edge);border-radius:8px;padding:7px 9px;width:138px;transition:border-color .15s,width .15s}
+  .search input:focus{outline:none;border-color:var(--green);width:188px}
+  .results{position:absolute;top:38px;left:0;width:248px;max-height:320px;overflow:auto;background:rgba(7,9,7,.97);border:1px solid var(--panel-edge);border-radius:10px;z-index:7;display:none;box-shadow:0 12px 34px rgba(0,0,0,.55)}
+  .results.open{display:block}
+  .results .r{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;font-size:12.5px}
+  .results .r:hover,.results .r.sel{background:#141811}
+  .results .r .d{width:9px;height:9px;border-radius:50%;border:2px solid;flex:none}
+  .results .r .sub{color:var(--muted);font-family:var(--mono);font-size:9px;margin-left:auto;text-transform:uppercase}
+  .results .none{padding:10px;color:var(--muted);font-family:var(--mono);font-size:11px}
+  /* reset + status segmented control */
+  .dockfoot{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .seg{display:inline-flex;border:1px solid var(--panel-edge);border-radius:8px;overflow:hidden}
+  .seg button{font-family:var(--mono);font-size:10px;color:var(--ink-dim);background:#10130f;border:none;padding:5px 8px;cursor:pointer}
+  .seg button.on{background:#15301f;color:var(--green-bright)}
+  .seg button:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+  /* empty state overlay */
+  .empty{position:absolute;left:0;right:0;top:56px;bottom:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:3;text-align:center;padding:20px}
+  .empty.on{display:flex}
+  .empty p{font-family:var(--mono);font-size:13px;color:var(--muted);margin:0}
+  /* story caption banner */
+  .story{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);max-width:min(560px,92vw);background:rgba(7,9,7,.94);border:1px solid var(--panel-edge);border-radius:12px;padding:14px 16px;z-index:6;display:none;box-shadow:0 14px 40px rgba(0,0,0,.6)}
+  .story.open{display:block}
+  .story h6{font-family:var(--mono);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .story p{margin:0;font-size:13.5px;line-height:1.5;color:var(--ink)}
+  .story .nav{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .story .nav .sp{flex:1;font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  @media (max-width:680px){
+    .drawer{width:100%;max-width:100%;top:auto;bottom:0;height:72%;border-left:none;border-top:1px solid var(--panel-edge);border-radius:16px 16px 0 0;transform:translateY(102%)}
+    .drawer.open{transform:translateY(0)}
+    .dock{width:178px;top:60px}
+    .brand .s{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="t">Versent · Becoming <b>AI-First</b></span>
+      <span class="s">vision network · human-led, outcome-priced, agent-amplified</span>
+    </div>
+    <span class="spacer"></span>
+    <div class="search">
+      <input id="searchInput" type="text" placeholder="Search… ( / )" aria-label="Search nodes" autocomplete="off">
+      <div class="results" id="searchResults" role="listbox"></div>
+    </div>
+    <button class="btn" id="storyBtn" title="Guided tour">▶ Story</button>
+    <button class="btn" id="labelBtn" title="Toggle relationship labels">↳ Labels</button>
+    <a class="btn" href="contribute.html" title="Add capabilities, initiatives, assets or feedback">✎ Contribute</a>
+    <button class="btn" id="aboutBtn">?</button>
+  </header>
+
+  <div id="cy"></div>
+  <div class="empty" id="emptyState"><p>Nothing matches the current filters.</p><button class="btn" id="emptyReset" type="button">Show all</button></div>
+  <div class="story" id="storyBox" role="dialog" aria-label="Guided tour" aria-modal="false">
+    <h6 id="storyStep"></h6><p id="storyText"></p>
+    <div class="nav"><button class="btn" id="storyPrev" type="button">‹ Back</button><span class="sp" id="storyProg"></span><button class="btn" id="storyNext" type="button">Next ›</button><button class="btn" id="storyClose" type="button">✕</button></div>
+  </div>
+
+  <!-- legend + filters -->
+  <div class="dock" id="dock">
+    <h4>Relationships</h4>
+    <div id="edgeFilters"></div>
+    <div class="sep"></div>
+    <h4>Node type</h4>
+    <div id="nodeLegend"></div>
+    <div class="sep"></div>
+    <div class="hint">Solid = live · dashed = emerging. Tap any node for detail + to capture notes.</div>
+    <div class="dockfoot">
+      <div class="seg" role="group" aria-label="Status filter">
+        <button id="stAll" class="on" type="button">All</button><button id="stLive" type="button">Live</button><button id="stEmerging" type="button">Emerging</button>
+      </div>
+      <button class="btn" id="resetFilters" type="button" style="flex:1;text-align:center">Reset</button>
+    </div>
+    <div class="hint" id="statusCount" style="margin-top:8px"></div>
+  </div>
+
+  <div class="fab">
+    <button class="btn" id="fitBtn">⤢ Fit</button>
+  </div>
+
+  <!-- detail drawer -->
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <button class="close" id="drawerClose" aria-label="Close">✕</button>
+    <div class="dhead">
+      <div class="chips" id="dChips"></div>
+      <h2 class="dtitle" id="dTitle"></h2>
+    </div>
+    <div class="ddesc" id="dDesc"></div>
+    <div class="dbody">
+      <h5>Connections</h5>
+      <div id="dRels"></div>
+      <h5>Capture notes</h5>
+      <div class="notes" id="dNotes"></div>
+      <textarea id="noteInput" placeholder="Capture a thought, a gap, a decision…"></textarea>
+      <div class="addrow"><button class="btn" id="addNote">Add note</button></div>
+      <div class="savenote" id="saveState"></div>
+    </div>
+  </aside>
+
+  <!-- about modal -->
+  <div class="modal" id="aboutModal">
+    <div class="card">
+      <button class="close" style="position:static;float:right" id="aboutClose">✕</button>
+      <h3>Reading this <b>network</b></h3>
+      <p>The centre is the goal. The pillars <span class="verbk">enable</span> it; Culture is the human substrate that intersects Principles and People+Agents. Detail radiates outward in rings. Status is honest: <span style="color:var(--green)">solid = live</span>, <span style="color:var(--amber)">dashed = emerging / aspirational</span>.</p>
+      <div class="leg">
+        <span class="verbk">enables</span> — makes the goal possible<br>
+        <span class="verbk">comprises</span> — is made up of<br>
+        <span class="verbk">delivers</span> — produces the value of<br>
+        <span class="verbk">uses</span> — draws on at run time<br>
+        <span class="verbk">intersects</span> — shares membership<br>
+        <span class="verbk">instance-of</span> — is an example of<br>
+        <span class="verbk">informs</span> — feeds knowledge into
+      </div>
+      <h3 style="font-size:14px;margin-top:16px">Node types</h3>
+      <div class="leg" id="aboutNodeTypes"></div>
+      <h3 style="font-size:14px;margin-top:16px">Glossary</h3>
+      <div class="leg">
+        <span class="verbk">SCA</span> — AWS Strategic Collaboration Agreement<br>
+        <span class="verbk">CIAM</span> — Customer Identity &amp; Access Management<br>
+        <span class="verbk">MSP / MSSP</span> — Managed (Security) Service Provider<br>
+        <span class="verbk">TCO</span> — Total Cost of Ownership
+      </div>
+      <p style="margin-top:14px;font-size:12px">The ontology is partial by design. It is meant to grow: add nodes and typed edges over time.</p>
+    </div>
+  </div>
+
+  <!-- welcome / first-load story prompt -->
+  <div class="modal" id="welcomeModal">
+    <div class="card">
+      <h3>Versent · Becoming <b>AI-First</b></h3>
+      <p>A business strategy on a page. AI-First sits at the centre; the pillars, practices, offerings, capabilities, culture, tools and the AWS initiative radiate outward in rings — showing how they compose into an AI-first consultancy.</p>
+      <p style="font-size:12px">New here? Take the guided tour, or dive straight into the map.</p>
+      <div class="addrow">
+        <button class="btn" id="welcomeStart" type="button">▶ Take the guided tour</button>
+        <button class="btn" id="welcomeExplore" type="button">Explore the map</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- DATA MODEL (extend freely) ---------------- */
+const NODES = [
+  {id:'aifirst', label:'AI-First', cls:'core', status:'emerging',
+    desc:'The goal. Not “use AI” but a rebuilt operating system: human-led, outcome-priced, agent-amplified delivery. Judgment amplified, not replaced.'},
+
+  {id:'principles', label:'Principles', cls:'pillar', status:'live',
+    desc:'How we sell, scope and set expectations. AI in workflows by default · open-source mindset · AI opt-out · Notion use in SOW · agents are a line item in our SOW.'},
+  {id:'people', label:'People + Agents', cls:'pillar', status:'live',
+    desc:'A portable expert that raises the bar for every team. Agents treated as teammates, not tools.'},
+  {id:'toolkit', label:'Toolkit', cls:'pillar', status:'live',
+    desc:'One sanctioned, shared set of tools. The floor everyone stands on.'},
+  {id:'knowledge', label:'Knowledge', cls:'pillar', status:'live',
+    desc:'What we know and learn, in one place.'},
+
+  {id:'culture', label:'Culture', cls:'pillar', status:'live',
+    desc:'An enabler and the human substrate. Intersects Principles and People+Agents, and carries the rituals that make AI-first felt, not just announced.'},
+
+  // tools
+  {id:'notion', label:'Notion', cls:'tool', status:'live', desc:'Shared workspace + agents. Sits in both Toolkit and Knowledge.'},
+  {id:'anthropic', label:'Anthropic', cls:'tool', status:'live', desc:'Frontier Claude models plus the surfaces we work in. Claude Desktop and Claude Code sit under it.'},
+  {id:'claudedesktop', label:'Claude Desktop', cls:'tool', status:'live', desc:'Desktop client for Claude — chat, projects and connected tools on the desktop.'},
+  {id:'lucid', label:'Lucid', cls:'tool', status:'live', desc:'Diagramming and architecture.'},
+  {id:'figma', label:'Figma', cls:'tool', status:'live', desc:'Design and prototyping.'},
+  {id:'vscode', label:'VS Code', cls:'tool', status:'live', desc:'Engineering surface for agentic workflows.'},
+  {id:'skillsrepo', label:'Plugins & Skills Repo', cls:'tool', status:'live', desc:'Composable, reusable AI capability — atomic skills and Claude Code plugins.'},
+  {id:'slack', label:'Slack', cls:'tool', status:'live', desc:'Where work and agents meet day to day.'},
+
+  // knowledge leaves
+  {id:'sharepoint', label:'SharePoint', cls:'tool', status:'live', desc:'System-of-record knowledge store.'},
+
+  // people / assets
+  {id:'blushift', label:'BluShift', cls:'asset', status:'emerging', desc:'Portable-expert platform — hosts portable expert agents like VEEP. Built under the AWS SCA.'},
+  {id:'veep', label:'VEEP', cls:'asset', status:'emerging', desc:'Portable expert AI agent within BluShift. Built and maintained in Notion and reads Notion data; integrated into Slack, SharePoint and Lucid. Reads ontologies to traverse a company’s data and rules; powered by skills from the Plugins & Skills Repo.'},
+  {id:'claudecode', label:'Claude Code', cls:'tool', status:'live', desc:'Agentic coding tool — an AI coding teammate in the engineering workflow.'},
+
+  // capabilities / concepts
+  {id:'agenticeng', label:'Agentic Engineering', cls:'cap', status:'emerging', desc:'The discipline: a shift from deterministic logic to probabilistic judgment, with governance, system-design literacy and human oversight at the centre.'},
+  {id:'ontologies', label:'Ontologies', cls:'cap', status:'emerging', desc:'Knowledge and semantic modelling that powers precise reasoning, retrieval and agent grounding. The flywheel: an engagement’s pathfinder offerings leave behind an ontology of the client’s data and rules; agents like BluShift and VEEP read it to reason about the business, so every engagement accelerates the next.'},
+
+  // offerings
+  {id:'agenticexp', label:'Agentic Experience', cls:'offering', status:'emerging', desc:'An offering showcasing agent-amplified delivery.'},
+  {id:'aipathfinder', label:'AI Pathfinder', cls:'offering', status:'emerging', desc:'Guided route into AI adoption and roadmap.'},
+  {id:'datapathfinder', label:'Data Pathfinder', cls:'offering', status:'emerging', desc:'Guided route into data readiness for AI.'},
+  {id:'aira', label:'AI Readiness Assessment', cls:'offering', status:'emerging', desc:'Self-serve diagnostic for ASX 200–500 — lead-gen plus genuine value.'},
+
+  // rituals
+  {id:'contentarama', label:'Contentarama', cls:'ritual', status:'live', desc:'Content and thought-leadership ritual.'},
+  {id:'certapalooza', label:'Certapalooza', cls:'ritual', status:'live', desc:'Certification and skills-building drive.'},
+  {id:'backtobase', label:'Back to Base', cls:'ritual', status:'live', desc:'Reconnect-and-share ritual across the firm.'},
+
+  // guilds (communities of practice within Guilds)
+  {id:'aiguild', label:'AI Guild', cls:'ritual', status:'live', desc:'Community of practice for AI. Feeds practice and learnings into Agentic Engineering.'},
+  {id:'awsguild', label:'AWS Guild', cls:'ritual', status:'live', desc:'Community of practice for AWS.'},
+  {id:'msguild', label:'Microsoft Guild', cls:'ritual', status:'live', desc:'Community of practice for Microsoft.'},
+  {id:'mobileguild', label:'Mobile Apps Guild', cls:'ritual', status:'live', desc:'Community of practice for mobile app development.'},
+
+  // certifications
+  {id:'ccarchitect', label:'Claude Certified Architect', cls:'asset', status:'emerging', desc:'Anthropic certification earned through Certapalooza — proves depth in designing on Claude.'},
+
+  // practices
+  {id:'digitalai', label:'Digital + AI', cls:'practice', status:'live', desc:'Digital experiences amplified by AI. Data & AI is a sub-practice beneath it.'},
+  {id:'dataai', label:'Data & AI', cls:'practice', status:'live', desc:'Sub-practice of Digital + AI — “Strong Data. Smarter AI. Better Decisions.” Delivers the AI/data offerings and powers the agentic capability.'},
+  {id:'secid', label:'Security & Identity', cls:'practice', status:'live', desc:'Security and identity modernisation incl. customer identity (CIAM). AWS Security competency, Level 1 MSSP, Digital Sovereignty launch partner. (Service NSW: 5M+ identities.)'},
+  {id:'cloud', label:'Cloud', cls:'practice', status:'live', desc:'“Modern Cloud” — migration, modernisation and platforms via the Yellow Brick Road assessment and Enterprise Native Cloud. (NSW LRS: 130 servers to AWS in 9 months; Woodside energy.)'},
+  {id:'growth', label:'Growth', cls:'practice', status:'live', desc:'Go-to-market and sales — advisory/presales led.'},
+  {id:'modernisation', label:'Modernisation', cls:'practice', status:'live', desc:'Application and ways-of-working modernisation — Developer Experience and Future of Work.'},
+  {id:'opmodel', label:'Operating Model', cls:'practice', status:'emerging', desc:'A new practice due to start — designs and runs target operating models. Intersects with and consumes ontologies to reason about how an organisation actually works.'},
+
+  // partners / alliances
+  {id:'awspartner', label:'AWS', cls:'partner', status:'live', desc:'Primary cloud partner — Versent is a 5x AWS Partner of the Year (ANZ), with AWS Security and Digital Sovereignty competencies and Level 1 MSSP status. The deep AWS relationship is formalised in the AWS SCA initiative.'},
+  {id:'microsoft', label:'Microsoft', cls:'partner', status:'live', desc:'Strategic partner for Microsoft / Azure delivery.'},
+  {id:'ping', label:'Ping Identity', cls:'partner', status:'live', desc:'Identity partner — Ping International Partner of the Year.'},
+  {id:'hashicorp', label:'HashiCorp', cls:'partner', status:'live', desc:'Infrastructure-as-code partner — HashiCorp Innovation Partner of the Year APJ.'},
+  {id:'databricks', label:'Databricks', cls:'partner', status:'live', desc:'Data & AI platform partner — Databricks APJ Rising Star.'},
+  {id:'snowflake', label:'Snowflake', cls:'partner', status:'live', desc:'Data cloud partner — Snowflake Largest Deal of the Year APAC (Kosciuszko Award).'},
+
+  // offerings (new)
+  {id:'devexp', label:'Developer Experience', cls:'offering', status:'emerging', desc:'Modernisation offering — improving how engineers build.'},
+  {id:'futurework', label:'Future of Work', cls:'offering', status:'emerging', desc:'Modernisation offering — AI-amplified ways of working.'},
+  {id:'dataaccel', label:'Data Accelerators', cls:'offering', status:'live', desc:'Data & AI offering — best-practice patterns for a modern data platform (data lake, EDW, ODS, reporting) with DataOps, data-quality and security guard rails.'},
+  {id:'ciam', label:'Customer Identity (CIAM)', cls:'offering', status:'live', desc:'Security & Identity offering — unified customer identity and simplified sign-in (e.g. Service NSW, 5M+ users).'},
+
+  // AWS SCA — a strategic initiative (backed by AWS), and its joint go-to-market initiatives
+  {id:'awssca', label:'AWS SCA', cls:'initiative', status:'live', desc:'Five-year AWS Strategic Collaboration Agreement (AWS Partner Summit Sydney, 2026) for AI-driven cloud modernisation and agentic AI in the mid-market — undertaken in partnership with AWS. A funded programme of joint initiatives; builds assets like BluShift and App Xray.'},
+  {id:'scamig', label:'AI-Led Cloud Migrations', cls:'offering', status:'emerging', desc:'SCA initiative — full-lifecycle AI-driven cloud migrations with managed services, laying foundations for AI adoption. Mid-market focus.'},
+  {id:'scaagentic', label:'Agentic AI Modernisation', cls:'offering', status:'emerging', desc:'SCA initiative — modernising apps and infrastructure to scale agentic AI from proof-of-concept to production.'},
+  {id:'scasov', label:'Sovereign-by-Design Cloud', cls:'offering', status:'emerging', desc:'SCA initiative — AWS + Telstra connectivity for sovereign-by-design outcomes: government, regulated industries, data residency; planned AI enclave.'},
+  {id:'appxray', label:'App Xray', cls:'tool', status:'emerging', desc:'AI-accelerated legacy-application assessment tool built under the SCA — compresses code-base/compliance assessment from 2–4 weeks to 24–48 hours, producing business cases and risk assessments.'},
+
+  // capabilities — the skills our people hold (grown via guilds, certs and culture)
+  {id:'comp_cloudmig', label:'Cloud Migration & Modernisation', cls:'cap', status:'live', desc:'Moving and re-platforming workloads to AWS at scale — assessment, factory migration and modernisation.'},
+  {id:'comp_solarch', label:'Solution Architecture', cls:'cap', status:'live', desc:'Designing secure, well-architected cloud and application solutions end to end — grounded in ontologies and accelerated by Claude Code, Claude Desktop and the skills library.'},
+  {id:'comp_appdev', label:'Application Engineering', cls:'cap', status:'live', desc:'Engineering applications, APIs, websites and integrations — agent-amplified via agentic engineering, Claude Code and the skills library.'},
+  {id:'comp_dataeng', label:'Data Engineering', cls:'cap', status:'live', desc:'Designing and building modern data platforms, pipelines and DataOps.'},
+  {id:'comp_mlops', label:'MLOps & AI Engineering', cls:'cap', status:'emerging', desc:'Engineering, deploying and operating ML and agentic systems in production — the applied skill behind Agentic Engineering.'},
+  {id:'comp_iam', label:'Identity & Access (IAM/CIAM)', cls:'cap', status:'live', desc:'Identity, access management and customer identity on zero-trust foundations.'},
+  {id:'comp_cyber', label:'Cyber Security', cls:'cap', status:'live', desc:'Security engineering, assessment and assurance across cloud and identity.'},
+  {id:'comp_sre', label:'SRE & CloudOps', cls:'cap', status:'live', desc:'Reliability, observability and 24×7 operations of cloud platforms.'},
+  {id:'comp_advisory', label:'Advisory & Sales', cls:'cap', status:'emerging', desc:'Pre-sales discovery, strategy and shaping that sets up the Build.'},
+];
+
+const EDGES = [
+  // enables
+  ['principles','aifirst','enables'],['people','aifirst','enables'],
+  ['toolkit','aifirst','enables'],['knowledge','aifirst','enables'],
+  ['culture','aifirst','enables'],
+  // comprises
+  ['toolkit','notion','comprises'],['toolkit','anthropic','comprises'],['toolkit','lucid','comprises'],
+  ['toolkit','figma','comprises'],['toolkit','vscode','comprises'],['toolkit','skillsrepo','comprises'],
+  ['toolkit','slack','comprises'],
+  ['anthropic','claudedesktop','comprises'],['anthropic','claudecode','comprises'],
+  ['claudecode','skillsrepo','uses'],['claudedesktop','skillsrepo','uses'],
+  ['knowledge','notion','comprises'],['knowledge','sharepoint','comprises'],['toolkit','sharepoint','comprises'],
+  ['people','blushift','comprises'],['people','claudecode','comprises'],['blushift','veep','comprises'],
+  ['culture','contentarama','comprises'],
+  ['culture','certapalooza','comprises'],['culture','backtobase','comprises'],
+  ['culture','aiguild','comprises'],['culture','awsguild','comprises'],
+  ['culture','msguild','comprises'],['culture','mobileguild','comprises'],
+  ['aiguild','agenticeng','informs'],
+  ['certapalooza','ccarchitect','comprises'],['ccarchitect','anthropic','instance-of'],
+  // intersects (undirected)
+  ['culture','principles','intersects'],['culture','people','intersects'],
+  ['principles','people','informs'],
+  // uses
+  ['people','slack','uses'],['agenticexp','veep','uses'],
+  // skills power the agents
+  ['blushift','skillsrepo','uses'],['veep','skillsrepo','uses'],
+  // VEEP is built/maintained in Notion and integrated across the workspace
+  ['veep','notion','uses'],['veep','slack','uses'],['veep','sharepoint','uses'],['veep','lucid','uses'],
+  // instance-of
+  ['blushift','agenticeng','instance-of'],['veep','agenticeng','instance-of'],['claudecode','agenticeng','instance-of'],
+  // informs
+  ['ontologies','knowledge','informs'],['ontologies','people','informs'],['agenticeng','people','informs'],
+  // ontology flywheel: pathfinder offerings produce ontologies; agents read them to reason about a company
+  ['datapathfinder','ontologies','delivers'],['aipathfinder','ontologies','delivers'],['blushift','ontologies','uses'],['veep','ontologies','uses'],
+
+  // practices sit under People; Data & AI is a sub-practice of Digital + AI
+  ['people','digitalai','comprises'],['people','secid','comprises'],['people','cloud','comprises'],
+  ['people','growth','comprises'],['people','modernisation','comprises'],
+  ['people','opmodel','comprises'],['digitalai','dataai','comprises'],['opmodel','ontologies','uses'],
+  // practices deliver offerings (shared across practices)
+  ['dataai','aipathfinder','delivers'],['dataai','datapathfinder','delivers'],['dataai','agenticexp','delivers'],
+  ['dataai','aira','delivers'],['dataai','dataaccel','delivers'],['dataai','agenticeng','delivers'],
+  ['modernisation','devexp','delivers'],['modernisation','futurework','delivers'],['secid','ciam','delivers'],
+  // partners power the practices (used at delivery)
+  ['cloud','awspartner','uses'],['dataai','awspartner','uses'],['secid','awspartner','uses'],['digitalai','awspartner','uses'],['modernisation','awspartner','uses'],['veep','awspartner','uses'],
+  ['cloud','microsoft','uses'],['digitalai','microsoft','uses'],['secid','microsoft','uses'],['dataai','microsoft','uses'],
+  ['secid','ping','uses'],['ciam','ping','uses'],['cloud','hashicorp','uses'],['dataai','databricks','uses'],['dataaccel','databricks','uses'],['dataai','snowflake','uses'],['dataaccel','snowflake','uses'],
+  // the AWS SCA initiative — backed by AWS; funds joint AI-first work and builds assets
+  ['awspartner','awssca','enables'],['awssca','aifirst','enables'],
+  ['awssca','scamig','comprises'],['awssca','scaagentic','comprises'],['awssca','scasov','comprises'],
+  ['awssca','blushift','delivers'],['awssca','appxray','delivers'],
+  ['scamig','cloud','delivers'],['scamig','appxray','uses'],
+  ['scaagentic','agenticeng','uses'],['scaagentic','blushift','uses'],['scaagentic','veep','uses'],
+  ['scasov','secid','delivers'],
+  ['appxray','modernisation','delivers'],['appxray','awspartner','uses'],['appxray','agenticeng','instance-of'],
+  // competencies — the human skills; practices draw on them, certs/guilds grow them
+  ['comp_mlops','agenticeng','instance-of'],
+  ['cloud','comp_cloudmig','uses'],['cloud','comp_solarch','uses'],['cloud','comp_sre','uses'],
+  ['dataai','comp_dataeng','uses'],['dataai','comp_mlops','uses'],
+  ['secid','comp_iam','uses'],['secid','comp_cyber','uses'],['ciam','comp_iam','uses'],
+  ['digitalai','comp_appdev','uses'],['digitalai','comp_solarch','uses'],
+  ['modernisation','comp_appdev','uses'],['growth','comp_advisory','uses'],
+  ['ccarchitect','comp_mlops','enables'],['ccarchitect','comp_solarch','enables'],
+  ['aiguild','comp_mlops','enables'],
+  ['awsguild','comp_cloudmig','enables'],['awsguild','comp_solarch','enables'],['awsguild','comp_sre','enables'],
+  ['msguild','comp_appdev','enables'],['mobileguild','comp_appdev','enables'],
+  // engineering + architecture skills are agent-amplified
+  ['comp_appdev','agenticeng','instance-of'],['comp_appdev','claudecode','uses'],['comp_appdev','skillsrepo','uses'],
+  ['comp_solarch','ontologies','uses'],['comp_solarch','skillsrepo','uses'],['comp_solarch','claudecode','uses'],['comp_solarch','claudedesktop','uses'],
+];
+
+/* node palette: one clearly distinct hue per class (greens kept as the goal/pillar family) */
+const CLS = {
+  core:      {c:'#39ff7a', label:'Core goal'},
+  pillar:    {c:'#62d98a', label:'Enabler'},
+  cap:       {c:'#ffb84d', label:'Capability'},
+  asset:     {c:'#ff6b6b', label:'Asset'},
+  offering:  {c:'#c08bff', label:'Offering'},
+  initiative:{c:'#ff9d3c', label:'Initiative'},
+  tool:      {c:'#c8cdd6', label:'Tool'},
+  ritual:    {c:'#8fd6ff', label:'Ritual'},
+  practice:  {c:'#3fd9c4', label:'Practice'},
+  partner:   {c:'#9aa6b8', label:'Partner'},
+};
+/* edge palette: muted + mutually distinct, deliberately NOT reusing node hues */
+const EDGE_TYPES = {
+  'enables':    {c:'#e2e9f2', style:'solid',  arrow:true,  label:'enables'},     // bright steel — the prominent backbone toward the goal
+  'comprises':  {c:'#565c66', style:'solid',  arrow:true,  label:'comprises'},   // dark grey — containment, recedes
+  'delivers':   {c:'#73c8a3', style:'dashed', arrow:true,  label:'delivers'},    // green-teal — produces
+  'uses':       {c:'#6aa6e0', style:'dotted', arrow:true,  label:'uses'},        // blue — draws on at run time
+  'intersects': {c:'#9aa1ab', style:'solid',  arrow:false, label:'intersects'},  // grey, no arrow — lateral
+  'instance-of':{c:'#b89ad8', style:'dashed', arrow:true,  label:'instance-of'}, // mauve — is an example of
+  'informs':    {c:'#cba98a', style:'dotted', arrow:true,  label:'informs'},     // tan — feeds knowledge into
+};
+const VERB_DEF = {
+  enables:'makes possible / empowers', comprises:'is made up of',
+  delivers:'produces the value of', uses:'draws on at run time', intersects:'shares membership / spans',
+  'instance-of':'is an example of', informs:'feeds knowledge into',
+};
+/* ---------------- RINGS: distance from the core (undirected BFS) ----------------
+   A node's ring = how many hops it sits from the AI-First centre, so the picture
+   reads as rings moving outward. Edges are mixed-direction by design (enables points
+   inward, comprises points outward) so we traverse undirected. Auto-extends as the
+   data model grows. */
+function computeRings(){
+  // when several inward neighbours sit one ring closer, group under the most
+  // structural one (containment) rather than a weak cross-link
+  const PARENT_PREF={enables:0,comprises:1,intersects:2,'instance-of':3,delivers:4,uses:6,informs:7};
+  const adj={}; NODES.forEach(n=>adj[n.id]=[]);
+  EDGES.forEach(e=>{ if(adj[e[0]]&&adj[e[1]]){ adj[e[0]].push({to:e[1],type:e[2]}); adj[e[1]].push({to:e[0],type:e[2]}); } });
+  const CORE='aifirst';
+  // depth = hop distance from the core (undirected) → which ring a node sits on
+  const depth={[CORE]:0}, q=[CORE];
+  while(q.length){
+    const u=q.shift();
+    adj[u].forEach(({to})=>{ if(depth[to]===undefined){ depth[to]=depth[u]+1; q.push(to); } });
+  }
+  let maxDepth=0; Object.values(depth).forEach(d=>{ if(d>maxDepth) maxDepth=d; });
+  // a node BFS never reached (added but not yet wired) still gets the outermost ring
+  NODES.forEach(n=>{ if(depth[n.id]===undefined) depth[n.id]=maxDepth+1; });
+  // parent = the inward neighbour we cluster under, chosen by edge preference
+  const parent={[CORE]:null};
+  NODES.forEach(n=>{
+    if(n.id===CORE) return;
+    let best=null, bestPref=99;
+    adj[n.id].forEach(({to,type})=>{
+      if(depth[to]===depth[n.id]-1){ const p=PARENT_PREF[type]??50; if(p<bestPref){ bestPref=p; best=to; } }
+    });
+    parent[n.id]= best!=null ? best : CORE; // islands hang off the core
+  });
+  return {depth, parent};
+}
+const RINGS = computeRings();
+
+/* Radial-tree positions: each subtree gets an angular wedge sized by its leaf count,
+   so children fan out beneath their parent and the rings stay clean spokes. */
+function radialPositions(){
+  const {depth,parent}=RINGS;
+  const children={}; NODES.forEach(n=>children[n.id]=[]);
+  NODES.forEach(n=>{ const p=parent[n.id]; if(p&&children[p]) children[p].push(n.id); });
+  const weight={};
+  (function w(id){ const c=children[id]; if(!c.length) return weight[id]=1;
+    let s=0; c.forEach(k=>s+=w(k)); return weight[id]=s; })('aifirst');
+  const angle={};
+  // blend equal-share with subtree-weight so heavy groups get more room
+  // but no sibling is squeezed into a too-thin wedge (avoids crowding on busy rings)
+  (function place(id,a0,a1){ angle[id]=(a0+a1)/2; let acc=a0; const tot=weight[id]||1;
+    const kids=children[id], eq=kids.length?1/kids.length:1;
+    kids.forEach(k=>{ const frac=0.5*eq + 0.5*(weight[k]/tot); const span=(a1-a0)*frac; place(k,acc,acc+span); acc+=span; });
+  })('aifirst', 0, Math.PI*2);
+  const R=200, pos={};
+  NODES.forEach(n=>{ const r=depth[n.id]*R, a=angle[n.id]-Math.PI/2;
+    pos[n.id]={x:1000+r*Math.cos(a), y:1000+r*Math.sin(a)}; });
+  return pos;
+}
+const RADIAL = radialPositions(); // deterministic — compute once, reuse on every layout switch
+
+/* ---------------- BUILD GRAPH ---------------- */
+const elements = [];
+const byId = {};
+NODES.forEach(n=>{ byId[n.id]=n; elements.push({data:{id:n.id,label:n.label,cls:n.cls,status:n.status,proposed:n.proposed?1:0}}); });
+EDGES.forEach((e,i)=>{ elements.push({data:{id:'e'+i,source:e[0],target:e[1],type:e[2]}}); });
+
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements,
+  minZoom:0.08, maxZoom:2.4, wheelSensitivity:0.25,
+  style:[
+    {selector:'node', style:{
+      'background-color': n=>'#0a0d0a',
+      'border-width':2, 'border-color': n=>CLS[n.data('cls')].c,
+      'border-style': n=> n.data('status')==='emerging' ? 'dashed':'solid',
+      'label':'data(label)', 'color':'#eef1ee',
+      'font-family':'Space Grotesk, sans-serif', 'font-size':'12px', 'font-weight':600,
+      'text-valign':'bottom','text-margin-y':6,'text-halign':'center',
+      'text-wrap':'wrap','text-max-width':'120px',
+      'width':16,'height':16,
+      'transition-property':'border-color,width,height,opacity','transition-duration':'0.12s'
+    }},
+    {selector:'node[cls="core"]', style:{
+      'width':52,'height':52,'border-width':3,'font-size':'17px','font-weight':700,
+      'text-valign':'center','text-margin-y':0,'color':'#39ff7a',
+      'background-color':'#06160c','shadow-blur':40,'shadow-color':'#39ff7a','shadow-opacity':0.55,'shadow-offset-x':0,'shadow-offset-y':0,
+      'z-index':30,'z-compound-depth':'top'
+    }},
+    {selector:'node[cls="pillar"]', style:{'width':30,'height':30,'font-size':'14px','font-weight':700}},
+    {selector:'node[cls="offering"]', style:{'width':24,'height':24}},
+    {selector:'node[cls="cap"]', style:{'width':24,'height':24,'shape':'round-diamond'}},
+    {selector:'node[cls="asset"]', style:{'shape':'round-rectangle','width':22,'height':18}},
+    {selector:'edge', style:{
+      'width':1.6, 'curve-style':'bezier',
+      'line-color': e=>EDGE_TYPES[e.data('type')].c,
+      'line-style': e=>EDGE_TYPES[e.data('type')].style,
+      'line-dash-pattern': e=>{ const s=EDGE_TYPES[e.data('type')].style; return s==='dashed'?[7,4]:s==='dotted'?[1.5,4]:[]; },
+      'target-arrow-color': e=>EDGE_TYPES[e.data('type')].c,
+      'target-arrow-shape': e=>EDGE_TYPES[e.data('type')].arrow?'triangle':'none',
+      'arrow-scale':0.85, 'opacity':0.72,
+      'font-family':'JetBrains Mono, monospace','font-size':'7.5px','color':'#c2c7cf',
+      'text-rotation':'autorotate','text-background-color':'#05070a',
+      'text-background-opacity':0.8,'text-background-padding':'2px','text-background-shape':'roundrectangle',
+      'transition-property':'opacity,width','transition-duration':'0.12s'
+    }},
+    {selector:'edge[type="enables"]', style:{'width':2.1,'opacity':0.85}},
+    {selector:'edge.elabel', style:{'label':'data(type)'}},
+    {selector:'node.dim', style:{'opacity':0.16}},
+    {selector:'edge.dim', style:{'opacity':0.05}},
+    {selector:'node[proposed = 1]', style:{'border-color':'#ff5db1','border-style':'dotted','border-width':2.6,'shadow-blur':14,'shadow-color':'#ff5db1','shadow-opacity':0.5}},
+    {selector:'node.hl', style:{'border-width':3.5}},
+    {selector:'edge.hl', style:{'opacity':1,'width':2.6}},
+    {selector:'.hidden', style:{'display':'none'}},
+  ],
+});
+
+function runLayout(){
+  // the single strategic view: a radial 'rings' tree of the AI-First operating model
+  const pos=RADIAL; cy.nodes().unlock();
+  cy.layout({name:'preset', positions:n=>pos[n.id()], fit:true, padding:60, animate:true, animationDuration:600}).run();
+  applyFilters();
+}
+cy.ready(()=> setTimeout(()=>cy.fit(undefined,40), 60));
+
+/* ---------------- INTERACTION: focus / highlight ---------------- */
+function clearFocus(){ cy.elements().removeClass('dim hl'); }
+function highlightOnly(eles){ cy.elements().addClass('dim').removeClass('hl'); eles.removeClass('dim').addClass('hl'); }
+function focusNode(node){ highlightOnly(node.closedNeighborhood()); }
+cy.on('tap','node', evt=>{ const n=evt.target; focusNode(n); openDrawer(n.id()); });
+cy.on('tap', evt=>{ if(evt.target===cy){ clearFocus(); closeDrawer(); } });
+
+/* ---------------- HOVER TOOLTIPS (nodes + connections) ---------------- */
+const tip=document.createElement('div'); tip.className='tip'; document.body.appendChild(tip);
+let tipOn=false, tipW=0, tipH=0;
+function trunc(s,n){ return s.length>n ? s.slice(0,n-1).replace(/\s+\S*$/,'')+'…' : s; }
+function noteCount(id){ return getStore('vsn:notes:'+id).length; }
+function showTip(html,e){ tip.innerHTML=html; tip.style.display='block'; tipOn=true;
+  const r=tip.getBoundingClientRect(); tipW=r.width; tipH=r.height; moveTip(e); } // measure once per content change
+function hideTip(){ tip.style.display='none'; tipOn=false; }
+function moveTip(e){ if(!tipOn||!e) return; const pad=14;
+  let x=e.clientX+pad, y=e.clientY+pad;
+  if(x+tipW>innerWidth-8) x=e.clientX-tipW-pad;
+  if(y+tipH>innerHeight-8) y=e.clientY-tipH-pad;
+  tip.style.left=Math.max(8,x)+'px'; tip.style.top=Math.max(8,y)+'px';
+}
+cy.on('mouseover','node', evt=>{ const n=byId[evt.target.id()]; const c=noteCount(n.id);
+  showTip(
+    `<div class="tt"><span class="ttdot" style="background:${CLS[n.cls].c}"></span><b>${escapeHtml(n.label)}</b></div>`+
+    `<div class="ttk" style="margin-top:3px">${CLS[n.cls].label} · ${n.status}</div>`+
+    `<div class="ttd">${escapeHtml(trunc(n.desc,190))}</div>`+
+    `<div class="tth">${c? '<b>'+c+'</b> note'+(c>1?'s':'')+' · click for detail' : 'click for detail + notes'}</div>`,
+    evt.originalEvent);
+});
+cy.on('mouseover','edge', evt=>{ const e=evt.target.data(); const v=EDGE_TYPES[e.type];
+  showTip(
+    `<div class="tt"><b>${escapeHtml(byId[e.source].label)}</b> <span class="ttverb" style="color:${v.c}">${v.label}</span> <b>${escapeHtml(byId[e.target].label)}</b></div>`+
+    `<div class="ttd">${VERB_DEF[e.type]||''}</div>`,
+    evt.originalEvent);
+});
+cy.on('mouseout','node,edge', hideTip);
+cy.on('mousemove', evt=>moveTip(evt.originalEvent));
+cy.on('pan zoom drag', hideTip);
+
+/* ---------------- DRAWER + CAPTURE ---------------- */
+const drawer=document.getElementById('drawer');
+let currentId=null;
+
+function relList(id){
+  return cy.getElementById(id).connectedEdges().map(e=>{
+    const s=e.data('source'), ty=e.data('type');
+    return s===id ? {verb:ty, dir:'→', other:e.data('target')} : {verb:ty, dir:'←', other:s};
+  });
+}
+function openDrawer(id){
+  currentId=id; const n=byId[id];
+  document.getElementById('dTitle').textContent=n.label;
+  document.getElementById('dDesc').textContent=n.desc;
+  const chips=document.getElementById('dChips');
+  chips.innerHTML=`<span class="chip" style="color:${CLS[n.cls].c}">${CLS[n.cls].label}</span>`+
+    `<span class="chip status-${n.status}">${n.status}</span>`;
+  const rels=document.getElementById('dRels'); rels.innerHTML='';
+  relList(id).forEach(r=>{
+    const div=document.createElement('div'); div.className='rel';
+    div.innerHTML=`<span class="verb">${r.dir} ${r.verb}</span><a data-go="${r.other}">${byId[r.other].label}</a>`;
+    rels.appendChild(div);
+  });
+  rels.querySelectorAll('a[data-go]').forEach(a=>a.addEventListener('click',()=>jumpTo(a.dataset.go)));
+  renderNotes(id);
+  drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');
+}
+function closeDrawer(){ drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); currentId=null; }
+document.getElementById('drawerClose').addEventListener('click',()=>{closeDrawer();clearFocus();});
+
+/* ---- storage: localStorage so notes persist across reloads, with in-memory fallback ---- */
+const mem={};
+let storageOk=true;
+function getStore(key){
+  try{ const r=localStorage.getItem(key); return r? JSON.parse(r):[]; }
+  catch(e){ storageOk=false; return mem[key]||[]; }
+}
+function setStore(key,val){
+  mem[key]=val;
+  try{ localStorage.setItem(key, JSON.stringify(val)); storageOk=true; }
+  catch(e){ storageOk=false; }
+}
+function stamp(){ const d=new Date(); return d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+function renderNotes(id){
+  const wrap=document.getElementById('dNotes');
+  const notes=getStore('vsn:notes:'+id);
+  wrap.innerHTML = notes.length? '' : '<div class="hint">No notes yet — capture a thought below; it saves in this browser.</div>';
+  notes.slice().reverse().forEach((nt,ri)=>{
+    const realIndex=notes.length-1-ri;
+    const el=document.createElement('div'); el.className='note';
+    el.innerHTML=`<span class="del" data-i="${realIndex}">delete</span>${escapeHtml(nt.text)}<div class="meta">${nt.at}</div>`;
+    wrap.appendChild(el);
+  });
+  wrap.querySelectorAll('.del').forEach(d=>d.addEventListener('click',()=>{
+    const arr=getStore('vsn:notes:'+id); arr.splice(+d.dataset.i,1); setStore('vsn:notes:'+id,arr); renderNotes(id); updateSaveState();
+  }));
+}
+document.getElementById('addNote').addEventListener('click',()=>{
+  const ta=document.getElementById('noteInput'); const v=ta.value.trim(); if(!v||!currentId) return;
+  const arr=getStore('vsn:notes:'+currentId); arr.push({text:v,at:stamp()}); setStore('vsn:notes:'+currentId,arr);
+  ta.value=''; renderNotes(currentId); updateSaveState();
+});
+function updateSaveState(){ document.getElementById('saveState').textContent = storageOk? 'Saved · persists in this browser' : 'Saved this session only (storage unavailable here)'; }
+
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function classDot(c,cn){return `<span class="${cn||'dot'}" style="border-color:${c}"></span>`;}
+
+/* ---------------- LEGEND + FILTERS (unified: one source of truth) ---------------- */
+const hiddenEdgeTypes=new Set(), hiddenNodeClasses=new Set();
+let statusMode='all';
+function nodeVisible(n){
+  if(hiddenNodeClasses.has(n.data('cls'))) return false;
+  const st=n.data('status');
+  if(statusMode==='live' && st==='emerging') return false;
+  if(statusMode==='emerging' && st!=='emerging') return false;
+  return true;
+}
+function applyFilters(){
+  cy.batch(()=>{
+    cy.nodes().forEach(n=> n.toggleClass('hidden', !nodeVisible(n)));
+    cy.edges().forEach(e=>{ // an edge is hidden if its type is off OR either endpoint is hidden
+      const hide = hiddenEdgeTypes.has(e.data('type')) || e.source().hasClass('hidden') || e.target().hasClass('hidden');
+      e.toggleClass('hidden', hide);
+    });
+  });
+  const visible=cy.nodes().filter(n=>!n.hasClass('hidden')).length;
+  document.getElementById('emptyState').classList.toggle('on', visible===0);
+}
+function setRowOff(row,off){ row.classList.toggle('off',off); row.setAttribute('aria-pressed', off?'false':'true'); }
+function buildFilterRows(container, entries, hiddenSet, swatch){
+  Object.entries(entries).forEach(([k,v])=>{
+    const row=document.createElement('button'); row.type='button'; row.className='row'; row.dataset.k=k; row.setAttribute('aria-pressed','true');
+    row.innerHTML=swatch(v)+v.label;
+    row.addEventListener('click',()=>{
+      const off=!hiddenSet.has(k); off?hiddenSet.add(k):hiddenSet.delete(k);
+      setRowOff(row,off); clearFocus(); applyFilters();
+    });
+    container.appendChild(row);
+  });
+}
+buildFilterRows(document.getElementById('edgeFilters'), EDGE_TYPES, hiddenEdgeTypes,
+  v=>`<span class="swatch" style="border-top-color:${v.c};border-top-style:${v.style}"></span>`);
+buildFilterRows(document.getElementById('nodeLegend'), CLS, hiddenNodeClasses, v=>classDot(v.c));
+function resetFilters(){
+  hiddenEdgeTypes.clear(); hiddenNodeClasses.clear();
+  document.querySelectorAll('#edgeFilters .row, #nodeLegend .row').forEach(r=>setRowOff(r,false));
+  setStatusSeg('all'); clearFocus(); applyFilters();
+}
+const STATUS_SEG=[['stAll','all'],['stLive','live'],['stEmerging','emerging']];
+function setStatusSeg(mode){
+  statusMode=mode;
+  STATUS_SEG.forEach(([id,m])=>document.getElementById(id).classList.toggle('on', m===mode));
+}
+document.getElementById('resetFilters').addEventListener('click',resetFilters);
+document.getElementById('emptyReset').addEventListener('click',resetFilters);
+STATUS_SEG.forEach(([id,mode])=>document.getElementById(id).addEventListener('click',()=>{setStatusSeg(mode);clearFocus();applyFilters();}));
+(function showCounts(){ let live=0,em=0; NODES.forEach(n=> n.status==='emerging'?em++:live++);
+  document.getElementById('statusCount').textContent=`Live ${live} · Emerging ${em} · ${NODES.length} total`; })();
+(function buildAboutLegend(){ const el=document.getElementById('aboutNodeTypes'); if(!el) return;
+  el.innerHTML=Object.entries(CLS).map(([k,v])=>`<span class="verbk" style="color:${v.c}">●</span> ${v.label}`).join('<br>'); })();
+runLayout(); // filter state now exists — lay out the rings (applyFilters runs inside, a no-op on first load)
+
+/* ---------------- CONTROLS ---------------- */
+document.getElementById('labelBtn').addEventListener('click', e=>{
+  const on=!cy.edges().hasClass('elabel');
+  cy.edges().toggleClass('elabel',on);
+  e.target.classList.toggle('on',on);
+});
+document.getElementById('fitBtn').addEventListener('click',()=>{clearFocus();cy.animate({fit:{padding:40},duration:300});});
+
+/* about */
+const aboutModal=document.getElementById('aboutModal');
+document.getElementById('aboutBtn').addEventListener('click',()=>aboutModal.classList.add('open'));
+document.getElementById('aboutClose').addEventListener('click',()=>aboutModal.classList.remove('open'));
+aboutModal.addEventListener('click',e=>{if(e.target===aboutModal)aboutModal.classList.remove('open');});
+
+/* welcome — promote the story on load */
+const welcomeModal=document.getElementById('welcomeModal');
+function closeWelcome(){ welcomeModal.classList.remove('open'); }
+welcomeModal.classList.add('open');
+document.getElementById('welcomeStart').addEventListener('click',()=>{ closeWelcome(); showStory(0); });
+document.getElementById('welcomeExplore').addEventListener('click',closeWelcome);
+welcomeModal.addEventListener('click',e=>{if(e.target===welcomeModal)closeWelcome();});
+
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- SEARCH / JUMP-TO ---------------- */
+const searchInput=document.getElementById('searchInput'), searchResults=document.getElementById('searchResults');
+const SEARCH_IX=NODES.map(n=>({n, hay:(n.label+' '+CLS[n.cls].label+' '+(n.desc||'')).toLowerCase()})); // lowercase once
+let searchSel=-1, searchMatches=[];
+function jumpTo(id){
+  searchResults.classList.remove('open'); searchInput.value='';
+  const tgt=cy.getElementById(id); if(!tgt.length) return;
+  clearFocus(); focusNode(tgt); cy.animate({center:{eles:tgt}, zoom:1.1, duration:REDUCE?0:300}); openDrawer(id);
+}
+function renderSearch(){
+  if(!searchMatches.length){ searchResults.innerHTML='<div class="none">No matches</div>'; searchResults.classList.add('open'); return; }
+  searchResults.innerHTML='';
+  searchMatches.forEach((n,i)=>{
+    const r=document.createElement('div'); r.className='r'+(i===searchSel?' sel':''); r.setAttribute('role','option');
+    r.innerHTML=`${classDot(CLS[n.cls].c,'d')}${escapeHtml(n.label)}<span class="sub">${CLS[n.cls].label}</span>`;
+    r.addEventListener('click',()=>jumpTo(n.id));
+    searchResults.appendChild(r);
+  });
+  searchResults.classList.add('open');
+}
+function runSearch(q){
+  q=q.trim().toLowerCase();
+  if(!q){ searchResults.classList.remove('open'); searchResults.innerHTML=''; searchMatches=[]; return; }
+  searchMatches=SEARCH_IX.filter(x=>x.hay.includes(q)).slice(0,12).map(x=>x.n);
+  searchSel = searchMatches.length?0:-1; renderSearch();
+}
+searchInput.addEventListener('input',()=>runSearch(searchInput.value));
+searchInput.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){ e.preventDefault(); searchSel=Math.min(searchSel+1,searchMatches.length-1); renderSearch(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); searchSel=Math.max(searchSel-1,0); renderSearch(); }
+  else if(e.key==='Enter'){ if(searchMatches[searchSel]) jumpTo(searchMatches[searchSel].id); }
+  else if(e.key==='Escape'){ searchResults.classList.remove('open'); searchInput.blur(); }
+});
+document.addEventListener('click',e=>{ if(!e.target.closest('.search')) searchResults.classList.remove('open'); });
+
+/* ---------------- STORY TOUR ---------------- */
+const STORY=[
+  {t:'The goal', c:'Everything orbits one idea. AI-First isn’t “use AI” — it’s a rebuilt operating model: human-led, outcome-priced, agent-amplified, with judgment amplified not replaced. Every node on this map earns its place by helping us get there.', sel:'#aifirst'},
+  {t:'The five pillars', c:'Five enablers make it real and point inward at the goal: Principles (how we sell & scope), People+Agents, the Toolkit, Knowledge, and Culture. Culture is also the human substrate — see how it intersects Principles and People+Agents.', sel:'node[cls="pillar"]'},
+  {t:'People + Agents', c:'The defining shift: agents are teammates, not tools. BluShift is our portable-expert platform; VEEP is a portable expert agent built in Notion and wired into Slack, SharePoint and Lucid; Claude Code is the coding teammate.', sel:'#people, #blushift, #veep, #claudecode'},
+  {t:'The practices', c:'People and Culture organise into Practices — Digital+AI (with Data & AI beneath it), Security & Identity, Cloud, Growth, Modernisation, and the new Operating Model practice that consumes ontologies.', sel:'node[cls="practice"]'},
+  {t:'What we sell', c:'Practices deliver productised Offerings — AI & Data Pathfinders, Agentic Experience, Data Accelerators, Developer Experience, Future of Work, CIAM — each a low-friction entry point built to convert into larger engagements.', sel:'node[cls="offering"]'},
+  {t:'The ontology flywheel', c:'The compounding engine. Pathfinder offerings leave behind an ontology of a client’s data and rules; BluShift and VEEP read that ontology to reason about the business — so every engagement makes the next one faster and smarter.', sel:'#ontologies, #aipathfinder, #datapathfinder, #blushift, #veep'},
+  {t:'The AWS SCA initiative', c:'A five-year Strategic Collaboration Agreement with AWS funds the push: AI-Led Cloud Migrations, Agentic AI Modernisation and Sovereign-by-Design Cloud — and it builds assets like BluShift and App Xray. (AWS the partner is separate; the SCA is the initiative.)', sel:'#awssca, #scamig, #scaagentic, #scasov, #awspartner'},
+  {t:'The partner ecosystem', c:'Alliances power delivery across the practices — AWS, Microsoft, Ping Identity, HashiCorp, Databricks and Snowflake bring the platforms our capabilities run on.', sel:'node[cls="partner"]'},
+  {t:'The capabilities behind it', c:'Underneath everything sit our people’s capabilities — Cloud Migration, Solution Architecture, Application Engineering, Data & MLOps Engineering, Identity, Cyber, SRE — grown through the guilds, Certapalooza and culture, and amplified by Claude Code and the skills library.', sel:'node[cls="cap"]'},
+  {t:'Now explore', c:'That’s the strategy on a page. Click any node for its detail and connections, capture notes as you go, filter by relationship or node type on the left, toggle ↳ Labels on the edges, or jump anywhere with search ( / ).', sel:'node'},
+];
+let storyIx=-1; const storyBox=document.getElementById('storyBox');
+function showStory(i){
+  if(i<0||i>=STORY.length){ closeStory(); return; }
+  storyIx=i; const s=STORY[i];
+  document.getElementById('storyStep').textContent=s.t;
+  document.getElementById('storyText').textContent=s.c;
+  document.getElementById('storyProg').textContent=`${i+1} / ${STORY.length}`;
+  document.getElementById('storyPrev').style.visibility=i===0?'hidden':'visible';
+  document.getElementById('storyNext').textContent = i===STORY.length-1?'Done':'Next ›';
+  storyBox.classList.add('open'); closeDrawer();
+  const eles=cy.$(s.sel).filter(n=>!n.hasClass('hidden'));
+  highlightOnly(eles); // empty selection → everything dimmed (same as before)
+  if(eles.nonempty()){
+    eles.connectedEdges().filter(e=>eles.contains(e.source())&&eles.contains(e.target())).removeClass('dim');
+    cy.animate({fit:{eles:eles, padding:90}, duration:REDUCE?0:500});
+  }
+}
+function closeStory(){ storyBox.classList.remove('open'); storyIx=-1; clearFocus(); }
+document.getElementById('storyBtn').addEventListener('click',()=>showStory(0));
+document.getElementById('storyNext').addEventListener('click',()=>showStory(storyIx+1));
+document.getElementById('storyPrev').addEventListener('click',()=>showStory(storyIx-1));
+document.getElementById('storyClose').addEventListener('click',closeStory);
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ closeDrawer(); clearFocus(); aboutModal.classList.remove('open'); closeWelcome(); closeStory(); searchResults.classList.remove('open'); }
+  else if((e.key==='/' || (e.key==='k'&&(e.metaKey||e.ctrlKey))) && document.activeElement!==searchInput){ e.preventDefault(); searchInput.focus(); }
+});
+</script>
+</body>
+</html>

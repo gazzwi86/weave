@@ -1,0 +1,177 @@
+<!--
+EXAMPLES — for the Architect agent's reference only.
+These do NOT appear in generated task files (HTML comment block).
+
+<example kind="good-acceptance-criterion">
+AC-3: Given an unauthenticated request to `POST /shorten`,
+when the request is processed,
+then the response is HTTP 401 with body `{"error":"unauthorised"}` and
+the `Www-Authenticate: ApiKey` header is set.
+
+Why good: every clause is observable. Status code, body shape, and
+header are all greppable in a test. The Engineer can write the test
+before reading any other context.
+</example>
+
+<example kind="bad-acceptance-criterion">
+AC-3: Unauthenticated requests are rejected.
+
+Why bad: "rejected" is unspecified — 401 vs 403 vs 404? Body shape?
+Headers? The Engineer must guess; QA cannot verify deterministically.
+</example>
+
+<example kind="good-pseudocode">
+```
+function shorten(longUrl, apiKey):
+  if not apiKey: return 401 with {"error":"unauthorised"}
+  if not isHttpUrl(longUrl): return 400 with {"error":"invalid_url"}
+  code = base62(crypto.randomBytes(6))            # 8-char short code
+  store.put(code, longUrl, owner=apiKey.userId)   # idempotent on (code)
+  return 201 with {"code": code, "url": baseUrl + "/" + code}
+```
+
+Why good: input gates first, error shapes spelled out, store interaction
+named, return shape pinned. The Engineer writes the failing test from
+this directly.
+</example>
+
+<example kind="bad-pseudocode">
+```
+function shorten(url):
+  // generate code and save it
+  return code
+```
+
+Why bad: hides every interesting decision (auth, validation, code-space,
+collision behaviour, response shape). The Engineer will guess all of
+them, which the brief was supposed to prevent.
+</example>
+-->
+
+# Task: {{TASK_ID}} - {{TASK_TITLE}}
+
+## Story
+
+**Epic:** [{{EPIC_ID}}](../epics/{{EPIC_ID}}.md)
+**Status:** Backlog | In Progress | Review | Done
+**Priority:** Must Have | Should Have | Could Have
+
+**As a** {{user type}}
+**I want** {{capability}}
+**So that** {{benefit}}
+
+## Acceptance Criteria
+
+| ID | Criteria | Test Mapping |
+|----|----------|-------------|
+| AC-1 | Given {{context}}, when {{action}}, then {{result}} | {{test name}} |
+| AC-2 | Given {{context}}, when {{action}}, then {{result}} | {{test name}} |
+
+## Implementation
+
+### Pseudocode
+
+```
+// {{High-level approach}}
+function {{mainFunction}}({{params}}) {
+  // Step 1: {{description}}
+  // Step 2: {{description}}
+  // Step 3: {{description}}
+}
+```
+
+### API Contracts
+
+**Endpoint:** `{{METHOD}} /api/{{path}}`
+
+**Request:**
+```json
+{
+  "{{field}}": "{{type}}"
+}
+```
+
+**Response (200):**
+```json
+{
+  "{{field}}": "{{type}}"
+}
+```
+
+### Diagram References
+
+| Diagram | File | Summary |
+|---------|------|---------|
+| Sequence | [business-process.md](../tech-spec/business-process.md#{{section}}) | {{1-line summary of relevant interaction}} |
+| State | [business-process.md](../tech-spec/business-process.md#{{section}}) | {{1-line summary of relevant states}} |
+| Data Model | [data-model.md](../tech-spec/data-model.md#{{section}}) | {{1-line summary of relevant entities}} |
+
+### Design Decisions
+
+| Decision | Reference | Impact on This Task |
+|----------|-----------|-------------------|
+| {{Decision}} | [ADR-001](../decisions/ADR-001.md) | {{How it affects implementation}} |
+
+## Test Requirements
+
+### Unit Tests (minimum {{N}})
+- `should {{expected behavior}} when {{condition}}`
+- `should {{expected behavior}} when {{condition}}`
+- `should {{expected behavior}} when {{edge case}}`
+
+### Integration Tests (minimum {{N}})
+- `should {{expected behavior}} across {{components}}`
+
+### E2E Tests (minimum {{N}})
+- `should {{complete user flow description}}`
+
+### AC-to-Test Mapping
+
+| AC | Test Type | Test Name |
+|----|-----------|-----------|
+| AC-1 | E2E | `should {{description}}` |
+| AC-2 | Unit | `should {{description}}` |
+
+## Dependencies
+
+- **blocked_by:** {{[TASK-NNN, TASK-NNN] or [] if none}}
+- **unlocks:** {{[TASK-NNN, TASK-NNN] or [] if none}}
+
+## Cost Estimate
+
+- **Complexity:** {{S / M / L / XL}}
+- **Estimated tokens:** ~{{N}}K input, ~{{N}}K output
+- **Estimated cost:** ~${{N}}
+
+## Definition of Ready Checklist
+
+- [ ] User story clear
+- [ ] All AC have mapped tests
+- [ ] Pseudocode provided
+- [ ] API contracts defined (if applicable)
+- [ ] Diagram references included
+- [ ] Design decisions noted
+- [ ] Test scenarios specified with types and counts
+- [ ] Dependencies defined (blocked_by and unlocks)
+- [ ] Cost estimate provided
+
+## Definition of Done Checklist
+
+- [ ] All AC met
+- [ ] All specified tests passing
+- [ ] Coverage >= 80% for changed code
+- [ ] Lint passes (zero errors)
+- [ ] Complexity within thresholds
+- [ ] JSDoc on public APIs
+- [ ] Conventional commit(s) created
+- [ ] No implementation beyond the task brief's AC and pseudocode (YAGNI)
+- [ ] PR references this task and parent epic
+
+## Implementation Hints
+
+- {{Pattern to follow or example to reference}}
+- {{Pitfall to avoid}}
+- {{Library or utility to use}}
+
+---
+*Generated by Weave Architect agent. Self-contained -- Engineer should not need to fetch additional context.*

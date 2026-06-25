@@ -1,0 +1,57 @@
+# ---
+# source: graph.json@{{GRAPH_SHA}} OR sme-authored-stub
+# confirmed_by: "none"
+# confirmed_on: null
+# last_verified_sha: {{HEAD_SHA}}
+# expires_on: {{EXPIRES_ON}}
+# owner: {{OWNER}}
+# coverage: {{COVERAGE_PCT}}
+# _AUTO: {{true | false}}
+# ---
+#
+# Weave policy: this file is only auto-generated when the project's framework
+# exposes first-class API schemas (FastAPI+Pydantic, NestJS+class-validator,
+# tRPC, etc). For handler-only frameworks (plain Express, Flask without
+# flask-smorest, Gin, etc.) response shapes cannot be reliably reverse-engineered
+# from source; this file is emitted as a stub with `_AUTO: false` and an empty
+# paths block that a human must populate.
+#
+# If you see `_AUTO: false` above, do NOT treat this file as an authoritative
+# contract — it is an aspirational stub.
+
+openapi: 3.1.0
+info:
+  title: {{PROJECT_NAME}} — current API surface
+  version: {{VERSION}}
+  description: |
+    Current-state API. For future-state design, see
+    `docs/specs/tech-spec/openapi.yaml`.
+
+servers:
+  - url: {{BASE_URL}}
+    description: {{environment}}
+
+paths:
+  # Populated when _AUTO: true. Otherwise hand-authored.
+  /{{path}}:
+    get:
+      summary: {{summary}}
+      operationId: {{operationId}}
+      responses:
+        '200':
+          description: {{description}}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/{{Schema}}'
+
+components:
+  schemas:
+    {{Schema}}:
+      type: object
+      properties:
+        {{field}}:
+          type: {{type}}
+
+# Integration edges invisible to this spec (queues, events, webhooks received):
+# see architecture.md#integration-boundaries-invisible-to-static-graph.
