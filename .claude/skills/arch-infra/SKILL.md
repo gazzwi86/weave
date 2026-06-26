@@ -389,11 +389,11 @@ for secret values.
 
 | Stage | Command | Gate |
 |---|---|---|
-| Validate | `tofu validate && tfsec . && checkov -d .` | Always — blocks PR merge |
-| Plan | `tofu plan -out=tfplan` | Always — plan diff posted to PR |
-| Apply dev | `tofu apply tfplan` | Auto on merge to `main` |
-| Apply staging | `tofu apply tfplan` | Auto on merge to `main` (post-dev smoke test) |
-| Apply prod | `tofu apply tfplan` | Manual approval — GitHub environment protection rule |
+| Validate | `terraform validate && tfsec . && checkov -d .` | Always — blocks PR merge |
+| Plan | `terraform plan -out=tfplan` | Always — plan diff posted to PR |
+| Apply dev | `terraform apply tfplan` | Auto on merge to `main` |
+| Apply staging | `terraform apply tfplan` | Auto on merge to `main` (post-dev smoke test) |
+| Apply prod | `terraform apply tfplan` | Manual approval — GitHub environment protection rule |
 
 5. **Synthetic verification (Plugin Law F — mandatory):**
 
@@ -403,7 +403,7 @@ the CI gate expects:
 
 | Tool | Purpose | When |
 |---|---|---|
-| `tofu validate` | HCL syntax + provider schema check | Every PR |
+| `terraform validate` | HCL syntax + provider schema check | Every PR |
 | `tfsec` | Security misconfig scan (e.g. open SGs, unencrypted buckets) | Every PR |
 | `checkov -d infra/` | Policy-as-code: encryption, logging, least-privilege | Every PR |
 | LocalStack (via `infra/test/localstack/`) | Runtime tests — Lambda invoke, S3 ops, SQS publish — without real AWS | Local + CI |
@@ -428,7 +428,7 @@ docker run -d -p 4566:4566 localstack/localstack:latest
 cd infra && uv run pytest test/localstack/ -v
 ```
 
-The orchestrator and CI pipeline **never** execute `tofu apply` against real AWS during PR checks.
+The orchestrator and CI pipeline **never** execute `terraform apply` against real AWS during PR checks.
 Real-cloud deploys happen only via the manual CD runbook (`docs/ops/cloud-deploy-runbook.md`).
 
 **HITL GATE 2 — Terraform module structure** (mandatory pause here):
