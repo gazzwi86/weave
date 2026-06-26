@@ -58,3 +58,5 @@ test-results/
 .claude/_intake/
 # Weave — legacy agent configs preserved by init Step 1.5
 .legacy/
+# Weave — throwaway reference prototypes (deleted once specs are complete; not part of the harness)
+prototypes/

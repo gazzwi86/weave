@@ -23,9 +23,7 @@ A monorepo platform for describing, visualising, and automating how a company op
 
 **MVP success criterion:** One real client models their company → Weave auto-generates one working artefact (app, pipeline, or agent)
 
-**Reference prototypes:**
-- `prototypes/weave-prototype/` — FastAPI + React + Oxigraph ontology editor (Milestone 1)
-- `prototypes/versent-weave/` — single-file Cytoscape.js business-strategy-on-a-page
+**Reference prototypes:** throwaway reference material in `prototypes/` (gitignored, not part of the harness) — delete once specs are complete.
 
 ## Laws
 
@@ -38,8 +36,6 @@ A monorepo platform for describing, visualising, and automating how a company op
 
 | Path | What it is | Conventions live in |
 |---|---|---|
-| `prototypes/weave-prototype/` | FastAPI + React + Oxigraph ontology editor (reference) | `prototypes/weave-prototype/CLAUDE.md` |
-| `prototypes/versent-weave/` | Cytoscape.js single-file graph (reference) | `prototypes/versent-weave/CLAUDE.md` |
 | `.claude/` | Claude Code config — settings, hooks, skills, agents, commands | – |
 | `.claude/specs/` | Product specs by entity and phase | `.claude/specs/<entity>/<phase>/*.md` |
 | `.claude/spec-templates/` | Spec artifact templates | – |
