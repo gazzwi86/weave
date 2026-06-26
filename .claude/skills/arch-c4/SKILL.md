@@ -111,7 +111,7 @@ Write a brief orientation paragraph (3-5 sentences) that:
 - Explains which C4 levels are covered in this document (1-3) and which are deferred (4)
 - States the Weave stack components that appear at each level
 - Notes the RDF store progression: Oxigraph (dev/test) → Neptune or Jena Fuseki (prod)
-- Notes the AI layer boundary: AWS Strands SDK → AWS Bedrock AgentCore
+- Notes the AI layer boundary: Anthropic Agent SDK → AWS Bedrock AgentCore
 
 Do NOT write a generic C4 tutorial. The paragraph assumes the reader knows C4 and focuses
 on what is specific to this entity.
@@ -170,7 +170,7 @@ Constraints:
   - Vector store: `AWS S3 Vectors`
   - Relational: `Aurora PostgreSQL Serverless v2`
   - Cache: `ElastiCache Redis 7`
-  - Agent: `AWS Strands SDK → AgentCore Runtime`
+  - Agent: `Anthropic Agent SDK → AgentCore Runtime`
 - Show the AWS boundary as a `Container_Boundary(aws, "AWS")`
 - Show data-flow direction on every `Rel()` with protocol label
 - Person and System_Ext from Level 1 appear at the edges (not expanded)
@@ -186,7 +186,7 @@ C4Container
     Container_Boundary(weave_entity, "<Entity>") {
         Container(spa, "SPA", "Next.js 15 / TypeScript strict", "<Purpose>")
         Container(api, "API", "FastAPI / Python 3.12 / Pydantic v2", "<Purpose>")
-        Container(agent, "Agent", "AWS Strands SDK / Python 3.12", "<Purpose>")
+        Container(agent, "Agent", "Anthropic Agent SDK / Python 3.12", "<Purpose>")
     }
 
     Container_Boundary(aws, "AWS") {
@@ -384,7 +384,7 @@ C4 Law 3 (HITL between levels):          complied | violated | N/A — <reason>
 C4 Law 4 (adversarial critic ran):       complied | violated | N/A — <reason>
 C4 Law 5 (EARS invariants):              complied | violated | N/A — <reason>
 C4 Law 6 (dev/prod RDF both shown):      complied | violated | N/A — <reason>
-C4 Law 7 (Strands→AgentCore boundary):   complied | violated | N/A — <reason>
+C4 Law 7 (Anthropic Agent SDK→AgentCore boundary):   complied | violated | N/A — <reason>
 ```
 
 **C4-specific laws:**
@@ -401,7 +401,7 @@ C4 Law 7 (Strands→AgentCore boundary):   complied | violated | N/A — <reason
   No exceptions.
 - **C4 Law 6** — The RDF store progression (Oxigraph dev → Neptune/Jena Fuseki prod) MUST
   appear in both the Level 2 container diagram and the Quality Attributes section.
-- **C4 Law 7** — The AWS Strands → AgentCore boundary MUST be visible in the Level 2 diagram
+- **C4 Law 7** — The Anthropic Agent SDK → AgentCore boundary MUST be visible in the Level 2 diagram
   wherever an agent container is present in the entity scope.
 
 If ANY line says "violated": STOP, revise the section, re-run the check.
@@ -471,7 +471,7 @@ A well-produced architecture document:
   level may be skipped or replaced with prose
 - Shows the RDF store dev/prod progression (Oxigraph → Neptune | Jena Fuseki) in the
   Level 2 container diagram
-- Shows the AWS Strands → AgentCore boundary in Level 2 wherever an agent is in scope
+- Shows the Anthropic Agent SDK → AgentCore boundary in Level 2 wherever an agent is in scope
 - Has a Design Decisions table with ≥ 5 rows including responses to all 5 mandatory
   adversarial-critic questions
 - Has ≥ 5 EARS-notated invariants including multi-tenancy, SHACL validation, PROV-O

@@ -206,7 +206,7 @@ governance, and self-improvement.
 - Generated artefacts target Weave's confirmed stacks (TypeScript/Next.js for UI,
   Python/FastAPI for API/services), and AI agents are generated against the **Anthropic Agent
   SDK (Claude Agent SDK)** — Python primary, TypeScript secondary. (CLAUDE.md updated
-  2026-06-26 to supersede AWS Strands; AgentCore runtime fit is revisited in this engine's
+  2026-06-26; AgentCore runtime fit is revisited in this engine's
   tech spec.)
 - Output must be portable code the client team can own and run, not a locked-in runtime.
 - Each project targets a specific published ontology version (pinned), so that ontology
@@ -244,7 +244,7 @@ the `weave-platform` brief. Decisions specific to the Build Engine:
 |----------|-----------|------|
 | Build Engine owns the company workspace's "Build" area: multiple projects, spec lifecycle, PM, generation, and delivery | "Workspace" is the company/Weave level; "project" is the per-product level inside Build — keeps a clean two-tier model | 2026-06-26 |
 | Generate applications (UI + API) first; agents, pipelines, dashboards follow | Most demonstrable MVP proof and the tour artefact is an app; exercises the full brand+ontology stack | 2026-06-26 |
-| AI agents are generated against the Anthropic Agent SDK (Claude Agent SDK), superseding AWS Strands | Matches the chosen direction and latest Claude models; CLAUDE.md updated to match (AgentCore runtime fit revisited at tech spec) | 2026-06-26 |
+| AI agents are generated against the Anthropic Agent SDK (Claude Agent SDK) | Matches the chosen direction and latest Claude models; AgentCore runtime fit revisited at tech spec | 2026-06-26 |
 | Compliant-by-construction is a hard requirement | Generation must apply the Constitution's ontology, glossary, brand/voice, and governance — the whole value of a model is wasted if output ignores it | 2026-06-26 |
 | Bidirectional graph sync — Build writes artefacts back into the ontology | Keeps the model alive and the graph reflecting what was actually built, not just planned | 2026-06-26 |
 | Two delivery modes: autonomous dark-factory agent teams and interactive human-in-the-loop sessions | Different work and risk levels need different human involvement; both share spec lifecycle, gates, and replan | 2026-06-26 |

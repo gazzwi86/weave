@@ -56,7 +56,7 @@ Reference this principle when justifying scope decisions during HITL loops.
    > Options (pre-populated for Weave; user may add others):
    > - Ontology ingestion (Turtle/RDF upload → parse → validate SHACL → persist to Oxigraph)
    > - Graph query (SPARQL request → Oxigraph → result set → API response)
-   > - Agent trigger (event → Strands agent → Bedrock model call → action → graph write-back)
+   > - Agent trigger (event → Anthropic Agent SDK agent → Bedrock model call → action → graph write-back)
    > - Schema validation (SHACL shape check → violation report → rejection or warning)
    > - User authentication (login → Cognito → JWT → API gateway → service)
    > - Connector sync (external source → managed connector → graph delta → RDF store update)
@@ -110,7 +110,7 @@ Rules:
 - Show the JWT/Cognito auth step wherever an API boundary is crossed.
 - Show Oxigraph as the named RDF store for dev/test. Use `RDF Store` as an alias when
   the prod target (Neptune / Fuseki) is not yet decided.
-- Show AWS Strands agent and Bedrock model call as separate participants for agent flows.
+- Show Anthropic Agent SDK agent and Bedrock model call as separate participants for agent flows.
 - Response arrows use `-->>` (dashed). Request arrows use `->>` (solid).
 - Add a `Note over ComponentA,ComponentB: annotation` for non-obvious steps.
 - Latency SLOs go in notes: `Note right of Store: target < 200 ms`.

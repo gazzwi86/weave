@@ -272,7 +272,7 @@ These are baked into skills. Override requires explicit justification in the PRD
 
 ### AI / Agents
 
-- **Agent SDK**: AWS Strands (Python primary, TypeScript secondary)
+- **Agent SDK**: Anthropic Agent SDK (Python primary, TypeScript secondary)
 - **Agent runtime**: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway)
 - **Models**: claude-opus-4-8 (reasoning), claude-sonnet-4-6 (generation), claude-haiku-4-5 (validation)
 - **Guardrails**: AWS Bedrock Guardrails (PII, content policy, topic blocking)
@@ -374,6 +374,6 @@ These are baked into skills. Override requires explicit justification in the PRD
 | Skill granularity | Per artifact/template (not per persona, not per section) | `.claude/specs/skills-update.md` § 4.1 |
 | HITL gates | Spec = section-by-section; implement = phase-gated groups of epics (PO-defined) | `.claude/specs/skills-update.md` § 4.2 |
 | Loop mechanism | `/goal` CLI primitive (v2.1.139+, Haiku-evaluated); condition includes `or stop after 60 turns`; `phase_gate()` Stop hook for HITL | `.claude/specs/skills-update.md` § 4.3 |
-| Agent runtime | Strands SDK → AgentCore (GA only) | `.claude/specs/skills-update.md` § 4.7 |
+| Agent runtime | Anthropic Agent SDK → AgentCore (GA only) | `.claude/specs/skills-update.md` § 4.7 |
 | Triplestore | Oxigraph dev → Neptune/Fuseki eval prod (deferred) | `.claude/specs/skills-update.md` § 4.5 |
 | CRDT library | Deferred to Graph Explorer spec phase | `.claude/specs/skills-update.md` § 4.6 |

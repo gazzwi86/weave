@@ -250,7 +250,7 @@ def rdf_store():
 **What integration tests MUST cover:**
 - All SPARQL query/update paths through the RDF store
 - All REST API endpoints that touch a database or external service
-- All Strands agent tool invocations against faked AWS services
+- All Anthropic Agent SDK agent tool invocations against faked AWS services
 - All SHACL validation paths
 
 **What integration tests must NOT do:**

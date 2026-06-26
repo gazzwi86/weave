@@ -58,7 +58,7 @@ Reference this principle when justifying decisions during the HITL loop.
    | Frontend | TypeScript strict / Next.js 15 App Router / Tailwind CSS / shadcn/ui | CLAUDE.md |
    | API surface | REST (OpenAPI 3.1) + SPARQL 1.1 | CLAUDE.md |
    | Auth | AWS Cognito (default) or Auth0 | CLAUDE.md |
-   | Agent SDK | AWS Strands (Python primary, TypeScript secondary) | CLAUDE.md |
+   | Agent SDK | Anthropic Agent SDK (Python primary, TypeScript secondary) | CLAUDE.md |
    | Agent runtime | AWS Bedrock AgentCore (GA components only) | CLAUDE.md |
    | Models | claude-opus-4-8 / claude-sonnet-4-6 / claude-haiku-4-5 | CLAUDE.md |
    | Guardrails | AWS Bedrock Guardrails | CLAUDE.md |

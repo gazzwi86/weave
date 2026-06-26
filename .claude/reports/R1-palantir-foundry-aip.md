@@ -184,7 +184,7 @@ emulate — and is directly achievable over an OWL/SHACL model (SHACL shapes →
 | Quiver / Object Views | Analysis / inspection | **Graph Explorer** | Weave's force-directed schema view is *more* model-centric than Foundry's record-centric views. |
 | Object Explorer | Instance navigation | **Graph Explorer** | Overlap on instance drill-in; Weave adds multi-user Figma-style collab. |
 | OSDK | Code generation from ontology | **Build Engine** | The crown jewel to emulate: ontology → typed SDK. Achievable over OWL/SHACL. |
-| AIP Logic | LLM-powered functions | **Events & Actions + Build** | Weave: Strands/Bedrock agents grounded by the graph + Guardrails. |
+| AIP Logic | LLM-powered functions | **Events & Actions + Build** | Weave: Anthropic Agent SDK/Bedrock agents grounded by the graph + Guardrails. |
 | AIP Chatbot Studio | Agents | **Events & Actions Engine** | Weave: NL authoring + agents-over-graph; OSDK-style deploy. |
 
 **Takeaway:** Foundry already implements all four Weave loop stages, but as a *closed, proprietary*
@@ -298,7 +298,7 @@ claims as whitespace (H1 holds against this subject).
 - **A proprietary deployment/orchestration layer (Apollo-equivalent).** Lean on AWS (Lambda/ECS/CI-CD
   per CLAUDE.md). Do not build air-gapped delivery infrastructure for a mid-market SaaS.
 - **An LLM-agent runtime from scratch.** AIP Logic/Chatbots are deeply integrated, but Weave's stack
-  already commits to Strands + Bedrock AgentCore + Guardrails. Ground agents in the graph; don't build
+  already commits to Anthropic Agent SDK + Bedrock AgentCore + Guardrails. Ground agents in the graph; don't build
   the runtime.
 
 ---
