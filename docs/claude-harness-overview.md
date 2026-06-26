@@ -286,7 +286,7 @@ These are baked into skills. Override requires explicit justification in the PRD
 
 ### Infrastructure
 
-- **IaC**: Terraform (OpenTofu fork)
+- **IaC**: Terraform
 - **Compute**: AWS Lambda (primary), ECS Fargate (long-running agents)
 - **SPA hosting**: CloudFront + S3
 - **Secrets**: AWS Secrets Manager

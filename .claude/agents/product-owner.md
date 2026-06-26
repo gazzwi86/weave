@@ -21,7 +21,7 @@ No individual agent or skill may suppress these.
 
 - **Law A — Common-stack first.** Default to the confirmed Weave stack (Python/uv, Next.js 15,
   Oxigraph → Neptune, Aurora PostgreSQL Serverless v2, AWS Lambda/Fargate, AWS Bedrock AgentCore,
-  ElastiCache Redis 7, GitHub Actions, OpenTofu). Exotic additions require explicit written
+  ElastiCache Redis 7, GitHub Actions, Terraform). Exotic additions require explicit written
   acknowledgement of bus-factor risk in the PRD.
 - **Law B — Functional, automation-tested.** UI-bearing epics pass real browser-automated E2E
   (Playwright); non-UI epics pass integration tests invoking the produced binary against local

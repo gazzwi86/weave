@@ -381,7 +381,7 @@ Pre-fill these rows from the confirmed stack; add entity-specific rows as needed
 | Node.js | ≥ 20.x | Next.js 15 frontend runtime | `nvm install 20` |
 | AWS CLI | ≥ 2.x | Infrastructure provisioning + Secrets Manager access | `brew install awscli` |
 | Oxigraph | ≥ 0.4 | RDF triple store (dev/test) | `uv add oxigraph` |
-| OpenTofu | ≥ 1.7 | IaC (Terraform-compatible) | `brew install opentofu` |
+| Terraform | ≥ 1.7 | IaC (Terraform-compatible) | `brew tap hashicorp/tap && brew install hashicorp/tap/terraform` |
 
 Ask: "Are there entity-specific dependencies not listed above?"
 
@@ -423,7 +423,7 @@ in `.env` files, never committed to source control.
 - **Relational:** AWS Aurora PostgreSQL Serverless v2
 - **Cache:** AWS ElastiCache Redis 7
 - **CDN:** CloudFront
-- **IaC:** OpenTofu (Terraform-compatible) under `infra/`
+- **IaC:** Terraform under `infra/`
 ```
 
 ---

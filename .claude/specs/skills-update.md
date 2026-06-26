@@ -367,7 +367,7 @@ Use them for all generated projects unless the PRD explicitly overrides with jus
 
 | Dimension | Default | Rationale |
 |---|---|---|
-| IaC | Terraform (OpenTofu) | Declarative, multi-cloud, community |
+| IaC | Terraform | Declarative, multi-cloud, community |
 | Compute | AWS Lambda (primary) + ECS Fargate (long-running) | Serverless-first; Fargate for AgentCore workers |
 | CDN / SPA hosting | AWS CloudFront + S3 | Standard static hosting |
 | API gateway | AWS API Gateway (REST) | Lambda integration, auth, rate limiting |

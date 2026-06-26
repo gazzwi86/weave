@@ -66,7 +66,7 @@ Reference this principle when justifying decisions during the HITL loop.
    | Vector store | AWS S3 Vectors | CLAUDE.md |
    | Relational | AWS Aurora PostgreSQL Serverless v2 + SQLAlchemy async | CLAUDE.md |
    | Cache | AWS ElastiCache (Redis 7) | CLAUDE.md |
-   | IaC | Terraform (OpenTofu) | CLAUDE.md |
+   | IaC | Terraform | CLAUDE.md |
    | Compute | AWS Lambda + ECS Fargate | CLAUDE.md |
    | SPA hosting | CloudFront + S3 | CLAUDE.md |
    | Secrets | AWS Secrets Manager | CLAUDE.md |

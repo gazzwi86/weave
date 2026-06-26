@@ -262,7 +262,7 @@ Produce:
 
 ---
 
-#### Section 6 — Terraform / OpenTofu Module Structure
+#### Section 6 — Terraform Module Structure
 
 Produce:
 
