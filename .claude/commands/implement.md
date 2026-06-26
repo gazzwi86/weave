@@ -115,7 +115,7 @@ TASK BRIEF:
 
 STANDARDS:
 - Read docs/standards/code-style.md for naming and structure
-- Read docs/standards/testing.md for test patterns
+- Read docs/standards/testing-ts.md or testing-py.md (match the task stack) for test patterns
 - Read docs/standards/linting.md for complexity thresholds
 
 WORKFLOW:
