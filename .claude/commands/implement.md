@@ -25,7 +25,7 @@ When the user runs `/implement`, execute the following steps in order. You are t
 
 1. Run `${CLAUDE_PLUGIN_ROOT}/scripts/progress.sh kanban` to display current state
 2. Run `${CLAUDE_PLUGIN_ROOT}/scripts/progress.sh ready` to get next task whose dependencies are satisfied
-3. Read `docs/specs/roadmap.md` to understand current phase and gates
+3. Read `.claude/specs/<entity>/03-roadmap/roadmap.md` to understand current phase and gates
 4. If no tasks exist, tell the user to run `/architect` first
 
 ### Step 2: Check Scaffolding (First Run Only)
@@ -48,8 +48,8 @@ Present the review summary to the user. If critical gaps found, STOP and ask the
 
 **2c. Scaffolding:**
 
-1. Read `docs/specs/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/tech-spec/testing-strategy.md` for test config
+1. Read `.claude/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
+2. Read `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
 3. Read `docs/standards/linting.md` for ESLint config
 4. Invoke the **engineer** subagent with this prompt:
 
@@ -59,7 +59,7 @@ You are the Weave Engineer in SCAFFOLDING mode. Set up the project:
 1. Create Next.js app (npx create-next-app@latest --typescript --eslint --app)
 2. Install: vitest @testing-library/react playwright eslint-plugin-sonarjs
 3. Configure ESLint with SonarJS rules per docs/standards/linting.md
-4. Configure Vitest per docs/specs/tech-spec/testing-strategy.md
+4. Configure Vitest per .claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md
 5. Configure Playwright
 6. ESSENTIAL: Install husky + lint-staged for git hooks:
    - Pre-commit hook: run eslint --fix + vitest run --changed
@@ -96,7 +96,7 @@ For the task:
 
 #### PLAN
 
-1. Read the task brief: `docs/specs/tasks/{TASK_ID}.md`
+1. Read the task brief: `.claude/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
 1a. Read progress summaries for all `blocked_by` tasks from `.claude/state/summaries/` — these provide context about decisions, nuances, and edge cases from prior work
 2. Verify the DoR checklist at the bottom of the brief — all items should be checked
 3. If DoR not satisfied, report which items are missing and stop
@@ -198,7 +198,7 @@ When `phase-check` returns COMPLETE:
 
 1. **Security Review**: Run `/security-review` across all code changed in this phase. Address any valid security issues. Use discretion — some findings may be false positives or untenable. Commit fixes before proceeding.
 
-2. Display the phase gate checklist (from `docs/specs/roadmap.md` or the phase-gate template)
+2. Display the phase gate checklist (from `.claude/specs/<entity>/03-roadmap/roadmap.md` or the phase-gate template)
 3. Run `${CLAUDE_PLUGIN_ROOT}/scripts/progress.sh kanban` to show final state
 4. Ask user via AskUserQuestion:
    - **Approve** — phase complete, proceed to next phase

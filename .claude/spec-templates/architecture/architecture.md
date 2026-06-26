@@ -7,12 +7,12 @@ expires_on: {{EXPIRES_ON}}
 owner: {{OWNER}}
 coverage: {{COVERAGE_PCT}}
 ---
-<!-- Current-state architecture. Mirrors the shape of docs/specs/tech-spec/architecture.md but documents WHAT IS, not what will be. -->
+<!-- Current-state architecture. Mirrors the shape of .claude/specs/<entity>/04-arch/tech-spec/architecture.md but documents WHAT IS, not what will be. -->
 <!-- Frontmatter schema: templates/frontmatter-schema.md -->
 # Architecture (current state): {{PROJECT_NAME}}
 
 > Coverage: {{COVERAGE_PCT}}% of LOC analysed{{COVERAGE_EXCLUSIONS}}
-> See `.claude/state/discovery/coverage.yml` for per-language breakdown and `docs/specs/tech-spec/architecture.md` for the future-state design.
+> See `.claude/state/discovery/coverage.yml` for per-language breakdown and `.claude/specs/<entity>/04-arch/tech-spec/architecture.md` for the future-state design.
 
 ## C4 Model — observed
 

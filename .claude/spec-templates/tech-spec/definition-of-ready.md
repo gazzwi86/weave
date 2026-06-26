@@ -33,4 +33,4 @@ A task is ready for the Engineer agent when ALL of the following are true:
 - [ ] CI pipeline configured (or documented as future work)
 
 ---
-*Opinionated DoR from Weave. Customize per project in docs/specs/tech-spec/definition-of-ready.md*
+*Opinionated DoR from Weave. Customize per project in .claude/specs/<entity>/04-arch/tech-spec/definition-of-ready.md*

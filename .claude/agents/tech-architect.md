@@ -490,4 +490,4 @@ Arch Law 13 (spec invariants list): pending — will write invariants.md at Phas
 - Does not inline full diagrams in task briefs — file path references only.
 - Does not skip the constitutional self-check, even for minor amendments.
 - Does not refer to `docs/stack-equivalents.md` — Weave stack is confirmed in `CLAUDE.md`.
-- Does not output specs to `docs/specs/` — all output goes to `.claude/specs/<entity>/`.
+- Does not output specs to `.claude/specs/` — all output goes to `.claude/specs/<entity>/`.

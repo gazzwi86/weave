@@ -36,7 +36,7 @@ Each category will be reviewed and summarised before moving to the next.
 
 For each category, read the relevant files and check:
 
-**Brief** (`docs/specs/brief.md`):
+**Brief** (`.claude/specs/<entity>/01-brief/brief.md`):
 - [ ] Mission statement present and clear
 - [ ] Problem defined
 - [ ] Scope: in-scope and out-of-scope defined
@@ -44,7 +44,7 @@ For each category, read the relevant files and check:
 - [ ] Success criteria are measurable
 - [ ] Key decisions logged with rationale
 
-**PRD** (`docs/specs/prd.md`):
+**PRD** (`.claude/specs/<entity>/02-prd/prd.md`):
 - [ ] All epics have user stories
 - [ ] Every user story has acceptance criteria in Given/When/Then
 - [ ] Functional requirements map to epics
@@ -52,13 +52,13 @@ For each category, read the relevant files and check:
 - [ ] Risks identified with mitigations
 - [ ] Dependencies listed
 
-**Roadmap** (`docs/specs/roadmap.md`):
+**Roadmap** (`.claude/specs/<entity>/03-roadmap/roadmap.md`):
 - [ ] Phases defined with clear goals
 - [ ] HITL gates have entry/exit criteria
 - [ ] Epics assigned to phases
 - [ ] Timeline is realistic
 
-**Tech Spec** (`docs/specs/tech-spec/*`):
+**Tech Spec** (`.claude/specs/<entity>/04-arch/tech-spec/*`):
 - [ ] Architecture: C4 diagrams present (all 4 levels)
 - [ ] OpenAPI: all endpoints from PRD covered
 - [ ] Data model: ERD matches API contracts
@@ -68,7 +68,7 @@ For each category, read the relevant files and check:
 - [ ] Testing strategy: frameworks, coverage targets, per-task format
 - [ ] DoR/DoD: checklists are actionable
 
-**Task Briefs** (`docs/specs/tasks/*.md`):
+**Task Briefs** (`.claude/specs/<entity>/04-arch/tasks/*.md`):
 - [ ] Every task has: user story, AC, pseudocode, API contracts, diagram refs, design decisions, DoR/DoD, test requirements, implementation hints
 - [ ] Test requirements: named scenarios, type counts, AC-to-test mapping
 - [ ] Tasks are self-contained (no external context needed)

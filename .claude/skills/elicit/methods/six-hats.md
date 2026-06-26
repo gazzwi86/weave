@@ -21,7 +21,7 @@ For each hat, present the perspective and gather input via AskUserQuestion. Summ
 
 #### White Hat (Facts)
 "What do we know? What data do we have? What information is missing?"
-- Present known facts from existing specs (if available in `docs/specs/`)
+- Present known facts from existing specs (if available in `.claude/specs/`)
 - Ask what additional data the user has
 - Identify information gaps
 
@@ -58,7 +58,7 @@ For each hat, present the perspective and gather input via AskUserQuestion. Summ
 
 Write a summary to the appropriate location:
 - If during PO elicitation: fold insights into the PRD, brief, or relevant spec section
-- If standalone: create `docs/specs/decisions/SIX-HATS-{topic-slug}.md` with the full session output organized by hat
+- If standalone: create `.claude/specs/<entity>/00-elicit/SIX-HATS-{topic-slug}.md` with the full session output organized by hat
 
 ### Output Format
 
@@ -90,7 +90,7 @@ When testing this skill, verify:
 
 - **All 6 hats covered**: Every hat (White, Red, Black, Yellow, Green, Blue) is explored; none are skipped
 - **Correct hat order**: Hats are presented in the standard sequence (White -> Red -> Black -> Yellow -> Green -> Blue)
-- **Output captured to specs**: Session results are saved to `docs/specs/decisions/` (standalone) or folded into relevant spec (during elicitation)
+- **Output captured to specs**: Session results are saved to `.claude/specs/<entity>/00-elicit/` (standalone) or folded into relevant spec (during elicitation)
 - **Each hat gets user input**: AskUserQuestion is used for each hat; the agent does not answer all hats without user participation
 - **Blue hat synthesizes**: The Blue Hat section contains a genuine synthesis of all previous hats, not just a summary
 - **Facts separated from opinions**: White Hat captures only facts and data; opinions and feelings are in Red Hat

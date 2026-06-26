@@ -71,7 +71,7 @@ Output a table:
 |---|-----------|-------|----------------|---------|
 | 1 | README.md:L42 | "Uses Redis for session storage" | graph node `cache-layer` shows Memcached | Contradicted |
 | 2 | docs/api.md:L18 | "REST API with 12 endpoints" | graph cluster `api-routes` has 15 nodes | Contradicted |
-| 3 | docs/specs/tech-spec/stack.md:L5 | "PostgreSQL 14" | graph node `db` shows PostgreSQL | Confirmed |
+| 3 | .claude/specs/<entity>/04-arch/tech-spec/stack.md:L5 | "PostgreSQL 14" | graph node `db` shows PostgreSQL | Confirmed |
 
 #### A6: Source-of-Truth Recommendation
 
@@ -97,10 +97,10 @@ For items needing human input, suggest running `/elicit` with the appropriate me
 #### B1: Scan Artefacts
 
 Read all files in:
-- `docs/specs/brownfield/` (shards)
+- `docs/discovery/brownfield/` (shards)
 - `.claude/state/discovery/` (graph.json)
 - `docs/discovery/` (index, GRAPH_REPORT.md)
-- `docs/specs/brownfield-architecture.md` (reality-doc)
+- `docs/discovery/brownfield-architecture.md` (reality-doc)
 - `.claude/state/context/` (interview outputs)
 
 #### B2: Run Health Checks
@@ -108,7 +108,7 @@ Read all files in:
 Perform all of the following checks:
 
 **Orphan shards:**
-- For each shard file in `docs/specs/brownfield/`, verify it is referenced from `docs/specs/brownfield-architecture.md`
+- For each shard file in `docs/discovery/brownfield/`, verify it is referenced from `docs/discovery/brownfield-architecture.md`
 - Flag any shard file that exists but is not referenced
 
 **Stale claims:**
@@ -137,7 +137,7 @@ Perform all of the following checks:
 - Suggest archiving older sections to keep shards focused
 
 **B7 — Anchor validity:**
-- Scan every markdown file under `.claude/`, `docs/architecture/`, `docs/specs/brownfield/`, `.claude/state/context/` for intra-repo links of the form `path.md#heading-anchor`.
+- Scan every markdown file under `.claude/`, `docs/architecture/`, `docs/discovery/brownfield/`, `.claude/state/context/` for intra-repo links of the form `path.md#heading-anchor`.
 - For each, load the target file and extract all headings (`#`, `##`, `###`, ...). Slugify each heading (GitHub-style: lowercase, spaces→hyphens, strip punctuation).
 - Flag every pointer whose `#anchor` does not appear in the slugified heading set. Do not accept `:line` pointers — flag them as anti-pattern and suggest conversion to heading anchors.
 - Strict mode (`--strict-anchors` or CI pre-merge): exit non-zero on any broken anchor.
@@ -158,7 +158,7 @@ Perform all of the following checks:
   - Root `.claude/CLAUDE.md` ≤ rootLineCap
   - Any nested `**/CLAUDE.md` ≤ domainLineCap
   - `.claude/rules/*.md` ≤ ruleLineCap
-  - `docs/architecture/**.md` and `docs/specs/brownfield/*.md` ≤ shardLineCap
+  - `docs/architecture/**.md` and `docs/discovery/brownfield/*.md` ≤ shardLineCap
 - Overrides: a line `<!-- weave: allow-long reason=... -->` in the first 10 lines bypasses the cap for that file; the reason is recorded in the report. Untracked overrides (no reason string) are flagged.
 - Also flag non-canonical filenames in scoped directories (`CLAUDE-extra.md`, `CLAUDE-2.md`, `rules/NOTES.md`) — these are route-arounds; require rename or removal.
 
@@ -167,7 +167,7 @@ Perform all of the following checks:
   1. Rule index: every `**:` prefixed bullet or "MUST/NEVER" sentence in `.claude/rules/*.md`, keyed by normalised sentence.
   2. CLAUDE.md index: same extraction across every CLAUDE.md in the tree.
 - Flag any rule sentence that also appears in a CLAUDE.md (or near-duplicate via Levenshtein ≤ 5% of length). CLAUDE.md must *link* to the rule, never restate it.
-- Shard dedup: for every path under `docs/architecture/`, check if a file of the same basename exists under `docs/specs/brownfield/` with non-stub content (>3 non-frontmatter lines). Flag as a dedup violation — during the migration window only stub-with-pointer is allowed in the brownfield/ location.
+- Shard dedup: for every path under `docs/architecture/`, check if a file of the same basename exists under `docs/discovery/brownfield/` with non-stub content (>3 non-frontmatter lines). Flag as a dedup violation — during the migration window only stub-with-pointer is allowed in the brownfield/ location.
 
 #### B3: Generate Report
 

@@ -48,7 +48,7 @@ QA Review for {TASK_ID}. I will validate in this order:
 
 ### Step 3: Validation Checklist (Per Task)
 
-For each task being validated, read the task brief from `docs/specs/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
+For each task being validated, read the task brief from `.claude/specs/<entity>/04-arch/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
 
 #### 3a. Acceptance Criteria Met
 - Read the task brief's AC table
@@ -97,7 +97,7 @@ For each task being validated, read the task brief from `docs/specs/tasks/{TASK_
 
 **Smart detection:** Only run if the task brief mentions page, component, UI, or frontend.
 - Run Lighthouse audit (performance + best practices scores)
-- Check scores against targets in `docs/specs/tech-spec/testing-strategy.md`
+- Check scores against targets in `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
 - Check bundle size if applicable
 
 #### 3i. Accessibility (UI-affecting stories only)
@@ -111,7 +111,7 @@ For each task being validated, read the task brief from `docs/specs/tasks/{TASK_
 #### 3j. API Performance (API-affecting stories only)
 
 **Smart detection:** Only run if the task brief mentions API endpoint, route handler, or backend service.
-- Measure response times against targets in `docs/specs/tech-spec/testing-strategy.md`
+- Measure response times against targets in `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
 - Basic load test if applicable (10 concurrent requests)
 
 ### Step 4: Edge Case Extension

@@ -75,7 +75,7 @@ For **General MCQ**: Run structured multiple-choice questioning in batches of 4 
 ### Step 4: Capture Output
 
 - If during PO/Architect flow: fold findings into the relevant spec section
-- If standalone: create `docs/specs/decisions/{METHOD}-{topic-slug}.md`
+- If standalone: create `.claude/specs/<entity>/00-elicit/{METHOD}-{topic-slug}.md`
 - Always summarize key findings and next steps
 
 ## Evaluation Criteria

@@ -63,7 +63,7 @@ When root cause is identified:
 
 Write the full analysis to the appropriate location:
 - If during PO elicitation: fold the root cause into the relevant spec section (brief constraints, PRD requirements, or roadmap risks)
-- If standalone: create `docs/specs/decisions/FIVE-WHYS-{topic-slug}.md`
+- If standalone: create `.claude/specs/<entity>/00-elicit/FIVE-WHYS-{topic-slug}.md`
 
 ### Output Format
 
@@ -100,7 +100,7 @@ Write the full analysis to the appropriate location:
 When testing this skill, verify:
 
 - **Reaches root cause**: The analysis drills past surface symptoms to a fundamental cause; does not stop at the first "why"
-- **Output captured**: Full analysis is saved to `docs/specs/decisions/` (standalone) or folded into the relevant spec (during elicitation)
+- **Output captured**: Full analysis is saved to `.claude/specs/<entity>/00-elicit/` (standalone) or folded into the relevant spec (during elicitation)
 - **MCQ options provided**: Each "why" round offers 3-4 agent-suggested reasons plus a custom option via AskUserQuestion
 - **Progressive depth**: Each successive "why" goes deeper than the previous; answers do not circle back or repeat
 - **Early stop when appropriate**: Analysis stops before 5 if the root cause is clearly reached; does not force unnecessary rounds

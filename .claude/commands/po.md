@@ -23,7 +23,7 @@ Documents are delivered section-by-section with human approval at each step.
 
 When the user runs `/po`, invoke the `product-owner` subagent with the following context:
 
-1. Read the current state of `docs/specs/` to understand what already exists
+1. Read the current state of `.claude/specs/` to understand what already exists
 2. Read `.claude/state/progress.json` for project context
 3. Pass any arguments the user provided (e.g., file paths to meeting notes, URLs)
 

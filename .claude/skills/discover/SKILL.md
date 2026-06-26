@@ -9,7 +9,7 @@ Orchestrate brownfield codebase understanding via Graphify-powered static analys
 
 ## Trigger
 
-- `/init` detects a brownfield project (existing code, no `docs/specs/`) and invokes this skill
+- `/init` detects a brownfield project (existing code, no `.claude/specs/`) and invokes this skill
 - Invoked from the `init` skill's brownfield path; no standalone slash command
 
 ## Laws
@@ -113,7 +113,7 @@ The Architect agent reads this file during spec work (see its Law 11) to decide 
 Read `.claude/state/discovery/graph.json` and `docs/discovery/GRAPH_REPORT.md`. Generate the following artefacts:
 
 **Main architecture doc:**
-- `docs/specs/brownfield-architecture.md` — from template `${CLAUDE_PLUGIN_ROOT}/templates/brownfield-architecture.md`
+- `docs/discovery/brownfield-architecture.md` — from template `${CLAUDE_PLUGIN_ROOT}/templates/brownfield-architecture.md`
 
 **Shard files** (~200 lines each, from templates in `${CLAUDE_PLUGIN_ROOT}/templates/brownfield/`):
 
@@ -126,7 +126,7 @@ Read `.claude/state/discovery/graph.json` and `docs/discovery/GRAPH_REPORT.md`. 
 | Constraints | `${CLAUDE_PLUGIN_ROOT}/templates/brownfield/constraints.md` | Hard constraints: pinned deps, EOL runtimes, infra limits, compliance requirements |
 | Hotspots | `${CLAUDE_PLUGIN_ROOT}/templates/brownfield/hotspots.md` | High-churn files, complexity outliers, coupling clusters — populated in Steps 5 + 6 |
 
-Write each shard to `docs/specs/brownfield/`. If a template does not yet exist, generate the shard using the content description above as the structural guide.
+Write each shard to `docs/discovery/brownfield/`. If a template does not yet exist, generate the shard using the content description above as the structural guide.
 
 For each shard:
 1. Extract relevant clusters and nodes from `graph.json`
@@ -206,7 +206,7 @@ Every shard emitted from Step 5 onwards MUST carry the coverage banner at top (b
 
 Emit the hierarchical CLAUDE.md system so the engineer agent loads the right domain context on demand.
 
-**Inputs**: `.claude/state/discovery/graph.json` (clusters + node paths), `.claude/state/discovery/coverage.yml`, `docs/specs/brownfield/*.md` (for heading anchors to link to).
+**Inputs**: `.claude/state/discovery/graph.json` (clusters + node paths), `.claude/state/discovery/coverage.yml`, `docs/discovery/brownfield/*.md` (for heading anchors to link to).
 
 **Process**:
 
@@ -234,8 +234,8 @@ Display completion summary:
 
 ```
 Brownfield discovery complete.
-  Reality doc:   docs/specs/brownfield-architecture.md
-  Shards:        docs/specs/brownfield/ (6 files)
+  Reality doc:   docs/discovery/brownfield-architecture.md
+  Shards:        docs/discovery/brownfield/ (6 files)
   Architecture: docs/architecture/ (current-state tree)
   Coverage:      .claude/state/discovery/coverage.yml (<pct>% full-tier)
   CLAUDE.md:     root + <N> domain files

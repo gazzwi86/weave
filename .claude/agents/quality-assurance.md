@@ -132,7 +132,7 @@ For each implemented task, check ALL of the following:
 
 ### 8. Performance
 - Run a load test against every API-affecting story using the tool matching `weave.stack.language`: **k6** for Node/TypeScript, **locust** for Python, **JMH** for Java, **XCTest metrics** for Swift.
-- Verify response-time targets defined in `docs/specs/tech-spec/testing-strategy.md` are met.
+- Verify response-time targets defined in `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md` are met.
 - Flag any endpoint that regresses by more than 20% vs the baseline recorded in the prior QA pass.
 
 ### 9. Accessibility
@@ -151,7 +151,7 @@ For each implemented task, check ALL of the following:
 
 Run ONCE at the end of the implement phase, before verify. This is the single highest-leverage QA pass — it catches the gap between "engineer ticked DoD per task" and "the cumulative output meets the spec".
 
-For every entry in `docs/specs/tech-spec/testing-strategy.md` and `docs/specs/prd.md` user stories:
+For every entry in `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md` and `.claude/specs/<entity>/02-prd/prd.md` user stories:
 - List the required E2E journey, contract test, performance test, accessibility test.
 - Grep the produced repository for matching files.
 - Mark each as **DELIVERED** (file exists + asserts the right thing) / **STUB** (file exists but skipped/empty) / **MISSING** (no file).

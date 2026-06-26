@@ -74,7 +74,7 @@ Runner-up: {second} (score: {N}, {confidence} confidence -- {key risk})
 1. Ask user to confirm or override the recommendation via AskUserQuestion
 2. Write the analysis to the appropriate location:
    - If during PO/Architect flow: fold into an ADR or relevant spec section
-   - If standalone: create `docs/specs/decisions/STOCHASTIC-{topic-slug}.md`
+   - If standalone: create `.claude/specs/<entity>/00-elicit/STOCHASTIC-{topic-slug}.md`
 
 ### Output Format
 
@@ -121,7 +121,7 @@ When testing this skill, verify:
 - **User participates in weighting**: Criteria weights come from user input, not agent defaults
 - **Score overrides supported**: User can adjust agent-proposed scores before final calculation
 - **Confidence levels assigned**: Each option has a confidence level (High/Medium/Low) with reasoning
-- **Output captured to specs**: Decision record is saved to `docs/specs/decisions/` or folded into an ADR
+- **Output captured to specs**: Decision record is saved to `.claude/specs/<entity>/00-elicit/` or folded into an ADR
 - **Runner-up analysis present**: Output explains when the second-place option would be preferable
 - **Criteria are relevant**: Suggested criteria are appropriate for the decision domain, not generic
 - **Matrix is readable**: The score table renders clearly with aligned columns
