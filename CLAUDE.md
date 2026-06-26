@@ -64,8 +64,8 @@ Decisions are final unless overridden by explicit PRD justification.
 
 **AI / Agents**
 
-- Agent SDK: AWS Strands (Python primary, TypeScript secondary) — generates portable code
-- Agent runtime: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway)
+- Agent SDK: Anthropic Agent SDK (Claude Agent SDK) — Python primary, TypeScript secondary; generates portable agent code (decided 2026-06-26, supersedes AWS Strands)
+- Agent runtime: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway) — revisit fit with Anthropic Agent SDK during Build Engine tech spec
 - Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-4-6` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
 - Guardrails: AWS Bedrock Guardrails (PII, content policy, topic blocking)
 
@@ -78,7 +78,7 @@ Decisions are final unless overridden by explicit PRD justification.
 
 **Infrastructure**
 
-- IaC: Terraform (OpenTofu)
+- IaC: Terraform
 - Compute: AWS Lambda (primary), ECS Fargate (long-running agents)
 - SPA hosting: CloudFront + S3
 - Secrets: AWS Secrets Manager only

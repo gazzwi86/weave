@@ -53,3 +53,8 @@ test-results/
 # Misc
 .turbo/
 *.tsbuildinfo
+
+# Weave — raw SME intake staging (scrubbed synthesis promoted to .claude/state/context/)
+.claude/_intake/
+# Weave — legacy agent configs preserved by init Step 1.5
+.legacy/

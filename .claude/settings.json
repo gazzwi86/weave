@@ -1,4 +1,50 @@
 {
+  "weave": {
+    "version": "0.1.0",
+    "stack": {
+      "language": "typescript",
+      "framework": "nextjs",
+      "package_manager": "npm",
+      "test_framework": "vitest",
+      "e2e_framework": "playwright",
+      "iac": "terraform",
+      "cloud_provider": "aws",
+      "database": "postgres"
+    },
+    "linting": {
+      "cyclomaticComplexity": 10,
+      "cognitiveComplexity": 15
+    },
+    "git": {
+      "commitFormat": "conventional",
+      "branchPattern": "feature/TASK-{id}",
+      "worktreeIsolation": true
+    },
+    "brownfield": {
+      "scoutThresholds": {
+        "totalNodes": 500,
+        "topLevelClusters": 6,
+        "largestClusterNodes": 150,
+        "graphJsonSizeMb": 5
+      },
+      "freshness": {
+        "sessionBannerAgeCommits": 50,
+        "ruleStaleDays": 90,
+        "shardStaleDays": 180,
+        "adrStaleDays": 365
+      },
+      "coverage": {
+        "minPctForDeepArtefacts": 85,
+        "supportedLanguagesPath": "${CLAUDE_PLUGIN_ROOT}/templates/supported-languages.yml"
+      },
+      "claudeMd": {
+        "rootLineCap": 60,
+        "domainLineCap": 100,
+        "ruleLineCap": 60,
+        "shardLineCap": 200
+      }
+    }
+  },
   "plansDirectory": "./.claude/plans",
   "advisorModel": "opus",
   "attribution": {
@@ -7,7 +53,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash ${CLAUDE_PROJECT_DIR}/.claude/scripts/statusline.sh",
+    "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/scripts/statusline.sh\"",
     "padding": 0
   },
   "env": {
