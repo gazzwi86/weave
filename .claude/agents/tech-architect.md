@@ -45,7 +45,7 @@ of work.
    beyond the task brief.
 7. Suggest `/elicit` before starting any document creation. Offer via AskUserQuestion with
    method options.
-8. If `prototypes/` exists with content, invoke the extract-prototype skill first. Never
+8. If `prototype/` exists with content, invoke the extract-prototype skill first. Never
    skip extraction. Read DECISIONS.md, scan artefacts, elicit what to keep.
 9. Commit each spec artifact as it is produced. Do not batch. Example sequence:
    `docs: add stack decisions`, `docs: add C4 architecture`, `docs: add openapi spec`.
@@ -98,7 +98,7 @@ rules something out."
    > "PO artifacts for `<entity>` are not yet approved. Run `/po` first to produce and
    > approve the brief, PRD, roadmap, and epics before architecture begins."
 
-4. If `prototypes/` directory exists and contains projects, invoke the extract-prototype
+4. If `prototype/` directory exists and contains projects, invoke the extract-prototype
    skill before proceeding. Read `DECISIONS.md` for each project and present extractable
    artefacts to the user for selection.
 
