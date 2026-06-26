@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Blushift — Northwind Mutual</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="fixtures.jsx"></script>
+<script type="text/babel" src="shell.jsx"></script>
+
+<script type="text/babel" src="screens/login.jsx"></script>
+<script type="text/babel" src="screens/portfolio.jsx"></script>
+<script type="text/babel" src="screens/workspaces.jsx"></script>
+<script type="text/babel" src="screens/workspace-detail.jsx"></script>
+<script type="text/babel" src="screens/projects.jsx"></script>
+<script type="text/babel" src="screens/specs.jsx"></script>
+<script type="text/babel" src="screens/project-dashboard.jsx"></script>
+<script type="text/babel" src="screens/kanban.jsx"></script>
+<script type="text/babel" src="screens/task-detail.jsx"></script>
+<script type="text/babel" src="screens/polaris.jsx"></script>
+<script type="text/babel" src="screens/ops.jsx"></script>
+<script type="text/babel" src="screens/finops.jsx"></script>
+<script type="text/babel" src="screens/org-graph.jsx"></script>
+<script type="text/babel" src="screens/snappy.jsx"></script>
+<script type="text/babel" src="screens/releases.jsx"></script>
+<script type="text/babel" src="screens/change.jsx"></script>
+<script type="text/babel" src="screens/transformations.jsx"></script>
+<script type="text/babel" src="screens/organisation.jsx"></script>
+<script type="text/babel" src="screens/initiative-new.jsx"></script>
+<script type="text/babel" src="screens/spec-detail.jsx"></script>
+<script type="text/babel" src="screens/workspace-settings.jsx"></script>
+<script type="text/babel" src="screens/c4.jsx"></script>
+<script type="text/babel" src="screens/company.jsx"></script>
+<script type="text/babel" src="screens/wiki.jsx"></script>
+<script type="text/babel" src="screens/audit.jsx"></script>
+<script type="text/babel" src="screens/help.jsx"></script>
+<script type="text/babel" src="screens/settings.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const AppShell = ({ route, navigate, children }) => {
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [avOpen, setAvOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault(); setCmdOpen(o => !o);
+      }
+      if (e.key === 'Escape') { setCmdOpen(false); setNotifOpen(false); setAvOpen(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const routeObj = { path: route, parts: route.split('/').filter(Boolean), navigate };
+  const notifs = [
+    { icon:'✓', text:'fraud-scorer v3.2 PR ready for review', project:'Fraud uplift', time:'12m', cta:'Review' },
+    { icon:'⚠', text:'Compliance gate stalled — no thread opened', project:'CSP v2', time:'1h', cta:'Open thread' },
+    { icon:'★', text:'New Polaris idea: edge cache for portal-bff', project:'Polaris', time:'2h', cta:'View' },
+    { icon:'●', text:'Audit chain verified at 04:12 UTC', project:'Platform', time:'4h', cta:'Verify' },
+  ];
+
+  return (
+    <div style={{ minHeight: '100vh', display:'flex', flexDirection:'column' }}>
+      {window.TopNav && (
+        <window.TopNav
+          route={routeObj}
+          navigate={navigate}
+          onBell={() => { setNotifOpen(o => !o); setAvOpen(false); }}
+          onCmd={() => setCmdOpen(true)}
+          onAvatar={() => { setAvOpen(o => !o); setNotifOpen(false); }}
+          notifCount={notifs.length}/>
+      )}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        {children}
+      </div>
+      {window.HelpFAB && <window.HelpFAB navigate={navigate}/>}
+      {window.NotificationsDropdown && <window.NotificationsDropdown open={notifOpen} onClose={() => setNotifOpen(false)} items={notifs} navigate={navigate}/>}
+      {window.CommandPalette && <window.CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} navigate={navigate}/>}
+      {window.AvatarDropdown && <window.AvatarDropdown open={avOpen} onClose={() => setAvOpen(false)} navigate={navigate}/>}
+    </div>
+  );
+};
+
+const STATIC_ROUTES = {
+  '/login':           { c: () => window.Login,                shell: false },
+  '/dashboard':       { c: () => window.PortfolioScreen,      shell: true },
+  '/portfolio':       { c: () => window.PortfolioScreen,      shell: true },
+  '/workspaces':      { c: () => window.WorkspacesScreen,     shell: true },
+  '/projects':        { c: () => window.ProjectsScreen,       shell: true },
+  '/specs':           { c: () => window.SpecsScreen,          shell: true },
+  '/polaris':         { c: () => window.PolarisScreen,        shell: true },
+  '/ops':             { c: () => window.OpsScreen,            shell: true },
+  '/finops':          { c: () => window.FinOpsScreen,         shell: true },
+  '/org-graph':       { c: () => window.OrgGraphScreen,       shell: true },
+  '/transformations': { c: () => window.TransformationsScreen,shell: true },
+  '/snappy':          { c: () => window.SnappyScreen,         shell: true },
+  '/releases':        { c: () => window.ReleasesScreen,       shell: true },
+  '/change':          { c: () => window.ChangeMgmtScreen,     shell: true },
+  '/wiki':            { c: () => window.WikiScreen,           shell: true },
+  '/audit':           { c: () => window.AuditScreen,          shell: true },
+  '/help':            { c: () => window.HelpScreen,           shell: true },
+  '/help-me':         { c: () => window.HelpScreen,           shell: true },
+  '/settings':        { c: () => window.SettingsScreen,       shell: true },
+};
+
+const ProjectRoute = ({ projectId, view, taskId, navigate }) => {
+  const Shell = window.ProjectShell;
+  const Dash = window.ProjectDashboard;
+  const Board = window.KanbanBoard;
+  const TaskPanel = window.TaskDetailPanel;
+  if (!Shell || !Dash || !Board) return <div style={{ padding: 32, color:'#94A3B8' }}>Loading project…</div>;
+
+  const renderView = ({ project }) => {
+    if (view === 'dashboard') return <Dash project={project} navigate={navigate}/>;
+    if (view === 'kanban' || view === 'board' || view === 'tasks') {
+      return <Board project={project} navigate={navigate}
+                    onPickTask={(id) => navigate(`/project/${project.id}/${view}/task/${id}`)}
+                    activeTask={taskId}/>;
+    }
+    if (view === 'specs')   return window.SpecsScreen ? <window.SpecsScreen project={project} navigate={navigate}/> : null;
+    if (view === 'console') return <Placeholder title="Console" sub="Live agent transcript stream — coming soon"/>;
+    if (view === 'replan')  return window.HelpScreen ? <window.HelpScreen navigate={navigate}/> : null;
+    return <Dash project={project} navigate={navigate}/>;
+  };
+
+  return (
+    <>
+      <Shell projectId={projectId} view={view} navigate={navigate}>
+        {renderView}
+      </Shell>
+      {taskId && TaskPanel && (
+        <TaskPanel
+          taskId={taskId}
+          projectId={projectId}
+          navigate={navigate}
+          onClose={() => navigate(`/project/${projectId}/${view}`)}/>
+      )}
+    </>
+  );
+};
+
+const Placeholder = ({ title, sub }) => (
+  <div style={{ padding: '60px 24px', textAlign:'center', color:'#94A3B8' }}>
+    <div style={{ fontSize: 22, fontWeight: 600, color:'#E5EAF2' }}>{title}</div>
+    <div style={{ fontSize: 13, marginTop: 6 }}>{sub}</div>
+  </div>
+);
+
+const useHashRoute = () => {
+  const [hash, setHash] = useState(() => window.location.hash.replace(/^#/, '') || '/login');
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash.replace(/^#/, '') || '/login');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return hash;
+};
+
+const App = () => {
+  const route = useHashRoute();
+  const navigate = (p) => { window.location.hash = p; };
+
+  // Project routes
+  const projMatch = route.match(/^\/project\/([^/]+)\/([^/]+)(?:\/task\/([^/]+))?/);
+  if (projMatch) {
+    const [, projectId, view, taskId] = projMatch;
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <ProjectRoute projectId={projectId} view={view} taskId={taskId} navigate={navigate}/>
+      </AppShell>
+    );
+  }
+
+  // Workspace routes  /workspace/<id>[/<view>]
+  const wsMatch = route.match(/^\/workspace\/([^/]+)(?:\/([^/]+))?/);
+  if (wsMatch && window.WorkspaceDetail) {
+    const [, workspaceId, view='overview'] = wsMatch;
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <window.WorkspaceDetail workspaceId={workspaceId} view={view} navigate={navigate}/>
+      </AppShell>
+    );
+  }
+
+  // Organisation routes — /organisation/<tab>[/<...sub>]
+  const orgMatch = route.match(/^\/organisation(?:\/(.+))?$/);
+  if (orgMatch && window.OrganisationShell) {
+    const sub = (orgMatch[1] || 'org-graph').split('/').filter(Boolean);
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <window.OrganisationShell subRoute={sub} navigate={navigate}/>
+      </AppShell>
+    );
+  }
+
+  // Legacy direct routes — keep working but redirect into Organisation shell.
+  if (route === '/org-graph' || route === '/transformations' || route === '/finops') {
+    const map = { '/org-graph':'org-graph', '/transformations':'transformations', '/finops':'finops' };
+    if (window.OrganisationShell) {
+      return (
+        <AppShell route={route} navigate={navigate}>
+          <window.OrganisationShell subRoute={[map[route]]} navigate={navigate}/>
+        </AppShell>
+      );
+    }
+  }
+  const txMatch = route.match(/^\/transformations\/(.+)/);
+  if (txMatch && window.OrganisationShell) {
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <window.OrganisationShell subRoute={['transformations', ...txMatch[1].split('/').filter(Boolean)]} navigate={navigate}/>
+      </AppShell>
+    );
+  }
+
+  // Spec detail — /spec/<id>
+  const specMatch = route.match(/^\/spec\/([^/]+)/);
+  if (specMatch && window.SpecDetail) {
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <window.SpecDetail specId={specMatch[1]} navigate={navigate}/>
+      </AppShell>
+    );
+  }
+
+  // Task-only legacy
+  const taskOnly = route.match(/^\/task\/([^/]+)/);
+  if (taskOnly && window.TaskDetailPanel && window.PortfolioScreen) {
+    return (
+      <AppShell route={route} navigate={navigate}>
+        <window.PortfolioScreen navigate={navigate}/>
+        <window.TaskDetailPanel taskId={taskOnly[1]} navigate={navigate} onClose={() => navigate('/dashboard')}/>
+      </AppShell>
+    );
+  }
+
+  const r = STATIC_ROUTES[route] || STATIC_ROUTES['/dashboard'];
+  const Comp = r.c();
+  if (!Comp) return <div style={{ padding: 40, color:'#94A3B8', fontFamily:'Inter' }}>Loading {route}…</div>;
+
+  if (!r.shell) return <Comp navigate={navigate}/>;
+  return (
+    <AppShell route={route} navigate={navigate}>
+      <Comp navigate={navigate}/>
+    </AppShell>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+(async () => {
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  @page { margin: 0.5cm; }\n  html, body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }\n  section, article, figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        !settleRoot.querySelector('.sc-placeholder');
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  try { await document.fonts.ready; } catch (e) {}
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+  } catch (e) {}
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>
