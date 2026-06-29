@@ -24,12 +24,12 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws, EARS notation rules
 2. `.claude/spec-templates/roadmap.md` — section structure (use as scaffold, never leave `{{}}` in output)
 3. `.claude/spec-templates/phase-gate.md` — gate checklist structure; gate exit criteria must mirror this
-4. `.claude/specs/<entity>/01-brief/brief.md` — success criteria and constraints
-5. `.claude/specs/<entity>/02-prd/prd.md` — approved epics and their priorities
+4. `docs/specs/<entity>/01-brief/brief.md` — success criteria and constraints
+5. `docs/specs/<entity>/02-prd/prd.md` — approved epics and their priorities
 
 Ask the user which entity this roadmap is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
-`.claude/specs/<entity>/03-roadmap/roadmap.md`
+`docs/specs/<entity>/03-roadmap/roadmap.md`
 
 ## Instructions
 
@@ -194,12 +194,20 @@ Rules:
 - "blocks" must reference the next phase by name (or "Release" for the final gate)
 - Every gate must have a named approver role
 
+### Add a `# Related` section (build the knowledge-graph edges)
+
+Append a `# Related` section linking predecessor and successor documents with `docs/`-relative
+or path-relative markdown links. **Link only files that exist on disk now.**
+- Predecessor (always exists): the PRD — `[prd.md](../02-prd/prd.md)` — and the brief.
+- Do **not** forward-link tech-spec shards (`../04-arch/tech-spec/*.md`) until they exist; the
+  architect skills add the back-link to this roadmap when they run.
+
 ### After all sections approved
 
 Commit the roadmap:
 
 ```bash
-git add .claude/specs/<entity>/03-roadmap/roadmap.md
+git add docs/specs/<entity>/03-roadmap/roadmap.md
 git commit -m "docs(<entity>): add delivery roadmap with <N> phases and HITL gates"
 ```
 
@@ -265,7 +273,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/03-roadmap/roadmap.md`
+File: `docs/specs/<entity>/03-roadmap/roadmap.md`
 Template: `.claude/spec-templates/roadmap.md`
 
 Create the directory if it doesn't exist. Never leave `{{PLACEHOLDER}}` in the output.
@@ -274,12 +282,15 @@ Frontmatter:
 
 ```yaml
 ---
+type: Roadmap
 title: "Roadmap: <entity display name>"
+description: "<one-line summary of the phased delivery roadmap for this entity>"
+tags: [<entity>, 03-roadmap]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
-created: <YYYY-MM-DD>
-entity: <entity>
 phases: <N>
 gates: <N>
+resource: docs/specs/<entity>/03-roadmap/roadmap.md
 ---
 ```
 

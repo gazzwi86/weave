@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Secrets & PII Scanning — Coding Standard
+description: "Rules and tooling for preventing hardcoded secrets and PII leakage."
+tags: [standards, security, secrets]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/secrets-scanning.md
+---
+
 # Secrets & PII Scanning
 
 This project writes SME interview output, rule files, architecture shards, and context notes into git-tracked paths. Those files are untrusted input — interviewees paste production URLs, tenant IDs, bearer tokens, and customer names without thinking. A `PreToolUse` hook blocks writes that trip the scrubber before they reach disk.

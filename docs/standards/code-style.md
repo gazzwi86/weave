@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Code Style — Coding Standard
+description: "Universal code-style conventions: readability, naming, structure."
+tags: [standards, code-style]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/code-style.md
+---
+
 # Code Style Standards
 
 ## General Principles

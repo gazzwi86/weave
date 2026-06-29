@@ -22,10 +22,10 @@ The original monolithic `po/SKILL.md` and `architect/SKILL.md` have been
 **Product Owner skills** (4)
 | Skill | Output path |
 |---|---|
-| `po-brief` | `.claude/specs/<entity>/01-brief/brief.md` |
-| `po-prd` | `.claude/specs/<entity>/02-prd/prd.md` |
-| `po-roadmap` | `.claude/specs/<entity>/03-roadmap/roadmap.md` |
-| `po-epic` | `.claude/specs/<entity>/02-prd/epics/EPIC-NNN.md` |
+| `po-brief` | `docs/specs/<entity>/01-brief/brief.md` |
+| `po-prd` | `docs/specs/<entity>/02-prd/prd.md` |
+| `po-roadmap` | `docs/specs/<entity>/03-roadmap/roadmap.md` |
+| `po-epic` | `docs/specs/<entity>/02-prd/epics/EPIC-NNN.md` |
 
 **Architect skills** (13)
 | Skill | Output path |
@@ -108,7 +108,7 @@ Fully rewritten with:
 
 ### Spec path
 
-All Weave specs live under `.claude/specs/<entity>/<phase>/`. Not `docs/specs/`. The entity
+All Weave specs live under `docs/specs/<entity>/<phase>/`. Not `docs/specs/`. The entity
 is the Weave sub-system being specified (e.g.
 `constitution-engine`, `build-engine`, `weave-platform`).
 
@@ -118,10 +118,10 @@ is the Weave sub-system being specified (e.g.
 
 ```
 /po           → product-owner agent (orchestration)
-                  → po-brief skill    → .claude/specs/<entity>/01-brief/brief.md
-                  → po-prd skill      → .claude/specs/<entity>/02-prd/prd.md
-                  → po-roadmap skill  → .claude/specs/<entity>/03-roadmap/roadmap.md
-                  → po-epic skill     → .claude/specs/<entity>/02-prd/epics/EPIC-NNN.md
+                  → po-brief skill    → docs/specs/<entity>/01-brief/brief.md
+                  → po-prd skill      → docs/specs/<entity>/02-prd/prd.md
+                  → po-roadmap skill  → docs/specs/<entity>/03-roadmap/roadmap.md
+                  → po-epic skill     → docs/specs/<entity>/02-prd/epics/EPIC-NNN.md
 
 /architect    → tech-architect agent (orchestration)
                   → arch-stack skill         → 04-arch/tech-spec/stack.md

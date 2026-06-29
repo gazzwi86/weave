@@ -24,10 +24,12 @@ import sys
 from modules import common
 from modules import secrets, wiki, eslint, stop
 from modules import memory, lifecycle, circular_deps, claude_review, python_tooling
+from modules import install_safety
 
 PRE_TOOL_USE_CHECKS = {
-    "check-no-secrets":   [secrets.check_no_secrets],
-    "check-uv-over-pip":  [python_tooling.check_uv_over_pip],
+    "check-no-secrets":     [secrets.check_no_secrets],
+    "check-uv-over-pip":   [python_tooling.check_uv_over_pip],
+    "check-install-safety": [install_safety.check_install_safety],
 }
 
 POST_TOOL_USE_CHECKS = {

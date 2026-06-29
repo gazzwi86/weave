@@ -1,4 +1,9 @@
 ---
+type: Harness Spec
+description: "First-pass redesign spec for the Weave skill/agent/hook harness; PDAC cascade and dark-factory loop."
+tags: [harness, skills, agents, hooks, meta]
+timestamp: 2026-06-24T00:00:00Z
+resource: docs/specs/skills-update.md
 title: Harness & Skills Redesign
 status: draft
 phase: planning
@@ -606,3 +611,7 @@ Council ran as 6-persona Workflow (2 Opus + 4 Sonnet). Verdicts: 2 mixed (Cherny
 | OQ4 | Should `progress.json` be event-sourced (`events.jsonl` + materialized view) for audit/replay? | Dark factory design | Decision before implement harness changes |
 | OQ5 | Should the dark factory routines run as AWS Lambda (triggered by GitHub event) or as Claude Code scheduled routines (needs the REPL open)? | Overnight automation | Evaluate Claude Code routine cost vs AWS Lambda cost |
 | OQ6 | `arch-task-brief` model: Opus is expensive for many task briefs. Is a Sonnet + critic pattern (Sonnet drafts, Haiku validates against DoR) acceptable? | Cost control | Empirical test |
+
+# Related
+
+- [Weave Harness Overview](../claude-harness-overview.md)

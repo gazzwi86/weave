@@ -71,7 +71,7 @@ Output a table:
 |---|-----------|-------|----------------|---------|
 | 1 | README.md:L42 | "Uses Redis for session storage" | graph node `cache-layer` shows Memcached | Contradicted |
 | 2 | docs/api.md:L18 | "REST API with 12 endpoints" | graph cluster `api-routes` has 15 nodes | Contradicted |
-| 3 | .claude/specs/<entity>/04-arch/tech-spec/stack.md:L5 | "PostgreSQL 14" | graph node `db` shows PostgreSQL | Confirmed |
+| 3 | docs/specs/<entity>/04-arch/tech-spec/stack.md:L5 | "PostgreSQL 14" | graph node `db` shows PostgreSQL | Confirmed |
 
 #### A6: Source-of-Truth Recommendation
 

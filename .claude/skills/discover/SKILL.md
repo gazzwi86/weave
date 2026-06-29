@@ -9,7 +9,7 @@ Orchestrate brownfield codebase understanding via Graphify-powered static analys
 
 ## Trigger
 
-- `/init` detects a brownfield project (existing code, no `.claude/specs/`) and invokes this skill
+- `/init` detects a brownfield project (existing code, no `docs/specs/`) and invokes this skill
 - Invoked from the `init` skill's brownfield path; no standalone slash command
 
 ## Laws

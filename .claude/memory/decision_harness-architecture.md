@@ -38,5 +38,5 @@ have no cost-controlled autonomous loop. Per-artifact decomposition addresses al
 
 **How to apply:** When writing or updating skills, ensure each maps to one template artifact.
 Implement loop uses `/goal` (not a custom loop), NOT a hand-rolled turn-counter. Spec path
-is `.claude/specs/` not `docs/specs/`. Gate function is
+is `docs/specs/` not `docs/specs/`. Gate function is
 `phase_gate()`, not `epic_gate()`. Per-artifact skills live in `.claude/skills/<name>/SKILL.md`.

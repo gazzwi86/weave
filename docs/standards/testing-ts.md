@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: TypeScript Testing — Coding Standard
+description: "TypeScript testing standards: vitest, Playwright, coverage."
+tags: [standards, testing, typescript]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/testing-ts.md
+---
+
 # Testing Standards — TypeScript
 
 > Python testing standards: see [`testing-py.md`](testing-py.md).

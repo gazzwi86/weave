@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Python Testing — Coding Standard
+description: "Python testing standards: pytest, coverage, mutation thresholds."
+tags: [standards, testing, python]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/testing-py.md
+---
+
 # Testing Standards — Python
 
 > TypeScript testing standards: see [`testing-ts.md`](testing-ts.md).

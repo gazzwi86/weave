@@ -30,13 +30,13 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws, EARS notation rules
 2. `.claude/spec-templates/prd.md` — section structure (use as scaffold, never leave `{{}}` in output)
-3. `.claude/specs/<entity>/01-brief/brief.md` — mission statement, goals, scope, target users,
+3. `docs/specs/<entity>/01-brief/brief.md` — mission statement, goals, scope, target users,
    success criteria, constraints, and key decisions
-4. Any prior elicitation output (`.claude/specs/<entity>/00-elicit/*.md` if present)
+4. Any prior elicitation output (`docs/specs/<entity>/00-elicit/*.md` if present)
 
 Ask the user which entity this PRD is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
-`.claude/specs/<entity>/02-prd/prd.md`
+`docs/specs/<entity>/02-prd/prd.md`
 
 ## Instructions
 
@@ -101,6 +101,11 @@ Write the file header and Overview metadata block:
 
 ```markdown
 ---
+type: Product Requirements Document
+title: "PRD: <Entity Display Name>"
+description: "<one-line summary of the product requirements for this entity>"
+tags: [<entity>, 02-prd]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 source: sme-interview
 confirmed_by: "none"
 confirmed_on: null
@@ -108,6 +113,7 @@ last_verified_sha: <current HEAD sha — run git rev-parse --short HEAD>
 expires_on: <today + 180 days>
 owner: <github handle supplied by user, or "orphan">
 coverage: "n/a"
+resource: docs/specs/<entity>/02-prd/prd.md
 ---
 
 # Product Requirements Document: <Entity Display Name>
@@ -492,6 +498,14 @@ After presenting, note: "Timeline is indicative. Dates are confirmed at the Road
 
 ---
 
+### Step 3b — Add a `# Related` section (build the knowledge-graph edges)
+
+Append a `# Related` section linking predecessor and successor documents with `docs/`-relative
+or path-relative markdown links. **Link only files that exist on disk now.**
+- Predecessor (always exists): the brief — `[brief.md](../01-brief/brief.md)`.
+- Do **not** forward-link the roadmap (`../03-roadmap/roadmap.md`) or epics until they exist;
+  `po-roadmap` / `po-epic` add the back-link to this PRD when they are written.
+
 ### Step 4 — After all sections approved
 
 Update the file frontmatter `confirmed_by` to the user's GitHub handle if they have confirmed
@@ -500,7 +514,7 @@ all sections, and set `confirmed_on` to today's date.
 Commit:
 
 ```
-git add .claude/specs/<entity>/02-prd/prd.md
+git add docs/specs/<entity>/02-prd/prd.md
 git commit -m "docs(<entity>): add PRD"
 ```
 
@@ -552,16 +566,23 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/02-prd/prd.md`
+File: `docs/specs/<entity>/02-prd/prd.md`
 Template: `.claude/spec-templates/prd.md`
 
 Create the directory if it doesn't exist. Never leave `{{PLACEHOLDER}}` or `{{}}` tokens
 in the output.
 
-Frontmatter (provenance schema from `.claude/spec-templates/frontmatter-schema.md`):
+Frontmatter (OKF `type` + recommended fields, then the provenance schema from
+`.claude/spec-templates/frontmatter-schema.md` — both coexist; `type` is mandatory or
+the bundle fails `/okf-validate`):
 
 ```yaml
 ---
+type: Product Requirements Document
+title: "PRD: <Entity Display Name>"
+description: "<one-line summary of the product requirements for this entity>"
+tags: [<entity>, 02-prd]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 source: sme-interview
 confirmed_by: "none"
 confirmed_on: null
@@ -569,6 +590,7 @@ last_verified_sha: <git rev-parse --short HEAD at write time>
 expires_on: <today + 180 days, YYYY-MM-DD>
 owner: <github handle or "orphan">
 coverage: "n/a"
+resource: docs/specs/<entity>/02-prd/prd.md
 ---
 ```
 

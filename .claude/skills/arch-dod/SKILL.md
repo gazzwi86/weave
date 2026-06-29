@@ -20,16 +20,16 @@ Before doing anything else, read:
 
 1. `/Users/gareth/Sites/weave/CLAUDE.md` — Weave laws, complexity thresholds, confirmed stack
 2. `.claude/spec-templates/tech-spec/definition-of-done.md` — canonical section scaffold
-3. `.claude/specs/<entity>/03-arch/tech-spec.md` (if present) — entity-specific acceptance criteria
-   and architectural constraints to incorporate into the DoD
-4. `.claude/specs/<entity>/02-prd/prd.md` (if present) — user stories and ACs that must be
+3. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` (if present) — entity-specific
+   acceptance criteria and architectural constraints to incorporate into the DoD
+4. `docs/specs/<entity>/02-prd/prd.md` (if present) — user stories and ACs that must be
    reflected in the Testing section
 
 Ask the user which entity this DoD is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
 
 ```
-.claude/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
 ```
 
 ## Instructions
@@ -107,9 +107,9 @@ Mandatory items:
 - [ ] JSDoc on all new or modified public TypeScript functions and components
 - [ ] Docstrings (Google style) on all new or modified public Python functions and classes
 - [ ] OpenAPI spec updated for any new or modified REST endpoints
-      (`.claude/specs/<entity>/04-arch/openapi.yaml`)
+      (`docs/specs/<entity>/04-arch/openapi.yaml`)
 - [ ] SPARQL queries documented inline with a comment explaining intent
-- [ ] ADR created in `.claude/specs/<entity>/04-arch/adrs/` if an architectural decision was made
+- [ ] ADR created in `docs/specs/<entity>/04-arch/decisions/` if an architectural decision was made
 - [ ] README or relevant wiki page updated if user-facing behaviour changed
 
 #### Section D — Git Hygiene
@@ -159,7 +159,7 @@ Then ask via AskUserQuestion: **Approve / Amend / Reject**
 Write the approved checklist to:
 
 ```
-.claude/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
 ```
 
 Create the directory if it does not exist.
@@ -167,7 +167,7 @@ Create the directory if it does not exist.
 ### Step 6 — Commit
 
 ```bash
-git add .claude/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+git add docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
 git commit -m "docs(<entity>): add definition of done for tech spec"
 ```
 
@@ -216,7 +216,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/tech-spec/definition-of-done.md`
+File: `docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md`
 
 Template: `.claude/spec-templates/tech-spec/definition-of-done.md`
 
@@ -226,7 +226,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: Definition of Done
 title: "Definition of Done: <entity display name>"
+description: "<one-line summary of the mechanically-verifiable DoD for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>

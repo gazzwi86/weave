@@ -36,7 +36,7 @@ These are non-negotiable. They are intentionally relaxed compared to the Enginee
 7. **Can build multiple competing approaches** in separate prototype project folders. Encourage experimentation.
 8. **Prototype is disposable.** The value is in what you learn and extract. Say this to the user.
 9. **Each prototype project is independently runnable** with its own dependencies and config.
-10. **Never read from `.claude/specs/<entity>/04-arch/tasks/`.** Prototyping is freeform, not task-driven.
+10. **Never read from `docs/specs/<entity>/04-arch/tasks/`.** Prototyping is freeform, not task-driven.
 
 ## What You Do
 
@@ -53,7 +53,7 @@ These are non-negotiable. They are intentionally relaxed compared to the Enginee
 
 ## What You Do NOT Do
 
-- Read task briefs from `.claude/specs/<entity>/04-arch/tasks/` (prototyping is freeform)
+- Read task briefs from `docs/specs/<entity>/04-arch/tasks/` (prototyping is freeform)
 - Run QA validation
 - Create PRs (prototype stays on a branch until extraction)
 - Enforce coverage thresholds

@@ -1,3 +1,12 @@
+---
+type: Elicitation — 20 Questions
+title: Weave Platform Strategy — 20 Questions
+description: "Twenty Questions elicitation of Weave platform scope, commercial model, and technical architecture."
+tags: [weave-platform, 01-brief, elicitation, strategy]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/specs/weave-platform/01-brief/20Q-platform-strategy.md
+---
+
 # 20 Questions Analysis: Weave Platform Product Strategy
 
 **Method:** Twenty Questions
@@ -147,6 +156,10 @@ model throughout.
 
 ## Captured As
 
-Saved to `.claude/specs/weave-platform/01-brief/20Q-platform-strategy.md`
+Saved to `docs/specs/weave-platform/01-brief/20Q-platform-strategy.md`
 
 Next: `/po` — Product Owner to write the Brief, PRD, and Roadmap from this foundation.
+
+# Related
+
+- [Weave Platform — Product Brief](brief.md)

@@ -56,7 +56,7 @@ These are non-negotiable. Any violation is a failure condition.
    broad scope, competing approaches.
 7. **Commit each spec document as it is completed.** Brief committed before PRD starts. PRD
    committed before roadmap starts. Never batch all specs into a single commit.
-8. **If `.claude/specs/<entity>/` already exists, read all existing artifacts before starting.**
+8. **If `docs/specs/<entity>/` already exists, read all existing artifacts before starting.**
    Existing brief, PRD, or elicitation outputs are ground truth. New work must account for them.
 
 ---
@@ -70,7 +70,7 @@ These are non-negotiable. Any violation is a failure condition.
      Options: constitution-engine / build-engine / weave-platform / events-actions-engine /
      graph-explorer / Other (free text)
 
-2. Check `.claude/specs/<entity>/` for any existing artifacts. If found, summarise in 3 bullets:
+2. Check `docs/specs/<entity>/` for any existing artifacts. If found, summarise in 3 bullets:
    - What is already done (spec files present)
    - What the current state of the work is (draft / approved / committed)
    - What the next logical step is
@@ -98,7 +98,7 @@ Before invoking `po-brief`, offer structured elicitation via AskUserQuestion:
 Options: 20 Questions / Six Hats / Five Whys / Stochastic / Skip
 
 If the user chooses an elicitation method, invoke the `elicit` skill with the selected method.
-Capture elicitation output to `.claude/specs/<entity>/00-elicit/` before proceeding.
+Capture elicitation output to `docs/specs/<entity>/00-elicit/` before proceeding.
 
 Offer elicitation techniques proactively throughout the session when you detect:
 
@@ -127,7 +127,7 @@ Before invoking, tell the user:
 >
 > Each section is written, reviewed, and approved before moving to the next."
 
-Output path: `.claude/specs/<entity>/01-brief/brief.md`
+Output path: `docs/specs/<entity>/01-brief/brief.md`
 
 When the brief is complete and committed, proceed to Phase 3.
 
@@ -144,7 +144,7 @@ Before invoking, tell the user:
 > Some details (deployment URLs, exact credential names) will be placeholders at PRD time —
 > I'll note where detail is finalised at scaffold so you don't flag gaps prematurely."
 
-Output path: `.claude/specs/<entity>/02-prd/prd.md`
+Output path: `docs/specs/<entity>/02-prd/prd.md`
 
 When the PRD is complete and committed, proceed to Phase 4.
 
@@ -159,7 +159,7 @@ Before invoking, tell the user:
 >
 > The Gantt diagram is presented first and must be approved before any phase block is drafted."
 
-Output path: `.claude/specs/<entity>/03-roadmap/roadmap.md`
+Output path: `docs/specs/<entity>/03-roadmap/roadmap.md`
 
 When the roadmap is complete and committed, proceed to Phase 5.
 
@@ -181,7 +181,7 @@ For each epic:
    - "EPIC-NNN complete. Continue to the next epic?" Options: Yes / Skip remaining epics /
      Stop here
 
-Output path: `.claude/specs/<entity>/02-prd/epics/EPIC-NNN.md`
+Output path: `docs/specs/<entity>/02-prd/epics/EPIC-NNN.md`
 
 When all epics are complete, proceed to the handoff.
 
@@ -190,10 +190,10 @@ When all epics are complete, proceed to the handoff.
 When all PO artifacts are committed, tell the user:
 
 > "PO artifacts complete:
-> - Brief: `.claude/specs/<entity>/01-brief/brief.md`
-> - PRD: `.claude/specs/<entity>/02-prd/prd.md`
-> - Roadmap: `.claude/specs/<entity>/03-roadmap/roadmap.md`
-> - Epics: `.claude/specs/<entity>/02-prd/epics/EPIC-*.md`
+> - Brief: `docs/specs/<entity>/01-brief/brief.md`
+> - PRD: `docs/specs/<entity>/02-prd/prd.md`
+> - Roadmap: `docs/specs/<entity>/03-roadmap/roadmap.md`
+> - Epics: `docs/specs/<entity>/02-prd/epics/EPIC-*.md`
 >
 > Run `/architect` to continue. The Architect reads the PRD and Roadmap to produce the
 > tech spec and task decomposition scoped to Phase 1 epics."
@@ -290,5 +290,5 @@ phase without referencing it, the principle was performative — sharpen it.
 - Does not skip HITL review at any phase transition
 - Does not ask decisions as plain text when AskUserQuestion would work
 - Does not produce entire documents at once — section-by-section is enforced by the skills
-- Does not use `docs/specs/` — all spec output is under `.claude/specs/<entity>/`
+- Does not use `docs/specs/` — all spec output is under `docs/specs/<entity>/`
 - Does not reference `templates/` — all templates are under `.claude/spec-templates/`

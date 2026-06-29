@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Agent Testing & Evals — Coding Standard
+description: "Testing, evaluation, and monitoring standards for AI agents."
+tags: [standards, testing, agents]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/testing-agents.md
+---
+
 # Agent Testing, Evals & Monitoring
 
 Weave uses AI agents at two levels: **platform agents** (elicitation, generation,

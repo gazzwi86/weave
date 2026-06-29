@@ -30,7 +30,7 @@ Before doing anything else, read:
 
 1. `.claude/state/progress.json` — current phase name, epics, and task statuses
 2. `.claude/spec-templates/phase-gate.md` — section scaffold for the summary document
-3. `.claude/specs/<entity>/<phase>/*.md` — all spec artifacts for the current phase
+3. `docs/specs/<entity>/<phase>/*.md` — all spec artifacts for the current phase
 4. `.claude/state/summaries/` — any prior phase summaries (for continuity context)
 
 Derive `<entity>` and `<phase>` from the `phase` field in `progress.json`.
@@ -163,7 +163,7 @@ Populate every item from the template with real status (checked = pass, unchecke
 - **Deliverables** — all tasks done (from Step 1)
 - **Quality** — lint errors (from any pre-tool-use hook output), complexity thresholds (Plugin Law E:
   cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines), mutation score ≥ 70% (Step 3),
-  QA review complete (check `.claude/specs/<entity>/<phase>/qa-report.md` if present)
+  QA review complete (check `docs/specs/<entity>/<phase>/qa-report.md` if present)
 - **Artifacts** — PRs created (check `gh pr list --state open`), conventional commits
   (verify last 10 commits: `git log --oneline -10`), documentation updated
 - **Environment** — verify the correct start commands for Weave's stack:
@@ -264,6 +264,23 @@ What is your decision?"
    ```
 5. Exit 2 (blocks further automated progress).
 
+#### Result block (emit after the decision is recorded)
+
+After handling the chosen decision, emit a fenced `result` block as the final output of the gate so the
+orchestrator can parse the outcome deterministically (see [Output](#output) for the schema):
+
+- **Approve** → `status: ok`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`
+- **Amend** → `status: fail`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`
+  (gate loops back, not blocked)
+- **Reject** → `status: blocked`, `artifact_path` =
+  `.claude/state/escalations/PHASE-<N>-REJECTED-<date>.md`, `failure_class: null`
+
+```result
+status: ok
+artifact_path: .claude/state/summaries/PHASE-1.md
+failure_class: null
+```
+
 ## Constitutional self-check (run before every section delivery)
 
 Walk both Law layers. Write one line per Law, format exactly:
@@ -319,6 +336,18 @@ Never leave `{{PLACEHOLDER}}` in the output.
 
 - `.claude/state/escalations/PHASE-<N>-REJECTED-<date>.md` — on Reject only
 - Updated `.claude/state/progress.json` — on Approve only
+
+**Terminal result block (always):**
+
+The gate ends with a fenced `result` block as its final output. The orchestrator reads the **last** such block:
+
+```result
+status: ok | fail | blocked
+artifact_path: <path or null>
+failure_class: logic | dependency | interface | spec-ambiguity | null
+```
+
+Mapping from the HITL decision: Approve → `ok`, Amend → `fail`, Reject → `blocked` (see Step 6).
 
 ## Evaluation Criteria
 

@@ -15,7 +15,7 @@ Weave ships a **universal business ontology** that clients extend rather than au
 a ~9-type, ArchiMate-3-aligned core — Actor/Role/Org-Unit, Capability, Process/Activity,
 System/Application, Data/Information asset, Rule/Policy, Event, Product/Service, KPI/Metric —
 plus a Strategy/Motivation layer and a SKOS glossary
-(`.claude/specs/constitution-engine/01-brief/brief.md`, lines 67–87). If those types and their
+(`docs/specs/constitution-engine/01-brief/brief.md`, lines 67–87). If those types and their
 relationships rest on ad-hoc intuition, the model will drift, validate poorly, and fail to compose
 with imported client artefacts. The enterprise-ontology research program has spent 30+ years
 working out exactly these typing questions. This report extracts what is **load-bearing theory**
@@ -423,5 +423,5 @@ Secondary (orientation only — not the cited basis for capability claims):
 Internal grounding:
 
 - `.claude/reports/00-research-brief.md` (frame §3, questions §4, hypotheses §8).
-- `.claude/specs/constitution-engine/01-brief/brief.md` (9-type ontology, lines 67–87).
+- `docs/specs/constitution-engine/01-brief/brief.md` (9-type ontology, lines 67–87).
 - `CLAUDE.md` (confirmed W3C stack, OWL 2 DL + SHACL, ArchiMate-3 alignment, NL+forms authoring).

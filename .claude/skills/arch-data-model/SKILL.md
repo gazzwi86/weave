@@ -25,14 +25,14 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/data-model.md` — output scaffold
 3. `.claude/spec-templates/few-shot/data/sqlalchemy-async.md` — SQLAlchemy async style reference
-4. `.claude/specs/<entity>/02-prd/prd.md` — domain entities, bounded context, acceptance criteria
-5. `.claude/specs/<entity>/03-arch/tech-spec/architecture.md` — if present, for layer overview
-6. Any existing data model draft at `.claude/specs/<entity>/04-arch/tech-spec/data-model.md`
+4. `docs/specs/<entity>/02-prd/prd.md` — domain entities, bounded context, acceptance criteria
+5. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` — if present, for layer overview
+6. Any existing data model draft at `docs/specs/<entity>/04-arch/tech-spec/data-model.md`
 
 Ask the user which entity this is for if not supplied. Confirm the output path before writing:
 
 ```
-.claude/specs/<entity>/04-arch/tech-spec/data-model.md
+docs/specs/<entity>/04-arch/tech-spec/data-model.md
 ```
 
 ## Instructions
@@ -288,7 +288,7 @@ Update the file frontmatter to set `status: Review` and `confirmed_by: <user>`.
 Commit the artifact:
 
 ```bash
-git add .claude/specs/<entity>/04-arch/tech-spec/data-model.md
+git add docs/specs/<entity>/04-arch/tech-spec/data-model.md
 git commit -m "docs(<entity>): add data-model tech spec"
 ```
 
@@ -355,7 +355,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/tech-spec/data-model.md`
+File: `docs/specs/<entity>/04-arch/tech-spec/data-model.md`
 
 Template: `.claude/spec-templates/architecture/data-model.md`
 
@@ -365,7 +365,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: Data Model Spec
 title: "Data Model: <entity display name>"
+description: "<one-line summary of the relational + semantic data model for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>

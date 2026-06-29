@@ -21,18 +21,18 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — canonical confirmed stack; § "Stack (confirmed)" and § "Architecture
    decisions (confirmed)"
-2. `.claude/specs/<entity>/01-brief/brief.md` — entity scope, constraints, known decisions
-3. `.claude/specs/<entity>/02-prd/prd.md` — if present; look for technology constraints or
+2. `docs/specs/<entity>/01-brief/brief.md` — entity scope, constraints, known decisions
+3. `docs/specs/<entity>/02-prd/prd.md` — if present; look for technology constraints or
    explicit non-functional requirements (NFRs) that affect stack choice
-4. `.claude/specs/<entity>/03-arch/tech-spec.md` — if an in-progress draft exists, read the
-   `stack` frontmatter block only (skip the rest)
-5. Any ADRs already in `.claude/specs/<entity>/03-arch/decisions/` — to detect prior overrides
+4. `docs/specs/<entity>/04-arch/tech-spec/` — if an in-progress draft exists, read any
+   existing files for stack context (skip the rest)
+5. Any ADRs already in `docs/specs/<entity>/04-arch/decisions/` — to detect prior overrides
 
 Ask the user which entity this stack confirmation is for if not supplied. Output paths are:
 
-- Stack confirmation block: `.claude/specs/<entity>/03-arch/stack.md`
+- Stack confirmation block: `docs/specs/<entity>/04-arch/tech-spec/stack.md`
 - ADR stub (only when a CLAUDE.md default is overridden):
-  `.claude/specs/<entity>/03-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+  `docs/specs/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 ## Instructions
 
@@ -218,7 +218,7 @@ For each override:
 
 **ADR Stub format:**
 
-File: `.claude/specs/<entity>/03-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+File: `docs/specs/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 ```markdown
 ---
@@ -265,13 +265,17 @@ Use <proposed value> for <dimension> in the <entity> entity.
 ### Step 3 — Finalise and write stack confirmation file
 
 After all sections are approved, write the complete `stack.md` file to
-`.claude/specs/<entity>/03-arch/stack.md`.
+`docs/specs/<entity>/04-arch/tech-spec/stack.md`.
 
 Frontmatter:
 
 ```yaml
 ---
+type: Stack Confirmation
 title: "Stack Confirmation: <entity display name>"
+description: "<one-line summary of the confirmed technology stack for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Confirmed
 created: <YYYY-MM-DD>
 entity: <entity>
@@ -285,8 +289,8 @@ The file body is the approved Section A + B + C content (and Section D if overri
 ### Step 4 — Commit
 
 ```bash
-git add .claude/specs/<entity>/03-arch/stack.md
-git add .claude/specs/<entity>/03-arch/decisions/  # if any ADR stubs written
+git add docs/specs/<entity>/04-arch/tech-spec/stack.md
+git add docs/specs/<entity>/04-arch/decisions/  # if any ADR stubs written
 git commit -m "docs(<entity>): stack confirmation"
 ```
 
@@ -364,7 +368,7 @@ Brief or PRD to break the tie; user input is required.
 
 ### Primary file
 
-**Path:** `.claude/specs/<entity>/03-arch/stack.md`
+**Path:** `docs/specs/<entity>/04-arch/tech-spec/stack.md`
 
 **Template:** none (this skill owns its own output structure — no `.claude/spec-templates/`
 file exists for stack confirmation; the structure is defined in Step 3 above)
@@ -373,7 +377,11 @@ file exists for stack confirmation; the structure is defined in Step 3 above)
 
 ```yaml
 ---
+type: Stack Confirmation
 title: "Stack Confirmation: <entity display name>"
+description: "<one-line summary of the confirmed technology stack for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Confirmed
 created: <YYYY-MM-DD>
 entity: <entity>
@@ -384,7 +392,7 @@ open-dimensions: <integer — count of deferred dimensions>
 
 ### Secondary files (conditional)
 
-**Path:** `.claude/specs/<entity>/03-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+**Path:** `docs/specs/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 Written only when the user explicitly overrides a CLAUDE.md-confirmed dimension. The `NNN`
 sequence continues from the highest existing ADR number in that entity's decisions directory.

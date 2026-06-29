@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Semantic Web — Coding Standard
+description: "OWL/SHACL/SPARQL/PROV conventions for the ontology and graph layer."
+tags: [standards, semantic-web, rdf]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/semantic-web.md
+---
+
 # Semantic Web Standards
 
 Weave's ontology layer is built on the full W3C semantic web stack: RDF/OWL 2 DL,

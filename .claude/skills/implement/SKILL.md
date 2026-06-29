@@ -18,7 +18,7 @@ Orchestrate the PDAC implementation cycle: Architect curates context, Engineer i
 
 1. Run `bash .claude/scripts/progress.sh kanban` to display current state
 2. Run `bash .claude/scripts/progress.sh ready` to get next task whose dependencies are satisfied
-3. Read `.claude/specs/<entity>/03-roadmap/roadmap.md` to understand current phase and gates
+3. Read `docs/specs/<entity>/03-roadmap/roadmap.md` to understand current phase and gates
 4. If no tasks exist, tell the user to run `/architect` first
 
 ### Step 2: Check Scaffolding (First Run Only)
@@ -59,15 +59,15 @@ Then proceed per project type:
 
 **Python/FastAPI scaffold:**
 
-1. Read `.claude/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
-3. Read `.claude/spec-templates/standards/linting.md` for ruff config
+1. Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+3. Read `.claude/spec-templates/standards/python/linting.md` for ruff config
 4. Reference `.claude/spec-templates/few-shot/api/fastapi-router.md` for router patterns
 5. Invoke the **engineer** subagent to scaffold:
    - `uv init` in the target directory
    - `uv add fastapi pydantic uvicorn[standard]`
    - `uv add --dev pytest pytest-asyncio httpx ruff mypy`
-   - Configure `ruff` per `.claude/spec-templates/standards/linting.md`
+   - Configure `ruff` per `.claude/spec-templates/standards/python/linting.md`
    - Configure `pytest` with `asyncio_mode = "auto"` in `pyproject.toml`
    - Configure `mypy` with `strict = true`
    - Create a `/health` route returning `{ "status": "ok", "timestamp": ..., "version": ... }`
@@ -81,16 +81,16 @@ Then proceed per project type:
 
 **TypeScript/Next.js 15 scaffold:**
 
-1. Read `.claude/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
-3. Read `.claude/spec-templates/standards/linting.md` for ESLint config
+1. Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+3. Read `.claude/spec-templates/standards/ts/linting.md` for ESLint config
 4. Reference `.claude/spec-templates/few-shot/api/nextjs-route-handler.md` for route handler patterns
 5. Invoke the **engineer** subagent to scaffold:
    - `npx create-next-app@latest --typescript --eslint --app`
    - Install: `vitest @testing-library/react playwright eslint-plugin-sonarjs @stryker-mutator/core @stryker-mutator/vitest-runner tsc-files jscpd license-checker`
    - Install `pino` for structured JSON logging
-   - Configure ESLint with SonarJS rules per `.claude/spec-templates/standards/linting.md`
-   - Configure Vitest per `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+   - Configure ESLint with SonarJS rules per `.claude/spec-templates/standards/ts/linting.md`
+   - Configure Vitest per `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
    - Configure Playwright
    - Install husky + lint-staged for git hooks:
      - Pre-commit hook: `eslint --fix` + `tsc-files --noEmit` + `vitest run --changed`
@@ -125,7 +125,7 @@ Get the next task ID from `bash .claude/scripts/progress.sh ready`. If result is
 
 #### PLAN
 
-1. Read the task brief: `.claude/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
+1. Read the task brief: `docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
 2. Read dependency summaries: for each task in `blocked_by`, read `.claude/state/summaries/{DEP_TASK_ID}.md` to
    understand what was already built
 3. Verify the DoR checklist at the bottom of the brief — all items should be checked
@@ -141,18 +141,28 @@ Get the next task ID from `bash .claude/scripts/progress.sh ready`. If result is
 
 1. Write ALL failing tests first (from Test Requirements section)
 2. Run `/code-review` on the test code. Address valid issues with discretion.
-3. Commit: `test: add failing tests for {TASK_ID}`
-4. Implement minimal code to pass tests
-5. Run `/code-review` on the implementation. Address valid issues with discretion.
-6. Commit: `feat: {description}`
-7. Refactor while keeping tests green
-8. Run `/code-review` on refactored code. Address valid issues.
-9. Commit: `refactor: {description}` (if needed)
-10. Run `/simplify` on all changed files. Remove dead code, unused imports, redundant variables.
+3. **AST / type check (before running the test suite):** verify the changed files type-check.
+   - Python: `uv run mypy --check-untyped-defs <changed .py files>` — must pass (zero errors)
+   - TypeScript: `npx tsc --noEmit` — must pass
+   - If either fails, fix the type errors before proceeding to the test suite.
+4. Commit: `test: add failing tests for {TASK_ID}`
+5. Implement minimal code to pass tests
+6. Run `/code-review` on the implementation. Address valid issues with discretion.
+7. Commit: `feat: {description}`
+8. Refactor while keeping tests green
+9. Run `/code-review` on refactored code. Address valid issues.
+10. Commit: `refactor: {description}` (if needed)
+11. Run `/simplify` on all changed files. Remove dead code, unused imports, redundant variables.
     Commit separately: `chore: simplify {description}` (if changes made)
-11. Run lint, verify zero errors
-12. Verify coverage >= 80%
-13. Check every item on the DoD checklist
+12. **Security scan (before lint):**
+    - Python files changed: `uv run bandit -r $(git diff --name-only HEAD | grep '\.py$') 2>/dev/null || true` —
+      report findings, block on HIGH severity.
+    - TypeScript files changed: `eslint-plugin-security` rules are already in the ESLint config, so the existing
+      `npm run lint` (next step) covers it — no extra command.
+    - If no Python files changed and no TypeScript files changed, skip.
+13. Run lint, verify zero errors
+14. Verify coverage >= 80%
+15. Check every item on the DoD checklist
 
 Pre-commit hooks will block commits that fail lint or unit tests.
 
@@ -166,16 +176,35 @@ The Engineer does NOT read spec files other than the task brief. It is self-cont
    compliance, PO review, edge case extension
 10. Read QA result:
     - **PASS**: Merge the worktree branch into the feature branch. Continue to CODIFY.
-    - **FAIL**: Feed the failure report back to the Engineer agent as context. Re-run DELEGATE with the failure
-      report appended. Limit to 3 QA cycles per task — if still failing after 3, pause and ask the human via
-      AskUserQuestion.
+    - **FAIL**: Classify the failure before retrying. Prompt the classifier with exactly:
+
+      > "Read the QA failure report. Classify the root cause as exactly one of: logic, dependency, interface,
+      > spec-ambiguity. Output only the class name."
+
+      Then act on the returned class:
+
+      | Class | Meaning | Action | Max retries |
+      |---|---|---|---|
+      | `logic` | Bug in implementation | Feed the failure report back to the Engineer and re-run DELEGATE | 3 |
+      | `dependency` | Missing package / tool / config | Resolve the dependency once, then re-run DELEGATE | 1 |
+      | `interface` | Hallucinated method / API | Re-read the referenced spec section, then re-run DELEGATE | 1 |
+      | `spec-ambiguity` | Task brief underspecified | Escalate to `/architect` — do not retry | 0 |
+
+      Track `retry_count` per task across DELEGATE re-runs. When a class reaches its retry cap (or on
+      `spec-ambiguity`), stop and ask the human via AskUserQuestion.
+
+      Emit the [result block](#output) for the ASSESS outcome: `status: ok` on PASS; `status: fail` with the
+      classified `failure_class` on a retryable failure; `status: blocked` on `spec-ambiguity` or once a retry cap
+      is exhausted.
 
 #### CODIFY
 
 11. Write a progress summary to `.claude/state/summaries/{TASK_ID}.md` documenting: decisions made, nuances
     discovered, edge cases found, and context the next task needs. This is a blocking requirement — do not mark
     the task as done until the summary exists.
-12. Update progress: `bash .claude/scripts/progress.sh update {TASK_ID} done`
+12. Update progress: `bash .claude/scripts/progress.sh update {TASK_ID} done`. Also persist `retry_count`
+    (the number of DELEGATE retries this task consumed in ASSESS) into the task's entry in
+    `.claude/state/progress.json`.
 13. Create a PR for the feature branch:
 
     ```
@@ -186,9 +215,11 @@ The Engineer does NOT read spec files other than the task brief. It is self-cont
 
 14. **PR Review Gate**: Run `/code-review` on the PR. Review any issues raised. Address valid feedback with
     discretion. Commit fixes if needed.
-15. Check phase status: `bash .claude/scripts/progress.sh phase-check`
-16. If phase INCOMPLETE: loop back to PLAN with next task
-17. If phase COMPLETE: proceed to Step 4
+15. Emit the [result block](#output) for the completed task: `status: ok`, `artifact_path` set to the task brief
+    path (`docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`.
+16. Check phase status: `bash .claude/scripts/progress.sh phase-check`
+17. If phase INCOMPLETE: loop back to PLAN with next task
+18. If phase COMPLETE: proceed to Step 4
 
 ### Step 4: Phase Gate
 
@@ -209,10 +240,14 @@ When `phase-check` returns COMPLETE:
    - `docs/api.md` — API endpoint documentation (routes, methods, request/response shapes) derived from
      the codebase
    - `docs/architecture.md` — high-level as-built architecture overview (not the spec)
+   - Any markdown written under `docs/` MUST carry OKF frontmatter (`type` plus title,
+     description, tags, timestamp) or it breaks `/okf-validate`. Use e.g.
+     `type: API Reference` for `docs/api.md` and `type: Architecture Overview` for
+     `docs/architecture.md`. `README.md` at repo root is outside the bundle and is exempt.
    - Update any existing docs that are now stale
    - Commit: `docs: generate project documentation`
 
-4. Display the phase gate checklist (from `.claude/specs/<entity>/03-roadmap/roadmap.md` or the
+4. Display the phase gate checklist (from `docs/specs/<entity>/03-roadmap/roadmap.md` or the
    `.claude/spec-templates/phase-gate.md` template)
 
 5. Run `bash .claude/scripts/progress.sh kanban` to show final state
@@ -235,8 +270,41 @@ When `phase-check` returns COMPLETE:
 - Phase state tracked in `.claude/state/progress.json`
 - Feature branches per task: `feature/{TASK_ID}`
 - Worktree isolation for Engineer and QA subagents
-- Task briefs: `.claude/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
+- Task briefs: `docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
 - Dependency summaries: `.claude/state/summaries/{TASK_ID}.md`
+
+## Output
+
+Every run of this skill ends with a fenced `result` block that the orchestrator parses deterministically. The
+orchestrator reads the **last** such block in the output.
+
+```result
+status: ok | fail | blocked
+artifact_path: <path or null>
+failure_class: logic | dependency | interface | spec-ambiguity | null
+```
+
+- `status: ok` — task (or scaffold) completed and merged. `artifact_path` is the task brief path;
+  `failure_class: null`.
+- `status: fail` — a retryable QA failure. `artifact_path: null`; `failure_class` is the classified root cause.
+- `status: blocked` — `spec-ambiguity`, retry-cap exhaustion, or a CRITICAL security finding. `artifact_path: null`;
+  `failure_class` set accordingly.
+
+Example (success):
+
+```result
+status: ok
+artifact_path: docs/specs/constitution-engine/04-arch/tasks/TASK-001.md
+failure_class: null
+```
+
+Example (blocked):
+
+```result
+status: blocked
+artifact_path: null
+failure_class: spec-ambiguity
+```
 
 ## Evaluation Criteria
 
@@ -257,4 +325,4 @@ When testing this skill, verify:
 - **Feature branch per task**: Each task gets its own `feature/{TASK_ID}` branch
 - **Worktree isolation**: Engineer and QA subagents run in isolated worktrees
 - **No spec leakage**: Engineer only reads the task brief, not other spec files
-- **Correct paths**: All script and spec paths use Weave conventions (`.claude/scripts/`, `.claude/specs/`)
+- **Correct paths**: All script and spec paths use Weave conventions (`.claude/scripts/`, `docs/specs/`)

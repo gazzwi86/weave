@@ -20,15 +20,15 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/flows.md` — output scaffold (never leave `{{}}` in output)
-3. Approved PRD: `.claude/specs/<entity>/02-prd/prd.md` (scope, user journeys)
-4. Approved roadmap: `.claude/specs/<entity>/03-roadmap/roadmap.md` (phase being specced)
-5. C4 architecture doc if present: `.claude/specs/<entity>/04-arch/tech-spec/architecture.md`
+3. Approved PRD: `docs/specs/<entity>/02-prd/prd.md` (scope, user journeys)
+4. Approved roadmap: `docs/specs/<entity>/03-roadmap/roadmap.md` (phase being specced)
+5. C4 architecture doc if present: `docs/specs/<entity>/04-arch/tech-spec/architecture.md`
    (component names must be consistent across all arch shards)
-6. Data model if present: `.claude/specs/<entity>/04-arch/tech-spec/data-model.md`
+6. Data model if present: `docs/specs/<entity>/04-arch/tech-spec/data-model.md`
    (entity names used in diagrams must match the ERD)
 
 Ask the user which entity this covers if not supplied. Output path is:
-`.claude/specs/<entity>/04-arch/tech-spec/business-process.md`
+`docs/specs/<entity>/04-arch/tech-spec/business-process.md`
 
 ## Instructions
 
@@ -219,7 +219,7 @@ Run constitutional self-check, present, confidence block, HITL.
 ### Step 5 — Commit
 
 ```bash
-git add .claude/specs/<entity>/04-arch/tech-spec/business-process.md
+git add docs/specs/<entity>/04-arch/tech-spec/business-process.md
 git commit -m "docs(<entity>): add business-process flows shard"
 ```
 
@@ -290,7 +290,7 @@ Rules:
 
 ## Output
 
-**File:** `.claude/specs/<entity>/04-arch/tech-spec/business-process.md`
+**File:** `docs/specs/<entity>/04-arch/tech-spec/business-process.md`
 
 **Template:** `.claude/spec-templates/architecture/flows.md`
 
@@ -300,7 +300,11 @@ Create the directory if it does not exist. Never leave `{{PLACEHOLDER}}` in the 
 
 ```yaml
 ---
+type: Business Process Spec
 title: "Business Process Flows: <entity display name>"
+description: "<one-line summary of the business process flows for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>
