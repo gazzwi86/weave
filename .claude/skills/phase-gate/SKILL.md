@@ -103,6 +103,29 @@ MUTATION: runner not configured — skipped. Score assumed 0% (RED).
 
 Do not fabricate a score. A missing runner is a red signal.
 
+### Step 3b — UI verification gate (UI-affecting phases only)
+
+For every UI-affecting feature delivered in this phase, **re-execute** the deterministic UI gate —
+do not trust a prior PASS recorded by the engineer or QA. This is the enforcing seam: the script's
+exit code, not prose, decides.
+
+```bash
+# Launch the built app, then for each UI feature/epic:
+.claude/scripts/ui_verify.sh --full --target <served-url-for-the-feature> \
+  --runbook <path-to-the-feature-run-book>
+```
+
+`ui_verify.sh` fails closed: a missing Playwright/Lighthouse toolchain is a FAILURE, not a skip
+(it never silently passes). Capture the exit code per feature.
+
+**Gate rule:** any `ui_verify.sh` exit ≠ 0 → mark the UI gate RED → the gate **cannot** Approve
+(blocked programmatically, exactly like a CRITICAL security finding). The human approver may Amend
+(fix and re-gate) but Approve is blocked. A run-book that is missing or whose `vouched-by:` is empty
+is itself a RED — a screen no human has vouched for is not done.
+
+If the phase delivered no UI-affecting features, emit `UI-VERIFY: N/A (no UI features this phase)`
+and continue. "No UI features" must be true from the task briefs, not assumed to dodge the gate.
+
 ### Step 4 — Kanban summary presentation
 
 Display the full kanban output captured in Step 1 verbatim, then add:
@@ -203,7 +226,7 @@ Then present the full document content to the user.
 Emit the confidence block, then ask via AskUserQuestion:
 
 **Question:** "Phase gate for `<phase label>` is ready for your review.
-Security: `<PASS|FAIL|CRITICAL>` | Mutation: `<score>%` (`<RED|GREEN>`).
+Security: `<PASS|FAIL|CRITICAL>` | Mutation: `<score>%` (`<RED|GREEN>`) | UI-verify: `<PASS|RED|N/A>`.
 What is your decision?"
 
 **Options:** Approve / Amend / Reject
@@ -298,6 +321,7 @@ Gate Law 2 (CRITICAL security blocks Approve): complied | violated | N/A — <re
 Gate Law 3 (mutation < 70% is RED, not amber): complied | violated | N/A — <reason>
 Gate Law 4 (no placeholder in summary doc): complied | violated | N/A — <reason>
 Gate Law 5 (Reject halts dark factory via exit 2): complied | violated | N/A — <reason>
+Gate Law 6 (UI gate re-executed, RED blocks Approve): complied | violated | N/A — <reason>
 ```
 
 If ANY line says "violated": STOP, revise the section, re-run the check.
@@ -360,6 +384,8 @@ A well-executed phase gate:
 - Displays the raw kanban board before presenting the summary
 - Produces a `.claude/state/summaries/PHASE-<N>.md` with zero `{{PLACEHOLDER}}` entries
 - Blocks Approve when any CRITICAL security finding is present
+- Re-executes `ui_verify.sh --full` for every UI feature and blocks Approve on any non-zero exit
+  (or a missing/unsigned run-book) — never trusts a cached PASS
 - On Reject: writes an escalation file, halts the dark factory via `exit 2`
 - On Approve: advances `progress.json` to the next phase and signals `/implement` to continue
 - Constitutional self-check trace is present in chat for every section
