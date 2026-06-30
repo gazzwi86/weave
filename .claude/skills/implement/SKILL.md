@@ -18,7 +18,7 @@ Orchestrate the PDAC implementation cycle: Architect curates context, Engineer i
 
 1. Run `bash .claude/scripts/progress.sh kanban` to display current state
 2. Run `bash .claude/scripts/progress.sh ready` to get next task whose dependencies are satisfied
-3. Read `docs/specs/<entity>/03-roadmap/roadmap.md` to understand current phase and gates
+3. Read `docs/specs/weave/engines/<entity>.md` to understand current phase and gates
 4. If no tasks exist, tell the user to run `/architect` first
 
 ### Step 2: Check Scaffolding (First Run Only)
@@ -59,8 +59,8 @@ Then proceed per project type:
 
 **Python/FastAPI scaffold:**
 
-1. Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/python/linting.md` for ruff config
 4. Reference `.claude/spec-templates/few-shot/api/fastapi-router.md` for router patterns
 5. Invoke the **engineer** subagent to scaffold:
@@ -81,8 +81,8 @@ Then proceed per project type:
 
 **TypeScript/Next.js 15 scaffold:**
 
-1. Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/ts/linting.md` for ESLint config
 4. Reference `.claude/spec-templates/few-shot/api/nextjs-route-handler.md` for route handler patterns
 5. Invoke the **engineer** subagent to scaffold:
@@ -90,7 +90,7 @@ Then proceed per project type:
    - Install: `vitest @testing-library/react playwright eslint-plugin-sonarjs @stryker-mutator/core @stryker-mutator/vitest-runner tsc-files jscpd license-checker`
    - Install `pino` for structured JSON logging
    - Configure ESLint with SonarJS rules per `.claude/spec-templates/standards/ts/linting.md`
-   - Configure Vitest per `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+   - Configure Vitest per `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
    - Configure Playwright
    - Install husky + lint-staged for git hooks:
      - Pre-commit hook: `eslint --fix` + `tsc-files --noEmit` + `vitest run --changed`
@@ -125,7 +125,7 @@ Get the next task ID from `bash .claude/scripts/progress.sh ready`. If result is
 
 #### PLAN
 
-1. Read the task brief: `docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
+1. Read the task brief: `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`
 2. Read dependency summaries: for each task in `blocked_by`, read `.claude/state/summaries/{DEP_TASK_ID}.md` to
    understand what was already built
 3. Verify the DoR checklist at the bottom of the brief — all items should be checked
@@ -216,7 +216,7 @@ The Engineer does NOT read spec files other than the task brief. It is self-cont
 14. **PR Review Gate**: Run `/code-review` on the PR. Review any issues raised. Address valid feedback with
     discretion. Commit fixes if needed.
 15. Emit the [result block](#output) for the completed task: `status: ok`, `artifact_path` set to the task brief
-    path (`docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`.
+    path (`docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`.
 16. Check phase status: `bash .claude/scripts/progress.sh phase-check`
 17. If phase INCOMPLETE: loop back to PLAN with next task
 18. If phase COMPLETE: proceed to Step 4
@@ -247,7 +247,7 @@ When `phase-check` returns COMPLETE:
    - Update any existing docs that are now stale
    - Commit: `docs: generate project documentation`
 
-4. Display the phase gate checklist (from `docs/specs/<entity>/03-roadmap/roadmap.md` or the
+4. Display the phase gate checklist (from `docs/specs/weave/engines/<entity>.md` or the
    `.claude/spec-templates/phase-gate.md` template)
 
 5. Run `bash .claude/scripts/progress.sh kanban` to show final state
@@ -270,7 +270,7 @@ When `phase-check` returns COMPLETE:
 - Phase state tracked in `.claude/state/progress.json`
 - Feature branches per task: `feature/{TASK_ID}`
 - Worktree isolation for Engineer and QA subagents
-- Task briefs: `docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`
+- Task briefs: `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`
 - Dependency summaries: `.claude/state/summaries/{TASK_ID}.md`
 
 ## Output
@@ -294,7 +294,7 @@ Example (success):
 
 ```result
 status: ok
-artifact_path: docs/specs/constitution-engine/04-arch/tasks/TASK-001.md
+artifact_path: docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-001.md
 failure_class: null
 ```
 

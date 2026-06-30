@@ -106,7 +106,7 @@ This infra integrates with the observability stack via:
 - **Structured logs:** {{log destination — CloudWatch Logs / Azure Monitor / Datadog}} — log groups per service, retention {{N}} days dev / {{N}} days prod.
 - **Traces:** {{X-Ray / Azure Monitor distributed tracing / OTEL collector}} — sampling rate `{{rate}}` in prod.
 - **Metrics + dashboards:** {{CloudWatch dashboards / Azure Monitor workbooks / Grafana}}.
-- **Alarms:** p99 latency, error rate, DLQ depth — see `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`.
+- **Alarms:** p99 latency, error rate, DLQ depth — see `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`.
 - **Few-shot example:** `templates/few-shot/observability/{{observability_few_shot_file}}`.
 
 ## Synthetic Verification (Plugin Law F)

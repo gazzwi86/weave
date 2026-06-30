@@ -25,11 +25,11 @@ Before doing anything else, read:
    header (never leave `{{}}` placeholders in output)
 3. `.claude/spec-templates/few-shot/api/fastapi-router.md` — FastAPI + Pydantic v2
    patterns (operationId style, response_model conventions, error handling)
-4. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` (if present) — resource list, auth
+4. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` (if present) — resource list, auth
    approach, non-functional requirements
-5. `docs/specs/<entity>/02-prd/prd.md` (if present) — user stories that drive endpoint
+5. `docs/specs/weave/engines/<entity>.md` (if present) — user stories that drive endpoint
    shape
-6. Any existing `openapi.yaml` draft at `docs/specs/<entity>/04-arch/tech-spec/openapi.yaml`
+6. Any existing `openapi.yaml` draft at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/openapi.yaml`
    to continue rather than overwrite
 
 Ask the user which entity this spec is for (e.g. `constitution-engine`, `build-engine`,
@@ -389,7 +389,7 @@ Update `_AUTO: false` if manually authored (which it always is for new specs).
 
 Run a structural check:
 ```bash
-python3 -c "import yaml, sys; yaml.safe_load(open('docs/specs/<entity>/04-arch/tech-spec/openapi.yaml'))" \
+python3 -c "import yaml, sys; yaml.safe_load(open('docs/specs/weave/engines/<entity>/04-arch/tech-spec/openapi.yaml'))" \
   && echo "YAML valid" || echo "YAML INVALID — fix before commit"
 ```
 
@@ -431,7 +431,7 @@ Then ask via AskUserQuestion: Approve diagram / Amend / Skip (diagram not needed
 #### Commit
 
 ```bash
-git add docs/specs/<entity>/04-arch/tech-spec/openapi.yaml
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/openapi.yaml
 git commit -m "docs(<entity>): add OpenAPI 3.1 spec — <N> endpoints across <M> resource groups"
 ```
 
@@ -494,12 +494,12 @@ Rules:
 
 ## Output
 
-File: `docs/specs/<entity>/04-arch/tech-spec/openapi.yaml`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/openapi.yaml`
 Template: `.claude/spec-templates/architecture/openapi.yaml`
 
 Create the directory if it doesn't exist:
 ```bash
-mkdir -p "docs/specs/<entity>/04-arch/tech-spec"
+mkdir -p "docs/specs/weave/engines/<entity>/04-arch/tech-spec"
 ```
 
 Never leave `{{PLACEHOLDER}}` in the output. All metadata fields in the comment header

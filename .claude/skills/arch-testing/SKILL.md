@@ -24,16 +24,16 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave confirmed stack, laws (especially Law F: no real cloud in tests)
 2. `.claude/spec-templates/tech-spec/testing-strategy.md` — section scaffold
-3. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` if present — to understand
+3. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` if present — to understand
    what is being tested (APIs, components, agents, RDF endpoints, pipelines)
-4. `docs/specs/<entity>/02-prd/prd.md` if present — to extract acceptance criteria
+4. `docs/specs/weave/engines/<entity>.md` if present — to extract acceptance criteria
    that require E2E coverage
-5. `docs/specs/<entity>/04-arch/tech-spec/stack.md` if present — to confirm whether
+5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md` if present — to confirm whether
    the entity is Python-only, TypeScript-only, or full-stack
 
 Ask the user which entity this testing strategy is for (e.g. `constitution-engine`,
 `build-engine`, `weave-platform`) if not supplied. Output path is:
-`docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+`docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 
 ## Instructions
 
@@ -398,7 +398,7 @@ After all sections are approved:
 4. Commit:
 
 ```bash
-git add docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md
 git commit -m "docs(<entity>): add testing strategy"
 ```
 
@@ -446,7 +446,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 
 Template: `.claude/spec-templates/tech-spec/testing-strategy.md`
 

@@ -30,7 +30,7 @@ Before doing anything else, read:
 
 1. `.claude/state/progress.json` — current phase name, epics, and task statuses
 2. `.claude/spec-templates/phase-gate.md` — section scaffold for the summary document
-3. `docs/specs/<entity>/<phase>/*.md` — all spec artifacts for the current phase
+3. `docs/specs/weave/engines/<entity>.md` — all spec artifacts for the current phase
 4. `.claude/state/summaries/` — any prior phase summaries (for continuity context)
 
 Derive `<entity>` and `<phase>` from the `phase` field in `progress.json`.
@@ -163,7 +163,7 @@ Populate every item from the template with real status (checked = pass, unchecke
 - **Deliverables** — all tasks done (from Step 1)
 - **Quality** — lint errors (from any pre-tool-use hook output), complexity thresholds (Plugin Law E:
   cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines), mutation score ≥ 70% (Step 3),
-  QA review complete (check `docs/specs/<entity>/<phase>/qa-report.md` if present)
+  QA review complete (check `docs/specs/weave/engines/qa-report.md` if present)
 - **Artifacts** — PRs created (check `gh pr list --state open`), conventional commits
   (verify last 10 commits: `git log --oneline -10`), documentation updated
 - **Environment** — verify the correct start commands for Weave's stack:

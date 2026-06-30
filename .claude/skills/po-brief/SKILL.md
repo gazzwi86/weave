@@ -3,6 +3,17 @@ name: po-brief
 description: Produce a high-quality project brief (brief.md) for a Weave spec entity, one section at a time with HITL. Invoked by the product-owner agent as the first PO artifact.
 ---
 
+> **Consolidated-spec output (post-merge layout).** Every PO artifact for an entity lives as a
+> **section inside one file**: `docs/specs/weave/engines/<entity>.md`. This skill writes/updates
+> **only its own section** and MUST NOT overwrite others — `## Brief` (po-brief),
+> `## Product Requirements (PRD)` (po-prd), `## Epics` with one `### EPIC-NNN` subsection per epic
+> (po-epic), `## Roadmap` (po-roadmap). If the file does not yet exist, create it with merged
+> frontmatter (per `.claude/spec-templates/frontmatter-schema.md`) and a `# <Engine>` heading, then
+> add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
+> this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
+> artifacts (tech spec, tasks, ADRs) remain **files** under
+> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+
 # PO Brief Skill
 
 Produce a high-quality project brief (`brief.md`) for a Weave spec entity. One section at
@@ -19,12 +30,12 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/brief.md` — section structure (use as scaffold, never leave `{{}}` in output)
-3. Any prior elicitation output (`docs/specs/<entity>/00-elicit/*.md` if present)
-4. Any existing brief draft (`docs/specs/<entity>/01-brief/brief.md` if present) to continue or refine
+3. Any prior elicitation output (`docs/specs/weave/engines/<entity>.md00-elicit/*.md` if present)
+4. Any existing brief draft (`docs/specs/weave/engines/<entity>.md` if present) to continue or refine
 
 Ask the user which entity this brief is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
-`docs/specs/<entity>/01-brief/brief.md`
+`docs/specs/weave/engines/<entity>.md`
 
 ## Instructions
 
@@ -160,7 +171,7 @@ edges form between concepts.
 
 Commit the brief:
 ```
-git add docs/specs/<entity>/01-brief/brief.md
+git add docs/specs/weave/engines/<entity>.md
 git commit -m "docs: add <entity> brief"
 ```
 
@@ -207,7 +218,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/<entity>/01-brief/brief.md`
+File: `docs/specs/weave/engines/<entity>.md`
 Template: `.claude/spec-templates/brief.md`
 
 Create the directory if it doesn't exist. Never leave `{{PLACEHOLDER}}` in the output.
@@ -220,7 +231,7 @@ description: "<one-line summary of what this entity delivers and for whom>"
 tags: [<entity>, 01-brief]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
-resource: docs/specs/<entity>/01-brief/brief.md
+resource: docs/specs/weave/engines/<entity>.md
 ---
 ```
 

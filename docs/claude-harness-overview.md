@@ -39,24 +39,20 @@ builds Weave. The Build Engine is a separate sub-system that Weave will generate
 
 ```
 docs/
-├── specs/                          Product specs — the SDLC artefact tree
-│   └── <entity>/
-│       ├── 01-brief/
-│       │   └── brief.md
-│       ├── 02-prd/
-│       │   ├── prd.md
-│       │   └── epics/EPIC-NNN.md
-│       ├── 03-roadmap/
-│       │   └── roadmap.md
-│       └── 04-arch/
-│           ├── tech-spec/          Architecture artefacts (one file per concern)
-│           │   ├── stack.md        Confirmed technology stack (arch-stack output)
-│           │   ├── architecture.md C4 diagrams (arch-c4 output)
-│           │   ├── openapi.yaml    API contracts
-│           │   ├── data-model.md   ERD + entity definitions
-│           │   ├── ...             (flows, class-diagram, ci-cd, testing-strategy, etc.)
-│           ├── tasks/TASK-NNN.md   Implementable task briefs (arch-task-brief output)
-│           └── decisions/ADR-NNN.md Architecture Decision Records
+├── specs/
+│   └── weave/                      The single unified Weave spec
+│       ├── weave-spec.md           Program plan (build order, MVP, gates, risks) + shared foundations
+│       ├── contracts.md            Canonical inter-engine contracts (cite by ID)
+│       ├── dev-environment.md      Local dev model, model routing, deploy boundary
+│       └── engines/
+│           ├── <entity>.md         ONE consolidated spec per engine — PO artifacts as sections:
+│           │                         ## Brief · ## Product Requirements (PRD) ·
+│           │                         ## Epics (### EPIC-NNN) · ## Roadmap
+│           └── <entity>/           Architect artifacts (files — include non-markdown, so not sections)
+│               └── 04-arch/
+│                   ├── tech-spec/          (stack.md, architecture.md, openapi.yaml, data-model.md, …)
+│                   ├── tasks/TASK-NNN.md   Implementable task briefs (arch-task-brief output)
+│                   └── decisions/ADR-NNN.md Architecture Decision Records
 ├── standards/                      Coding standards — OKF concepts
 │   ├── code-style.md
 │   ├── linting.md
@@ -136,7 +132,7 @@ docs/
 ```
 1. /elicit          Establish context — 20Q for new areas, Six Hats for contested ones
 2. /po              Brief → PRD → roadmap → epics (section-by-section HITL at every section)
-3. Human review     Read approved docs/specs/<entity>/01-brief/, 02-prd/, 03-roadmap/
+3. Human review     Read approved docs/specs/weave/engines/<entity>.md, 02-prd/, 03-roadmap/
 4. /architect       Stack → C4 → OpenAPI → data model → … → task briefs (HITL at every section)
 5. /spec-review     Completeness gate — must pass before any code
 6. /implement       Dark factory loop: auto-builds each task; phase gate at phase end
@@ -150,25 +146,25 @@ Elicitation
   └─ /elicit (20Q, Six Hats, Five Whys, Stochastic Reasoning)
 
 Product Owner phase          [HITL: section-by-section within each artifact]
-  └─ po-brief     → docs/specs/<entity>/01-brief/brief.md
-  └─ po-prd       → docs/specs/<entity>/02-prd/prd.md
-  └─ po-roadmap   → docs/specs/<entity>/03-roadmap/roadmap.md
-  └─ po-epic      → docs/specs/<entity>/02-prd/epics/EPIC-NNN.md (one per epic)
+  └─ po-brief     → docs/specs/weave/engines/<entity>.md
+  └─ po-prd       → docs/specs/weave/engines/<entity>.md
+  └─ po-roadmap   → docs/specs/weave/engines/<entity>.md
+  └─ po-epic      → docs/specs/weave/engines/<entity>.md (one per epic)
 
 Tech Architect phase         [HITL: section-by-section within each artifact]
-  └─ arch-stack          → docs/specs/<entity>/04-arch/tech-spec/stack.md
-  └─ arch-c4             → docs/specs/<entity>/04-arch/tech-spec/architecture.md
-  └─ arch-openapi        → docs/specs/<entity>/04-arch/tech-spec/openapi.yaml
-  └─ arch-data-model     → docs/specs/<entity>/04-arch/tech-spec/data-model.md
-  └─ arch-flows          → docs/specs/<entity>/04-arch/tech-spec/business-process.md
-  └─ arch-class          → docs/specs/<entity>/04-arch/tech-spec/class-diagram.md
-  └─ arch-cicd           → docs/specs/<entity>/04-arch/tech-spec/ci-cd.md
-  └─ arch-testing        → docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md
-  └─ arch-dod            → docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
-  └─ arch-dor            → docs/specs/<entity>/04-arch/tech-spec/definition-of-ready.md
-  └─ arch-infra          → docs/specs/<entity>/04-arch/tech-spec/infrastructure.md
-  └─ arch-adr            → docs/specs/<entity>/04-arch/decisions/ADR-NNN.md (per key decision)
-  └─ arch-task-brief     → docs/specs/<entity>/04-arch/tasks/TASK-NNN.md (batched 3-5 for HITL)
+  └─ arch-stack          → docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md
+  └─ arch-c4             → docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md
+  └─ arch-openapi        → docs/specs/weave/engines/<entity>/04-arch/tech-spec/openapi.yaml
+  └─ arch-data-model     → docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md
+  └─ arch-flows          → docs/specs/weave/engines/<entity>/04-arch/tech-spec/business-process.md
+  └─ arch-class          → docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md
+  └─ arch-cicd           → docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md
+  └─ arch-testing        → docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md
+  └─ arch-dod            → docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md
+  └─ arch-dor            → docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md
+  └─ arch-infra          → docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md
+  └─ arch-adr            → docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md (per key decision)
+  └─ arch-task-brief     → docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md (batched 3-5 for HITL)
 
 Implementation phase (dark factory)
   └─ /implement → phase-gated PDAC loop
@@ -180,12 +176,12 @@ Implementation phase (dark factory)
 
 | Phase | Artifact directory | Main artifact |
 |---|---|---|
-| 01-brief | `docs/specs/<entity>/01-brief/` | `brief.md` |
-| 02-prd | `docs/specs/<entity>/02-prd/` | `prd.md`, `epics/EPIC-NNN.md` |
-| 03-roadmap | `docs/specs/<entity>/03-roadmap/` | `roadmap.md` |
-| 04-arch/tech-spec | `docs/specs/<entity>/04-arch/tech-spec/` | architecture, openapi, data-model, flows, etc. |
-| 04-arch/tasks | `docs/specs/<entity>/04-arch/tasks/` | `TASK-NNN.md` |
-| 04-arch/decisions | `docs/specs/<entity>/04-arch/decisions/` | `ADR-NNN.md` |
+| 01-brief | `docs/specs/weave/engines/<entity>.md` | `brief.md` |
+| 02-prd | `docs/specs/weave/engines/<entity>.md` | `prd.md`, `epics/EPIC-NNN.md` |
+| 03-roadmap | `docs/specs/weave/engines/<entity>.md` | `roadmap.md` |
+| 04-arch/tech-spec | `docs/specs/weave/engines/<entity>/04-arch/tech-spec/` | architecture, openapi, data-model, flows, etc. |
+| 04-arch/tasks | `docs/specs/weave/engines/<entity>/04-arch/tasks/` | `TASK-NNN.md` |
+| 04-arch/decisions | `docs/specs/weave/engines/<entity>/04-arch/decisions/` | `ADR-NNN.md` |
 
 ---
 
@@ -195,28 +191,28 @@ Implementation phase (dark factory)
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `po-brief` | `/po` → product-owner agent | `01-brief/brief.md` | Opus (elicit) → Sonnet (draft) |
-| `po-prd` | `/po` → product-owner agent | `02-prd/prd.md` | Opus (stories) → Sonnet (NFRs) |
-| `po-roadmap` | `/po` → product-owner agent | `03-roadmap/roadmap.md` | Sonnet |
-| `po-epic` | `/po` → product-owner agent | `02-prd/epics/EPIC-NNN.md` | Sonnet |
+| `po-brief` | `/po` → product-owner agent | `engines/<entity>.md` → ## Brief | Opus (elicit) → Sonnet (draft) |
+| `po-prd` | `/po` → product-owner agent | `engines/<entity>.md` → ## PRD | Opus (stories) → Sonnet (NFRs) |
+| `po-roadmap` | `/po` → product-owner agent | `engines/<entity>.md` → ## Roadmap | Sonnet |
+| `po-epic` | `/po` → product-owner agent | `engines/<entity>.md` → ### EPIC-NNN | Sonnet |
 
 ### Tech Architect skills
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `arch-stack` | `/architect` → tech-architect agent | `04-arch/tech-spec/stack.md` | Haiku + HITL |
-| `arch-c4` | `/architect` → tech-architect agent | `04-arch/tech-spec/architecture.md` | Opus |
-| `arch-openapi` | `/architect` → tech-architect agent | `04-arch/tech-spec/openapi.yaml` | Sonnet |
-| `arch-data-model` | `/architect` → tech-architect agent | `04-arch/tech-spec/data-model.md` | Sonnet |
-| `arch-flows` | `/architect` → tech-architect agent | `04-arch/tech-spec/business-process.md` | Sonnet |
-| `arch-class` | `/architect` → tech-architect agent | `04-arch/tech-spec/class-diagram.md` | Sonnet |
-| `arch-cicd` | `/architect` → tech-architect agent | `04-arch/tech-spec/ci-cd.md` | Sonnet |
-| `arch-testing` | `/architect` → tech-architect agent | `04-arch/tech-spec/testing-strategy.md` | Sonnet |
-| `arch-dod` | `/architect` → tech-architect agent | `04-arch/tech-spec/definition-of-done.md` | Haiku |
-| `arch-dor` | `/architect` → tech-architect agent | `04-arch/tech-spec/definition-of-ready.md` | Haiku |
-| `arch-infra` | `/architect` → tech-architect agent | `04-arch/tech-spec/infrastructure.md` | Sonnet |
-| `arch-adr` | Architect, on decisions | `04-arch/decisions/ADR-NNN.md` | Sonnet |
-| `arch-task-brief` | `/architect` → tech-architect agent | `04-arch/tasks/TASK-NNN.md` | Opus |
+| `arch-stack` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/stack.md` | Haiku + HITL |
+| `arch-c4` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/architecture.md` | Opus |
+| `arch-openapi` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/openapi.yaml` | Sonnet |
+| `arch-data-model` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/data-model.md` | Sonnet |
+| `arch-flows` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/business-process.md` | Sonnet |
+| `arch-class` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/class-diagram.md` | Sonnet |
+| `arch-cicd` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/ci-cd.md` | Sonnet |
+| `arch-testing` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/testing-strategy.md` | Sonnet |
+| `arch-dod` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/definition-of-done.md` | Haiku |
+| `arch-dor` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/definition-of-ready.md` | Haiku |
+| `arch-infra` | `/architect` → tech-architect agent | `<entity>/04-arch/tech-spec/infrastructure.md` | Sonnet |
+| `arch-adr` | Architect, on decisions | `<entity>/04-arch/decisions/ADR-NNN.md` | Sonnet |
+| `arch-task-brief` | `/architect` → tech-architect agent | `<entity>/04-arch/tasks/TASK-NNN.md` | Opus |
 
 ### Orchestration and support skills
 
@@ -374,7 +370,7 @@ This makes every spec, standard, and wiki page navigable as a connected knowledg
 
 | Bundle path | Types included |
 |---|---|
-| `docs/specs/<entity>/` | Brief, PRD, Roadmap, Tech Spec artifacts, ADRs, Task Briefs |
+| `docs/specs/weave/engines/<entity>.md` | Brief, PRD, Roadmap, Tech Spec artifacts, ADRs, Task Briefs |
 | `docs/standards/` | Coding Standards |
 | `docs/wiki/` | Code Area anatomy pages |
 | `docs/index.md` | Bundle root (OKF metadata only) |
@@ -412,7 +408,7 @@ The visualizer renders:
 
 Cross-links between spec files use bundle-relative markdown links:
 ```markdown
-[constitution-engine brief](../constitution-engine/01-brief/brief.md)
+[constitution-engine brief](engines/constitution-engine.md#brief)
 ```
 
 ### Nested sub-bundle note
@@ -479,7 +475,7 @@ More precisely:
 
 | File | Written by | Read by | Purpose |
 |---|---|---|---|
-| `docs/specs/<entity>/<phase>/*.md` | PO / Architect skills | All agents | Spec artifacts |
+| `docs/specs/weave/engines/<entity>.md` | PO / Architect skills | All agents | Spec artifacts |
 | `.claude/state/progress.json` | implement, progress.sh | All loops, routines, Stop hook | Task/phase state |
 | `.claude/state/summaries/TASK-NNN.md` | Engineer subagent | Next task's PLAN step | Task context chain |
 | `.claude/state/summaries/PHASE-N.md` | phase-gate skill | Human review, next phase | Phase completion record |
@@ -512,7 +508,7 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 
 ## 13. Conventions
 
-- **Spec location**: `docs/specs/<entity>/<phase>/<artifact>.md`
+- **Spec location**: `docs/specs/weave/engines/<entity>.md`
 - **Template location**: `.claude/spec-templates/<artifact>.md` (stays in `.claude/`)
 - **Progress**: `.claude/state/progress.json` (always committed; routines depend on it)
 - **Skills**: `.claude/skills/<skill-name>/SKILL.md`
@@ -534,4 +530,4 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 | Agent runtime | Anthropic Agent SDK (authoring) → AgentCore/Bedrock (GA only) | Harness redesign, 2026-06-25 |
 | Triplestore | Oxigraph dev → Neptune/Fuseki eval prod (decision deferred to CE tech spec) | Harness redesign, 2026-06-25 |
 | Spec location | `docs/specs/` (joined OKF bundle at `docs/`) rather than `.claude/specs/` | Pass 1 migration, 2026-06-29 |
-| arch-stack output | `04-arch/tech-spec/stack.md` (not a flat `03-arch/` dir — aligns with CLAUDE.md phase table) | Pass 2 fix, 2026-06-29 |
+| arch-stack output | `<entity>/04-arch/tech-spec/stack.md` (not a flat `03-arch/` dir — aligns with CLAUDE.md phase table) | Pass 2 fix, 2026-06-29 |

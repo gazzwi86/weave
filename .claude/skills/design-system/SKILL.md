@@ -31,7 +31,7 @@ any UI is specced or built. Skip entirely for backend-only / CLI / pipeline / ag
 
 ## Inputs
 
-1. The project brief + PRD (`docs/specs/<entity>/01-brief`, `02-prd`) — product, audience, tone.
+1. The project brief + PRD (`docs/specs/weave/engines/<entity>.md01-brief`, `02-prd`) — product, audience, tone.
 2. Any brand assets already in the repo (a `logo.*`, existing tokens, a prototype under `prototypes/`).
 3. Inspiration assets **requested from the user** (see Step 1).
 

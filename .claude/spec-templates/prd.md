@@ -57,7 +57,7 @@ AUTHORING RULES (build-ready bar — the PRD is done when ALL hold):
    as a configurable DEFAULT ("default X, tunable per <scope>"). No bare,
    unsourced confabulated numbers.
 3. Every cross-engine interaction names a concrete contract from
-   `docs/specs/_inter-engine-contracts.md` (endpoint, event shape, or store)
+   `docs/specs/weave/contracts.md` (endpoint, event shape, or store)
    — never just prose. Consumed contracts are pinned to a version.
 4. Failure modes and error states are specified per flow, not just the happy path.
 5. Security/authz, multi-tenant isolation, and secrets handling are explicit
@@ -142,7 +142,7 @@ As a **{{role}}**, I want {{capability}} so that {{benefit}}.
 ## 5. Inter-engine Interfaces
 
 > The single most important section for build-readiness in a multi-engine system.
-> Reference contracts by name from `docs/specs/_inter-engine-contracts.md`.
+> Reference contracts by name from `docs/specs/weave/contracts.md`.
 
 ### Consumed (this engine calls / reads)
 

@@ -55,9 +55,12 @@ upstream gate is a critical gap (Step 3), not a warning.
 
 ### Step 2: Review Each Category
 
-For each category, read the relevant files and check:
+For each category, read the relevant content and check. Brief / PRD / Epics / Roadmap are now
+`##`/`###` **sections within the single file** `docs/specs/weave/engines/<entity>.md` (check the
+section is present and complete, not that a separate file exists); Tech Spec / Tasks / ADRs are
+**files** under `docs/specs/weave/engines/<entity>/04-arch/`.
 
-**Brief** (`docs/specs/<entity>/01-brief/brief.md`):
+**Brief** (`## Brief` in `docs/specs/weave/engines/<entity>.md`):
 - [ ] Mission statement present and clear
 - [ ] Problem defined
 - [ ] Scope: in-scope and out-of-scope defined
@@ -65,7 +68,7 @@ For each category, read the relevant files and check:
 - [ ] Success criteria are measurable
 - [ ] Key decisions logged with rationale
 
-**PRD** (`docs/specs/<entity>/02-prd/prd.md`):
+**PRD** (`docs/specs/weave/engines/<entity>.md`):
 - [ ] All epics have user stories
 - [ ] Every user story has acceptance criteria in EARS notation (`WHEN [event] THE SYSTEM SHALL [behaviour]`) — not Given/When/Then Gherkin (Weave standard; see po-prd)
 - [ ] Functional requirements map to epics
@@ -73,13 +76,13 @@ For each category, read the relevant files and check:
 - [ ] Risks identified with mitigations
 - [ ] Dependencies listed
 
-**Roadmap** (`docs/specs/<entity>/03-roadmap/roadmap.md`):
+**Roadmap** (`docs/specs/weave/engines/<entity>.md`):
 - [ ] Phases defined with clear goals
 - [ ] HITL gates have entry/exit criteria
 - [ ] Epics assigned to phases
 - [ ] Timeline is realistic
 
-**Tech Spec** (`docs/specs/<entity>/04-arch/tech-spec/*`):
+**Tech Spec** (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*`):
 - [ ] Architecture: C4 diagrams present (all 4 levels)
 - [ ] OpenAPI: all endpoints from PRD covered
 - [ ] Data model: ERD matches API contracts
@@ -89,13 +92,13 @@ For each category, read the relevant files and check:
 - [ ] Testing strategy: frameworks, coverage targets, per-task format
 - [ ] DoR/DoD: checklists are actionable
 
-**Task Briefs** (`docs/specs/<entity>/04-arch/tasks/*.md`):
+**Task Briefs** (`docs/specs/weave/engines/<entity>/04-arch/tasks/*.md`):
 - [ ] Every task has: user story, AC, pseudocode, API contracts, diagram refs, design decisions, DoR/DoD, test requirements, implementation hints
 - [ ] Every AC uses EARS notation (`WHEN [event] THE SYSTEM SHALL [behaviour]`) and has at least one named test in the AC-to-Test Mapping table
 - [ ] Test requirements: named scenarios, type counts, AC-to-test mapping
 - [ ] Tasks are self-contained (no external context needed)
 - [ ] DoR checklist is satisfiable
-- [ ] `adr_refs` frontmatter field is present; if ADRs exist in `docs/specs/<entity>/04-arch/decisions/`, every task brief must have at least one `adr_refs` entry — flag tasks with `adr_refs: []` when ADRs exist
+- [ ] `adr_refs` frontmatter field is present; if ADRs exist in `docs/specs/weave/engines/<entity>/04-arch/decisions/`, every task brief must have at least one `adr_refs` entry — flag tasks with `adr_refs: []` when ADRs exist
 
 **Standards** (`docs/standards/*`):
 - [ ] Git workflow defined (including pre-commit/pre-push hooks)

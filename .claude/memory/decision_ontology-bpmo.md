@@ -18,7 +18,7 @@ DataAsset (+ Field) · System · Service · BusinessCapability · BusinessDomain
 punned with Concept per decision B1). **Relationships:** performedBy · consumes · produces ·
 triggeredBy · hasStep · runsOn · accesses · realizes · servesGoal · inDomain · hasCapability ·
 governedBy · describes · partOf · SKOS broader/narrower/related. **Canonical set lives in
-`docs/specs/_inter-engine-contracts.md` → CE-READ-1.**
+`docs/specs/weave/contracts.md` → CE-READ-1.**
 
 **SUPERSEDES the earlier "thin 8 structural kinds" framing** (BusinessDomain/Capability/System/
 Service/DataAsset/Field/Concept/Class). That set was a mistake — it was grounded in the simpler

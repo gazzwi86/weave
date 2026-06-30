@@ -1,0 +1,1810 @@
+---
+type: EngineSpec
+title: "Weave — Platform Shell (consolidated)"
+description: "Cross-cutting application shell: app/nav/workspace/auth/Cognito/Bedrock/tenancy, the six PLAT-* contracts, the Generative Dashboard, and Weave-product self-improvement."
+tags: [weave-platform, consolidated]
+status: Draft
+timestamp: 2026-06-30T00:00:00Z
+resource: docs/specs/weave/engines/weave-platform.md
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+last_verified_sha: 61dfc1553b18b5762902e1d2b3681c82f4ebb26c
+expires_on: 2026-12-30
+owner: gazzwi86
+coverage: n/a
+---
+
+# Weave Platform Shell
+
+> The Weave Platform is the application **shell** (not an engine): the multi-tenant SPA, navigation,
+> workspace/tenancy, auth (Cognito/Auth0), Bedrock model routing, and the cross-cutting services every
+> engine depends on. It owns the **six PLAT-\* contracts** (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`,
+> `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`), the user-facing
+> **Generative Dashboard**, and the first internal instance of `BE-SELFIMPROVE-1` (Weave-product
+> self-improvement). It is **#1 in the build order** — the shell the whole model → generate → automate
+> loop runs in — and has no upstream engine dependency; the Constitution Engine is the first engine that
+> runs on it.
+
+<!-- SHARED-HOISTED: positioning/Laws/MVP success criterion are program-level — see ../weave-spec.md §Program -->
+
+## 1. Brief
+
+### Mission Statement
+
+We are building Weave — the operating system for the AI-native company — so that an enterprise or
+mid-market organisation can describe its entire operating model (people, processes, systems, data,
+rules, relationships) as a single live, collaborative knowledge graph, and have Weave generate and run
+the applications, AI agents, data pipelines, and automations that operate the business — closing the
+model → generate → automate loop.
+
+Weave is a living **digital twin of the organization (DTO)** — the analyst-sanctioned convergence label
+(Gartner) for a graph that mirrors how a company actually operates. This is deliberately distinct from a
+*physical/industrial* digital twin (Azure Digital Twins, Microsoft Fabric Digital Twin Builder), which
+models assets, IoT, and sensor telemetry; Weave models the operating model — people, processes, systems,
+data, rules, relationships.
+
+The defensible position is **the conjunction**: closing the loop on **open W3C standards** (versus
+Palantir Foundry, which closes it behind a proprietary object model at enterprise prices), at
+**mid-market reach**, with **whole-business NL + forms authoring** over a shipped ontology. The
+open-standards substrate is necessary but commoditising — Ardoq's 2026 GraphLake acquisition brought
+RDF/OWL/SHACL to an EA incumbent — so the durable moat is the generation/automation closure and the
+"business brain" that grounds agents, not the triple store.
+
+### Problem
+
+A company's operating model — how its people, processes, systems, data, and rules actually fit together —
+lives scattered across stale architecture diagrams, Confluence pages, spreadsheets, CMDBs, and individual
+employees' heads. None of it is machine-readable, none of it is executable, and all of it drifts out of
+date the moment it is written down.
+
+This leaves three categories of mainstream tooling that each solve only one third of the problem:
+
+- **Enterprise-architecture / EA tools** (LeanIX, ServiceNow CMDB, Visio) *describe* the business but
+  generate nothing — the model is documentation, not an execution engine.
+- **Low-code / app builders** *generate* software but have no authoritative model of the business, so
+  every app is built from scratch against tribal knowledge.
+- **BI / analytics tools** *report* on the business but cannot act on it.
+
+One vendor — Palantir Foundry — does close model → generate → automate, but behind a proprietary object
+model, at enterprise-only pricing, with no path for business users to author the model on open standards.
+Weave's opening is the same closure made open (W3C RDF/OWL/SHACL/PROV-O), whole-business, and authorable
+by non-technical staff at mid-market reach.
+
+The people who feel this most acutely are **operations and transformation teams** (who own how the
+company runs but have no single source of truth) and **CTOs, architects, and engineers** (who are asked
+to "make the company AI-native" but have no machine-readable model for agents, pipelines, or apps to
+build on).
+
+If this is not solved, AI transformation stalls at the proof-of-concept stage: every automation is
+bespoke and brittle, the operating model rots faster than it can be maintained, and the gap between how a
+company is *described* and how it actually *runs* never closes — so the promised value of AI agents
+(running real business processes) is never realised at scale.
+
+### Vision
+
+Within 12 months of launch, success looks like:
+
+- **One graph of record.** A real client has modelled a meaningful slice of their company in Weave —
+  typed entities (people, processes, systems, data, rules, capabilities) and their relationships — as a
+  single live graph that business and technical users edit together, and which they trust enough to
+  retire at least one legacy source of truth (a CMDB export, an architecture wiki, or a spreadsheet
+  register).
+- **The loop closes at least once, for real.** From that graph, Weave generates and runs at least one
+  working artefact — an application, an AI agent, or a data pipeline — that operates a genuine business
+  process, not a demo.
+- **Business users edit without code.** Operations and transformation staff add and change graph content
+  through natural language and guided forms, with no RDF or SPARQL knowledge required, while the
+  underlying model stays standards-compliant and validated.
+- **The model stays alive.** Changes to the graph and relevant external events (a new Jira ticket, a CMDB
+  sync, a webhook) propagate through Weave automatically, so the model reflects reality instead of
+  drifting from it.
+- **A repeatable engagement motion.** The workshop methodology has taken at least one client from blank
+  slate to populated graph, proving Weave is sellable as a guided engagement, not just a tool licence.
+
+### Scope
+
+Weave is delivered as four engines on a shared multi-tenant platform. Each engine has its own brief; this
+platform brief owns only the cross-cutting whole and the boundaries between engines.
+
+#### In Scope
+
+- **Constitution Engine** *(ships first / MVP)* — the ontology and knowledge-graph layer
+  (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. Ships a process-centric ArchiMate-3-aligned
+  **upper ontology — the BPMO framework** (Process at the centre, linked to the activities, events,
+  actors, systems, services, data assets, capabilities, domains, goals, and governing policies that make
+  the graph a "business brain" agents reason inside), plus W3C SHACL/PROV/SKOS scaffolding — a *framework,
+  not a populated taxonomy*: "Weave provides the grammar; the company writes the sentences." Clients build
+  their own domain vocabulary and instances on top. The canonical BPMO kind and relationship set is
+  defined in the `constitution-engine` brief and `CE-READ-1`.
+- **Build Engine** — generates applications (UI + API), AI agents, data pipelines, and forms/dashboards
+  from the graph model.
+- **Events & Actions Engine** — automations triggered by internal graph changes and external events
+  (webhooks, Jira, cron, ServiceNow).
+- **Graph Explorer** — visualises the company as a force-directed network with drill-in focus views. MVP
+  ships single-user editing plus async sharing (server-side saved views + comments); Figma-style
+  real-time multi-user collaboration (Yjs co-edit, presence, cursors, follow-me) is **Phase 2**.
+- **Shared platform foundation** — multi-tenant cloud SaaS (tenant isolation enforced at the storage layer
+  — named-graph-per-tenant with query-rewriting that rejects unscoped queries, or store-per-tenant; final
+  mechanism set in the Constitution Engine tech spec), authentication/authorisation, a single
+  agent-identity registry, the AI-native layer used across engines (NL editing, generation, suggestions),
+  and **7 v1 managed connectors**: Snowflake, Databricks, S3, Azure Data Lake, Atlassian (Jira +
+  Confluence — one OAuth family), ServiceNow, and Slack. <!-- SHARED-HOISTED: connector list canonical at ../contracts.md PLAT-CONNECTOR-1 -->
+- **Engagement layer** — the workshop methodology packaged as a repeatable product and GTM motion.
+
+#### Out of Scope
+
+- **No open-source / self-hosted community edition** — Weave is fully commercial, closed source; no OSS
+  core.
+- **No single-tenant or on-premise deployment in v1** — multi-tenant cloud SaaS only.
+- **Not a replacement for system-of-record tools** — Weave augments ServiceNow, Jira, Confluence, LeanIX,
+  and data warehouses via connectors; it does not replace them.
+- **No micro-frontend architecture** — a single modular React SPA, not independently deployed MFEs.
+- **No non-business / non-enterprise domains** — Weave models how companies operate; it is not a
+  general-purpose knowledge-graph or personal-knowledge tool.
+- **No multi-cloud in v1** — AWS only (see Constraints).
+
+### Target Users
+
+The adoption arc runs ops-first, then technical: operations teams populate and trust the graph,
+leadership governs and funds, then architects and engineers build on top.
+
+| User Type | Description | Primary Need |
+|-----------|-------------|--------------|
+| Operations / transformation lead | Owns how the company runs; first adopter and day-to-day driver of the graph | A single trusted, editable source of truth for the operating model, maintainable without code |
+| CTO / board sponsor | Funds and governs the initiative; accountable for AI-native transformation | Confidence that the model is authoritative and that it produces real, governed automation |
+| Enterprise architect | Extends the universal ontology to the client's domain; designs the model | Standards-compliant (OWL/SHACL) modelling power with reasoning and validation |
+| Engineer / developer | Builds applications, agents, and pipelines from the graph via the Build Engine | Reliable, portable code generation grounded in an authoritative model, not tribal knowledge |
+| Business analyst / ops manager | Edits and queries graph content day to day | Natural-language and guided-form editing with no RDF/SPARQL knowledge required |
+
+### Success Criteria
+
+- [ ] **The loop closes for one real client** — one paying client models a meaningful slice of their
+  company in Weave AND Weave generates one working artefact (app, agent, or pipeline) that runs a genuine
+  business process. Measured by a signed client plus a demonstrable artefact in production-like use;
+  source: client engagement record. Target: within 6 months of MVP (Constitution Engine) launch.
+- [ ] **Non-technical editing is real** — at least one business-role user (no RDF/SPARQL knowledge)
+  creates and edits graph entities via natural language and guided forms, with every change validated
+  against SHACL. Measured via editor session telemetry; source: application analytics. Target: 30 days
+  after the graph editor reaches GA.
+- [ ] **A legacy source of truth is retired** — the pilot client decommissions or formally supersedes at
+  least one prior source of truth (CMDB export, architecture wiki, or register) with the Weave graph.
+  Measured by client sign-off; source: engagement record. Target: within 12 months of MVP launch.
+- [ ] **The engagement motion is repeatable** — the workshop methodology takes at least one client from
+  blank slate to populated graph end to end. Measured by a completed engagement; source: engagement
+  record. Target: within 12 months of MVP launch.
+- [ ] **First commercial validation** — at least one paid annual contract is signed for the Weave platform
+  (pricing model per Key Decisions). Measured by signed contract; source: CRM. Target: within 12 months
+  of MVP launch.
+
+### Constraints
+
+**Technical**
+
+- AWS only in v1 — no multi-cloud (Cognito/Auth0 auth, Bedrock AgentCore + Anthropic models, Aurora
+  PostgreSQL, S3 Vectors, Lambda/Fargate compute).
+- Full W3C semantic web stack is mandatory, not optional: RDF/OWL 2 DL, SHACL validation, SPARQL 1.1,
+  PROV-O provenance, Turtle serialisation. <!-- SHARED-HOISTED: full stack list — see ../weave-spec.md §Shared foundations (Stack) -->
+- Single modular React SPA (Next.js 15, TypeScript strict) — no micro-frontends.
+- The Constitution-Engine MVP launch ships single-user editing + async sharing. Real-time conflict-free
+  multi-user collaboration (Yjs CRDT co-editing) is a Graph-Explorer **Phase 2** capability, delivered at
+  Graph Explorer launch — NOT at the Constitution MVP launch.
+- RDF store is Oxigraph for dev/test; the production store (Neptune vs Jena Fuseki) is deferred to the
+  Constitution Engine tech spec.
+
+**Business**
+
+- Fully commercial, closed source — no open-source core, no community edition.
+- Multi-tenant cloud SaaS with logical isolation per tenant; no on-prem/single-tenant in v1.
+- Two revenue lines: platform SaaS subscription plus a paid consulting/workshop engagement arm.
+- Target market is enterprise (500+ staff) and mid-market (50–500); the product must serve both tiers.
+
+**Timeline / sequencing**
+
+- The Constitution Engine ships first; the Build, Events & Actions, and Graph Explorer engines depend on
+  it and cannot precede it.
+- All success criteria are anchored to the MVP (Constitution Engine) launch; a fixed calendar launch date
+  is not yet set.
+
+### Key Decisions
+
+For the full master list of confirmed architecture decisions, see `CLAUDE.md § Architecture decisions
+(confirmed)`. Decisions most material to the platform brief:
+
+| Decision | Rationale | Date |
+|----------|-----------|------|
+| Constitution Engine ships first as the MVP | The graph is the foundation every other engine reads from; nothing generates or automates without it | 2026-06-24 |
+| Full W3C semantic web stack (RDF/OWL/SHACL/SPARQL/PROV) | Maximum reasoning, validation, interoperability, and linked-data portability; the graph must be authoritative, not decorative | 2026-06-24 |
+| Single modular React SPA, not micro-frontends | Simpler to start; can extract MFEs later if scale demands | 2026-06-24 |
+| Multi-tenant cloud SaaS, AWS-only in v1 | Shared infrastructure with logical isolation; focus over multi-cloud breadth | 2026-06-24 |
+| Real-time multi-user collaboration is Phase 2 (Graph Explorer) | MVP ships single-user editing + async sharing (saved views + comments); Yjs co-editing is the costliest, hosting/identity-dependent capability and is sequenced after the Constitution MVP (D1) | 2026-06-30 |
+| Weave ships a process-centric upper ontology (framework, not taxonomy); clients build their own vocabulary on top | The ArchiMate-3-aligned **BPMO framework** — Process at the centre, linked to activities, events, actors, systems, services, data assets, capabilities, domains, goals, and policies, plus SHACL/PROV/SKOS scaffolding; "Weave provides the grammar; the company writes the sentences" (A1). Canonical kind/relationship set: `constitution-engine` brief + `CE-READ-1` | 2026-06-30 |
+| Fully commercial, closed source | No OSS core; protect the platform IP and the engagement business | 2026-06-24 |
+| Pricing: hybrid — workspace-tier subscription + usage on generation/automation | Avoids per-seat friction so the graph spreads org-wide (ops-first), while capturing value where it is created (Build Engine generations, agent/automation runs) | 2026-06-26 |
+| Differentiate on loop-closure + authoring + the "business brain", NOT on the semantic substrate | RDF/OWL/SHACL/SPARQL are commodity (mature triple stores plus open source); storage and standards conformance are not a moat. The defensible value is generation/automation closure, whole-business NL+forms authoring over a shipped ontology, and the business brain that grounds agents within the model's bounds | 2026-06-30 |
+
+#### Competitive landscape & closing window
+
+The market is converging on Weave's thesis from several directions, so the open-standards wedge is real
+but time-limited. Three signals frame the moat:
+
+- **Ardoq GraphLake (2026)** — an EA incumbent acquired an RDF/OWL/SHACL graph stack, bringing the full
+  W3C substrate to enterprise architecture. The semantic substrate is commoditising; it cannot be the
+  differentiator.
+- **Microsoft Fabric Digital Twin Builder** — reaches data-bound modelling plus dashboards, Q&A agents,
+  and automation, but is *industrial/asset*-scoped and non-W3C. The risk is Microsoft generalising it from
+  industrial to whole-organization with its distribution reach.
+- **Catio** — demonstrates AI auto-discovery of the (tech-stack) model beating manual EA authoring,
+  raising the bar on cold-start population.
+
+**Moat thesis:** differentiate on (1) generation/automation *closure* on open standards — the column no
+mainstream EA, BI, or governance tool fills; (2) whole-business **NL + forms authoring** over a shipped
+ontology; and (3) the **business brain** that grounds agents so they reason within the bounds the model
+states. Do not position on the triple store, and do not claim incumbents lack process mining — Palantir
+Foundry (Machinery) and Celonis (OCDM) both do process mining, so that claim is falsifiable.
+
+### Navigation
+
+First-draft information architecture for the Weave SPA. This section owns the **primary navigation** (top
+header bar, company-workspace level) and the global app chrome; each engine's brief owns its own
+**secondary navigation** (left sidebar). Pattern follows the validated app-shell convention: a top bar for
+global context plus a left sidebar for within-area navigation.
+
+#### App shell
+
+- **Top header bar — primary navigation + global chrome.** Persistent across the app.
+  - Left: Weave home, and the **workspace switcher** (the company/tenant, plus the demo "Hammerbarn"
+    workspace).
+  - Centre: the **primary navigation** (top-level areas, below).
+  - Right: **global search**, **notifications**, **help & guided-tour launcher** (onboarding), and the
+    **account/user menu**.
+- **Left sidebar — secondary navigation.** Contextual to the active primary area; each engine defines its
+  own. Collapsible (icons + hover tooltips when collapsed), current item highlighted, collapse preference
+  persisted.
+- **Main content area.** The active screen.
+
+#### Primary navigation (top header)
+
+| Area | Engine / scope | Purpose |
+|---|---|---|
+| Dashboard | platform | Home — generative workspace intelligence; AI-composed widgets on demand |
+| Constitution | constitution-engine | The model — ontology, glossary, brand, governance, org chart, versions |
+| Explorer | graph-explorer | Visual, collaborative graph canvas |
+| Build | build-engine | Projects — spec → generate → ship |
+| Automate | events-actions-engine | Event-driven automations |
+| Compliance | cross-cutting | Conformance checks + audit / decision logs |
+| Settings | platform | Workspace, members, integrations, billing |
+
+> Note: 3–6 primary items is the UX sweet spot. **Resolved at PRD:** Compliance stays a top-level,
+> platform-owned cross-cutting area that aggregates per-engine compliance views, and **Audit is a sub-view
+> under Compliance** (not a separate top-level area). Areas whose engine is not yet GA
+> (Explorer/Build/Automate at the Constitution MVP) render disabled rather than hidden, keeping the IA
+> stable.
+
+#### Generative Dashboard
+
+The Dashboard is a **generative UI** surface — a design pattern in which the AI dynamically composes and
+renders UI widgets in response to natural-language prompts, rather than serving a fixed pre-built layout.
+The user asks what they want to see; the AI fetches the relevant data from the appropriate engine and
+renders the best-fit component (KPI card, time-series chart, table, activity feed, heatmap, etc.) directly
+in the dashboard grid.
+
+**What makes it different from a conventional dashboard:**
+
+- There is no "dashboard configuration" form. The user types a prompt and a widget appears.
+- Widgets are data-live: they query engine APIs at render time (and optionally poll for updates).
+- The AI chooses the appropriate visualisation for the data — a compliance contravention count becomes a
+  severity-bucketed bar chart; a token-spend trend becomes a line chart; a list of active proposals
+  renders as a ranked card stack.
+- Generated widgets are saveable and shareable: once a user creates a useful widget, they pin it to their
+  dashboard and can publish it to a workspace-shared library.
+- The default dashboard ships with a set of pre-built "starter widgets" (below) so the screen is not blank
+  on first load; users customise from there.
+
+**Available data sources (widget library — phase-gated by engine availability):**
+
+> A widget category is buildable only once its source engine is live. At the Constitution-Engine MVP, only
+> Constitution-sourced widgets (via the `CE-METRICS-1` contract) are available; Build/Events/Explorer-
+> sourced categories are tagged "available when their engine ships" and render an explicit unavailable
+> state until then. See the platform PRD §Epic 2 for the per-category phasing.
+
+| Category | Widget examples |
+|---|---|
+| Ontology health | Entity counts by kind (spanning the BPMO kinds, via `entity_count_by_kind`), latest published version, draft vs published delta, SHACL validation error count |
+| Graph completeness | Model coverage % (domains/capabilities/systems populated vs blank), knowledge gaps (entities missing required properties), unmapped instance count |
+| Token & AI spend | Usage by engine / user / project, cost trend (7d/30d), budget burn vs cap, per-engine cost breakdown |
+| Active projects | Project count by phase, recent activity, budget burn, artefacts shipped, success/failure rate |
+| Compliance status | Active SHACL contraventions by severity and domain, policy coverage gaps, self-audit query results |
+| Self-improvement findings | Open proposals from the self-improvement engine, ranked by impact (HIGH/MEDIUM/LOW), org vs project scope |
+| Ontology & project issues | Validation warnings, unsatisfiable OWL classes, entities with no owner, version pin mismatches |
+| Event automation status | Running automations, recent trigger counts, failure rates, connector health (the 7 v1 connectors: Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) |
+| Collaboration activity | Active canvas sessions, recent graph edits, top contributors, workshop sessions logged |
+| Sentiment on logs | NLP analysis of audit and agent-decision logs to surface operational sentiment trends — rising error rates, repeated agent failures, unusual patterns |
+| Agent activity | What AI agents are doing right now across all engines (Build, Automate, self-improvement) |
+| Version pinning | Which Build projects and Automations are pinned to which ontology versions; alert if pinned to a version ≥ 2 behind latest |
+| RBAC & access | Roles assigned vs unassigned users, any areas with no assigned owner, recent permission changes |
+| Graph growth | Entity and relationship count over time — is the model being actively maintained or drifting stagnant? |
+| Workspace onboarding | For new workspaces: model completeness score and next recommended action |
+
+#### Global chrome elements
+
+- **Workspace switcher** — company tenant plus the Hammerbarn demo workspace (a **per-user writable** copy
+  that persists changes across sessions and resets only on an explicit button; its seed content is
+  **live-pipeline built** via CE/Build/Events, with the CE+Explorer portion available at MVP and the full
+  demo gated on Build/Events GA — see the `onboarding` brief).
+- **Global search** — across entities, automations, projects, and docs.
+- **Notifications** — budget alerts, approvals, automation outcomes.
+- **Help & guided-tour launcher** — onboarding overlays, tours, and the training library (see the
+  `onboarding` brief).
+- **Account/user menu** — profile, roles, sign-out.
+
+#### Secondary navigation
+
+Each engine's left-sidebar secondary navigation is defined in its own brief's Navigation section:
+`constitution-engine`, `graph-explorer`, `build-engine`, `events-actions-engine`.
+
+### Roles & Access
+
+First-draft model of the canonical roles and the access model, covering **both human and non-human (agent)
+identities**. Referenced by the `onboarding` brief (role-tailored onboarding) and by each engine. The
+detailed permission matrix is refined at PRD / tech spec.
+
+#### Canonical human roles
+
+| Role | Primary access |
+|---|---|
+| Workspace admin / owner | Full control: settings, members & roles, integrations, billing, and all engines |
+| Enterprise architect | Author ontology structure, types, and rules; full model read; build and explore |
+| Business analyst / SME | Author instance data and glossary; explore; limited structural change |
+| Brand / content owner | Author brand and voice content; read the model |
+| Compliance / risk officer | Author governance/compliance content; audit logs and compliance views; read the model |
+| Engineer / developer | Build projects — spec, generate, code, artefacts; read the model |
+| Ops / SRE | Operate built products — self-healing, runs, deployments |
+| Automation author | Create and manage automations; read the model |
+| Viewer / stakeholder | Read-only explore and dashboards |
+
+#### Non-human (agent) identities
+
+AI agents and bots are first-class identities, not anonymous background processes.
+
+- **Agents act under their own distinct identity** (a service/agent principal), never under a human's
+  identity. Principals are minted and scoped by a single platform **agent-identity registry** that
+  reconciles platform agent classes, Build's dark-factory roles, and Events' per-automation principals
+  into one canonical principal IRI.
+- **Two auth paths are distinct:** humans authenticate via Cognito/Auth0; agents that access AWS/secrets
+  assume an **IAM role via STS** (short-lived credentials, never raw secret values). The registry records
+  which IAM role maps to which canonical principal IRI.
+- **Scoped, least-privilege permissions per agent function** — e.g. a build agent, an automation agent,
+  and an NL-authoring agent each hold only the permissions their job needs.
+- **Every change is attributed to the acting identity** — human or agent — in PROV-O provenance and the
+  immutable audit/decision log, in the graph and in any integrated/external system.
+- **Non-repudiable human-vs-agent attribution.** Because agent actions are recorded against agent
+  identities, it is always unambiguous whether a person or an agent made a change — so no one has to rely
+  on plausible deniability, and humans are not wrongly credited or blamed for what an agent did in Weave
+  or in connected tools.
+
+#### Access model
+
+- **RBAC** — roles grant permissions scoped to engines/areas and to action level (e.g. read vs author vs
+  publish vs administer). Roles can be combined on one identity.
+- **Tenant-scoped** — a user's roles apply within a company workspace (tenant); the Hammerbarn demo is a
+  separate workspace with its own access.
+- **Least privilege by default** — admins assign roles; new identities start minimal.
+- **Identity** — authentication via AWS Cognito (default) or Auth0 (multi-IdP), per the stack; org-chart
+  identities may sync from SSO/HR systems.
+- **Onboarding adapts** — the onboarding experience is tailored to the user's role(s) and access rights.
+
+### Strategy elicitation — 20 Questions (historical)
+
+> **⚠️ Superseded (decisions A1 + the BPMO reframe, 2026-06-30).** This historical elicitation record says
+> "Weave ships a universal business ontology; clients extend it." That has been refined: Weave ships a
+> **process-centric BPMO** (Business Process Management Ontology) — the "business brain" — as the universal
+> *upper framework* (Process at the centre, linked to data, systems, services, capabilities, governance,
+> goals and actors; ~13 kinds + relationships), **not** a populated business taxonomy. Clients build their
+> **own** domain vocabulary and instances on top. "Weave provides the grammar; the company writes the
+> sentences." Canonical set: `CE-READ-1`; see CLAUDE.md and the Constitution Engine brief/PRD for the
+> authoritative framing. The rest of this record stands.
+
+**Method:** Twenty Questions · **Date:** 2026-06-24 · **Topic:** Weave platform product strategy, scope,
+and architecture.
+
+**Round 1 — Positioning and GTM (Q1–Q4):**
+
+1. **Core value axis** → Equal weight: describe + generate dark-factory code + quick automations. The
+   knowledge/visual ontology is the authoritative source that guides the entire system.
+2. **Primary persona** → Persona arc: Ops team starts (with CTO/board backing); then product,
+   architecture, and engineers build with it.
+3. **Commercial model** → Pure SaaS (commercial) primary + consulting-led engagements as a paid service
+   arm.
+4. **Market tier** → Enterprise (500+ staff) AND mid-market (50–500) — both in scope.
+
+**Round 2 — Data model and standards (Q5–Q8):**
+
+5. **Standards depth** → Full W3C semantic web: RDF/OWL/SHACL/SPARQL/PROV — maximum reasoning,
+   interoperability, and linked-data portability.
+6. **Ontology authorship** → Weave ships a universal business ontology (Palantir-style typed entities);
+   clients populate it and extend it. *(Superseded — see note above.)*
+7. **Non-technical editing** → Yes — natural language + guided forms. Business analysts and operations
+   managers edit the graph without code.
+8. **Integration posture** → Integrate and augment existing tools (ServiceNow CMDB, Jira, Confluence,
+   LeanIX) via connectors — not replace them.
+
+**Round 3 — Architecture decisions (Q9–Q12):**
+
+9. **Micro-frontends** → Single React SPA with modular internal structure (not MFEs). Simpler to start;
+   can extract MFEs later if needed.
+10. **MVP first** → Constitution engine: ontology editor + SPARQL store + visual graph explorer.
+    Everything else depends on this foundation.
+11. **Real-time collaboration** → Figma-style simultaneous multi-user graph editing required at launch.
+    *(Refined — D1 moves realtime co-editing to Graph Explorer Phase 2; MVP = single-user + async
+    sharing.)*
+12. **Deployment model** → Multi-tenant cloud SaaS (shared infrastructure, logical isolation per
+    customer).
+
+**Round 4 — Build engine and automation (Q13–Q16):**
+
+13. **Build engine output** → ALL four types: full applications (UI + API), AI agents, data pipelines /
+    data repos, AND forms / dashboards / reports.
+14. **Event triggers** → Both: external events (webhooks, Jira, cron, Slack) AND internal graph mutations
+    (node added, relationship changed, constraint violated) trigger automations.
+15. **LLM integration** → AI-native throughout every layer: NL-to-RDF editing, AI-generated specs,
+    build-engine code generation, automation suggestions, ontology recommendations.
+16. **Data connectors** → Managed built-in connectors: Snowflake, Databricks, S3, Azure Data Lake, Jira,
+    ServiceNow, Confluence.
+
+**Round 5 — GTM, positioning, and success (Q17–Q20):**
+
+17. **Workshop methodology** → Both: packaged as a product (templates, facilitation guides, certification)
+    AND used as a GTM motion to drive Weave adoption.
+18. **Competitor positioning** → **The operating system for the AI-native company.** No current tool lets
+    you fully describe a company AND automatically wire AI agents, pipelines, and apps to run it. Weave is
+    that OS. (Secondary framing: Palantir for the mid-market.)
+19. **MVP success** → One real client can model their company in Weave AND Weave auto-generates one working
+    artefact (app, pipeline, or agent) from that model. Single end-to-end path proven.
+20. **Open source** → Fully commercial, closed source. No OSS core.
+
+**Remaining ambiguity captured at elicitation time** (most now resolved downstream): the canonical
+node/class taxonomy of the universal ontology; the real-time collaboration tech stack (CRDTs/Y.js/
+Liveblocks/Automerge); build-engine phase ordering; connector priority order; pricing model (per seat /
+per workspace / usage-based).
+
+---
+
+## 2. Product Requirements (PRD)
+
+**Phase:** MVP (Constitution-sourced) + Phase 2 (other engines) · **Owner:** gazzwi86 · **Last Updated:**
+2026-06-30
+
+### Product context
+
+The Weave platform layer is everything that spans all four engines — the Dashboard, tenancy and the
+settings cascade, authentication and RBAC, the agent-identity registry, global navigation and search,
+notifications, managed connectors, billing/metering, the immutable audit/provenance service, and
+Weave-product self-improvement. Each engine (Constitution, Graph Explorer, Build, Events & Actions)
+delivers its own vertical; the platform layer holds them together, governs shared state, and is the single
+owner of the cross-cutting services that every engine emits to or reads from.
+
+The user-facing centrepiece is the **Dashboard**. It ships in two stages (user decision):
+
+- **At MVP, the dashboard is a SIMPLE FIXED DEFAULT** — a small, hand-composed set of CE-sourced widgets
+  (ontology health / coverage via `CE-METRICS-1`) that persists as every workspace's default home. There
+  is no prompt bar, no AI composition, and no broad widget library at MVP. The fixed default is
+  deliberately minimal: it surfaces the only live provider data that exists (CE) and gives every member a
+  non-blank home from first login.
+- **The AI Generative Dashboard is deferred to Phase 2.** The *generative composition* surface
+  (describe-what-you-want → best-fit widget streamed live) and the full widget library light up in Phase 2
+  and expand per-engine as each source engine's data ships. It remains fully specified and phase-tagged
+  Phase 2.
+
+The deferred generative pattern is the **Generative Dashboard**: a workspace-intelligence surface where
+users describe what they want to see and the AI composes the best-fit widget from a finite, well-designed
+component library (KPI card, time-series chart, table, ranked list, activity feed, heatmap, alert banner)
+and streams it into the dashboard grid. This is a *declarative* generative-UI pattern — intent maps to a
+fixed component set, never to free-form code. Every widget is backed by a live query against a provider
+engine's metrics contract, so the data is current, not a scheduled export.
+
+**Engine-availability sequencing is load-bearing.** The Constitution Engine ships first (MVP); Build,
+Events & Actions, and Graph Explorer depend on it and ship after. Therefore a widget category is only
+buildable once its source engine is live. At MVP the only live provider contract is the Constitution
+Engine's `CE-METRICS-1` (plus `CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1`), so MVP dashboard
+widgets are CE-sourced only; widgets that read Build/Events/Explorer data are tagged "P0 when source
+engine ships" and are dark (or hidden) until then.
+
+The platform also owns four cross-cutting services that resolve duplicated cross-engine ownership: **one**
+immutable audit/provenance service (`PLAT-AUDIT-1`); **one** notification service (`PLAT-NOTIFY-1`); **one**
+agent service-principal registry (`PLAT-IDENTITY-1`); and the **managed connector** contract plus
+tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`).
+
+**Goals:**
+
+1. Give every workspace member a single home that surfaces the health and activity of the live Weave
+   deployment at a glance, personalised by role and gated to the engines that are actually available.
+2. Give every workspace a non-blank home at MVP via a simple fixed default dashboard of CE-sourced
+   widgets; then (Phase 2) let users generate any workspace-intelligence view by describing it in natural
+   language — without a dashboard-configuration UI — bounded to a finite, design-consistent component set.
+3. Provide the cross-cutting platform primitives (tenancy + settings cascade, auth, RBAC, agent identity,
+   navigation, search, notifications, connectors, billing, audit) that all four engines depend on, each as
+   a single owned contract — never duplicated per engine.
+4. Run Weave's own product self-improvement loop (signals → drafted GitHub issue → HITL approval →
+   dark-factory dispatch), gated to Weave-internal operators only.
+
+**Non-Goals:**
+
+1. **Engine-specific screens** — Constitution, Graph Explorer, Build, and Events & Actions are covered in
+   their own PRDs. The platform reads their metrics/audit contracts; it does not re-implement their
+   surfaces.
+2. **Client-app self-healing** — Build Engine owns it (`BE-SELFIMPROVE-1`, E11, always HITL). The platform
+   owns self-improvement of *Weave-the-product* only (A3); the two share the `BE-SELFIMPROVE-1`
+   signal→issue→dispatch component but are configured separately and have disjoint approval authorities.
+3. **Custom app generation** — that is the Build Engine. The Generative Dashboard renders widgets inside
+   Weave's own SPA, never standalone deployed apps.
+4. **BI / analytics platform** — the dashboard surfaces operational intelligence from engine metrics
+   contracts; it does not run warehouse queries or replace Tableau/Looker.
+5. **Realtime collaborative editing** — Graph Explorer owns it and it is Phase 2 (D1). The platform ships
+   single-user editing + async sharing (saved views + comments) at MVP.
+
+### Personas & roles
+
+| Persona | Description | Primary need | Permission level |
+|---|---|---|---|
+| Operations / transformation lead | Owns how the company runs; first adopter | Model coverage, compliance, activity in one view | author |
+| CTO / exec sponsor | Funds and governs the initiative | Spend, compliance posture, model health at a glance | admin |
+| Enterprise architect | Extends the ontology to the client domain | Ontology health, version status, SHACL errors, growth | publish |
+| Compliance / risk officer | Owns governance/compliance content | Cross-engine compliance views + immutable audit feed | author (read audit) |
+| Engineer / developer | Builds via the Build Engine | Active projects, token spend, agent activity, connectors | author |
+| Business analyst / SME | Edits instance data day to day | Domain changes, project status, role-tailored views | author |
+| Ops / SRE | Operates built products | Automation/connector health, error/latency signals | author |
+| Automation author | Creates and manages automations | Automation status, run health | author |
+| Viewer / stakeholder | Read-only | Read-only explore + dashboards | read |
+| **Weave platform operator** *(Weave-internal, NOT a client-tenant role)* | Weave engineering | Approve/dispatch Weave-product self-improvement | platform-internal |
+| **Agent principals** *(non-human)* | Per `PLAT-IDENTITY-1` | Least-privilege scope per principal | scoped service principal |
+
+> Role slugs align with the brief's canonical role list and the platform RBAC model resolved through
+> `PLAT-SETTINGS-1`. "Weave platform operator" is an internal identity that never appears in any client
+> workspace's RBAC. Onboarding maps non-primary roles to the four primary paths: Engineer/Automation
+> author → technical; Ops/SRE → admin; Brand/content → business; Viewer → business-read-only
+> (resolve-by-default 10).
+
+### 2.1 Functional requirements
+
+> Every FR carries a Phase/depends-on tag. "MVP" = buildable against CE + platform contracts. "P0 when
+> <engine> ships" = the requirement is P0 but dark until its source engine is GA.
+
+| ID | Requirement (behaviour + failure mode + acceptance) | Story | Priority | Phase / depends-on |
+|---|---|---|---|---|
+| FR-001 | Prompt bar visible, keyboard-focusable (Cmd+K), always present; focus testable headlessly | E1-S1 | P0 | MVP |
+| FR-002 | AI selects component type, calls owning metrics contract, streams widget; on provider error → defined unavailable state, never blank/hallucinated | E1-S1 | P0 | MVP (CE contracts) |
+| FR-003 | Streaming header/skeleton within default 1 s (tunable); on LLM 503 → offline state, retryable | E1-S1 | P0 | MVP |
+| FR-004 | AI declines unsatisfiable prompts with a named reason — missing/unavailable data source (E1-S1) or no matching component for the data shape (E1-S2); never blank/hallucinated | E1-S1, E1-S2 | P0 | MVP |
+| FR-005 | Declarative component mapping (count→KPI … alert→banner); no free-form code | E1-S2 | P0 | MVP |
+| FR-006 | "Change visualisation" switches type without re-prompt | E1-S2 | P1 | MVP |
+| FR-007 | "Refine" delta prompt; history default 10 steps (tunable); failed refine preserves prior state | E1-S3 | P0 | MVP |
+| FR-008 | Pin persists widget **server-side, (tenant,user)-scoped** (not localStorage); cross-device, RBAC-scoped, audit-visible | E1-S4 | P0 | MVP |
+| FR-009 | Pinned auto-refresh default 5 min (tunable) + manual; provider error → last render + stale badge | E1-S4 | P0 | MVP |
+| FR-010 | Responsive grid default 1–4 columns (tunable); drag-reorder | E1-S4 | P1 | MVP |
+| FR-011 | Publish to **server-side, workspace-scoped** library; author+date; 403 if no author perm | E1-S5 | P0 | MVP |
+| FR-012 | Role-tailored **MVP-eligible (CE-sourced)** starter widgets; "Suggested"; removable | E1-S6 | P0 | MVP |
+| FR-013 | Example prompts (default 4–6, tunable) scoped to available categories; disappear after default 3 widgets (tunable) | E1-S7 | P1 | MVP |
+| FR-014 | Data-source footer label citing the contract(s) on every widget | E1-S1 | P0 | MVP |
+| FR-015 | A widget category is available **once its source engine is live**; CE-sourced categories MVP, others "P0 when source engine ships"; non-GA categories render a defined unavailable state | E2-S1–S15 | P0–P1 per story | phased per category |
+| FR-016 | Compliance widgets deep-link to the entity via `CE-READ-1` (`/resource/{iri}`) | E2-S5 | P0 | MVP |
+| FR-017 | Sentiment widget over `PLAT-AUDIT-1`; numeric mapping (+1/0/−1, daily mean); spike at default 20% drop vs 7-day mean (provisional) | E2-S10 | P1 | MVP |
+| FR-018 | Version-pin lag computed via `CE-VERSION-1` canonical lag; amber ≥ default 2, red ≥ default 4 (tunable) | E2-S12 | P1 | P0 when Build/Events ship |
+| FR-019 | Onboarding progress widget; deep-links; auto-dismiss at 100%; Build item only when Build GA | E2-S15 | P0 | MVP |
+| FR-020 | Workspace switcher lists accessible workspaces + Hammerbarn demo; reload on switch; 403 + zero cross-tenant data on unauthorized switch | E3-S1 | P0 | MVP |
+| FR-021 | Member removal/role-change enforced via short token TTL (default ≤ 60 s) + per-request session-version revocation check; next request with prior token rejected within bounded latency | E3-S2 | P0 | MVP |
+| FR-022 | Settings cascade `PLAT-SETTINGS-1` (Company→Domain→Workspace→Project, tighter-wins); resolution API returns effective value + level; loosening needs parent approval; covers budget/retention/classification/RBAC | E3-S3 | P0 | MVP |
+| FR-023 | Cognito default; Auth0 SAML/OIDC per workspace; IdP outage → defined error, no unauth fallback | E4-S1 | P0 | MVP |
+| FR-024 | RBAC at API via JWT (roles resolved via `PLAT-SETTINGS-1`); 403 + audit on denial; reconciled to FR-021's single revocation latency | E4-S2 | P0 | MVP |
+| FR-025 | Agent identities via `PLAT-IDENTITY-1`: canonical principal IRI in PROV-O + every `PLAT-AUDIT-1` entry; AWS/secret access via **IAM role assumed by STS** (not Cognito); registry maps IAM role↔principal↔RBAC role | E4-S3 | P0 | MVP |
+| FR-026 | Persistent top bar; 7 areas incl Compliance (Audit is a Compliance sub-view, not separate); non-GA areas shown disabled | E5-S1 | P0 | MVP |
+| FR-027 | Global search Cmd+K; grouped; `:type`; default 300 ms / 150 ms debounce (provisional); non-GA engine groups omitted; index-down → defined error | E5-S2 | P0 | MVP |
+| FR-028 | Help launcher: docs search, role-tailored tour (4 primary paths), shortcuts, docs link | E5-S3 | P1 | MVP |
+| FR-029 | `PLAT-NOTIFY-1` centre: **open type taxonomy** (not fixed enum); in-app + Slack; deep-link; mark-all-read; channel-failure still delivers in-app + logged; default 30 s delivery (provisional) | E6-S1 | P0 | MVP |
+| FR-030 | Per-user notification prefs: toggle each registered type; email digest cadence | E6-S2 | P1 | MVP |
+| FR-031 | `PLAT-CONNECTOR-1` config: 7 v1 connectors (Snowflake·Databricks·S3·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack); credentials **AWS Secrets Manager only**; sync direction+frequency; invalid cred → fail closed, no secret logged | E7-S1 | P0 | MVP |
+| FR-032 | `PLAT-CONNECTOR-1` health read API (status,last_sync,last_error,error_count); degraded/disconnected → `PLAT-NOTIFY-1` event | E7-S2 | P0 | MVP |
+| FR-033 | Connector-data ingestion writes to graph via `CE-WRITE-1` under a connector-scoped principal; write-back: idempotency key, bounded retry (default 3, tunable), conflict-reject, failure → `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | MVP (ingest); bidirectional per OQ-07 |
+| FR-034 | `PLAT-BILLING-1` usage screen: per-token + per-run dimensions; per-engine breakdown; default < 5 min lag (provisional); metering never dropped (separate queue); delay → last-known + timestamp | E8-S1 | P0 | MVP (token); per-run when Events ships |
+| FR-035 | Budget cap resolved via `PLAT-SETTINGS-1` cascade (full 4-level, tighter-wins); alerts default 80%/100% (tunable); hard reject **before any AI API call** at 100%; fail-closed under metering lag | E8-S2 | P0 | MVP |
+| FR-036 | `PLAT-AUDIT-1` entries hash-chained (prev_hash→hash) + ed25519 signature; append-only at DB-constraint level; delete rejected + logged | E9-S1 | P0 | MVP |
+| FR-037 | Audit queryable by date/actor/type/resource/engine; paginated (default ≤ 500/page, tunable); JSON/NDJSON export with chain-verification procedure | E9-S1 | P0 | MVP |
+| FR-038 | Audit exposed as a **sub-view under Compliance** (not a separate top-level area); Compliance role read access | E9-S1 | P0 | MVP |
+| FR-039 | Weave-product signal collection via `BE-SELFIMPROVE-1`; all numeric thresholds = configurable defaults, **provisional** (window+aggregation stated); Weave-internal only | E9-S2 | P0 | MVP (Weave-internal) |
+| FR-040 | Signal cadence configurable: real-time (default <5 min) errors; hourly agent-quality; daily sentiment/adoption/CVE/RBAC | E9-S2 | P0 | MVP (Weave-internal) |
+| FR-041 | On threshold breach `claude-opus-4-8` drafts a DRAFT GitHub issue in **Weave's product repo**; Weave-bot credential in **AWS Secrets Manager**; GitHub-API-down → queued+retried | E9-S3 | P0 | MVP (Weave-internal) |
+| FR-042 | Duplicate detection: embed (S3 Vectors, cosine) vs open issues; default 0.85 similarity (provisional, OQ-09) → append evidence not duplicate | E9-S3 | P0 | MVP (Weave-internal) |
+| FR-043 | Self-improvement surface + approval/dispatch visible/actionable **only to Weave-internal platform operator**; client-tenant attempt → 403 + logged | E9-S3, E9-S4 | P0 | MVP (Weave-internal) |
+| FR-044 | Approval publishes issue + creates dark-factory task via `BE-SELFIMPROVE-1` (task brief + HITL gate + `PLAT-AUDIT-1`); status Draft→Approved/Rejected→Dispatched→Implemented; rejected retained, never deleted. **At MVP the dispatch target is Weave's existing engineering harness/repo (this Claude Code dark-factory harness), NOT the not-yet-built Build-Engine product** (resolves audit M3) | E9-S4 | P0 | MVP (Weave-internal) |
+
+### 2.2 Non-functional requirements
+
+**Performance** — all targets are configurable defaults, **provisional** pending tech-spec validation
+against real telemetry (owner Architect); they are product assumptions, not contractual SLAs:
+
+- Dashboard initial load (CE-sourced starter widgets, no prompt): default ≤ 2 s (p95).
+- Generative widget: streaming header within default 1 s; fully rendered default ≤ 5 s (p95) for ≤ 1,000
+  data points.
+- Global search: default ≤ 300 ms after a 150 ms debounce.
+- Notification in-app delivery: default ≤ 30 s.
+- Workspace switch: default ≤ 2 s.
+
+**Security:**
+
+- All secrets (connector credentials incl. Slack token, GitHub Weave-bot, API keys) in **AWS Secrets
+  Manager only** — never logged, never returned in API responses, never in `.env`.
+- RBAC enforced at the API boundary via Cognito JWT; roles resolved through `PLAT-SETTINGS-1`;
+  unauthorised ops → HTTP 403 + `PLAT-AUDIT-1` entry. Test: a JWT lacking a permission is denied and the
+  denial is audited.
+- Agent (machine) auth path is **IAM role via STS** (short-lived; never raw secret values), distinct from
+  the human Cognito path (`PLAT-IDENTITY-1`).
+- Revocation: short access-token TTL (default ≤ 60 s) + per-request session-version check against a
+  revocation list; test: after removal, the next request with the prior token is rejected within the
+  bounded latency.
+- Input validation at all API boundaries; SPARQL reads inherit CE's SELECT-only + SERVICE-block +
+  pagination (B3) — the platform never issues unscoped or `SERVICE` queries.
+- PII in audit/log data feeding the sentiment NLP is scrubbed before the model (`claude-haiku-4-5`).
+- Audit integrity: hash chain (prev_hash→hash) + ed25519 per entry; append-only at DB-constraint level;
+  tamper/delete fails chain verification (test in §2.5).
+
+**Reliability:**
+
+- `PLAT-NOTIFY-1` channel failure degrades to in-app delivery + logs the channel failure; no notification
+  silently dropped.
+- `PLAT-BILLING-1` metering events use a separate queue from run outcome — never dropped; budget
+  enforcement fails closed under metering lag.
+- `CE-EVENT-1` consumption degrades to polling `CE-READ-1` with a since-version if the stream is
+  unavailable.
+- Connector write-back: idempotency key + bounded retry (default 3) + conflict-reject; failures raise
+  `connector-degraded` and audit entries.
+- GitHub draft creation queues + retries on API outage.
+
+**Observability:**
+
+- Every AI widget generation emits an OpenTelemetry span with attributes: `prompt_hash`, `component_type`,
+  `data_source_contract`, `token_count`, `latency_ms`, `tenant_id`.
+- Notification delivery emits a delivery-receipt event (CloudWatch).
+- Every audit write emits a span correlating `seq`, `actor_principal_iri`, `engine`.
+
+**Accessibility:**
+
+- Prompt bar, notification centre, settings, and Compliance/Audit screens: **WCAG 2.1 AA**; zero axe-core
+  violations is a release gate.
+- All primary dashboard actions (prompt submit, pin, refine, publish) keyboard-achievable.
+
+**Isolation & data safety:**
+
+- **Multi-tenant isolation mechanism (named):** the RDF/graph layer uses **named-graph-per-tenant with
+  mandatory query-rewriting that REJECTS any unscoped query** (no tenant predicate ⇒ query refused), OR
+  store-per-tenant — final choice is OQ-01 (owner Architect + CE team), but the *expectation and test are
+  fixed now*. Aurora uses a `tenant_id` row predicate enforced in a base query layer; S3 Vectors are
+  tenant-prefixed.
+- **Cross-tenant-read test (mandatory):** a query issued in tenant A's context returns **zero rows** from
+  tenant B's seeded data, across RDF, Aurora, and S3 Vectors; an unscoped SPARQL query is rejected, not
+  silently broadened.
+- Dashboard widget state (pinned + library) is server-side and tenant/RBAC-scoped, so it is covered by
+  isolation and audit (not localStorage).
+
+**Browser / device support:** Chrome, Firefox, Safari — latest 2 major versions. Desktop-first; no mobile
+in v1.
+
+### 2.3 Inter-engine interfaces
+
+> Contracts referenced by ID from `../contracts.md`. Consumed contracts are pinned
+> to a version (`?version=latest` auto-tracks newest published per B2 unless a consumer pins). Full
+> contract definitions live in `../contracts.md` — cited here by ID + intent only.
+> <!-- SHARED-HOISTED: full contract DEFINITIONS replaced with ../contracts.md <ID> refs -->
+
+**Consumed (this engine calls / reads):**
+
+| Provider engine | Contract | Version pin | Used for |
+|---|---|---|---|
+| Constitution Engine | `CE-METRICS-1` | latest | Dashboard CE-sourced widgets (ontology health, completeness, compliance, growth, onboarding, issues) — the MVP-eligible set |
+| Constitution Engine | `CE-READ-1` | latest | Entity deep-links, completeness reads, search over entities |
+| Constitution Engine | `CE-VERSION-1` | latest | Canonical version-lag for the version-pin widget (no local re-implementation) |
+| Constitution Engine | `CE-DIFF-1` | latest | Draft-vs-published delta widgets |
+| Constitution Engine | `CE-EVENT-1` | latest | Live activity / recent-edit widgets (Should Have; degrade to polling `CE-READ-1` since-version) |
+| Constitution Engine | `CE-WRITE-1` | latest | Connector-data ingestion writes into the graph (validated ops) |
+| Build Engine | `BE-SELFIMPROVE-1` | latest | Shared signal→issue→dispatch component for Weave-product self-improvement (configured Weave-internally). At Platform-P1 the dispatch target is Weave's **existing engineering harness/repo**, NOT the not-yet-built Build product (M3) |
+| (Build metrics) | *engine surface, not yet contracted* | n/a | Active-project widgets — P0 when Build ships; metrics endpoint to be added to Build PRD |
+| (Events metrics) | *engine surface, not yet contracted* | n/a | Automation widgets — P0 when Events ships |
+
+**Provided (this engine exposes to others):**
+
+| Contract | Consumers | Stability |
+|---|---|---|
+| `PLAT-AUDIT-1` | CE, Build, Events (emit); Compliance (read) | stable |
+| `PLAT-NOTIFY-1` | all engines (publish) | stable |
+| `PLAT-IDENTITY-1` | CE, Build, Events | stable |
+| `PLAT-CONNECTOR-1` | Events, Build, CE | stable |
+| `PLAT-SETTINGS-1` | all engines | stable |
+| `PLAT-BILLING-1` | all engines (emit meter) | stable |
+
+### 2.4 Open questions
+
+| # | Question | Owner |
+|---|---|---|
+| OQ-01 | Multi-tenant isolation final mechanism for the RDF layer: named-graph-per-tenant + query-rewriting vs store-per-tenant (Oxigraph/Neptune). Expectation + cross-tenant-read test fixed in §2.2; mechanism choice deferred. | Architect + CE team |
+| OQ-02 | Streaming RSC pattern for widgets: Vercel AI SDK `streamUI`, Next.js server actions, or custom streaming endpoint. | Architect |
+| OQ-03 | Widget data caching: cache last result for instant pre-refresh display vs always fetch fresh. | Architect |
+| OQ-04 | Global search index: dedicated service (OpenSearch) vs SPARQL (`CE-READ-1`) + PostgreSQL full-text. | Architect |
+| OQ-05 | `PLAT-AUDIT-1` storage: append-only DynamoDB vs PostgreSQL with constraint-based immutability, given hash-chain + query/export needs. Single decision (was Platform OQ-09 = Build OQ-04). | Architect |
+| OQ-06 | Notification + `CE-EVENT-1` transport: SNS+Lambda fan-out, change-feed, or WebSocket — does NOT presuppose any realtime-sync/Yjs server (Yjs is Phase-2 Explorer). | Architect |
+| OQ-07 | Connector bidirectional write support: which of the 7 connectors support write-back in v1 (Atlassian + ServiceNow confirmed); conflict-resolution policy detail. | Architect |
+| OQ-08 | Client-scoped self-improvement (Polaris-style project+org proposals over client signals) — in a later phase? If yes, define the proposal entity schema and a client-facing surface; deferred out of v1. | PO + Build team |
+| OQ-09 | Duplicate-issue similarity threshold (default 0.85) + embedding model + distance metric, tuned against a labelled duplicate/non-duplicate set. | Architect |
+| OQ-10 | Signal collection pipeline: Lambda-per-signal vs shared aggregation service. | Architect |
+| OQ-11 | GitHub integration: Weave-bot GitHub App (scoped, no PAT rotation) vs PAT. | Architect |
+| OQ-12 | ODRL policy enforcement: deferred from v1 (v1 uses SHACL + data-classification properties for PII/sensitive handling); revisit as a later stack decision. | Architect |
+| OQ-13 | Per-user dashboard widget state store choice (server-side decided; which store — Aurora vs DynamoDB) and render-cache strategy. | Architect |
+| OQ-14 | **Local development experience / dev-loop — RESOLVED at PRD level** in `../dev-environment.md`: thin shared dev account (Cognito + Bedrock + small entities), everything else local (Oxigraph, Postgres, LocalStack, Redis, Ollama); tiered Ollama+Bedrock model routing via a configurable provider abstraction; full local test pyramid + gates → HITL → dev-AWS smoke → deploy. Residual tech-spec items listed in that doc. <!-- SHARED-HOISTED: dev-loop detail — see ../dev-environment.md --> | Architect (arch-stack + arch-infra) |
+
+### 2.5 Key design decisions captured
+
+| Decision | Rationale |
+|---|---|
+| Declarative generative UI (finite component library, RSC streaming) | Preserves design consistency; AI maps intent to a fixed component set, never free-form code. |
+| Dashboard widgets are phase-gated by engine availability; MVP = CE-sourced only | Constitution ships first; Build/Events/Explorer data has no backing contract until those engines are GA (resolve-by-default 5; A1 sequencing). |
+| One audit/provenance service (`PLAT-AUDIT-1`), hash-chained + ed25519 | A2: engines emit; Build/Events logs are views; tamper-evidence needs a chain, not just per-entry signatures. |
+| One notification service (`PLAT-NOTIFY-1`) with an open type taxonomy + Slack | Resolve-by-default 1; engines publish; fixed-enum would not cover HITL/automation-failure/connector-degraded. |
+| One agent-identity registry (`PLAT-IDENTITY-1`); machine auth = IAM/STS, human = Cognito | Cognito is human-oriented; agents need IAM roles for AWS/secret access (resolve-by-default 7). |
+| Full 4-level settings cascade (`PLAT-SETTINGS-1`), tighter-wins | A4; one cascade resolves budgets, retention, classification, RBAC. |
+| Billing meters both per-run automation and per-token AI (`PLAT-BILLING-1`) | C1; metering events never dropped (separate queue). |
+| 7 v1 connectors incl. Atlassian-grouped + Slack (`PLAT-CONNECTOR-1`) | C2/C3; Atlassian = Jira+Confluence one OAuth family; Slack platform-managed. |
+| Weave-product self-improvement is Weave-internal-only; shares `BE-SELFIMPROVE-1` | A3; client admins must never approve/dispatch changes to Weave's product repo. |
+| Widget state persisted server-side (per-user pins + workspace library) | localStorage cannot be cross-device/RBAC/audit-scoped (resolves prior OQ-08). |
+| Realtime collaborative editing is Phase 2 (Explorer-owned) | D1; MVP = single-user editing + async sharing (saved views + comments). |
+
+### 2.6 Acceptance criteria (PRD-level)
+
+The Weave Platform PRD is satisfied when:
+
+- [ ] At MVP (only Constitution Engine GA): "show me active compliance contraventions by domain" renders a
+  bar chart within the default target with live data from `CE-METRICS-1`; a prompt for a
+  Build/Events-sourced category renders the defined "source engine not yet available" state rather than
+  empty or fabricated data.
+- [ ] A generated widget pinned by a user persists **server-side** and reloads on a different device for
+  the same user; it is not visible to another tenant.
+- [ ] A published workspace widget is added to a different user's dashboard from the server-side library.
+- [ ] **Cross-tenant isolation:** a query issued in tenant A's context returns zero rows from tenant B's
+  seeded data across RDF, Aurora, and S3 Vectors; an unscoped SPARQL query is rejected.
+- [ ] A non-admin user is blocked (HTTP 403) outside their role and the denial appears in `PLAT-AUDIT-1`.
+- [ ] After a member is removed, the next request bearing their prior token is rejected within the bounded
+  revocation latency (default ≤ 60 s).
+- [ ] An Atlassian (Jira) connector is configured (credential in Secrets Manager, never displayed); its
+  health appears via `PLAT-CONNECTOR-1`; a degraded state raises a `PLAT-NOTIFY-1` event.
+- [ ] A budget cap set at a Domain node enforces (tighter-wins) at a child Workspace; spend triggers
+  notifications at default 80%/100% and rejects AI requests **before any AI API call** at 100%.
+- [ ] A HIGH-severity SHACL contravention publishes a `PLAT-NOTIFY-1` event delivered in-app (and Slack if
+  configured) within the default target.
+- [ ] **Audit tamper test:** an audit entry records a graph mutation; altering or deleting any historical
+  entry fails chain verification at a named row, and the delete attempt is itself logged.
+- [ ] A Weave-product signal (e.g. rising HITL-override frequency) drafts a DRAFT GitHub issue in Weave's
+  repo with root-cause + evidence, visible **only to a Weave-internal platform operator**; a client
+  workspace admin attempting to approve/dispatch is rejected (403).
+- [ ] A Weave platform operator approves a draft; it publishes to the Weave repo and creates a
+  dark-factory task via `BE-SELFIMPROVE-1` following the standard HITL + `PLAT-AUDIT-1` pipeline; a
+  rejected draft is retained with reason and cannot be deleted.
+- [ ] Sentiment over `PLAT-AUDIT-1` returns a numeric daily score per engine (+1/0/−1 mean); a drop beyond
+  the provisional 20% threshold fires an alert-banner widget.
+
+### 2.7 Risks & mitigations
+
+> Source risk table carries no R-IDs; rows preserved verbatim.
+
+| Risk | Impact | Likelihood | Mitigation |
+|---|---|---|---|
+| Dashboard appears empty/broken at MVP because most widgets depend on later engines | High | High | Phase-gate widgets to engine availability; ship a useful CE-sourced starter set; render explicit "not yet available" states (FR-015). |
+| Tenant isolation mechanism undecided ⇒ cross-tenant leak | High | Med | Fix the expectation + cross-tenant-read test now (§2.2); defer only the mechanism (OQ-01); fail-closed on unscoped queries. |
+| "Tamper-evident" audit defeated by single signing key | High | Med | Hash chain (prev_hash→hash) + ed25519 + DB-level append-only + chain-verification export (FR-036/037). |
+| Client admin gains authority over Weave's product repo | High | Low | Self-improvement approval/dispatch restricted to Weave-internal operator identity, never in client RBAC (FR-043, E9-S3/S4). |
+| Provisional thresholds treated as hard SLAs | Med | Med | All numbers marked "default X, tunable" / "provisional — tune in tech spec" with owner (§2.3, §2.2, E9-S2). |
+| Revocation latency unachievable with long-lived JWTs | Med | Med | Short TTL + per-request session-version revocation check; single bounded latency (FR-021/024). |
+| Metering events dropped ⇒ budget over-run | Med | Low | Separate metering queue; fail-closed enforcement at cap (PLAT-BILLING-1, FR-034/035). |
+
+---
+
+## 3. Epics
+
+> 10 epics, EPIC-000 through EPIC-009. EPIC-000 (Foundation & Boilerplate) is the first work item the
+> whole program depends on. Each epic's user stories are restated in full below; the PRD §2 user-story
+> ACs (E0-S*, E1-S*, … E9-S*) are the authoritative acceptance criteria and are reproduced inline.
+
+### EPIC-000 — Foundation & Boilerplate
+
+**Phase:** 1 (MVP) — **FIRST work item; every other epic, in every engine, depends on it.**
+**Priority:** Must Have · **mvp:** true · **depends_on:** none (root) ·
+**blocks:** EPIC-001…EPIC-009 (and, transitively, every engine) ·
+**provides:** dev-environment, ci-cd, design-system, app-shell, iac-state, auth-bootstrap.
+
+**Description.** The shared platform foundation the whole program stands on: the codebase, infrastructure,
+CI/CD, the design system, auth + model connectivity, the test + evaluation harness, and the quality gates.
+Nothing else can start until this exists — it is the one-time shared scaffold that the harness's
+per-project scaffolding step does **not** cover (audit gap C1). It also installs the release gates
+(Lighthouse 100, WCAG 2.1 AA) and wires the model-routing provider abstraction (Ollama/Bedrock/Anthropic)
+from `../dev-environment.md`. The dark factory's first phase builds this from this brief rather than
+improvising a scaffold.
+
+**User stories (PRD §Epic 0):**
+
+- **E0-S1 — Monorepo + tooling scaffold.** As a platform engineer, I want a scaffolded monorepo so work
+  starts on a consistent base. **AC:** Given a clone, when `<bootstrap>` runs, then the workspace, package
+  layout, `uv`+`pnpm`, conventional-commit hooks, and npm scripts exist; `<test>`/`<lint>` run green.
+  **AC (failure):** a bare `pip install` is rejected by the uv-enforce gate. *(Must)*
+- **E0-S2 — IaC + remote state.** **AC:** Given the Terraform root, when `terraform apply` runs against the
+  shared dev account, then base AWS (Cognito pool, Bedrock access, networking, Secrets Manager) is
+  provisioned and state persists in **S3 with DynamoDB locking**; no secret is committed (secret-scan).
+  *(Must)*
+- **E0-S3 — App shell + design system + Storybook.** **AC:** Given the Next.js 15 shell, when it boots,
+  then it renders the nav/providers/theming using the **design system** (`docs/standards/design/` tokens),
+  and a **Storybook** renders the component catalogue with a visual-regression baseline. *(Must)*
+- **E0-S4 — CI/CD + quality gates.** **AC:** Given a PR, when CI runs (GitHub Actions, OIDC to AWS, env
+  protection), then it is **red** on any of: lint error, **complexity** over budget, **SAST** high
+  finding, **secret** detected, or non-conventional commit. *(Must)*
+- **E0-S5 — Test + release gates.** **AC:** Given the built app, when CI runs, then unit + UI +
+  **Playwright E2E** + **visual-regression** execute, and the release gate is **red** unless **Lighthouse
+  = 100 across all four categories** and **axe = 0** (WCAG 2.1 AA). *(Must)*
+- **E0-S6 — Auth + model connectivity.** **AC:** Given a request, when auth resolves, then Cognito issues a
+  JWT with role claims + agent service principals; and the **model-routing abstraction** resolves
+  provider+model per env (local→Ollama, cloud→Bedrock) from one config — no AWS creds for the local inner
+  loop (`../dev-environment.md §3`). *(Must)*
+- **E0-S7 — API + observability scaffold.** **AC:** an **OpenAPI 3.1** contract is generated + validated in
+  CI (`api-conventions.md`); **OTel/ADOT** spans emit; a health route + smoke test pass. *(Must)*
+- **E0-S8 — AI evaluation harness.** **AC:** **promptfoo** CI evals + **Bedrock Model Evaluation** run on
+  prompt/agent changes (`testing-agents.md`). **Priority:** Should.
+- **E0-S9 — Local dev environment.** **AC:** Given a clone, when `docker compose up` runs, then a full
+  local stack (Oxigraph, Postgres, LocalStack S3/SQS/SNS, Redis, Ollama) starts with seed data and **zero
+  live AWS** for the inner loop (`../dev-environment.md` DX1/DX4). *(Must)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] A new contributor runs one documented command and gets a working local stack with seed data and
+  **zero live AWS** for the inner loop (`../dev-environment.md` DX1/DX4).
+- [ ] CI is **red** on any of: lint error, complexity over budget, SAST high finding, detected secret,
+  failing test, or a Lighthouse score < 100 / axe violation > 0 on the built app.
+- [ ] `terraform apply` provisions the shared dev account (Cognito + Bedrock + state backend) reproducibly;
+  state lives in S3 with DynamoDB locking; no secret is committed.
+- [ ] A Storybook renders the design-system components from `docs/standards/design/` tokens; a
+  visual-regression baseline exists and the diff gate is wired.
+- [ ] The model-routing abstraction resolves provider+model per env (local→Ollama, cloud→Bedrock) from one
+  config, with no AWS creds needed for the local inner loop.
+- [ ] An OpenAPI 3.1 contract is generated and validated in CI; OTel spans emit to the collector.
+
+**Technical notes.** Cross-cutting: consumes the standards `complexity.md`, `secrets-scanning.md`,
+`api-conventions.md`, `observability.md`, `testing-ts.md`/`testing-py.md`/`testing-agents.md`,
+`accessibility.md`, and the new `docs/standards/design/` design system. Realises the `../dev-environment.md`
+local-first model and the Lighthouse-100/WCAG-AA gates.
+
+### EPIC-001 — Generative Dashboard (composition + lifecycle)
+
+**Phase:** 2 (MVP) — needs Constitution Engine GA · **Priority:** Must Have · **mvp:** true ·
+**depends_on:** EPIC-000, EPIC-003, EPIC-008, CE-READ-1, CE-METRICS-1, CE-VERSION-1 ·
+**blocks:** EPIC-002 · **consumes:** CE-METRICS-1, CE-READ-1, CE-VERSION-1, PLAT-SETTINGS-1, PLAT-BILLING-1.
+
+**Description.** The user-facing centrepiece: a declarative generative-UI surface where a workspace member
+describes what they want and the AI composes the best-fit widget from a finite component library and
+streams it into the dashboard grid. This epic owns the full widget lifecycle — generate, choose component
+type, refine, pin (server-side per-user), publish to the workspace library, and role-appropriate starters
+— all bound to live provider metrics contracts, never to free-form code.
+
+> **Staging (user decision).** At MVP the dashboard is a **simple fixed default** (E1-S0). The generative
+> composition surface and full widget lifecycle (E1-S1–E1-S7) are **deferred to Phase 2** and light up
+> per-engine as data sources ship.
+
+**User stories (PRD §Epic 1) — full acceptance criteria:**
+
+- **E1-S0 — Simple fixed default dashboard (MVP).** As any workspace member, I want a useful default home
+  on first login so the workspace is not blank before the generative dashboard ships.
+  - AC: at MVP the dashboard renders a **fixed, hand-composed set of CE-sourced widgets** (ontology health
+    / coverage via `CE-METRICS-1`); no prompt bar, no AI composition.
+  - AC: the fixed default **persists as the workspace default** across sessions and devices (server-side,
+    not localStorage); read-only-composed at MVP (members do not add/remove tiles until the Phase-2
+    lifecycle ships).
+  - AC: when a Phase-2 engine ships new metrics, its widgets become **available to add via the generative
+    surface** — the fixed default is the floor, not a ceiling.
+  - AC (failure): if `CE-METRICS-1` errors on load, each affected tile renders the "data source
+    unavailable" state with retry, never a blank tile, and the rest still loads.
+  - AC: each tile shows a data-source footer label naming its contract (`CE-METRICS-1`). *(Must, MVP)*
+- **TASK-001 / E1-S1 — Request a widget by describing what you want** *(Phase 2)*. Focus prompt bar (Cmd+K), submit;
+  AI selects a library component, calls the owning engine's metrics contract for an available category, and
+  streams the widget in; streaming header + skeleton within a configurable target (default 1 s, tunable).
+  - AC (provider unavailable): source metrics endpoint errors/timeouts or engine not GA → defined "data
+    source unavailable" state (named reason + retry), never blank/hallucinated.
+  - AC (LLM provider down): AI provider unconfigured/unreachable → defined offline state (HTTP 503 as a
+    readable message, matching prototype `LlmBar` 503), retryable.
+  - AC (budget cap mid-stream): workspace AI budget cap (via `PLAT-SETTINGS-1`) reached during streaming →
+    generation halts with the E8-S2 cap message; partial widget rolled back (no partial save).
+  - AC: every rendered widget shows a footer label naming its data-source contract(s). *(Must)*
+- **TASK-002 / E1-S2 — AI picks the best component type for the intent** *(Phase 2)*. Maps intent to exactly one
+  component by declarative rule (count/status→KPI, trend→line/area, comparison→bar, ranked→list, log→
+  activity feed, ratio→pie/donut, two-dim matrix→heatmap, alert→banner); named type in prompt overrides.
+  - AC (failure): no matching component for the data shape → declines with the unsatisfiable-prompt message
+    (E1-S1), no ill-fit chart.
+  - AC (change visualisation, FR-006): inline "Change visualisation" re-renders the same data in a new
+    type with no re-prompt/re-fetch; incompatible types disabled with a reason. *(Must)*
+- **TASK-003 / E1-S3 — Refine a widget after generation** *(Phase 2)*. Follow-up prompt applies as a delta and
+  re-renders; refinement history retained (default 10 steps, tunable). On save, the final resolved prompt +
+  parameters are stored, not the history. AC (failure): an inapplicable refine preserves prior state with
+  an inline error (no silent reset). *(Must)*
+- **TASK-004 / E1-S4 — Pin a widget (server-side, per-user)** *(Phase 2)*. Pin persists the widget definition
+  (resolved intent/parameters, component type, data-source bindings, title, column span) **server-side,
+  scoped to (tenant, user)** — never localStorage — so it is cross-device, RBAC-scoped, audit-visible
+  (supersedes prior OQ-08). Responsive grid (default 1–4 columns, tunable), drag-reorder; auto-refresh
+  (default 5 min, tunable) or on demand. AC (failure): refresh provider error → retains last successful
+  render with a stale-data badge + timestamp; does not blank. *(Must)*
+- **TASK-005 / E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(Phase 2)*. Publish
+  with name + description → stored server-side, workspace-scoped, listed in the Workspace Library panel
+  with author + publish date (mirrors Explorer Saved Views `D2`). Another member adding it gets an
+  independent (tenant, user) copy refreshing from the same contract, independently refinable. AC (failure):
+  publish by a user lacking author permission → HTTP 403 with reason. *(Must)*
+- **TASK-006 / E1-S6 — Default starter widgets (first load).** First login pre-populates role-appropriate
+  **MVP-eligible (CE-sourced) starter widgets only**; non-GA-source widgets are not offered as starters.
+  Labelled "Suggested", individually removable; the Suggested state clears once the user pins/removes any.
+  AC (failure): a starter's source contract (`CE-METRICS-1`) errors on first load → unavailable state with
+  retry, never a blank tile, rest still loads. *(Must)*
+- **TASK-007 / E1-S7 — Prompt examples and suggestions.** Empty prompt bar shows role-tailored example prompts
+  (default 4–6, tunable) scoped to **available** categories; disappear after a configurable number of
+  widgets (default 3, tunable). Clicking an example populates the bar and generates the widget. AC
+  (failure): a clicked example resolving to a non-GA-source category surfaces "source engine not yet
+  available" rather than appearing to fail. *(Should)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Intent → component mapping is purely declarative: no generated widget ever results in free-form code
+  or a chart type outside the finite library (KPI, line/area, bar, list, activity feed, pie/donut, heatmap,
+  banner, table) — a single intent-mapping audit confirms every path resolves to exactly one library
+  component or declines.
+- [ ] Every failure mode resolves to a defined, named state, never blank/hallucinated:
+  provider-unavailable, LLM-503, budget-cap-mid-stream, unsatisfiable-prompt, and refresh-error each render
+  their specified state — one end-to-end failure-mode sweep.
+- [ ] Persistence boundaries hold: a pinned widget is (tenant, user)-scoped and invisible to another
+  user/tenant; a published widget is workspace-scoped and addable as an independent per-user copy — one
+  cross-user/cross-tenant test.
+- [ ] Only MVP-eligible (CE-sourced) categories are offered as starters or example prompts; no starter or
+  suggestion references a non-GA source engine.
+- [ ] Every rendered widget (generated, refined, pinned, published, starter) carries a data-source footer
+  label naming its contract(s).
+
+**Technical notes.** Declarative generative-UI pattern only; the mapping rule and named-type override live
+in the tech spec. Streaming targets are configurable defaults (header/skeleton ≤ 1 s; refinement history
+10 steps; auto-refresh 5 min; grid 1–4 columns; example-prompt count 4–6, dismiss after 3 widgets), all
+tunable per workspace (owner Architect for provisional values). Pin and publish are **server-side** state
+(never localStorage), RBAC-scoped and audit-visible via `PLAT-AUDIT-1`. Budget caps resolve through
+`PLAT-SETTINGS-1`; the LLM 503 surfaces the prototype `LlmBar` 503 behaviour as a readable, retryable
+offline state.
+
+### EPIC-002 — Widget Library (engine-sourced data categories, phase-gated)
+
+**Phase:** 2 (MVP) for CE-sourced stories (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) · Phase 3 (Post-MVP)
+for engine-gated stories (S3 per-run, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
+· **Priority:** Must Have (CE-sourced) / Should Have (some MVP) / P0 when source engine ships (engine-gated)
+· **depends_on:** EPIC-000, EPIC-001, EPIC-004, EPIC-007, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1,
+CE-VERSION-1, CE-EVENT-1 · **blocks:** none ·
+**consumes:** CE-METRICS-1, CE-READ-1, CE-DIFF-1, CE-VERSION-1, CE-EVENT-1, PLAT-AUDIT-1, PLAT-BILLING-1,
+PLAT-CONNECTOR-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1, BE-SELFIMPROVE-1.
+
+**Description.** The catalogue of data-bound widget categories the Generative Dashboard can compose. Each
+category is available only once its source engine is live: Constitution-sourced categories are
+MVP-eligible; Build-, Events-, and Explorer-sourced categories are "P0 when source engine ships" and render
+a defined "source engine not yet available" state until then. Split across phases per the PRD's own
+per-story phase tags, never fragmented further.
+
+**User stories (PRD §Epic 2) — full acceptance criteria:**
+
+- **TASK-001 / E2-S1 — Ontology health widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1` (`entity_count_by_kind`,
+  `latest_version`, `draft_published_delta`, `shacl_errors_by_severity`, `owl_inconsistencies`), prompts
+  like "ontology health" / "what changed since last publish" resolve to bound widgets. AC (failure):
+  `CE-METRICS-1` errors → unavailable state. *(Must, MVP)*
+- **TASK-002 / E2-S2 — Graph completeness / knowledge-gap widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1` +
+  `CE-READ-1`, data includes model coverage % per kind, entities missing required properties (SHACL
+  warnings), capabilities with no owner, domains with zero instances; "show me knowledge gaps" resolves.
+  AC (failure): unavailable on contract error. *(Must, MVP)*
+- **TASK-003 / E2-S3 — AI/token spend widgets** *(P0 when metering live; CE-portion at MVP)*. Given `PLAT-BILLING-1`
+  metering (per-token AI + per-run automation), data includes spend 7d/30d, by engine/user/project, budget
+  burn vs cap (via `PLAT-SETTINGS-1`), cost trend; burn-rate alert at a configurable projected-burn
+  threshold (default 90% projected, tunable). AC (failure): metering-pipeline gap → "metering delayed" with
+  last-known timestamp (events never dropped — separate queue per `PLAT-BILLING-1`). *(Must — token at MVP;
+  per-run automation dimension P0 when Events ships)*
+- **TASK-004 / E2-S4 — Active project pipeline widgets** *(P0 when Build Engine ships)*. Given Build GA with project
+  metrics, data includes project count by phase, projects at risk, artefacts shipped, agent
+  success/failure rate. AC (engine not GA): renders "Build Engine not yet available". *(P0 when Build ships;
+  dark until then)*
+- **TASK-005 / E2-S5 — Compliance status widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1`
+  (`shacl_errors_by_severity`) + `CE-READ-1`, data includes active SHACL contraventions by severity/domain,
+  policy coverage gaps, self-audit results; contraventions deep-link to the entity via `CE-READ-1`
+  (`/resource/{iri}`). AC (failure): unavailable on contract error. *(Must, MVP)*
+- **TASK-006 / E2-S6 — Self-improvement findings widgets** *(Weave-internal; client-scoped deferred)*. Given
+  `BE-SELFIMPROVE-1` configured for Weave-the-product (A3), data includes open proposal count by impact
+  (HIGH/MEDIUM/LOW), oldest unactioned, recent (7d) — Weave-product proposals only, visible only to the
+  Weave-internal platform-operator identity. AC: a non-platform-operator (any client-tenant role) is not
+  offered this widget and its data is not returned. Client-scoped self-improvement (Polaris-style
+  project+org proposals) is **deferred** — see OQ-08. *(Should, Weave-internal)*
+- **TASK-007 / E2-S7 — Ontology and project issue widgets** *(MVP for CE issues; Build issues gated)*. Given
+  `CE-METRICS-1` (`owl_inconsistencies`) + `CE-READ-1` + `CE-VERSION-1`, data includes unsatisfiable OWL
+  classes, open validation warnings, version-pin mismatches via the canonical version-lag in `CE-VERSION-1`
+  (default stale = lag ≥ 2, tunable); Build-project issues appear once Build is GA. AC (failure):
+  unavailable per contract. *(Must for CE issues at MVP; Build rows P0 when Build ships)*
+- **TASK-008 / E2-S8 — Event automation and connector-health widgets** *(connector-health MVP; automation gated)*.
+  Given `PLAT-CONNECTOR-1` health-status read API (`status, last_sync, last_error, error_count`),
+  connector-health widgets available at MVP for the 7 v1 connectors. Given Events GA, automation
+  counts/failure-rate added via the Events metrics surface; until then those rows render "Events Engine not
+  yet available". AC (failure): a degraded/disconnected connector publishes a `PLAT-NOTIFY-1` event.
+  *(Connector-health Must at MVP; automation rows P0 when Events ships)*
+- **TASK-009 / E2-S9 — Collaboration activity widgets** *(Phase 2 — Explorer realtime)*. Given async sharing at MVP
+  (saved views + comments per `D1`/`D2`), "recent graph edits by contributor" is sourced from `CE-EVENT-1`
+  actor data and is MVP-eligible. Given Graph Explorer realtime collab (Phase 2, `D1`), active-canvas-
+  session and presence widgets become available; until then they render "available in Phase 2". Presence /
+  active-session is an **Explorer engine surface not yet contracted** — a realtime presence contract is a
+  Phase-2 deliverable (tracked, no contract ID exists yet). *(Should; realtime sub-widgets Phase 2)*
+- **TASK-010 / E2-S10 — Sentiment analysis on audit logs** *(MVP — reads PLAT-AUDIT-1)*. Given `PLAT-AUDIT-1` query
+  API, a periodic NLP job (`claude-haiku-4-5`, PII scrubbed before the model) computes a daily numeric
+  sentiment per engine where positive=+1/neutral=0/negative=−1 and the daily score is the mean of
+  classified entries, so a percentage drop is computable. A spike alert fires when the score drops by more
+  than a configurable threshold (default 20% vs trailing 7-day mean, **provisional — tune in tech spec**,
+  owner Architect) and surfaces the driving entries as ranked "issue signals". AC (failure): NLP provider
+  unavailable → last computed scores with a "sentiment refresh delayed" badge. *(Should, MVP)*
+- **TASK-011 / E2-S11 — Agent activity feed widget** *(per-engine; populated as engines ship)*. Given `PLAT-AUDIT-1` +
+  `PLAT-IDENTITY-1` (canonical principal IRI), the feed shows agent principal, engine, action type, status,
+  reverse-chronological, filterable. Given only CE is GA, the feed shows CE agent activity only and labels
+  other engines as not-yet-available (no fabricated rows). AC (failure): `PLAT-AUDIT-1` unreachable →
+  unavailable state rather than an empty feed misread as "no agent activity". *(Should; rows per engine
+  appear as each engine ships)*
+- **TASK-012 / E2-S12 — Version pinning status widget** *(P0 when Build/Events ship; CE-version source MVP)*. Given
+  `CE-VERSION-1` canonical version-lag, lag is computed centrally; rows where lag ≥ amber threshold
+  (default 2, tunable) highlight amber, lag ≥ red threshold (default 4, tunable) red. Given Build/Events
+  not GA, no consumer rows; CE's own draft-vs-published delta shown at MVP. AC (failure): `CE-VERSION-1`
+  unreachable → lag "unknown" rather than 0. *(P0 when Build/Events ship)*
+- **TASK-013 / E2-S13 — Graph growth trend widget** *(MVP — CE-sourced)*. Given `CE-METRICS-1` history, a line chart
+  shows entity + relationship count over a configurable window (default 30/90 days, tunable). A
+  flat/declining trend beyond a configurable window (default 14 days, tunable) → "model may be stagnating"
+  footer advisory. AC (failure): history unavailable → last cached series with a staleness badge, not an
+  empty/zeroed chart. *(Must, MVP)*
+- **TASK-014 / E2-S14 — RBAC and access coverage widget** *(MVP — platform-sourced)*. Given the platform RBAC model
+  (via `PLAT-SETTINGS-1`) + `PLAT-IDENTITY-1`, data includes users with no role, areas with no owner,
+  recent role changes (default 7d, tunable), agent principals with broad scope. AC (failure): RBAC/identity
+  source unavailable → unavailable state rather than reporting zero gaps. *(Should, MVP)*
+- **TASK-015 / E2-S15 — Workspace onboarding progress widget** *(MVP — CE-sourced)*. Given `CE-METRICS-1`, completion
+  % spans ontology populated (≥1 entity per kind), first published version, plus connector configured via
+  `PLAT-CONNECTOR-1`; each incomplete item has a "Complete now" deep-link; widget auto-dismisses at 100%.
+  Build-project completion item appears only once Build is GA. AC (failure): `CE-METRICS-1` unavailable →
+  last computed completion % with a staleness timestamp rather than a false 0%/100%. *(Must, MVP)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Phase-gating is enforced uniformly: every category whose source engine is not GA renders the defined
+  "source engine not yet available" state with no fabricated/zeroed/hallucinated rows — a single
+  not-yet-available regression test covers S4, the Build rows of S7/S12, the automation rows of S3/S8, and
+  the realtime sub-widgets of S9 simultaneously.
+- [ ] Every category cites its real source contract(s) in its footer and binds only to a published,
+  available contract (`CE-METRICS-1`, `CE-READ-1`, `CE-VERSION-1`, `CE-EVENT-1`, `PLAT-AUDIT-1`,
+  `PLAT-BILLING-1`, `PLAT-CONNECTOR-1`, `PLAT-IDENTITY-1`, `PLAT-SETTINGS-1`) — no category sources data
+  from an engine surface that has no contract ID.
+- [ ] Provider-error degradation is non-destructive and honest: on a contract error each widget shows its
+  specified state (unavailable / stale-with-timestamp / delayed badge / "unknown") and never falls back to
+  a value that would falsely imply health — one degradation sweep verifies all.
+- [ ] Weave-internal-only categories (S6) return no data and are not offered to any client-tenant role.
+- [ ] Configurable thresholds (version lag amber ≥ 2 / red ≥ 4; sentiment spike 20% vs 7-day mean; growth
+  stagnation window 14 days; burn-rate alert 90% projected; growth window 30/90 days) are surfaced as
+  tunable defaults with their data window + aggregation stated, not hard-coded.
+
+**Technical notes.** Availability is keyed strictly to source-engine GA; Phase 3 is a single "per
+source-engine GA" phase. E2-S3 token dimension and E2-S8 connector-health rows ship real data in Phase 1;
+only their automation/per-run dimensions remain Phase 3. Sentiment (S10) runs a periodic `claude-haiku-4-5`
+NLP job, PII scrubbed before the model; daily numeric score = mean of per-entry +1/0/−1. Compliance (S5),
+issues (S7), onboarding (S15) deep-link via `CE-READ-1` (`/resource/{iri}`); the agent activity feed (S11)
+keys on the canonical principal IRI from `PLAT-IDENTITY-1`. The ontology-health (S1), completeness (S2),
+issues (S7), growth (S13), and onboarding-progress (S15) widgets read `CE-METRICS-1`
+(`entity_count_by_kind`) and per-kind coverage over the **process-centric BPMO framework** CE ships
+(`CE-READ-1`: `Process`, `Activity`, `Event`, `DataAsset`/`Field`, `System`, `Service`,
+`BusinessCapability`, `BusinessDomain`, `Policy`, `Goal`, `Actor`, `Concept`/`Class`, plus its
+relationship set). "Per kind" ranges over whatever kinds CE registers — the shipped BPMO kinds and any
+client-defined extensions — never a fixed count (decision A1). Onboarding-progress "ontology populated"
+counts ≥ 1 instance against the registered kinds, not a hard-coded list.
+
+### EPIC-003 — Tenancy, Workspaces & Settings Cascade
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000 ·
+**blocks:** EPIC-004, EPIC-008, EPIC-001 · **provides:** PLAT-SETTINGS-1 · **consumes:** none.
+
+**Description.** The multi-tenant spine: create and switch tenant contexts across the 4-level cascade
+(Company → Domain → Workspace → Project), invite and manage members with bounded revocation, and resolve
+settings down the cascade with tighter-wins inheritance. Owns `PLAT-SETTINGS-1`, the single contract
+through which budgets, retention, data classification, and RBAC are resolved for every engine.
+
+**User stories (PRD §Epic 3) — full acceptance criteria:**
+
+- **TASK-001 / E3-S1 — Create and switch workspaces (4-level cascade).** Given the 4-level cascade Company → Domain →
+  Workspace → Project (`PLAT-SETTINGS-1`, A4), switching context reloads the app into that node's effective
+  settings; all data is tenant-isolated at the storage layer per the §2.2 isolation mechanism. Workspace
+  creation requires name, slug, parent (Domain), and billing plan; the new node inherits parent settings
+  (tighter-wins). AC (failure): a switch to an inaccessible context → HTTP 403 with zero cross-tenant data
+  loaded (cross-tenant-read test). *(Must)*
+- **TASK-002 / E3-S2 — Invite and manage members (bounded revocation).** An invite sends a Cognito-triggered email;
+  the admin assigns one or more canonical roles resolved through `PLAT-SETTINGS-1`. AC (revocation,
+  reconciled): on removal/role-change, enforcement is short-lived access tokens (default TTL ≤ 60 s,
+  tunable) plus a per-request session-version check against a revocation list, so the next request bearing
+  a prior token is rejected within one bounded latency (default ≤ 60 s, tunable). FR-021 and FR-024 use
+  this one mechanism and latency — "immediate" is replaced by the bounded value. *(Must)*
+- **TASK-003 / E3-S3 — Settings cascade (budgets, retention, policy, RBAC).** Given `PLAT-SETTINGS-1`, reading a
+  setting at any node returns the effective value AND which level set it; a child may only tighten a parent
+  value; loosening requires parent approval. Applies to AI budget caps, data retention, data
+  classification, RBAC. Data-retention config per data type (audit, PROV-O, model versions) within
+  platform minimums resolves through the cascade. AC (failure): a loosening attempt without approval is
+  rejected and recorded to `PLAT-AUDIT-1`. *(Must)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Tenant isolation holds at the storage layer across every backing store: a query in tenant A's
+  context returns zero rows from tenant B's seeded data across RDF, Aurora, and S3 Vectors, and an unscoped
+  SPARQL query is rejected — verified by the cross-tenant-read isolation test, independent of any single
+  story passing.
+- [ ] The settings cascade is monotonic in one direction: the resolution API returns both the effective
+  value and the level that set it, a child may only tighten a parent value, and any loosening without
+  parent approval is rejected and recorded to `PLAT-AUDIT-1` — proven for all four governed setting classes
+  (budget, retention, classification, RBAC) in one cascade test.
+- [ ] Member revocation and context-switch authorization share one enforcement mechanism: the next request
+  bearing a removed/changed member's prior token is rejected within the bounded revocation latency (default
+  ≤ 60 s), and an unauthorized context switch loads zero cross-tenant data with a 403 — the same
+  short-token-TTL + session-version check backs both, consistent with FR-021/FR-024.
+
+**Technical notes.** `PLAT-SETTINGS-1` is the single owner of the 4-level tighter-wins cascade; no engine
+re-implements settings resolution. Revocation uses short-lived tokens + per-request session-version check —
+one mechanism, one bounded latency; the same mechanism EPIC-004's RBAC enforcement consumes. Relies on the
+Phase-1 multi-tenant isolation mechanism decision (OQ-01) and the dev-AWS Cognito pool.
+
+### EPIC-004 — Authentication, RBAC & Agent Identity
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-003 ·
+**blocks:** EPIC-007, EPIC-009, EPIC-002 · **provides:** PLAT-IDENTITY-1 · **consumes:** PLAT-SETTINGS-1.
+
+**Description.** The identity and access spine for humans and agents: SSO via Cognito (default) or Auth0
+(multi-IdP), RBAC enforced at the API boundary against roles resolved through `PLAT-SETTINGS-1`, and named
+least-privilege agent principals minted by the `PLAT-IDENTITY-1` registry. Establishes the two distinct
+auth paths — Cognito for humans, IAM/STS for machines — and the canonical principal IRI threading every
+PROV-O record and audit entry.
+
+**User stories (PRD §Epic 4) — full acceptance criteria:**
+
+- **TASK-001 / E4-S1 — Sign in with Cognito (default) or Auth0 (multi-IdP).** Default auth uses AWS Cognito
+  (email/password + hosted UI); enterprise SSO uses Auth0 SAML/OIDC configured per workspace (Google
+  Workspace, Okta, Azure AD). AC (failure): an IdP outage shows a defined error and does not fall back to
+  an unauthenticated session. *(Must)*
+- **TASK-002 / E4-S2 — RBAC enforced at the API boundary.** Every API request carries a Cognito JWT; the platform
+  validates role membership (resolved through `PLAT-SETTINGS-1`) and rejects unauthorised ops with HTTP
+  403. Roles control read/author/publish/admin per engine/area (full matrix in tech spec). AC (failure): a
+  JWT for a role lacking a permission → 403 and the denial recorded to `PLAT-AUDIT-1`. *(Must)*
+- **TASK-003 / E4-S3 — Agent identities via the platform registry (IAM-backed).** Given `PLAT-IDENTITY-1`, each agent
+  principal is minted/scoped by the registry, reconciling Platform agent classes + Build's 5 dark-factory
+  roles + Events' per-automation principals into one canonical principal IRI; the IRI appears in PROV-O and
+  every `PLAT-AUDIT-1` entry. AC (machine auth path): an agent accessing AWS/secrets assumes an **IAM role
+  via STS** (short-lived credentials; never raw secret values) — human (Cognito) and machine (IAM/STS)
+  paths are distinct; the registry records which IAM role maps to which canonical principal IRI and RBAC
+  role. Admins view agent principals + scopes in Settings. AC (failure): an out-of-scope principal action
+  is denied (least-privilege) and logged to `PLAT-AUDIT-1`. *(Must)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] The human and machine auth paths are cleanly disjoint and both least-privilege: human requests
+  authenticate via Cognito JWT and authorize via RBAC; agent access to AWS/secrets assumes an IAM role via
+  STS — a single auth-path test confirms no human path can mint AWS credentials and no agent path uses a
+  Cognito session.
+- [ ] Every authorization denial — unauthorized API op, out-of-scope agent action, IdP outage — fails
+  closed and is recorded: a role-lacking-permission op returns 403 + `PLAT-AUDIT-1` entry, an out-of-scope
+  principal is denied + logged, and an IdP outage yields a defined error with no unauthenticated fallback —
+  one fail-closed sweep across all three.
+- [ ] The canonical principal IRI is single-sourced: the `PLAT-IDENTITY-1` registry reconciles platform
+  agent classes, Build's 5 dark-factory roles, and Events' per-automation principals into one IRI that
+  appears in PROV-O and every `PLAT-AUDIT-1` entry, and maps to exactly one IAM role and one RBAC role at
+  the Weave API boundary — verified by tracing one agent action end to end.
+
+**Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per workspace. RBAC at the API via
+JWT validation; roles control read/author/publish/admin per engine/area. `PLAT-IDENTITY-1` records IAM
+role ↔ canonical principal IRI ↔ RBAC role. The "Weave platform operator" is a platform-internal identity
+that never appears in any client workspace's RBAC (see EPIC-009).
+
+### EPIC-005 — Global Navigation & Search
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-009 ·
+**blocks:** none · **consumes:** PLAT-AUDIT-1.
+
+**Description.** The stable information architecture every engine plugs into: a persistent top header with
+the seven areas (Dashboard · Constitution · Explorer · Build · Automate · Compliance · Settings), global
+Cmd+K search across available engines, and a help/guided-tour launcher. The IA stays stable even when
+engines are not yet GA — non-GA areas are shown disabled, not hidden — and Audit lives as a sub-view under
+the platform-owned Compliance area.
+
+**User stories (PRD §Epic 5) — full acceptance criteria:**
+
+- **TASK-001 / E5-S1 — Primary navigation (top header).** Any screen shows the top bar: [Weave logo + workspace
+  switcher] [Dashboard · Constitution · Explorer · Build · Automate · **Compliance** · Settings] [Search]
+  [Notifications] [Help] [Account]; active area highlighted; left sidebar updates to the active engine.
+  Audit is a **sub-view under Compliance**, not a separate top-level area — Compliance is the
+  platform-owned cross-cutting surface aggregating per-engine compliance views (resolve-by-default 8).
+  Non-GA areas (Explorer/Build/Automate at MVP) are shown disabled with a "coming soon" affordance, not
+  hidden. AC (failure): navigation to an inaccessible area routes to a 403 state (not a blank shell) and
+  the denial is recorded to `PLAT-AUDIT-1`. *(Must)*
+- **TASK-002 / E5-S2 — Global search (Cmd+K).** Cmd+K gives results grouped (Entities, Projects, Automations, Wiki,
+  Specs, Users), keyboard-navigable, ranked by relevance + recency, with `:type` narrowing; results within
+  a configurable target (default 300 ms after a 150 ms debounce, **provisional**, owner Architect). A non-GA
+  engine's result group is omitted (no fabricated empty group). AC (failure): search index unavailable →
+  defined error state. *(Must)*
+- **TASK-003 / E5-S3 — Help & guided tour launcher.** The ? launcher opens help-doc search, "Take a tour"
+  (role-tailored to the four primary onboarding paths), shortcuts, and a docs link. AC (failure): docs
+  source unreachable → the launcher still opens with shortcuts + an offline notice. *(Should)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] The IA is stable and honest about availability across nav and search simultaneously: non-GA areas
+  appear disabled with a "coming soon" affordance rather than hidden, and search omits result groups for
+  non-GA engines rather than fabricating an empty group — one availability test confirms the nav-disabled
+  set and the omitted-search-group set are the same engine set.
+- [ ] Compliance is the single platform-owned cross-cutting compliance surface and Audit is its sub-view,
+  not a separate top-level area — verified by asserting the top bar has exactly the seven named areas and
+  that the Audit route resolves under Compliance.
+- [ ] Every degraded path resolves to a defined state, never a blank shell: an area a role cannot access
+  routes to a 403 state with the denial recorded to `PLAT-AUDIT-1`, a search-index outage shows a defined
+  error state, and a docs-source outage still opens the help launcher with shortcuts + an offline notice —
+  one degradation sweep covers all three.
+
+**Technical notes.** Audit is a sub-view under Compliance (resolve-by-default 8). Global search results are
+grouped, keyboard-navigable, ranked by relevance + recency, `:type` narrowing; 300 ms / 150 ms debounce is
+provisional (owner Architect). The guided tour is role-tailored to the four primary onboarding paths
+(technical, admin, business, business-read-only).
+
+### EPIC-006 — Notifications (PLAT-NOTIFY-1)
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-007 ·
+**blocks:** EPIC-008, EPIC-009 · **provides:** PLAT-NOTIFY-1 · **consumes:** PLAT-CONNECTOR-1.
+
+**Description.** The single notification service every engine publishes to (`PLAT-NOTIFY-1`): an in-app
+notification centre plus Slack delivery, with an open, registerable type taxonomy rather than a fixed enum,
+and per-user preferences for type opt-in and email-digest cadence. The one delivery surface that resolves
+duplicated per-engine notification ownership.
+
+**User stories (PRD §Epic 6) — full acceptance criteria:**
+
+- **TASK-001 / E6-S1 — In-app + Slack notification centre.** Given `PLAT-NOTIFY-1` (one service, **open/registerable**
+  type taxonomy — not a fixed enum), engines publish notification events; delivery is in-app + Slack (Slack
+  via `PLAT-CONNECTOR-1`). Covered types include: budget, HIGH SHACL violation, self-improvement proposal,
+  build state, HITL-gate fired, automation-failure, connector-degraded, onboarding-activation, version-pin
+  mismatch. Clicking a notification deep-links to the relevant screen; "mark all read" clears the badge;
+  in-app delivery target is a configurable default (default 30 s, **provisional**, owner Architect). AC
+  (failure): a delivery-channel failure (e.g. Slack token invalid) → the notification still appears in-app
+  and the channel failure is itself recorded. *(Must)*
+- **TASK-002 / E6-S2 — Notification preferences.** Settings → Notifications gives per-user toggles per registered type
+  + email digest (none/daily/weekly). AC (failure): a preference write failure retains the prior preference
+  and shows an error; a missing preference defaults to "on" so no critical alert is silently muted.
+  *(Should)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] The taxonomy is open and registerable, not a fixed enum: a new notification type can be registered
+  and is immediately togglable in per-user preferences without a code change to the centre — verified by
+  registering a type at test time and asserting it appears in preferences and delivers.
+- [ ] No critical alert is silently lost across the channel/preference matrix: a delivery-channel failure
+  (e.g. invalid Slack token) still delivers in-app and records the channel failure itself, and a missing
+  user preference defaults to "on" — one combined test proves a channel-down + no-preference notification
+  still reaches the in-app centre.
+- [ ] Every covered event type deep-links to the relevant screen and "mark all read" clears the badge —
+  verified across the documented covered set (budget, HIGH SHACL violation, self-improvement proposal,
+  build state, HITL-gate fired, automation-failure, connector-degraded, onboarding-activation, version-pin
+  mismatch).
+
+**Technical notes.** `PLAT-NOTIFY-1` is one service with an open type taxonomy. Delivery is in-app + Slack
+(Slack via `PLAT-CONNECTOR-1`); in-app delivery target default 30 s is provisional (owner Architect).
+Per-user preferences honour a toggle per registered type plus email digest cadence; a failed preference
+write retains the prior preference. A degraded/disconnected connector (EPIC-007) is a primary publisher.
+
+### EPIC-007 — Managed Connectors (PLAT-CONNECTOR-1)
+
+**Phase:** 1 (MVP) — config + health (S1, S2) · Phase 2 (MVP) — ingestion + write-back (S3, needs CE GA for
+`CE-WRITE-1`) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-004, CE-WRITE-1 ·
+**blocks:** EPIC-002, EPIC-006 · **provides:** PLAT-CONNECTOR-1 ·
+**consumes:** CE-WRITE-1, PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
+
+**Description.** The managed-connector contract (`PLAT-CONNECTOR-1`): configure the seven v1 integrations
+with credentials held exclusively in AWS Secrets Manager, monitor connector health, and ingest connector
+data into the graph with safe agent write-back semantics. Config and health ship in Phase 1 with no engine
+dependency; ingestion is held to Phase 2 because it writes via `CE-WRITE-1`.
+
+**User stories (PRD §Epic 7) — full acceptance criteria:**
+
+- **TASK-001 / E7-S1 — Configure a data connector.** Given `PLAT-CONNECTOR-1`, the **7 v1 integrations** are:
+  Snowflake · Databricks · S3 · Azure Data Lake · **Atlassian (Jira + Confluence, one OAuth/connector
+  family)** · ServiceNow · **Slack** (C2/C3). The config UI captures connection type, credentials (**AWS
+  Secrets Manager only — no plain-text field**), sync direction (read/write/bidirectional), and sync
+  frequency. Credentials are stored exclusively in AWS Secrets Manager; the UI never displays a secret
+  after entry; the Slack token lives in Secrets Manager (C2). AC (failure): an invalid credential at save →
+  config fails closed (connector marked disconnected) and no secret is logged. *(Must)*
+  <!-- SHARED-HOISTED: connector list is canonical here (this engine owns PLAT-CONNECTOR-1); master refs ../contracts.md PLAT-CONNECTOR-1 -->
+- **TASK-002 / E7-S2 — Monitor connector health.** Given `PLAT-CONNECTOR-1` health-status read API, each connector
+  shows status (connected/degraded/disconnected), last_sync, last_error, error_count. A degraded/
+  disconnected connector fires a `PLAT-NOTIFY-1` event. AC (failure): the health read API itself unreachable
+  → the row shows "health unknown" with the last successful poll time, never a false "connected". *(Must)*
+- **TASK-003 / E7-S3 — Connector-data ingestion + write-back semantics.** Inbound connector data: **platform
+  ingestion** writes it into the graph via `CE-WRITE-1` (validated operations; resolves the duplicated
+  Platform OQ-05 / CE OQ-05 and the connectors cross-seam) under a connector-scoped agent principal
+  (`PLAT-IDENTITY-1`). AC (write-back failure): an agent write-back to an external system (ServiceNow/Jira)
+  carries an idempotency key; on target 4xx/5xx the platform retries with bounded backoff (default 3
+  attempts, tunable) then publishes a `connector-degraded` `PLAT-NOTIFY-1` event and records the failure to
+  `PLAT-AUDIT-1`; on an out-of-band change conflict the write is rejected and surfaced, not silently
+  overwritten. Bidirectional sync is v1 for the Atlassian + ServiceNow families; whether all 7 support
+  write is OQ-07. *(Must — read/ingest; bidirectional per OQ-07)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Secrets never leave AWS Secrets Manager and never surface: across config save, health polling, and
+  write-back, no code path stores a credential outside Secrets Manager, redisplays a secret after entry, or
+  logs a secret — verified by a secret-handling audit over all three stories, including the Slack token and
+  the connection-test failure path.
+- [ ] Every connector failure fails closed and is observable, never silently "connected": an invalid
+  credential at save marks the connector disconnected, a health-read-API outage shows "health unknown" with
+  the last successful poll time, and a write-back failure (target 4xx/5xx or conflict) retries with bounded
+  backoff then publishes `connector-degraded` to `PLAT-NOTIFY-1` and records to `PLAT-AUDIT-1` — one
+  fail-closed sweep confirms no path yields a false "connected".
+- [ ] The seven v1 connectors are exactly Snowflake · Databricks · S3 · Azure Data Lake · Atlassian (Jira +
+  Confluence, one OAuth/connector family) · ServiceNow · Slack, and each carries connection type, sync
+  direction (read/write/bidirectional), and sync frequency.
+- [ ] Inbound data reaches the graph only through validated operations: ingestion writes via `CE-WRITE-1`
+  under a connector-scoped agent principal and commits only on SHACL pass, with write-backs carrying an
+  idempotency key — verified by the ingestion test (FR-033), proving the platform never writes the graph
+  directly.
+
+**Technical notes.** The 7 v1 integrations group Atlassian (Jira + Confluence) under one OAuth/connector
+family; "Azure Data Lake" is CLAUDE.md's "Azure". Health read API returns `status`, `last_sync`,
+`last_error`, `error_count`. Ingestion resolves the duplicated Platform OQ-05 / CE OQ-05 and the connectors
+cross-seam: the platform never writes the graph directly — it goes through `CE-WRITE-1` validated
+operations. Write-back: idempotency key per write; bounded retry (default 3, tunable) on target 4xx/5xx;
+out-of-band conflicts rejected and surfaced. Bidirectional v1 for Atlassian + ServiceNow; OQ-07.
+
+### EPIC-008 — Billing, Metering & Budgets (PLAT-BILLING-1)
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-003,
+EPIC-006 · **blocks:** EPIC-001 · **provides:** PLAT-BILLING-1 · **consumes:** PLAT-SETTINGS-1, PLAT-NOTIFY-1.
+
+**Description.** The metering and budget-enforcement primitives (`PLAT-BILLING-1`): a usage/billing
+dashboard over the two metering dimensions (per-token AI generation + per-run automation), and
+cascade-resolved budget caps that hard-reject AI-generation requests before any AI API call at 100% of the
+effective cap.
+
+> **Scope note.** The platform owns the cascade budget caps (`PLAT-SETTINGS-1`, 4-level tighter-wins), the
+> two-dimension metering pipeline (`PLAT-BILLING-1`), and hard enforcement (reject before any AI API call
+> at cap). The richer generation-loop FinOps mechanisms — per-spec and per-PR caps, model-tier gating, and
+> cost-estimate-before-generation gating — are **Build-Engine generation-loop scope**, not platform v1;
+> they consume the platform cap + metering primitives.
+
+**User stories (PRD §Epic 8) — full acceptance criteria:**
+
+- **TASK-001 / E8-S1 — Usage dashboard in Settings.** Given `PLAT-BILLING-1` (two dimensions: per-run automation +
+  per-token AI), Settings → Billing shows cycle spend, per-engine token breakdown, per-run automation
+  count, plan tier, renewal date; usage updates with a configurable lag (default < 5 min, **provisional**,
+  owner Architect). AC (failure): a metering delay → last-known totals with a staleness timestamp; metering
+  events never dropped (separate queue from run outcome). *(Must)*
+- **TASK-002 / E8-S2 — Set and enforce budget caps (cascade-resolved).** A cap set at any cascade node
+  (`PLAT-SETTINGS-1`, tighter-wins; v1 supports the full Company/Domain/Workspace/Project cascade per A4)
+  tracks spend against the effective cap; notifications fire at configurable thresholds (default 80% and
+  100%, tunable). At 100% of the effective cap, further AI-generation requests are rejected **before any AI
+  API call** with the readable message ("Monthly AI budget cap reached…"). An admin raising the cap (within
+  cascade rules) takes effect within a bounded latency (default ≤ 60 s, tunable). AC (failure): if metering
+  lag risks a missed 100% gate, the enforcement pre-check uses the most recent committed meter and fails
+  closed at the cap. *(Must)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Enforcement happens before spend, not after: at 100% of the effective cascade-resolved cap the
+  request is rejected before any AI API call with the readable cap message, and under metering lag the
+  pre-check uses the most recent committed meter and fails closed — verified by the budget-enforcement test
+  (FR-035), proving no AI call is made past the cap even with a delayed meter.
+- [ ] Metering is never dropped and degradation is always timestamped: metering events ride a separate
+  queue from run outcome, and on a metering delay both the usage screen and any spend widget show
+  last-known totals with a staleness timestamp rather than a zero or fabricated current figure — one
+  metering-delay test confirms no event loss and a visible staleness marker.
+- [ ] Caps resolve through the full 4-level cascade with tighter-wins: a cap set at any Company / Domain /
+  Workspace / Project node tracks spend against the effective cap, threshold alerts fire at configurable
+  defaults (80% / 100%), and a cap raise takes effect within the bounded cascade latency (default ≤ 60 s) —
+  verified against the same `PLAT-SETTINGS-1` resolution path EPIC-003 owns.
+
+**Technical notes.** `PLAT-BILLING-1` meters two dimensions: per-token AI generation (available at MVP,
+including dashboard generation) and per-run automation (lights up when Events ships). Hard enforcement
+rejects before any AI API call at 100% of the effective cap; fail-closed under metering lag using the most
+recent committed meter. Usage screen shows cycle spend, per-engine token breakdown, per-run automation
+count, plan tier, renewal date; update lag default < 5 min is provisional (owner Architect). Per-spec/
+per-PR caps, model-tier gating, and cost-estimate-before-generation gating are explicitly Build-Engine
+generation-loop scope, not platform v1.
+
+### EPIC-009 — Immutable Audit (PLAT-AUDIT-1) & Weave-Product Self-Improvement
+
+**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-004, EPIC-006,
+BE-SELFIMPROVE-1 · **blocks:** EPIC-002, EPIC-005 · **provides:** PLAT-AUDIT-1 ·
+**consumes:** PLAT-IDENTITY-1, PLAT-NOTIFY-1, BE-SELFIMPROVE-1.
+
+**Description.** The single immutable audit/provenance service (`PLAT-AUDIT-1`) every engine emits to, plus
+the Weave-internal product self-improvement loop built on the shared `BE-SELFIMPROVE-1` component. Engines
+emit typed events into one hash-chained, tamper-evident trail; Build's decision-log and Events' run-log are
+views over it. The self-improvement loop collects Weave-product signals, drafts GitHub issues, and
+dispatches approved ones to the dark factory — all gated to Weave-internal operators, never client tenants.
+
+> A2: the platform owns **one** immutable audit/provenance service. Engines EMIT typed events; Build's
+> decision-log and Events' run-log are VIEWS over it; CE PROV-O remains semantic provenance AND writes a
+> corresponding `PLAT-AUDIT-1` entry. A3: the platform owns Weave-product self-improvement via the shared
+> `BE-SELFIMPROVE-1` component; approval is Weave-internal only.
+
+**User stories (PRD §Epic 9) — full acceptance criteria:**
+
+- **TASK-001 / E9-S1 — Immutable, hash-chained audit trail (PLAT-AUDIT-1).** Given `PLAT-AUDIT-1`, each entry is
+  `{ seq, ts, actor_principal_iri, engine, event_type, target_iri, diff_summary, signature }` and forms a
+  **hash chain** (each entry stores `prev_hash` and `hash`; per-entry ed25519 signature over the
+  canonicalised entry + prev_hash), so tamper-evidence is verifiable, not merely a per-entry signature
+  (matches prototype hash-chain audit). Append-only: deletes are rejected at the **DB-constraint level** and
+  the attempt itself is logged. Queries are filterable by date/actor/event-type/resource/engine, paginated
+  (default ≤ 500 rows/page, tunable), exportable as JSON/NDJSON with a chain-verification procedure
+  (recompute hash over canonicalised entry + prev_hash; verify ed25519 signature). AC (tamper test):
+  altering or deleting any historical entry fails chain verification at a named row. Audit is exposed as a
+  **sub-view under the Compliance area** (E5-S1), readable by the Compliance role. *(Must)*
+- **TASK-002 / E9-S2 — Collect Weave-product improvement signals (Weave-internal).** Given `BE-SELFIMPROVE-1`
+  configured for Weave-the-product, the platform collects signals across error, quality, performance,
+  security, and engagement dimensions (sentiment, error-rate trend, HTTP 5xx rate, HITL-override frequency,
+  retry rate by agent type, spec revision cycles, token-per-task cost, latency regression, visual-
+  regression fail rate, dependency CVEs, feature-adoption drop, sign-off latency, RBAC gaps, budget-overrun
+  frequency, cold-start/timeout rate). AC (provisional thresholds): every numeric threshold is a
+  configurable default and **provisional — to be validated against baseline telemetry in the tech spec**
+  (owner Architect): error rate > default 2× 7-day baseline; 5xx > default 1% over a trailing 5-min window
+  per endpoint; retry rate > default 30%; p99 latency > default 25% vs 7-day rolling p99; version lag amber
+  ≥ default 2 / red ≥ default 4; sentiment drop > default 20% vs 7-day mean; adoption sustained drop ≥
+  default 2 weeks; budget-overrun count per rolling 30 days — each stating its data window + aggregation.
+  Collection cadence is configurable: real-time (default < 5 min) for error/HTTP/cold-start/timeout; hourly
+  for HITL/retry/token/latency; daily for sentiment/spec-revision/adoption/CVE/RBAC. **Weave-internal**:
+  signals are over Weave's own product telemetry; no client-tenant role sees this surface. AC (failure): a
+  signal's telemetry source (CloudWatch, CI scan, `PLAT-AUDIT-1`) unavailable or returning insufficient
+  samples → marked stale/insufficient, does NOT emit a false threshold breach (no draft from missing data).
+  *(Must, Weave-internal)*
+- **TASK-003 / E9-S3 — Draft GitHub issues from signals (DRAFT, Weave-internal repo).** When a signal crosses its
+  (provisional) threshold, `claude-opus-4-8` drafts an issue (title, root-cause hypothesis, evidence with
+  links to audit/log records, signal value vs baseline, suggested-fix category, auto-labels, impact
+  estimate) in **DRAFT** state in **Weave's own product GitHub repo** via a Weave-bot service account whose
+  credential lives in **AWS Secrets Manager only** (never env, never logged). AC (duplicate detection): a
+  new draft is embedded (model + cosine metric in tech spec; S3 Vectors per stack) and compared to open
+  issues; if similarity exceeds a threshold (default 0.85, **provisional — tune against a labelled
+  duplicate set in tech spec**, owner Architect, OQ-09), evidence is appended to the existing issue instead
+  of creating a duplicate. AC (failure): GitHub API unavailable → the draft is queued locally and retried;
+  nothing silently lost. This surface is visible **only to the Weave-internal platform-operator identity**;
+  the Weave product repo and dark-factory dispatch are not exposed in any client workspace's RBAC. *(Must,
+  Weave-internal)*
+- **TASK-004 / E9-S4 — Human approval + dark-factory dispatch (Weave-internal only).** A **Weave-internal platform
+  operator** (NEVER a client workspace admin) sees evidence, the drafted body, a cost estimate, a
+  confidence rating, and Approve → publish & dispatch / Reject / Edit actions. On approval, the issue is
+  published to the Weave repo and a dark-factory task is created following the standard task-brief +
+  HITL-gate + `PLAT-AUDIT-1` pipeline via `BE-SELFIMPROVE-1`; status pipeline: Draft → Approved/Rejected →
+  Dispatched → Implemented. AC (M3 dispatch target clarified): at Platform Phase 1, `BE-SELFIMPROVE-1`'s
+  dispatch target is Weave's **existing engineering harness/repo** (the dark-factory loop already in this
+  codebase), NOT the not-yet-built Build product — Platform P1 delivers and configures the internal
+  instance of the shared component; it does not depend on the Build Engine being GA. On rejection, the
+  draft is retained with reason + rejector identity and is never deleted (append-only). AC (authz failure):
+  a client-tenant role attempting approval/dispatch is rejected with HTTP 403 and logged; the action is not
+  in any client RBAC scope. *(Must, Weave-internal)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Tamper-evidence is verifiable end to end, not per-entry only: each entry stores `prev_hash` and
+  `hash` and a per-entry ed25519 signature over the canonicalised entry + prev_hash, deletes are rejected
+  at the DB-constraint level with the attempt itself logged, and altering or deleting any historical entry
+  fails chain verification at a named row — verified by the audit-tamper test (FR-036/FR-037), independent
+  of any single emitter.
+- [ ] The self-improvement loop is Weave-internal end to end and a client-tenant attempt fails closed at
+  every stage: signal collection, the findings/draft surface, and approval/dispatch are visible and
+  actionable only to the Weave-internal platform-operator identity, and a client-tenant approval/dispatch
+  attempt is rejected with HTTP 403 and logged — verified by the self-improvement authz test (FR-043),
+  proving no client RBAC scope reaches the Weave product repo or dark factory.
+- [ ] Missing or insufficient telemetry never manufactures a false breach or a duplicate: a signal whose
+  source is unavailable or under-sampled is marked stale/insufficient and emits no draft, and a new draft
+  above the duplicate-similarity threshold appends evidence to the existing issue rather than creating a
+  duplicate — one combined test covers the no-false-breach and dedup paths.
+- [ ] Append-only history is preserved through the full status pipeline: a rejected draft is retained with
+  reason + rejector identity and never deleted, and the lifecycle Draft → Approved/Rejected → Dispatched →
+  Implemented is recorded — verified by asserting no state transition deletes a prior record.
+
+**Technical notes.** `PLAT-AUDIT-1` entry shape: `{ seq, ts, actor_principal_iri, engine, event_type,
+target_iri, diff_summary, signature }`, hash-chained (prev_hash → hash) with a per-entry ed25519 signature
+over the canonicalised entry + prev_hash. Queries filterable by date/actor/event-type/resource/engine,
+paginated (default ≤ 500 rows/page, tunable), exportable as JSON/NDJSON with a chain-verification
+procedure. CE PROV-O remains semantic provenance and also writes a corresponding `PLAT-AUDIT-1` entry.
+Signal collection spans error/quality/performance/security/engagement dimensions; every numeric threshold
+is a configurable default and provisional. Drafting uses `claude-opus-4-8` into DRAFT state in Weave's own
+product repo via a Weave-bot service account (credential in Secrets Manager only). Duplicate detection
+embeds against open issues (S3 Vectors, cosine; default 0.85 similarity, provisional, OQ-09);
+GitHub-API-down → queued + retried. Self-improvement of Weave-the-product is disjoint from Build's
+client-app self-healing (`BE-SELFIMPROVE-1`, E11): same component, separate configuration, disjoint
+approval authorities. This is the **first internal instance of `BE-SELFIMPROVE-1`**, delivered and
+configured at Platform Phase 1 against Weave's existing engineering harness/repo (M3).
+
+---
+
+## 4. Roadmap
+
+**Build order:** Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding. This engine
+is **#1** — the shell the whole loop runs in (app, navigation, workspace, Cognito, Bedrock routing,
+tenancy), **not an engine**. The Constitution Engine is the first engine that runs on this shell.
+
+The platform's position is **bidirectional** — the load-bearing point:
+
+- **Unblocks (provides):** the cross-cutting contracts every engine emits to or reads — `PLAT-AUDIT-1`,
+  `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1` — plus the app
+  shell, auth, RBAC and tenancy. **CE and all four engines depend on these.** Phase 1 has **no upstream
+  engine dependency** and must ship first.
+- **Depends on (consumes):** the Generative Dashboard and CE-sourced widgets consume `CE-METRICS-1`,
+  `CE-READ-1`, `CE-DIFF-1`, `CE-VERSION-1`, `CE-EVENT-1`; connector-data ingestion writes via `CE-WRITE-1`.
+  **These cannot be delivered or verified until the Constitution Engine is GA.** This forces the within-MVP
+  split: the shell precedes CE; the dashboard follows it.
+- **Engine-gated expansion:** Build-, Events-, and Explorer-sourced widget rows depend on those engines
+  reaching GA (no contract exists for them yet — tracked as not-yet-contracted engine surfaces). They light
+  up post-MVP as each source engine ships.
+
+Work that is contract-unblocked may run in parallel — see `../weave-spec.md` §7 (the single
+authoritative timeline).
+
+```mermaid
+gantt
+    title Weave Platform Roadmap
+    dateFormat YYYY-MM-DD
+    section Phase 1 (MVP) — Shell & Foundations
+        E3 E4 E5 E6 E7 E8 E9     :a1, 2026-01-01, 30d
+        Spec-approval gate        :milestone, g1a, 2026-01-01, 0d
+        Phase-boundary + pre-deploy :milestone, m1, after a1, 0d
+    section Phase 2 (MVP) — Dashboard (needs CE GA)
+        E1 + CE-sourced E2 + E7-S3 :a2, after m1, 25d
+        HITL gate 2               :milestone, m2, after a2, 0d
+    section Phase 3 (Post-MVP) — Engine-gated widgets
+        E2 Build/Events/Explorer rows :a3, after m2, 20d
+        HITL gate 3               :milestone, m3, after a3, 0d
+```
+
+> Dates are illustrative; the **sequence is authoritative**. Absolute date anchors are non-committed
+> placeholders — the cross-engine build order and its critical path live in `../weave-spec.md` §7.
+> Ordering is expressed by the `after` milestone chain (`m1`, `m2`), not by start dates.
+
+### Phase 1 — Platform Shell & Cross-Cutting Foundations · MVP
+
+**Goal.** Stand up the shell the whole loop runs in and the cross-cutting contracts every engine depends on
+— app chrome + navigation + search, Cognito auth + RBAC + agent identity, the 4-level tenancy/settings
+cascade, notifications, managed-connector config + health, billing/metering + budget caps, the immutable
+hash-chained audit service, and Weave-internal product self-improvement. **No upstream engine dependency;
+unblocks the Constitution Engine and every other engine.** Demonstrable outcome: a tenant-isolated,
+authenticated SPA shell with all six platform contracts live, exercised by the cross-tenant-isolation and
+audit-tamper tests.
+
+**Epics:**
+
+| Epic | Description | Stories | Priority | MVP? |
+|------|-------------|---------|----------|------|
+| **EPIC-000** | **Foundation & Boilerplate — FIRST; gates everything.** Monorepo, Terraform + S3 state, Next.js shell + design system + Storybook, CI/CD + lint/complexity/SAST/secret gates, Cognito+Bedrock connectivity, test + visual-regression harness, OpenAPI + OTel scaffold, AI evals, local docker-compose stack, Lighthouse-100 + WCAG-AA gates | 9 | Must Have | yes |
+| EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 4-level tighter-wins) | 3 | Must Have | yes |
+| EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have | yes |
+| EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have | yes |
+| EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, in-app + Slack) | 2 | Must Have | yes |
+| EPIC-007 | Managed Connectors — config + health (`PLAT-CONNECTOR-1`, 7 v1 connectors) | 2 of 3 (S1, S2) | Must Have | yes |
+| EPIC-008 | Billing, Metering & Budgets (`PLAT-BILLING-1`, cascade caps, hard pre-call enforcement) | 2 | Must Have | yes |
+| EPIC-009 | Immutable Audit (`PLAT-AUDIT-1`) & Weave-product Self-Improvement (`BE-SELFIMPROVE-1`, Weave-internal) | 4 | Must Have | yes |
+
+> Epic 7 story S3 (connector-data **ingestion** via `CE-WRITE-1`) is held to Phase 2 because it depends on
+> CE GA. Epic 7 config + health (S1, S2) ship here with no CE dependency.
+
+**Entry criteria (Definition of Ready):**
+
+- [ ] PRD §Epics 3–9 approved; Phase-1 tech spec approved (arch-stack + arch-infra resolve the
+  dev-environment AWS floor per `../dev-environment.md`)
+- [ ] Tasks decomposed; each task brief passes the DoR gate
+- [ ] Multi-tenant isolation mechanism decided (OQ-01) OR the cross-tenant-read test fixed and the
+  mechanism stubbed behind it; `PLAT-AUDIT-1` storage choice decided (OQ-05)
+- [ ] Thin shared dev AWS account provisioned (Cognito pool, Bedrock access, Secrets Manager) per DX1/DX3
+
+**Exit criteria (EARS, measurable, human-signed):**
+
+- [ ] WHEN a query is issued in tenant A's context THE SYSTEM SHALL return zero rows from tenant B's seeded
+  data across RDF, Aurora and S3 Vectors, and SHALL reject an unscoped SPARQL query — verified by the
+  cross-tenant-read isolation test (PRD §2.2/§2.6)
+- [ ] WHEN a member is removed or their role changed THE SYSTEM SHALL reject the next request bearing their
+  prior token within the bounded revocation latency (default ≤ 60 s, tunable) — verified by the revocation
+  integration test (FR-021/FR-024)
+- [ ] WHEN any historical `PLAT-AUDIT-1` entry is altered or deleted THE SYSTEM SHALL fail chain
+  verification at a named row and SHALL log the delete attempt — verified by the audit tamper test
+  (FR-036/FR-037, PRD §2.6)
+- [ ] WHEN AI-generation spend reaches 100% of the effective cascade-resolved cap THE SYSTEM SHALL reject
+  the request before any AI API call with the readable cap message — verified by the budget-enforcement
+  test (FR-035)
+- [ ] WHEN a connector enters a degraded/disconnected state THE SYSTEM SHALL publish a `PLAT-NOTIFY-1` event
+  delivered in-app (and Slack if configured) — verified by the connector-health test (FR-032)
+- [ ] WHEN a Weave-product signal crosses its provisional threshold THE SYSTEM SHALL draft a DRAFT GitHub
+  issue visible only to a Weave-internal platform operator, and SHALL reject a client-tenant approval
+  attempt with HTTP 403 + audit — verified by the self-improvement authz test (FR-043)
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
+  tunable)
+- [ ] **Measurable artefact:** a running tenant-isolated SPA shell with the six platform contracts live
+  (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`,
+  `PLAT-BILLING-1`), deployed to dev-AWS and passing the smoke suite
+- [ ] **Human sign-off recorded** (always the final exit criterion)
+
+**HITL gates (configurable; declared active):**
+
+| Gate | Active? | Approver | Blocks |
+|------|---------|----------|--------|
+| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | phase-2 |
+| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
+| Publish/generate (ontology publish / artefact release) | yes (scoped to E9-S4 self-improvement dispatch only) | Weave-internal platform operator | self-improvement dispatch |
+
+> Phase-boundary ceremony is load-bearing here — this phase ships auth, RBAC, audit and tenant-isolation,
+> so the security review is real. Pre-AWS-deploy is active because the platform deploys (Cognito, Bedrock,
+> the dev-AWS smoke per `../dev-environment.md` §4). Publish/generate applies only to the Weave-internal
+> self-improvement dispatch (E9-S4); no client artefact is published in this phase.
+
+**Phase-gate metadata** (evaluated by the phase-gate Stop hook / `/goal` condition):
+
+```text
+phase: 1
+gate_id: weave-platform-gate-1
+condition: all_exit_criteria_met
+approver: Architect + security reviewer
+blocks: phase-2
+```
+
+### Phase 2 — Generative Dashboard & CE-Sourced Widgets · MVP
+
+**Goal.** Deliver the user-facing centrepiece — the declarative Generative Dashboard (prompt → best-fit
+widget from the finite component library, streamed live) and the **CE-sourced** widget set, plus
+connector-data ingestion into the graph. **Depends on Constitution Engine GA** (consumes `CE-METRICS-1` /
+`CE-READ-1` / `CE-DIFF-1` / `CE-VERSION-1` / `CE-EVENT-1`; ingestion writes via `CE-WRITE-1`). Demonstrable
+outcome: a user types "show me active compliance contraventions by domain" and a live bar chart streams
+from `CE-METRICS-1`; pins persist server-side and reload cross-device; a request for a non-GA category
+renders the defined unavailable state.
+
+**Epics:**
+
+| Epic | Description | Stories | Priority | MVP? |
+|------|-------------|---------|----------|------|
+| EPIC-001 | Generative Dashboard (composition + lifecycle: prompt, refine, pin, publish, starters) | 7 | Must Have | yes |
+| EPIC-002 | Widget Library — **CE-sourced stories only** (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) | 9 of 15 | Must Have / Should Have | yes |
+| EPIC-007 | Managed Connectors — **ingestion** story S3 (`CE-WRITE-1`, validated ops) | 1 of 3 (S3) | Must Have | yes |
+
+> Epic 2 is split per the PRD's own per-story Phase tags. CE-sourced stories are MVP here.
+> Build/Events/Explorer-sourced rows are Phase 3. E2-S3 token-spend and E2-S8 connector-health rows already
+> shipped data in Phase 1; their automation/per-run dimensions remain Phase 3.
+
+**Entry criteria (Definition of Ready):**
+
+- [ ] Phase 1 gate passed (shell + all six platform contracts live)
+- [ ] **Constitution Engine is GA** and `CE-METRICS-1`/`CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1`/
+  `CE-WRITE-1` are published and pinned (`?version=latest`)
+- [ ] PRD §Epics 1–2 approved; Phase-2 tech spec approved (streaming RSC pattern OQ-02, widget caching
+  OQ-03, widget-state store OQ-13 resolved)
+- [ ] Tasks decomposed; each task brief passes the DoR gate
+
+**Exit criteria (EARS, measurable, human-signed):**
+
+- [ ] WHEN a user submits "show me active compliance contraventions by domain" THE SYSTEM SHALL stream a
+  bar chart from `CE-METRICS-1` within the default target (streaming header ≤ 1 s, tunable) with a
+  data-source footer label — verified by the generative-widget E2E (FR-002/FR-014, PRD §2.6)
+- [ ] WHEN a user submits a prompt for a Build/Events/Explorer-sourced category THE SYSTEM SHALL render the
+  defined "source engine not yet available" state, never blank or fabricated data — verified by the
+  unavailable-state test (FR-015, PRD §2.6)
+- [ ] WHEN a user pins a widget THE SYSTEM SHALL persist it server-side scoped to (tenant, user) and reload
+  it with live data on a different device, invisible to another tenant — verified by the pin-persistence
+  cross-device test (FR-008, PRD §2.6)
+- [ ] WHEN a user publishes a pinned widget THE SYSTEM SHALL list it in the server-side workspace-scoped
+  library so another user can add an independent copy — verified by the publish/add test (FR-011, PRD §2.6)
+- [ ] WHEN inbound connector data arrives THE SYSTEM SHALL ingest it into the graph via `CE-WRITE-1` under a
+  connector-scoped agent principal, committing only on SHACL pass — verified by the ingestion test (FR-033)
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
+  tunable)
+- [ ] **Measurable artefact:** a working Generative Dashboard rendering ≥ 9 CE-sourced widget categories
+  with server-side pin + publish, plus live connector ingestion into the graph, deployed to dev-AWS and
+  passing the smoke suite
+- [ ] **Human sign-off recorded** (always the final exit criterion)
+
+**HITL gates (configurable; declared active):**
+
+| Gate | Active? | Approver | Blocks |
+|------|---------|----------|--------|
+| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | phase-3 |
+| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
+| Publish/generate (ontology publish / artefact release) | no (widget publish is server-side workspace state, not an external release) | n/a | — |
+
+> Phase-boundary ceremony stays active (the dashboard widens the RBAC + audit surface). Pre-AWS-deploy
+> active (dashboard + ingestion deploy). Publish/generate N/A — publishing a widget to the workspace
+> library is internal server-side state, not an external artefact release.
+
+**Phase-gate metadata:**
+
+```text
+phase: 2
+gate_id: weave-platform-gate-2
+condition: all_exit_criteria_met
+approver: Architect + security reviewer
+blocks: phase-3
+```
+
+### Phase 3 — Engine-Gated Widget Expansion · Post-MVP
+
+**Goal.** Light up the remaining Widget Library categories as their **source engines reach GA**. A single
+phase keyed to "per source-engine GA" rather than three engine-aligned phases, so Epic 2 is not fragmented
+further. Each category renders its defined "not yet available" state until its engine ships, then activates
+against that engine's metrics surface. Demonstrable outcome: when the Build Engine is GA, the
+active-project pipeline widget renders live project metrics where it previously showed "Build Engine not
+yet available".
+
+**Epics:**
+
+| Epic | Description | Stories | Priority | MVP? |
+|------|-------------|---------|----------|------|
+| EPIC-002 | Widget Library — **engine-gated stories** (S4 Build; Build rows of S7/S12; automation rows of S3/S8; Explorer realtime sub-widgets of S9; per-run dimensions) | 6 of 15 (S3 per-run, S4, S7 Build, S8 automation, S9 realtime, S12) | P0 when source engine ships | no |
+
+> These are the PRD's "P0 when `<engine>` ships" and "Phase 2 (Explorer realtime)" stories. They activate
+> incrementally — Build-sourced when Build is GA, Events-sourced when Events is GA, Explorer realtime
+> presence when a realtime presence contract exists (tracked; no contract ID yet, a Phase-2 Explorer
+> deliverable). No new platform contract is introduced here.
+
+**Entry criteria (Definition of Ready):**
+
+- [ ] Phase 2 gate passed (Generative Dashboard + CE-sourced widgets GA)
+- [ ] At least one downstream engine (Build, Events, or Graph Explorer realtime) is GA and exposes a
+  consumable metrics surface (its metrics endpoint added to that engine's PRD/contracts)
+- [ ] PRD §Epic 2 engine-gated stories re-approved against the now-available engine surfaces
+- [ ] Tasks decomposed for the activatable categories; each task brief passes the DoR gate
+
+**Exit criteria (EARS, measurable, human-signed):**
+
+- [ ] WHEN the Build Engine is GA THE SYSTEM SHALL render the active-project pipeline widget (E2-S4) with
+  live project metrics where it previously showed the "Build Engine not yet available" state — verified by
+  the Build-sourced widget test (FR-015)
+- [ ] WHEN the Events Engine is GA THE SYSTEM SHALL add automation counts/failure-rate rows (E2-S8) and
+  per-run automation spend (E2-S3) sourced from the Events metrics surface — verified by the Events-sourced
+  widget test
+- [ ] WHEN a consumer engine's pinned ontology version lags `is_latest` by ≥ the amber threshold (default
+  2, tunable) THE SYSTEM SHALL highlight the version-pin row amber via the canonical `CE-VERSION-1` lag (≥
+  red threshold default 4) — verified by the version-pin widget test (FR-018)
+- [ ] WHEN a source engine is not yet GA THE SYSTEM SHALL continue to render that category's defined
+  unavailable state, never fabricated rows — verified by the not-yet-available regression test (FR-015)
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
+  tunable)
+- [ ] **Measurable artefact:** the dashboard renders every category whose source engine is GA with live
+  data and the remainder in the defined unavailable state, deployed to dev-AWS and passing the smoke suite
+- [ ] **Human sign-off recorded** (always the final exit criterion)
+
+**HITL gates (configurable; declared active):**
+
+| Gate | Active? | Approver | Blocks |
+|------|---------|----------|--------|
+| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | release |
+| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
+| Publish/generate (ontology publish / artefact release) | no (widget activation reads downstream engine metrics; no artefact is published) | n/a | — |
+
+> Phase-boundary + pre-AWS-deploy remain active (each engine-gating change deploys and widens the read
+> surface). Publish/generate N/A — this phase only consumes downstream metrics.
+
+**Phase-gate metadata:**
+
+```text
+phase: 3
+gate_id: weave-platform-gate-3
+condition: all_exit_criteria_met
+approver: Architect + security reviewer
+blocks: release
+```
+
+### HITL gate summary
+
+| Gate | After phase | Approval criteria | Approver |
+|------|-------------|-------------------|----------|
+| Spec-approval (mandatory, every phase) | before each phase | PRD + Phase tech spec approved; tasks DoR-passing | PO + exec sponsor |
+| Gate 1 | Phase 1 | EARS exit criteria met (isolation, revocation, audit-tamper, budget, notify, self-improvement authz) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+| Gate 2 | Phase 2 | EARS exit criteria met (CE-sourced widget stream, unavailable state, server-side pin/publish, ingestion) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+| Gate 3 | Phase 3 | EARS exit criteria met (engine-gated activation + not-yet-available regression) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+
+> Spec-approval is the only globally mandatory gate. Phase-boundary ceremony and pre-AWS-deploy are active
+> on all three phases because the platform ships security-load-bearing surfaces and deploys to dev-AWS each
+> phase. Publish/generate is active only in Phase 1, scoped to the Weave-internal E9-S4 self-improvement
+> dispatch.
+
+---
+
