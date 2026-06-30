@@ -232,13 +232,20 @@ non-markdown files like `openapi.yaml` and so cannot be sections).
 /elicit  →  /po  →  /architect  →  /spec-review  →  /implement
                                                        ↓
                     /goal all tasks in phase done, or stop after 60 turns
+                              (tasks → one PR per EPIC on feature/{epic};
+                               UI work must pass the ui_verify gate)
                                                        ↓
                                              phase_gate() Stop hook → HITL
                                              Approve → next phase
 ```
 
+**Operator runbook (read this to run the loop): [`docs/running-the-implement-loop.md`](docs/running-the-implement-loop.md)** —
+the full PDAC loop, all HITL gates (incl. the UI run-book sign-off), the `ui_verify` UI gate, the
+epic-PR model, resume, and the no-bypass enforcement. Every harness element is catalogued in
+[`.claude/HARNESS.md`](.claude/HARNESS.md).
+
 **State spine:** `.claude/state/progress.json` (committed after every task)
-**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update ...`
+**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update|epic-check ...`
 
 ## Navigation
 
