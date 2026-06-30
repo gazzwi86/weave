@@ -78,6 +78,22 @@ def _summarise(event: str, check, payload: dict) -> dict:
         if event == "post-tool-use":
             resp = payload.get("tool_response")
             rec["ok"] = not (isinstance(resp, dict) and resp.get("is_error"))
+            # Task-state transitions. When the loop advances a task it shells out to
+            # `progress.sh update <task-id> <status>`; record that transition as a compact
+            # event line so events.jsonl is a skimmable timeline of how the loop progressed
+            # (task_id, status, plus retry_count / pr_url when the caller passes them).
+            # NOTE: events.jsonl is local/gitignored telemetry — NOT the checkpoint of record.
+            # progress.json (committed on every change) remains the durable checkpoint a resume
+            # reconstructs from.
+            cmd = ti.get("command") or ""
+            if "progress.sh update" in cmd:
+                parts = cmd.split("progress.sh update", 1)[1].split()
+                if len(parts) >= 2:
+                    rec.setdefault("task_id", parts[0])
+                    rec.setdefault("status", parts[1])
+            for k in ("task_id", "status", "retry_count", "pr_url"):
+                if payload.get(k) is not None:
+                    rec[k] = _clip(payload[k]) if isinstance(payload[k], str) else payload[k]
     elif event in ("stop", "subagent-stop"):
         rec["stop_active"] = payload.get("stop_hook_active")
     elif event == "notification":

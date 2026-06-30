@@ -13,6 +13,7 @@ set -e
 #   ready                        Get tasks whose dependencies are all satisfied
 #   kanban                       Display kanban board
 #   phase-check                  Check if current phase is complete
+#   epic-check <epic-id>         Check if an epic is complete (sets epic status=done when so)
 #   list [status]                List tasks, optionally filtered by status
 #   graph                        Display dependency graph
 
@@ -182,6 +183,38 @@ cmd_phase_check() {
   "
 }
 
+# Check if a single epic is complete (mirrors phase-check, filtered by epic).
+# Prints COMPLETE iff zero non-done tasks in the epic, else INCOMPLETE: N remaining.
+# On completion, also flips the epic's own status to 'done' (the kanban reads epics[].status
+# but nothing else sets it).
+cmd_epic_check() {
+  ensure_state
+  local epic="$1"
+  if [ -z "$epic" ]; then
+    echo "Usage: progress.sh epic-check <epic-id>" >&2; exit 1
+  fi
+  ITEM_EPIC="$epic" STATE="$STATE_FILE" node -e "
+    const fs = require('fs');
+    const data = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
+    const epic = process.env.ITEM_EPIC;
+    const tasks = data.tasks.filter(t => t.epic === epic);
+    if (tasks.length === 0) {
+      console.error('Epic ' + epic + ' has no tasks (or does not exist)');
+      process.exit(1);
+    }
+    const incomplete = tasks.filter(t => t.status !== 'done');
+    if (incomplete.length === 0) {
+      const e = data.epics.find(e => e.id === epic);
+      if (e) e.status = 'done';
+      fs.writeFileSync(process.env.STATE, JSON.stringify(data, null, 2));
+      console.log('COMPLETE');
+    } else {
+      console.log('INCOMPLETE: ' + incomplete.length + ' remaining');
+      incomplete.forEach(t => console.log('  ' + t.id + ' [' + t.status + '] ' + t.title));
+    }
+  "
+}
+
 # List tasks
 cmd_list() {
   ensure_state
@@ -245,6 +278,7 @@ case "${1}" in
   graph)       cmd_graph ;;
   kanban)      cmd_kanban ;;
   phase-check) cmd_phase_check ;;
+  epic-check)  cmd_epic_check "$2" ;;
   list)        cmd_list "$2" ;;
   *)
     echo "Weave Progress Manager"
@@ -259,6 +293,7 @@ case "${1}" in
     echo "  ready                      Get tasks ready to start (deps satisfied)"
     echo "  kanban                     Display kanban board"
     echo "  phase-check                Check if phase is complete"
+    echo "  epic-check <epic-id>       Check if an epic is complete (sets epic status=done)"
     echo "  list [status]              List tasks"
     echo "  graph                      Show dependency graph"
     ;;
