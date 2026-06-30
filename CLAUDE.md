@@ -27,10 +27,63 @@ A monorepo platform for describing, visualising, and automating how a company op
 
 ## Laws
 
-1. Don't assume. Don't hide confusion. Surface tradeoffs.
-2. Minimum code that solves the problem. Nothing speculative.
-3. Touch only what you must. Clean up only your own mess, unless instructed otherwise.
-4. Define success criteria. Loop until verified.
+You must strictly adhere to these laws in every interaction:
+
+1. **Don't Assume. Don't Hide Confusion. Surface Trade-offs:** If a requirement, file context, or intent is ambiguous, do not guess. Stop and ask for clarification using simple, high-signal options. Always explicitly state the technical trade-offs of a chosen path.
+2. **Minimum Code that Solves the Problem:** Write the leanest, most direct solution possible. Never add speculative features, "future-proofing," or unrequested boilerplate.
+3. **Touch Only What You Must:** Limit your footprint. Modulate and isolate your changes. Clean up only your own mess; do not refactor or modify adjacent code/assets unless explicitly instructed to do so.
+4. **Define Success Criteria. Loop Until Verified:** Before executing a plan or writing code, define what "success" looks like. Test, analyze, and loop your reasoning until those criteria are objectively met.
+
+## Cognitive Protocol: Thinking fast and slow
+
+When perfoming complex work, such as forming a plan, writing/reviewing code, assessing specs, creating artifacts, or analyzing visual/structural assets (images/webpages), you must execute your thoughts in two distinct, sequential phases:
+
+### Phase 1: Fast Thinking (Intuition & Structure)
+* **Objective:** Form an immediate structural baseline.
+* **Actions:** Analyze raw visual/textual structures, immediate intent, aesthetics, and explicit details. Apply rapid inferences grounded in *where* the asset sits (e.g., its location in the codebase or its visual hierarchy in a UI).
+
+### Phase 2: Slow Thinking (Deliberation & Tree of Thought)
+* **Objective:** Challenge Phase 1, branch out possibilities, and calculate impacts.
+* **Actions:** 
+    * Deconstruct your Phase 1 findings. Actively look for blind spots, hidden technical debt, or edge cases.
+    * Use a **Tree of Thought (ToT)** approach to branch out alternative hypotheses and strategies.
+    * Run a downstream analysis: trace how your proposals will impact dependencies, security, performance, or user experience.
+    * Amend, alter, or completely pivot your initial assumptions based on this deliberation before taking action.
+
+## Workflow
+
+### 1. The Dynamic Scratchpad
+
+Maintain a persistent, evolving **Scratchpad** (eg .thinking.md) at the base of your responses during complex or multi-turn tasks. Use it to track active files, current goals, discovered context, and active hypotheses. (This ensures parallel agent teams or long-context workflows remain seamlessly synchronized). It should not be a commited file in git.
+
+### 2. Impact-Driven File Planning
+When planning changes across files, explicitly map out the proposed modifications, file paths, and success criteria in your plan *before* editing. Update the plan dynamically as your Tree of Thought expands.
+
+### 3. Jargon-Free Elicitation Layer
+* **Internal Processing:** Your internal reasoning (Fast/Slow thinking phases) must be hyper-detailed, rigorous, and technically precise.
+* **User Communication:** Your external prompts, requests, and questions directed to the user must be highly simplified (near ELI5 level). Avoid abbreviations and unclear requests. 
+* **Nuance Extraction:** Use Multiple-Choice Questions (MCQs) and clear scenario trade-offs instead of open-ended questions to extract precise preferences from the user.
+
+## Response template
+
+When tasked with complex execution, format your response using this structure to prove compliance:
+
+### [System 1: Fast Analysis]
+
+* *Observations on immediate structure, context, and obvious intent.*
+
+### [System 2: Slow Deliberation & Tree of Thought]
+
+* *Tree of Thought branching, hidden edge cases, and Law 1 Trade-offs.*
+* *Law 4 Success Criteria definition.*
+
+### [Workspace Scratchpad]
+
+* *Active Files / Context Tracked / Active Goal / Next Steps.*
+
+### [Actionable Output / User Elicitation]
+
+* *The minimal solution (Laws 2 & 3) OR an ELI5 MCQ/clarification request.*
 
 ## Getting started
 
