@@ -89,21 +89,12 @@
     ]
   },  
   "_examples": {
-    "_why": "Two per-edit LLM hooks were removed from always-on config. Each fires on every Edit|Write, making them very expensive for routine tasks. Moved here for reference; see also .claude/examples/expensive-hooks.json for embedding instructions.",
+    "_why": "A per-edit LLM security-linter hook was removed from always-on config. It fires on every Edit|Write, making it very expensive for routine tasks. Kept here for reference; see also .claude/examples/expensive-hooks.json for embedding instructions. (The claude -p subprocess variant was deleted with modules/claude_review.py — it duplicated this prompt hook and added a second billable API call per write.)",
     "per-edit-prompt-hook": {
       "_cost": "~2500 tokens injected into the main context window on every Edit|Write call",
       "_why_disabled": "At 2500 tokens/edit this doubles context size on a typical feature branch. Moved to Stop event (single fire per session) instead.",
       "type": "prompt",
       "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
-    },
-    "per-edit-claude-subprocess-hook": {
-      "_cost": "Spawns a claude -p subprocess per Edit|Write — a separate API call (+ latency) each time",
-      "_why_disabled": "Redundant with the prompt: hook above and creates a second billable API call on every file write. See .claude/examples/expensive-hooks.json for the full working config.",
-      "type": "command",
-      "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use claude-review",
-      "timeout": 45000,
-      "async": true,
-      "statusMessage": "Running claude -p security review"
     }
   },
   "hooks": {
@@ -135,6 +126,11 @@
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-install-safety",
             "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-git-safety",
+            "timeout": 5000
           }
         ]
       }
