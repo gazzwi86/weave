@@ -18,8 +18,8 @@
     "git": {
       "commitFormat": "conventional",
       "branchPattern": "feature/{epic}",
-      "worktreeIsolation": true,
-      "_note": "Tasks within an epic commit sequentially onto one feature/{epic} branch and ship as a single epic PR (a coherent, navigable feature); they are not isolated per-task worktrees (a branch cannot live in two worktrees). See .claude/skills/implement CODIFY."
+      "worktreeIsolation": false,
+      "_note": "Tasks within an epic commit sequentially onto one feature/{epic} branch and ship as a single epic PR (a coherent, navigable feature). Per-task worktree isolation is OFF (a branch cannot live in two worktrees, and it would break epic assembly) — engineer.md/quality-assurance.md no longer self-isolate. Engagement-level isolation is the operator's own git worktree. The prototyper still uses its own per-prototype worktree (separate concern). See .claude/skills/implement CODIFY."
     },
     "brownfield": {
       "scoutThresholds": {

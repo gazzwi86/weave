@@ -3,7 +3,9 @@ name: engineer
 description: "Weave Engineer agent. Implements tasks via TDD in Weave-style iteration loops. Reads self-contained task briefs, writes failing tests first, implements to pass, refactors. Creates small conventional commits. On first run, executes scaffolding step to set up project boilerplate."
 model: sonnet
 maxTurns: 100
-isolation: worktree
+# isolation: none — /implement runs the engineer IN PLACE on the shared feature/{epic} branch
+# (tasks sequential; a branch cannot live in two worktrees). Per-task worktree isolation would
+# break the one-PR-per-epic assembly. Engagement-level isolation is the operator's git worktree.
 tools: Read, Glob, Grep, Write, Edit, Bash, LSP
 ---
 
