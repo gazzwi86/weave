@@ -6,11 +6,20 @@ set -euo pipefail
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 
-# Check if the anatomy is stale (only meaningful once there are commits).
+# Check if the anatomy is stale (only meaningful once there are commits). Advisory.
 if git rev-parse HEAD >/dev/null 2>&1; then
   if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh 2>/dev/null; then
     echo "pre-push: anatomy may be stale; consider refreshing before push" >&2
   fi
+fi
+
+# [blocking] Harness manifest structural row-parity gate. Unlike the anatomy
+# check above, this one BLOCKS: an exit 2 (a discovered element with no row in
+# .claude/HARNESS.md) propagates out and fails the push. A TODO last-vouched-by
+# only WARNs (exit 0), so it never blocks.
+if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-harness-manifest; then
+  echo "pre-push: harness manifest out of parity (run: python3 .claude/scripts/harness_manifest.py generate)" >&2
+  exit 1
 fi
 
 if ! command -v claude >/dev/null 2>&1; then

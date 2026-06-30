@@ -21,6 +21,7 @@ Each module in modules/ owns one logical concern. To add a new hook:
 
 import sys
 
+import harness_manifest
 from modules import common
 from modules import secrets, wiki, stop
 from modules import memory, lifecycle, python_tooling
@@ -48,6 +49,7 @@ EVENT_HANDLERS = {
     "session-end":          [lifecycle.session_end],
     # CLI-only — invoked by the pre-push git hook, not wired in settings.json
     "check-anatomy-fresh":  [wiki.check_anatomy_fresh],
+    "check-harness-manifest": [harness_manifest.check],
 }
 
 
