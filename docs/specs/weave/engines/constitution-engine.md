@@ -416,8 +416,11 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 
 ### 2.2 Non-functional requirements
 
-**Performance** (all thresholds are configurable defaults, tunable per workspace, flagged UNVERIFIED
-until a tech-spec load test confirms them (OQ-13); none is a hard GA gate)
+**Performance** — **philosophy:** targets are tunable defaults; those on the M1 synchronous critical
+path are **SPIKE-gated** before downstream engines build against CE. **SPIKE-CE-PERF-1** (load-test
+SPARQL SELECT + SHACL validation against 10k–500k triple graphs) must complete in the Phase-1 tech
+spec before Build M1 grounding calls are coded to rely on CE. Remaining targets (chat AI, publish
+duration) are post-spike tunable. OQ-13 (perf threshold confirmation) is closed by SPIKE-CE-PERF-1.
 
 - SPARQL SELECT (≤ 3 triple patterns) against a published graph: **default p95 < 500 ms** at
   10k–500k triples (UNVERIFIED — confirm by load test, OQ-13).
@@ -530,13 +533,14 @@ exact version tags.
 
 | Contract | Consumers | Intent (full shape in ../contracts.md) | Stability |
 |---|---|---|---|
-| **CE-READ-1** — Versioned read interface | Explorer, Build, Events, Platform, Onboarding | `GET /api/ontology/types` → the 13 BPMO framework kinds + relationship-types + client extensions; `/resource/{iri}` → entity + properties + edges; `/versions` → `[{version_iri, semver, published_at, is_latest}]`; `GET /api/sparql?version=<iri\|latest>&page=<n>` — SPARQL 1.1 **SELECT-only**, `SERVICE` blocked (SSRF), **paginated** (no silent cap), `version=latest` = newest published. **Agent-grounding** answerable as read-side SPARQL over this contract — no separate contract. | stable |
+| **CE-READ-1** — Versioned read interface | Explorer, Build, Events, Platform, Onboarding | `GET /api/ontology/types` → the 13 BPMO framework kinds + relationship-types + client extensions; `/resource/{iri}` → entity + properties + edges; `/versions` → `[{version_iri, semver, published_at, is_latest}]`; `GET /api/sparql?version=<iri\|latest>&page=<n>` — SPARQL 1.1 **SELECT-only**, `SERVICE` blocked (SSRF), **paginated** (no silent cap), `version=latest` = newest published. **M1 additions** (full shape in [contracts](../contracts.md) §1): `POST /api/query/nl` NL→SELECT surface (`{question}` → `{sparql, rows, columns, grounded_iris}`); named agent-authority SELECT patterns (`authority(actor, action, target)`, `escalation(process)`, `coverage_gap(process)` ported from obpm `mi-agent-model.ttl`); `automatable` SHACL-shaped boolean on Activity/Process (default `false` = route-to-human; safety hinge for Events EA-AUTOMATION-1). Full `authority`/`escalation` executable patterns = M2. | stable |
 | **CE-WRITE-1** — Validated-operations write API | Build, Events, Platform ingestion, Explorer | `POST /api/operations/apply` · Request `{operations:[Op], actor:<principal IRI>, target:"draft"\|<version_iri>}`; `Op ∈ add_node\|update_node\|add_edge\|delete_node\|delete_edge` (new nodes carry a local `ref` resolved to IRIs in-batch; dedup = case-insensitive `label`+`kind` reuse). Applied on a **throwaway clone**, SHACL-validated, commits only if no `sh:Violation` (Warning/Info advisory); writes a PROV-O activity attributed to `actor`. Response `201{activity_iri,applied_count,version_iri}` OR `422{violations:[{focus_node,path,severity,message}]}`. Idempotency key supported; duplicate-IRI create reconciled. **Only** mutation entry point. | stable |
 | **CE-DIFF-1** — Version diff | Explorer (diff overlay), Build (artefact staleness) | `GET /api/ontology/diff?from=<version_iri>&to=<version_iri>` → `{added:[Node\|Edge], removed:[Node\|Edge], modified:[{ref,kind,before,after}]}` — includes **edge** modifications (server-side). | stable |
 | **CE-VERSION-1** — Version metadata + canonical lag | Build, Events, Explorer, Platform | `GET /api/ontology/versions` is the single source for "latest". **Canonical version-lag** = count of published versions strictly between a consumer's pin and `is_latest`; consumers never re-implement it. "Stale" default threshold = lag ≥ 2 (configurable). | stable |
 | **CE-EVENT-1** — Graph-change event stream | Events (graph-change triggers — **Should Have**, degrade to polling CE-READ-1 by since-version), Platform (live activity / draft-vs-published delta widgets) | Events `{change_type:"added"\|"updated"\|"deleted"\|"constraint-violated", entity_iri, version_iri, actor, ts}`. Transport (SNS / WebSocket / change-feed) deferred to tech-spec (OQ-12). | beta |
-| **CE-BRAND-1** — Brand → design-token projection + VoiceRule contract | Build (compliant-by-construction generation; conformance bar default 90%, configurable) | `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…) projected from RDF brand individuals; `GET /api/brand/voice-rules` → machine-evaluable VoiceRules (each a checkable assertion). | stable |
+| **CE-BRAND-1** — Brand → design-token projection + VoiceRule contract **· Milestone: M2** | Build (compliant-by-construction generation; conformance gate before code ships) | `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…) projected from RDF brand individuals; `GET /api/brand/voice-rules` → machine-evaluable VoiceRules (each a checkable assertion). **Conformance formula** (full shape in [contracts](../contracts.md) §1): `score = normal_rules_passed / total_normal_rules`; any failed `critical` rule = hard fail regardless; pass bar = `score ≥ 0.90` AND zero critical failures. | stable |
 | **CE-METRICS-1** — Aggregate metrics for the Dashboard | Platform Generative Dashboard (CE-sourced widgets = MVP-eligible set) | `GET /api/metrics/ontology` → `{entity_count_by_kind, latest_version, draft_published_delta, shacl_errors_by_severity, owl_inconsistencies}`. | stable |
+| **CE-FUNCTION-1** — Ontology-bound function registry **· NEW · Milestone: M2 (definition) / v1.0 (full)** | Build (typed SDK bindings), Events (action references by `fn_iri`), Build/Events agents (tool calls) | Registry of named, typed, graph-aware logic units bound to CE object-kinds. CE owns definition + versioning; Build generates typed bindings; Events references by `fn_iri`. `GET /api/functions` → list; `GET /api/functions/{iri}` → shape. Full shape in [contracts](../contracts.md) §1. **Decision made (M1); built M2/v1.0. Resolves Build-OQ-12 / EA-OQ-13 (function-registry ownership).** | alpha |
 
 ### 2.4 Open questions (for tech spec)
 
@@ -553,8 +557,8 @@ exact version tags.
 | OQ-09 | ODRL policy enforcement (PII/sensitive): not in v1 stack (v1 uses SHACL + data-classification). Should ODRL be added to the stack later, and update CLAUDE.md? | Architect |
 | OQ-10 | Expand the query surface beyond SELECT (CONSTRUCT/ASK/DESCRIBE) post-v1, with SSRF mitigation if `SERVICE` is ever re-enabled. | Architect |
 | OQ-11 | Should published versions carry advisory released/deprecated lifecycle states + a single-active-release pointer? (Must NOT redefine `latest` = newest published, decision B2.) | Architect + PO |
-| OQ-12 | CE-EVENT-1 transport: SNS fan-out vs WebSocket vs change-feed (Events degrades to polling until decided). | Architect |
-| OQ-13 | Confirm all NFR Performance thresholds by load test; re-derive the SHACL "shapes-graph size" figure. | Architect |
+| OQ-12 | CE-EVENT-1 transport: SNS fan-out vs WebSocket vs change-feed. **Status (M1): beta. Polling fallback via CE-READ-1 since-version (FR-015) is the M1 degradation path. Events Engine is post-v1; no M1 dependency.** | Architect |
+| OQ-13 | *(Perf)* Confirm NFR Performance thresholds by load test; re-derive the SHACL "shapes-graph size" figure. **Closed by SPIKE-CE-PERF-1 in Phase-1 tech spec (see §2.2).** | Architect |
 | OQ-14 | **OCEL 2.0** as the named event-layer candidate for ingesting observed-behaviour event data (object-centric event logs). Confirm the ingest mapping; NOT a process-mining engine (Non-Goal #10). | Architect |
 | OQ-15 | Opt-in extension patterns: **REA (ISO 15944-4)** economic-exchange, **gUFO** foundational typing, **OWL-Time** temporal modelling — which ship as documented extension patterns vs. stay design-only behind the curtain? | Architect + PO |
 | OQ-16 | UFO / OntoUML rigour as **internal discipline** advised via `sh:Warning` / `sh:Info` (never user-exposed as hard rules) — how deep to enforce-vs-advise? | Architect + PO |
@@ -631,8 +635,8 @@ The Constitution Engine PRD is satisfied when:
 
 ### EPIC-001 — Ontology Modelling (OWL Structure)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-006, EPIC-009, EPIC-010,
-CE-WRITE-1 · **blocks:** EPIC-002, EPIC-003, EPIC-011 · **consumes:** CE-WRITE-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006, EPIC-009,
+EPIC-010, CE-WRITE-1 · **blocks:** EPIC-002, EPIC-003, EPIC-011 · **consumes:** CE-WRITE-1
 
 Lets an enterprise architect build the client domain taxonomy on top of the shipped ArchiMate-3
 process-centric **BPMO framework** — defining OWL classes, property restrictions, and disjointness
@@ -676,13 +680,10 @@ here.
   - AC (failure): reasoner timeout at the configured budget (default 30 s, tunable) → publish surfaces a
     reasoner-timeout error and produces no partial inferred graph.
 
-**Epic-level AC:** Ontology / Types screen reflects the **active** ontology (framework kinds + client
-taxonomy) with no hardcoded client class IRIs (FR-020), rendering correctly whether authored via chat,
-form, or import; every structural change commits through the **single** validated mutation entry point
-(CE-WRITE-1) + produces a PROV-O record, no bypass; with AI unavailable an architect can still author a
-class, a restriction, and a disjointness axiom via forms while NL surfaces return 503; a `sh:Violation`
-at commit blocks with 422 and leaves the graph unchanged while OWL inconsistency does NOT block at
-commit (blocks at publish — E8-S2) for classes/restrictions/imported proposals alike.
+**Epic-level AC (FR-020, FR-021, FR-001):** Ontology / Types screen reflects the active ontology
+(framework + client taxonomy) with no hardcoded class IRIs; renders correctly via chat, form, or import.
+All structural changes commit through CE-WRITE-1 + PROV-O; AI unavailable → 503 on NL while forms stay
+live. `sh:Violation` blocks at commit (422); OWL inconsistency blocks at publish (E8-S2), not commit.
 
 **Technical notes:** Operates on the shipped BPMO framework (A1: 13 process-centric kinds + relationship
 set + W3C SHACL/PROV-O/SKOS scaffolding; ArchiMate-3-aligned, REA + UFO behind the curtain; authoring
@@ -695,8 +696,8 @@ restarting (FR-033). Standards: OWL 2 DL, Turtle, SHACL, PROV-O.
 
 ### EPIC-002 — Instance Data Population
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006, EPIC-010,
-CE-WRITE-1 · **consumes:** CE-WRITE-1, CE-READ-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006,
+EPIC-010, CE-WRITE-1 · **consumes:** CE-WRITE-1, CE-READ-1
 
 Lets a business analyst populate the graph with real company entities — adding, editing, deleting,
 browsing, searching instances of the client's domain classes — via chat or guided forms, never raw RDF.
@@ -732,13 +733,10 @@ layout). Bulk-populate via CSV (E2-S3) is carved out to Phase 4 and not delivere
   - AC (failure): any row that would fail SHACL is flagged + skipped with a per-row reason; the remaining
     rows commit; the user gets a committed-vs-skipped summary.
 
-**Epic-level AC:** an edit omitting a property (position, colour, domain) leaves it **untouched** after
-commit — partial-update (FR-034) holds across every instance mutation, chat or form; deleting a
-referenced instance surfaces a warning listing every affected reference + requires explicit confirmation,
-declining aborts unchanged, delete-own RBAC enforced (a BA may delete only instances they authored); the
-Instances / Data screen lists + text-searches grouped by class and **paginates** (default 50/page,
-tunable) rather than silently truncating; every add/edit/delete routes through CE-WRITE-1, is
-SHACL-checked against the target class's shapes, and carries a PROV-O record including approving human
+**Epic-level AC (FR-034, FR-021, FR-032):** Partial-update semantics hold across all instance mutations
+— edit omitting a property (position, colour, domain) leaves it untouched. Delete of a referenced instance
+→ warning listing all affected references + explicit confirm; delete-own RBAC enforced. Instance screen
+paginates (never silently truncates); all mutations SHACL-checked + PROV-O-stamped with approving human
 identity + authoring-agent kind.
 
 **Technical notes:** Partial-update grounded in prototype `update_node` `exclude_unset`. Class selection
@@ -748,8 +746,8 @@ is a PLAT-SETTINGS-1 tunable; never hardcode a silent cap.
 
 ### EPIC-003 — SKOS Controlled Vocabulary (Glossary)
 
-**Phase:** 2 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006, EPIC-010,
-CE-WRITE-1 · **blocks:** EPIC-005, EPIC-007 · **consumes:** CE-WRITE-1, CE-READ-1
+**Phase:** 2 (MVP) · **Milestone:** M2 · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006,
+EPIC-010, CE-WRITE-1 · **blocks:** EPIC-005 · **consumes:** CE-WRITE-1, CE-READ-1
 
 Gives the organisation one agreed meaning per business term: a SKOS-based glossary where each term has a
 preferred label, definition, synonyms, and broader/narrower links, searchable by any user. A glossary
@@ -777,11 +775,10 @@ structure can never drift out of sync.
   - AC (failure): a no-match search returns an empty-state with a "create this term" affordance, not an
     error.
 
-**Epic-level AC:** a single URI is both `owl:Class` and `skos:Concept` (B1) with **no** separate linking
-property (`weave:denotes` unsupported), and "show everything we know about X" returns both OWL axioms +
-SKOS annotations of that one URI; SHACL enforces exactly **one** prefLabel/lang + one definition (second
-prefLabel/lang → 422) with `inference='none'`; glossary search matches prefLabel/altLabel/definition,
-each result shows the OWL role, no-match → empty-state with create affordance, never an error.
+**Epic-level AC (FR-022, FR-023, FR-024, B1):** Single URI is both `owl:Class` and `skos:Concept` (B1,
+no separate linking property); SHACL enforces exactly one `skos:prefLabel`/lang + one `skos:definition`
+with `inference='none'` (422 on duplicate). Glossary search matches prefLabel/altLabel/definition; results
+show OWL role; no-match → empty-state with create affordance.
 
 **Technical notes:** Punning grounded in obpm `mi-glossary.ttl` (same URI both). Document punning in the
 data model; do not add a cross-notation linking property. Validation runs `inference='none'` precisely
@@ -791,8 +788,8 @@ separate creation path.
 
 ### EPIC-004 — Brand & Voice Standards
 
-**Phase:** 2 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006, EPIC-010,
-CE-WRITE-1 · **provides:** CE-BRAND-1 · **consumes:** CE-WRITE-1
+**Phase:** 2 (MVP) · **Milestone:** M2 · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006,
+EPIC-010, CE-WRITE-1 · **provides:** CE-BRAND-1 · **consumes:** CE-WRITE-1
 
 Gives the brand / marketing owner a single authoritative, versioned, provenance-stamped home for brand
 styleguides and tone-of-voice rules, stored as governed RDF individuals. Projects them through CE-BRAND-1
@@ -815,13 +812,10 @@ compliant-by-construction artefacts without parsing RDF.
   - AC (failure): if AI unavailable, the owner adds VoiceRules through the guided form; the extraction
     surface returns 503 without blocking manual entry.
 
-**Epic-level AC:** `GET /api/brand/tokens` returns flattened design-token JSON (colour, type scale,
-spacing, radii…) and `GET /api/brand/voice-rules` returns machine-evaluable VoiceRules — both consumable
-by Build **without parsing RDF** (CE-BRAND-1 contract test passes at the §2.3 shape); a brand individual
-failing its SHACL shape is blocked at commit (422) and **never** appears in either projection; with AI
-unavailable the owner can still add brand individuals + VoiceRules via guided forms, the
-styleguide-extraction surface returns 503 without blocking manual entry; every brand/voice change is
-versioned and carries a PROV-O stamp (routed through CE-WRITE-1).
+**Epic-level AC (FR-016, CE-BRAND-1):** `GET /api/brand/tokens` and `GET /api/brand/voice-rules` pass
+CE-BRAND-1 contract test (Build consumes without parsing RDF). Brand individuals failing SHACL blocked at
+commit (422) and never appear in projections. AI unavailable → forms stay live (503 on extraction
+surface). All brand/voice changes versioned + PROV-O-stamped via CE-WRITE-1.
 
 **Technical notes:** CE-BRAND-1 is a **projection** over RDF brand individuals, not a separate store —
 the RDF is the source of truth, tokens/voice-rules are derived views; re-derive on read or commit, never
@@ -832,9 +826,9 @@ PROV-O, design-token JSON projection (CE-BRAND-1).
 
 ### EPIC-005 — Governance & Compliance Rules
 
-**Phase:** 2 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-003, EPIC-006, EPIC-010,
-CE-WRITE-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1 · **provides:** CE-METRICS-1 · **consumes:** CE-WRITE-1,
-CE-READ-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1
+**Phase:** 2 (MVP) · **Milestone:** M2 · **Priority:** Must Have · **depends_on:** EPIC-003, EPIC-006,
+EPIC-010, CE-WRITE-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1 · **provides:** CE-METRICS-1 · **consumes:**
+CE-WRITE-1, CE-READ-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1
 
 Lets a compliance / risk officer describe a regulatory obligation in plain English and have the AI
 generate a **tenant-scoped** SHACL shape enforced on every future edit, plus browse all modelled rules
@@ -862,13 +856,17 @@ with live violation coverage. Scheduled self-audit gap queries (E5-S2) are carve
   - AC (failure): a scheduled self-audit that fails to run emits a PLAT-NOTIFY-1 notification rather than
     failing silently.
 
-**Epic-level AC:** a tenant's custom SHACL shape is stored in **this tenant's** shapes graph (never
-global) and MUST NOT affect any other tenant — the mandatory **cross-tenant shape-leak test** passes
-(FR-025, NFR Isolation); a shape change **invalidates validation caches across all workers/instances**
-(external) so the new rule takes effect on the very next commit on any worker; the Rules & Policies
-screen lists every shape with target class, constraint summary, severity (incl. `sh:Info`) and current
-violations, showing "validation pending" rather than stale/empty coverage; each generated shape carries
-its own PROV-O and is reviewed before adding (routed through CE-WRITE-1).
+**Epic-level AC (FR-025, NFR Isolation):** Tenant-scoped SHACL shapes MUST NOT affect any other tenant
+— cross-tenant shape-leak test is mandatory. Shape change invalidates validation caches **externally**
+(all workers); new rule applies on the very next commit. Rules & Policies screen lists each shape with
+violations; shows "validation pending" rather than stale/empty coverage. All shapes PROV-O-stamped via
+CE-WRITE-1.
+
+**`automatable` property (SS-EA-4, M1):** CE owns the `weave:automatable` SHACL-shaped boolean on
+Activity and Process (default `false` = route-to-human). This is a governance shape: it belongs in the
+per-tenant shapes graph alongside compliance rules, enforced by the same SHACL gate (E6-S1). The Events
+Engine reads it as a safety hinge (EA-AUTOMATION-1) — no activity routes to a fully-automated agent
+unless this property is explicitly set `true` by a governance owner. **CE owns; Events consumes.**
 
 **Technical notes:** The per-tenant shapes graph is the heart of the cross-tenant security property — it
 shares the same isolation mechanism (store-per-tenant OR named-graph + query-rewriting, OQ-04) as
@@ -879,8 +877,9 @@ handling aligns with EPIC-006: `sh:Violation` blocks; `sh:Warning`/`sh:Info` adv
 
 ### EPIC-006 — SHACL Validation (Cross-Cutting)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** PLAT-SETTINGS-1 · **blocks:** EPIC-009,
-EPIC-010, EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005 · **consumes:** PLAT-SETTINGS-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** PLAT-SETTINGS-1 ·
+**blocks:** EPIC-009, EPIC-010, EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005 ·
+**consumes:** PLAT-SETTINGS-1
 
 The validated-mutation spine the entire engine depends on: exactly **one** mutation entry point
 (`POST /api/operations/apply`, CE-WRITE-1) that clones the target graph, applies the batch, runs SHACL,
@@ -908,15 +907,11 @@ validation endpoint. No other content area may write except through this gate.
     warnings, info, scoped to the caller's tenant.
   - AC (failure): a request for a non-existent version → 404; a request without a valid JWT → 401.
 
-**Epic-level AC:** exactly one mutation entry point to the trusted graph — a CI test asserts **no**
-auto-apply path and **no** raw SPARQL-Update write surface exists (legacy `POST /api/llm/mutate` absent)
-(FR-003); prospective validation clones, applies the batch, runs SHACL, commits only if zero
-`sh:Violation` — a batch with any single violation commits **nothing** (all-or-nothing on the clone)
-(FR-004); severity routing uniform — `sh:Violation` → 422 graph unchanged, `sh:Warning`/`sh:Info`
-surfaced advisory + never block, each exercised by an integration test (FR-005); error messages name the
-violated shape, offending node/path, constraint + plain-English explanation, with the raw structured
-violation still shown when the AI helper is unavailable; `GET /api/validate` returns a full tenant-scoped
-SHACL report (JSON-LD/Turtle), bad version → 404, no JWT → 401.
+**Epic-level AC (FR-003, FR-004, FR-005):** Single mutation entry point — CI asserts no auto-apply path
+and no raw SPARQL Update surface exists (legacy `POST /api/llm/mutate` absent). Validation clones, runs
+SHACL, commits only if zero `sh:Violation` (all-or-nothing). Severity routing: `sh:Violation` → 422 +
+graph unchanged; `sh:Warning`/`sh:Info` advisory, never blocks. `GET /api/validate` returns full
+tenant-scoped SHACL report; bad version → 404, no JWT → 401.
 
 **Technical notes:** This epic **is** CE-WRITE-1's validation core (EPIC-010 wraps the public write
 contract around it). The single-entry-point invariant (FR-003) is a security property gated at the
@@ -927,16 +922,17 @@ split). Standards: SHACL (`sh:Violation`/`sh:Warning`/`sh:Info`), SHACL validati
 
 ### EPIC-007 — SPARQL Query & NL Query
 
-**Phase:** 2 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-003, EPIC-010, CE-READ-1 ·
-**consumes:** CE-READ-1
+**Phase:** 1 (MVP) · **Milestone:** M1 (E7-S1 NL→SELECT, E7-S2 SPARQL editor, coverage_gap query);
+E7-S4 full agent-grounding authority patterns = M2 · **Priority:** Must Have ·
+**depends_on:** EPIC-010, CE-READ-1 · **consumes:** CE-READ-1
 
-Two query surfaces over the graph plus the agent-grounding read pattern: a plain-English NL question box
-that generates and executes a SPARQL SELECT, a raw SPARQL editor restricted to SELECT-only,
-`SERVICE`-blocked, paginated queries (decision B3), and built-in **agent-authority SELECTs** that let a
-caller ask what an agent may do — on which systems/data/process, and who to contact or escalate to —
-answered from the modelled BPMO relationships over CE-READ-1 (no new contract). Both query surfaces
-degrade gracefully when the AI is offline. Server-side saved/shared queries (E7-S3) are carved out to the
-deferred-should-haves phase.
+Two query surfaces over the graph plus agent-grounding, delivered in two milestones. **M1 (the wow):**
+NL→SELECT question box (`POST /api/query/nl` per CE-READ-1) + raw SPARQL editor (SELECT-only,
+`SERVICE`-blocked, paginated, decision B3) + **`coverage_gap(process)` SELECT** — returns explicit gap
+rows even on a sparse Hammerbarn M1 demo graph; this is the CE-side feed for the M2 completeness-map UI.
+**M2:** full `authority(actor, action, target)` and `escalation(process)` executable patterns (E7-S4),
+ported from obpm `mi-agent-model.ttl`, requiring a populated graph. Both query surfaces degrade gracefully
+when the AI is offline. Server-side saved/shared queries (E7-S3) are carried to Phase 4.
 
 **User stories**
 
@@ -954,8 +950,8 @@ deferred-should-haves phase.
     (rdf, rdfs, owl, skos, prov, dcterms, xsd, weave, res) pre-loaded.
   - AC (failure): a non-SELECT or `SERVICE`-bearing query is rejected before execution with a clear
     message naming the disallowed construct; nothing executes against the store.
-- **TASK-003 / E7-S4 — Ground an agent in what it may do (agent-authority queries)** (Should; **ships in
-  Phase 2** — read-side SPARQL over CE-READ-1, no new contract).
+- **TASK-003 / E7-S4 — Ground an agent in what it may do (agent-authority queries)** (Should;
+  **Milestone: M2** — full authority/escalation patterns; `coverage_gap` SELECT ships M1 via E7-S1/S2).
   - AC (Given/When/Then): given a populated BPMO graph where processes are linked to their Actors,
     Systems, Services, DataAssets, and Policies, when a caller issues a built-in agent-authority SPARQL
     SELECT (e.g. "which Activities of process X may an autonomous agent execute alone vs. route to a
@@ -978,16 +974,12 @@ deferred-should-haves phase.
   - AC (failure): a saved query referencing a now-deleted prefix or version still loads; execution
     surfaces the resolution error rather than silently returning empty.
 
-**Epic-level AC:** the query surface is **SPARQL 1.1 SELECT-only** — UPDATE/INSERT/DELETE rejected and
-`SERVICE` blocked (SSRF) **before execution**, whether typed or NL-generated; results **paginated** with
-no silent cap on both paths; the NL path shows the generated SPARQL (collapsed) and asks a clarifying
-question rather than hallucinating; with AI unavailable the NL surface returns 503 while the raw
-SELECT-only editor stays fully functional; the editor pre-loads standard prefixes (rdf, rdfs, owl, skos,
-prov, dcterms, xsd, weave, res) and renders SELECT bindings as a table with syntax highlighting + prefix
-auto-complete; **agent-grounding (E7-S4, FR-036)** built-in agent-authority SELECTs answer from modelled
-`governedBy`/`performedBy`/`accesses` links over CE-READ-1 (no new contract) with deny/route-to-human
-default (tunable), explicit deny overriding inferred authority, and a missing required link returning an
-explicit coverage-gap row, never an empty "permitted".
+**Epic-level AC (FR-018, FR-019, FR-036-partial, B3):** Both query surfaces are SELECT-only —
+UPDATE/`SERVICE` rejected before execution (typed or NL-generated); results paginated, no silent cap. NL
+path shows generated SPARQL (collapsed) + clarifying question on failure; AI unavailable → 503 + raw
+editor stays live. Editor pre-loads standard prefixes; renders SELECT bindings as table. **M1:**
+`coverage_gap(process)` SELECT returns explicit gap rows even on sparse graph (never empty "permitted").
+**M2 (E7-S4):** full `authority`/`escalation` patterns; deny/route-to-human default tunable.
 
 **Technical notes:** The SELECT-only / `SERVICE`-blocked / paginated sanitizer is the **same** guardrail
 as CE-READ-1 (B3, grounded in prototype sanitizer `store.py:581-603`) — share one implementation, do not
@@ -1000,8 +992,8 @@ prevention (`SERVICE` block), pagination contract.
 
 ### EPIC-008 — OWL Reasoning
 
-**Phase:** 4 (Post-MVP) · **Priority:** Must/Should · **mvp:** false · **depends_on:** EPIC-009,
-EPIC-001, CE-VERSION-1 · **consumes:** CE-VERSION-1, CE-READ-1
+**Phase:** 4 (Post-MVP) · **Milestone:** post-v1 · **Priority:** Must/Should · **mvp:** false ·
+**depends_on:** EPIC-009, EPIC-001, CE-VERSION-1 · **consumes:** CE-VERSION-1, CE-READ-1
 
 Adds publish-time OWL reasoning: a pre-publish consistency check that blocks inconsistent versions, and
 per-version inference materialisation into immutable inferred named graphs. Decision-gated on OQ-01 (which
@@ -1027,15 +1019,11 @@ the heavy reasoner and is upgraded in place here.
 > (EPIC-001/002/005/007/011) and are listed there with a "carried to Phase 4" note — not part of this
 > epic. E1-S4 (reasoning surfaces inferences) is functionally adjacent but remains owned by EPIC-001.
 
-**Epic-level AC:** an OWL consistency check runs before each publish; an inconsistent draft blocks the
-publish with affected classes + violated axioms, and a reasoner that is **unavailable** also blocks the
-publish — never publishes unchecked, draft remains editable (FR-007); inference materialises into a
-**per-version** inferred named graph at publish, a pinned read of v1.2 **never** sees v1.3 inferences,
-inferred triples **labelled as inferred** in query results + instance views (FR-028, FR-029); a reasoner
-exceeding its budget (default 30 s, tunable) produces a reasoner-timeout error with **no partial inferred
-graph** committed (never observable); these checks compose with the earlier SHACL gate without overlap —
-`sh:Violation` blocks at **commit** (EPIC-006), OWL inconsistency blocks at **publish** (here) — the
-boundary is explicit and tested.
+**Epic-level AC (FR-007, FR-028, FR-029):** OWL consistency check before every publish — inconsistency
+(or reasoner unavailable) blocks publish; draft remains editable. Inference materialises into a per-version
+immutable named graph; v1.2 read never sees v1.3 inferences; inferred triples labelled as inferred.
+Reasoner timeout → error + no partial graph committed. Boundary explicit and tested: `sh:Violation` blocks
+at commit (E6); OWL inconsistency blocks at publish (here).
 
 **Technical notes:** Reasoner is **OQ-01-gated** (candidates: RDFLib-OWL / Owlready2 / Stardog / ELK);
 the fallback lever (PRD §10 Risks) is "consistency-check-only" if full materialisation is intractable at
@@ -1047,9 +1035,9 @@ named-graph versioning, inferred-triple labelling, PROV-O.
 
 ### EPIC-009 — Provenance & Version Lifecycle
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-006, PLAT-AUDIT-1, PLAT-IDENTITY-1 ·
-**blocks:** EPIC-001, EPIC-008 · **provides:** CE-DIFF-1, CE-VERSION-1, CE-EVENT-1 · **consumes:**
-PLAT-AUDIT-1, PLAT-IDENTITY-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006,
+PLAT-AUDIT-1, PLAT-IDENTITY-1 · **blocks:** EPIC-001, EPIC-008 · **provides:** CE-DIFF-1,
+CE-VERSION-1, CE-EVENT-1 · **consumes:** PLAT-AUDIT-1, PLAT-IDENTITY-1
 
 Makes every change auditable and the model versionable: every committed batch produces an append-only
 PROV-O activity (recording human-vs-AI authorship) and emits the same event to PLAT-AUDIT-1, and the
@@ -1083,20 +1071,11 @@ CE-VERSION-1. **This epic owns CE-DIFF-1 and CE-VERSION-1 — they land in Phase
   - AC (failure): a diff request for a non-existent version → 404; a diff of a version against itself
     returns an empty diff, not an error.
 
-**Epic-level AC:** **100%** of committed changes across all content areas carry **both** a PROV-O
-`prov:Activity` (append-only `weave:graph/prov`; LLM = `prov:SoftwareAgent`, approving human =
-`prov:Person`, PLAT-IDENTITY-1 principal IRI) **and** a PLAT-AUDIT-1 event — a failed audit emit is
-retried + the discrepancy logged, never silently accepted as audited (FR-006); PROV-O records immutable
-and append-only — **no** principal including admin can delete a provenance record (not an available
-operation), prior `weave:graph/prov` content byte-identical after any later commit; publishing snapshots
-the draft into an **immutable** version IRI, generates a PROV-O change log, leaves all prior published
-versions **byte-identical**, `?version=latest` resolves to the newest published (B2), a failed
-consistency check (Phase 4) leaves prior versions + draft intact with no partial version IRI;
-`GET /api/ontology/diff?from=&to=` returns a server-computed diff of added/removed/modified nodes AND
-edges (an edge-only change appears in `modified`), diff against a non-existent version → 404, diff of a
-version against itself → empty diff not an error (CE-DIFF-1); `GET /api/ontology/versions` is the single
-source for `is_latest` + canonical version-lag (count of published versions strictly between a pin and
-latest), consumers read lag, never recompute (CE-VERSION-1).
+**Epic-level AC (FR-006, FR-008, FR-009, FR-013, FR-014):** 100% of commits carry PROV-O (append-only
+`weave:graph/prov`; LLM = `prov:SoftwareAgent`; approving human = `prov:Person`) + PLAT-AUDIT-1 event —
+failed emit → retried + logged, never silently accepted. Publishing → immutable version IRI; all prior
+versions byte-identical; `?version=latest` = newest published (B2). Server-computed diff includes edge
+modifications; CE-VERSION-1 is the canonical version-lag source (consumers read, never recompute).
 
 **Technical notes:** This epic owns **CE-DIFF-1** and **CE-VERSION-1** (Phase 1, not re-claimed by Phase
 2 contract-hub work). The diff must be **server-computed** over both nodes and edges — an edge-only change
@@ -1108,9 +1087,10 @@ named-graph versioning (semver version IRIs), DCTERMS, append-only audit.
 
 ### EPIC-010 — Stable Read & Write Interfaces (Inter-engine Contract Hub)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-006, PLAT-IDENTITY-1,
-PLAT-SETTINGS-1 · **blocks:** EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005, EPIC-007, EPIC-012 ·
-**provides:** CE-READ-1, CE-WRITE-1 · **consumes:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006,
+PLAT-IDENTITY-1, PLAT-SETTINGS-1 · **blocks:** EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005,
+EPIC-007, EPIC-012 · **provides:** CE-READ-1, CE-WRITE-1 · **provides (M2/v1.0):** CE-FUNCTION-1 ·
+**consumes:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
 
 Exposes the two core contract-hub interfaces every downstream engine depends on: CE-READ-1, a versioned,
 SELECT-only, `SERVICE`-blocked, paginated, tenant-scoped read interface; and CE-WRITE-1, the single
@@ -1135,18 +1115,11 @@ PROV-O activity. These are the stable, versioned public faces of the spine built
   - AC (failure): a batch with any `sh:Violation` commits nothing (all-or-nothing on the clone); a
     malformed `Op` → 400 without touching the store.
 
-**Epic-level AC:** CE-READ-1: `GET /api/sparql?version=<iri|latest>&page=<n>` is **SELECT-only**,
-`SERVICE`-blocked, **paginated** (never silently truncates), tenant-scoped;
-`GET /api/ontology/types|resource/{iri}|versions` serve registered kinds + client extensions, a single
-entity, and the version list, each accepting `?version=` defaulting to `latest`, a non-existent pinned
-version → 404; CE-WRITE-1: `POST /api/operations/apply` accepts `{operations, actor, target}`, applies on
-a **throwaway clone**, SHACL-validates, commits only if no `sh:Violation`, writes a PROV-O activity
-attributed to `actor`, returns `201 {activity_iri, applied_count, version_iri}` or `422 {violations}`, a
-malformed `Op` → 400 without touching the store, duplicate-IRI create reconciled (idempotency key
-supported); CE-WRITE-1 is the **only** mutation entry point — a CI/contract test confirms no second write
-path exists and a batch with any `sh:Violation` commits **nothing** (all-or-nothing); all endpoints
-require a Cognito JWT / service principal and are tenant-scoped, an unscoped cross-tenant query is
-rejected (no-JWT → 401; cross-tenant read → zero foreign triples).
+**Epic-level AC (FR-010–FR-012, FR-003, FR-004):** CE-READ-1: SELECT-only, `SERVICE`-blocked, paginated,
+tenant-scoped — missing version IRI → 404; unscoped cross-tenant query → zero foreign triples (no-JWT →
+401). CE-WRITE-1: clone→SHACL→commit (`201`) or reject (`422`); any `sh:Violation` → nothing commits
+(all-or-nothing). CE-WRITE-1 is the **only** mutation entry point; a CI test asserts no second write path
+exists.
 
 **Technical notes:** This epic **publishes** the spine as stable contracts; the validation/versioning
 behaviour itself lives in EPIC-006/EPIC-009 — keep one implementation, two public faces; do not
@@ -1159,8 +1132,8 @@ OpenAPI 3.1, SPARQL 1.1 SELECT, SHACL, PROV-O, Cognito JWT.
 
 ### EPIC-011 — Authoring Surfaces — Chat AND Forms (Cross-Cutting)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006, EPIC-010,
-CE-WRITE-1 · **blocks:** EPIC-012 · **consumes:** CE-WRITE-1, CE-READ-1
+**Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-001, EPIC-006,
+EPIC-010, CE-WRITE-1 · **blocks:** EPIC-012 · **consumes:** CE-WRITE-1, CE-READ-1
 
 Delivers the two v1 authoring surfaces (decision B4) that every content area shares: a persistent NL chat
 panel available on all Constitution screens, and SHACL-shape-driven guided forms that let a business user
@@ -1192,17 +1165,10 @@ carved out to Phase 4.
   - AC: conversation is preserved for the browser session; refresh clears it (v1; server-side persistence
     deferred — OQ-08).
 
-**Epic-level AC:** the chat panel mounts on **every** Constitution screen, defaults to that screen's
-content area, every AI proposal shows a **human-readable operation list / plain-English summary** as the
-default review surface — a raw-Turtle view available **on demand for the ontologist/power-user persona
-only**, never the default (FR-002); both surfaces funnel through the **same** single validated mutation
-pipeline (CE-WRITE-1), guided forms render fields from the selected class's SHACL shapes and apply
-partial-update semantics (E2-S2), neither surface has a private write path; with AI unavailable chat
-returns 503 with a clear offline message **while guided forms, browse, and SPARQL surfaces remain fully
-functional** — a user can complete any authoring task via forms at 503, the structured operation list
-still renders without the prose summary; form-side validation is layered — a required field left blank
-produces an inline error before submit, a server-side `sh:Violation` returns 422 with the violation shown
-against the field.
+**Epic-level AC (FR-001, FR-002, FR-033, FR-034):** Chat panel on all Constitution screens; all AI
+proposals show human-readable operation list by default (raw Turtle on-demand, power-user persona only).
+Both surfaces funnel through CE-WRITE-1 (partial-update semantics, no private write path). AI unavailable
+→ chat returns 503; guided forms, browse, and SPARQL surfaces remain fully functional.
 
 **Technical notes:** Guided forms (B4) reuse the prototype Inspector / NodeEditModal / AddNodeForm
 patterns; forms are **driven by SHACL shapes** for the selected kind — generated from the shape, not
@@ -1214,9 +1180,9 @@ WCAG 2.1 AA with a zero-violations axe gate + full keyboard navigation.
 
 ### EPIC-012 — Artefact & Document Ingest (Post-MVP, prioritized)
 
-**Phase:** 3 (Post-MVP, prioritized) · **Priority:** Should Have (E12-S1 Must-within-epic) · **mvp:**
-false · **depends_on:** EPIC-001, EPIC-010, EPIC-011, CE-WRITE-1, CE-READ-1 · **consumes:** CE-WRITE-1,
-CE-READ-1
+**Phase:** 3 (Post-MVP) · **Milestone:** v1.0 · **Priority:** Should Have (E12-S1 Must-within-epic) ·
+**mvp:** false · **depends_on:** EPIC-001, EPIC-010, EPIC-011, CE-WRITE-1, CE-READ-1 · **consumes:**
+CE-WRITE-1, CE-READ-1
 
 The cold-start adoption lever for clients leaving Bizzdesign / LeanIX / MEGA: absorb the model they
 already hold in documents, EA/BPMN tool exports, diagrams, and structured data so they populate the graph
@@ -1288,20 +1254,12 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
 > ahead of nice-to-haves. **E12-S1 is the `[USER PRIORITY]` Must-Have within this epic** (FR-038); the
 > remaining stories (FR-039–FR-042) are Should Have and sequence behind it.
 
-**Epic-level AC:** **every** ingest path (conversational, structured model, image, structured-data,
-reconciliation) writes **only** through CE-WRITE-1 — a CI test asserts no Epic-12 path bypasses
-prospective SHACL validation on a throwaway clone or introduces a second mutation entry point (PRD §10
-risk); every committed ingest carries a PROV-O activity attributing the **LLM/vision model as the
-extracting agent**, the **human as the approver**, and the **source artefact** as `prov:used`, no proposal
-committed without per-proposal human accept/reject (HITL mandatory across all five stories); re-mention of
-an existing entity reuses it via the find-existing-node flow (same-label + same-kind) rather than
-duplicating — verified across the conversational, image, and cross-notation paths; confidence/similarity
-gating holds end-to-end — extraction below the confidence threshold (default 0.6, tunable) flagged for
-explicit review never pre-selected, a merge below the similarity threshold (default 0.85, tunable) never
-auto-merged; failure modes non-destructive — AI/vision-provider-unavailable → 503 with **no partial
-commit**, an `sh:Violation` → 422 with the violation shown against the proposal + graph unchanged, a
-malformed structured-model/mapping rejected before any commit leaving the store untouched, a
-partially-valid file commits only the valid elements + reports the skips.
+**Epic-level AC (FR-038–FR-042):** All five ingest paths write only through CE-WRITE-1 — CI asserts no
+Epic-12 path bypasses prospective SHACL validation or introduces a second mutation path (PRD §10 risk).
+Every committed ingest carries PROV-O attributing LLM/vision model as extractor, human as approver, and
+source artefact as `prov:used`; per-proposal HITL mandatory. Re-mention of existing entities reuses via
+find-existing-node flow. Confidence/similarity gating: extraction below 0.6 flagged, merge below 0.85
+not auto-merged. Failure modes non-destructive: 503/422 → no partial commit.
 
 **Technical notes:** **Materialised-copy, NOT query-time federation** — all imports (incl. E12-S4
 R2RML/RML) write a materialised RDF copy through CE-WRITE-1, explicitly NOT a query-time SPARQL→SQL virtual
@@ -1329,20 +1287,10 @@ Engine (#4) → Events & Actions (#5) → Onboarding (#6). Platform is the appli
 (app/nav/workspace/Cognito/Bedrock/tenancy), not an engine; CE is the **first engine** built on that
 shell.
 
-**Depends on (upstream — Platform shell contracts):** PLAT-IDENTITY-1 (canonical service-principal IRIs
-for the LLM authoring agent + human approvers, FR-006); PLAT-AUDIT-1 (every commit emits a typed audit
-event; CE PROV-O is the semantic mirror, FR-006); PLAT-SETTINGS-1 (tenant isolation, RBAC cascade,
-per-scope tunable thresholds via the 4-level cascade, FR-025/FR-031/NFR Isolation); PLAT-NOTIFY-1
-(SHACL-violation, self-audit-failure, version notifications, FR-026); PLAT-BILLING-1 (NL/AI authoring +
-NL-query token usage metered per-token); PLAT-CONNECTOR-1 (connector→graph ingestion writes back through
-CE-WRITE-1; CE does not own connectors).
-
-**Unblocks (downstream — this engine is the contract hub):** CE-READ-1, CE-WRITE-1, CE-DIFF-1,
-CE-VERSION-1 → Graph Explorer (#3), Build (#4), Events (#5), Platform widgets, Onboarding (#6); CE-BRAND-1
-→ Build (#4) compliant-by-construction generation (conformance bar default 90%, tunable); CE-METRICS-1 →
-Platform Generative Dashboard (CE-sourced widgets = the MVP-eligible set); CE-EVENT-1 (beta) → Events (#5)
-graph-change triggers (degrade to polling CE-READ-1 by since-version until transport lands), Platform
-live-activity widgets.
+**Depends on / Unblocks:** see [contracts](../contracts.md) §1 (Provided) and §2.3 above for the full contract list.
+CE is the contract hub — all downstream engines block on CE-READ-1/CE-WRITE-1 landing in M1. Platform
+shell contracts (PLAT-IDENTITY-1, PLAT-AUDIT-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1, PLAT-BILLING-1,
+PLAT-CONNECTOR-1) are upstream prerequisites; the consumed-contract table in §2.3 is authoritative.
 
 CE is on the **MVP thin end-to-end loop**: Platform shell + **CE (model)** + Explorer (visualise) + a
 narrow Build slice (generate ONE artefact). Work that is contract-unblocked may run in parallel. Realtime
@@ -1352,53 +1300,58 @@ deferred-conveniences work in Phase 4.
 
 ```mermaid
 gantt
-    title Constitution Engine Roadmap
-    dateFormat YYYY-MM-DD
-    section Phase 1 (MVP spine)
-        E6 SHACL mutation pipeline      :a1, 2026-07-07, 10d
-        E9 Provenance + versions        :a2, after a1, 8d
-        E10 CE-READ-1 / CE-WRITE-1      :a3, after a1, 8d
-        E1 Ontology modelling           :a4, after a2, 8d
-        E2 Instance data                :a5, after a4, 6d
-        E11 Authoring (chat + forms)    :a6, after a4, 8d
-        HITL Gate 1 (phase boundary)    :milestone, m1, after a6, 0d
-    section Phase 2 (MVP content + hub)
-        E3 Glossary (SKOS)              :b1, after m1, 6d
-        E4 Brand + voice (CE-BRAND-1)   :b2, after m1, 6d
-        E5 Governance + compliance      :b3, after b1, 6d
-        E7 SPARQL + NL + agent-grounding:b4, after b1, 8d
-        CE-BRAND/METRICS/EVENT contracts:b5, after b3, 6d
-        HITL Gate 2 (publish/generate)  :milestone, m2, after b5, 0d
-    section Phase 3 (post-MVP ingest)
-        E12 Cold-start ingest           :c1, after m2, 12d
-        HITL Gate 3 (phase boundary)    :milestone, m3, after c1, 0d
-    section Phase 4 (post-MVP reasoning)
-        E8 OWL reasoning (OQ-01)        :d1, after m3, 10d
-        Deferred should/could-haves     :d2, after m3, 8d
-        HITL Gate 4 (phase boundary)    :milestone, m4, after d2, 0d
+    title Constitution Engine Roadmap — milestone-sequenced (not calendar-dated)
+    dateFormat X
+    axisFormat %s
+    section M1 — Thin Proof (spine + NL wow)
+        E6 SHACL mutation pipeline           :a1, 0, 10d
+        E9 Provenance + versions             :a2, after a1, 8d
+        E10 CE-READ-1 / CE-WRITE-1           :a3, after a1, 8d
+        E1 Ontology modelling                :a4, after a2, 8d
+        E2 Instance data                     :a5, after a4, 6d
+        E11 Authoring surfaces (chat+forms)  :a6, after a4, 8d
+        E7-S1/S2 NL→SELECT + SPARQL editor   :a7, after a3, 6d
+        SPIKE-CE-PERF-1 (perf gate)          :crit, a8, after a3, 5d
+        HITL Gate 1 (M1 → M2)               :milestone, m1, after a6, 0d
+    section M2 — Fast-Follow (legibility + trust)
+        E3 Glossary (SKOS)                   :b1, after m1, 6d
+        E4 Brand + voice (CE-BRAND-1)        :b2, after m1, 6d
+        E5 Governance + automatable property :b3, after b1, 6d
+        E7-S4 Agent-grounding authority      :b4, after b1, 6d
+        CE-FUNCTION-1 registry (definition)  :b5, after b2, 6d
+        HITL Gate 2 (M2 → v1.0)             :milestone, m2, after b5, 0d
+    section v1.0 — Lighthouse (cold-start ingest)
+        E12 Cold-start ingest                :c1, after m2, 12d
+        CE-FUNCTION-1 full build             :c2, after m2, 8d
+        HITL Gate 3 (v1.0 → post-v1)        :milestone, m3, after c1, 0d
+    section post-v1
+        E8 OWL reasoning (OQ-01-gated)       :d1, after m3, 10d
+        Deferred should/could-haves          :d2, after m3, 8d
 ```
 
-### Phase 1: Validated-Mutation Spine · MVP
+### Phase 1 / M1: Validated-Mutation Spine + NL Wow (Thin Proof)
 
 **Goal:** Stand up the irreducible "model the business" spine — the **single validated mutation entry
-point**, provenance, the draft→published version lifecycle, and the read/write contracts — then let a
-user author the upper-ontology framework, a client domain taxonomy, and instances through **both** chat
-and guided forms, with every change SHACL-validated on a clone and PROV-O-stamped. Demonstrable outcome: a
-user builds a small taxonomy + instances with zero raw Turtle, every commit is blocked-or-validated, and a
-downstream caller can read the graph at a pinned version via CE-READ-1 and write through CE-WRITE-1.
+point**, provenance, the draft→published version lifecycle, and the read/write contracts — let a user
+author the upper-ontology framework, a client domain taxonomy, and instances through **both** chat and
+guided forms (with every change SHACL-validated on a clone and PROV-O-stamped), and deliver the **NL
+query wow**: ask a plain-English question, get a grounded graph answer. **M1 demos on Hammerbarn
+pre-seed; real-client ingest is v1.0 (E12).** The `coverage_gap(process)` SELECT (FR-036-partial) ships
+M1 as the CE-side feed for the M2 completeness-map UI — it returns explicit gap rows even on a sparse
+graph. SPIKE-CE-PERF-1 runs this phase before Build M1 grounding calls are built to rely on CE.
 
-**Epics:** EPIC-006 (SHACL Validation — single clone-then-validate mutation entry point; severity
-handling; 3 stories; Must; MVP); EPIC-009 (Provenance & Version Lifecycle — PROV-O + PLAT-AUDIT-1 emit;
-draft→published; server-side diff; 3; Must; MVP); EPIC-010 (Stable Read & Write Interfaces — CE-READ-1,
-CE-WRITE-1; 2; Must; MVP); EPIC-001 (Ontology Modelling — classes, restrictions, disjointness, import;
-*E1-S4 reasoning carried to Phase 4*; 3; Must; MVP); EPIC-002 (Instance Data Population — add/edit/delete
-partial-update, browse/search; *E2-S3 bulk-populate carried to Phase 4*; 3; Must; MVP); EPIC-011
-(Authoring Surfaces — persistent chat AND guided forms; AI-explains; *E11-S4 history carried to Phase 4*;
-3; Must; MVP).
+**Epics (M1):** EPIC-006 (SHACL Validation — single clone-then-validate mutation entry point; 3 stories;
+Must); EPIC-009 (Provenance & Version Lifecycle — PROV-O + PLAT-AUDIT-1; draft→published + diff; 3;
+Must); EPIC-010 (Stable Read & Write Interfaces — CE-READ-1, CE-WRITE-1; 2; Must); EPIC-001 (Ontology
+Modelling — classes, restrictions, disjointness, import; *E1-S4 reasoning → post-v1*; 3; Must);
+EPIC-002 (Instance Data Population — add/edit/delete partial-update, browse/search; *E2-S3
+bulk-populate → Phase 4*; 3; Must); EPIC-011 (Authoring Surfaces — persistent chat AND guided forms;
+*E11-S4 history → Phase 4*; 3; Must); **EPIC-007-S1/S2** (NL→SELECT + raw SPARQL editor + coverage_gap
+SELECT — the M1 wow; 2 Must stories + 1 Should; FR-018, FR-019, FR-036-partial).
 
-> Phase-1 covers the P0 FRs that form the spine: FR-001–FR-006, FR-008–FR-014, FR-020, FR-021,
-> FR-031–FR-034. E1-S4 (reasoning inference) and E2-S3 (bulk-populate) are explicitly carved out to Phase
-> 4; E8 (OWL reasoning, OQ-01-gated) is Phase 4 in full.
+> Phase-1 / M1 covers: FR-001–FR-006, FR-008–FR-014, FR-018 (NL→SELECT), FR-019 (SPARQL editor),
+> FR-020, FR-021, FR-031–FR-034, and FR-036-partial (coverage_gap only). E1-S4 (reasoning inference),
+> E2-S3 (bulk-populate), E11-S4 (history), and E7-S4 (full agent-grounding) carry to M2+.
 
 **Entry criteria (DoR):** PRD §1–§4 approved + Phase-1 tech spec approved (C4, OpenAPI for
 CE-READ-1/CE-WRITE-1, data model incl. punning + named-graph layout, SHACL clone-validation flow); tasks
@@ -1435,11 +1388,16 @@ Ollama/Bedrock routing per `../dev-environment.md` §5).
   edit-omitting-position test proving position survives (FR-002, FR-034, FR-001, FR-033); WHEN the AI
   provider is unavailable THE SYSTEM SHALL return 503 on NL surfaces while forms/browse stay live (FR-001,
   FR-033).
+- [ ] WHEN a user asks a plain-English question THE SYSTEM SHALL generate and execute a SPARQL SELECT,
+  show the generated query collapsed, and ask a clarifying question rather than hallucinate; the
+  `coverage_gap(process)` SELECT SHALL return explicit gap rows for uncovered process steps (never empty
+  "permitted") — verified by NL-query + coverage-gap tests (FR-018, FR-019, FR-036-partial).
 - [ ] WHEN a tenant-A JWT issues an unscoped SPARQL query THE SYSTEM SHALL return zero tenant-B triples —
   verified by the mandatory cross-tenant-read test (NFR Isolation, FR-032).
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** a published version IRI with ≥ 1 client class + ≥ 1 instance authored
-  end-to-end via forms and chat, readable through CE-READ-1 at that pin.
+  end-to-end via forms and chat, readable through CE-READ-1 at that pin; AND one plain-English question
+  answered by a generated SPARQL SELECT against the Hammerbarn pre-seed (the M1 wow).
 - [ ] **Human sign-off recorded** (always the final exit criterion).
 
 **HITL gates:** Spec-approval (**mandatory**; Product Owner + Ontology lead; blocks phase start);
@@ -1451,38 +1409,38 @@ load-bearing this phase: the single-mutation-entry-point invariant (FR-003) and 
 **Phase-gate metadata:** `phase: 1` · `gate_id: constitution-engine-gate-1` · `condition:
 all_exit_criteria_met` · `approver: eng-lead` · `blocks: phase-2`.
 
-### Phase 2: Governed Content + Query + Contract Hub · MVP
+### Phase 2 / M2: Governed Content + Full Agent-Grounding + CE-FUNCTION-1 (Fast-Follow)
 
-**Goal:** Complete the MVP within-MVP sequence — add the SKOS glossary (punned with OWL classes), governed
-brand/voice standards, tenant-scoped governance SHACL shapes, and the SPARQL + NL query surfaces — and
-finish the contract hub (CE-BRAND-1, CE-METRICS-1, and the beta CE-EVENT-1; the
-CE-READ-1/WRITE-1/DIFF-1/VERSION-1 core landed in Phase 1). Demonstrable outcome: a compliance officer
-encodes a rule as a tenant-scoped shape enforced on later edits (and proven not to leak to another
-tenant); a business user answers a plain-English question without SPARQL; Build can read brand tokens via
-CE-BRAND-1. By the end of this phase all seven `CE-*` contracts are exposed — the narrow Build slice and
-Explorer consume them.
+**Goal (M2 — Fast-Follow):** Add the SKOS glossary, governed brand/voice standards, tenant-scoped
+governance SHACL shapes, and complete the CE contract hub (CE-BRAND-1, CE-METRICS-1, beta CE-EVENT-1).
+**M2 also owns:** (a) the full agent-grounding authority contract — `authority(actor, action, target)` and
+`escalation(process)` executable patterns (E7-S4), ported from obpm `mi-agent-model.ttl`, requiring a
+populated graph; and (b) **CE-FUNCTION-1 BUILD** — the ontology-bound function registry (definition +
+versioning layer; Build generates typed SDK bindings; Events references by `fn_iri`; resolves
+Build-OQ-12 / EA-OQ-13). Demonstrable outcome: compliance officer encodes a tenant-scoped shape; brand
+tokens flow via CE-BRAND-1 at ≥ 0.90 conformance score; agents can call authority/escalation patterns on
+a real graph.
 
-**Epics:** EPIC-003 (SKOS Glossary — punned class+concept B1, search/browse; 3; Must; MVP); EPIC-004
-(Brand & Voice Standards — governed individuals + VoiceRules; CE-BRAND-1 projection; 2; Must/Should; MVP);
-EPIC-005 (Governance & Compliance Rules — tenant-scoped SHACL shapes + browse; *E5-S2 self-audit
-scheduling carried to Phase 4*; 2; Must; MVP); EPIC-007 (SPARQL Query & NL Query — SELECT-only editor B3 +
-NL→SELECT + **agent-grounding SELECTs E7-S4**; *E7-S3 saved queries carried to Phase 4*; 3; Must/Should;
-MVP).
+**Epics (M2):** EPIC-003 (SKOS Glossary — punned class+concept B1, search/browse; 3; Must);
+EPIC-004 (Brand & Voice Standards — governed individuals + VoiceRules; CE-BRAND-1 + conformance formula;
+2; Must/Should); EPIC-005 (Governance & Compliance Rules — tenant-scoped SHACL shapes + automatable
+property; *E5-S2 self-audit → Phase 4*; 2; Must); **EPIC-007-S4** (Full agent-grounding authority
+contract — `authority`/`escalation` SELECTs; M2; Should); **CE-FUNCTION-1 BUILD** (registry definition
+layer; function versioning; Build SDK binding generation start; builds across M2/v1.0).
 
-> Phase-2 covers the remaining content/query/hub FRs: FR-016 (CE-BRAND-1), FR-017 (CE-METRICS-1), FR-018,
-> FR-019, FR-022, FR-023, FR-024, FR-025, FR-027, **FR-036 (agent-grounding, read-side over CE-READ-1 — no
-> new contract), FR-037 (framework + client competency-question set)**, and FR-015 (CE-EVENT-1, **beta** —
-> Should-Have for Events). **CE-DIFF-1 (FR-013) and CE-VERSION-1 (FR-014) land in Phase 1 with EPIC-009**
-> (E9-S2/E9-S3) — they are not re-claimed here. The Should-Have stories E2-S3 (bulk-populate, FR-030),
-> E5-S2 self-audit *scheduling* (FR-026), E4-S2 VoiceRule *extraction*, and E7-S3 saved queries (FR-035)
-> sequence to Phase 4 unless pulled forward by capacity; cold-start ingest (FR-038–FR-042) is Phase 3.
+> M2 FR coverage: FR-016 (CE-BRAND-1 + conformance formula), FR-017 (CE-METRICS-1), FR-022–FR-025,
+> FR-027, **FR-036-full** (authority/escalation patterns, read-side CE-READ-1 — no new contract),
+> FR-037, FR-015 (CE-EVENT-1 beta, Should-Have). FR-018/FR-019/FR-036-partial landed in M1. CE-DIFF-1
+> (FR-013) and CE-VERSION-1 (FR-014) landed in M1 (EPIC-009). Should-Have deferred: E2-S3 (FR-030),
+> E5-S2 scheduling (FR-026), E4-S2 VoiceRule extraction, E7-S3 saved queries (FR-035).
 
-**Entry criteria (DoR):** Phase 1 gate passed (spine green, human sign-off recorded); PRD §5
-(Inter-engine Interfaces) approved + Phase-2 tech spec approved (CE-BRAND-1 token projection, SHACL
-shapes-graph layout, NL→SPARQL prompt/guardrails, CE-EVENT-1 transport decision OQ-12); tasks decomposed
-from EPIC-003/004/005/007 + contract-finalisation tasks, each passes DoR; PLAT-NOTIFY-1 available
-(self-audit-failure + version notifications, FR-026); PLAT-SETTINGS-1 cascade confirmed for tenant-scoped
-shapes (FR-025).
+**Entry criteria (DoR):** Phase 1 / M1 gate passed (spine + NL wow green, SPIKE-CE-PERF-1 complete,
+human sign-off recorded); PRD §5 (Inter-engine Interfaces) approved + Phase-2 tech spec approved
+(CE-BRAND-1 token projection, SHACL shapes-graph layout, agent-grounding authority patterns,
+CE-EVENT-1 transport decision OQ-12, CE-FUNCTION-1 registry schema); tasks decomposed from
+EPIC-003/004/005/007-S4 + CE-FUNCTION-1-build + contract-finalisation tasks, each passes DoR;
+PLAT-NOTIFY-1 available (self-audit-failure + version notifications, FR-026); PLAT-SETTINGS-1 cascade
+confirmed for tenant-scoped shapes (FR-025).
 
 **Exit criteria (EARS, measurable, human-signed):**
 
@@ -1494,10 +1452,6 @@ shapes (FR-025).
   **this tenant's** shapes graph (never global) with its own PROV-O, enforce it on later edits, and
   invalidate validation caches across all workers — verified by the **cross-tenant shape-leak test**
   (tenant-A shape, tenant-B commit unaffected) (FR-025).
-- [ ] WHEN a user asks a plain-English question THE SYSTEM SHALL generate and execute a SPARQL SELECT,
-  show the generated query, and ask a clarifying question rather than hallucinate; WHEN the AI is
-  unavailable THE SYSTEM SHALL return 503 while the raw SELECT-only editor stays live — verified by
-  NL-query + 503-fallback tests (FR-018, FR-019).
 - [ ] WHEN Build reads `GET /api/brand/tokens` and `GET /api/brand/voice-rules` THE SYSTEM SHALL return
   flattened design-token JSON + machine-evaluable VoiceRules, excluding any brand individual that fails its
   SHACL shape — verified by a CE-BRAND-1 contract test (FR-016, FR-024).
@@ -1531,7 +1485,7 @@ security-review sub-gate.
 **Phase-gate metadata:** `phase: 2` · `gate_id: constitution-engine-gate-2` · `condition:
 all_exit_criteria_met` · `approver: eng-lead` · `blocks: phase-3`.
 
-### Phase 3: Cold-Start Ingest · Post-MVP (prioritized)
+### Phase 3 / v1.0: Cold-Start Ingest (Lighthouse)
 
 **Goal:** Solve the blank-page cold-start problem — let a client absorb the model they already hold in
 documents, EA/BPMN tool exports, diagrams, and structured data (the adoption lever for clients leaving
@@ -1606,7 +1560,7 @@ CE-WRITE-1's prospective SHACL validation** (PRD §10 risk).
 **Phase-gate metadata:** `phase: 3` · `gate_id: constitution-engine-gate-3` · `condition:
 all_exit_criteria_met` · `approver: eng-lead` · `blocks: phase-4`.
 
-### Phase 4: Publish-Time Reasoning + Deferred Should-Haves · Post-MVP
+### Phase 4 / post-v1: Publish-Time Reasoning + Deferred Should-Haves
 
 **Goal:** Add publish-time OWL reasoning (the OQ-01-gated capability) — per-version inferred named graphs
 and a pre-publish consistency check — and land the deferred Should/Could-Have authoring conveniences

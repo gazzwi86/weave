@@ -234,7 +234,7 @@ For the platform-wide master list see `CLAUDE.md § Architecture decisions (conf
 | Activation/time-to-outcome targets are measure-and-report baselines, not GA gates | 60%/30-min are provisional; the gate threshold is set after the cohort-1 baseline | 2026-06-30 |
 | Training videos are placeholders in v1 | Ship the framework and host real video content later as a separate production effort | 2026-06-26 |
 | Onboarding effectiveness is measured (activation and completion by role) | Onboarding must be improvable, not assumed effective | 2026-06-26 |
-| Sequencing: basic onboarding with the MVP, full demo after Build | The full demo needs a generated artefact; a basic tour of Constitution and Explorer can ship earlier | 2026-06-26 |
+| Sequencing: CE+Explorer onboarding in M1 window (parallel, not M1 exit gate); legibility/trust onboarding = M2; full Hammerbarn demo (Build+Events) = post-v1 | The full demo needs a generated artefact + live automations (post-v1); CE+Explorer onboarding ships in parallel in the M1 window; legibility/trust features (model-completeness, role-home) follow in M2 | 2026-06-30 |
 
 ### Navigation (brief)
 
@@ -251,9 +251,9 @@ It surfaces across the app's information architecture (see the `weave-platform` 
 
 ## 2. Product Requirements (PRD)
 
-**Brief:** [§1 Brief](#1-brief) · **Status:** Draft · **Phase:** MVP (Constitution +
-Explorer portion) · full demo Phase 2 (Build + Events GA) · **Owner:** gazzwi86 · **Last Updated:**
-2026-06-30
+**Brief:** [§1 Brief](#1-brief) · **Status:** Draft · **Phase:** M1 window (CE+Explorer, parallel,
+not M1 exit gate) · M2 (legibility/trust onboarding) · post-v1 (full Hammerbarn demo, Build+Events GA)
+· **Owner:** gazzwi86 · **Last Updated:** 2026-06-30
 
 ### 2.0 Product context
 
@@ -351,36 +351,17 @@ for FR-013/FR-014.
 
 ### 2.2 User stories (full ACs)
 
-**Hammerbarn → BPMO-kind mapping.** The Hammerbarn seed is authored content, not a build-time
-constant. Every Hammerbarn entity class maps onto the process-centric **BPMO framework** kinds and
-relationships (CE-READ-1). **Process is the spine**: Hammerbarn's named business processes anchor
-the graph, edging out to the actors, systems, services, data, capabilities, goals, and policies that
-surround them — making the demo a worked "business brain" agents can reason inside. Instance
-categories like "Product" or "Store" are **Class** definitions (the company's own vocabulary) with
-**instances** as Concepts/DataAssets — not new kinds (decision B1).
-
-| Hammerbarn entity class | BPMO kind | Linking relationship(s) | Notes |
-|---|---|---|---|
-| Goods inward, Stock mgmt, Customer order, Staff onboarding, Supplier mgmt, Store ops | **Process** | spine — see edges below | the named business processes (count = seed content, not a fixed promise) |
-| Steps within each process (e.g. Receive delivery, Scan SKU, Put away) | **Activity** | `hasStep` (Process→Activity) | the ordered tasks that make up a process |
-| Process triggers (e.g. Delivery arrived, Order placed, New hire approved) | **Event** | `triggeredBy` (Process←Event) | trigger / boundary events that start a process |
-| Roles & people (Receiver, Store manager, Buyer, HR, Customer) | **Actor** | `performedBy` (Process/Activity→Actor) | who performs the process/activity |
-| POS, WMS, ERP, CRM | **System** | `runsOn` (Service→System) | the 4 named systems |
-| Kitchen Designer app, ordering service, reorder service | **Service** | `runsOn` (→System), `accesses` (→DataAsset) | generated/integrated services |
-| Product catalogue, store register, customer records | **DataAsset** | `consumes`/`produces` (Process/Activity↔DataAsset) | data the processes touch |
-| SKU, price, on-hand-qty, store-region | **Field** | (attribute of a DataAsset) | columns/attributes of DataAssets |
-| Retail Operations, Supply Chain, Merchandising (coarser than a single process) | **BusinessCapability** | `realizes` (Process→BusinessCapability), `servesGoal` (→Goal), `hasCapability` | abilities the processes realise; several processes can realise one capability |
-| Retail / Supply-chain domains | **BusinessDomain** | `inDomain` | top-level grouping |
-| Outcomes/drivers (e.g. on-shelf availability, fast fulfilment) | **Goal** | `servesGoal` (BusinessCapability→Goal) | motivation a capability serves |
-| Governance rules (returns policy, stock-count SOP, data-retention rule) | **Policy** | `governedBy` (Process/DataAsset→Policy) | constraints/rules/regulatory requirements |
-| Glossary terms (home-improvement domain) | **Concept** (skos:Concept) | `broader`/`narrower`/`related`, `describes` | punned with Class where they are also types (decision B1) |
-| Product, Store, Supplier, Customer, Employee (type defs) | **Class** (owl:Class) | (OWL type; punned with Concept) | the company's domain vocabulary, punned with Concept |
-
-> Counts ("8 product types", "40+ glossary terms", "3 automations") are **content targets owned by
-> the content admin**, not contractual constants. The seed is produced as a **live pipeline**
-> (decision E2): CE produces ontology/glossary/brand/governance via CE-WRITE-1, Build produces the
-> Kitchen Designer project + app (BE-ARTEFACT-1), Events produces the example automations
-> (EA-AUTOMATION-1).
+**Hammerbarn → BPMO-kind mapping (contractual shape only).** The seed is authored content, not
+spec. Contractual shape: every Hammerbarn entity class maps to exactly one BPMO kind from the
+process-centric **BPMO framework** (CE-READ-1 — see [../contracts.md](../contracts.md)). **Process
+is the spine**, edging out to Activity, Event, Actor, System, Service, DataAsset,
+BusinessCapability, BusinessDomain, Goal, and Policy. Instance categories like "Product" or "Store"
+are **Class** definitions punned with Concept (decision B1) — not new kinds. Counts are content
+targets owned by the content admin, not contractual constants. The full entity-class→BPMO-kind
+mapping table is content, not PRD — it lives in the **Hammerbarn Content Brief**
+(`docs/specs/weave/onboarding-content-brief.md`, to be created). The seed is produced as a **live
+pipeline**: CE via CE-WRITE-1 (ontology/glossary/brand/governance); Build via BE-ARTEFACT-1
+(post-v1); Events via EA-AUTOMATION-1 (post-v1).
 
 #### Epic 1: Hammerbarn Demo Workspace
 
@@ -437,16 +418,16 @@ without affecting anyone else.
 
 #### Epic 2: Guided Tours & Contextual Overlays
 
-> **Phasing:** Constitution and Explorer tours/exercises are **MVP-P0**. Build, Events (Automate),
-> and Platform-Dashboard tours that target screens owned by not-yet-GA engines are **Phase 2
-> (Build/Events GA)** and feature-flagged off until their target engine ships.
+> **Phasing:** Constitution and Explorer tours/exercises are **M1 window P0**. Build, Events
+> (Automate), and Platform-Dashboard tours that target screens owned by not-yet-GA engines are
+> **post-v1 (Build/Events GA)** and feature-flagged off until their target engine ships.
 
 **E2-S1: Linear guided tour for each shipped engine area.** As a **new user**, I want a step-by-step
 guided tour for each shipped engine area so that I am walked through the navigation, screens, and key
 features in context.
 
-- **AC:** Given a shipped area (MVP: Constitution, Explorer; Phase 2: Platform Dashboard, Build,
-  Events), when the user starts its tour, then each step highlights the target element (dimmed
+- **AC:** Given a shipped area (M1 window: Constitution, Explorer; post-v1: Platform Dashboard,
+  Build, Events), when the user starts its tour, then each step highlights the target element (dimmed
   overlay + spotlight), shows a tooltip (**default ≤ 40 words, tunable** — see NFR copy-budget note),
   and shows Back/Next + a step indicator (e.g. "3 of 9"). Step count is a **default 5–12, tunable**
   authoring guideline.
@@ -460,7 +441,7 @@ features in context.
   engine has not shipped), when the step would render, then the step is **skipped with a logged
   warning** and never blocks the tour; a tour for a not-yet-shipped engine is feature-flagged off,
   not broken.
-- **Priority:** Must Have (Constitution, Explorer) · Phase 2 (Build, Events, Dashboard) ·
+- **Priority:** Must Have (Constitution, Explorer) · post-v1 (Build, Events, Dashboard) ·
   **depends-on:** the target engine's UI shipping
 
 **E2-S2: Contextual tooltips and beacons on complex UI areas.** As a **new user**, I want persistent
@@ -478,7 +459,7 @@ tour.
 - **AC (failure mode):** Given a beacon whose target element is absent or unmounts while its tooltip
   is open, when the screen renders or the unmount occurs, then the beacon/tooltip is hidden and a
   warning logged — no orphaned tooltip.
-- **Priority:** Must Have (elements on shipped screens) · Phase 2 (elements on Phase-2 screens)
+- **Priority:** Must Have (elements on shipped screens) · post-v1 (elements on post-v1 screens)
 
 **E2-S3: Welcome modals for first visit to each shipped area.** As a **new user**, I want a welcome
 modal on my first visit to each shipped area so that I get a 2–3 sentence orientation before
@@ -495,8 +476,8 @@ exploring.
 - **Priority:** Must Have (shipped areas)
 
 > Area list reconciliation: welcome modals fire for the areas that have shipped and appear in
-> platform navigation. Tours exist for Constitution, Explorer (MVP) and Build, Events, Dashboard
-> (Phase 2). Compliance and Settings get welcome modals with the no-tour CTA set. Compliance is the
+> platform navigation. Tours exist for Constitution, Explorer (M1 window) and Build, Events, Dashboard
+> (post-v1). Compliance and Settings get welcome modals with the no-tour CTA set. Compliance is the
 > contested 7th nav item (platform brief) — if platform drops it, onboarding drops its modal with it.
 
 #### Epic 3: Role-Tailored Onboarding Paths
@@ -558,8 +539,8 @@ doing.
   | CE-03b | NL-query equivalent: ask the chat panel for processes with no assigned owner (no `performedBy` Actor) | **Business** | NL query resolves and renders results (Query NL mode) | MVP |
   | GE-01 | Spotlight the "Goods Inward" process neighbourhood in Explorer | all | spotlight activated on target node (GE-CANVAS-1 state) | MVP |
   | GE-02 | Apply the maturity-score heatmap overlay | all | overlay activated (Explorer overlay state) | MVP |
-  | BE-01 | Open the Kitchen Designer project; find the tech spec + ADRs | Technical, Admin | Decisions tab opened (analytics event) | **Phase 2 (Build GA)** |
-  | AE-01 | Draft an automation: new Delivery → notify #goods-inward Slack channel | Technical | automation saved as Draft, grounded in the Goods Inward **process** (triggered by a Delivery **Event**; EA-AUTOMATION-1; Slack via PLAT-CONNECTOR-1) | **Phase 2 (Events GA)** |
+  | BE-01 | Open the Kitchen Designer project; find the tech spec + ADRs | Technical, Admin | Decisions tab opened (analytics event) | **post-v1 (Build GA)** |
+  | AE-01 | Draft an automation: new Delivery → notify #goods-inward Slack channel | Technical | automation saved as Draft, grounded in the Goods Inward **process** (triggered by a Delivery **Event**; EA-AUTOMATION-1; Slack via PLAT-CONNECTOR-1) | **post-v1 (Events GA)** |
 
   (Resolves: CE-03 raw SPARQL gated to Technical; CE-03b NL path for Business; completion checks
   name a concrete CE-READ-1/CE-WRITE-1/GE-CANVAS-1 signal.)
@@ -568,7 +549,7 @@ doing.
 - **AC (failure mode):** Given an exercise gated behind a feature the user's role cannot access or an
   engine that has not shipped, when the exercise list renders, then that exercise is hidden or shown
   disabled with an explanation — never a broken step.
-- **Priority:** Must Have (CE/GE exercises) · Phase 2 (BE-01, AE-01) · **depends-on:** CE-READ-1,
+- **Priority:** Must Have (CE/GE exercises) · post-v1 (BE-01, AE-01) · **depends-on:** CE-READ-1,
   CE-WRITE-1, GE-CANVAS-1; BE-ARTEFACT-1 (BE-01); EA-AUTOMATION-1 (AE-01)
 
 **E4-S2: Exercise progress visible in the onboarding checklist.** As a **new user**, I want my
@@ -609,12 +590,14 @@ without manual marking.
   own workspace**, then it is detected from a concrete signal: Business/Technical → CE-EVENT-1 change
   event `{change_type:"added", actor:<user principal>}` for the first committed entity (or SPARQL run
   via CE-READ-1 for Technical); Compliance → first governance/compliance entity or SHACL validation
-  result viewed via **CE-READ-1** (a CE-grounded, contracted signal — replaces the earlier
-  uncontracted "compliance widget pinned / Dashboard state" read); Admin → first team-member invite,
-  detected via a **platform member-management capability not yet published as a contract** (see OQ-08
-  — onboarding does not over-claim PLAT-IDENTITY-1, the agent service-principal registry, for
-  human-invite detection). If CE-EVENT-1 transport is not ready, degrade to polling CE-READ-1 with a
-  since-version (CE-EVENT-1 note; resolve-by-default #4).
+  result viewed via **CE-READ-1** (a CE-grounded, contracted signal). If CE-EVENT-1 transport is not
+  ready, degrade to polling CE-READ-1 with a since-version (CE-EVENT-1 note; resolve-by-default #4).
+- **AC (Admin — Should Have):** Admin activation requires a contracted platform member-management
+  signal (OQ-08, not yet contracted). Until Platform commits to that contract: the Admin checklist
+  item "Invite first team member" is shown with a "pending platform signal" badge and requires
+  **manual self-mark** (the admin ticks the checklist item). Do not over-claim PLAT-IDENTITY-1 (the
+  agent-principal registry — not human-invite detection). Re-promote Admin activation to Must Have
+  when Platform contracts the signal.
 - **AC:** Given milestone detection, when it fires, then the checklist item auto-completes, an
   `onboarding-activation` event is published to PLAT-NOTIFY-1, an analytics event is recorded (see E8
   schema), and a celebratory toast fires.
@@ -622,8 +605,9 @@ without manual marking.
   then the toast and analytics event fire **exactly once per `(tenant, user, milestone)`** using a
   persisted `activated` flag — no double-fire. If the activation engine is unavailable, the milestone
   stays locked rather than mis-firing.
-- **Priority:** Must Have · **depends-on:** CE-EVENT-1 (Should Have; degrade to CE-READ-1 poll),
-  PLAT-NOTIFY-1, PLAT-IDENTITY-1
+- **Priority:** Must Have (Business/Technical/Compliance) · **Should Have** (Admin — OQ-08
+  uncontracted; manual self-mark fallback) · **depends-on:** CE-EVENT-1 (Should Have; degrade to
+  CE-READ-1 poll), PLAT-NOTIFY-1, PLAT-IDENTITY-1
 
 #### Epic 6: Training Library
 
@@ -634,8 +618,8 @@ library so that I can learn at my own pace beyond tours.
   (thumbnail placeholder labelled "Video — coming soon", title, duration, description — real video
   streams from S3/CloudFront when produced) and written walkthroughs (Markdown + screenshots).
 - **AC:** Given the library, when rendered, then content categories cover Introduction, Ontologies,
-  Graph Explorer, Build (Phase 2), Automation (Phase 2), Compliance & Governance, Administration.
-  Phase-2 categories are shown but flagged "available when the engine ships".
+  Graph Explorer, Build (post-v1), Automation (post-v1), Compliance & Governance, Administration.
+  post-v1 categories are shown but flagged "available when the engine ships".
 - **AC:** Given a search field, when a keyword is entered, then content is filtered; results return
   within a **default ≤ 300 ms, tunable** target.
 - **AC (failure mode):** Given a video asset that fails to load, when playback is attempted, then the
@@ -713,28 +697,28 @@ cross-workspace cohort data so that we can improve onboarding globally.
 |---|---|---|---|---|
 | FR-001 | Hammerbarn demo workspace present in switcher for every new user, no setup; labelled "Demo — fictional data". Failure: not-shipped areas feature-flagged off | E1-S1 | P0 | MVP · PLAT-SETTINGS-1 |
 | FR-002 | Hammerbarn ontology/glossary/brand/governance seed mapped onto the process-centric **BPMO framework** kinds/relationships (CE-READ-1; Process spine + Activity/Event/Actor/System/Service/DataAsset/Capability/Domain/Goal/Policy); produced as a live pipeline via CE-WRITE-1. Failure: missing seed area → "coming soon" | E1-S1 | P0 | MVP · CE-WRITE-1, CE-READ-1 |
-| FR-003 | Hammerbarn Build project + Kitchen Designer app (BE-ARTEFACT-1) and example automations (EA-AUTOMATION-1). Failure: area off until engine GA | E1-S1 | P0→ | Phase 2 (Build/Events GA) · BE-ARTEFACT-1, EA-AUTOMATION-1 |
+| FR-003 | Hammerbarn Build project + Kitchen Designer app (BE-ARTEFACT-1) and example automations (EA-AUTOMATION-1). Failure: area off until engine GA | E1-S1 | P0→ | post-v1 (Build/Events GA) · BE-ARTEFACT-1, EA-AUTOMATION-1 |
 | FR-004 | "Demo — fictional data" label throughout Hammerbarn | E1-S1 | P0 | MVP |
 | FR-005 | Per-user WRITABLE copy keyed `(tenant_id,user_id)`, server-side persistent; "Reset demo" manual button restores canonical within default 30 s tunable; reset never auto-fires. Failure: mid-exercise reset clears flags; reset failure → retry, known state | E1-S2 | P0 | MVP · PLAT-SETTINGS-1, CE-WRITE-1 |
 | FR-006 | "Practice mode" banner visible whenever in sandbox copy | E1-S3 | P0 | MVP |
 | FR-007 | Writes go to sandbox only via CE-WRITE-1 `target=draft`; canonical-graph writes by non-content-admin → 403 + PLAT-AUDIT-1 entry | E1-S3 | P0 | MVP · CE-WRITE-1, PLAT-AUDIT-1 |
-| FR-008 | Guided tours for shipped areas; default 5–12 steps tunable; spotlight + ≤40-word tooltip + Back/Next + indicator + Skip. Failure: absent anchor → skip step + log; not-shipped engine → flagged off | E2-S1 | P0 (CE,GE) / P2 (Build,Events,Dashboard) | MVP / Phase 2 · target engine UI |
+| FR-008 | Guided tours for shipped areas; default 5–12 steps tunable; spotlight + ≤40-word tooltip + Back/Next + indicator + Skip. Failure: absent anchor → skip step + log; not-shipped engine → flagged off | E2-S1 | P0 (CE,GE) / P2 (Build,Events,Dashboard) | M1 window / post-v1 · target engine UI |
 | FR-009 | Tours keyboard-navigable; skippable; resumable from last step (resume point server-side per (tenant,user)) | E2-S1 | P0 | MVP |
-| FR-010 | Beacons on complex elements when present in the build; per-element server-side dismissal; "Show all hints" restores. Failure: target unmounts → hide beacon/tooltip + log | E2-S2 | P0 (shipped) / P2 | MVP / Phase 2 |
+| FR-010 | Beacons on complex elements when present in the build; per-element server-side dismissal; "Show all hints" restores. Failure: target unmounts → hide beacon/tooltip + log | E2-S2 | P0 (shipped) / P2 | M1 window / post-v1 |
 | FR-011 | Beacon tooltip default ≤60 words tunable + "Learn more" link | E2-S2 | P0 | MVP |
 | FR-012 | Welcome modal on first visit to each shipped area; CTAs adapt: tour areas → "Take a tour"+"Explore freely"; no-tour areas (Compliance, Settings) → "Explore freely"/"Read the guide" only (no dead CTA). Dismissal persisted server-side | E2-S3 | P0 | MVP (shipped areas) |
 | FR-013 | 4 primary role paths (Business/Technical/Compliance/Admin) with explicit 9→4 mapping; resolved from canonical RBAC role(s) via PLAT-IDENTITY-1, IdP-agnostic; per-path first milestone. Failure: not-GA milestone screen → locked | E3-S1 | P0 | MVP · PLAT-IDENTITY-1, PLAT-SETTINGS-1 |
 | FR-014 | Multi-role → choose-path modal; zero-role → Business read-only default; Viewer → Business read-only; "Change path" in Help launcher | E3-S1 | P0 | MVP · PLAT-IDENTITY-1 |
 | FR-015 | Onboarding supplies role→starter-widget-set mapping (engine-availability tagged); rendering/removability owned by Platform E1-S6. No widget rendering in onboarding | E3-S2 | P1 | MVP · Platform E1-S6/FR-012, CE-METRICS-1 |
-| FR-016 | Role-gated, phase-tagged exercise set (CE-01/02/03, CE-03b NL, GE-01/02 MVP; BE-01, AE-01 Phase 2); each: goal, 3–5 steps, completion check, indicator. CE-03 raw SPARQL = Technical only; CE-03b NL = Business | E4-S1 | P0 (CE,GE) / P2 (BE,AE) | MVP / Phase 2 · CE-READ-1, CE-WRITE-1, GE-CANVAS-1 |
+| FR-016 | Role-gated, phase-tagged exercise set (CE-01/02/03, CE-03b NL, GE-01/02 M1 window; BE-01, AE-01 post-v1); each: goal, 3–5 steps, completion check, indicator. CE-03 raw SPARQL = Technical only; CE-03b NL = Business | E4-S1 | P0 (CE,GE) / P2 (BE,AE) | M1 window / post-v1 · CE-READ-1, CE-WRITE-1, GE-CANVAS-1 |
 | FR-017 | Exercise completion checked against a named signal (SPARQL ASK over sandbox graph via CE-READ-1, CE-WRITE-1 commit, GE-CANVAS-1 state, or analytics nav event). Failure: gated/unavailable exercise hidden/disabled + explanation | E4-S1 | P0 | MVP · CE-READ-1, CE-WRITE-1, GE-CANVAS-1 |
 | FR-018 | Exercise progress reflected in checklist with timestamp; write failure → retry, last-persisted state | E4-S2 | P1 | MVP |
 | FR-019 | Onboarding checklist widget on Dashboard: role-configurable items, progress bar, "Do it now" deep-links. Failure: not-GA item → locked + prereq note | E5-S1 | P0 | MVP · Platform Dashboard, PLAT-SETTINGS-1 |
 | FR-020 | Checklist 100% → celebration + relabel; auto-dismiss after default 7 days tunable per workspace (config-driven) | E5-S1 | P0 | MVP |
 | FR-021 | Checklist dismissible; restorable from Help launcher | E5-S1 | P0 | MVP |
-| FR-022 | Activation auto-detected per path from CE-EVENT-1 (degrade to CE-READ-1 poll); Compliance via CE-READ-1 (governance/SHACL view); Admin via the platform member-management capability (not-yet-contracted, OQ-08); idempotent exactly-once per (tenant,user,milestone); publishes onboarding-activation to PLAT-NOTIFY-1. Failure: engine unavailable → milestone locked, no mis-fire | E5-S2 | P0 | MVP (Business/Tech/Compliance via CE) · CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1 |
+| FR-022 | Activation auto-detected: Business/Technical via CE-EVENT-1 (degrade to CE-READ-1 poll, Must Have); Compliance via CE-READ-1 governance/SHACL view (Must Have); Admin **Should Have** — manual self-mark ("pending platform signal" badge) until Platform contracts a member-management signal (OQ-08 uncontracted); do not over-claim PLAT-IDENTITY-1. Idempotent exactly-once per (tenant,user,milestone); publishes onboarding-activation to PLAT-NOTIFY-1. Failure: engine unavailable → milestone locked, no mis-fire | E5-S2 | P0 (Business/Tech/Compliance) · P1 (Admin, OQ-08) | M1 window (Business/Tech/Compliance via CE); Admin when OQ-08 contracted · CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1 |
 | FR-023 | Training library: placeholder video cards + written walkthroughs; searchable (default ≤300 ms tunable). Failure: video load fail → placeholder/error state | E6-S1 | P0 | MVP · S3/CloudFront (OQ-04) |
-| FR-024 | Training categories incl. Phase-2 categories flagged "available when engine ships" | E6-S1 | P0 | MVP |
+| FR-024 | Training categories incl. post-v1 categories flagged "available when engine ships" | E6-S1 | P0 | M1 window |
 | FR-025 | "What's new": last N release items (default 5 tunable); unread blue dot. Failure: feed unavailable → empty state | E6-S2 | P1 | MVP |
 | FR-026 | Help launcher: search, tour launch (list if none), show hints, training, keyboard shortcuts, What's new, contact support | E7-S1 | P0 | MVP |
 | FR-027 | Help launcher keyboard shortcut (Shift+?); Escape closes | E7-S1 | P0 | MVP |
@@ -742,8 +726,8 @@ cross-workspace cohort data so that we can improve onboarding globally.
 | FR-029 | Onboarding analytics by role; defined event schema with per-tenant raw user IRI + non-reversible cohort key; default 7-day window + 5-min freshness tunable; delivery failure → durable retry | E8-S1 | P1 | MVP · PLAT-IDENTITY-1, PLAT-AUDIT-1 |
 | FR-030 | Analytics restricted to workspace admins (PLAT-SETTINGS-1 RBAC); access audited via PLAT-AUDIT-1; cohort aggregation no-PII with k-anonymity (default k=20 tunable) | E8-S1/E8-S2 | P1 | MVP · PLAT-SETTINGS-1, PLAT-AUDIT-1 |
 
-> Every FR is phased and tagged with the engine(s) it cannot ship before. "P0→" / "P2" mark Phase-2
-> (Build/Events GA) items. Activation targets are measure-and-report baselines, not GA gates
+> Every FR is phased and tagged with the engine(s) it cannot ship before. "P0→" / "P2" mark
+> post-v1 (Build/Events GA) items. Activation targets are measure-and-report baselines, not GA gates
 > (decision E4).
 
 ### 2.4 Non-functional requirements
@@ -835,13 +819,13 @@ cross-workspace cohort data so that we can improve onboarding globally.
 | Constitution Engine | CE-VERSION-1 | latest | Resolve the published seed version; poll-fallback since-version for activation |
 | Constitution Engine | CE-METRICS-1 | latest | Business-path starter widgets (ontology health / completeness) |
 | Graph Explorer | GE-CANVAS-1 | latest | Render Hammerbarn graph (`mode:"force"\|"c4"`); GE-01/GE-02 spotlight + overlay exercise checks |
-| Build Engine | BE-ARTEFACT-1 | latest | Kitchen Designer project/app seed + BE-01 exercise (Phase 2, Build GA) |
-| Events & Actions | EA-AUTOMATION-1 | latest | Example automations seed + AE-01 draft-automation exercise (Phase 2, Events GA) |
+| Build Engine | BE-ARTEFACT-1 | latest | Kitchen Designer project/app seed + BE-01 exercise (post-v1, Build GA) |
+| Events & Actions | EA-AUTOMATION-1 | latest | Example automations seed + AE-01 draft-automation exercise (post-v1, Events GA) |
 | Platform | PLAT-SETTINGS-1 | latest | Per-user sandbox copy/isolation; RBAC for analytics; tunable thresholds resolve through the cascade |
 | Platform | PLAT-IDENTITY-1 | latest | Resolve canonical role(s) → path (IdP-agnostic); user principal IRI for analytics; invite milestone |
 | Platform | PLAT-NOTIFY-1 | latest | Publish `onboarding-activation` notification events (open type taxonomy) |
 | Platform | PLAT-AUDIT-1 | latest | Audit canonical-write rejections and analytics-view access |
-| Platform | PLAT-CONNECTOR-1 | latest | AE-01 Slack channel target; Admin connector-config milestone (Phase 2) |
+| Platform | PLAT-CONNECTOR-1 | latest | AE-01 Slack channel target; Admin connector-config milestone (post-v1) |
 
 <!-- SHARED-HOISTED: full 7-connector list not restated; PLAT-CONNECTOR-1 cited. See
 ../contracts.md PLAT-CONNECTOR-1. The 4-level tenancy/settings cascade is cited via PLAT-SETTINGS-1,
@@ -864,7 +848,7 @@ not restated — see ../contracts.md PLAT-SETTINGS-1. -->
 | OQ-05 | Analytics instrumentation: OTel + CloudWatch vs product-analytics tool (PostHog self-hosted). Event schema + cohort-key hashing pinned in E8; tool choice deferred | Architect |
 | OQ-06 | Tour anchor strategy: CSS selectors vs first-class `data-tour-id` attributes across the SPA (needs coordination with each feature team) | Architect |
 | OQ-07 | ODRL policy enforcement is **not** in the v1 stack; PII/sensitive handling in the demo uses SHACL + data-classification properties. Confirm whether any demo content needs policy enforcement | Architect |
-| OQ-08 | Human team-member-invite detection (Admin activation milestone) needs a platform member-management capability that is **not yet published as an inter-engine contract**. Confirm the signal/contract for invite detection rather than over-claiming PLAT-IDENTITY-1 | Architect / Platform |
+| OQ-08 | Admin activation (first team-member invite): requires a Platform member-management signal not yet contracted. **Current disposition: demoted to Should Have + manual-self-mark fallback** (admin ticks the checklist item; shown with "pending platform signal" badge). Re-promote to Must Have only when Platform contracts the signal. Do not over-claim PLAT-IDENTITY-1 (agent-principal registry, not human-invite detection). | Architect / Platform |
 
 ### 2.7 Key design decisions captured
 
@@ -878,7 +862,7 @@ not restated — see ../contracts.md PLAT-SETTINGS-1. -->
 | Every threshold = **"default X, tunable"** or cited | Decision E4. No bare confabulated numbers |
 | Onboarding owns **no inter-engine contract**; role→widget mapping is config consumed by Platform | Single source of truth for widget rendering = Platform E1-S6 |
 | Onboarding state is **server-side per (tenant,user)** | localStorage cannot satisfy cross-device/resumable state |
-| Phase-gate all demo content + tours by engine availability; MVP = CE-sourced only | Resolve-by-default #5 |
+| Phase-gate all demo content + tours by engine availability; M1 window = CE-sourced only | Resolve-by-default #5 |
 
 ### 2.8 PRD-level acceptance criteria
 
@@ -910,7 +894,7 @@ The Onboarding PRD is satisfied when:
 | Risk | Impact | Likelihood | Mitigation |
 |---|---|---|---|
 | Sandbox isolation topology undecided (OQ-02) blocks the writable-copy P0 | High | Med | Pin expectation + cross-tenant test now; gate the writable-copy build on PLAT-SETTINGS-1; demote nothing — MVP exercises that write run only once the tenant model exists |
-| Hammerbarn seed depends on 3 engines reaching GA | High | High | Phase-gate: ship CE+Explorer demo at MVP; Build/Events content + their tours/exercises feature-flagged off until GA (E2 phasing) |
+| Hammerbarn seed depends on 3 engines reaching GA | High | High | Phase-gate: ship CE+Explorer demo in M1 window; Build/Events content + their tours/exercises feature-flagged off until post-v1 GA (E2 phasing) |
 | Tour anchors break when feature teams change UI | Med | High | OQ-06 `data-tour-id` strategy; absent-anchor steps skip + log, never block |
 | Activation double-fire / mis-fire pollutes metrics | Med | Med | Idempotent exactly-once flag; engine-unavailable → milestone locked |
 | Activation targets (60%/30min) treated as GA gates | Med | Med | Explicitly measure-and-report baselines for cohort 1; threshold set after baseline (decision E4) |
@@ -924,10 +908,9 @@ The Onboarding PRD is satisfied when:
 
 ### EPIC-001 — Hammerbarn Demo Workspace
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — CE/Explorer seed areas
-only, writable sandbox · Build/Events seed areas straddle into Phase 2 (Build + Events GA) for the
-Build project + Kitchen Designer app + example automations as live seed areas · **Status:** Backlog ·
-**Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — CE/Explorer seed areas only, writable sandbox ·
+Build/Events seed areas → post-v1 (Build + Events GA, Kitchen Designer + automations) · **Status:**
+Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [CE-READ-1, CE-WRITE-1, CE-VERSION-1, GE-CANVAS-1, PLAT-SETTINGS-1, PLAT-IDENTITY-1,
@@ -962,33 +945,34 @@ only) — all Backlog / Must Have.
 **Dependencies.** *Blocked by:* PLAT-SETTINGS-1 (per-user copy / isolation topology, OQ-02 — gates
 the writable sandbox P0); CE-WRITE-1 (live-pipeline seed authoring, sandbox `target=draft` writes,
 seed re-apply on reset); CE-READ-1 (`?version=latest` render of ontology/glossary/brand/governance);
-GE-CANVAS-1 (Explorer canvas render); PLAT-AUDIT-1 (canonical-write-rejection audit). Phase 2:
+GE-CANVAS-1 (Explorer canvas render); PLAT-AUDIT-1 (canonical-write-rejection audit). post-v1:
 BE-ARTEFACT-1 (Kitchen Designer project/app) and EA-AUTOMATION-1 (example automations). *Blocks:*
 none directly (onboarding is a terminal consumer). Within onboarding, the writable sandbox underpins
 EPIC-004 (Hands-On Exercises) and EPIC-005 (Activation).
 
 **Technical notes.** The Hammerbarn seed is **authored content built as a live pipeline** (decision
-E2) — CE produces ontology/glossary/brand/governance via CE-WRITE-1, Build the Kitchen Designer
-project/app, Events the automations — not a static migration snapshot, so the demo stays in step with
-the real product. Every Hammerbarn entity class maps onto the process-centric **BPMO framework**
-kinds/relationships (CE-READ-1) — **Process** is the spine, edging out to Activity (steps), Event
-(triggers), Actor (`performedBy`), System, Service, DataAsset, BusinessCapability, BusinessDomain,
-Goal, and Policy. The six named business processes (Goods inward, Stock mgmt, Customer order, Staff
-onboarding, Supplier mgmt, Store ops) are **Process** — with Activity steps, Event triggers, and
-`performedBy` Actors — **not** BusinessCapability; instance categories like Product/Store are Class
-definitions punned with Concept (decision B1), not new kinds. Counts ("8 product types", "40+
-glossary terms") are content targets owned by the content admin, not contractual constants. Isolation
+E2) — not a static migration snapshot. Entity-class→BPMO-kind mapping contractual shape is in §2.2;
+the full table is content owned by the content admin (see Hammerbarn Content Brief). Isolation
 topology (named-graph-per-`(tenant,user)` + query-rewriting vs store-per-tenant) is deferred to OQ-02
-at tech spec, but the isolation expectation and the cross-tenant-read test are pinned in PRD §2.4. The
-sandbox reset op targets a default ≤ 30 s (tunable, decision E1) and must leave the sandbox in a known
-state — never partial — on failure.
+at tech spec; isolation expectation and cross-tenant-read test are pinned in PRD §2.4. Sandbox reset
+op targets a default ≤ 30 s (tunable, decision E1); must leave the sandbox in a known state — never
+partial — on failure.
+
+**Seed-lifecycle contract (OQ-03 partial resolution).**
+
+| Dimension | Specification |
+|---|---|
+| Trigger | Ontology semver major bump (CE-VERSION-1 event) → canonical re-seed required; minor/patch → advisory review only. Manual dispatch by the content admin always available. |
+| Owner | CE owns the ontology/glossary/brand/governance seed run (CE-WRITE-1). Build owns the Kitchen Designer seed (BE-ARTEFACT-1, post-v1). Events owns the automation seed (EA-AUTOMATION-1, post-v1). Onboarding integrates, does not run. |
+| Per-user provisioning | Canonical Hammerbarn graph forked to a per-user copy at first workspace access (lazy — not at registration). Target latency ≤ 10 s p95 (tunable; confirm at tech spec; distinct from the ≤ 3 s render NFR, which applies to subsequent opens). |
+| Failure blast-radius | A failed canonical re-seed leaves the canonical at the previous version; per-user copies are unaffected until they manually reset. Canonical update is atomic — no user sees a partial/inconsistent state. |
+| Version pinning | Per-user copies pin to the canonical version they forked from. A user's sandbox does **not** auto-update when the canonical is re-seeded; only an explicit "Reset demo" updates the copy to the latest canonical. |
 
 ### EPIC-002 — Guided Tours & Contextual Overlays
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Constitution/Explorer
-tours only, beacons on shipped screens, welcome modals · straddles into Phase 2 (Build/Events GA) for
-Build, Events (Automate), and Platform-Dashboard tours plus Phase-2 beacons/modals · **Status:**
-Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — CE/Explorer tours only, beacons on shipped
+screens, welcome modals · post-v1 (Build/Events GA): Build, Events (Automate), Platform-Dashboard
+tours + post-v1 beacons/modals · **Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, EPIC-003, GE-CANVAS-1]` · `blocks: []` · `provides: []` ·
@@ -1020,26 +1004,23 @@ Backlog / Must Have.
   is missing or unmounts is skipped/hidden with a logged warning and never blocks the tour or orphans
   a tooltip.
 
-**Dependencies.** *Blocked by:* the target engine's UI shipping (MVP: Constitution, Explorer; Phase 2:
-Platform Dashboard, Build, Events); PLAT-SETTINGS-1 (server-side per-`(tenant,user)` resume point and
+**Dependencies.** *Blocked by:* the target engine's UI shipping (M1 window: Constitution, Explorer;
+post-v1: Platform Dashboard, Build, Events); PLAT-SETTINGS-1 (server-side per-`(tenant,user)` resume point and
 beacon-dismissal state). Tour-anchor strategy (`data-tour-id` vs CSS selectors, OQ-06) and tour
 framework choice (OQ-01) are resolved at tech spec. *Blocks:* none (terminal consumer). EPIC-007 (Help
 Launcher) surfaces "Take a tour" and "Show all hints" entry points into this epic's overlays.
 
-**Technical notes.** Tour framework selection (build in-house React overlay vs Shepherd.js / Intro.js
-/ Driver.js) is OQ-01; tour-anchor strategy across the SPA is OQ-06 — both deferred to the Architect.
-Copy budgets are unverified PO defaults, tunable authoring guidelines: tour-step tooltip ≤ 40 words,
-beacon tooltip ≤ 60 words (the difference reflects beacons being self-contained vs tour steps being
-sequenced — confirm against a UX guideline at tech spec). Tour step count defaults to 5–12 (tunable)
-and step transition targets ≤ 200 ms (tunable). Resume points and beacon dismissals are persisted
-server-side per `(tenant, user)` — never localStorage — so guidance state survives device switches.
-All user-facing overlay strings are externalised as i18n strings (no hardcoded copy). Compliance is
-the contested 7th nav item; if Platform drops it, onboarding drops its welcome modal with it.
+**Technical notes.** Tour framework (OQ-01) and anchor strategy (OQ-06) are deferred to the
+Architect. Copy budgets (tooltip ≤ 40 words, beacon ≤ 60 words) and step defaults (5–12 steps, ≤ 200 ms
+transition) are tunable authoring guidelines, not contractual constants — confirm at tech spec.
+Resume points and beacon dismissals are persisted server-side per `(tenant, user)` (never localStorage);
+all overlay strings are externalised as i18n keys.
 
 ### EPIC-003 — Role-Tailored Onboarding Paths
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Phase-1-complete (Phase 1
-only) · **Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete · role-path resolution + starter-widget
+mapping (CE-METRICS-1) · note: "What can Weave do for you" role-home guidance surface = M2 (depends on
+M2 Platform/CE features) · **Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, PLAT-IDENTITY-1, PLAT-SETTINGS-1, CE-METRICS-1]` ·
@@ -1075,21 +1056,17 @@ Platform E1-S6 / FR-012 (owns starter-widget rendering and removability — onbo
 only). *Blocks:* none (terminal consumer). The resolved path is consumed across onboarding — EPIC-002
 tours, EPIC-004 exercise gating, and EPIC-005 activation milestones all key off it.
 
-**Technical notes.** Roles combine on a single identity per the platform model; the union of a
-multi-role user's capabilities still governs what each tour/exercise can do even after they pick a
-starting path. The role→starter-widget-set mapping is **configuration consumed by Platform E1-S6 /
-FR-012**, not a published inter-engine contract — single source of truth for widget rendering and
-removability is Platform; onboarding never renders or removes a widget. The mapping carries an
-engine-availability tag so MVP exposes CE-sourced widgets only (Business → ontology health + graph
-completeness; others map their not-yet-GA sources off at MVP). "Change my onboarding path" is always
-available from the Help launcher (EPIC-007). Activation/time-to-outcome per path are
-measure-and-report baselines for cohort 1, not GA gates (decision E4).
+**Technical notes.** Roles combine on one identity; the union of capabilities governs what each
+tour/exercise can do even after path selection. The role→starter-widget-set mapping is **configuration
+consumed by Platform E1-S6 / FR-012**, not a published contract — single source of truth for widget
+rendering is Platform; onboarding never renders a widget. Mapping carries an engine-availability tag;
+M1 window exposes CE-sourced widgets only.
 
 ### EPIC-004 — Hands-On Exercises
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — CE-01/02/03/03b + GE-01/02
-(CE+Explorer exercises only) in the writable sandbox, progress in checklist · straddles into Phase 2
-(Build/Events GA) for BE-01 and AE-01 · **Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — CE-01/02/03/03b + GE-01/02 (CE+Explorer exercises
+only) in the writable sandbox, progress in checklist · post-v1 (Build/Events GA): BE-01 and AE-01 ·
+**Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, EPIC-003, EPIC-005, CE-READ-1, CE-WRITE-1, GE-CANVAS-1, BE-ARTEFACT-1,
@@ -1123,12 +1100,12 @@ signal, and a completion indicator, and its completion is reflected in the onboa
 **Dependencies.** *Blocked by:* CE-READ-1 (`SPARQL ASK` completion checks, SPARQL run), CE-WRITE-1
 (sandbox `target=draft` commit for CE-02), GE-CANVAS-1 (spotlight/overlay checks for GE-01/GE-02);
 EPIC-001 (the writable sandbox these exercises target); EPIC-005 / E5-S1 (the checklist that E4-S2
-writes into). Phase 2: BE-ARTEFACT-1 (BE-01) and EA-AUTOMATION-1 + PLAT-CONNECTOR-1 (AE-01
+writes into). post-v1: BE-ARTEFACT-1 (BE-01) and EA-AUTOMATION-1 + PLAT-CONNECTOR-1 (AE-01
 Slack-notify draft automation). *Blocks:* none (terminal consumer). Exercise completion feeds the
 EPIC-005 checklist and EPIC-008 analytics.
 
-**Technical notes.** The MVP exercise set is CE-01/02/03/03b + GE-01/02; BE-01 and AE-01 are Phase-2
-(Build/Events GA). Exercise NL/SPARQL submissions are validated at the boundary and forwarded to CE —
+**Technical notes.** The M1 window exercise set is CE-01/02/03/03b + GE-01/02; BE-01 and AE-01 are
+post-v1 (Build/Events GA). Exercise NL/SPARQL submissions are validated at the boundary and forwarded to CE —
 there is no query construction in onboarding; CE-READ-1 is SELECT-only with the `SERVICE` keyword
 blocked (SSRF). All writes go to the sandbox graph only via CE-WRITE-1 `target=draft`; a
 canonical-graph write by a non-content-admin is rejected (403, EPIC-001). Exercises emit OTel spans
@@ -1137,9 +1114,10 @@ AWS Secrets Manager and is reached only through PLAT-CONNECTOR-1 — never read 
 
 ### EPIC-005 — Onboarding Checklist & Activation
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Phase-1-complete (Phase 1
-only; Business/Technical/Compliance activation via CE; Admin invite milestone at-risk per OQ-08) ·
-**Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete; Business/Technical/Compliance
+activation via CE (Must Have); Admin invite milestone **Should Have** (OQ-08 uncontracted —
+manual self-mark fallback; see §2.2 E5-S2, FR-022, OQ-08) · **Status:** Backlog · **Priority:**
+Must Have (Business/Technical/Compliance) · Should Have (Admin)
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, EPIC-003, CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1,
@@ -1174,25 +1152,24 @@ detection, idempotent) — both Backlog / Must Have.
 **Dependencies.** *Blocked by:* Platform Dashboard (hosts the checklist widget); PLAT-SETTINGS-1
 (per-user checklist + `activated` state, RBAC); CE-EVENT-1 (activation signal, Should Have — degrade
 to CE-READ-1 poll); CE-READ-1 (Compliance governance/SHACL-view signal; poll fallback); PLAT-NOTIFY-1
-(`onboarding-activation` publish); PLAT-IDENTITY-1 (actor principal). Admin invite-milestone detection
-is **at-risk** pending a contracted platform member-management signal (OQ-08). *Blocks:* none
+(`onboarding-activation` publish); PLAT-IDENTITY-1 (actor principal). Admin invite-milestone detection is **Should Have** (OQ-08 uncontracted — demoted from Must Have;
+manual self-mark fallback in place). *Blocks:* none
 (terminal consumer). Within onboarding, E4-S2 depends on this epic's checklist (E5-S1).
 
-**Technical notes.** Activation is detected from concrete signals per path: Business/Technical →
-CE-EVENT-1 `{change_type:"added", actor:<user principal>}` for the first committed entity (or a
-CE-READ-1 SPARQL run for Technical); Compliance → first governance/compliance entity or SHACL
-validation result viewed via CE-READ-1 (a CE-grounded contracted signal, replacing the earlier
-uncontracted Dashboard-state read); Admin → first team-member invite via a platform member-management
-capability **not yet published as a contract** (OQ-08 — onboarding must not over-claim PLAT-IDENTITY-1
-for human-invite detection). Idempotency is the reliability invariant: exactly-once per `(tenant, user,
-milestone)` via a persisted flag, durable analytics queue with retry, and dashboard freshness that is
-best-effort and never gates correctness. Activation rate and time-to-first-outcome are
-measure-and-report baselines for cohort 1, not GA gates (decision E4).
+**Technical notes.** Activation is detected from concrete signals: Business/Technical via CE-EVENT-1
+(or CE-READ-1 SPARQL run for Technical); Compliance via CE-READ-1 governance/SHACL view. Admin
+activation is **Should Have** (OQ-08 uncontracted — demoted from Must Have): the "Invite first team
+member" checklist item shows a "pending platform signal" badge and requires **manual self-mark** until
+Platform contracts a member-management signal. Do not over-claim PLAT-IDENTITY-1 (agent-principal
+registry, not human-invite detection). Re-promote when contracted. Idempotency is the reliability
+invariant: exactly-once per `(tenant, user, milestone)` via a persisted flag, durable analytics queue
+with retry, and dashboard freshness that is best-effort and never gates correctness. Activation rate
+and time-to-first-outcome are measure-and-report baselines for cohort 1, not GA gates (decision E4).
 
 ### EPIC-006 — Training Library
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Phase-1-complete (Phase 1
-only; placeholders + written walkthroughs) · **Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete; placeholders + written walkthroughs ·
+**Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` · `depends_on: []` · `blocks: []` ·
 `provides: []` · `consumes: []`
@@ -1211,8 +1188,8 @@ New changelog, Should Have) — both Backlog.
   with consistent unavailable-source handling: a failed video asset shows the placeholder/error state
   and an unavailable release feed shows an empty-state message — neither a broken player nor an error
   that blocks the launcher.
-- [ ] Content categories cover Introduction, Ontologies, Graph Explorer, Build (Phase 2), Automation
-  (Phase 2), Compliance & Governance, Administration; Phase-2 categories are shown but flagged
+- [ ] Content categories cover Introduction, Ontologies, Graph Explorer, Build (post-v1), Automation
+  (post-v1), Compliance & Governance, Administration; post-v1 categories are shown but flagged
   "available when the engine ships" — no category silently missing.
 - [ ] Training search returns within a default ≤ 300 ms (tunable) target and filters across video and
   written content.
@@ -1228,13 +1205,13 @@ at tech spec. *Blocks:* none (terminal consumer). EPIC-007 (Help Launcher) surfa
 Wistia/Vimeo) — deferred to the Architect. v1 ships placeholder cards labelled "Video — coming soon"
 plus the written-walkthrough rendering; producing final training videos is an explicit non-goal. The
 "What's new" feed shows the last N release items (default 5, tunable) with a blue unread dot on the
-help icon. Phase-2 categories (Build, Automation) are visible but flagged until their engine ships,
-consistent with the phase-gate-by-engine-availability decision applied across onboarding.
+help icon. post-v1 categories (Build, Automation) are visible but flagged until their engine ships, consistent
+with the phase-gate-by-engine-availability decision applied across onboarding.
 
 ### EPIC-007 — Help Launcher
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Phase-1-complete (Phase 1
-only) · **Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete · **Status:** Backlog · **Priority:**
+Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-002, EPIC-005, EPIC-006]` · `blocks: []` · `provides: []` · `consumes: []`
@@ -1267,17 +1244,15 @@ help panel per screen, Should Have) — both Backlog.
 path), EPIC-005 (checklist restore), and EPIC-006 (training, What's new) — those must exist for their
 entries to resolve. *Blocks:* none (terminal consumer).
 
-**Technical notes.** The help launcher is chrome within the single React SPA (the launcher shell
-itself is platform-owned; onboarding populates its content). Keyboard activation is Shift+? globally
-and ? when not in a text field, Escape to close. Contextual links are screen-specific (2–4 per screen,
-hidden when none) and keyed to the active engine/screen anchor. The launcher is the canonical
-re-access point for everything onboarding hides on dismissal — beacons, the checklist, and tours —
-consistent with the "always skippable, always re-accessible" overlay principle.
+**Technical notes.** The launcher is chrome within the React SPA (platform-owned shell; onboarding
+populates content). Keyboard: Shift+? globally / ? outside a text field; Escape closes. Contextual
+links are screen-specific (2–4 per screen, hidden when none) and keyed to the active engine/screen
+anchor.
 
 ### EPIC-008 — Onboarding Analytics
 
-**Phase:** Phase 1 (MVP-window, parallel — not a thin-loop MVP exit gate) — Phase-1-complete (Phase 1
-only) · **Status:** Backlog · **Priority:** Should Have
+**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete · **Status:** Backlog · **Priority:**
+Should Have
 
 **Frontmatter:** `phase: 1` · `priority: should` · `mvp: false` ·
 `depends_on: [EPIC-005, PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1]` · `blocks: []` ·
@@ -1313,15 +1288,12 @@ instrumentation tooling (OTel + CloudWatch vs PostHog self-hosted) is OQ-05, def
 *Blocks:* none (terminal consumer). Consumes completion signals emitted by EPIC-002 (tours), EPIC-004
 (exercises), and EPIC-005 (checklist, activation).
 
-**Technical notes.** The event schema is pinned in the PRD: `{ event_name, role_path, milestone?,
-tenant_id, user_principal_iri, anonymised_cohort_key, ts_first_signin, ts_event }` —
-`user_principal_iri` retained per-tenant only (raw); cross-workspace aggregation uses only
-`anonymised_cohort_key` (a non-reversible hash). Instrumentation tool choice is OQ-05 (OTel +
-CloudWatch vs PostHog self-hosted) — deferred to the Architect; the schema and cohort-key hashing are
-fixed regardless. OTel spans for tour/exercise/reset/activation carry `{role_path, area, exercise_id,
-milestone, tenant_id}` with **no PII attribute**. Activation rate and time-to-first-outcome are
-measure-and-report baselines for cohort 1, not GA gates (decision E4); the analytics surface is the
-instrument that establishes those baselines.
+**Technical notes.** Event schema pinned in PRD: `{ event_name, role_path, milestone?, tenant_id,
+user_principal_iri, anonymised_cohort_key, ts_first_signin, ts_event }` — raw `user_principal_iri`
+retained per-tenant only; cross-workspace aggregation uses only the non-reversible
+`anonymised_cohort_key`. Instrumentation tooling (OTel + CloudWatch vs PostHog) is OQ-05, deferred to
+the Architect; schema and hashing are fixed regardless. OTel spans carry `{role_path, area,
+exercise_id, milestone, tenant_id}` — no PII attribute.
 
 ## 4. Roadmap
 
@@ -1332,14 +1304,17 @@ instrument that establishes those baselines.
 Weave build order: **Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding**.
 This engine is **#6** — the last engine built.
 
-The two-phase split below is **not** driven by onboarding's #6 position. By the time onboarding is
-built, every upstream engine (CE, Explorer, Build, Events) already exists. The split is driven by the
-**MVP pull-forward**: the basic CE+Explorer onboarding slice must be deliverable inside the **MVP
-window** — when Build and Events are not yet GA — so it must depend only on what is GA at MVP (Platform
-shell + CE + Explorer + the narrow Build slice). That slice is **Phase 1 (MVP)**. The engine-gated
-remainder of the full Hammerbarn demo (the Build project + Kitchen Designer app, the Events
-automations, and the tours/exercises that target those screens) lands once **Build and Events reach
-GA** — **Phase 2**.
+The milestone split below is **not** driven by onboarding's #6 build-order position. It is driven by
+three milestone windows:
+
+- **M1 window (parallel, not M1 exit gate):** the basic CE+Explorer onboarding slice ships in
+  parallel during the M1 thin-proof window — depends only on what is GA at M1 (Platform shell + CE +
+  Explorer). This is the slice that models the company and shows the graph; Build/Events are not required.
+- **M2 window:** onboarding overlays for the M2 legibility/trust surfaces (model-completeness map,
+  "What can Weave do for you" role-home, trust-mechanics UI) — gated on M2 CE/Explorer/Platform
+  features shipping.
+- **post-v1 (Build+Events GA):** the full Hammerbarn demo — Build project + Kitchen Designer app
+  (BE-ARTEFACT-1) + Events automations (EA-AUTOMATION-1) + their tours/exercises.
 
 **Depends on:**
 
@@ -1350,8 +1325,8 @@ GA** — **Phase 2**.
 - **Platform** — PLAT-SETTINGS-1 (per-user sandbox copy/isolation, RBAC, tunable cascade),
   PLAT-IDENTITY-1 (IdP-agnostic role→path resolution, user principal IRI), PLAT-NOTIFY-1 (publish
   `onboarding-activation`), PLAT-AUDIT-1 (canonical-write rejections, analytics-view access),
-  PLAT-CONNECTOR-1 (Phase 2: AE-01 Slack target, Admin connector milestone).
-- **Phase 2 adds** — **Build Engine** BE-ARTEFACT-1 (Kitchen Designer project/app + BE-01) and
+  PLAT-CONNECTOR-1 (post-v1: AE-01 Slack target, Admin connector milestone).
+- **post-v1 adds** — **Build Engine** BE-ARTEFACT-1 (Kitchen Designer project/app + BE-01) and
   **Events & Actions** EA-AUTOMATION-1 (example automations + AE-01).
 
 **Unblocks:** **none.** Onboarding is a terminal consumer — it owns no graph data and exposes no
@@ -1361,10 +1336,10 @@ parallel — see the program roadmap.
 
 > **Sub-dependency flags (surfaced, not buried):**
 >
-> - **OQ-08 (Admin activation):** the Admin-path activation milestone (first team-member invite) needs
->   a platform member-management capability that is **not yet published as an inter-engine contract**.
->   Business / Technical / Compliance activation via CE is fine for MVP; the Admin milestone is
->   **at-risk** until the platform invite-detection signal is contracted.
+> - **OQ-08 (Admin activation — demoted):** Admin-path activation (first team-member invite) requires
+>   a platform member-management signal not yet contracted. **Disposition: demoted to Should Have;
+>   manual self-mark fallback in place.** Business/Technical/Compliance activation via CE is unblocked.
+>   Re-promote Admin when Platform contracts the signal (see §2.2 E5-S2, FR-022, OQ-08).
 > - **OQ-02 (sandbox isolation topology):** the per-user writable-sandbox isolation topology is
 >   deferred to the tech spec; the writable-copy P0 is **gated on the PLAT-SETTINGS-1 tenant model**.
 >   The isolation expectation and the cross-tenant-read test are pinned in PRD §2.4; the topology
@@ -1376,26 +1351,25 @@ parallel — see the program roadmap.
 gantt
     title Onboarding Roadmap
     dateFormat YYYY-MM-DD
-    section Phase 1 (MVP-window, parallel)
+    section M1 window (parallel, not M1 exit gate)
         E1-E8 CE+Explorer slice (demo, paths, tours, exercises, checklist, help, analytics) :a1, 2026-01-01, 30d
         Spec-approval gate        :milestone, g1a, 2026-01-01, 0d
-        Phase-boundary + publish gate :milestone, m1, after a1, 0d
-    section Phase 2 (Build+Events GA)
-        E1/E2/E4 engine-gated slice (full Hammerbarn, Build/Events tours+exercises) :a2, after m1, 20d
-        Phase-boundary + publish gate :milestone, m2, after a2, 0d
+        Gate 1 (boundary + security + publish) :milestone, m1, after a1, 0d
+    section M2 window (legibility/trust overlays)
+        EPIC-002/003 M2 surface tours + role-home guidance :a2, after m1, 10d
+        M2 overlay release :milestone, m2, after a2, 0d
+    section post-v1 (Build+Events GA)
+        E1/E2/E4 engine-gated slice (full Hammerbarn, Build/Events tours+exercises) :a3, after m1, 20d
+        Gate 2 (full-seed publish + security) :milestone, m3, after a3, 0d
 ```
 
-### Phase 1: Hammerbarn CE+Explorer demo, role paths, guidance, activation · MVP-window (parallel) — NOT a thin-loop MVP exit gate
+### M1 window: Hammerbarn CE+Explorer demo, role paths, guidance, activation (parallel — not M1 exit gate)
 
-> **Honest scoping (reconciled with the program roadmap §3).** This phase runs **in the MVP *window*,
-> in parallel, off the thin-loop critical path** — it is **not** part of the program MVP exit
-> criteria. The program MVP is the thin **model→generate** loop (Platform P1 + CE P1+P2 + Explorer P1
-> + the narrow Build slice) and nothing more. Only the **CE+Explorer tours/exercises** in this phase
-> can ship in the MVP window, because they depend only on what is GA at MVP (Platform shell + CE +
-> Explorer). The **full Hammerbarn demo** — the Build project + Kitchen Designer app and the Events
-> automations, plus their tours/exercises — **waits on Build + Events GA** and is **Phase 2** (already
-> a locked decision). The "MVP-window" tags in the table below mean *deliverable in the MVP window in
-> parallel*, **not** *a thin-loop MVP exit gate*.
+> This phase runs in the **M1 window**, in parallel, off the thin-loop critical path — **not** an M1
+> exit criterion. Depends only on what is GA at M1 (Platform shell + CE + Explorer). The **full
+> Hammerbarn demo** (Build project + Kitchen Designer app + Events automations) is **post-v1** (locked
+> decision). Tags "M1 window (parallel)?" in the table below mean *deliverable in the M1 window in
+> parallel*, not a program-M1 exit gate.
 
 **Goal:** A brand-new user signs in, lands in the **Hammerbarn demo workspace** (CE + Explorer content
 rendering from a live-pipeline seed), is resolved to one of the **4 primary role paths**, is guided by
@@ -1407,37 +1381,34 @@ not-yet-GA engines are **feature-flagged off**, not broken.
 
 **Epics:**
 
-| Epic | Description | Stories (this phase) | Priority | MVP-window (parallel)? |
-|------|-------------|----------------------|----------|:----------------------:|
+| Epic | Description | Stories (this phase) | Priority | M1 window (parallel)? |
+|------|-------------|----------------------|----------|:---------------------:|
 | EPIC-001 | Hammerbarn Demo Workspace — CE/Explorer seed areas, per-user writable sandbox, manual reset, sandbox-only writes | 3 (E1-S1 CE/Explorer, E1-S2, E1-S3) | Must Have | yes (CE+Explorer only) |
 | EPIC-002 | Guided Tours & Contextual Overlays — CE/Explorer tours, beacons on shipped screens, welcome modals | 3 (E2-S1 CE/GE, E2-S2 shipped, E2-S3) | Must Have | yes (CE+Explorer only) |
-| EPIC-003 | Role-Tailored Onboarding Paths — 4-path 9→4 resolution, role→starter-widget mapping (CE-sourced) | 2 (E3-S1, E3-S2) | Must / Should | yes |
+| EPIC-003 | Role-Tailored Onboarding Paths — 4-path 9→4 resolution, role→starter-widget mapping (CE-sourced) | 2 (E3-S1, E3-S2) | Must / Should | yes (role-home guidance = M2) |
 | EPIC-004 | Hands-On Exercises — CE-01/02/03/03b + GE-01/02 in the writable sandbox, progress in checklist | 2 (E4-S1 CE/GE, E4-S2) | Must / Should | yes (CE+Explorer only) |
-| EPIC-005 | Onboarding Checklist & Activation — Dashboard checklist widget, idempotent CE-grounded activation | 2 (E5-S1, E5-S2 Business/Tech/Compliance) | Must Have | yes |
+| EPIC-005 | Onboarding Checklist & Activation — Dashboard checklist widget, idempotent CE-grounded activation | 2 (E5-S1, E5-S2 Business/Tech/Compliance Must Have; Admin Should Have) | Must Have / Should Have | yes |
 | EPIC-006 | Training Library — placeholder video cards + written walkthroughs, search, What's New | 2 (E6-S1, E6-S2) | Must / Should | yes |
 | EPIC-007 | Help Launcher — persistent ? launcher, keyboard shortcut, contextual help per screen | 2 (E7-S1, E7-S2) | Must / Should | yes |
 | EPIC-008 | Onboarding Analytics — role-segmented completion/activation, anonymised cohort analytics | 2 (E8-S1, E8-S2) | Should Have | yes |
 
-> **MVP-window (parallel)?** = deliverable in the MVP window, in parallel, off the thin-loop critical
-> path — **not** a program-MVP exit gate. "CE+Explorer only" marks the straddle epics (1, 2, 4): only
-> their CE/Explorer story portions are MVP-window; their Build/Events portions are Phase 2 (Build +
-> Events GA).
-
-> Epics 1, 2, 4 **straddle** both phases: their MVP story portions ship here; their engine-gated
-> continuations ship in Phase 2. Epics 3, 5, 6, 7, 8 are **MVP-complete** (Phase 1 only).
+> "M1 window (parallel)?" = deliverable in the M1 window, in parallel, off the critical path — **not**
+> an M1 exit gate. "CE+Explorer only" marks straddle epics (1, 2, 4): only their CE/Explorer portions
+> ship here; Build/Events portions are post-v1. Epics 3, 5, 6, 7, 8 are M1-complete.
 
 **Entry criteria (Definition of Ready):**
 
 - [ ] PRD section approved; Phase-1 tech spec approved (OQ-01 tour framework, OQ-02 sandbox topology,
       OQ-04 video hosting, OQ-05 analytics tool, OQ-06 tour-anchor strategy resolved).
 - [ ] Tasks decomposed; each task brief passes the DoR gate.
-- [ ] **Upstream contracts GA at MVP:** CE-READ-1, CE-WRITE-1, CE-VERSION-1, CE-METRICS-1 (CE-EVENT-1
+- [ ] **Upstream contracts GA at M1 window:** CE-READ-1, CE-WRITE-1, CE-VERSION-1, CE-METRICS-1 (CE-EVENT-1
       **Should Have** — degrade to CE-READ-1 since-version poll if not ready); GE-CANVAS-1;
       PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
 - [ ] **PLAT-SETTINGS-1 tenant model available** — gates the writable-sandbox P0 (per-user copy +
       isolation topology, OQ-02). Writable exercises build only once the tenant model exists.
-- [ ] **OQ-08 noted as at-risk:** Admin-path activation (invite detection) deferred until the platform
-      member-management signal is contracted; Business/Tech/Compliance activation via CE is unblocked.
+- [ ] **OQ-08 resolved (Should Have + fallback):** Admin-path activation demoted to Should Have with
+      manual self-mark fallback; Business/Tech/Compliance activation via CE is unblocked (see FR-022,
+      OQ-08). Re-promote Admin when Platform contracts the signal.
 
 **Exit criteria (EARS, measurable, human-signed):**
 
@@ -1479,15 +1450,11 @@ not-yet-GA engines are **feature-flagged off**, not broken.
 | Pre-AWS-deploy (full local pyramid + gates green → approve) | yes | Tech Lead | deploy |
 | Publish/generate (Hammerbarn seed publish via CE-WRITE-1) | yes | Onboarding/content admin + Tech Lead | seed release |
 
-> HITL gates are project/workspace-configurable; only spec-approval is globally mandatory. **Why all
-> three optional gates are active here:** the **phase-boundary security review** is load-bearing —
-> this engine enforces three isolation boundaries (per-user sandbox; sandbox vs canonical 403; sandbox
-> vs real tenant), the cross-tenant-read test, and no-PII cohort analytics. **Pre-AWS-deploy** is
-> active because the phase ships a deployed SPA overlay, sandbox storage, and a durable analytics
-> queue. **Publish/generate** is active because onboarding, as integrator, drives the **canonical
-> Hammerbarn seed** going live to every new user — a release with real blast radius (CE-WRITE-1 in
-> Phase 1). If the program prefers to attribute the seed publish to CE's own publish gate, downgrade
-> this row; it is consciously activated here.
+> Only spec-approval is globally mandatory. **Security review** is load-bearing — three isolation
+> boundaries (per-user sandbox, sandbox vs canonical 403, cross-tenant-read) plus no-PII cohort
+> analytics. **Pre-AWS-deploy** covers the deployed SPA overlay + sandbox storage + durable analytics
+> queue. **Publish/generate** is active because this engine drives the canonical Hammerbarn seed going
+> live to every new user (CE-WRITE-1 blast radius); downgrade if CE's own publish gate subsumes it.
 
 **Phase-gate metadata** (evaluated by the phase-gate Stop hook / `/goal` condition):
 
@@ -1499,13 +1466,28 @@ approver: Product Owner + Tech Lead + Security reviewer
 blocks: phase-2
 ```
 
-### Phase 2: Full Hammerbarn demo — Build & Events seed, tours, and exercises · Phase 2 (Build+Events GA)
+### M2 window: Onboarding for legibility/trust features
+
+Onboarding overlays gated to M2 surfaces — these begin once the M2 CE/Explorer/Platform features they
+point at are in implementation. No separate HITL gate: M2 onboarding overlay work merges into the
+post-v1 gate or ships as a v1-interim feature release, depending on ship order.
+
+| Onboarding feature | Surface it points at | Epic |
+|---|---|---|
+| Model-completeness map tour + beacons | CE M2: model-completeness map (authors see gaps) | EPIC-002 |
+| "What can Weave do for you" role-home guidance | M2 Platform: role-tailored home surface | EPIC-003 |
+| Provenance + confidence-signal UI tours | M2 CE/Explorer: trust-mechanics surfaces | EPIC-002 |
+
+**Dependency:** gated on M2 CE/Explorer/Platform M2 feature set being in implementation. See
+`../weave-spec.md §M2` and [../contracts.md](../contracts.md) for M2 contract scope.
+
+### post-v1: Full Hammerbarn demo — Build & Events seed, tours, and exercises (Build+Events GA)
 
 **Goal:** Complete the full Hammerbarn demo once **Build and Events reach GA**. The Build project +
 Kitchen Designer app (BE-ARTEFACT-1) and the example automations (EA-AUTOMATION-1) become live seed
 areas; the previously feature-flagged-off Build, Events (Automate), and Platform-Dashboard tours /
 beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) join the exercise set.
-**Dependencies:** Phase 1 gate passed; Build Engine GA (BE-ARTEFACT-1); Events & Actions GA
+**Dependencies:** M1 window gate passed; Build Engine GA (BE-ARTEFACT-1); Events & Actions GA
 (EA-AUTOMATION-1); PLAT-CONNECTOR-1 (Slack target for AE-01).
 
 **Epics:**
@@ -1513,16 +1495,16 @@ beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) 
 | Epic | Description | Stories (this phase) | Priority | MVP? |
 |------|-------------|----------------------|----------|------|
 | EPIC-001 | Hammerbarn Demo Workspace — Build project + Kitchen Designer app + example automations as live seed areas (FR-003) | 1 (E1-S1 Build/Events areas) | Must Have (at GA) | no |
-| EPIC-002 | Guided Tours & Contextual Overlays — Build, Events (Automate), Platform-Dashboard tours + Phase-2 beacons/modals turned on | 2 (E2-S1 Build/Events/Dashboard, E2-S2 Phase-2 screens) | Must Have (at GA) | no |
+| EPIC-002 | Guided Tours & Contextual Overlays — Build, Events (Automate), Platform-Dashboard tours + post-v1 beacons/modals turned on | 2 (E2-S1 Build/Events/Dashboard, E2-S2 post-v1 screens) | Must Have (at GA) | no |
 | EPIC-004 | Hands-On Exercises — BE-01 (open Kitchen Designer project) and AE-01 (draft a Slack-notify automation) | 1 (E4-S1 BE-01, AE-01) | Must Have (at GA) | no |
 
-> Only the three straddle epics (1, 2, 4) continue into Phase 2 — their engine-gated story subsets.
-> Epics 3, 5, 6, 7, 8 completed in Phase 1.
+> Only the three straddle epics (1, 2, 4) continue into post-v1 — their engine-gated story subsets.
+> Epics 3, 5, 6, 7, 8 completed in M1 window.
 
 **Entry criteria (Definition of Ready):**
 
-- [ ] Phase-1 gate passed; Phase-2 tech spec delta approved (live-pipeline seed orchestration, OQ-03;
-      tour anchors for Build/Events/Dashboard, OQ-06).
+- [ ] M1 window gate passed; post-v1 tech spec delta approved (live-pipeline seed orchestration,
+      OQ-03 — see EPIC-001 seed-lifecycle contract; tour anchors for Build/Events/Dashboard, OQ-06).
 - [ ] Tasks decomposed; each task brief passes the DoR gate.
 - [ ] **Build Engine GA** — BE-ARTEFACT-1 available (Kitchen Designer project/app seed + BE-01).
 - [ ] **Events & Actions GA** — EA-AUTOMATION-1 available (example automations seed + AE-01).
@@ -1543,7 +1525,7 @@ beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) 
       in the Goods Inward **process** (triggered by a Delivery **Event**; EA-AUTOMATION-1, Slack via
       PLAT-CONNECTOR-1), and WHEN a Technical/Admin user completes BE-01 THE SYSTEM SHALL record the
       Decisions-tab-opened signal — verified against the named completion checks.
-- [ ] WHEN any Phase-2 overlay renders THE SYSTEM SHALL pass the WCAG 2.1 AA zero-violations axe gate
+- [ ] WHEN any post-v1 overlay renders THE SYSTEM SHALL pass the WCAG 2.1 AA zero-violations axe gate
       in CI — verified by the CI accessibility job.
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable delivered artefacts:** the full Hammerbarn demo (CE + Explorer + Build + Events seed
@@ -1559,11 +1541,10 @@ beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) 
 | Pre-AWS-deploy (full local pyramid + gates green → approve) | yes | Tech Lead | deploy |
 | Publish/generate (full Hammerbarn seed publish: CE-WRITE-1 + BE-ARTEFACT-1 + EA-AUTOMATION-1) | yes | Onboarding/content admin + Tech Lead | full-demo release |
 
-> The publish/generate gate is active because Phase 2 promotes the **full canonical Hammerbarn seed**
-> (now including the Build project, app, and live automations) to every new user — the
-> highest-blast-radius release in this engine. Security review re-runs because the AE-01 path reaches
-> an external Slack connector (token in AWS Secrets Manager via PLAT-CONNECTOR-1, never read by
-> onboarding).
+> The publish/generate gate is active because post-v1 promotes the **full canonical Hammerbarn seed**
+> (Build project, app, and live automations) to every new user — highest blast-radius release in this
+> engine. Security review re-runs because the AE-01 path reaches an external Slack connector (token
+> in AWS Secrets Manager via PLAT-CONNECTOR-1, never read by onboarding).
 
 **Phase-gate metadata** (evaluated by the phase-gate Stop hook / `/goal` condition):
 
@@ -1580,8 +1561,8 @@ blocks: release
 | Gate | After phase | Approval criteria | Approver |
 |------|-------------|-------------------|----------|
 | Spec-approval | before each phase | PRD + phase tech spec approved; tasks DoR-passing | Product Owner |
-| Gate 1 (phase-boundary + pre-deploy + seed publish) | Phase 1 | All Phase-1 EARS exit criteria met (incl. 403-on-canonical-write, cross-tenant-read zero-triple test, exactly-once activation, WCAG AA axe gate) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
-| Gate 2 (phase-boundary + pre-deploy + full-seed publish) | Phase 2 | All Phase-2 EARS exit criteria met (full demo content-complete, Build/Events/Dashboard tours, BE-01/AE-01, WCAG AA) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
+| Gate 1 (phase-boundary + pre-deploy + seed publish) | M1 window | All M1 EARS exit criteria met (incl. 403-on-canonical-write, cross-tenant-read zero-triple test, exactly-once activation, WCAG AA axe gate) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
+| Gate 2 (phase-boundary + pre-deploy + full-seed publish) | post-v1 | All post-v1 EARS exit criteria met (full demo content-complete, Build/Events/Dashboard tours, BE-01/AE-01, WCAG AA) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
 
 > All numeric thresholds are **"default X, tunable"** (coverage ≥ 80%, mutation ≥ 70%, reset-op ≤ 30 s,
 > training search ≤ 300 ms, analytics freshness ≤ 5 min, cohort k ≥ 20, checklist auto-dismiss 7 days,

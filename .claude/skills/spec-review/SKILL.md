@@ -47,7 +47,7 @@ brief; `arch-stack` reads the PRD). This step is the single place that audits al
 |---|---|
 | 01→02 Brief→PRD | Brief has Mission, Problem, Scope (in + out), Target Users, ≥3 measurable Success Criteria, Constraints; entity boundary is unambiguous; OKF `type` frontmatter present |
 | 02→03 PRD→Roadmap | Every epic has ≥1 user story; every story + FR AC is EARS; no orphan FR (each maps to a story); NFRs present; risks + dependencies listed |
-| 03→04 Roadmap→Arch | Every phase has a falsifiable Goal; every epic is assigned to a phase; every gate has entry/exit criteria; no roadmap phase contradicts a brief Out-of-Scope item |
+| 03→04 Roadmap→Arch | Every milestone (`M1` / `M2` / `v1.0` / `post-v1`) has a falsifiable Goal; **every epic carries a milestone tag** (no untagged or legacy "Phase: MVP" epics); every gate has entry/exit criteria; no milestone contradicts a brief Out-of-Scope item; nothing tagged `M1` exceeds the thin-proof scope in `weave-spec.md` §1.3 |
 | 04→Impl Arch→Implementation | Tech-spec shards present (architecture, data-model, testing-strategy); every task is sized (S/M/L) and has `blocked_by`/`unlocks`; DoR verdict is READY (delegate to `arch-dor` / `/implement` Step 3 — do not re-derive here) |
 
 For any BLOCKED gate, name the exact missing item and the file it belongs in. A blocked
@@ -77,10 +77,11 @@ section is present and complete, not that a separate file exists); Tech Spec / T
 - [ ] Dependencies listed
 
 **Roadmap** (`docs/specs/weave/engines/<entity>.md`):
-- [ ] Phases defined with clear goals
+- [ ] Milestones (`M1` / `M2` / `v1.0` / `post-v1`) defined with clear, falsifiable goals
 - [ ] HITL gates have entry/exit criteria
-- [ ] Epics assigned to phases
-- [ ] Timeline is realistic
+- [ ] **Every epic carries a milestone tag** (M1/M2/v1.0/post-v1) — flag any untagged epic or any
+      stale "Phase: MVP" label; M1 must not exceed the thin-proof scope in `weave-spec.md` §1.3
+- [ ] Timeline is realistic; cross-engine sequence matches `weave-spec.md` §1.2 waves
 
 **Tech Spec** (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*`):
 - [ ] Architecture: C4 diagrams present (all 4 levels)
