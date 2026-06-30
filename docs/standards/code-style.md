@@ -3,7 +3,7 @@ type: Coding Standard
 title: Code Style — Coding Standard
 description: "Universal code-style conventions: readability, naming, structure."
 tags: [standards, code-style]
-timestamp: 2026-06-29T00:00:00Z
+timestamp: 2026-06-30T00:00:00Z
 resource: docs/standards/code-style.md
 ---
 
@@ -182,5 +182,140 @@ from rdflib import Graph, URIRef
 from app.ontology.store import OntologyStore
 from app.schemas import EntityCreate
 ```
+
+### SQLAlchemy models
+
+Relational state lives in Aurora PostgreSQL via SQLAlchemy async (see CLAUDE.md stack).
+These conventions gate every generated model.
+
+- Use the 2.0 typed style: `Mapped[...]` + `mapped_column(...)`. Never the legacy
+  `Column(...)` class-attribute style.
+- One declarative `Base` per service; models live in `app/models/`, one aggregate per file.
+- Tables are `snake_case` plural (`audit_events`, `decision_log_entries`). Columns are
+  `snake_case`. Primary keys are `id` unless a domain key is mandated.
+- Every table carries `created_at` (server-default `now()`). Mutable tables also carry
+  `updated_at`; append-only tables (below) MUST NOT carry `updated_at` — there are no updates.
+- Timestamps are `TIMESTAMP(timezone=True)` and always UTC. Never store naive datetimes.
+- Foreign keys are explicit, named, and indexed; declare `ondelete=` intent. Do not rely on
+  ORM-side cascade for audit/decision-log references — those rows must survive their parents.
+- All access is async: `AsyncSession`, `async with`, `await session.execute(...)`.
+- Never build SQL by string concatenation; use bound parameters or the ORM expression API
+  (`security.md`: parameterised queries only).
+
+```python
+from datetime import datetime
+from sqlalchemy import ForeignKey, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+class Entity(Base):
+    __tablename__ = "entities"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    iri: Mapped[str] = mapped_column(unique=True, index=True)
+    label: Mapped[str]
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="RESTRICT"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
+```
+
+### Alembic migrations
+
+Every schema change ships as an Alembic revision. No schema drift; the database is whatever
+the migrations produce.
+
+- One migration per logical change; revisions live in `migrations/versions/`.
+- Revision messages are conventional-commit style (`alembic revision -m "add audit_events table"`).
+- Every `upgrade()` has a working `downgrade()`. If a change is genuinely irreversible (e.g.
+  installing an append-only trigger that data now depends on), `downgrade()` must `raise
+  NotImplementedError` with a one-line reason — never leave it as a silent `pass`.
+- DDL only in migrations. Never `Base.metadata.create_all()` against a real database; that
+  bypasses version history.
+- Raw SQL for constraints/triggers/grants uses `op.execute(...)` with the SQL as a module-level
+  constant so it is reviewable and testable.
+- Migrations are tested: CI runs `alembic upgrade head` then `alembic downgrade base` on a
+  throwaway database to prove both directions apply cleanly.
+
+### Append-only / immutable tables
+
+Audit and decision-log tables are **append-only and tamper-evident**. This backs the single
+platform audit service `PLAT-AUDIT-1` (see `docs/specs/_inter-engine-contracts.md`, lines
+100-108), whose contract requires append-only enforced *at the DB-constraint level*, deletes
+rejected by the database, and the rejected attempt itself logged. Per that contract there is
+ONE store: Build's decision-log and Events' run-log are filtered **views** over it, not
+independent tables — generated code must not create rival audit stores.
+
+The Constitution Engine prototype establishes the intent — an append-only history sidecar and
+PROV stamping (`prototypes/weave-prototype/backend/app/ontology/store.py`,
+`record_history_event` / `stamp_activity`, lines 451-490) with a content hash
+(`_triple_hash`, line 40). The conventions below promote that intent to DB-enforced
+guarantees on Aurora PostgreSQL; the trigger mechanism is net-new from the `PLAT-AUDIT-1` spec
+and has no prototype precedent.
+
+**Append-only tables MUST:**
+
+1. Carry a monotonic `seq BIGINT` (sequence-backed), an `ts` UTC timestamp, the
+   `actor_principal_iri` (from `PLAT-IDENTITY-1`), and a `signature`.
+2. Reject `UPDATE` and `DELETE` at the database, not just in application code. Use BOTH a
+   `REVOKE` (defence in depth against the app role) AND a `BEFORE UPDATE OR DELETE` trigger
+   that raises and logs the attempt to a separate `audit_tamper_attempts` table.
+3. Hash-chain each row: store `prev_hash` and `row_hash`, where
+   `row_hash = sha256(prev_hash || canonical_serialisation(payload))`. A broken chain proves
+   tampering even if a DBA bypasses the trigger. The `signature` signs `row_hash` under the
+   platform signing key (single scheme per the contract — do not invent per-engine keys).
+4. Never expose mutating ORM methods. The model is insert-only; there is no
+   `session.merge`, no `update()`, no `delete()` path in generated services.
+
+```python
+# migrations/versions/XXXX_audit_events_append_only.py
+from alembic import op
+
+REJECT_MUTATION_FN = """
+CREATE OR REPLACE FUNCTION reject_audit_mutation() RETURNS trigger AS $$
+BEGIN
+    -- Log the rejected attempt BEFORE refusing it (contract: "the attempt itself logged").
+    INSERT INTO audit_tamper_attempts (table_name, operation, attempted_by, attempted_at, old_row)
+    VALUES (TG_TABLE_NAME, TG_OP, current_user, now(), to_jsonb(OLD));
+    RAISE EXCEPTION 'append-only table %: % is forbidden', TG_TABLE_NAME, TG_OP
+        USING ERRCODE = 'integrity_constraint_violation';
+END;
+$$ LANGUAGE plpgsql;
+"""
+
+INSTALL_TRIGGER = """
+CREATE TRIGGER audit_events_no_mutation
+    BEFORE UPDATE OR DELETE ON audit_events
+    FOR EACH ROW EXECUTE FUNCTION reject_audit_mutation();
+"""
+
+REVOKE_GRANTS = "REVOKE UPDATE, DELETE ON audit_events FROM weave_app;"
+
+def upgrade() -> None:
+    op.execute(REJECT_MUTATION_FN)
+    op.execute(INSTALL_TRIGGER)
+    op.execute(REVOKE_GRANTS)
+
+def downgrade() -> None:
+    raise NotImplementedError(
+        "audit_events is append-only by contract (PLAT-AUDIT-1); the immutability "
+        "guarantee must not be reversible in a migration."
+    )
+```
+
+**Testable guarantees (these gate the generated code):**
+
+- An integration test issues `UPDATE` and `DELETE` against an audit row and asserts BOTH raise
+  a database error AND that a matching row appears in `audit_tamper_attempts`.
+- A test inserts three rows and asserts the hash-chain verifies, then mutates one row's stored
+  hash directly (bypassing the trigger via a superuser fixture) and asserts chain verification
+  fails.
+- A test asserts the generated service layer exposes no update/delete method for any
+  append-only model.
 
 ---
