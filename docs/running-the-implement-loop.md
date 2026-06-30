@@ -20,7 +20,7 @@ behind these changes see `.claude/reports/H2`–`H4`; for what every harness ele
 ```
 /po          → brief, PRD, epics, roadmap         (section-by-section HITL)
 /architect   → tech spec + TASK-NNN task briefs    (section-by-section HITL)
-/spec-review → completeness gate before scaffolding
+/spec-review [<entity>] → per-entity completeness gate (also auto-run by /implement Step 1.5)
 /implement   → the loop below
 /status      → kanban + next action at any time
 ```
@@ -30,6 +30,9 @@ behind these changes see `.claude/reports/H2`–`H4`; for what every harness ele
 ```
 Step 1  Read state  ── Step 0: RESUME from committed progress.json + summaries (not a clean start)
         │            then: progress.sh kanban / ready → next dependency-satisfied task
+Step 1.5 Spec review for the TARGET ENTITY — runs /spec-review <entity> if that entity was never
+        reviewed OR its specs changed since last time (recorded in .claude/state/spec-reviews/
+        <entity>.md). Critical gaps BLOCK. Once per entity, not once per repo.
 Step 2  Scaffold (first run only) ──────────────────────── 🛑 HITL: approve scaffold
 Step 3  PDAC loop, per task (one /goal run, "…or stop after 60 turns"):
         PLAN     curate context for the task brief

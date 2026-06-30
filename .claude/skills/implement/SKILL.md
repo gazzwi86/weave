@@ -30,6 +30,25 @@ Orchestrate the PDAC implementation cycle: Architect curates context, Engineer i
 3. Read `docs/specs/weave/engines/<entity>.md` to understand current phase and gates
 4. If no tasks exist, tell the user to run `/architect` first
 
+### Step 1.5: Spec Review Gate (per target entity — NOT only at first-repo scaffolding)
+
+The repo has multiple engines/specs implemented across many `/implement` runs. Spec review is
+therefore scoped to the **entity currently being implemented** and runs **once per entity**
+(re-running only if that entity's specs changed) — it is no longer tied to the one-time scaffolding
+step, which would review only the first engine ever built.
+
+1. Resolve the target entity from `.claude/state/progress.json` `phase` (e.g.
+   `constitution-engine/phase-1` → entity `constitution-engine`).
+2. Decide whether to review. Run `/spec-review <entity>` if EITHER:
+   - `.claude/state/spec-reviews/<entity>.md` does not exist (this entity was never reviewed), OR
+   - any spec file for the entity (under `docs/specs/.../<entity>/...`) has a newer mtime than that
+     file (the specs changed since the last review).
+   Otherwise the entity's specs are already reviewed and unchanged — skip (no redundant review).
+3. The review **blocks**: if `/spec-review <entity>` reports critical gaps, STOP and tell the user
+   to fix them via `/architect` before implementing. On a clean review, write/update
+   `.claude/state/spec-reviews/<entity>.md` (the review summary + date) — this both records the
+   pass and serves as the change-detection marker for next time.
+
 ### Step 2: Check Scaffolding (First Run Only)
 
 If no `package.json` or `pyproject.toml` exists in the project root, this is the first run:
@@ -41,18 +60,8 @@ Checks: node, npm, git, npx, python, uv, and any phase-specific tools.
 Also checks credentials are set as environment variables (never asks for secret values).
 Stops if critical dependencies are missing.
 
-**2b. Spec Review (before scaffolding):**
-
-Invoke the `/spec-review` skill to review all specs in detail. This ensures specs are complete, consistent, and
-ready to implement against. The review covers:
-
-- Brief, PRD, Roadmap — completeness and consistency
-- Tech Spec sections — all required diagrams present, API contracts match data model, testing strategy covers all epics
-- Task briefs — DoR satisfied, test requirements present, no gaps
-- Standards — linting rules, git workflow, code style all defined
-
-Present the review summary to the user. If critical gaps found, STOP and ask the user to address them via
-`/architect` before proceeding.
+**2b. Spec Review:** already handled by Step 1.5 for the target entity (which on the first run runs
+before this scaffolding step). Do not re-invoke `/spec-review` here.
 
 **2c. Scaffolding:**
 
