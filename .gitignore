@@ -64,3 +64,4 @@ prototypes/
 .history/
 # Weave — OKF knowledge graph (generated on demand by /okf-visualize or /anatomy; not committed)
 docs/viz.html
+.thinking.md
