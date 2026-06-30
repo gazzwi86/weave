@@ -2,22 +2,22 @@
 
 A monorepo platform for describing, visualising, and automating how a company operates — through ontologies, knowledge graphs, and data models. Weave lets you map the full enterprise (people, processes, systems, data, rules, relationships) as a navigable graph, and uses that model to generate applications, data products, and automations — regardless of whether the underlying data lives in Snowflake, AWS, Azure, Databricks, or on-prem.
 
-**Positioning:** The operating system for the AI-native company. Model the business → generate code/agents/pipelines → automate. No current tool closes this loop end-to-end.
+**Positioning:** The operating system for the AI-native company — a living digital twin of the organization (DTO). Model the business → generate code/agents/pipelines → automate. The moat is closing that loop on open W3C standards, at mid-market reach, with whole-business NL+forms authoring — not the triple store, which is commoditising fast (Ardoq's 2026 GraphLake acquisition brought RDF/OWL/SHACL to an EA incumbent). This is a time-limited window: differentiate on generation/automation closure before the substrate advantage erodes.
 
 **Core sub-systems:**
-- **Constitution engine** — ontology/graph layer (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. **Ships first.**
+- **Constitution engine** — ontology/graph layer (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. **First engine to ship** (the Platform shell — app/nav/workspace/auth/Cognito/Bedrock — is built first as the foundation everything runs in).
 - **Build engine** — generate apps (UI+API), AI agents, data pipelines, forms/dashboards from the graph model
 - **Events & actions engine** — automations triggered by graph changes AND external events (webhooks, Jira, cron)
-- **Graph explorer** — visualise the company as a force-directed network; drill-in focus views; Figma-style real-time multi-user collab
+- **Graph explorer** — visualise the company as a force-directed network; drill-in focus views; structured C4 canvas; Figma-style real-time multi-user collab (**Phase 2** — MVP ships single-user editing + async sharing)
 
 **Architecture decisions (confirmed):**
 - Single React SPA, modular internally (not micro-frontends)
 - Multi-tenant cloud SaaS
 - Full W3C semantic web: RDF/OWL/SHACL/SPARQL/PROV
-- Weave ships a universal business ontology; clients populate and extend it
-- NL + forms editing for business users (no code required)
+- Weave ships a **process-centric BPMO** (Business Process Management Ontology) — the "business brain" — as the universal *upper framework* (~13 kinds: Process, Activity, Event, DataAsset/Field, System, Service, BusinessCapability, BusinessDomain, Policy, Goal, Actor, Concept, Class + the relationships connecting them: performedBy/consumes/produces/runsOn/realizes/governedBy/…). Processes sit at the centre, linked to the data, systems, capabilities, governance, goals and actors that operate the business — the model an agent reasons inside. Clients extend it with their own domain kinds/instances; it's a **framework, not a populated taxonomy**. ArchiMate-3 aligned; REA + UFO behind the curtain. Grounded in `prototypes/obpm` (NOT the thin weave-prototype UI). Canonical set: `docs/specs/_inter-engine-contracts.md` CE-READ-1. See `.claude/memory/decision_ontology-bpmo.md`.
+- NL + forms editing for business users (no code required) — both ship in v1; forms are SHACL-shape-driven
 - AI-native throughout every layer
-- Managed connectors: Snowflake, Databricks, S3, Azure, Jira, ServiceNow
+- Managed connectors (7 integrations): Snowflake, Databricks, S3, Azure Data Lake, Atlassian (Jira + Confluence, one OAuth family), ServiceNow, Slack
 
 **Commercial model:** Fully commercial SaaS + consulting/workshop engagement arm (no open source)
 

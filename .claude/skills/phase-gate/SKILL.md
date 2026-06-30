@@ -266,8 +266,9 @@ What is your decision?"
 
 #### Result block (emit after the decision is recorded)
 
-After handling the chosen decision, emit a fenced `result` block as the final output of the gate so the
-orchestrator can parse the outcome deterministically (see [Output](#output) for the schema):
+After recording the chosen decision but **before** the branch's `exit` call (Approve `exit 0`, Reject `exit 2`),
+emit a fenced `result` block as the final chat output of the gate so the orchestrator can parse the outcome
+deterministically (see [Output](#output) for the schema):
 
 - **Approve** → `status: ok`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`
 - **Amend** → `status: fail`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`

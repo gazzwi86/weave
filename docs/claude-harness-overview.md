@@ -528,10 +528,10 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 
 | Decision | What | Reference |
 |---|---|---|
-| Skill granularity | Per artifact/template (not per persona, not per section) | `docs/specs/skills-update.md` §4.1 |
-| HITL gates | Spec = section-by-section; implement = phase-gated groups (PO-defined) | `docs/specs/skills-update.md` §4.2 |
-| Loop mechanism | `/goal` CLI primitive; Haiku-evaluated; `phase_gate()` Stop hook for HITL | `docs/specs/skills-update.md` §4.3 |
-| Agent runtime | Anthropic Agent SDK → AgentCore (GA only) | `docs/specs/skills-update.md` §4.7 |
-| Triplestore | Oxigraph dev → Neptune/Fuseki eval prod (decision deferred to CE tech spec) | `docs/specs/skills-update.md` §4.5 |
+| Skill granularity | Per artifact/template (not per persona, not per section); each skill maps 1:1 to a spec template — templates are the natural artifact seams | Harness redesign, 2026-06-25 |
+| HITL gates | Spec = section-by-section; implement = phase-gated groups (PO-defined) | Harness redesign, 2026-06-25 |
+| Loop mechanism | `/goal` CLI primitive (native built-in, v2.1.139+); Haiku-evaluated; `phase_gate()` Stop hook for HITL | Harness redesign, 2026-06-25 |
+| Agent runtime | Anthropic Agent SDK (authoring) → AgentCore/Bedrock (GA only) | Harness redesign, 2026-06-25 |
+| Triplestore | Oxigraph dev → Neptune/Fuseki eval prod (decision deferred to CE tech spec) | Harness redesign, 2026-06-25 |
 | Spec location | `docs/specs/` (joined OKF bundle at `docs/`) rather than `.claude/specs/` | Pass 1 migration, 2026-06-29 |
 | arch-stack output | `04-arch/tech-spec/stack.md` (not a flat `03-arch/` dir — aligns with CLAUDE.md phase table) | Pass 2 fix, 2026-06-29 |

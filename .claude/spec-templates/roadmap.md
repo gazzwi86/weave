@@ -1,67 +1,105 @@
+---
+type: Roadmap
+title: {{PROJECT_NAME}} — Roadmap
+description: "{{One-line description of the phased delivery plan.}}"
+tags: [{{entity-slug}}, 03-roadmap]
+status: Draft            # Draft | In Review | Approved
+timestamp: {{ISO8601}}
+resource: docs/specs/{{entity}}/03-roadmap/roadmap.md
+# --- provenance block (merged per frontmatter-schema.md) ---
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+last_verified_sha: {{HEAD_SHA}}
+expires_on: {{TODAY+180d}}
+owner: {{github-handle}}
+coverage: n/a
+---
+
 # Roadmap: {{PROJECT_NAME}}
 
-## Overview
+**Brief:** [brief.md](../01-brief/brief.md) · **PRD:** [prd.md](../02-prd/prd.md)
+**Program roadmap:** [../../_program-roadmap.md](../../_program-roadmap.md)
+**Status:** Draft
 
-**Brief:** [brief.md](./brief.md)
-**PRD:** [prd.md](./prd.md)
-**Status:** Draft | In Review | Approved
+## Position in the build order
+
+Weave build order: **Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding**.
+This engine is **#{{N}}**. **Depends on:** {{upstream engines / contracts (cite contract IDs)}}.
+**Unblocks:** {{downstream}}. Work that is contract-unblocked may run in parallel — see the program roadmap.
 
 ## Phases
 
 ```mermaid
 gantt
-    title Project Roadmap
+    title {{PROJECT_NAME}} Roadmap
     dateFormat YYYY-MM-DD
-    section Phase 1
-        Epic 1           :a1, 2024-01-01, 5d
-        HITL Gate 1      :milestone, m1, after a1, 0d
+    section Phase 1 (MVP)
+        Epic 1            :a1, 2026-01-01, 5d
+        HITL Gate 1       :milestone, m1, after a1, 0d
     section Phase 2
-        Epic 2           :a2, after m1, 5d
-        HITL Gate 2      :milestone, m2, after a2, 0d
+        Epic 2            :a2, after m1, 5d
+        HITL Gate 2       :milestone, m2, after a2, 0d
 ```
 
-### Phase 1: {{PHASE_NAME}}
+---
 
-**Goal:** {{What this phase delivers}}
-**HITL Gate:** {{What must be true to proceed}}
+### Phase 1: {{PHASE_NAME}}  ·  {{MVP | Phase 2 | …}}
 
-| Epic | Description | Stories | Priority |
-|------|-------------|---------|----------|
-| EPIC-001 | {{Description}} | {{Count}} | Must Have |
+**Goal:** {{What this phase delivers — the demonstrable outcome.}}
+**Epics:**
 
-**Entry Criteria (Definition of Ready):**
-- [ ] PRD approved
-- [ ] Tech spec approved
-- [ ] Tasks decomposed and reviewed
+| Epic | Description | Stories | Priority | MVP? |
+|------|-------------|---------|----------|------|
+| EPIC-001 | {{Description}} | {{N}} | Must Have | yes/no |
 
-**Exit Criteria (HITL Gate):**
-- [ ] {{Measurable outcome}}
-- [ ] {{All tests passing}}
-- [ ] {{Human review complete}}
+**Entry criteria (Definition of Ready):**
+- [ ] PRD section approved; tech spec for this phase approved
+- [ ] Tasks decomposed; each task brief passes the DoR gate
+- [ ] {{phase-specific prerequisites / upstream contracts available}}
+
+**Exit criteria (EARS, measurable, human-signed):**
+- [ ] WHEN {{event}} THE SYSTEM SHALL {{measurable behaviour}} — verified by {{artefact/test}}
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] {{≥1 measurable delivered artefact}}
+- [ ] **Human sign-off recorded** (always the final exit criterion)
+
+**HITL gates (configurable for this phase — declare which are active):**
+
+| Gate | Active? | Approver | Blocks |
+|------|---------|----------|--------|
+| Spec-approval (PO/stakeholder sign-off) | **mandatory** | {{role}} | phase start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes/no | {{role}} | phase-2 |
+| Pre-AWS-deploy (full local pyramid + gates green → approve) | yes/no | {{role}} | deploy |
+| Publish/generate (ontology publish / artefact release) | yes/no | {{role}} | release |
+
+> HITL gates are project/workspace-configurable; only spec-approval is globally mandatory. In the
+> Build Engine dark factory, each client project declares its gates here in its own roadmap.
+
+**Phase-gate metadata** (evaluated by the phase-gate Stop hook / `/goal` condition):
+
+```
+phase: 1
+gate_id: {{slug}}-gate-1
+condition: all_exit_criteria_met
+approver: {{role}}
+blocks: phase-2
+```
+
+---
 
 ### Phase 2: {{PHASE_NAME}}
 
-**Goal:** {{What this phase delivers}}
-**HITL Gate:** {{What must be true to proceed}}
-**Dependencies:** Phase 1 complete
+**Goal:** {{…}}  ·  **Dependencies:** Phase 1 gate passed{{; + upstream}}
+{{repeat the Phase 1 block structure}}
 
-| Epic | Description | Stories | Priority |
-|------|-------------|---------|----------|
-| EPIC-002 | {{Description}} | {{Count}} | Must Have |
+---
 
-**Entry Criteria:**
-- [ ] Phase 1 gate passed
-- [ ] {{Additional scaffolding if needed}}
+## HITL gate summary
 
-**Exit Criteria (HITL Gate):**
-- [ ] {{Measurable outcome}}
-
-## HITL Gate Summary
-
-| Gate | After Phase | Approval Criteria | Approver |
-|------|------------|-------------------|----------|
-| Gate 1 | Phase 1 | {{Criteria}} | {{Role}} |
-| Gate 2 | Phase 2 | {{Criteria}} | {{Role}} |
+| Gate | After phase | Approval criteria | Approver |
+|------|-------------|-------------------|----------|
+| Gate 1 | Phase 1 | {{EARS exit criteria met + human sign-off}} | {{role}} |
 
 ---
 *Generated by Weave PO agent. Review and approve before proceeding to Technical Architecture.*

@@ -316,7 +316,8 @@ When testing this skill, verify:
 - **Scaffolding HITL gate**: User must approve scaffolding before tasks begin
 - **TDD enforced**: Tests are written before implementation code; commits follow test-first order
 - **Code review before every commit**: `/code-review` runs before each commit in the Engineer workflow
-- **QA cycle with retry**: Failed QA feeds the failure report back to the Engineer; retries capped at 3
+- **QA cycle with retry**: Failed QA is classified (logic | dependency | interface | spec-ambiguity) and retried
+  per the class retry cap (logic 3, dependency 1, interface 1, spec-ambiguity 0); cap exhaustion escalates to the human
 - **PR review after PR creation**: `/code-review` runs on every created PR
 - **Security review at phase gate**: `/security-review` runs when all tasks in a phase are done
 - **Phase gate HITL**: User must Approve/Amend/Reject at every phase boundary

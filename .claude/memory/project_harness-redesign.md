@@ -6,8 +6,9 @@ created: 2026-06-25
 expires: 2026-07-14
 ---
 
-Harness redesign spec at `docs/specs/skills-update.md`. Harness orientation doc at
-`docs/claude-harness-overview.md`. Council of 6 complete — findings in spec §11.
+Harness redesign is complete. Living orientation doc at `docs/claude-harness-overview.md`
+(self-contained — decisions table in §14). Council of 6 complete; findings were folded
+into the redesign spec, now archived locally (untracked).
 
 **Completed (2026-06-25):**
 - `docs/claude-harness-overview.md` written
