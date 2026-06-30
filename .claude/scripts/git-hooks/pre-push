@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Pre-push: run /security-review on pending branch changes.
-# Blocks the push on security findings. Skip with `git push --no-verify`.
+# Blocks the push on security findings. NOTE: `--no-verify` does NOT work here — it is blocked by
+# the check-git-safety PreToolUse hook (.claude/rules/git-safety.md). Fix the findings, not the gate.
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 
@@ -48,13 +49,13 @@ echo "pre-push: [blocking] running /security-review on $RANGE ..." >&2
 PROMPT="/security-review Review changes in range $RANGE. Output JSON: {\"findings\":[...],\"block\":true|false}. Block on credentials, eval/Function, SQL injection, command injection."
 RESULT=$(claude -p "$PROMPT" --output-format text 2>&1) || {
   echo "$RESULT" >&2
-  echo "pre-push: /security-review failed; use --no-verify to bypass" >&2
+  echo "pre-push: /security-review failed; fix the cause (--no-verify is blocked by check-git-safety)" >&2
   exit 1
 }
 
 if echo "$RESULT" | grep -qE '"block"[[:space:]]*:[[:space:]]*true'; then
   echo "$RESULT" >&2
-  echo "pre-push: push blocked due to security findings (use --no-verify to bypass)" >&2
+  echo "pre-push: push blocked due to security findings (address them; --no-verify is blocked)" >&2
   exit 1
 fi
 
