@@ -22,7 +22,7 @@ epics for a PRD are complete.
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-4-6 (structured output, precise prose, story/AC generation)
+- **Drafting phase:** claude-sonnet-5 (structured output, precise prose, story/AC generation)
 
 Opus is not used here: the PRD has already set the strategic frame. Sonnet's structured
 generation is sufficient for translating PRD epics into well-formed EARS-notated AC.

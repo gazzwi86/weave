@@ -12,7 +12,7 @@ needs to document how data and control move through the system.
 ## Model
 
 - **Flow elicitation:** claude-opus-4-8 (broad reasoning, surfaces edge cases and invisible paths)
-- **Diagram drafting:** claude-sonnet-4-6 (structured Mermaid, concise prose)
+- **Diagram drafting:** claude-sonnet-5 (structured Mermaid, concise prose)
 
 ## Input
 

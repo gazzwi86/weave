@@ -12,7 +12,7 @@ module structure.
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (structured, precise infrastructure prose; cost arithmetic)
+- **All phases:** claude-sonnet-5 (structured, precise infrastructure prose; cost arithmetic)
 - **Escalate to claude-opus-4-8** if the entity introduces a novel deployment pattern not covered by the
   Weave confirmed stack (e.g. multi-region active-active, BYOC customer VPCs)
 
