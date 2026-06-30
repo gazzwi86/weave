@@ -146,7 +146,26 @@ Before invoking, tell the user:
 
 Output path: `docs/specs/<entity>/02-prd/prd.md`
 
-When the PRD is complete and committed, proceed to Phase 4.
+When the PRD is complete and committed, proceed to Phase 3b.
+
+### Phase 3b — Design system (UI-bearing projects only)
+
+Ask the user the explicit gating question via AskUserQuestion:
+
+> **"Does this project have a UI — a web app, website, or UI components?"**
+> (Yes → establish the design system now · No → skip; this is a backend/CLI/pipeline/agent-only project)
+
+- **No** → skip directly to Phase 4. Do not prompt about design again.
+- **Yes** → invoke the **`design-system`** skill (via the Skill tool). It gathers inspiration assets
+  (logo, mood-board / reference links, an optional prototype the user can generate on claude.ai or via
+  `/prototype`), researches current design trends, elicits the look-and-feel through MCQ rounds with
+  visual references, and generates `docs/standards/design/` (parent `design.md` + children + DTCG
+  tokens projected to `CE-BRAND-1`). This runs **after the PRD and before `/architect`**, so the
+  design system exists before any UI is specced or built.
+
+The design system is then a **hard input** to the Architect (task-brief `design_tokens`), the Engineer
+(builds against it; no ad-hoc hex/px/duration), and QA (design-conformance + Lighthouse-100 / WCAG-AA
+gate). When complete and committed, proceed to Phase 4.
 
 ### Phase 4 — Roadmap
 

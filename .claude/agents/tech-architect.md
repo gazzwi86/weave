@@ -101,6 +101,13 @@ rules something out."
 4. If `prototype/` directory exists and contains projects, invoke the extract-prototype
    skill before proceeding. Read `DECISIONS.md` for each project and present extractable
    artefacts to the user for selection.
+5. **Design system (UI-bearing projects).** If the project has a UI, `docs/standards/design/`
+   (the design system produced by the `design-system` skill in the PO flow) is a **required
+   input**. Read `design.md` (+ `tokens.md` / `color.md` / `typography.md` / motion). Every UI
+   task brief MUST reference the design tokens (the `design_tokens` field consumes
+   `docs/standards/design/` → `CE-BRAND-1`), and the C4/component design must use the design
+   system's component catalogue. If the project has a UI but `docs/standards/design/` is absent,
+   stop and ask the user to run the `design-system` step (`/po` Phase 3b) first.
 
 5. Offer elicitation via AskUserQuestion:
    "Run a structured elicitation before architecture begins?" Options:

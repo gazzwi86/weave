@@ -46,6 +46,7 @@ These are non-negotiable. Violation of any law is a failure condition.
 17. **UI-completeness gate.** For every PRD user-journey there MUST exist a `<route>/page.tsx` (or stack equivalent) reachable from the homepage navigation, AND a Playwright spec driving that journey end-to-end. A backend route or API endpoint without a corresponding UI page **fails Law B** even if the API tests pass. Sign-in, sign-up, account, GDPR self-service, and any user-facing flow named in the PRD's "User Stories" section are page-bearing — building only the API counts as incomplete.
 18. **Security middleware mandatory at scaffold time.** During the scaffold phase, you MUST configure HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy at minimum) and rate-limit middleware on all auth-bearing endpoints. Empty `next.config.ts headers()` arrays, absent middleware, or "we'll add it later" comments are non-compliant. The exact stanza for Next.js lives in `templates/standards/base/code-style.md` § "Security headers"; copy verbatim. For non-Next.js stacks, resolve the equivalent from `docs/stack-equivalents.md` row "Security headers / rate-limit middleware".
 19. **Spec-conformance to deploy/CI invariants.** When the architect's `tech-spec/ci-cd.md` or `infrastructure.md` specifies an invariant (e.g. "tests run against postgres:16 in CI", "deploy.yml requires `workflow_dispatch` + manual environment-protection rule", "deploy MUST run `prisma migrate deploy` before app start", "Node version pinned to N from the spec"), your CI/deploy YAML and middleware MUST reflect those invariants verbatim. The QA spec-coverage audit will catch drift. Don't silently downgrade postgres → sqlite for "easier CI"; fix the CI environment instead, or escalate the trade-off via an ADR.
+20. **Design-system conformance (UI tasks).** All UI you build — hand-written or Build-Engine-generated — MUST consume the Weave design system in `docs/standards/design/` (`design.md` is the source-of-truth north-star, compiled from `tokens.md` / `color.md` / `typography.md` / motion). Every colour, type-scale step, spacing, radius, shadow/glow, and motion value comes from a **design token** surfaced as a CSS custom property (`var(--token)`), projected from the `CE-BRAND-1` contract (`GET /api/brand/tokens`, the flattened DTCG JSON). **Never emit ad-hoc hex, px, or duration literals in components.** Specifically: dark-first is the primary theme with the light theme as a `prefers-color-scheme` override from the one token source; UI text is Geist Sans and code/IDs/metrics/numbers are Geist Mono; the 14 BPMO kind colours are consumed as the tuned OKLCH dark/light token variants and **always paired with their kind shape/icon** (colour is never the only carrier of meaning — WCAG 1.4.1); motion is GPU-friendly only (transform/opacity), uses the defined duration+easing scale, and has full `prefers-reduced-motion` fallbacks; glass/glow is reserved for the key surfaces named in the design system (graph canvas, overlays, modals, Cmd-K command palette) — base elements are flat/fast so Lighthouse-100 and WCAG-AA hold. Cross-references: `docs/standards/accessibility.md` (WCAG AA, contrast, ARIA, reduced-motion) and `docs/standards/generative-ui.md` (finite component catalogue, token consumption). A component that hard-codes values instead of consuming tokens fails QA's design-conformance check the same way an axe violation fails the a11y gate.
 
 ## Your Responsibilities
 
@@ -72,6 +73,7 @@ On the first run for a project (or when the task is a scaffolding task):
 1. Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` for tech stack
 2. Read `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md` for test framework config
 3. Read `docs/standards/linting.md` for ESLint config
+4. For UI-bearing projects, read `docs/standards/design/design.md` (+ `tokens.md`, `color.md`, `typography.md`) so the design tokens, Geist fonts, kind colours+shapes, and motion scale are wired into the scaffold (CSS custom properties + `CE-BRAND-1` token consumption + Storybook) before any feature UI is built
 
 Then set up (each step is a small task with its own commit):
 1. Resolve scaffolder command from `weave.stack.language`+`framework`. The list below is the TS+Next.js path; for python+fastapi use `uv init`+`uv add fastapi pydantic ...`; for java+spring-boot use Spring Initializr CLI or `mvn archetype:generate`; for swift+vapor use `vapor new`.
@@ -82,6 +84,7 @@ Then set up (each step is a small task with its own commit):
 5. Configure Playwright per testing-strategy.md
 6. Configure TypeScript strict mode
 7. Set up folder structure per code-style.md
+7b. **Wire the design system** (UI-bearing projects): load Geist Sans + Geist Mono (variable), emit the `docs/standards/design/` tokens as CSS custom properties (the `CE-BRAND-1` / `GET /api/brand/tokens` shape — dark-first with a `prefers-color-scheme` light override), and stand up Storybook to render the design-system components from those tokens (EPIC-000 E0-S3). No feature UI before this; ad-hoc hex/px/duration in components is non-compliant (Law 20).
 8. **Install husky + lint-staged** (ESSENTIAL):
    - Pre-commit hook: `eslint --fix` + `vitest run --changed`
    - Pre-push hook: `vitest run` (full suite)
@@ -207,3 +210,4 @@ On each iteration:
 - Do not create large, multi-purpose commits
 - Do not use `any` type, `@ts-ignore`, or `eslint-disable`
 - Do not leave TODO/FIXME comments
+- Do not hard-code colour/hex, spacing/px, type sizes, or motion durations in UI — consume `docs/standards/design/` tokens (`CE-BRAND-1` / CSS custom properties) only

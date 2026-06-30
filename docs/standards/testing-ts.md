@@ -137,6 +137,14 @@ export default {
 
 ## Visual Regression
 
+Visual regression is the **design-token conformance** check: a drifted screenshot signals that
+a component's rendered colour / type / spacing / motion no longer matches the design system in
+[`docs/standards/design/design.md`](design/design.md) (the source compiled from `tokens.md` /
+`color.md` / `typography.md` / motion). Because every catalogue and generated component consumes
+design tokens as CSS custom properties — never hard-coded values (`generative-ui.md`,
+`accessibility.md`) — a baseline diff is the cheapest signal that a token was bypassed or a token
+value regressed. The QA Design-conformance check (Category 15) reads these baselines.
+
 Every generated UI component is captured in its **8 named visual states** and diffed against a
 stored baseline. This is the Build Engine's "visual-state capture", which replaces the
 previously-undefined "F25 visual test" (see `docs/specs/build-engine/02-prd/prd.md`, lines
@@ -270,6 +278,17 @@ Lighthouse CI is already wired in the prototype (`lighthouserc.json`, `lint:ligh
 `lhci autorun`). Performance and best-practices score as `warn`; **accessibility ≥ 0.9 is an
 `error`** and blocks merge. Promote the performance budget to `error` for any page with a PRD
 p95 commitment rather than leaving it advisory.
+
+**Built Weave-app bar — Lighthouse 100 across all four categories.** For the production Weave
+application UI (Platform dashboard, Graph Explorer, Build Engine screens, and all
+Build-generated UI), the design-system QA gate is **a Lighthouse score of 100 on every category —
+performance, accessibility, best-practices, AND SEO** — not ≥ 0.9. This is the bar enforced by
+the QA agent's design-conformance check (`quality-assurance.md` Category 15) and derives from the
+design system ([`docs/standards/design/design.md`](design/design.md)): the rich-but-disciplined
+motion model (GPU-only transform/opacity, glass/glow reserved to key surfaces, flat/fast base)
+exists precisely so Lighthouse-100 and WCAG-AA hold simultaneously. Set these four as `error`
+assertions (`minScore: 1.0`) in the Weave-app `lighthouserc.json`; any category below 100 blocks
+merge.
 
 ### k6 — backend latency / load budgets
 
