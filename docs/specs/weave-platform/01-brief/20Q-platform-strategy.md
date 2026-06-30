@@ -13,6 +13,16 @@ resource: docs/specs/weave-platform/01-brief/20Q-platform-strategy.md
 **Date:** 2026-06-24
 **Topic:** Weave platform product strategy, scope, and architecture
 
+> **⚠️ Superseded (decisions A1 + the BPMO reframe, 2026-06-30).** This historical elicitation
+> record says "Weave ships a universal business ontology; clients extend it." That has been
+> refined: Weave ships a **process-centric BPMO** (Business Process Management Ontology) — the
+> "business brain" — as the universal *upper framework* (Process at the centre, linked to data,
+> systems, services, capabilities, governance, goals and actors; ~13 kinds + relationships),
+> **not** a populated business taxonomy. Clients build their **own** domain vocabulary and
+> instances on top. "Weave provides the grammar; the company writes the sentences." Canonical set:
+> `docs/specs/_inter-engine-contracts.md` CE-READ-1; see CLAUDE.md and the Constitution Engine
+> brief/PRD for the authoritative framing. The rest of this document stands.
+
 ---
 
 ## Starting Scope
