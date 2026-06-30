@@ -1,3 +1,25 @@
+---
+id: EPIC-003
+type: epic
+entity: events-actions-engine
+title: Visual Flow Canvas
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-007]
+blocks: [EPIC-002, EPIC-010]
+provides: []
+consumes: []
+prd_ref: ../prd.md#epic-3-visual-flow-canvas
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-003 - Visual Flow Canvas
 
 ## Overview

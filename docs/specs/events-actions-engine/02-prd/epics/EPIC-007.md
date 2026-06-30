@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: events-actions-engine
+title: Two-Tier Automation Model & Composition
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: []
+blocks: [EPIC-002, EPIC-003]
+provides: [EA-AUTOMATION-1]
+consumes: []
+prd_ref: ../prd.md#epic-7-two-tier-automation-model--composition
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - Two-Tier Automation Model & Composition
 
 ## Overview

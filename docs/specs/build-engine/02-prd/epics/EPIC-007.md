@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: build-engine
+title: Decision Log (view over the platform audit service)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-011, PLAT-AUDIT-1, PLAT-IDENTITY-1]
+blocks: []
+provides: []
+consumes: [PLAT-AUDIT-1, PLAT-IDENTITY-1]
+prd_ref: ../prd.md#epic-7-decision-log-view-over-the-platform-audit-service
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - Decision Log (view over the platform audit service)
 
 ## Overview

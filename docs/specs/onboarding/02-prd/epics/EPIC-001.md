@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: onboarding
+title: Hammerbarn Demo Workspace
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [CE-READ-1, CE-WRITE-1, CE-VERSION-1, GE-CANVAS-1, PLAT-SETTINGS-1, PLAT-IDENTITY-1, PLAT-AUDIT-1, BE-ARTEFACT-1, EA-AUTOMATION-1]
+blocks: [EPIC-002, EPIC-003, EPIC-004, EPIC-005]
+provides: []
+consumes: [CE-READ-1, CE-WRITE-1, CE-VERSION-1, GE-CANVAS-1, PLAT-SETTINGS-1, PLAT-IDENTITY-1, PLAT-AUDIT-1, BE-ARTEFACT-1, EA-AUTOMATION-1]
+prd_ref: ../prd.md#epic-1-hammerbarn-demo-workspace
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Hammerbarn Demo Workspace
 
 ## Overview

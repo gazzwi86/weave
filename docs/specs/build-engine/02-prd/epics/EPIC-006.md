@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: build-engine
+title: Specification Lifecycle & Dark-Factory Execution
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-005, EPIC-011, CE-READ-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1, PLAT-NOTIFY-1]
+blocks: [EPIC-003, EPIC-004, EPIC-008, EPIC-010]
+provides: []
+consumes: [CE-READ-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-6-specification-lifecycle--dark-factory-execution
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - Specification Lifecycle & Dark-Factory Execution
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-011
+type: epic
+entity: constitution-engine
+title: Authoring Surfaces — Chat AND Forms (Cross-Cutting)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-001, EPIC-006, EPIC-010, CE-WRITE-1]
+blocks: [EPIC-012]
+provides: []
+consumes: [CE-WRITE-1, CE-READ-1]
+prd_ref: ../prd.md#epic-11-authoring-surfaces--chat-and-forms-cross-cutting
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-011 - Authoring Surfaces — Chat AND Forms (Cross-Cutting)
 
 ## Overview

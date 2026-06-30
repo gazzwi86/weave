@@ -1,3 +1,25 @@
+---
+id: EPIC-011
+type: epic
+entity: build-engine
+title: Dark-Factory Execution Engine
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-002, EPIC-005, PLAT-SETTINGS-1, PLAT-BILLING-1, PLAT-NOTIFY-1]
+blocks: [EPIC-006, EPIC-007, EPIC-012]
+provides: []
+consumes: [PLAT-SETTINGS-1, PLAT-BILLING-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-11-dark-factory-execution-engine
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-011 - Dark-Factory Execution Engine
 
 ## Overview

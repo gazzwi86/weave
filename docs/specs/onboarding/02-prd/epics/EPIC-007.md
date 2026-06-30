@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: onboarding
+title: Help Launcher
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-002, EPIC-005, EPIC-006]
+blocks: []
+provides: []
+consumes: []
+prd_ref: ../prd.md#epic-7-help-launcher
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - Help Launcher
 
 ## Overview

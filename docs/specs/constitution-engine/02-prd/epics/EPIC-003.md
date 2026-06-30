@@ -1,3 +1,25 @@
+---
+id: EPIC-003
+type: epic
+entity: constitution-engine
+title: SKOS Controlled Vocabulary (Glossary)
+status: backlog
+phase: 2
+priority: must
+mvp: true
+depends_on: [EPIC-001, EPIC-006, EPIC-010, CE-WRITE-1]
+blocks: [EPIC-005, EPIC-007]
+provides: []
+consumes: [CE-WRITE-1, CE-READ-1]
+prd_ref: ../prd.md#epic-3-skos-controlled-vocabulary-glossary
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-003 - SKOS Controlled Vocabulary (Glossary)
 
 ## Overview

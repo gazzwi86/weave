@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: weave-platform
+title: Billing, Metering & Budgets (PLAT-BILLING-1)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-003, EPIC-006]
+blocks: [EPIC-001]
+provides: [PLAT-BILLING-1]
+consumes: [PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-8-billing-metering--budgets-plat-billing-1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - Billing, Metering & Budgets (PLAT-BILLING-1)
 
 ## Overview

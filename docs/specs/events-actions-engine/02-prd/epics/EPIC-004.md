@@ -1,3 +1,25 @@
+---
+id: EPIC-004
+type: epic
+entity: events-actions-engine
+title: Trigger Sources
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-008, PLAT-CONNECTOR-1, CE-EVENT-1, CE-READ-1]
+blocks: [EPIC-010]
+provides: []
+consumes: [PLAT-CONNECTOR-1, CE-EVENT-1, CE-READ-1]
+prd_ref: ../prd.md#epic-4-trigger-sources
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-004 - Trigger Sources
 
 ## Overview

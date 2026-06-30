@@ -1,3 +1,25 @@
+---
+id: EPIC-004
+type: epic
+entity: graph-explorer
+title: Visual Overlays
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-003, CE-READ-1, CE-DIFF-1]
+blocks: [EPIC-007]
+provides: []
+consumes: [CE-READ-1, CE-DIFF-1]
+prd_ref: ../prd.md#epic-4-visual-overlays
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-004 - Visual Overlays
 
 ## Overview

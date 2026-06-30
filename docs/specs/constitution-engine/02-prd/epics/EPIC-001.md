@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: constitution-engine
+title: Ontology Modelling (OWL Structure)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, EPIC-009, EPIC-010, CE-WRITE-1]
+blocks: [EPIC-002, EPIC-003, EPIC-011]
+provides: []
+consumes: [CE-WRITE-1]
+prd_ref: ../prd.md#epic-1-ontology-modelling-owl-structure
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Ontology Modelling (OWL Structure)
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: constitution-engine
+title: Governance & Compliance Rules
+status: backlog
+phase: 2
+priority: must
+mvp: true
+depends_on: [EPIC-003, EPIC-006, EPIC-010, CE-WRITE-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+blocks: []
+provides: [CE-METRICS-1]
+consumes: [CE-WRITE-1, CE-READ-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-5-governance--compliance-rules
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Governance & Compliance Rules
 
 ## Overview

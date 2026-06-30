@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: weave-platform
+title: Notifications (PLAT-NOTIFY-1)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-007]
+blocks: [EPIC-008, EPIC-009]
+provides: [PLAT-NOTIFY-1]
+consumes: [PLAT-CONNECTOR-1]
+prd_ref: ../prd.md#epic-6-notifications-plat-notify-1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - Notifications (PLAT-NOTIFY-1)
 
 ## Overview

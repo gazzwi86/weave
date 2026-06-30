@@ -1,3 +1,25 @@
+---
+id: EPIC-004
+type: epic
+entity: onboarding
+title: Hands-On Exercises
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-001, EPIC-003, EPIC-005, CE-READ-1, CE-WRITE-1, GE-CANVAS-1, BE-ARTEFACT-1, EA-AUTOMATION-1, PLAT-CONNECTOR-1]
+blocks: []
+provides: []
+consumes: [CE-READ-1, CE-WRITE-1, GE-CANVAS-1, BE-ARTEFACT-1, EA-AUTOMATION-1, PLAT-CONNECTOR-1]
+prd_ref: ../prd.md#epic-4-hands-on-exercises
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-004 - Hands-On Exercises
 
 ## Overview

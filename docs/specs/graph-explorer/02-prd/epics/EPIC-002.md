@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: graph-explorer
+title: Drill-In & Domain Focus
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-001, CE-READ-1]
+blocks: [EPIC-003, EPIC-005]
+provides: []
+consumes: [CE-READ-1]
+prd_ref: ../prd.md#epic-2-drill-in--domain-focus
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Drill-In & Domain Focus
 
 ## Overview

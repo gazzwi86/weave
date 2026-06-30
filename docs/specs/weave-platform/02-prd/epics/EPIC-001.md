@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: weave-platform
+title: Generative Dashboard (composition + lifecycle)
+status: backlog
+phase: 2
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-003, EPIC-008, CE-READ-1, CE-METRICS-1, CE-VERSION-1]
+blocks: [EPIC-002]
+provides: []
+consumes: [CE-METRICS-1, CE-READ-1, CE-VERSION-1, PLAT-SETTINGS-1, PLAT-BILLING-1]
+prd_ref: ../prd.md#epic-1-generative-dashboard-composition--lifecycle
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Generative Dashboard (composition + lifecycle)
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-009
+type: epic
+entity: build-engine
+title: Bidirectional Graph Sync & Staleness
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-008, CE-WRITE-1, CE-VERSION-1, PLAT-NOTIFY-1]
+blocks: []
+provides: [BE-ARTEFACT-1]
+consumes: [CE-WRITE-1, CE-VERSION-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-9-bidirectional-graph-sync--staleness
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-009 - Bidirectional Graph Sync & Staleness
 
 ## Overview

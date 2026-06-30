@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: onboarding
+title: Onboarding Analytics
+status: backlog
+phase: 1
+priority: should
+mvp: false
+depends_on: [EPIC-005, PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1]
+blocks: []
+provides: []
+consumes: [PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1]
+prd_ref: ../prd.md#epic-8-onboarding-analytics
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - Onboarding Analytics
 
 ## Overview

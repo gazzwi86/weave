@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: weave-platform
+title: Global Navigation & Search
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-009]
+blocks: []
+provides: []
+consumes: [PLAT-AUDIT-1]
+prd_ref: ../prd.md#epic-5-global-navigation--search
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Global Navigation & Search
 
 ## Overview

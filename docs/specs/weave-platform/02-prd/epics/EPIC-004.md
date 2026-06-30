@@ -1,3 +1,25 @@
+---
+id: EPIC-004
+type: epic
+entity: weave-platform
+title: Authentication, RBAC & Agent Identity
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-003]
+blocks: [EPIC-007, EPIC-009, EPIC-002]
+provides: [PLAT-IDENTITY-1]
+consumes: [PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-4-authentication-rbac--agent-identity
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-004 - Authentication, RBAC & Agent Identity
 
 ## Overview

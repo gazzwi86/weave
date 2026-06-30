@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: weave-platform
+title: Managed Connectors (PLAT-CONNECTOR-1)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-004, CE-WRITE-1]
+blocks: [EPIC-002, EPIC-006]
+provides: [PLAT-CONNECTOR-1]
+consumes: [CE-WRITE-1, PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1]
+prd_ref: ../prd.md#epic-7-managed-connectors-plat-connector-1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - Managed Connectors (PLAT-CONNECTOR-1)
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: events-actions-engine
+title: Ontology Grounding
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [CE-READ-1, CE-VERSION-1, CE-DIFF-1, PLAT-NOTIFY-1]
+blocks: [EPIC-002, EPIC-005]
+provides: []
+consumes: [CE-READ-1, CE-VERSION-1, CE-DIFF-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-6-ontology-grounding
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - Ontology Grounding
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: constitution-engine
+title: Instance Data Population
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-001, EPIC-006, EPIC-010, CE-WRITE-1]
+blocks: []
+provides: []
+consumes: [CE-WRITE-1, CE-READ-1]
+prd_ref: ../prd.md#epic-2-instance-data-population
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Instance Data Population
 
 ## Overview

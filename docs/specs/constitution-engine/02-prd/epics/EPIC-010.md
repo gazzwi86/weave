@@ -1,3 +1,25 @@
+---
+id: EPIC-010
+type: epic
+entity: constitution-engine
+title: Stable Read & Write Interfaces (Inter-engine Contract Hub)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, PLAT-IDENTITY-1, PLAT-SETTINGS-1]
+blocks: [EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005, EPIC-007, EPIC-012]
+provides: [CE-READ-1, CE-WRITE-1]
+consumes: [PLAT-IDENTITY-1, PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-10-stable-read--write-interfaces-inter-engine-contract-hub
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-010 - Stable Read & Write Interfaces (Inter-engine Contract Hub)
 
 ## Overview

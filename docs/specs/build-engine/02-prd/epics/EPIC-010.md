@@ -1,3 +1,25 @@
+---
+id: EPIC-010
+type: epic
+entity: build-engine
+title: Client-App Self-Healing (always HITL)
+status: backlog
+phase: 2
+priority: should
+mvp: false
+depends_on: [EPIC-006, EPIC-008, CE-WRITE-1, PLAT-NOTIFY-1, PLAT-AUDIT-1, PLAT-CONNECTOR-1]
+blocks: []
+provides: [BE-SELFIMPROVE-1]
+consumes: [CE-WRITE-1, PLAT-NOTIFY-1, PLAT-AUDIT-1, PLAT-CONNECTOR-1]
+prd_ref: ../prd.md#epic-10-client-app-self-healing-always-hitl
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-010 - Client-App Self-Healing (always HITL)
 
 ## Overview

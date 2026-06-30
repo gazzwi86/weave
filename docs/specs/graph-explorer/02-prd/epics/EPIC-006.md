@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: graph-explorer
+title: Async Share & Comments (MVP) — Realtime Collaboration is Phase 2
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-007, PLAT-NOTIFY-1, CE-EVENT-1, CE-READ-1]
+blocks: []
+provides: []
+consumes: [PLAT-NOTIFY-1, CE-EVENT-1, CE-READ-1]
+prd_ref: ../prd.md#epic-6-async-share--comments-mvp--realtime-collaboration-is-phase-2-d1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - Async Share & Comments (MVP) — Realtime Collaboration is Phase 2
 
 ## Overview

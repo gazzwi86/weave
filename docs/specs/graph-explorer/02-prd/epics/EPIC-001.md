@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: graph-explorer
+title: Whole-Company Canvas (force mode)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [CE-READ-1]
+blocks: [EPIC-002, EPIC-008]
+provides: []
+consumes: [CE-READ-1]
+prd_ref: ../prd.md#epic-1-whole-company-canvas-force-mode
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Whole-Company Canvas (force mode)
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: build-engine
+title: Project Registry & Settings
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-001, CE-VERSION-1, CE-DIFF-1, PLAT-SETTINGS-1, PLAT-BILLING-1, PLAT-CONNECTOR-1, PLAT-NOTIFY-1]
+blocks: [EPIC-005, EPIC-011]
+provides: []
+consumes: [CE-VERSION-1, CE-DIFF-1, PLAT-SETTINGS-1, PLAT-BILLING-1, PLAT-CONNECTOR-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-2-project-registry--settings
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Project Registry & Settings
 
 ## Overview

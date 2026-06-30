@@ -1,3 +1,25 @@
+---
+id: EPIC-009
+type: epic
+entity: events-actions-engine
+title: Audit & Compliance Reporting
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-008, PLAT-AUDIT-1, CE-READ-1]
+blocks: []
+provides: []
+consumes: [PLAT-AUDIT-1, CE-READ-1]
+prd_ref: ../prd.md#epic-9-audit--compliance-reporting-views-over-plat-audit-1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-009 - Audit & Compliance Reporting
 
 ## Overview

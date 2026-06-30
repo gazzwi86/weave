@@ -1,3 +1,25 @@
+---
+id: EPIC-012
+type: epic
+entity: build-engine
+title: Quality Gates & Spec-Coverage
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-011, PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+blocks: []
+provides: []
+consumes: [PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-12-quality-gates--spec-coverage
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-012 - Quality Gates & Spec-Coverage
 
 ## Overview

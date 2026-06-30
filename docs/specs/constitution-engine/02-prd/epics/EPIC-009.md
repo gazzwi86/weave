@@ -1,3 +1,25 @@
+---
+id: EPIC-009
+type: epic
+entity: constitution-engine
+title: Provenance & Version Lifecycle
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, PLAT-AUDIT-1, PLAT-IDENTITY-1]
+blocks: [EPIC-001, EPIC-008]
+provides: [CE-DIFF-1, CE-VERSION-1, CE-EVENT-1]
+consumes: [PLAT-AUDIT-1, PLAT-IDENTITY-1]
+prd_ref: ../prd.md#epic-9-provenance--version-lifecycle
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-009 - Provenance & Version Lifecycle
 
 ## Overview

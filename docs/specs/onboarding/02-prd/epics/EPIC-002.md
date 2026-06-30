@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: onboarding
+title: Guided Tours & Contextual Overlays
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-001, EPIC-003, GE-CANVAS-1]
+blocks: []
+provides: []
+consumes: [GE-CANVAS-1]
+prd_ref: ../prd.md#epic-2-guided-tours--contextual-overlays
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Guided Tours & Contextual Overlays
 
 ## Overview

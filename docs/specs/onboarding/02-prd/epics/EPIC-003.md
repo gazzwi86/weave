@@ -1,3 +1,25 @@
+---
+id: EPIC-003
+type: epic
+entity: onboarding
+title: Role-Tailored Onboarding Paths
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-001, PLAT-IDENTITY-1, PLAT-SETTINGS-1, CE-METRICS-1]
+blocks: [EPIC-002, EPIC-004, EPIC-005]
+provides: []
+consumes: [PLAT-IDENTITY-1, PLAT-SETTINGS-1, CE-METRICS-1]
+prd_ref: ../prd.md#epic-3-role-tailored-onboarding-paths
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-003 - Role-Tailored Onboarding Paths
 
 ## Overview

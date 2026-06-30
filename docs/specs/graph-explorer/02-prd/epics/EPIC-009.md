@@ -1,3 +1,25 @@
+---
+id: EPIC-009
+type: epic
+entity: graph-explorer
+title: Embeddable Canvas Component — GE-CANVAS-1 (this engine PROVIDES)
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-005, CE-READ-1, CE-WRITE-1]
+blocks: []
+provides: [GE-CANVAS-1]
+consumes: [CE-READ-1, CE-WRITE-1, PLAT-IDENTITY-1]
+prd_ref: ../prd.md#epic-9-embeddable-canvas-component--ge-canvas-1-e3-this-engine-provides
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-009 - Embeddable Canvas Component — GE-CANVAS-1 (this engine PROVIDES)
 
 ## Overview

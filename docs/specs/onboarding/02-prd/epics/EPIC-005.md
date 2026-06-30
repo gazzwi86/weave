@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: onboarding
+title: Onboarding Checklist & Activation
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-001, EPIC-003, CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1]
+blocks: [EPIC-004]
+provides: []
+consumes: [CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-5-onboarding-checklist--activation
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Onboarding Checklist & Activation
 
 ## Overview

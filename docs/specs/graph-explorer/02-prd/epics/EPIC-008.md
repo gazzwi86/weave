@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: graph-explorer
+title: Version Views & Diff (visualises CE versioning)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-001, CE-VERSION-1, CE-READ-1, CE-DIFF-1]
+blocks: []
+provides: []
+consumes: [CE-VERSION-1, CE-READ-1, CE-DIFF-1]
+prd_ref: ../prd.md#epic-8-version-views--diff-visualises-ce-versioning
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - Version Views & Diff (visualises CE versioning)
 
 ## Overview

@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: graph-explorer
+title: Visual Editing on the Canvas (commits via CE-WRITE-1)
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-002, CE-WRITE-1]
+blocks: [EPIC-009]
+provides: []
+consumes: [CE-WRITE-1, PLAT-AUDIT-1]
+prd_ref: ../prd.md#epic-5-visual-editing-on-the-canvas-commits-via-ce-write-1
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Visual Editing on the Canvas (commits via CE-WRITE-1)
 
 ## Overview

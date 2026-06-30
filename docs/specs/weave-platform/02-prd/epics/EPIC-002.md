@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: weave-platform
+title: Widget Library (engine-sourced data categories, phase-gated)
+status: backlog
+phase: 2
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-001, EPIC-004, EPIC-007, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1, CE-VERSION-1, CE-EVENT-1]
+blocks: []
+provides: []
+consumes: [CE-METRICS-1, CE-READ-1, CE-DIFF-1, CE-VERSION-1, CE-EVENT-1, PLAT-AUDIT-1, PLAT-BILLING-1, PLAT-CONNECTOR-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1, BE-SELFIMPROVE-1]
+prd_ref: ../prd.md#epic-2-widget-library-engine-sourced-data-categories-phase-gated
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Widget Library (engine-sourced data categories, phase-gated)
 
 ## Overview

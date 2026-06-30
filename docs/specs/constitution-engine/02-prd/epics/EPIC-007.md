@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: constitution-engine
+title: SPARQL Query & NL Query
+status: backlog
+phase: 2
+priority: must
+mvp: true
+depends_on: [EPIC-003, EPIC-010, CE-READ-1]
+blocks: []
+provides: []
+consumes: [CE-READ-1]
+prd_ref: ../prd.md#epic-7-sparql-query--nl-query
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - SPARQL Query & NL Query
 
 ## Overview

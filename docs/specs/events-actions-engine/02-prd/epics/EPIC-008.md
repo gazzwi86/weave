@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: events-actions-engine
+title: Run Engine & Reliability
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [PLAT-BILLING-1, PLAT-NOTIFY-1, BE-SELFIMPROVE-1]
+blocks: [EPIC-001, EPIC-004, EPIC-005, EPIC-009]
+provides: []
+consumes: [PLAT-BILLING-1, PLAT-NOTIFY-1, BE-SELFIMPROVE-1]
+prd_ref: ../prd.md#epic-8-run-engine--reliability
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - Run Engine & Reliability
 
 ## Overview

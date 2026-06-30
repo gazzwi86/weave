@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: build-engine
+title: Generation, Anatomy, Project Ontology & Deployment
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, CE-READ-1, CE-BRAND-1, CE-VERSION-1, CE-DIFF-1, GE-CANVAS-1, CE-WRITE-1, PLAT-IDENTITY-1, BE-ARTEFACT-1]
+blocks: [EPIC-009, EPIC-010]
+provides: [BE-SDK-1]
+consumes: [CE-READ-1, CE-BRAND-1, CE-VERSION-1, CE-DIFF-1, GE-CANVAS-1, CE-WRITE-1, PLAT-IDENTITY-1, BE-ARTEFACT-1]
+prd_ref: ../prd.md#epic-8-generation-anatomy-project-ontology--deployment
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - Generation, Anatomy, Project Ontology & Deployment
 
 ## Overview

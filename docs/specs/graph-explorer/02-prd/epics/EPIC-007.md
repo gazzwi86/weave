@@ -1,3 +1,25 @@
+---
+id: EPIC-007
+type: epic
+entity: graph-explorer
+title: Saved Views & Layout (server-side, team-shared — D2)
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: [EPIC-004, PLAT-SETTINGS-1]
+blocks: [EPIC-006]
+provides: []
+consumes: [PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-7-saved-views--layout-server-side-team-shared--d2
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-007 - Saved Views & Layout (server-side, team-shared — D2)
 
 ## Overview

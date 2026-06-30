@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: build-engine
+title: Request Studio (AI request intake)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [CE-READ-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+blocks: [EPIC-002]
+provides: []
+consumes: [CE-READ-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1]
+prd_ref: ../prd.md#epic-1-request-studio-ai-request-intake
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Request Studio (AI request intake)
 
 ## Overview

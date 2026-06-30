@@ -1,3 +1,25 @@
+---
+id: EPIC-008
+type: epic
+entity: constitution-engine
+title: OWL Reasoning
+status: backlog
+phase: 4
+priority: must
+mvp: false
+depends_on: [EPIC-009, EPIC-001, CE-VERSION-1]
+blocks: []
+provides: []
+consumes: [CE-VERSION-1, CE-READ-1]
+prd_ref: ../prd.md#epic-8-owl-reasoning
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-008 - OWL Reasoning
 
 ## Overview

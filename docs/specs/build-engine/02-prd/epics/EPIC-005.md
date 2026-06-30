@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: build-engine
+title: Task Brief & Detail
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-002, CE-BRAND-1, PLAT-SETTINGS-1, PLAT-AUDIT-1]
+blocks: [EPIC-006, EPIC-011]
+provides: []
+consumes: [CE-BRAND-1, PLAT-SETTINGS-1, PLAT-AUDIT-1]
+prd_ref: ../prd.md#epic-5-task-brief--detail
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Task Brief & Detail
 
 ## Overview

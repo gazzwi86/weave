@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: constitution-engine
+title: SHACL Validation (Cross-Cutting)
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [PLAT-SETTINGS-1]
+blocks: [EPIC-009, EPIC-010, EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005]
+provides: []
+consumes: [PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-6-shacl-validation-cross-cutting
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - SHACL Validation (Cross-Cutting)
 
 ## Overview

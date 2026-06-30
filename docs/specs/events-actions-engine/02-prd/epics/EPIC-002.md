@@ -1,3 +1,25 @@
+---
+id: EPIC-002
+type: epic
+entity: events-actions-engine
+title: Natural-Language Automation Builder
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-003, EPIC-006, EPIC-007, CE-READ-1, CE-VERSION-1]
+blocks: [EPIC-010]
+provides: []
+consumes: [CE-READ-1, CE-VERSION-1]
+prd_ref: ../prd.md#epic-2-natural-language-automation-builder
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-002 - Natural-Language Automation Builder
 
 ## Overview

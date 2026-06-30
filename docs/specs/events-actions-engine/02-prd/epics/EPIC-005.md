@@ -1,3 +1,25 @@
+---
+id: EPIC-005
+type: epic
+entity: events-actions-engine
+title: Action Types
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, EPIC-008, PLAT-CONNECTOR-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1, PLAT-AUDIT-1, CE-WRITE-1]
+blocks: [EPIC-010]
+provides: []
+consumes: [PLAT-CONNECTOR-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1, PLAT-AUDIT-1, CE-WRITE-1]
+prd_ref: ../prd.md#epic-5-action-types
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-005 - Action Types
 
 ## Overview

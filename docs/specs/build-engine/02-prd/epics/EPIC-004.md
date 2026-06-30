@@ -1,3 +1,25 @@
+---
+id: EPIC-004
+type: epic
+entity: build-engine
+title: Kanban & Task Management
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006]
+blocks: []
+provides: []
+consumes: []
+prd_ref: ../prd.md#epic-4-kanban--task-management
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-004 - Kanban & Task Management
 
 ## Overview

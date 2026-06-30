@@ -1,3 +1,25 @@
+---
+id: EPIC-012
+type: epic
+entity: constitution-engine
+title: Artefact & Document Ingest (Post-MVP, prioritized)
+status: backlog
+phase: 3
+priority: should
+mvp: false
+depends_on: [EPIC-001, EPIC-010, EPIC-011, CE-WRITE-1, CE-READ-1]
+blocks: []
+provides: []
+consumes: [CE-WRITE-1, CE-READ-1]
+prd_ref: ../prd.md#epic-12-artefact--document-ingest-post-mvp-prioritized
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-012 - Artefact & Document Ingest (Post-MVP, prioritized)
 
 ## Overview

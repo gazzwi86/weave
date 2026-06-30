@@ -1,3 +1,25 @@
+---
+id: EPIC-011
+type: epic
+entity: events-actions-engine
+title: Automation Settings
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [PLAT-SETTINGS-1]
+blocks: []
+provides: []
+consumes: [PLAT-SETTINGS-1]
+prd_ref: ../prd.md#epic-11-automation-settings-within-the-platform-cascade
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-011 - Automation Settings
 
 ## Overview

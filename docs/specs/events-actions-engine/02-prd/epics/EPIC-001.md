@@ -1,3 +1,25 @@
+---
+id: EPIC-001
+type: epic
+entity: events-actions-engine
+title: Automation Registry
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-008, CE-READ-1, CE-VERSION-1, PLAT-CONNECTOR-1]
+blocks: []
+provides: []
+consumes: [CE-READ-1, CE-VERSION-1, PLAT-CONNECTOR-1]
+prd_ref: ../prd.md#epic-1-automation-registry
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-001 - Automation Registry
 
 ## Overview

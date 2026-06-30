@@ -1,3 +1,25 @@
+---
+id: EPIC-009
+type: epic
+entity: weave-platform
+title: Immutable Audit (PLAT-AUDIT-1) & Weave-Product Self-Improvement
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000, EPIC-004, EPIC-006, BE-SELFIMPROVE-1]
+blocks: [EPIC-002, EPIC-005]
+provides: [PLAT-AUDIT-1]
+consumes: [PLAT-IDENTITY-1, PLAT-NOTIFY-1, BE-SELFIMPROVE-1]
+prd_ref: ../prd.md#epic-9-immutable-audit-plat-audit-1--weave-product-self-improvement
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-009 - Immutable Audit (PLAT-AUDIT-1) & Weave-Product Self-Improvement
 
 ## Overview

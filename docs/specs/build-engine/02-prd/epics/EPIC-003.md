@@ -1,3 +1,25 @@
+---
+id: EPIC-003
+type: epic
+entity: build-engine
+title: Project Dashboard
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-006, BE-SELFIMPROVE-1, PLAT-BILLING-1]
+blocks: []
+provides: []
+consumes: [BE-SELFIMPROVE-1, PLAT-BILLING-1]
+prd_ref: ../prd.md#epic-3-project-dashboard
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-003 - Project Dashboard
 
 ## Overview

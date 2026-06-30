@@ -1,3 +1,25 @@
+---
+id: EPIC-003
+type: epic
+entity: weave-platform
+title: Tenancy, Workspaces & Settings Cascade
+status: backlog
+phase: 1
+priority: must
+mvp: true
+depends_on: [EPIC-000]
+blocks: [EPIC-004, EPIC-008, EPIC-001]
+provides: [PLAT-SETTINGS-1]
+consumes: []
+prd_ref: ../prd.md#epic-3-tenancy-workspaces--settings-cascade
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-003 - Tenancy, Workspaces & Settings Cascade
 
 ## Overview

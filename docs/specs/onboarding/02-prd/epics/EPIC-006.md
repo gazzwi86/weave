@@ -1,3 +1,25 @@
+---
+id: EPIC-006
+type: epic
+entity: onboarding
+title: Training Library
+status: backlog
+phase: 1
+priority: must
+mvp: false
+depends_on: []
+blocks: []
+provides: []
+consumes: []
+prd_ref: ../prd.md#epic-6-training-library
+owner: gazzwi86
+source: hand-authored
+confirmed_by: none
+confirmed_on: null
+expires_on: 2026-12-30
+coverage: n/a
+---
+
 # Epic: EPIC-006 - Training Library
 
 ## Overview
