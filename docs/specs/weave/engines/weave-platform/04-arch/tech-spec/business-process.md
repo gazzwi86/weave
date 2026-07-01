@@ -49,15 +49,15 @@ proceeds. See [Sequence: Login](#sequence-login) for the full call sequence.
 ```mermaid
 flowchart TD
     A([Incoming request]) --> B{Identity type?}
-    B -->|Human| C["Cognito: verify credentials\nmint JWT — TTL ≤ 60 s\nclaims: sub, tenant_id, session_version"]
-    B -->|Agent| D["STS: AssumeRole on iam_role_arn\nmint short-lived credentials\nnever raw secret values"]
-    C --> E["Backend: verify JWT signature\nextract cognito_sub → principal_iri\nurn:weave:principal:user:{sub}"]
-    D --> F["Backend: STS GetCallerIdentity\nlookup service_principal_registry\nby iam_role_arn → principal_iri"]
-    E --> G["Redis: HGET session_versions\n{tenant_id}:{user_id}"]
+    B -->|Human| C["Cognito: verify credentials<br/>mint JWT — TTL ≤ 60 s<br/>claims: sub, tenant_id, session_version"]
+    B -->|Agent| D["STS: AssumeRole on iam_role_arn<br/>mint short-lived credentials<br/>never raw secret values"]
+    C --> E["Backend: verify JWT signature<br/>extract cognito_sub → principal_iri<br/>urn:weave:principal:user:{sub}"]
+    D --> F["Backend: STS GetCallerIdentity<br/>lookup service_principal_registry<br/>by iam_role_arn → principal_iri"]
+    E --> G["Redis: HGET session_versions<br/>{tenant_id}:{user_id}"]
     F --> G
-    G --> H{JWT session_version\n== Redis version?}
-    H -->|Mismatch — token revoked| I["401 Unauthorized\naudit: auth.session_version_mismatch"]
-    H -->|Match| J["Inject tenant context\nset active named graph:\nframework ∪ tenant:{tenant_id}"]
+    G --> H{JWT session_version<br/>== Redis version?}
+    H -->|Mismatch — token revoked| I["401 Unauthorized<br/>audit: auth.session_version_mismatch"]
+    H -->|Match| J["Inject tenant context<br/>set active named graph:<br/>framework ∪ tenant:{tenant_id}"]
     J --> K([Request proceeds])
 ```
 
@@ -78,14 +78,14 @@ in a different tenant is rejected with 403 and zero cross-tenant data in the res
 
 ```mermaid
 flowchart TD
-    A(["User: switch to workspace W"]) --> B["Next.js: update workspace_id in session\nsend PATCH /api/session/workspace"]
-    B --> C["Backend: verify JWT + session_version\n(Redis check)"]
+    A(["User: switch to workspace W"]) --> B["Next.js: update workspace_id in session<br/>send PATCH /api/session/workspace"]
+    B --> C["Backend: verify JWT + session_version<br/>(Redis check)"]
     C -->|Invalid token| D["401 Unauthorized"]
-    C -->|Valid| E["Lookup role_binding:\nprincipal_iri + workspace W + tenant_id"]
-    E -->|No active binding| F["403 Forbidden\nbody: empty (zero cross-tenant data)\naudit: rbac.workspace_switch_denied"]
-    E -->|Binding found| G{workspace.tenant_id\n== ctx.tenant_id?}
-    G -->|No — cross-tenant attempt| H["403 Forbidden\naudit: security.cross_tenant_attempt\nnotify: security.* channel"]
-    G -->|Yes| I["Update session: new workspace_id\nnamed graph unchanged — still\nurn:weave:g:tenant:{tenant_id}"]
+    C -->|Valid| E["Lookup role_binding:<br/>principal_iri + workspace W + tenant_id"]
+    E -->|No active binding| F["403 Forbidden<br/>body: empty (zero cross-tenant data)<br/>audit: rbac.workspace_switch_denied"]
+    E -->|Binding found| G{workspace.tenant_id<br/>== ctx.tenant_id?}
+    G -->|No — cross-tenant attempt| H["403 Forbidden<br/>audit: security.cross_tenant_attempt<br/>notify: security.* channel"]
+    G -->|Yes| I["Update session: new workspace_id<br/>named graph unchanged — still<br/>urn:weave:g:tenant:{tenant_id}"]
     I --> J(["Workspace switched"])
 ```
 
@@ -102,16 +102,16 @@ walking from the tightest scope outward; the first non-null value wins. This imp
 
 ```mermaid
 flowchart TD
-    A(["resolve(key K, project P)"]) --> B["Query setting_values WHERE\ntenant_id = ctx.tenant_id AND key = K\nORDER BY tighter_rank ASC"]
-    B --> C{Project-level value\nexists for P?}
-    C -->|Yes| R1(["Return project value\nresolved_at: project"])
-    C -->|No| D{Workspace-level value\nexists?}
-    D -->|Yes| R2(["Return workspace value\nresolved_at: workspace"])
-    D -->|No| E{Domain-level value\nexists?}
-    E -->|Yes| R3(["Return domain value\nresolved_at: domain"])
-    E -->|No| F{Company-level value\nexists?}
-    F -->|Yes| R4(["Return company value\nresolved_at: company"])
-    F -->|No| R5(["Return null → system default\nresolved_at: system"])
+    A(["resolve(key K, project P)"]) --> B["Query setting_values WHERE<br/>tenant_id = ctx.tenant_id AND key = K<br/>ORDER BY tighter_rank ASC"]
+    B --> C{Project-level value<br/>exists for P?}
+    C -->|Yes| R1(["Return project value<br/>resolved_at: project"])
+    C -->|No| D{Workspace-level value<br/>exists?}
+    D -->|Yes| R2(["Return workspace value<br/>resolved_at: workspace"])
+    D -->|No| E{Domain-level value<br/>exists?}
+    E -->|Yes| R3(["Return domain value<br/>resolved_at: domain"])
+    E -->|No| F{Company-level value<br/>exists?}
+    F -->|Yes| R4(["Return company value<br/>resolved_at: company"])
+    F -->|No| R5(["Return null → system default<br/>resolved_at: system"])
 ```
 
 **Invariants:**
@@ -133,17 +133,17 @@ for the `require(level, area)` contract and the authority-level rank table.
 
 ```mermaid
 flowchart TD
-    A(["API request"]) --> B["RBAC middleware: extract\nprincipal_iri, workspace_id, area"]
-    B --> C["Lookup active role_binding:\ntenant_id + workspace_id + principal_iri\nAND revoked_at IS NULL"]
-    C -->|No active binding| D{event_type\n∈ security.*?}
-    C -->|Binding found| E["Compare rank:\nbinding.authority_level vs required"]
+    A(["API request"]) --> B["RBAC middleware: extract<br/>principal_iri, workspace_id, area"]
+    B --> C["Lookup active role_binding:<br/>tenant_id + workspace_id + principal_iri<br/>AND revoked_at IS NULL"]
+    C -->|No active binding| D{event_type<br/>∈ security.*?}
+    C -->|Binding found| E["Compare rank:<br/>binding.authority_level vs required"]
     E -->|Insufficient rank| D
     E -->|Sufficient rank| F(["Request proceeds"])
-    D --> G["Emit audit_entry:\nengine=platform, event_type=rbac.deny\nactor_principal_iri, target_iri"]
+    D --> G["Emit audit_entry:<br/>engine=platform, event_type=rbac.deny<br/>actor_principal_iri, target_iri"]
     G --> H{security.* event?}
-    H -->|Yes| I["PLAT-NOTIFY-1: dispatch\nin_app always\n+ configured channels (max 3 Slack retries)"]
+    H -->|Yes| I["PLAT-NOTIFY-1: dispatch<br/>in_app always<br/>+ configured channels (max 3 Slack retries)"]
     H -->|No| J
-    I --> J["Return 403 Forbidden\nerror envelope per api-conventions"]
+    I --> J["Return 403 Forbidden<br/>error envelope per api-conventions"]
 ```
 
 **Invariants:**
@@ -164,16 +164,16 @@ At worst, a revoked user retains access for the remainder of the current token's
 
 ```mermaid
 flowchart TD
-    A(["Admin: revoke user U"]) --> B["DB: INCREMENT principal_users.session_version\nfor user U, tenant_id = ctx.tenant_id"]
-    B --> C["Redis: HSET session_versions\n{tenant_id}:{user_id} version {n+1}\n(atomic — single write, no distributed lock)"]
-    C --> D(["Revocation recorded\n(takes effect within ≤ 60 s)"])
-    E(["User U: next request\nwith existing JWT"]) --> F["Backend: verify JWT signature\n(Cognito JWKS — still valid)"]
-    F --> G["Extract session_version claim\nfrom JWT payload"]
-    G --> H["Redis: HGET session_versions\n{tenant_id}:{user_id}"]
-    H --> I{JWT claim ==\nRedis version?}
+    A(["Admin: revoke user U"]) --> B["DB: INCREMENT principal_users.session_version<br/>for user U, tenant_id = ctx.tenant_id"]
+    B --> C["Redis: HSET session_versions<br/>{tenant_id}:{user_id} version {n+1}<br/>(atomic — single write, no distributed lock)"]
+    C --> D(["Revocation recorded<br/>(takes effect within ≤ 60 s)"])
+    E(["User U: next request<br/>with existing JWT"]) --> F["Backend: verify JWT signature<br/>(Cognito JWKS — still valid)"]
+    F --> G["Extract session_version claim<br/>from JWT payload"]
+    G --> H["Redis: HGET session_versions<br/>{tenant_id}:{user_id}"]
+    H --> I{JWT claim ==<br/>Redis version?}
     I -->|Yes — token still live| J(["Request proceeds"])
-    I -->|No — token stale| K["401 Unauthorized\naudit: auth.token_revoked"]
-    L(["TTL ≤ 60 s"]) -.->|"residual window —\nby design, acceptable"| I
+    I -->|No — token stale| K["401 Unauthorized<br/>audit: auth.token_revoked"]
+    L(["TTL ≤ 60 s"]) -.->|"residual window —<br/>by design, acceptable"| I
 ```
 
 **Invariants:**
@@ -196,23 +196,23 @@ state machine for lifecycle transitions.
 
 ```mermaid
 flowchart TD
-    A(["Admin: configure connector type T\nPUT /api/connectors/{type}/config"]) --> B["Validate body\n(no credential values in payload)"]
-    B --> C["Store config to Secrets Manager\npath: weave/{tenant_id}/{type}/credentials\ncredential value never written to Aurora"]
-    C --> D["Upsert connector_configs\nlifecycle_state = configured\n(tenant_id enforced by base layer)"]
-    D --> E{OAuth-based\nconnector type?}
-    E -->|Yes| F["Redirect to provider OAuth URL\n(Atlassian, ServiceNow, Slack)"]
-    F --> G["OAuth callback received\nstore refresh token to Secrets Manager\nlifecycle_state = authorized"]
-    E -->|No — credential-based| H["Probe health endpoint\nGET /api/connectors/{type}/health"]
+    A(["Admin: configure connector type T<br/>PUT /api/connectors/{type}/config"]) --> B["Validate body<br/>(no credential values in payload)"]
+    B --> C["Store config to Secrets Manager<br/>path: weave/{tenant_id}/{type}/credentials<br/>credential value never written to Aurora"]
+    C --> D["Upsert connector_configs<br/>lifecycle_state = configured<br/>(tenant_id enforced by base layer)"]
+    D --> E{OAuth-based<br/>connector type?}
+    E -->|Yes| F["Redirect to provider OAuth URL<br/>(Atlassian, ServiceNow, Slack)"]
+    F --> G["OAuth callback received<br/>store refresh token to Secrets Manager<br/>lifecycle_state = authorized"]
+    E -->|No — credential-based| H["Probe health endpoint<br/>GET /api/connectors/{type}/health"]
     H --> I{Probe success?}
     I -->|Yes| J["lifecycle_state = authorized"]
-    I -->|No| K["lifecycle_state = error\nlast_error_redacted (redact_credentials applied)"]
+    I -->|No| K["lifecycle_state = error<br/>last_error_redacted (redact_credentials applied)"]
     G --> L(["Configuration complete"])
     J --> L
     K --> L
-    M(["Ingest write — post-M1"]) -.-> N["Connector job carries STS-derived\ntenant context (not from payload)"]
-    N -.-> O["CE-WRITE-1: write target =\nurn:weave:g:tenant:{ctx.tenant_id}\nderived from context"]
-    O -.-> P{Payload names\ndifferent tenant graph?}
-    P -.->|Yes — forged target| Q["Reject 403\naudit: security.connector_write_isolation_violation"]
+    M(["Ingest write — post-M1"]) -.-> N["Connector job carries STS-derived<br/>tenant context (not from payload)"]
+    N -.-> O["CE-WRITE-1: write target =<br/>urn:weave:g:tenant:{ctx.tenant_id}<br/>derived from context"]
+    O -.-> P{Payload names<br/>different tenant graph?}
+    P -.->|Yes — forged target| Q["Reject 403<br/>audit: security.connector_write_isolation_violation"]
     P -.->|No| R(["Write lands in tenant graph only"])
 ```
 
@@ -236,19 +236,19 @@ requires a Weave-operator IAM identity — registered in `service_principal_regi
 
 ```mermaid
 flowchart TD
-    A(["Principal: GET /api/audit/export\n?from=T1&to=T2"]) --> B["Verify JWT + session_version\n(Redis check)"]
+    A(["Principal: GET /api/audit/export<br/>?from=T1&to=T2"]) --> B["Verify JWT + session_version<br/>(Redis check)"]
     B -->|Invalid| C["401 Unauthorized"]
-    B -->|Valid| D["RBAC: check authority_level ≥ admin\nfor area = platform"]
-    D -->|Insufficient| E["403 Forbidden\naudit: rbac.deny (audit_export_attempt)"]
-    D -->|Admin| F["Lookup principal in\nservice_principal_registry"]
-    F --> G{tenant_id IS NULL\nin registry?}
-    G -->|Yes — Weave-operator| H["Operator path:\naccept optional tenant_id param\nto scope export (or export all)"]
-    G -->|No — client tenant admin| I["Enforce tenant scope:\nWHERE audit_entries.tenant_id\n= ctx.tenant_id (no override)"]
-    H --> J["Query audit_entries\nwith time range + resolved tenant scope"]
+    B -->|Valid| D["RBAC: check authority_level ≥ admin<br/>for area = platform"]
+    D -->|Insufficient| E["403 Forbidden<br/>audit: rbac.deny (audit_export_attempt)"]
+    D -->|Admin| F["Lookup principal in<br/>service_principal_registry"]
+    F --> G{tenant_id IS NULL<br/>in registry?}
+    G -->|Yes — Weave-operator| H["Operator path:<br/>accept optional tenant_id param<br/>to scope export (or export all)"]
+    G -->|No — client tenant admin| I["Enforce tenant scope:<br/>WHERE audit_entries.tenant_id<br/>= ctx.tenant_id (no override)"]
+    H --> J["Query audit_entries<br/>with time range + resolved tenant scope"]
     I --> J
-    J --> K["Verify hash chain integrity\nbefore streaming"]
-    K -->|Chain broken| L["500 Internal Error\nincident alert emitted\ndo not stream broken data"]
-    K -->|Chain valid| M["Stream NDJSON export\ndiff_summary redacted\nif requesting role < admin"]
+    J --> K["Verify hash chain integrity<br/>before streaming"]
+    K -->|Chain broken| L["500 Internal Error<br/>incident alert emitted<br/>do not stream broken data"]
+    K -->|Chain valid| M["Stream NDJSON export<br/>diff_summary redacted<br/>if requesting role < admin"]
     M --> N(["Export delivered"])
 ```
 
@@ -267,8 +267,8 @@ flowchart TD
 
 ```mermaid
 stateDiagram-v2
-    [*] --> configured : PUT /api/connectors/{type}/config\ncredentials stored in Secrets Manager
-    configured --> authorized : OAuth callback received\nOR credential probe succeeds
+    [*] --> configured : PUT /api/connectors/{type}/config<br/>credentials stored in Secrets Manager
+    configured --> authorized : OAuth callback received<br/>OR credential probe succeeds
     configured --> revoked : admin revokes before authorizing
     authorized --> syncing : [post-M1] ingest job triggered
     syncing --> authorized : ingest run completes successfully
@@ -361,16 +361,16 @@ sequenceDiagram
             BE->>SPR: lookup actor principal_iri
             SPR-->>BE: registry row (tenant_id nullable)
             alt tenant_id IS NULL — Weave-operator
-                BE->>DB: SELECT ... WHERE tenant_id = :param (or all)\nchain by seq ASC
+                BE->>DB: SELECT ... WHERE tenant_id = :param (or all)<br/>chain by seq ASC
             else client tenant admin
-                BE->>DB: SELECT ... WHERE tenant_id = ctx.tenant_id\n(tenant_id param ignored)
+                BE->>DB: SELECT ... WHERE tenant_id = ctx.tenant_id<br/>(tenant_id param ignored)
             end
             DB-->>BE: audit_entries in [T1, T2]
             BE->>BE: verify hash chain (SHA-256 re-computation)
             alt chain broken
                 BE-->>AC: 500 + incident alert (do not stream)
             else chain valid
-                BE-->>AC: stream NDJSON\ndiff_summary redacted for non-admin
+                BE-->>AC: stream NDJSON<br/>diff_summary redacted for non-admin
             end
         end
     end

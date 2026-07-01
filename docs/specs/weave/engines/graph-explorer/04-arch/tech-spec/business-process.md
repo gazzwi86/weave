@@ -121,14 +121,14 @@ stateDiagram-v2
 
     state GoDecision <<choice>>
 
-    GoDecision --> CytoscapeConfirmed : render ≤ 8s @ 10k nodes\nAND drag ≥ 60fps @ ≤ 1k visible
+    GoDecision --> CytoscapeConfirmed : render ≤ 8s @ 10k nodes<br/>AND drag ≥ 60fps @ ≤ 1k visible
     GoDecision --> WebGLEscape : target missed on either metric
 
     CytoscapeConfirmed --> ADRAccepted : GE ADR-001 → Accepted (cytoscape+fcose)
     ADRAccepted --> [*] : TASK-002 AC-7 now assertable
 
     WebGLEscape --> RendererSwapADR : new ADR filed (sigma.js or G6)
-    RendererSwapADR --> [*] : GE ADR-001 → Superseded\nTASK-002 AC-7 remains suspended
+    RendererSwapADR --> [*] : GE ADR-001 → Superseded<br/>TASK-002 AC-7 remains suspended
 ```
 
 > **TASK-002 AC-7 is suspended until TASK-001 is signed off** (per GE ADR-001 Consequences).
@@ -148,25 +148,25 @@ flowchart TD
     B -->|No| C[/Redirect to login/]
     B -->|Yes| D[Decode JWT — extract tenant_id + workspace_id]
 
-    D --> E[GET /api/node-kinds\nfetch BPMO kind palette]
-    E --> F[GET /api/layout/positions?graph_id=X\nfetch saved Aurora positions]
-    F --> G[GET /api/ontology/graph?graph_id=X\npage 1 via CE-READ-1]
+    D --> E[GET /api/node-kinds<br/>fetch BPMO kind palette]
+    E --> F[GET /api/layout/positions?graph_id=X<br/>fetch saved Aurora positions]
+    F --> G[GET /api/ontology/graph?graph_id=X<br/>page 1 via CE-READ-1]
 
     G --> H{CE response?}
-    H -->|4xx / 5xx / timeout| I[Show CE error state\nRetry button visible]
+    H -->|4xx / 5xx / timeout| I[Show CE error state<br/>Retry button visible]
     I -->|User retries| G
 
-    H -->|200 — empty graph| J[Show empty-graph state\n"No nodes in this graph"]
+    H -->|200 — empty graph| J[Show empty-graph state<br/>"No nodes in this graph"]
 
     H -->|200 — nodes present| K[adapter.load elements]
-    K --> L{Saved positions\nfor this graph_id?}
-    L -->|Yes — from Aurora| M[Apply saved positions\npin each locked node]
+    K --> L{Saved positions<br/>for this graph_id?}
+    L -->|Yes — from Aurora| M[Apply saved positions<br/>pin each locked node]
     L -->|No — first load| N[Run fcose auto-layout]
     M --> O[Canvas rendered]
     N --> O
 
     O --> P{has_more_pages?}
-    P -->|Yes| Q[Fetch next page\nappend elements → adapter.load]
+    P -->|Yes| Q[Fetch next page<br/>append elements → adapter.load]
     Q --> P
     P -->|No| R([Canvas idle — awaiting interaction])
 ```
@@ -297,9 +297,9 @@ sequenceDiagram
 
     Canvas->>Canvas: mark positions as pending (optimistic hold)
 
-    Canvas->>Proxy: POST /api/layout/positions\n{graph_id, positions:[{node_iri, x, y}]}
-    Proxy->>DB: BEGIN;\nSET LOCAL app.current_tenant_id = :tenant_id;
-    Proxy->>DB: UPSERT explorer_layout_positions\n  (ON CONFLICT pk → DO UPDATE position_x, position_y, updated_at)
+    Canvas->>Proxy: POST /api/layout/positions<br/>{graph_id, positions:[{node_iri, x, y}]}
+    Proxy->>DB: BEGIN;<br/>SET LOCAL app.current_tenant_id = :tenant_id;
+    Proxy->>DB: UPSERT explorer_layout_positions<br/>  (ON CONFLICT pk → DO UPDATE position_x, position_y, updated_at)
     DB-->>Proxy: 200 OK
     Proxy-->>Canvas: 200 OK
     Canvas->>Canvas: clear pending mark
@@ -362,13 +362,13 @@ Expand/Collapse**, and **Impact Traversal**. Impact Traversal is OQ-09 gated.
 flowchart TD
     A([Right-click node]) --> B{Context menu action}
 
-    B -->|Focus: domain| DF1[SPARQL SELECT domain members\nvia CE-READ-1 rewriter]
+    B -->|Focus: domain| DF1[SPARQL SELECT domain members<br/>via CE-READ-1 rewriter]
     DF1 --> DF2[Dim non-domain nodes to 0.18 opacity]
     DF2 --> DF3([Domain focus active])
     DF3 -->|Clear focus| DF4([Reset all node opacity to 1.0])
 
-    B -->|Expand neighbours| EN1{Estimated new\nnodes ≤ 500?}
-    EN1 -->|Yes| EN2[Fetch /api/ontology/resource/{iri}\nneighbours via CE-READ-1]
+    B -->|Expand neighbours| EN1{Estimated new<br/>nodes ≤ 500?}
+    EN1 -->|Yes| EN2[Fetch /api/ontology/resource/{iri}<br/>neighbours via CE-READ-1]
     EN1 -->|No| EN3[/Confirm dialog: Add ~N nodes?/]
     EN3 -->|Cancel| A
     EN3 -->|Confirm| EN2
@@ -381,7 +381,7 @@ flowchart TD
     B -->|Impact traversal| IT1{OQ-09 resolved?}
     IT1 -->|No — blocked| IT2[/TASK-005 AC-6 + AC-7 suspended/]
     IT1 -->|Yes| IT3[Load config.oq09_predicate_closure]
-    IT3 --> IT4[SPARQL property-path SELECT\ndepth cap=6, LIMIT=cap+1]
+    IT3 --> IT4[SPARQL property-path SELECT<br/>depth cap=6, LIMIT=cap+1]
     IT4 --> IT5([Traversal overlay rendered])
     IT5 -->|Clear traversal| IT6([Overlay removed])
 ```
@@ -396,9 +396,9 @@ sequenceDiagram
     participant CE as Constitution Engine
 
     User->>Canvas: right-click → Impact Traversal
-    note over Canvas: predicate closure loaded from\nconfig.oq09_predicate_closure (NOT string literals)
-    Canvas->>Proxy: GET /api/ontology/traverse\n?iri={iri}&depth=6
-    Proxy->>CE: SPARQL property-path SELECT\n(predicates from closure, LIMIT=cap+1)
+    note over Canvas: predicate closure loaded from<br/>config.oq09_predicate_closure (NOT string literals)
+    Canvas->>Proxy: GET /api/ontology/traverse<br/>?iri={iri}&depth=6
+    Proxy->>CE: SPARQL property-path SELECT<br/>(predicates from closure, LIMIT=cap+1)
     CE-->>Proxy: traversal {nodes[], edges[], truncated}
     Proxy-->>Canvas: 200 traversal result
 
@@ -425,7 +425,7 @@ This flow is gated on OQ-09 resolution (TASK-005 AC-6 and AC-7 suspended until t
 stateDiagram-v2
     [*] --> OverlayIdle
 
-    OverlayIdle --> OverlayLoading : Impact Traversal selected\n(OQ-09 predicate closure available)
+    OverlayIdle --> OverlayLoading : Impact Traversal selected<br/>(OQ-09 predicate closure available)
 
     OverlayLoading --> OverlayActive : CE traversal result received
     OverlayLoading --> OverlayError : CE 4xx / 5xx / timeout

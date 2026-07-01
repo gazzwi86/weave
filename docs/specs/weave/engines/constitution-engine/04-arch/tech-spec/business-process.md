@@ -63,24 +63,24 @@ Covers `CE-WRITE-1` — the single mutation entry point. See
 ```mermaid
 flowchart TD
     START([POST /api/operations/apply]) --> AUTH
-    AUTH{"Authenticate\ncaller — PLAT-IDENTITY-1"}
+    AUTH{"Authenticate<br/>caller — PLAT-IDENTITY-1"}
     AUTH -->|"invalid / expired"| AUTHERR[401 Unauthorised]
     AUTH -->|"ok"| RBAC
-    RBAC{"RBAC check\nauthor role required"}
+    RBAC{"RBAC check<br/>author role required"}
     RBAC -->|"insufficient role"| FORBID[403 Forbidden]
     RBAC -->|"ok"| SCOPE
-    SCOPE["Resolve target graph\nfrom request context\nnever from payload"] --> CLONE
-    CLONE["Clone tenant draft\nurn:weave:g:tenant:{id}\n(throwaway in-memory copy)"] --> APPLY
-    APPLY["Apply operation batch\nto clone\nadd/update/delete nodes and edges"] --> SHACL
-    SHACL{"SHACL validate\ninference=none\nsh:Violation?"}
+    SCOPE["Resolve target graph<br/>from request context<br/>never from payload"] --> CLONE
+    CLONE["Clone tenant draft<br/>urn:weave:g:tenant:{id}<br/>(throwaway in-memory copy)"] --> APPLY
+    APPLY["Apply operation batch<br/>to clone<br/>add/update/delete nodes and edges"] --> SHACL
+    SHACL{"SHACL validate<br/>inference=none<br/>sh:Violation?"}
     SHACL -->|"one or more sh:Violation"| VIOL
-    VIOL["Discard clone\nReal graph unchanged"] --> RESP422
-    RESP422([422 Unprocessable\nviolations list])
-    SHACL -->|"zero sh:Violation\n(warnings advisory)"| COMMIT
-    COMMIT["Commit batch to\nreal graph\nurn:weave:g:tenant:{id}"] --> PROV
-    PROV["Write PROV-O activity\nto :prov graph\nwasAssociatedWith actor"] --> AUDIT
-    AUDIT["Emit PLAT-AUDIT-1\n(dual-write, async retry\non emit failure)"] --> RESP201
-    RESP201([201 Created\nactivity_iri · applied_count\nversion_iri])
+    VIOL["Discard clone<br/>Real graph unchanged"] --> RESP422
+    RESP422([422 Unprocessable<br/>violations list])
+    SHACL -->|"zero sh:Violation<br/>(warnings advisory)"| COMMIT
+    COMMIT["Commit batch to<br/>real graph<br/>urn:weave:g:tenant:{id}"] --> PROV
+    PROV["Write PROV-O activity<br/>to :prov graph<br/>wasAssociatedWith actor"] --> AUDIT
+    AUDIT["Emit PLAT-AUDIT-1<br/>(dual-write, async retry<br/>on emit failure)"] --> RESP201
+    RESP201([201 Created<br/>activity_iri · applied_count<br/>version_iri])
 ```
 
 **Invariants (each is testable):**
@@ -106,10 +106,10 @@ draft graph (`urn:weave:g:tenant:{id}`) is the persistent mutable state between 
 stateDiagram-v2
     [*] --> Pending : CE-WRITE-1 received
     Pending --> Validating : clone draft; apply ops to clone
-    Validating --> Committed : zero sh:Violation\ncommit to real graph
-    Validating --> Rejected : sh:Violation found\nclone discarded
-    Committed --> [*] : 201 + activity_iri\nPROV-O stamp + PLAT-AUDIT-1 emit
-    Rejected --> [*] : 422 + violations list\nreal graph unchanged
+    Validating --> Committed : zero sh:Violation<br/>commit to real graph
+    Validating --> Rejected : sh:Violation found<br/>clone discarded
+    Committed --> [*] : 201 + activity_iri<br/>PROV-O stamp + PLAT-AUDIT-1 emit
+    Rejected --> [*] : 422 + violations list<br/>real graph unchanged
 ```
 
 **Note on `sh:Warning` / `sh:Info`:** both transition to `Committed` (no blocking). Their payloads
@@ -126,20 +126,20 @@ is the mutable accumulation of commits. A publish event freezes the draft into a
 
 ```mermaid
 flowchart LR
-    DG["Draft graph\nurn:weave:g:tenant:{id}\n(mutable, accumulates commits)"]
-    DG -->|"publish trigger\n(author → publish role)"| CONS
-    CONS{"Consistency check\n(M1: basic OWL check\nno SPARQL QUERY syntax)\nM2: full OWL reasoning"}
-    CONS -->|"fail"| CFAIL["422 pre-publish error\nlist of violations"]
+    DG["Draft graph<br/>urn:weave:g:tenant:{id}<br/>(mutable, accumulates commits)"]
+    DG -->|"publish trigger<br/>(author → publish role)"| CONS
+    CONS{"Consistency check<br/>(M1: basic OWL check<br/>no SPARQL QUERY syntax)<br/>M2: full OWL reasoning"}
+    CONS -->|"fail"| CFAIL["422 pre-publish error<br/>list of violations"]
     CONS -->|"pass"| SNAP
-    SNAP["Create immutable snapshot\nurn:weave:g:tenant:{id}:v{semver}"]
-    SNAP --> AUR["Write version_metadata row\n(Aurora)\ntenant_id · semver · is_latest\npublished_by · prov_activity_iri"]
-    AUR --> PA["PROV-O publish activity\nprov:Activity → :prov graph\nwasAssociatedWith: publisher"]
-    PA --> BUMP["Increment semver\nmark previous is_latest=false\nmark new is_latest=true"]
-    BUMP --> READY["Published version ready\nce-version-1 GET /api/ontology/versions\nreturns updated list"]
+    SNAP["Create immutable snapshot<br/>urn:weave:g:tenant:{id}:v{semver}"]
+    SNAP --> AUR["Write version_metadata row<br/>(Aurora)<br/>tenant_id · semver · is_latest<br/>published_by · prov_activity_iri"]
+    AUR --> PA["PROV-O publish activity<br/>prov:Activity → :prov graph<br/>wasAssociatedWith: publisher"]
+    PA --> BUMP["Increment semver<br/>mark previous is_latest=false<br/>mark new is_latest=true"]
+    BUMP --> READY["Published version ready<br/>ce-version-1 GET /api/ontology/versions<br/>returns updated list"]
 
-    PG["Published graph\nurn:weave:g:tenant:{id}:v{semver}\n(immutable)"] -->|"GET /api/ontology/diff\nfrom=v1 to=v2"| DIFF
-    DIFF["Server-side diff\nquery both named graphs\nsymmetric difference\nnode + edge level"] --> DRESP
-    DRESP["Response:\nadded / removed / modified\nnodes AND edges\n(edge-only change = modified)"]
+    PG["Published graph<br/>urn:weave:g:tenant:{id}:v{semver}<br/>(immutable)"] -->|"GET /api/ontology/diff<br/>from=v1 to=v2"| DIFF
+    DIFF["Server-side diff<br/>query both named graphs<br/>symmetric difference<br/>node + edge level"] --> DRESP
+    DRESP["Response:<br/>added / removed / modified<br/>nodes AND edges<br/>(edge-only change = modified)"]
     SNAP -.->|"graph copy"| PG
 ```
 
@@ -221,26 +221,26 @@ Extension (ODRL module) is M2; the degrade behaviour is M1.
 
 ```mermaid
 flowchart TD
-    CALL["Agent calls authority(actor, action, target)\nvia CE-READ-1"] --> CHECK
+    CALL["Agent calls authority(actor, action, target)<br/>via CE-READ-1"] --> CHECK
 
-    CHECK{"Authority Extension\npopulated for this tenant?"}
+    CHECK{"Authority Extension<br/>populated for this tenant?"}
 
     CHECK -->|"No — M1 base state"| CGAP
 
-    CGAP["Run coverage_gap SELECT\nFind missing Role/Permission links\nfor (actor, action, target)"] --> CGAP_RESP
+    CGAP["Run coverage_gap SELECT<br/>Find missing Role/Permission links<br/>for (actor, action, target)"] --> CGAP_RESP
 
-    CGAP_RESP["Return:\ndecision: coverage-gap\nmissing_link: entity_iri + role + gap reason"]
+    CGAP_RESP["Return:<br/>decision: coverage-gap<br/>missing_link: entity_iri + role + gap reason"]
     CGAP_RESP --> DENY
 
-    DENY["Default deny\ndecision: deny\nroute-to-human\n(escalation SELECT)"] --> ROUTE_H
+    DENY["Default deny<br/>decision: deny<br/>route-to-human<br/>(escalation SELECT)"] --> ROUTE_H
 
-    ROUTE_H["Agent escalates to\nhuman approver\n(CE-READ-1 escalation pattern)"]
+    ROUTE_H["Agent escalates to<br/>human approver<br/>(CE-READ-1 escalation pattern)"]
 
     CHECK -->|"Yes — M2 path"| ODRL_M2
 
-    ODRL_M2["Evaluate ODRL Permission chain\nActor →holdsRole→ Role →(assignee of)→ Permission\ncheck action + target + constraint"]
-    ODRL_M2 -->|"permitted\nall constraints met"| ALLOW_M2["decision: allow"]
-    ODRL_M2 -->|"denied / constraint fails\n/ duty unresolved"| DENY_M2["decision: deny + cause"]
+    ODRL_M2["Evaluate ODRL Permission chain<br/>Actor →holdsRole→ Role →(assignee of)→ Permission<br/>check action + target + constraint"]
+    ODRL_M2 -->|"permitted<br/>all constraints met"| ALLOW_M2["decision: allow"]
+    ODRL_M2 -->|"denied / constraint fails<br/>/ duty unresolved"| DENY_M2["decision: deny + cause"]
 
     style ODRL_M2 fill:#c8c8ff
     style ALLOW_M2 fill:#c8c8ff
@@ -284,37 +284,37 @@ That constraint is inviolable.
 
 ```mermaid
 flowchart TD
-    SPIKE["TASK-008 perf spike\n100k triples\nmeasure all three metrics"] --> GATE
+    SPIKE["TASK-008 perf spike<br/>100k triples<br/>measure all three metrics"] --> GATE
 
-    GATE{"All three thresholds\nmet?"}
+    GATE{"All three thresholds<br/>met?"}
     GATE -->|"Yes"| GO
-    GO(["Go — M1 ships\nwith full SHACL pipeline"])
+    GO(["Go — M1 ships<br/>with full SHACL pipeline"])
 
     GATE -->|"write p95 > 800 ms"| DA
     GATE -->|"read p95 > 300 ms"| QO
-    GATE -->|"NL p95 > 500 ms\n(build grounding path)"| DC
+    GATE -->|"NL p95 > 500 ms<br/>(build grounding path)"| DC
 
-    DA["Degrade A\nStartup-cache SHACL shapes\n+ async cache invalidation\non shape mutation"] --> REMEASURE_A
+    DA["Degrade A<br/>Startup-cache SHACL shapes<br/>+ async cache invalidation<br/>on shape mutation"] --> REMEASURE_A
     REMEASURE_A{"Re-measure write p95"}
     REMEASURE_A -->|"≤ 800 ms"| GO
     REMEASURE_A -->|"Still > 800 ms"| DB
 
-    QO["Query optimisation\nAdd SPARQL index hints\nUse prepared queries\nTune Oxigraph/Neptune"] --> REMEASURE_R
+    QO["Query optimisation<br/>Add SPARQL index hints<br/>Use prepared queries<br/>Tune Oxigraph/Neptune"] --> REMEASURE_R
     REMEASURE_R{"Re-measure read p95"}
     REMEASURE_R -->|"≤ 300 ms"| GO
     REMEASURE_R -->|"Still > 300 ms"| ESC
 
-    DB["Degrade B\nBatch SPARQL UPDATE\nin single transaction\n(collapse multi-op batches)"] --> REMEASURE_B
+    DB["Degrade B<br/>Batch SPARQL UPDATE<br/>in single transaction<br/>(collapse multi-op batches)"] --> REMEASURE_B
     REMEASURE_B{"Re-measure write p95"}
     REMEASURE_B -->|"≤ 800 ms"| GO
     REMEASURE_B -->|"Still > 800 ms"| ESC
 
-    DC["Degrade C\nDefer Build Engine grounding\nto M2\nNL query uses base framework only"] --> GODC
-    GODC(["Go with constraint\nM1 ships\nBuild grounding deferred"])
+    DC["Degrade C<br/>Defer Build Engine grounding<br/>to M2<br/>NL query uses base framework only"] --> GODC
+    GODC(["Go with constraint<br/>M1 ships<br/>Build grounding deferred"])
 
-    ESC(["Escalate to\narchitecture board\nM1 launch gated"])
+    ESC(["Escalate to<br/>architecture board<br/>M1 launch gated"])
 
-    GUARD["INVARIANT\nTenant scope NEVER\nwidened to hit\nlatency target"]
+    GUARD["INVARIANT<br/>Tenant scope NEVER<br/>widened to hit<br/>latency target"]
 
     GUARD -.->|"governs all branches"| DA
     GUARD -.->|"governs all branches"| DB

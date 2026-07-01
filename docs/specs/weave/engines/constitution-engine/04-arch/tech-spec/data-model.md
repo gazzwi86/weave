@@ -398,13 +398,13 @@ Supports CE-VERSION-1 (version metadata) and CE-DIFF-1 (server-side diff).
 
 ```mermaid
 flowchart LR
-    DG["Draft graph\nurn:weave:g:tenant:{id}"] -->|"publish trigger"| SNAP
-    SNAP["Snapshot process\n(OWL consistency check M2)"] -->|"immutable copy"| PG
-    PG["Published graph\nurn:weave:g:tenant:{id}:v{semver}"]
-    PG -->|"prov:wasGeneratedBy"| PA["prov:Activity\n(publish event)"]
-    PA -->|"prov:wasAssociatedWith"| PUB["Publisher\nprov:Person"]
+    DG["Draft graph<br/>urn:weave:g:tenant:{id}"] -->|"publish trigger"| SNAP
+    SNAP["Snapshot process<br/>(OWL consistency check M2)"] -->|"immutable copy"| PG
+    PG["Published graph<br/>urn:weave:g:tenant:{id}:v{semver}"]
+    PG -->|"prov:wasGeneratedBy"| PA["prov:Activity<br/>(publish event)"]
+    PA -->|"prov:wasAssociatedWith"| PUB["Publisher<br/>prov:Person"]
     PG -.->|"M2 only"| IG
-    IG["Inferred graph\nurn:weave:g:tenant:{id}:v{semver}:inferred"]
+    IG["Inferred graph<br/>urn:weave:g:tenant:{id}:v{semver}:inferred"]
 ```
 
 Published graphs are immutable. After `v1.3.0` is published, every `v1.x.x` graph is byte-identical
@@ -435,11 +435,11 @@ the store. No code may issue a raw store query. This invariant is grep-enforced 
 
 ```mermaid
 flowchart LR
-    HT["Hand-typed SPARQL\n(SPARQL editor)"]  --> RW
-    NL["LLM-generated SPARQL\n(POST /api/query/nl)"] --> RW
-    RW{"Rewriting middleware\n(inject GRAPH scope ·\nSELECT-only ·\nSERVICE-blocked ·\nreject unscoped)"}
-    RW -->|"+ FROM urn:weave:g:framework\n+ FROM urn:weave:g:tenant:{id}"| STORE[(RDF store)]
-    RW -->|"unscoped / SERVICE /\nnon-SELECT"| REJ["Reject\n(fail-closed)"]
+    HT["Hand-typed SPARQL<br/>(SPARQL editor)"]  --> RW
+    NL["LLM-generated SPARQL<br/>(POST /api/query/nl)"] --> RW
+    RW{"Rewriting middleware<br/>(inject GRAPH scope ·<br/>SELECT-only ·<br/>SERVICE-blocked ·<br/>reject unscoped)"}
+    RW -->|"+ FROM urn:weave:g:framework<br/>+ FROM urn:weave:g:tenant:{id}"| STORE[(RDF store)]
+    RW -->|"unscoped / SERVICE /<br/>non-SELECT"| REJ["Reject<br/>(fail-closed)"]
 ```
 
 **NL→SELECT invariant:** the LLM-generated SPARQL query is NOT a separate code path and does NOT
