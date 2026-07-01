@@ -80,8 +80,8 @@ def mint_agent_iri(iam_role_arn: str) -> str:
     audit.emit(PLAT-AUDIT-1, actor=iri, event="agent.registered", target=iri)
   return iri  # idempotent
 
-# ROLES ordered by capability (weakest → strongest)
-ROLE_RANK = { "viewer": 0, "editor": 1, "admin": 2, "owner": 3 }
+# RBAC levels ordered by capability (weakest → strongest) — SSOT: rbac-multi-tenancy.md + ADR-002
+ROLE_RANK = { "read": 0, "author": 1, "publish": 2, "admin": 3 }
 ```
 
 ### API Contracts
@@ -96,7 +96,7 @@ ROLE_RANK = { "viewer": 0, "editor": 1, "admin": 2, "owner": 3 }
   "type": "user",
   "display_name": "Alice",
   "workspace_memberships": [
-    { "workspace_id": "<wid>", "role": "editor" }
+    { "workspace_id": "<wid>", "role": "author" }
   ],
   "created_at": "2026-06-30T12:00:00Z"
 }
@@ -183,7 +183,7 @@ sequenceDiagram
 | PLAT-IDENTITY-1: canonical principal IRI for all actors | contracts.md | Human IRI uses Cognito sub; agent IRI uses IAM role ARN hash; same RBAC path for both |
 | JWT TTL ≤60 s; machine auth = STS (NOT Cognito) | spec Key Decisions | STS GetCallerIdentity validates agent tokens; human tokens auto-refresh (TASK-002) |
 | Per-request session-version check for instant revocation | spec Key Decisions | Session version stored in Redis; stale JWT returns 401 immediately without waiting for TTL |
-| RBAC roles: Viewer / Editor / Admin / Owner | spec EPIC-004 | Four discrete roles; role_rank() determines sufficiency; no custom permissions in M1 |
+| RBAC levels: read / author / publish / admin | rbac-multi-tenancy.md + weave-platform.md role table + ADR-002 (SSOT) | Four ordered levels (read ≺ author ≺ publish ≺ admin); role_rank() determines sufficiency; no custom permissions in M1 |
 | PLAT-AUDIT-1 emitted on agent registration | contracts.md | All identity mutations are auditable |
 
 ## Test Requirements
@@ -191,7 +191,7 @@ sequenceDiagram
 ### Unit Tests (minimum 4)
 
 - `test_principal_iri_minted_idempotent` — call `mint_user_iri` twice with same Cognito sub; assert same IRI returned and only one DB row
-- `test_rbac_insufficient_role_returns_403` — call endpoint requiring `admin` with `editor` JWT; assert 403 with `required_role: "admin"`
+- `test_rbac_insufficient_role_returns_403` — call endpoint requiring `admin` with an `author` JWT; assert 403 with `required_role: "admin"`
 - `test_jwt_ttl_over_60s_rejected` — forge JWT with `exp = now + 120s`; assert middleware returns 401 `token_ttl_exceeded`
 - `test_principal_lookup_by_iri` — seed principal; call `GET /api/principals/{iri}`; assert name and memberships; call with unknown IRI; assert 404
 
@@ -203,7 +203,7 @@ sequenceDiagram
 
 ### E2E Tests (minimum 1)
 
-- `test_rbac_editor_cannot_delete` — Playwright: sign in as editor-role user; attempt to delete a workspace resource; assert 403 error shown in UI; assert no deletion occurred
+- `test_rbac_author_cannot_delete` — Playwright: sign in as an `author`-level user; attempt to delete a workspace resource (requires `admin`); assert 403 error shown in UI; assert no deletion occurred
 
 ### AC-to-Test Mapping
 

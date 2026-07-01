@@ -47,7 +47,7 @@ read endpoints share.
 |---|---|
 | AC-003-01 | WHEN `GET /api/ontology/types` is called with a valid JWT, THE SYSTEM SHALL return the full BPMO kind catalogue for the tenant, including label, IRI, and property shape summary. |
 | AC-003-02 | WHEN `GET /api/ontology/resource/{iri}` is called with a valid IRI, THE SYSTEM SHALL return the resource's triples, kind, label, version IRI, and outgoing/incoming edges. |
-| AC-003-03 | WHEN `GET /api/ontology/versions` is called, THE SYSTEM SHALL return a paginated list of published versions (newest-first) for the tenant; draft versions are excluded unless the caller has editor role. |
+| AC-003-03 | WHEN `GET /api/ontology/versions` is called, THE SYSTEM SHALL return a paginated list of published versions (newest-first) for the tenant; draft versions are excluded unless the caller has `author` level or higher (SSOT: rbac-multi-tenancy.md). |
 | AC-003-04 | WHEN `GET /api/sparql?query={sparql}&version={iri|latest}&page={n}` is called with a SELECT-only query, THE SYSTEM SHALL return paginated results at most 1000 rows per page. |
 | AC-003-05 | WHEN a SPARQL request contains UPDATE, INSERT, DELETE, or SERVICE clauses, THE SYSTEM SHALL reject it with `400 {error:"prohibited_clause", clause:"<name>"}`. |
 | AC-003-06 | WHEN a SPARQL request contains a `SERVICE` keyword (SSRF vector), THE SYSTEM SHALL reject it with `400 {error:"service_blocked"}`. |
