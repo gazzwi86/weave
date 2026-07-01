@@ -475,10 +475,10 @@ Build re-routes to HITL — it does NOT retry blindly.
 
 ## ENG-4 Council Backlog: M1 Stubs
 
-> **Conflict flagged:** `build-engine.md` tags **FR-043** (dep-summary handoff) and **FR-055**
-> (pre-scaffold review) as **M1 Must**. The `scope-refine` council directive overrides these
-> to M1 STUB (full behaviour in M2). This file follows the scope-refine directive.
-> The team-lead must reconcile the engine-spec FR tags before M1 DoD sign-off.
+> **Conflict resolved (2026-07-01):** `build-engine.md` previously tagged **FR-043** (dep-summary
+> handoff) and **FR-055** (pre-scaffold review) as **M1 Must**. They are now reconciled to
+> `M1 stub / M2` in the engine spec, matching the `scope-refine` council directive — M1 = the
+> pass-through stubs described below; full behaviour lands M2. This file follows that directive.
 
 ### dep-summary-handoff (ENG-4 STUB)
 

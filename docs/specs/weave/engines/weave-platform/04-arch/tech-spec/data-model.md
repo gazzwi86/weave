@@ -654,6 +654,6 @@ The following entities are post-M1 and must not appear in the M1 schema:
 
 | Item | Conflict | Resolution |
 |---|---|---|
-| RBAC level names | TASK-004 uses `viewer/editor/admin/owner`; ADR-002 + rbac-multi-tenancy use `read/author/publish/admin` | ADR-002 is authoritative (SKOS SSOT). TASK-004 must be reconciled at implementation. |
+| RBAC level names | TASK-004 previously used `viewer/editor/admin/owner`; ADR-002 + rbac-multi-tenancy + the weave-platform.md role table use `read/author/publish/admin` | **Resolved (2026-07-01):** TASK-004 reconciled to the SSOT `read/author/publish/admin` (positional-by-rank: viewer→read, editor→author, admin→publish, owner→admin). |
 | Workspace IRI vs named-graph IRI | TASK-003 mints `urn:weave:tenant:{tid}:ws:{wid}` (no `g:` segment); ADR-001 scheme uses `urn:weave:g:tenant:{id}` for graph IRIs | ADR-001 is authoritative for graph IRIs. Workspace IRI is a resource identifier within the tenant graph, not a graph IRI. Clarified in §Named-Graph Scheme. |
 | `syncing` connector state in M1 | Connector ingest is post-M1, yet lifecycle model includes `syncing` | State is defined in the schema now (schema migration cheaper than data migration later); the `syncing` state only activates when ingest ships post-M1. |

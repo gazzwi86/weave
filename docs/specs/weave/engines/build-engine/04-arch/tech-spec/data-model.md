@@ -349,9 +349,10 @@ RLS: `tenant_id` predicate.
 > does not block on it. Full cross-task dependency resolution and gating are M2 behaviours.
 > See [business-process §ENG-4](business-process.md#eng-4-council-backlog-m1-stubs).
 >
-> **Conflict flagged:** `build-engine.md` tags FR-043 (dep-summary handoff) and FR-055
-> (pre-scaffold review) as M1 Must. The `scope-refine` council directive overrides this to
-> STUB for M1. The team-lead must reconcile the engine-spec tags before M1 DoD sign-off.
+> **Conflict resolved (2026-07-01):** `build-engine.md` previously tagged FR-043 (dep-summary
+> handoff) and FR-055 (pre-scaffold review) as M1 Must; they are now reconciled to
+> `M1 stub / M2` in the engine spec, matching the `scope-refine` council directive (M1 =
+> pass-through stub, full behaviour M2).
 
 #### `state_spines`
 

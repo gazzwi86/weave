@@ -76,6 +76,15 @@ the user (named-graph+rewriting; ship the open-standard SSOT Authority Extension
 | Build M1 (ENG-4) | Build [business-process.md](engines/build-engine/04-arch/tech-spec/business-process.md) — `dep-summary-handoff` + `pre-scaffold-review` modelled as M1 pass-through stubs. |
 | Events | Deferred — Events is post-v1, not an MVP-path engine; out of scope for this M1 pass. Re-check at the Events tech-spec pass. |
 
+**Additionally surfaced + reconciled during the pass (2026-07-01):**
+
+- **RBAC vocabulary drift** — `TASK-004` had invented a `viewer/editor/admin/owner` rank ladder
+  that diverged from its own parent spec (`weave-platform.md` role table) and the SSOT
+  (`rbac-multi-tenancy.md` + ADR-002). Reconciled TASK-004 to `read/author/publish/admin`
+  (positional-by-rank) and the CE TASK-003 `editor role` prose to `author` level.
+- **Build FR tags** — `build-engine.md` FR-043 / FR-055 retagged `M1 Must` → `M1 stub / M2`,
+  matching the council directive the Build tech-spec already followed.
+
 ## Dismissed
 - ONT-2 ("CE-FUNCTION-1/automatable not in contracts.md") — **factually wrong**; grep-verified
   present at contracts.md lines 69–139. Reviewer read a stale/wrong copy.
