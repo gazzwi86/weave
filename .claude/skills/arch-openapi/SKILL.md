@@ -11,7 +11,7 @@ HITL batches of 3–5 endpoints; never dumps the full spec at once.
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (structured output, schema precision, YAML accuracy)
+- **All phases:** claude-sonnet-5 (structured output, schema precision, YAML accuracy)
 
 No elicitation phase for this skill — inputs come from approved upstream specs. If the
 upstream tech-spec or PRD is missing, STOP and ask the user to run `/architect` first.

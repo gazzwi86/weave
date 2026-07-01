@@ -12,7 +12,7 @@ with HITL review at every section. Invoked by `/arch-data-model` or from the arc
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (precise structured output, code generation, schema drafting)
+- **All phases:** claude-sonnet-5 (precise structured output, code generation, schema drafting)
 
 Rationale: data-model work is a generation and precision task, not open-ended reasoning.
 Sonnet is the right tier. Escalate to claude-opus-4-8 only when the entity boundary is

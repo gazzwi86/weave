@@ -22,10 +22,10 @@ boundary. Invoked after the PRD is approved; output feeds the Architect's tech-s
 
 ## Model
 
-- **Primary model:** claude-sonnet-4-6 (all phases — Gantt generation, phase block drafting,
+- **Primary model:** claude-sonnet-5 (all phases — Gantt generation, phase block drafting,
   gate criteria prose)
 - **Reasoning tier note:** Phase-scoping step (Step 2) requires dependency analysis; use
-  extended thinking tokens via claude-sonnet-4-6's thinking budget rather than switching
+  extended thinking tokens via claude-sonnet-5's thinking budget rather than switching
   models. Do not invoke claude-opus-4-8 unless the user explicitly requests it.
 
 ## Input

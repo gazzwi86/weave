@@ -12,7 +12,7 @@ it locks the stack so that all subsequent arch-* skills write to a settled found
 ## Model
 
 - **Detection / validation phase:** claude-haiku-4-5 (fast, pattern-matching, no novel reasoning)
-- **Override / ADR phase:** claude-sonnet-4-6 (structured justification, ADR prose)
+- **Override / ADR phase:** claude-sonnet-5 (structured justification, ADR prose)
 - **HITL questions:** AskUserQuestion (always — no silent defaulting)
 
 ## Input
@@ -60,7 +60,7 @@ Reference this principle when justifying decisions during the HITL loop.
    | Auth | AWS Cognito (default) or Auth0 | CLAUDE.md |
    | Agent SDK | Anthropic Agent SDK (Python primary, TypeScript secondary) | CLAUDE.md |
    | Agent runtime | AWS Bedrock AgentCore (GA components only) | CLAUDE.md |
-   | Models | claude-opus-4-8 / claude-sonnet-4-6 / claude-haiku-4-5 | CLAUDE.md |
+   | Models | claude-opus-4-8 / claude-sonnet-5 / claude-haiku-4-5 | CLAUDE.md |
    | Guardrails | AWS Bedrock Guardrails | CLAUDE.md |
    | RDF store | Oxigraph (dev/test) → Neptune or Jena Fuseki (prod, deferred) | CLAUDE.md |
    | Vector store | AWS S3 Vectors | CLAUDE.md |

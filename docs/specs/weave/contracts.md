@@ -56,13 +56,40 @@ depend on. CE owns and publishes ALL of the following.
 - `GET /api/sparql?version=<iri|latest>&page=<n>` — **SPARQL 1.1 SELECT-only**, `SERVICE`
   keyword blocked (SSRF), **paginated** (no silent row cap). `version=latest` resolves to the
   newest published version (default; downstream auto-tracks unless pinned).
-- **Agent-grounding (read-side, no separate contract):** because the BPMO graph links each
-  process to its actors, systems, services, data assets, capabilities, goals, and governing
-  policies, agent-authority questions — *what may an agent do, on which systems/data/process,
-  and who to contact or escalate to* — are answerable as SELECT queries over this contract.
-  Consumers (Events & Actions, Build agents) ground agents in the bounds the model states;
-  unstated permissions default to deny/route-to-human and explicit deny overrides inferred
-  authority. The model expresses authority; the execution engine decides run-time action.
+- `POST /api/query/nl` → `{ question }` ⇒ `{ sparql, rows, columns, grounded_iris }` — a
+  **natural-language → SELECT** surface (LLM drafts SPARQL, runs it SELECT-only, returns rows +
+  the generated query for transparency). **Ships in M1** — it is the proof demo's
+  cross-notation-reconciliation "wow" (one plain-language question answered across
+  process + data + system + governance) and the business-user legibility entry point.
+  - **Security:** the LLM-generated SPARQL passes through the **same single SELECT-only +
+    `SERVICE`-blocked validator** as user-supplied queries — there is exactly ONE validator
+    between any SPARQL string (regardless of origin) and the store. The NL path is **not** a
+    separate code path and is **not** an SSRF bypass (CE tech-spec must assert this with a test).
+- **Agent-grounding — what the BASE framework answers vs what needs the authority extension.**
+  *(Honest scope — the 13-kind framework ships the join skeleton, NOT full authority resolution.)*
+  - The base framework (`performedBy` / `governedBy` / `accesses` / `hasStep`) supports two
+    queries directly: `escalation(process)` → the Actor(s) to contact/escalate to; and
+    `coverage_gap(process)` → required links that are **absent** (a Process with no
+    `performedBy`/`governedBy`), as explicit `{ entity_iri, missing_link }` rows. **`coverage_gap`
+    is the M1-credible grounding query.**
+  - **`governedBy` → `Policy` reaches a *described* rule (human-readable prose), not a
+    machine-evaluable constraint.** Enforcement lives in SHACL shapes (CE-WRITE-1), not in Policy
+    edges. Consumers MUST NOT expect machine-enforceable authority from a `governedBy` edge alone.
+  - True `authority(actor, action, target)` resolution requires the **canonical Authority Extension**
+    (an optional, generic add-on clients populate; obpm `mi-agent-model.ttl` is the reference):
+    a `Permission`(action/effect/onEntity/requiresRole), `authorityLevel`, `HITLTrigger`
+    (`escalatesTo`/`escalationDeadline`/`triggeredByStep`), and a `dataClassification` SKOS scheme.
+    Without the extension populated, `authority()` **degrades to `coverage_gap` + `deny`** — it
+    never returns an implicit allow. The extension's shape is finalised in the CE data-model tech
+    spec; whether Weave ships it canonical or documents it as a client extension pattern is **CE
+    OQ-AUTH-1** (architect decision).
+  - Response convention: `{ rows: [...], decision: "permit"|"deny"|"coverage-gap" }`. Unstated
+    permission ⇒ `deny`/route-to-human; explicit deny overrides inferred authority. The model
+    expresses authority; the execution engine decides run-time action.
+- **`automatable` property:** a SHACL-shaped boolean on `Activity`/`Process`, **default `false`**
+  (absent ⇒ route-to-human). Part of the Authority Extension above; it is the safety hinge of the
+  Events governance gate (`EA-AUTOMATION-1`); CE owns its shape and default so the safety invariant
+  never rests on an undefined attribute.
 - Grounding: `weave-prototype/backend/app/ontology/store.py:581-603` (SELECT-only, SERVICE block);
   `api/routes.py` (read routes); obpm `mi-agent-model.ttl` (authority/permission/HITL pattern).
 
@@ -107,14 +134,32 @@ depend on. CE owns and publishes ALL of the following.
 ### CE-BRAND-1 — Brand → design-token projection + VoiceRule contract
 - `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…)
   projected from the RDF brand individuals — so Build can consume tokens without parsing RDF.
-- `GET /api/brand/voice-rules` → machine-evaluable VoiceRules (each a checkable assertion).
-- Consumers: Build (compliant-by-construction generation; the conformance bar — default 90%,
-  configurable — is measured against these). Resolves CE OQ-06.
+- `GET /api/brand/voice-rules` → machine-evaluable VoiceRules. Each rule declares
+  `{ id, severity: "critical"|"normal", assertion }` where `assertion` is mechanically checkable.
+- **Conformance score (defined, so it is a buildable gate):**
+  `score = (normal rules passed) / (total normal rules)`; **any failed `critical` rule = hard
+  fail regardless of score.** Pass bar = score ≥ 0.90 (default, tunable) **and** zero critical
+  failures. Replaces the prior undefined "≥90% adherence".
+- Consumers: Build (compliant-by-construction generation). **Milestone:** CE-BRAND-1 and the Build
+  conformance gate are **M2** (not M1 — the M1 proof ships with safety gates only:
+  SAST/type/secret-scan/mutation). Resolves CE OQ-06.
 
 ### CE-METRICS-1 — Aggregate metrics for the Dashboard
 - `GET /api/metrics/ontology` → `{ entity_count_by_kind, latest_version, draft_published_delta,
   shacl_errors_by_severity, owl_inconsistencies }`.
-- Consumer: Platform Generative Dashboard (CE-sourced widgets are the MVP-eligible set).
+- Consumer: Platform fixed dashboard (M1, CE-sourced tiles); composable Generative Dashboard (M2+).
+
+### CE-FUNCTION-1 — Ontology-bound function registry  *(resolves OQ-13 / Build-OQ-12 / EA-OQ-13)*
+- **CE owns** the single registry of *ontology-bound functions*: named, typed, graph-aware logic
+  units bound to a CE object-kind (e.g. `reorderStock(System, DataAsset) → Activity`). One
+  definition, one owner, one version lineage — so Build and Events cannot diverge into conflicting
+  primitives. **Decision made now; built in M2/v1.0** (not M1).
+- `GET /api/functions` → `[{ fn_iri, name, bound_kind, signature, version_iri }]`;
+  `GET /api/functions/{iri}` → full signature + grounding entity IRIs.
+- Consumers: **Build** generates a typed binding into `BE-SDK-1` (one SDK method per function);
+  **Events** references a function by `fn_iri` as an `EA-AUTOMATION-1` action; **Build/Events
+  agents** invoke it as a tool. None of them defines or versions it — they all read CE.
+- Grounding: obpm `mi-catalog` / `mi-agent-model`; net-new registry codegen in the CE tech spec.
 
 ---
 

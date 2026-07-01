@@ -12,8 +12,8 @@ strategy (Section 2) and again after the integration strategy (Section 3). Invok
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-4-6 (structured, precise, stack-aware prose)
-- **Complexity review:** claude-sonnet-4-6 (validates mutation thresholds and tool choices)
+- **Drafting phase:** claude-sonnet-5 (structured, precise, stack-aware prose)
+- **Complexity review:** claude-sonnet-5 (validates mutation thresholds and tool choices)
 
 No Opus tier needed — this is a constrained, stack-opinionated document with no novel
 architecture decisions. The Weave stack (pytest, Vitest, Playwright, LocalStack) is fixed.

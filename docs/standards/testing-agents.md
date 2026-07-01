@@ -27,7 +27,7 @@ All infrastructure is AWS-native where a managed option exists.
 
 ## Offline batch evals — AWS Bedrock Model Evaluation
 
-Use for: regression testing a prompt rewrite, comparing model versions (e.g. Sonnet 4.6
+Use for: regression testing a prompt rewrite, comparing model versions (e.g. Sonnet 5
 vs Opus 4.8), validating Constitution Engine output quality.
 
 **Dataset format (JSONL, stored in S3):**
@@ -44,7 +44,7 @@ aws bedrock create-evaluation-job \
   --job-name "constitution-engine-eval-$(date +%Y%m%d)" \
   --role-arn "arn:aws:iam::ACCOUNT:role/WeaveBedrockEvalRole" \
   --evaluation-config '{"automated": {"datasetMetricConfigs": [{"taskType": "QuestionAndAnswer", "dataset": {"name": "weave-qa", "datasetLocation": {"s3Uri": "s3://weave-evals/datasets/constitution-engine.jsonl"}}, "metricNames": ["Accuracy", "BERTScore", "Robustness"]}]}}' \
-  --inference-config '{"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-sonnet-4-6", "inferenceParams": "{\"maxTokens\": 1024}"}}]}' \
+  --inference-config '{"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-sonnet-5", "inferenceParams": "{\"maxTokens\": 1024}"}}]}' \
   --output-data-config '{"s3Uri": "s3://weave-evals/results/"}'
 ```
 
@@ -88,7 +88,7 @@ npm install -D promptfoo
 
 ```yaml
 providers:
-  - id: bedrock:anthropic.claude-sonnet-4-6
+  - id: bedrock:anthropic.claude-sonnet-5
     config:
       region: ap-southeast-2
 
@@ -164,7 +164,7 @@ import boto3
 bedrock = boto3.client("bedrock-runtime", region_name="ap-southeast-2")
 
 response = bedrock.invoke_model(
-    modelId="anthropic.claude-sonnet-4-6",
+    modelId="anthropic.claude-sonnet-5",
     guardrailIdentifier="weave-guardrail-id",
     guardrailVersion="DRAFT",
     trace="ENABLED",

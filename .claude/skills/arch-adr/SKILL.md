@@ -12,7 +12,7 @@ when a new technical choice needs to be captured before it is forgotten or conte
 ## Model
 
 - **Elicitation phase:** claude-opus-4-8 (probing context, surfacing hidden alternatives)
-- **Drafting phase:** claude-sonnet-4-6 (precise, opinionated prose)
+- **Drafting phase:** claude-sonnet-5 (precise, opinionated prose)
 
 ADRs are short documents. The full draft — all sections — is presented to the user in a
 single HITL round. Elicitation is one targeted question before drafting begins.

@@ -93,7 +93,7 @@ Constitution Engine's model.
 | API | REST (OpenAPI 3.1) + SPARQL 1.1 |
 | Auth | AWS Cognito / Auth0 |
 | Agents | Anthropic Agent SDK; AWS Bedrock AgentCore runtime |
-| Models | claude-opus-4-8 (elicitation/arch), claude-sonnet-4-6 (generation), claude-haiku-4-5 (validation) |
+| Models | claude-opus-4-8 (elicitation/arch), claude-sonnet-5 (generation), claude-haiku-4-5 (validation) |
 | RDF store | Oxigraph (dev/test) → Neptune or Jena Fuseki (prod) |
 | Relational | AWS Aurora PostgreSQL Serverless v2 |
 | Vector | AWS S3 Vectors |

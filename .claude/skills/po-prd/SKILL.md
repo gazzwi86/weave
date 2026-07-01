@@ -26,13 +26,13 @@ output feeds the `/po-roadmap` and `/architect` phases.
   novel framing, root-cause story derivation
 - **Functional Requirements:** claude-opus-4-8 — observable-behaviour derivation, failure-mode
   analysis, EARS AC authoring
-- **Overview, Product Context:** claude-sonnet-4-6 — structured, precise prose from known inputs
-- **Non-Functional Requirements:** claude-sonnet-4-6 — systematic category-by-category
+- **Overview, Product Context:** claude-sonnet-5 — structured, precise prose from known inputs
+- **Non-Functional Requirements:** claude-sonnet-5 — systematic category-by-category
   enumeration against the Weave stack
-- **Information Architecture:** claude-sonnet-4-6 — Mermaid diagram generation
-- **Technical Prerequisites:** claude-sonnet-4-6 — pre-fill from confirmed CLAUDE.md stack;
+- **Information Architecture:** claude-sonnet-5 — Mermaid diagram generation
+- **Technical Prerequisites:** claude-sonnet-5 — pre-fill from confirmed CLAUDE.md stack;
   structured table output
-- **Risks and Mitigations, Dependencies, Timeline:** claude-sonnet-4-6 — structured tables
+- **Risks and Mitigations, Dependencies, Timeline:** claude-sonnet-5 — structured tables
   from approved context
 
 ## Input

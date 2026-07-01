@@ -22,7 +22,7 @@ a time, with HITL review at every section. Opus for elicitation; Sonnet for draf
 ## Model
 
 - **Elicitation phase:** claude-opus-4-8 (wide reasoning, novel framing, root-cause probing)
-- **Drafting phase:** claude-sonnet-4-6 (structured, precise prose)
+- **Drafting phase:** claude-sonnet-5 (structured, precise prose)
 
 ## Input
 

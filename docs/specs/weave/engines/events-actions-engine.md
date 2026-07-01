@@ -2,7 +2,7 @@
 type: EngineSpec
 title: "Weave — Events & Actions Engine (consolidated)"
 description: "Ontology-grounded two-tier automations (simple declarative + Agent-SDK agentic), NL-first authoring, visual flow canvas, governed actions, a reliable run engine, and compliance reporting over the platform audit trail."
-tags: [events-actions-engine, consolidated]
+tags: [events-actions-engine, consolidated, post-v1]
 status: Draft
 timestamp: 2026-06-30T00:00:00Z
 resource: docs/specs/weave/engines/events-actions-engine.md
@@ -83,10 +83,10 @@ model → generate → automate never materialises.
   process step it points at. A visual, n8n-style flow canvas complements this for inspection and
   manual alteration, and the two representations stay in sync.
 - **A two-tier automation model.** Simple flows are declarative JSON (runtime-interpreted); complex
-  flows are Anthropic Agent SDK agentic actions/triggers (reasoning, multi-step), supported in v1
-  (`EA-AUTOMATION-1`). Execution is interpreter-first; a portable, downloadable Agent-SDK artefact
-  export (skills, commands, agents) is a fast-follow — agentic capability is in v1, only the
-  downloadable-artefact promise follows.
+  flows are Anthropic Agent SDK agentic actions/triggers (reasoning, multi-step) (`EA-AUTOMATION-1`).
+  Execution is interpreter-first; portable Agent-SDK artefact export is a Phase 2 fast-follow.
+  **Agentic capability (complex tier) is conditional on OQ-09 resolution** — the execution runtime
+  binding (AgentCore vs ECS Fargate) and artefact-resolution contract must be decided before building.
 - **Compliance is provable.** Because automations are grounded in the Constitution's rules and
   obligations, the compliance and risk functions can see and prove that automated actions follow
   policy, with a full audit trail.
@@ -119,9 +119,10 @@ model → generate → automate never materialises.
 **Automation model (two-tier — `EA-AUTOMATION-1`)**
 
 - Simple tier: declarative JSON (event → action), runtime-interpreted. Complex tier: Anthropic Agent
-  SDK agentic actions/triggers (reasoning, multi-step), supported in v1.
-- Execution is interpreter-first in v1; a portable, downloadable Agent-SDK artefact export (skills,
-  commands, agents — versioned, reusable, `pip`-installable) is a fast-follow.
+  SDK agentic actions/triggers (reasoning, multi-step) — **conditional on OQ-09** (AgentCore vs ECS
+  Fargate runtime binding + artefact-resolution contract; resolve-before-build).
+- Execution is interpreter-first; a portable, downloadable Agent-SDK artefact export (skills,
+  commands, agents — versioned, reusable, `pip`-installable) is a Phase 2 fast-follow.
 - Every automation is grounded in the company's ontology, documented processes, and rules, so it
   acts on typed, understood entities and stays within policy.
 
@@ -232,7 +233,7 @@ model → generate → automate never materialises.
 | Integrated-system events are the primary trigger; graph-change triggers are a secondary convenience | The value is reacting to what happens in the real connected systems; internal graph triggers are a useful add-on, not the focus | 2026-06-26 |
 | Natural-language-first authoring, with the NL able to reference BPMO `Process`/`Activity` entities (and governing `Policy`) directly | This is the engine's biggest advantage — describe an automation grounded in a specific documented process, no code | 2026-06-26 |
 | A visual, n8n-style flow canvas complements NL authoring, kept in sync | Gives inspection and manual control alongside conversational authoring | 2026-06-26 |
-| Two-tier automation model (`EA-AUTOMATION-1`): simple declarative (interpreted) + complex Agent SDK agentic; interpreter-first, portable export a fast-follow | Ships agentic capability in v1 while relaxing the downloadable-artefact promise to "export follows"; consistent with the Build Engine's agent SDK choice | 2026-06-30 |
+| Two-tier automation model (`EA-AUTOMATION-1`): simple declarative (interpreted) + complex Agent SDK agentic; interpreter-first, portable export a Phase 2 fast-follow | Complex tier conditional on OQ-09 (AgentCore vs ECS Fargate binding + artefact-resolution contract — resolve-before-build); downloadable-artefact promise relaxed to "export follows" Phase 2 | 2026-06-30 |
 | No orphan automations — every automation is grounded in the ontology | Grounding in documented processes and rules is what makes automations regulated, predictable, and high-quality (vs ungrounded iPaaS) | 2026-06-26 |
 | Compliance is provable via an append-only audit trail | The risk function must be able to prove automated actions follow policy | 2026-06-26 |
 | Boundary with the Build Engine | This engine automates the business; the Build Engine self-heals its own products and factory | 2026-06-26 |
@@ -258,9 +259,9 @@ top-header nav is defined in the `weave-platform` brief.
 
 ## 2. Product Requirements (PRD)
 
-**Phase:** MVP (Constitution-Engine-grounded core) · Phase 2 (graph-change triggers, portable
-artefact export, advanced composition). **Status:** Draft (not yet human-confirmed —
-`confirmed_by: none`).
+**Phase:** Engine v1 GA (program position: post-v1 — builds after the lighthouse) · Phase 2
+(graph-change triggers, portable artefact export, advanced composition). **Status:** Draft (not yet
+human-confirmed — `confirmed_by: none`).
 
 ### 2.0 Product context
 
@@ -289,9 +290,10 @@ Two ideas make it different from every iPaaS on the market:
 
 Automations are realised through the two-tier model in `EA-AUTOMATION-1`: a **simple tier**
 (declarative JSON, runtime-interpreted) and a **complex tier** (Anthropic Agent SDK agentic
-actions/triggers for reasoning and multi-step work, supported in v1). Execution is
-**interpreter-first** in v1; a portable, downloadable Agent-SDK artefact export is a **fast-follow**
-(Phase 2). Agentic capability is NOT deferred — only the downloadable-artefact promise is.
+actions/triggers for reasoning and multi-step work). Execution is **interpreter-first**; a portable,
+downloadable Agent-SDK artefact export is a **Phase 2 fast-follow**. The complex tier targets Phase 1
+but is **conditional on OQ-09 resolution** (AgentCore Runtime vs ECS Fargate binding +
+artefact-resolution contract — resolve-before-build; claiming "agentic v1" is premature until decided).
 
 **Goals:**
 
@@ -339,7 +341,7 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 
 ### 2.1 Functional requirements
 
-| ID | Requirement | Story | Priority | Phase / depends-on |
+| ID | Requirement | Story | Priority | Engine-phase / depends-on |
 |---|---|---|---|---|
 | FR-001 | Automation registry: list with status, trigger type, linked CE entity (`CE-READ-1`), pinned version (`CE-VERSION-1`), last run, 7d run count; filters + search. Failure: CE unavailable → cached label + badge, list still renders | E1-S1 | P0 | MVP (CE-READ-1, CE-VERSION-1) |
 | FR-002 | Health indicators: failed-run dot, stale-pin chip (`CE-VERSION-1` lag default ≥ 2, tunable), connector-degraded chip (`PLAT-CONNECTOR-1`), "health unknown" on health-API error | E1-S2 | P0 | MVP (PLAT-CONNECTOR-1) |
@@ -361,9 +363,9 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 | FR-017 | Graph-change trigger: consumes `CE-EVENT-1`; **degrades to polling `CE-READ-1` since-version** if transport not ready (no push-only claim); per-workspace cap default 10 (tunable) | E4-S4 | P1 | Phase 2 / Should Have (CE-EVENT-1; degrade to CE-READ-1) |
 | FR-018 | Slack notification action via `PLAT-CONNECTOR-1` / `PLAT-NOTIFY-1`: channel or `Person.slack_id`; `{{entity.property}}` interpolation; preview; token in Secrets Manager; delivery failure → retry/DLQ; per-step idempotency prevents re-send | E5-S1 | P0 | MVP (PLAT-CONNECTOR-1, PLAT-NOTIFY-1) |
 | FR-019 | API call action: method/URL/headers (Secrets Manager refs)/body with interpolation; optional response→`CE-WRITE-1` graph update; egress scrub; 5xx retry, 4xx terminal; test run | E5-S2 | P0 | MVP |
-| FR-020 | Agent run action (complex tier, `EA-AUTOMATION-1`): artefact ref + input + timeout (default 60s); runs under `PLAT-IDENTITY-1` principal; interpreter-first v1; timeout = terminal failure, per-step idempotency prevents duplicate on redelivery. Capability is v1; only runtime substrate + artefact-resolution contract are OQ-09 | E5-S3 | P0 | MVP (capability); runtime substrate OQ-09 |
+| FR-020 | Agent run action (complex tier, `EA-AUTOMATION-1`): artefact ref + input + timeout (default 60s); runs under `PLAT-IDENTITY-1` principal; timeout = terminal failure; per-step idempotency prevents duplicate on redelivery. **Resolve-before-build: OQ-09** (AgentCore Runtime vs ECS Fargate binding + artefact-resolution contract must close before implementing this FR) | E5-S3 | P0 | Phase 1 (OQ-09 resolve-before-build) |
 | FR-021 | Graph update action via `CE-WRITE-1` (`POST /api/operations/apply`, actor = principal IRI); 201 commit or 422 SHACL (terminal, not retried); 5xx retried; PROV-O via `prov:SoftwareAgent` actor | E5-S4 | P1 | Phase 2 / Should Have (CE-WRITE-1) |
-| FR-022 | Governance gate before any autonomous action: deterministic 4-step deny→authority→`automatable`→HITL against the grounded process step; non-automatable step → human regardless of value | E5-S5 | P0 | MVP |
+| FR-022 | Governance gate before any autonomous action: deterministic 4-step deny→authority→`automatable`→HITL against the grounded process step; non-automatable step → human regardless of value. (`automatable` = CE-owned SHACL-shaped boolean on `Activity`/`Process`, default `false`, resolved via `CE-READ-1`) | E5-S5 | P0 | Phase 1 |
 | FR-023 | HITL gate config completeness (SHACL-mirrored): `escalatesTo` (Role) + `escalationDeadline` (xsd:duration) + bound `triggeredByStep` mandatory; **no-self-approval** invariant; decision emitted to `PLAT-AUDIT-1`; deadline → escalate, never auto-approve | E5-S5 | P0 | MVP (PLAT-AUDIT-1, PLAT-NOTIFY-1) |
 | FR-024 | Grounding required for activation; "Link to ontology" searcher over BPMO `Process`/`Activity` + governing `Policy` (`CE-READ-1`); NL auto-resolves; grounding may only resolve to a PUBLISHED-version entity (`CE-VERSION-1`) | E6-S1 | P0 | MVP (CE-READ-1, CE-VERSION-1) |
 | FR-025 | Version pin on activation (`CE-VERSION-1` newest published); immutable except "Upgrade pin" (shows `CE-DIFF-1` diff incl. edges, requires confirm); withdrawn pin / missing grounded IRI → auto-pause + `PLAT-NOTIFY-1` | E6-S2 | P0 | MVP (CE-VERSION-1, CE-DIFF-1) |
@@ -376,7 +378,7 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 | FR-031 | Run metering to `PLAT-BILLING-1` **per-run** dimension; agent token usage on **per-token** dimension; separate queue, never dropped; metering-queue unavailable → durably buffered | E8-S3 | P0 | MVP (PLAT-BILLING-1) |
 | FR-032 | EMIT run/step events to `PLAT-AUDIT-1` (engine keeps no independent signed store; run-log is a view); Events-specific fields as typed payload; append-only + signature + seq enforced by platform; emit failure → buffer/retry | E9-S1 | P0 | MVP (PLAT-AUDIT-1) |
 | FR-033 | Compliance report (VIEW over `PLAT-AUDIT-1`): filter by grounded process (`CE-READ-1`) + date range + actor class; run count, success %, HITL decisions, 422 SHACL violations; export PDF/JSON with `PLAT-AUDIT-1` seq+signatures | E9-S2 | P0 | MVP (PLAT-AUDIT-1, CE-READ-1) |
-| FR-034 | Templates: ≥ 6 at v1 GA; "Use template" → pre-populated; grounding to published entity required before activate; unavailable nodes flagged | E10-S1 | P1 | MVP (some templates Phase-2-gated on CE-EVENT-1/CE-WRITE-1) |
+| FR-034 | Templates: 6 ship at v1 GA (4 immediately activatable; 2 — graph-change ones — flagged-unavailable until `CE-EVENT-1` lands); "Use template" → pre-populated; grounding to published entity required before activate | E10-S1 | P1 | Phase 1 (2 activations Phase-2-gated on `CE-EVENT-1`) |
 | FR-035 | Automation settings resolved through `PLAT-SETTINGS-1` cascade (each shows source level; loosening a parent minimum rejected); defaults all "default X, tunable"; HITL high-value threshold per-tenant currency-configurable default (~£10k-equiv) enforced at engine level | E11-S1 | P0 | MVP (PLAT-SETTINGS-1) |
 | FR-036 | Saved object-bound action type: named parameterized change template bound to a CE object type (`CE-READ-1`, pinned `CE-VERSION-1`) with declared typed inputs (defaults declarable) + SHACL-validated effects via `CE-WRITE-1`; invokable ad-hoc by a permitted user against a single instance (action button), not only in a flow; runs the E5-S5 governance gate; PROV-O + `PLAT-AUDIT-1` attribute the **invoking human** (`user` actor class, distinct from `prov:SoftwareAgent`); metered per-run (`PLAT-BILLING-1`); 422 terminal/no partial write, 5xx retried; insufficient authority → routed to human | E5-S6 | P1 | Phase 2 (CE-WRITE-1) |
 
@@ -386,13 +388,12 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 
 **Performance**
 
-> Every threshold below is an ASSUMPTION (unverified) to be confirmed in tech spec, expressed as a
-> configurable default. The trigger-to-first-action target must be **re-derived once the transport
-> is fixed (OQ-07/OQ-09)** — SQS standard adds non-deterministic dwell latency, so a 2 s p95 may be
-> unachievable with that transport.
+> All thresholds below are ASSUMPTION-defaults to be confirmed in the tech spec and expressed as
+> tunable values.
 
-- Trigger receipt → first action dispatched: default ≤ 2 s p95 for webhook (ASSUMPTION — re-derive
-  against the chosen transport; SQS-standard dwell may force a higher target).
+- Trigger receipt → first action dispatched: **latency target TBD** — re-derived after transport
+  choice (OQ-07); SQS-standard non-deterministic dwell makes a hard 2 s p95 unsafe; no target
+  committed until OQ-07/OQ-09 resolve.
 - Cron accuracy: default within ± 30 s of scheduled time (ASSUMPTION, tunable).
 - HITL gate notification delivery: default ≤ 30 s after the gate fires (ASSUMPTION).
 - Run-history query (last 30 days): default ≤ 1 s p95 (ASSUMPTION).
@@ -479,6 +480,7 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 | Platform | `PLAT-BILLING-1` (per-run + per-token metering) | n/a | Run metering (per-run); agent token usage (per-token) |
 | Platform | `PLAT-SETTINGS-1` (4-level cascade) | n/a | Resolve defaults/limits/thresholds; enforce tighter-wins |
 | Build Engine | `BE-SELFIMPROVE-1` (signal→issue→dispatch) | n/a | "create self-healing issue" on-failure action (HITL-gated, no autonomous merge) |
+| Constitution Engine | `CE-FUNCTION-1` (ontology-bound function registry) | n/a | Reference functions by `fn_iri` as `EA-AUTOMATION-1` actions (Phase 2); CE owns definition/versioning — Events does NOT define its own primitive |
 
 **Provided (this engine exposes to others):**
 
@@ -502,18 +504,18 @@ actions/triggers for reasoning and multi-step work, supported in v1). Execution 
 | OQ-10 | Service-principal granularity at scale: per-automation principal (Cognito user-pool scaling) vs pooled-with-scoped-claims, derived from the grounded step's role/authority via `PLAT-IDENTITY-1`. | Architect + Platform |
 | OQ-11 | Final multi-tenant isolation mechanism: store-per-tenant vs named-graph + query-rewriting (expectation + cross-tenant-read test already stated in §2.2). | Architect |
 | OQ-12 | ODRL policy enforcement is NOT in the v1 stack; v1 uses SHACL + data-classification properties. Revisit ODRL in a later stack decision. | Architect |
-| OQ-13 | **Ontology-bound function — shared primitive ownership.** Whether one typed, graph-aware logic unit (a single definition bound to a CE object type) should be referenceable as an Events action (`EA-AUTOMATION-1`), a Build SDK method (`BE-SDK-1`), and an agent tool at once — and **which engine owns** its definition, registry, and versioning (Events vs Build vs a CE-owned shared contract). The saved object-bound action (E5-S6) is the Events-side seed of this primitive. Cross-engine; coordinate with Build OQ-12 and the PO. (P2) | Architect + PO (Events/Build) |
+| OQ-13 | **RESOLVED (2026-06-30).** CE owns the ontology-bound function registry (`CE-FUNCTION-1`). Events references functions by `fn_iri` as `EA-AUTOMATION-1` actions (Phase 2); it does NOT define its own primitive. Build generates typed SDK bindings (`BE-SDK-1`). E5-S6 is an Events-authored saved action, not the registry seed. Coordinates with Build OQ-12 (now resolved same direction). | — |
 
 ### 2.5 Key design decisions captured
 
 | Decision | Rationale |
 |---|---|
-| Two-tier model `EA-AUTOMATION-1`: simple declarative (interpreted) + complex Agent-SDK agentic; **interpreter-first**, portable export a fast-follow | Agentic capability shipped in v1; only the downloadable-artefact promise is relaxed to "export follows" (locked decision C4) |
+| Two-tier model `EA-AUTOMATION-1`: simple declarative (interpreted) + complex Agent-SDK agentic; **interpreter-first**, portable export a Phase 2 fast-follow | Complex tier conditional on OQ-09 (resolve-before-build: AgentCore vs ECS Fargate binding + artefact-resolution contract); downloadable-artefact promise defers to Phase 2 |
 | Slack is a **platform-managed connector** (`PLAT-CONNECTOR-1`, token in Secrets Manager), one of 7 v1 connectors | Resolves the "Slack connector no engine owns" contradiction; engine consumes, never operates connectors (C2/C3) |
 | Graph update goes through `CE-WRITE-1`; grounding/version via `CE-READ-1`/`CE-VERSION-1`; graph-change via `CE-EVENT-1` | CE owns the only mutation entry point + read/version/event contracts; this engine cites them, never invents CE push/write APIs |
 | Run-log + compliance report are VIEWS over `PLAT-AUDIT-1`; engine emits typed events, keeps no signed store | One platform-owned immutable audit/provenance system of record (A2); removes the duplicate Events audit store |
 | Billing via `PLAT-BILLING-1`: per-run (automation execution) + per-token (agent usage), co-existing | Resolves the runs-vs-tokens conflict; both dimensions are billable (C1) |
-| Deterministic governance gate deny→authority→`automatable`→HITL, + no-self-approval, + HITL config completeness | Encodes the grounded prototype governance model; non-automatable step → human regardless of value |
+| Deterministic governance gate deny→authority→`automatable`→HITL, + no-self-approval, + HITL config completeness | `automatable` is CE-owned SHACL-shaped boolean on `Activity`/`Process`, **default `false`** (absent ⇒ route-to-human), resolved via `CE-READ-1` (contracts §1); safety gate never rests on an undefined attribute |
 | Canonical automation definition = single source of truth; canvas + chat are projections; concurrent edit = optimistic LWW | Removes the ambiguous "two views stay in sync" without a canonical model |
 | Webhook tenant resolved from opaque server-side token; HMAC required for write/external automations | Closes the unauthenticated-public-endpoint tenant-isolation/abuse hole |
 | HITL/paused runs persisted as durable paused-run records, acked off SQS | A paused run can sit for business-days, exceeding any SQS visibility timeout |
@@ -559,7 +561,7 @@ The Events & Actions Engine PRD is satisfied when:
 |---|---|---|---|
 | `CE-EVENT-1` transport not ready at GA | Med | Med | Graph-change triggers are Should Have and degrade to `CE-READ-1` polling; no push-only dependency |
 | `CE-WRITE-1` not landed when graph-update action needed | Med | Med | FR-021 is Phase-2/Should Have, gated on `CE-WRITE-1`; templates needing it flag unavailability |
-| SQS-standard dwell makes the 2 s p95 unachievable | Med | Med | Latency target re-derived against the chosen transport (OQ-07/OQ-09); flagged as ASSUMPTION |
+| SQS-standard dwell invalidates a hard latency target | Med | Med | No p95 committed until OQ-07/OQ-09 transport choice — latency is re-derived, not assumed (SS-EA-2 resolved) |
 | Per-automation Cognito principals don't scale | Med | Low | OQ-10 evaluates pooled-with-scoped-claims via `PLAT-IDENTITY-1` |
 | Unauthenticated webhook endpoint abused | High | Med | Opaque server-side token + required HMAC for write/external + rate limit + size cap + DLQ |
 | Audit/metering loss under platform-service outage | High | Low | Durable buffering + retry; run marked degraded if buffering also fails; never silently dropped |
@@ -574,8 +576,7 @@ The Events & Actions Engine PRD is satisfied when:
 
 ### EPIC-001 — Automation Registry
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-008, `CE-READ-1`, `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **Consumes:** `CE-READ-1`,
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-008, `CE-READ-1`, `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **Consumes:** `CE-READ-1`,
 `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **PRD ref:** prd.md#epic-1-automation-registry.
 
 **Description:** A workspace-scoped registry that lists every automation with its status, trigger
@@ -637,17 +638,9 @@ API). Blocks: surfaces all other epics' automations; provides the registry that 
 selection and EPIC-010 "Use template" land into. Feeds the Platform dashboard automation/run health
 widgets (`EA-AUTOMATION-1` consumers).
 
-**Technical notes:** The registry reads run/status data from the engine's own store but resolves CE
-labels and version state through `CE-READ-1` / `CE-VERSION-1`, so every CE call must have a
-cached-label fallback path (FR-001). Staleness lag uses the canonical threshold from `CE-VERSION-1`
-(default lag ≥ 2, tunable per workspace). Connector-degraded chips read the `PLAT-CONNECTOR-1`
-health-status API and must treat an errored health call as "unknown" (fail-visible), not healthy. All
-queries are tenant-scoped per §2.2 Isolation.
-
 ### EPIC-002 — Natural-Language Automation Builder
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-003, EPIC-006, EPIC-007, `CE-READ-1`, `CE-VERSION-1`. **Blocks:** EPIC-010.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-003, EPIC-006, EPIC-007, `CE-READ-1`, `CE-VERSION-1`. **Blocks:** EPIC-010.
 **Consumes:** `CE-READ-1`, `CE-VERSION-1`. **PRD ref:** prd.md#epic-2-natural-language-automation-builder.
 
 **Description:** A split-pane Builder (NL chat left, flow canvas right) where an operations owner
@@ -737,18 +730,9 @@ can test and review before it goes live.
 validation), the platform secret-scan pattern set (FR-008). Blocks: all authoring flows depend on the
 Builder; EPIC-010 "Use template" opens templates pre-populated in this Builder.
 
-**Technical notes:** The Builder uses `claude-opus-4-8` for NL grounding/elicitation. Disambiguation
-asks ONE inline clarifying question (not a modal); after a default 3 unresolved rounds (tunable) it
-falls back to the EPIC-006 "Link to ontology" searcher rather than looping. Chat and canvas are
-projections of one canonical JSON definition (shared with EPIC-003); concurrency uses an optimistic
-version token. Activation validation chains grounding-resolves-to-published (`CE-VERSION-1`), required
-fields, secret-scan (FR-008, fail-closed), and the high-value-action HITL gate (E5-S5). Dry-run must
-be side-effect-free across external calls, CE writes, and metering.
-
 ### EPIC-003 — Visual Flow Canvas
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-007. **Blocks:** EPIC-002, EPIC-010. **Consumes:** (none).
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-007. **Blocks:** EPIC-002, EPIC-010. **Consumes:** (none).
 **PRD ref:** prd.md#epic-3-visual-flow-canvas.
 
 **Description:** A visual flow canvas that draws the automation as a directed acyclic graph across the
@@ -814,19 +798,10 @@ the canonical definition schema with EPIC-002. Blocks: node configuration in EPI
 EPIC-005 (actions incl. HITL Gate + Error Handler), and EPIC-007 (sub-automation node) is performed
 through canvas node inspectors.
 
-**Technical notes:** Node set is fixed at FR-009: Trigger (webhook/Jira/ServiceNow/Slack/cron/
-graph-change), Condition, Action (Slack notif/API call/agent run/graph update/sub-automation), HITL
-Gate, Error Handler, End. Canvas is zoomable/pannable/keyboard-navigable with minimap, fit-to-view,
-and PNG export; exact input bindings are deferred to the design spec (OQ-08) and the canvas framework
-to OQ-01. This is the automation-specific canvas, distinct from the Graph Explorer org-wide
-collaborative canvas (`GE-CANVAS-1`). Concurrency model is optimistic LWW on a version token (FR-011);
-the projection sync target (default 500 ms) is an ASSUMPTION to confirm in the tech spec.
-
 ### EPIC-004 — Trigger Sources
 
-**Phase:** Phase 1 — MVP / v1 GA (S1–S3); Phase 2 — CE-gated (S4 graph-change). **Priority:** Must
-Have (S1–S3) · Should Have (S4, depends on `CE-EVENT-1`). **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-008, `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **Blocks:** EPIC-010.
+**Phase:** Phase 1 — v1 GA (S1–S3); Phase 2 — CE-gated (S4 graph-change). **Priority:** Must
+Have (S1–S3) · Should Have (S4, depends on `CE-EVENT-1`). **Status:** Backlog.**Depends on:** EPIC-008, `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **Blocks:** EPIC-010.
 **Consumes:** `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **PRD ref:** prd.md#epic-4-trigger-sources.
 
 **Description:** The set of event sources that start an automation: configurable webhooks (opaque
@@ -930,20 +905,10 @@ Manager (HMAC + connector tokens). S4 blocked by `CE-EVENT-1` (graph-change stre
 polling degrade. Blocks: EPIC-005 actions consume the triggering entity/event; EPIC-008 run engine
 enqueues from these triggers. S4 (graph-change) blocks EPIC-010 graph-change templates' activation.
 
-**Technical notes:** Webhook security (FR-012): opaque tenant+automation token resolved server-side;
-HMAC-SHA256 REQUIRED for write/external automations (secret in Secrets Manager), optional only for
-read-only/no-side-effect automations; body cap default 256 KB and rate limit default 100 req/min, both
-tunable per tenant. Atlassian is one OAuth family covering Jira + Confluence. Slack is one of the 7 v1
-managed connectors (token in Secrets Manager). Graph-change (S4) is labelled "Secondary", is Should
-Have, consumes `CE-EVENT-1` (`{change_type, entity_iri, version_iri, actor, ts}`), degrades to
-polling, and has a per-workspace cap (default 10, tunable) since the real constraint is event volume.
-Webhook ingestion transport is OQ-07.
-
 ### EPIC-005 — Action Types
 
-**Phase:** Phase 1 — MVP / v1 GA (S1–S3, S5); Phase 2 — CE-gated (S4 graph update). **Priority:** Must
-Have (S1–S3, S5) · Should Have (S4, depends on `CE-WRITE-1`). **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-006, EPIC-008, `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`,
+**Phase:** Phase 1 — v1 GA (S1–S3, S5); Phase 2 — CE-gated (S4 graph update). **Priority:** Must
+Have (S1–S3, S5) · Should Have (S4, depends on `CE-WRITE-1`). **Status:** Backlog.**Depends on:** EPIC-006, EPIC-008, `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`,
 `PLAT-AUDIT-1`, `CE-WRITE-1`. **Blocks:** EPIC-010. **Consumes:** `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`,
 `PLAT-IDENTITY-1`, `PLAT-AUDIT-1`, `CE-WRITE-1`. **PRD ref:** prd.md#epic-5-action-types.
 
@@ -1000,9 +965,9 @@ complex, reasoning-heavy responses can be automated.
 
 - **AC:** Given an Agent Run action (the complex tier of `EA-AUTOMATION-1`), when configured, then an
   agent artefact reference, input payload (triggering entity IRI + optional context), and a timeout
-  (default 60 s, tunable per automation) are set. v1 executes the agent via the interpreter runtime
-  (interpreter-first); the artefact-resolution contract and execution runtime binding (AgentCore
-  Runtime vs ECS Fargate per CLAUDE.md) are deferred to OQ-04 / OQ-09.
+  (default 60 s, tunable per automation) are set. **Resolve-before-build: OQ-09** — the AgentCore
+  Runtime vs ECS Fargate binding and artefact-resolution contract must close before this story can be
+  implemented; this story is blocked until the tech spec resolves OQ-09.
 - **AC (governance):** Given an Agent Run action, when it is about to dispatch, then it passes the
   governance gate sequence (E5-S5) and runs under a per-automation least-privilege service principal
   minted by `PLAT-IDENTITY-1`; its principal IRI is recorded in every `PLAT-AUDIT-1` event and any
@@ -1011,9 +976,8 @@ complex, reasoning-heavy responses can be automated.
   in flight, then the run is recorded as a terminal failure in the run log; per-step idempotency
   (E8-S1) prevents a duplicate agent run on SQS redelivery (the in-flight agent step's completion
   marker gates re-execution).
-- **Priority:** Must Have (the complex/agentic tier is a v1 capability per `EA-AUTOMATION-1`; only the
-  execution runtime *substrate* — AgentCore Runtime vs ECS Fargate — and the artefact-resolution
-  contract are deferred to OQ-09, not the capability)
+- **Priority:** Must Have (engine-internal phase-1 priority — blocked on OQ-09 resolve-before-build;
+  cannot build until AgentCore vs ECS Fargate and artefact-resolution contract are decided)
 
 **E5-S4: Graph update action**
 As an **automation author**, I want to write a property change or new relationship back to the company
@@ -1042,8 +1006,9 @@ that sensitive actions cannot proceed without the right human approving them.
   call), when it is about to dispatch, then the engine runs the deterministic 4-step gate against the
   grounded process step, in order: (1) **explicit deny** on the step → blocked regardless of
   authority; (2) the principal's **authority level < required** → routed to human; (3) the step's
-  **`automatable` flag is false** → routed to human regardless of any value threshold; (4) otherwise
-  the **HITL trigger fires** if configured. Explicit deny beats even the highest authority level.
+  `automatable` flag (`CE-READ-1` — **CE-owned SHACL boolean on `Activity`/`Process`**, default
+  `false`; absent ⇒ route-to-human) is false → routed to human regardless of any value threshold;
+  (4) otherwise the **HITL trigger fires** if configured. Explicit deny beats every authority level.
 - **AC (HITL config completeness):** Given a HITL Gate node, when saved, then it MUST carry
   `escalatesTo` (a Role from the org model), `escalationDeadline` (an ISO-8601 `xsd:duration`), and
   the bound `triggeredByStep`; a definition missing any of these fails validation and cannot activate
@@ -1060,6 +1025,21 @@ that sensitive actions cannot proceed without the right human approving them.
   fires, then the run escalates to `escalatesTo` (notify + optional Slack alert) and remains paused;
   it is never auto-approved.
 - **Priority:** Must Have
+
+**Governance gate sequence (FR-022):**
+
+```mermaid
+flowchart TD
+    A[Autonomous action about to dispatch] --> B{Step explicitly denied?}
+    B -- Yes --> BLOCKED[Blocked — explicit deny beats all authority]
+    B -- No --> C{Principal authority &lt; required?}
+    C -- Yes --> HUMAN1[Route to human — authority insufficient]
+    C -- No --> D{"automatable = false?\nCE-READ-1 · CE-owned SHACL bool\nActivity/Process · default false"}
+    D -- Yes --> HUMAN2[Route to human — step is not automatable]
+    D -- No --> E{HITL trigger configured?}
+    E -- Yes --> HITL[HITL gate fires · run pauses\nApprove/Reject logged to PLAT-AUDIT-1]
+    E -- No --> DISPATCH[Action dispatched]
+```
 
 **E5-S6: Saved object-bound action type (ad-hoc action button)**
 As an **operations owner**, I want a named, parameterized change template bound to a specific CE object
@@ -1089,7 +1069,9 @@ demand (e.g. "ApproveClaim" on a `Claim`).
 - **AC (failure mode):** Given the invoking user lacks the authority the bound step requires, then the
   invocation is routed to a human per the governance gate (or rejected) — it is never applied on the
   invoker's behalf without clearing the gate.
-- **Priority:** Should Have (depends on `CE-WRITE-1`)
+- **Priority:** Should Have (depends on `CE-WRITE-1`; saved actions may be publishable to
+  `CE-FUNCTION-1` in Phase 2 — CE owns that registry; E5-S6 does NOT define the function primitive,
+  it authors a reusable action that REFERENCES the CE type)
 
 **Epic-level acceptance criteria:**
 
@@ -1114,21 +1096,16 @@ demand (e.g. "ApproveClaim" on a `Claim`).
 retry/DLQ + idempotency markers). S4 blocked by `CE-WRITE-1`. Blocks: EPIC-010 templates compose these
 actions; EPIC-007 sub-automation composes them.
 
-**Technical notes:** Agent Run (E5-S3) is the complex tier of `EA-AUTOMATION-1` and is a v1
-capability — only the execution runtime substrate (AgentCore Runtime vs ECS Fargate) and the
-artefact-resolution contract are deferred (OQ-04/OQ-09); it executes interpreter-first in v1 with a
-default 60 s timeout (tunable). Graph Update (E5-S4, Should Have) writes via `CE-WRITE-1`
-(`POST /api/operations/apply`, actor = principal IRI): 201 commit / 422 SHACL is terminal (not
-retried) / 5xx is retried; attribution is a `prov:SoftwareAgent` distinct from human (`user`) and
-interactive-LLM (`llm`) classes so compliance reports (E9-S2) filter by actor class. The HITL gate
-sequence (FR-022) is deterministic and engine-enforced; the high-value threshold is per-tenant
-currency-configurable (~£10k-equiv) and enforced at the engine level, not just UI. Run-time egress
-secret-scrub is FR-008b.
+**Technical notes:** Agent Run (E5-S3) is the complex tier of `EA-AUTOMATION-1`; it is a
+**resolve-before-build** dependency on OQ-09 (AgentCore Runtime vs ECS Fargate binding +
+artefact-resolution contract — not buildable until the tech spec closes this). Graph Update (E5-S4,
+Should Have) writes via `CE-WRITE-1` (`POST /api/operations/apply`): 201 commit / 422 SHACL terminal
+(not retried) / 5xx retried; `prov:SoftwareAgent` actor class distinct from `user`/`llm` so
+compliance reports (E9-S2) filter by actor. Run-time egress secret-scrub is FR-008b.
 
 ### EPIC-006 — Ontology Grounding
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`. **Blocks:** EPIC-002,
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`. **Blocks:** EPIC-002,
 EPIC-005. **Consumes:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`.
 **PRD ref:** prd.md#epic-6-ontology-grounding.
 
@@ -1197,19 +1174,12 @@ EPIC-002 activation validation, EPIC-005 governance gate (reads the grounded ste
 compliance reporting (filters by grounded process IRI), EPIC-010 ("Use template" requires a grounding
 link before activation).
 
-**Technical notes:** Grounding is the cross-cutting precondition for activation enforced in EPIC-002.
-The pin is recorded as the newest published `version_iri` at activation (`CE-VERSION-1`) and is
-immutable except via "Upgrade pin". Staleness uses the canonical lag threshold (default ≥ 2, tunable)
-surfaced as the amber chip in EPIC-001. The "Upgrade pin" diff must include both nodes and edges
-(`CE-DIFF-1`). Forced-obsolescence detection runs at activation and on each `CE-EVENT-1`/poll cycle.
-Grounding resolves only to a BPMO `Process` or `Activity`, or the governing `Policy` a process is
-`governedBy` (`CE-READ-1`) — never to an ungoverned or unmodelled entity.
 
 ### EPIC-007 — Two-Tier Automation Model & Composition
 
-**Phase:** Phase 1 — MVP / v1 GA (S1 interpreter); Phase 2 — Fast-Follow (S1 export, S2 composition).
+**Phase:** Phase 1 — v1 GA (S1 interpreter); Phase 2 — Fast-Follow (S1 export, S2 composition).
 **Priority:** Must Have (S1 v1 interpreter) · Should Have (S1 export, S2 composition — Phase 2).
-**Status:** Backlog. **MVP:** yes. **Depends on:** (none). **Blocks:** EPIC-002, EPIC-003.
+**Status:** Backlog.. **Depends on:** (none). **Blocks:** EPIC-002, EPIC-003.
 **Provides:** `EA-AUTOMATION-1`. **PRD ref:** prd.md#epic-7-two-tier-automation-model--composition.
 
 **Description:** The execution model behind every automation: a simple tier (declarative JSON,
@@ -1270,17 +1240,14 @@ codegen is OQ-04; runtime substrate is OQ-09. Blocks: S1 export (Phase 2) produc
 referenceable as sub-automations in S2; EPIC-010 templates may compose sub-automations.
 
 **Technical notes:** Tier model is `EA-AUTOMATION-1`: simple = declarative JSON runtime-interpreted;
-complex = Agent SDK agentic. The complex/agentic *capability* is v1 (interpreter-first); only the
-downloadable-artefact *promise* is deferred to Phase 2 — agentic is NOT deferred. Phase-2 export
-produces a portable Agent-SDK artefact (skill/command/agent), semver-versioned, `pip`-installable, and
-referenceable as a sub-automation (FR-027). Sub-automation calls (E7-S2) are synchronous (within the
-parent timeout) or async (fire-and-forget) with input/output property mapping; cycle detection mirrors
-the acyclic constraint enforced on the main graph in EPIC-003.
+complex = Agent SDK agentic — **conditional on OQ-09** (resolve-before-build). Phase-2 export produces
+a portable Agent-SDK artefact (skill/command/agent), semver-versioned, `pip`-installable, and
+referenceable as a sub-automation (FR-027). Sub-automation calls (E7-S2) are synchronous or async
+(fire-and-forget); cycle detection mirrors the EPIC-003 acyclic constraint.
 
 ### EPIC-008 — Run Engine & Reliability
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`, `BE-SELFIMPROVE-1`. **Blocks:** EPIC-001, EPIC-004,
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`, `BE-SELFIMPROVE-1`. **Blocks:** EPIC-001, EPIC-004,
 EPIC-005, EPIC-009. **Consumes:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`, `BE-SELFIMPROVE-1`.
 **PRD ref:** prd.md#epic-8-run-engine--reliability.
 
@@ -1289,6 +1256,27 @@ with per-step idempotency so no event is dropped and no side effect fires twice,
 with a dead-letter queue for inspectable failures, and a per-run metering event so usage-based billing
 is accurate. HITL-gated/paused runs are acked off the queue and persisted as durable records rather
 than held as in-flight messages.
+
+**Run lifecycle:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> Queued : Trigger event enqueued on SQS
+    Queued --> Running : Dequeued · deduped by run_id
+    Running --> StepDone : Step dispatched + idempotency marker set
+    StepDone --> Running : Next step
+    Running --> Paused : HITL gate fires\nAcked off SQS · persisted as durable record
+    Paused --> Running : Approved
+    Paused --> Failed : Rejected or deadline exceeded
+    Running --> Retrying : Step fails (retries remain)
+    Retrying --> Running : Retry after backoff
+    Retrying --> DLQ : Max retries exhausted
+    DLQ --> Queued : Retry from DLQ
+    StepDone --> Complete : All steps done
+    Running --> Failed : Terminal failure (422 SHACL / timeout)
+    Complete --> [*]
+    Failed --> [*]
+```
 
 **User stories (tasks):**
 
@@ -1363,20 +1351,9 @@ action, HITL-gated). Runtime/state-machine model and SQS visibility-timeout sizi
 every triggered run (EPIC-004) and every action (EPIC-005) executes through this spine; EPIC-009 audit
 emission rides the run/step lifecycle; EPIC-005 idempotency markers are defined here.
 
-**Technical notes:** At-least-once uses SQS standard — ordering is NOT guaranteed. Per-step idempotency
-markers gate re-execution; best-effort steps (where dedupe is impossible) are documented per action
-type. Paused runs are a durable state machine (runtime model OQ-09), never in-flight SQS messages
-(FR-029b). Retry defaults: max 3 (max 10, tunable), exponential backoff 2s/4s/8s (tunable); on-failure
-options include notify/log/create-self-healing-issue (`BE-SELFIMPROVE-1`, HITL-gated, no autonomous
-merge)/stop. DLQ default retention 14 days (tunable), not auto-reprocessed, with "Retry from DLQ".
-Metering emits the per-run dimension `{automation_id, tenant_id, run_id, trigger_type, action_types[],
-duration_ms, outcome, ts}`; Agent Run token usage is metered on the per-token dimension (both co-exist
-per the platform billing decision).
-
 ### EPIC-009 — Audit & Compliance Reporting
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
-**Depends on:** EPIC-008, `PLAT-AUDIT-1`, `CE-READ-1`. **Consumes:** `PLAT-AUDIT-1`, `CE-READ-1`.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-008, `PLAT-AUDIT-1`, `CE-READ-1`. **Consumes:** `PLAT-AUDIT-1`, `CE-READ-1`.
 **PRD ref:** prd.md#epic-9-audit--compliance-reporting-views-over-plat-audit-1. (Views over
 `PLAT-AUDIT-1`.)
 
@@ -1447,26 +1424,19 @@ over), `CE-READ-1` (grounded-process typeahead in the report filter), EPIC-005 (
 EPIC-008 (run/step lifecycle that emits the events). Blocks: the compliance/risk officer's proof
 obligation; feeds the Platform dashboard health widgets indirectly via the audit trail.
 
-**Technical notes:** Audit events are typed `PLAT-AUDIT-1` records `{seq, ts, actor_principal_iri,
-engine:"events", event_type, target_iri, diff_summary, signature}` with events-specific fields
-(`grounded_entity_iri`, `ontology_version_pinned`, `trigger_payload_hash`, per-step
-`step_type`/`step_config_hash`/`outcome`/`external_call_url`, `hitl_decision`) carried as a typed
-payload. Actor-class filtering depends on the `prov:SoftwareAgent` automation principal being distinct
-from `user` and `llm` classes (set in EPIC-005). HITL decisions carry approver Cognito identity, ts,
-and reason. A "Red run" is any 422 SHACL violation or HITL rejection. The report is purely a VIEW — no
-parallel storage.
-
 ### EPIC-010 — Templates & Library
 
-**Phase:** Phase 1 — MVP / v1 GA (≥ 6 templates ship); Phase 2 — CE-gated template *activation*.
-**Priority:** Should Have. **Status:** Backlog. **MVP:** yes. **Depends on:** EPIC-002, EPIC-003,
+**Phase:** Phase 1 — v1 GA (all 6 templates ship; **4 immediately activatable, 2
+flagged-unavailable** pending `CE-EVENT-1`); Phase 2 — CE-EVENT-1-gated template *activation*.
+**Priority:** Should Have. **Status:** Backlog. **Depends on:** EPIC-002, EPIC-003,
 EPIC-004, EPIC-005. **PRD ref:** prd.md#epic-10-templates--library.
 
 **Description:** A library of pre-built automation templates so an author starts from a working
-pattern rather than a blank canvas. At least six templates ship at v1 GA; "Use template" opens one
+pattern rather than a blank canvas. Six templates ship at v1 GA; "Use template" opens one
 pre-populated in the Builder, and the author must set a grounding link to a published entity before
-activating. Templates whose nodes require a not-yet-available CE contract (graph-change/graph-update)
-are flagged unavailable until those contracts land.
+activating. **Of the six, two ("New employee onboarding" and "Stock reorder trigger") depend on
+`CE-EVENT-1` and ship with flagged-unavailable nodes until that contract lands**; four are
+immediately activatable.
 
 **User stories (tasks):**
 
@@ -1475,11 +1445,13 @@ are flagged unavailable until those contracts land.
 **E10-S1: Reusable automation templates**
 As an **automation author**, I want pre-built templates so that I start from a working pattern.
 
-- **AC:** Given Automate → Templates, when it loads, then at least these ship at v1 GA: "Notify on
-  delivery arrival" (webhook → Slack), "Escalate unresolved incident" (ServiceNow → condition → HITL
-  gate → agent run), "Update graph on Jira close" (Jira → `CE-WRITE-1` graph update), "Daily
-  compliance summary" (cron → agent run → Slack), "New employee onboarding" (graph-change → multi-step
-  agent run), "Stock reorder trigger" (graph-change: SHACL violation → API call → Slack).
+- **AC:** Given Automate → Templates, when it loads, then all six templates ship at v1 GA — **4
+  activatable, 2 flagged-unavailable** (graph-change nodes require `CE-EVENT-1`):
+  - *Activatable at GA:* "Notify on delivery arrival" (webhook → Slack) · "Escalate unresolved
+    incident" (ServiceNow → HITL gate → agent run) · "Update graph on Jira close" (Jira →
+    `CE-WRITE-1` graph update) · "Daily compliance summary" (cron → agent run → Slack).
+  - *Flagged-unavailable until `CE-EVENT-1` lands:* "New employee onboarding" (graph-change →
+    multi-step agent run) · "Stock reorder trigger" (graph-change: SHACL violation → API call → Slack).
 - **AC:** Given a template, when I click "Use template", then it opens pre-populated in the Builder and
   I MUST set a grounding link to a published entity before activating.
 - **AC (failure mode):** Given a template references a connector/trigger type not available in the
@@ -1489,9 +1461,9 @@ As an **automation author**, I want pre-built templates so that I start from a w
 
 **Epic-level acceptance criteria:**
 
-- [ ] At least the six named templates ship at v1 GA ("Notify on delivery arrival", "Escalate
-  unresolved incident", "Update graph on Jira close", "Daily compliance summary", "New employee
-  onboarding", "Stock reorder trigger"), and each opens pre-populated via "Use template".
+- [ ] All six named templates ship at v1 GA and open pre-populated via "Use template"; **4 are
+  immediately activatable** and **2 — "New employee onboarding" and "Stock reorder trigger" — ship
+  with flagged-unavailable graph-change nodes** and cannot activate until `CE-EVENT-1` lands.
 - [ ] No template can activate without a grounding link to a PUBLISHED entity — the grounding
   requirement (EPIC-006) is enforced for template-originated automations exactly as for hand-built
   ones.
@@ -1506,17 +1478,9 @@ graph-update templates' *activation* is gated on `CE-EVENT-1` (EPIC-004 S4) and 
 S4), both Phase 2. Blocks: Onboarding (#6) Hammerbarn example automations build on these templates
 (`EA-AUTOMATION-1` consumer).
 
-**Technical notes:** ≥ 6 templates is FR-034. The six span the full node set: webhook→Slack,
-ServiceNow→condition→HITL gate→agent run, Jira→`CE-WRITE-1` graph update, cron→agent run→Slack,
-graph-change→multi-step agent run, and graph-change (SHACL violation)→API call→Slack. The graph-change
-and graph-update templates ship at GA but display flagged-unavailable nodes until
-`CE-EVENT-1`/`CE-WRITE-1` are present; only their activation defers to Phase 2 (roadmap EPIC-010
-CE-gated activation). "Use template" reuses the EPIC-002 Builder pre-population path; the grounding
-requirement is the EPIC-006 invariant.
-
 ### EPIC-011 — Automation Settings
 
-**Phase:** Phase 1 — MVP / v1 GA. **Priority:** Must Have. **Status:** Backlog. **MVP:** yes.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.
 **Depends on:** `PLAT-SETTINGS-1`. **Consumes:** `PLAT-SETTINGS-1`.
 **PRD ref:** prd.md#epic-11-automation-settings-within-the-platform-cascade. (Within the platform
 cascade.)
@@ -1567,13 +1531,6 @@ Blocks: the defaults consumed across the engine — EPIC-005 HITL high-value thr
 retry/concurrency/audit-retention defaults, EPIC-001 staleness behaviour, EPIC-004 rate-limit defaults
 — all resolve through this cascade.
 
-**Technical notes:** All numeric defaults across the engine are "default X, tunable" and resolve
-through `PLAT-SETTINGS-1` where workspace-scoped: max concurrent runs (default 20), max
-runs/automation/min (default 60), audit retention (default 12 months; min 30 days). Role slugs align
-with the platform RBAC model resolved through `PLAT-SETTINGS-1`. The HITL high-value threshold is
-currency-/unit-aware and engine-enforced (FR-035, mirrored in E5-S5 and the Security NFR). Cascade
-enforcement (loosening rejected) must be a server-side check, not a UI-only guard.
-
 ## 4. Roadmap
 
 **Status:** Draft (not yet human-confirmed — `confirmed_by: none`).
@@ -1584,7 +1541,7 @@ Weave build order: **Platform shell (#1) → Constitution Engine (#2) → Graph 
 Engine (#4) → Events & Actions (#5) → Onboarding (#6)**. This engine is **#5, and the whole engine is
 POST-MVP** — the program MVP is the thin model→generate loop (Platform shell + CE + Explorer + a narrow
 Build slice). Events & Actions ships after that loop is proven; nothing in this roadmap is on the
-program-MVP critical path. Phase 1 below is the *engine's own* MVP / v1 GA.
+program-MVP critical path. Phase 1 below is the *engine's own* v1 GA.
 
 **Depends on (consumed contracts, cited from `../contracts.md`):**
 
@@ -1609,7 +1566,7 @@ health widgets). Work that is contract-unblocked may run in parallel — see the
 gantt
     title Events & Actions Engine Roadmap
     dateFormat YYYY-MM-DD
-    section Phase 1 — MVP / v1 GA (engine MVP; program-POST-MVP)
+    section Phase 1 — Engine v1 GA (program-POST-v1)
         Wave A Run spine + governance + audit + metering + settings  :a1a, 2026-01-01, 25d
         Wave B NL builder + canvas + full v1 trigger/action set       :a1b, after a1a, 30d
         HITL Gate 1 (spec-approval + phase-boundary + pre-deploy + publish) :milestone, m1, after a1b, 0d
@@ -1620,9 +1577,9 @@ gantt
 
 > Durations are indicative sequencing placeholders (default, tunable), not committed estimates. The
 > Wave A / Wave B split inside Phase 1 is a *sequencing* device, not a gate boundary (both waves are
-> MVP-tagged and gate together at Gate 1) — see the Phase 1 sequencing note.
+> phase-1-tagged and gate together at Gate 1) — see the Phase 1 sequencing note.
 
-### Phase 1: MVP / v1 GA · engine MVP (program-POST-MVP)
+### Phase 1: Engine v1 GA (program position: post-v1)
 
 **Goal:** Ship the Constitution-Engine-grounded core: a user describes an automation in plain language
 grounded in a published ontology process, refines it on the visual canvas, tests it, activates it, and
@@ -1633,26 +1590,26 @@ end-to-end via the Builder, activated, and run.
 
 **Epics:**
 
-| Epic | Description | Stories | Priority | MVP? |
+| Epic | Description | Stories | Priority | Phase-1? |
 |---|---|---|---|---|
-| EPIC-001 | Automation Registry — list, status, health indicators, CE-derived labels | 2 | Must Have | yes |
-| EPIC-002 | Natural-Language Automation Builder — NL describe/refine/test/activate, grounded via `CE-READ-1` | 3 | Must Have | yes |
-| EPIC-003 | Visual Flow Canvas — full node set; canvas + chat as projections of one canonical definition | 2 | Must Have | yes |
-| EPIC-004 (S1–S3) | Trigger Sources (MVP set) — webhook, Atlassian (Jira), ServiceNow, cron, Slack (S4 graph-change → Phase 2) | 3 | Must Have | yes |
-| EPIC-005 (S1–S3, S5) | Action Types (MVP set) — Slack notification, API call, agent run, HITL gate (S4 graph update → Phase 2) | 4 | Must Have | yes |
-| EPIC-006 | Ontology Grounding — grounding required for activation; published-version pin (`CE-READ-1`/`CE-VERSION-1`/`CE-DIFF-1`) | 2 | Must Have | yes |
-| EPIC-007 (S1 interpreter) | Two-Tier Model — auto-tier simple/complex, interpreter-first (export + S2 composition → Phase 2) | 1 | Must Have | yes |
-| EPIC-008 | Run Engine & Reliability — at-least-once, per-step idempotency, durable paused runs, retry/DLQ, metering | 3 | Must Have | yes |
-| EPIC-009 | Audit & Compliance Reporting — emit run/step events to `PLAT-AUDIT-1`; compliance report VIEW | 2 | Must Have | yes |
-| EPIC-010 | Templates & Library — ≥ 6 templates ship at v1 GA (FR-034); CE-contract-dependent template *activation* defers to Phase 2 | 1 | Should Have | yes |
-| EPIC-011 | Automation Settings — resolved through the `PLAT-SETTINGS-1` cascade (tighter-wins) | 1 | Must Have | yes |
+| EPIC-001 | Automation Registry — list, status, health indicators, CE-derived labels | 2 | Must Have | v1-GA |
+| EPIC-002 | Natural-Language Automation Builder — NL describe/refine/test/activate, grounded via `CE-READ-1` | 3 | Must Have | v1-GA |
+| EPIC-003 | Visual Flow Canvas — full node set; canvas + chat as projections of one canonical definition | 2 | Must Have | v1-GA |
+| EPIC-004 (S1–S3) | Trigger Sources — webhook, Atlassian (Jira), ServiceNow, cron, Slack (S4 graph-change → Phase 2) | 3 | Must Have | v1-GA |
+| EPIC-005 (S1–S3, S5) | Action Types — Slack notification, API call, agent run (OQ-09 gated), HITL gate (S4 graph update → Phase 2) | 4 | Must Have | v1-GA |
+| EPIC-006 | Ontology Grounding — grounding required for activation; published-version pin (`CE-READ-1`/`CE-VERSION-1`/`CE-DIFF-1`) | 2 | Must Have | v1-GA |
+| EPIC-007 (S1 interpreter) | Two-Tier Model — auto-tier simple/complex, interpreter-first (export + S2 composition → Phase 2) | 1 | Must Have | v1-GA |
+| EPIC-008 | Run Engine & Reliability — at-least-once, per-step idempotency, durable paused runs, retry/DLQ, metering | 3 | Must Have | v1-GA |
+| EPIC-009 | Audit & Compliance Reporting — emit run/step events to `PLAT-AUDIT-1`; compliance report VIEW | 2 | Must Have | v1-GA |
+| EPIC-010 | Templates & Library — 6 templates ship (4 activatable, 2 CE-EVENT-1-gated); CE-gated *activation* defers to Phase 2 | 1 | Should Have | v1-GA |
+| EPIC-011 | Automation Settings — resolved through the `PLAT-SETTINGS-1` cascade (tighter-wins) | 1 | Must Have | v1-GA |
 
 > **Phase 1 sequencing note (tradeoff surfaced per Law 1):** Phase 1 is large. It may be delivered as
 > two internal waves — **Wave A** the run spine, governance gate, audit/metering, settings, grounding
 > (EPIC-001, 006, 008, 009, 011 + the governance/secret-scan invariants of
 > E5-S5/FR-022/FR-023/FR-008), then **Wave B** the NL builder, canvas, and full trigger/action set
 > (EPIC-002, 003, 004 S1–S3, 005 S1–S3+S5, 007 interpreter, 010). This is a sequencing convenience
-> only: every epic in both waves is MVP-tagged, so they share one Definition-of-Ready, one set of exit
+> only: every epic in both waves is phase-1-tagged, so they share one Definition-of-Ready, one set of exit
 > criteria, and **gate together at Gate 1**. No phase boundary is manufactured between the waves.
 
 **Entry criteria (Definition of Ready):**

@@ -147,7 +147,7 @@ Decisions are final unless overridden by explicit PRD justification.
 
 - Agent SDK: Anthropic Agent SDK (Claude Agent SDK) — Python primary, TypeScript secondary; generates portable agent code (decided 2026-06-26)
 - Agent runtime: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway) — revisit fit with Anthropic Agent SDK during Build Engine tech spec
-- Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-4-6` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
+- Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-5` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
 - Guardrails: AWS Bedrock Guardrails (PII, content policy, topic blocking)
 
 **Data**

@@ -1,7 +1,7 @@
 ---
 type: EngineSpec
 title: "Weave — Platform Shell (consolidated)"
-description: "Cross-cutting application shell: app/nav/workspace/auth/Cognito/Bedrock/tenancy, the six PLAT-* contracts, the Generative Dashboard, and Weave-product self-improvement."
+description: "Cross-cutting application shell: app/nav/workspace/auth/Cognito/Bedrock/tenancy, the six PLAT-* contracts. M1: shell + foundations + immutable audit. M2: Generative Dashboard + role-home. Self-improvement: post-v1."
 tags: [weave-platform, consolidated]
 status: Draft
 timestamp: 2026-06-30T00:00:00Z
@@ -20,11 +20,11 @@ coverage: n/a
 > The Weave Platform is the application **shell** (not an engine): the multi-tenant SPA, navigation,
 > workspace/tenancy, auth (Cognito/Auth0), Bedrock model routing, and the cross-cutting services every
 > engine depends on. It owns the **six PLAT-\* contracts** (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`,
-> `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`), the user-facing
-> **Generative Dashboard**, and the first internal instance of `BE-SELFIMPROVE-1` (Weave-product
-> self-improvement). It is **#1 in the build order** — the shell the whole model → generate → automate
-> loop runs in — and has no upstream engine dependency; the Constitution Engine is the first engine that
-> runs on it.
+> `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`). **M1** ships the shell,
+> foundations, and immutable audit (no upstream engine dependency). **M2** adds the Generative Dashboard
+> (once CE is GA) and the role-tailored "What can Weave do for you?" home. **Post-v1:** Weave-product
+> self-improvement loop (signal → issue → dispatch). It is **#1 in the build order** — the shell the
+> whole model → generate → automate loop runs in. See `../weave-spec.md` and `../contracts.md`.
 
 <!-- SHARED-HOISTED: positioning/Laws/MVP success criterion are program-level — see ../weave-spec.md §Program -->
 
@@ -121,9 +121,9 @@ platform brief owns only the cross-cutting whole and the boundaries between engi
   from the graph model.
 - **Events & Actions Engine** — automations triggered by internal graph changes and external events
   (webhooks, Jira, cron, ServiceNow).
-- **Graph Explorer** — visualises the company as a force-directed network with drill-in focus views. MVP
+- **Graph Explorer** — visualises the company as a force-directed network with drill-in focus views. M1
   ships single-user editing plus async sharing (server-side saved views + comments); Figma-style
-  real-time multi-user collaboration (Yjs co-edit, presence, cursors, follow-me) is **Phase 2**.
+  real-time multi-user collaboration (Yjs co-edit, presence, cursors, follow-me) is **post-v1**.
 - **Shared platform foundation** — multi-tenant cloud SaaS (tenant isolation enforced at the storage layer
   — named-graph-per-tenant with query-rewriting that rejects unscoped queries, or store-per-tenant; final
   mechanism set in the Constitution Engine tech spec), authentication/authorisation, a single
@@ -186,9 +186,9 @@ leadership governs and funds, then architects and engineers build on top.
 - Full W3C semantic web stack is mandatory, not optional: RDF/OWL 2 DL, SHACL validation, SPARQL 1.1,
   PROV-O provenance, Turtle serialisation. <!-- SHARED-HOISTED: full stack list — see ../weave-spec.md §Shared foundations (Stack) -->
 - Single modular React SPA (Next.js 15, TypeScript strict) — no micro-frontends.
-- The Constitution-Engine MVP launch ships single-user editing + async sharing. Real-time conflict-free
-  multi-user collaboration (Yjs CRDT co-editing) is a Graph-Explorer **Phase 2** capability, delivered at
-  Graph Explorer launch — NOT at the Constitution MVP launch.
+- The M1 launch ships single-user editing + async sharing. Real-time conflict-free multi-user
+  collaboration (Yjs CRDT co-editing) is a Graph-Explorer **post-v1** capability, delivered at Graph
+  Explorer realtime launch — NOT at the M1 launch.
 - RDF store is Oxigraph for dev/test; the production store (Neptune vs Jena Fuseki) is deferred to the
   Constitution Engine tech spec.
 
@@ -315,12 +315,11 @@ in the dashboard grid.
 | Token & AI spend | Usage by engine / user / project, cost trend (7d/30d), budget burn vs cap, per-engine cost breakdown |
 | Active projects | Project count by phase, recent activity, budget burn, artefacts shipped, success/failure rate |
 | Compliance status | Active SHACL contraventions by severity and domain, policy coverage gaps, self-audit query results |
-| Self-improvement findings | Open proposals from the self-improvement engine, ranked by impact (HIGH/MEDIUM/LOW), org vs project scope |
 | Ontology & project issues | Validation warnings, unsatisfiable OWL classes, entities with no owner, version pin mismatches |
 | Event automation status | Running automations, recent trigger counts, failure rates, connector health (the 7 v1 connectors: Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) |
 | Collaboration activity | Active canvas sessions, recent graph edits, top contributors, workshop sessions logged |
-| Sentiment on logs | NLP analysis of audit and agent-decision logs to surface operational sentiment trends — rising error rates, repeated agent failures, unusual patterns |
-| Agent activity | What AI agents are doing right now across all engines (Build, Automate, self-improvement) |
+| Operational health | Error rate, retry rate, agent-failure rate by engine — sourced from `PLAT-AUDIT-1` (`event_type` + `engine` dimensions) and `CE-METRICS-1` (`shacl_errors_by_severity`); a spike beyond a configurable threshold fires an alert-banner widget |
+| Agent activity | What AI agents are doing right now across all engines (Build, Automate, Explorer) |
 | Version pinning | Which Build projects and Automations are pinned to which ontology versions; alert if pinned to a version ≥ 2 behind latest |
 | RBAC & access | Roles assigned vs unassigned users, any areas with no assigned owner, recent permission changes |
 | Graph growth | Entity and relationship count over time — is the model being actively maintained or drifting stagnant? |
@@ -394,107 +393,34 @@ AI agents and bots are first-class identities, not anonymous background processe
   identities may sync from SSO/HR systems.
 - **Onboarding adapts** — the onboarding experience is tailored to the user's role(s) and access rights.
 
-### Strategy elicitation — 20 Questions (historical)
-
-> **⚠️ Superseded (decisions A1 + the BPMO reframe, 2026-06-30).** This historical elicitation record says
-> "Weave ships a universal business ontology; clients extend it." That has been refined: Weave ships a
-> **process-centric BPMO** (Business Process Management Ontology) — the "business brain" — as the universal
-> *upper framework* (Process at the centre, linked to data, systems, services, capabilities, governance,
-> goals and actors; ~13 kinds + relationships), **not** a populated business taxonomy. Clients build their
-> **own** domain vocabulary and instances on top. "Weave provides the grammar; the company writes the
-> sentences." Canonical set: `CE-READ-1`; see CLAUDE.md and the Constitution Engine brief/PRD for the
-> authoritative framing. The rest of this record stands.
-
-**Method:** Twenty Questions · **Date:** 2026-06-24 · **Topic:** Weave platform product strategy, scope,
-and architecture.
-
-**Round 1 — Positioning and GTM (Q1–Q4):**
-
-1. **Core value axis** → Equal weight: describe + generate dark-factory code + quick automations. The
-   knowledge/visual ontology is the authoritative source that guides the entire system.
-2. **Primary persona** → Persona arc: Ops team starts (with CTO/board backing); then product,
-   architecture, and engineers build with it.
-3. **Commercial model** → Pure SaaS (commercial) primary + consulting-led engagements as a paid service
-   arm.
-4. **Market tier** → Enterprise (500+ staff) AND mid-market (50–500) — both in scope.
-
-**Round 2 — Data model and standards (Q5–Q8):**
-
-5. **Standards depth** → Full W3C semantic web: RDF/OWL/SHACL/SPARQL/PROV — maximum reasoning,
-   interoperability, and linked-data portability.
-6. **Ontology authorship** → Weave ships a universal business ontology (Palantir-style typed entities);
-   clients populate it and extend it. *(Superseded — see note above.)*
-7. **Non-technical editing** → Yes — natural language + guided forms. Business analysts and operations
-   managers edit the graph without code.
-8. **Integration posture** → Integrate and augment existing tools (ServiceNow CMDB, Jira, Confluence,
-   LeanIX) via connectors — not replace them.
-
-**Round 3 — Architecture decisions (Q9–Q12):**
-
-9. **Micro-frontends** → Single React SPA with modular internal structure (not MFEs). Simpler to start;
-   can extract MFEs later if needed.
-10. **MVP first** → Constitution engine: ontology editor + SPARQL store + visual graph explorer.
-    Everything else depends on this foundation.
-11. **Real-time collaboration** → Figma-style simultaneous multi-user graph editing required at launch.
-    *(Refined — D1 moves realtime co-editing to Graph Explorer Phase 2; MVP = single-user + async
-    sharing.)*
-12. **Deployment model** → Multi-tenant cloud SaaS (shared infrastructure, logical isolation per
-    customer).
-
-**Round 4 — Build engine and automation (Q13–Q16):**
-
-13. **Build engine output** → ALL four types: full applications (UI + API), AI agents, data pipelines /
-    data repos, AND forms / dashboards / reports.
-14. **Event triggers** → Both: external events (webhooks, Jira, cron, Slack) AND internal graph mutations
-    (node added, relationship changed, constraint violated) trigger automations.
-15. **LLM integration** → AI-native throughout every layer: NL-to-RDF editing, AI-generated specs,
-    build-engine code generation, automation suggestions, ontology recommendations.
-16. **Data connectors** → Managed built-in connectors: Snowflake, Databricks, S3, Azure Data Lake, Jira,
-    ServiceNow, Confluence.
-
-**Round 5 — GTM, positioning, and success (Q17–Q20):**
-
-17. **Workshop methodology** → Both: packaged as a product (templates, facilitation guides, certification)
-    AND used as a GTM motion to drive Weave adoption.
-18. **Competitor positioning** → **The operating system for the AI-native company.** No current tool lets
-    you fully describe a company AND automatically wire AI agents, pipelines, and apps to run it. Weave is
-    that OS. (Secondary framing: Palantir for the mid-market.)
-19. **MVP success** → One real client can model their company in Weave AND Weave auto-generates one working
-    artefact (app, pipeline, or agent) from that model. Single end-to-end path proven.
-20. **Open source** → Fully commercial, closed source. No OSS core.
-
-**Remaining ambiguity captured at elicitation time** (most now resolved downstream): the canonical
-node/class taxonomy of the universal ontology; the real-time collaboration tech stack (CRDTs/Y.js/
-Liveblocks/Automerge); build-engine phase ordering; connector priority order; pricing model (per seat /
-per workspace / usage-based).
 
 ---
 
 ## 2. Product Requirements (PRD)
 
-**Phase:** MVP (Constitution-sourced) + Phase 2 (other engines) · **Owner:** gazzwi86 · **Last Updated:**
-2026-06-30
+**Phase:** M1 (Constitution-sourced fixed dashboard) + M2 (generative surface + role-home) + post-v1 (engine-gated)
+· **Owner:** gazzwi86 · **Last Updated:** 2026-06-30
 
 ### Product context
 
 The Weave platform layer is everything that spans all four engines — the Dashboard, tenancy and the
 settings cascade, authentication and RBAC, the agent-identity registry, global navigation and search,
-notifications, managed connectors, billing/metering, the immutable audit/provenance service, and
-Weave-product self-improvement. Each engine (Constitution, Graph Explorer, Build, Events & Actions)
-delivers its own vertical; the platform layer holds them together, governs shared state, and is the single
-owner of the cross-cutting services that every engine emits to or reads from.
+notifications, managed connectors, billing/metering, and the immutable audit/provenance service. Each
+engine (Constitution, Graph Explorer, Build, Events & Actions) delivers its own vertical; the platform
+layer holds them together, governs shared state, and is the single owner of the cross-cutting services
+that every engine emits to or reads from. See `../contracts.md` for the six PLAT-* contract definitions.
 
-The user-facing centrepiece is the **Dashboard**. It ships in two stages (user decision):
+The user-facing centrepiece is the **Dashboard**. It ships in two stages:
 
-- **At MVP, the dashboard is a SIMPLE FIXED DEFAULT** — a small, hand-composed set of CE-sourced widgets
+- **At M1, the dashboard is a SIMPLE FIXED DEFAULT** — a small, hand-composed set of CE-sourced widgets
   (ontology health / coverage via `CE-METRICS-1`) that persists as every workspace's default home. There
-  is no prompt bar, no AI composition, and no broad widget library at MVP. The fixed default is
+  is no prompt bar, no AI composition, and no broad widget library at M1. The fixed default is
   deliberately minimal: it surfaces the only live provider data that exists (CE) and gives every member a
   non-blank home from first login.
-- **The AI Generative Dashboard is deferred to Phase 2.** The *generative composition* surface
-  (describe-what-you-want → best-fit widget streamed live) and the full widget library light up in Phase 2
-  and expand per-engine as each source engine's data ships. It remains fully specified and phase-tagged
-  Phase 2.
+- **The AI Generative Dashboard ships at M2** (once CE is GA). The *generative composition* surface
+  (describe-what-you-want → best-fit widget streamed live) and the full widget library light up in M2
+  and expand per-engine as each source engine's data ships. It remains fully specified and milestone-tagged
+  M2.
 
 The deferred generative pattern is the **Generative Dashboard**: a workspace-intelligence surface where
 users describe what they want to see and the AI composes the best-fit widget from a finite, well-designed
@@ -503,10 +429,10 @@ and streams it into the dashboard grid. This is a *declarative* generative-UI pa
 fixed component set, never to free-form code. Every widget is backed by a live query against a provider
 engine's metrics contract, so the data is current, not a scheduled export.
 
-**Engine-availability sequencing is load-bearing.** The Constitution Engine ships first (MVP); Build,
+**Engine-availability sequencing is load-bearing.** The Constitution Engine ships first (M1); Build,
 Events & Actions, and Graph Explorer depend on it and ship after. Therefore a widget category is only
-buildable once its source engine is live. At MVP the only live provider contract is the Constitution
-Engine's `CE-METRICS-1` (plus `CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1`), so MVP dashboard
+buildable once its source engine is live. At M2 the only live provider contract is the Constitution
+Engine's `CE-METRICS-1` (plus `CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1`), so M2 dashboard
 widgets are CE-sourced only; widgets that read Build/Events/Explorer data are tagged "P0 when source
 engine ships" and are dark (or hidden) until then.
 
@@ -519,29 +445,32 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 
 1. Give every workspace member a single home that surfaces the health and activity of the live Weave
    deployment at a glance, personalised by role and gated to the engines that are actually available.
-2. Give every workspace a non-blank home at MVP via a simple fixed default dashboard of CE-sourced
-   widgets; then (Phase 2) let users generate any workspace-intelligence view by describing it in natural
+2. Give every workspace a non-blank home at M1 via a simple fixed default dashboard of CE-sourced
+   widgets; then at M2 let users generate any workspace-intelligence view by describing it in natural
    language — without a dashboard-configuration UI — bounded to a finite, design-consistent component set.
 3. Provide the cross-cutting platform primitives (tenancy + settings cascade, auth, RBAC, agent identity,
    navigation, search, notifications, connectors, billing, audit) that all four engines depend on, each as
    a single owned contract — never duplicated per engine.
-4. Run Weave's own product self-improvement loop (signals → drafted GitHub issue → HITL approval →
-   dark-factory dispatch), gated to Weave-internal operators only.
+4. Surface operational health of the platform through direct metrics (error rates, agent-failure rates,
+   retry rates) sourced from `PLAT-AUDIT-1` and `CE-METRICS-1`, visible on the M2 dashboard as the
+   Operational Health widget. Weave-product self-improvement (signal → issue → dispatch) is **post-v1**;
+   the immutable audit log ships at M1.
 
 **Non-Goals:**
 
 1. **Engine-specific screens** — Constitution, Graph Explorer, Build, and Events & Actions are covered in
    their own PRDs. The platform reads their metrics/audit contracts; it does not re-implement their
    surfaces.
-2. **Client-app self-healing** — Build Engine owns it (`BE-SELFIMPROVE-1`, E11, always HITL). The platform
-   owns self-improvement of *Weave-the-product* only (A3); the two share the `BE-SELFIMPROVE-1`
-   signal→issue→dispatch component but are configured separately and have disjoint approval authorities.
+2. **Client-app self-healing** — Build Engine owns it (E11, always HITL). Weave-product self-improvement
+   (signal collection → drafted GitHub issue → HITL approval → dark-factory dispatch) is **post-v1**.
+   When built, it dispatches to the existing engineering harness; a minimal internal interface is defined
+   only when that loop lands.
 3. **Custom app generation** — that is the Build Engine. The Generative Dashboard renders widgets inside
    Weave's own SPA, never standalone deployed apps.
 4. **BI / analytics platform** — the dashboard surfaces operational intelligence from engine metrics
    contracts; it does not run warehouse queries or replace Tableau/Looker.
-5. **Realtime collaborative editing** — Graph Explorer owns it and it is Phase 2 (D1). The platform ships
-   single-user editing + async sharing (saved views + comments) at MVP.
+5. **Realtime collaborative editing** — Graph Explorer owns it and it is post-v1 (D1). The platform ships
+   single-user editing + async sharing (saved views + comments) at M1.
 
 ### Personas & roles
 
@@ -556,41 +485,41 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | Ops / SRE | Operates built products | Automation/connector health, error/latency signals | author |
 | Automation author | Creates and manages automations | Automation status, run health | author |
 | Viewer / stakeholder | Read-only | Read-only explore + dashboards | read |
-| **Weave platform operator** *(Weave-internal, NOT a client-tenant role)* | Weave engineering | Approve/dispatch Weave-product self-improvement | platform-internal |
 | **Agent principals** *(non-human)* | Per `PLAT-IDENTITY-1` | Least-privilege scope per principal | scoped service principal |
 
 > Role slugs align with the brief's canonical role list and the platform RBAC model resolved through
-> `PLAT-SETTINGS-1`. "Weave platform operator" is an internal identity that never appears in any client
-> workspace's RBAC. Onboarding maps non-primary roles to the four primary paths: Engineer/Automation
+> `PLAT-SETTINGS-1`. Onboarding maps non-primary roles to the four primary paths: Engineer/Automation
 > author → technical; Ops/SRE → admin; Brand/content → business; Viewer → business-read-only
-> (resolve-by-default 10).
+> (resolve-by-default 10). A "Weave platform operator" internal identity (Weave-engineering only, never
+> in client RBAC) is defined post-v1 alongside the Weave-product self-improvement loop.
 
 ### 2.1 Functional requirements
 
-> Every FR carries a Phase/depends-on tag. "MVP" = buildable against CE + platform contracts. "P0 when
-> <engine> ships" = the requirement is P0 but dark until its source engine is GA.
+> Every FR carries a Milestone tag. "M1" = ships in Platform shell (no upstream engine dependency).
+> "M2" = ships once CE is GA. "P0 when `<engine>` ships" = dark until source engine GA.
 
-| ID | Requirement (behaviour + failure mode + acceptance) | Story | Priority | Phase / depends-on |
+| ID | Requirement (behaviour + failure mode + acceptance) | Story | Priority | Milestone |
 |---|---|---|---|---|
-| FR-001 | Prompt bar visible, keyboard-focusable (Cmd+K), always present; focus testable headlessly | E1-S1 | P0 | MVP |
-| FR-002 | AI selects component type, calls owning metrics contract, streams widget; on provider error → defined unavailable state, never blank/hallucinated | E1-S1 | P0 | MVP (CE contracts) |
-| FR-003 | Streaming header/skeleton within default 1 s (tunable); on LLM 503 → offline state, retryable | E1-S1 | P0 | MVP |
-| FR-004 | AI declines unsatisfiable prompts with a named reason — missing/unavailable data source (E1-S1) or no matching component for the data shape (E1-S2); never blank/hallucinated | E1-S1, E1-S2 | P0 | MVP |
-| FR-005 | Declarative component mapping (count→KPI … alert→banner); no free-form code | E1-S2 | P0 | MVP |
-| FR-006 | "Change visualisation" switches type without re-prompt | E1-S2 | P1 | MVP |
-| FR-007 | "Refine" delta prompt; history default 10 steps (tunable); failed refine preserves prior state | E1-S3 | P0 | MVP |
-| FR-008 | Pin persists widget **server-side, (tenant,user)-scoped** (not localStorage); cross-device, RBAC-scoped, audit-visible | E1-S4 | P0 | MVP |
-| FR-009 | Pinned auto-refresh default 5 min (tunable) + manual; provider error → last render + stale badge | E1-S4 | P0 | MVP |
-| FR-010 | Responsive grid default 1–4 columns (tunable); drag-reorder | E1-S4 | P1 | MVP |
-| FR-011 | Publish to **server-side, workspace-scoped** library; author+date; 403 if no author perm | E1-S5 | P0 | MVP |
-| FR-012 | Role-tailored **MVP-eligible (CE-sourced)** starter widgets; "Suggested"; removable | E1-S6 | P0 | MVP |
-| FR-013 | Example prompts (default 4–6, tunable) scoped to available categories; disappear after default 3 widgets (tunable) | E1-S7 | P1 | MVP |
-| FR-014 | Data-source footer label citing the contract(s) on every widget | E1-S1 | P0 | MVP |
-| FR-015 | A widget category is available **once its source engine is live**; CE-sourced categories MVP, others "P0 when source engine ships"; non-GA categories render a defined unavailable state | E2-S1–S15 | P0–P1 per story | phased per category |
-| FR-016 | Compliance widgets deep-link to the entity via `CE-READ-1` (`/resource/{iri}`) | E2-S5 | P0 | MVP |
-| FR-017 | Sentiment widget over `PLAT-AUDIT-1`; numeric mapping (+1/0/−1, daily mean); spike at default 20% drop vs 7-day mean (provisional) | E2-S10 | P1 | MVP |
+| FR-000 | At M1 the dashboard renders a **fixed, hand-composed** set of CE-sourced tiles (ontology health / coverage via `CE-METRICS-1`); no prompt bar, no AI composition; tiles are role-appropriate; footer label names the contract; `CE-METRICS-1` error → affected tile renders defined unavailable state, rest still loads | E1-S0 | P0 | M1 |
+| FR-001 | Prompt bar visible, keyboard-focusable (Cmd+K), always present; focus testable headlessly | E1-S1 | P0 | M2 |
+| FR-002 | AI selects component type, calls owning metrics contract, streams widget; on provider error → defined unavailable state, never blank/hallucinated | E1-S1 | P0 | M2 (CE contracts) |
+| FR-003 | Streaming header/skeleton within default 1 s (tunable); on LLM 503 → offline state, retryable | E1-S1 | P0 | M2 |
+| FR-004 | AI declines unsatisfiable prompts with a named reason — missing/unavailable data source (E1-S1) or no matching component for the data shape (E1-S2); never blank/hallucinated | E1-S1, E1-S2 | P0 | M2 |
+| FR-005 | Declarative component mapping (count→KPI … alert→banner); no free-form code | E1-S2 | P0 | M2 |
+| FR-006 | "Change visualisation" switches type without re-prompt | E1-S2 | P1 | M2 |
+| FR-007 | "Refine" delta prompt; history default 10 steps (tunable); failed refine preserves prior state | E1-S3 | P0 | M2 |
+| FR-008 | Pin persists widget **server-side, (tenant,user)-scoped** (not localStorage); cross-device, RBAC-scoped, audit-visible | E1-S4 | P0 | M2 |
+| FR-009 | Pinned auto-refresh default 5 min (tunable) + manual; provider error → last render + stale badge | E1-S4 | P0 | M2 |
+| FR-010 | Responsive grid default 1–4 columns (tunable); drag-reorder | E1-S4 | P1 | M2 |
+| FR-011 | Publish to **server-side, workspace-scoped** library; author+date; 403 if no author perm | E1-S5 | P0 | M2 |
+| FR-012 | Role-tailored CE-sourced starter widgets; "Suggested"; individually removable | E1-S6 | P0 | M2 |
+| FR-013 | Example prompts (default 4–6, tunable) scoped to available categories; disappear after default 3 widgets (tunable) | E1-S7 | P1 | M2 |
+| FR-014 | Data-source footer label citing the contract(s) on every widget | E1-S0, E1-S1 | P0 | M1 |
+| FR-015 | A widget category is available **once its source engine is live**; CE-sourced categories M2, others "P0 when source engine ships"; non-GA categories render a defined unavailable state | E2-S1–S15 | P0–P1 per story | phased per category |
+| FR-016 | Compliance widgets deep-link to the entity via `CE-READ-1` (`/resource/{iri}`) | E2-S5 | P0 | M2 |
+| FR-017 | Operational health widget over `PLAT-AUDIT-1` (`event_type` + `engine` dimensions): error rate, retry rate, agent-failure rate per engine; sourced from `PLAT-AUDIT-1` aggregate + `CE-METRICS-1` (`shacl_errors_by_severity`); spike beyond configurable threshold (default 2× 7-day baseline, tunable) fires an alert-banner widget | E2-S10 | P1 | M2 |
 | FR-018 | Version-pin lag computed via `CE-VERSION-1` canonical lag; amber ≥ default 2, red ≥ default 4 (tunable) | E2-S12 | P1 | P0 when Build/Events ship |
-| FR-019 | Onboarding progress widget; deep-links; auto-dismiss at 100%; Build item only when Build GA | E2-S15 | P0 | MVP |
+| FR-019 | Onboarding progress widget; deep-links; auto-dismiss at 100%; Build item only when Build GA | E2-S15 | P0 | M2 |
 | FR-020 | Workspace switcher lists accessible workspaces + Hammerbarn demo; reload on switch; 403 + zero cross-tenant data on unauthorized switch | E3-S1 | P0 | MVP |
 | FR-021 | Member removal/role-change enforced via short token TTL (default ≤ 60 s) + per-request session-version revocation check; next request with prior token rejected within bounded latency | E3-S2 | P0 | MVP |
 | FR-022 | Settings cascade `PLAT-SETTINGS-1` (Company→Domain→Workspace→Project, tighter-wins); resolution API returns effective value + level; loosening needs parent approval; covers budget/retention/classification/RBAC | E3-S3 | P0 | MVP |
@@ -610,12 +539,11 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-036 | `PLAT-AUDIT-1` entries hash-chained (prev_hash→hash) + ed25519 signature; append-only at DB-constraint level; delete rejected + logged | E9-S1 | P0 | MVP |
 | FR-037 | Audit queryable by date/actor/type/resource/engine; paginated (default ≤ 500/page, tunable); JSON/NDJSON export with chain-verification procedure | E9-S1 | P0 | MVP |
 | FR-038 | Audit exposed as a **sub-view under Compliance** (not a separate top-level area); Compliance role read access | E9-S1 | P0 | MVP |
-| FR-039 | Weave-product signal collection via `BE-SELFIMPROVE-1`; all numeric thresholds = configurable defaults, **provisional** (window+aggregation stated); Weave-internal only | E9-S2 | P0 | MVP (Weave-internal) |
-| FR-040 | Signal cadence configurable: real-time (default <5 min) errors; hourly agent-quality; daily sentiment/adoption/CVE/RBAC | E9-S2 | P0 | MVP (Weave-internal) |
-| FR-041 | On threshold breach `claude-opus-4-8` drafts a DRAFT GitHub issue in **Weave's product repo**; Weave-bot credential in **AWS Secrets Manager**; GitHub-API-down → queued+retried | E9-S3 | P0 | MVP (Weave-internal) |
-| FR-042 | Duplicate detection: embed (S3 Vectors, cosine) vs open issues; default 0.85 similarity (provisional, OQ-09) → append evidence not duplicate | E9-S3 | P0 | MVP (Weave-internal) |
-| FR-043 | Self-improvement surface + approval/dispatch visible/actionable **only to Weave-internal platform operator**; client-tenant attempt → 403 + logged | E9-S3, E9-S4 | P0 | MVP (Weave-internal) |
-| FR-044 | Approval publishes issue + creates dark-factory task via `BE-SELFIMPROVE-1` (task brief + HITL gate + `PLAT-AUDIT-1`); status Draft→Approved/Rejected→Dispatched→Implemented; rejected retained, never deleted. **At MVP the dispatch target is Weave's existing engineering harness/repo (this Claude Code dark-factory harness), NOT the not-yet-built Build-Engine product** (resolves audit M3) | E9-S4 | P0 | MVP (Weave-internal) |
+
+> **Post-v1 (self-improvement loop):** FR-039..044 (signal collection, draft-issue, dedup, approval/dispatch
+> via the shared component) are deferred. When the loop is built it dispatches to the existing engineering
+> harness; a minimal internal interface is defined at that time. The immutable hash-chained audit log
+> (`PLAT-AUDIT-1`, FR-036..038) ships at M1 and is the foundation the loop will read when it lands.
 
 ### 2.2 Non-functional requirements
 
@@ -629,10 +557,18 @@ against real telemetry (owner Architect); they are product assumptions, not cont
 - Notification in-app delivery: default ≤ 30 s.
 - Workspace switch: default ≤ 2 s.
 
-**Security:**
+**Security posture (three-tier):**
 
-- All secrets (connector credentials incl. Slack token, GitHub Weave-bot, API keys) in **AWS Secrets
-  Manager only** — never logged, never returned in API responses, never in `.env`.
+| Tier | Scope | Controls |
+|---|---|---|
+| **Mid-market baseline** (M1 + M2) | In production now | RBAC + immutable hash-chained audit (`PLAT-AUDIT-1`) + named-graph tenant isolation + AWS Secrets Manager only |
+| **SOC2-readiness path** (v1) | Designed-for increment — not a rebuild | Retention policies (cascade-configurable) · access reviews · data residency choice · third-party trust materials |
+| **Full enterprise** (post-v1) | Future destination | SSO/SCIM (provider-agnostic) · customer-managed keys (CMK) · region residency selection · ODRL policy enforcement |
+
+**Security controls (mid-market baseline):**
+
+- All secrets (connector credentials incl. Slack token, API keys) in **AWS Secrets Manager only** —
+  never logged, never returned in API responses, never in `.env`.
 - RBAC enforced at the API boundary via Cognito JWT; roles resolved through `PLAT-SETTINGS-1`;
   unauthorised ops → HTTP 403 + `PLAT-AUDIT-1` entry. Test: a JWT lacking a permission is denied and the
   denial is audited.
@@ -643,7 +579,6 @@ against real telemetry (owner Architect); they are product assumptions, not cont
   bounded latency.
 - Input validation at all API boundaries; SPARQL reads inherit CE's SELECT-only + SERVICE-block +
   pagination (B3) — the platform never issues unscoped or `SERVICE` queries.
-- PII in audit/log data feeding the sentiment NLP is scrubbed before the model (`claude-haiku-4-5`).
 - Audit integrity: hash chain (prev_hash→hash) + ed25519 per entry; append-only at DB-constraint level;
   tamper/delete fails chain verification (test in §2.5).
 
@@ -657,7 +592,6 @@ against real telemetry (owner Architect); they are product assumptions, not cont
   unavailable.
 - Connector write-back: idempotency key + bounded retry (default 3) + conflict-reject; failures raise
   `connector-degraded` and audit entries.
-- GitHub draft creation queues + retries on API outage.
 
 **Observability:**
 
@@ -705,7 +639,6 @@ in v1.
 | Constitution Engine | `CE-DIFF-1` | latest | Draft-vs-published delta widgets |
 | Constitution Engine | `CE-EVENT-1` | latest | Live activity / recent-edit widgets (Should Have; degrade to polling `CE-READ-1` since-version) |
 | Constitution Engine | `CE-WRITE-1` | latest | Connector-data ingestion writes into the graph (validated ops) |
-| Build Engine | `BE-SELFIMPROVE-1` | latest | Shared signal→issue→dispatch component for Weave-product self-improvement (configured Weave-internally). At Platform-P1 the dispatch target is Weave's **existing engineering harness/repo**, NOT the not-yet-built Build product (M3) |
 | (Build metrics) | *engine surface, not yet contracted* | n/a | Active-project widgets — P0 when Build ships; metrics endpoint to be added to Build PRD |
 | (Events metrics) | *engine surface, not yet contracted* | n/a | Automation widgets — P0 when Events ships |
 
@@ -731,12 +664,9 @@ in v1.
 | OQ-05 | `PLAT-AUDIT-1` storage: append-only DynamoDB vs PostgreSQL with constraint-based immutability, given hash-chain + query/export needs. Single decision (was Platform OQ-09 = Build OQ-04). | Architect |
 | OQ-06 | Notification + `CE-EVENT-1` transport: SNS+Lambda fan-out, change-feed, or WebSocket — does NOT presuppose any realtime-sync/Yjs server (Yjs is Phase-2 Explorer). | Architect |
 | OQ-07 | Connector bidirectional write support: which of the 7 connectors support write-back in v1 (Atlassian + ServiceNow confirmed); conflict-resolution policy detail. | Architect |
-| OQ-08 | Client-scoped self-improvement (Polaris-style project+org proposals over client signals) — in a later phase? If yes, define the proposal entity schema and a client-facing surface; deferred out of v1. | PO + Build team |
-| OQ-09 | Duplicate-issue similarity threshold (default 0.85) + embedding model + distance metric, tuned against a labelled duplicate/non-duplicate set. | Architect |
-| OQ-10 | Signal collection pipeline: Lambda-per-signal vs shared aggregation service. | Architect |
-| OQ-11 | GitHub integration: Weave-bot GitHub App (scoped, no PAT rotation) vs PAT. | Architect |
-| OQ-12 | ODRL policy enforcement: deferred from v1 (v1 uses SHACL + data-classification properties for PII/sensitive handling); revisit as a later stack decision. | Architect |
-| OQ-13 | Per-user dashboard widget state store choice (server-side decided; which store — Aurora vs DynamoDB) and render-cache strategy. | Architect |
+| OQ-08 | Client-scoped self-improvement (Polaris-style project+org proposals over client signals) — **deferred post-v1** along with the Weave-product self-improvement loop. Interface and proposal entity schema defined when the loop lands. | PO + Build team |
+| OQ-09 | ODRL policy enforcement: deferred from v1 (v1 uses SHACL + data-classification properties for PII/sensitive handling); revisit as a later stack decision. | Architect |
+| OQ-10 | Per-user dashboard widget state store choice (server-side decided; which store — Aurora vs DynamoDB) and render-cache strategy. | Architect |
 | OQ-14 | **Local development experience / dev-loop — RESOLVED at PRD level** in `../dev-environment.md`: thin shared dev account (Cognito + Bedrock + small entities), everything else local (Oxigraph, Postgres, LocalStack, Redis, Ollama); tiered Ollama+Bedrock model routing via a configurable provider abstraction; full local test pyramid + gates → HITL → dev-AWS smoke → deploy. Residual tech-spec items listed in that doc. <!-- SHARED-HOISTED: dev-loop detail — see ../dev-environment.md --> | Architect (arch-stack + arch-infra) |
 
 ### 2.5 Key design decisions captured
@@ -751,18 +681,19 @@ in v1.
 | Full 4-level settings cascade (`PLAT-SETTINGS-1`), tighter-wins | A4; one cascade resolves budgets, retention, classification, RBAC. |
 | Billing meters both per-run automation and per-token AI (`PLAT-BILLING-1`) | C1; metering events never dropped (separate queue). |
 | 7 v1 connectors incl. Atlassian-grouped + Slack (`PLAT-CONNECTOR-1`) | C2/C3; Atlassian = Jira+Confluence one OAuth family; Slack platform-managed. |
-| Weave-product self-improvement is Weave-internal-only; shares `BE-SELFIMPROVE-1` | A3; client admins must never approve/dispatch changes to Weave's product repo. |
-| Widget state persisted server-side (per-user pins + workspace library) | localStorage cannot be cross-device/RBAC/audit-scoped (resolves prior OQ-08). |
-| Realtime collaborative editing is Phase 2 (Explorer-owned) | D1; MVP = single-user editing + async sharing (saved views + comments). |
+| Widget state persisted server-side (per-user pins + workspace library) | localStorage cannot be cross-device/RBAC/audit-scoped. |
+| Weave-product self-improvement loop deferred to post-v1 | The immutable audit log ships M1; the signal → issue → dispatch loop requires the loop component to exist and dispatches to the existing engineering harness when it lands (A3 scope preserved). |
+| Realtime collaborative editing is post-v1 (Explorer-owned) | D1; M1 = single-user editing + async sharing (saved views + comments); Yjs co-editing is post-v1. |
 
 ### 2.6 Acceptance criteria (PRD-level)
 
 The Weave Platform PRD is satisfied when:
 
-- [ ] At MVP (only Constitution Engine GA): "show me active compliance contraventions by domain" renders a
-  bar chart within the default target with live data from `CE-METRICS-1`; a prompt for a
-  Build/Events-sourced category renders the defined "source engine not yet available" state rather than
-  empty or fabricated data.
+- [ ] At M1 (only CE in scope): the fixed default dashboard renders CE-sourced tiles from `CE-METRICS-1`
+  with no prompt bar; a `CE-METRICS-1` error renders the defined "data source unavailable" state on the
+  affected tile. At M2 (CE GA): "show me active compliance contraventions by domain" streams a bar chart
+  from `CE-METRICS-1`; a prompt for a Build/Events-sourced category renders the defined "source engine
+  not yet available" state rather than empty or fabricated data.
 - [ ] A generated widget pinned by a user persists **server-side** and reloads on a different device for
   the same user; it is not visible to another tenant.
 - [ ] A published workspace widget is added to a different user's dashboard from the server-side library.
@@ -779,14 +710,9 @@ The Weave Platform PRD is satisfied when:
   configured) within the default target.
 - [ ] **Audit tamper test:** an audit entry records a graph mutation; altering or deleting any historical
   entry fails chain verification at a named row, and the delete attempt is itself logged.
-- [ ] A Weave-product signal (e.g. rising HITL-override frequency) drafts a DRAFT GitHub issue in Weave's
-  repo with root-cause + evidence, visible **only to a Weave-internal platform operator**; a client
-  workspace admin attempting to approve/dispatch is rejected (403).
-- [ ] A Weave platform operator approves a draft; it publishes to the Weave repo and creates a
-  dark-factory task via `BE-SELFIMPROVE-1` following the standard HITL + `PLAT-AUDIT-1` pipeline; a
-  rejected draft is retained with reason and cannot be deleted.
-- [ ] Sentiment over `PLAT-AUDIT-1` returns a numeric daily score per engine (+1/0/−1 mean); a drop beyond
-  the provisional 20% threshold fires an alert-banner widget.
+- [ ] Operational health widget (M2): given `PLAT-AUDIT-1` aggregated by `engine` + `event_type`, the
+  widget displays error rate, retry rate, and agent-failure rate per engine; a spike beyond the
+  configurable threshold fires an alert-banner widget with a link to the driving audit entries.
 
 ### 2.7 Risks & mitigations
 
@@ -797,8 +723,7 @@ The Weave Platform PRD is satisfied when:
 | Dashboard appears empty/broken at MVP because most widgets depend on later engines | High | High | Phase-gate widgets to engine availability; ship a useful CE-sourced starter set; render explicit "not yet available" states (FR-015). |
 | Tenant isolation mechanism undecided ⇒ cross-tenant leak | High | Med | Fix the expectation + cross-tenant-read test now (§2.2); defer only the mechanism (OQ-01); fail-closed on unscoped queries. |
 | "Tamper-evident" audit defeated by single signing key | High | Med | Hash chain (prev_hash→hash) + ed25519 + DB-level append-only + chain-verification export (FR-036/037). |
-| Client admin gains authority over Weave's product repo | High | Low | Self-improvement approval/dispatch restricted to Weave-internal operator identity, never in client RBAC (FR-043, E9-S3/S4). |
-| Provisional thresholds treated as hard SLAs | Med | Med | All numbers marked "default X, tunable" / "provisional — tune in tech spec" with owner (§2.3, §2.2, E9-S2). |
+| Provisional thresholds treated as hard SLAs | Med | Med | All numbers marked "default X, tunable" / "provisional — tune in tech spec" with owner (§2.3, §2.2). |
 | Revocation latency unachievable with long-lived JWTs | Med | Med | Short TTL + per-request session-version revocation check; single bounded latency (FR-021/024). |
 | Metering events dropped ⇒ budget over-run | Med | Low | Separate metering queue; fail-closed enforcement at cap (PLAT-BILLING-1, FR-034/035). |
 
@@ -812,8 +737,8 @@ The Weave Platform PRD is satisfied when:
 
 ### EPIC-000 — Foundation & Boilerplate
 
-**Phase:** 1 (MVP) — **FIRST work item; every other epic, in every engine, depends on it.**
-**Priority:** Must Have · **mvp:** true · **depends_on:** none (root) ·
+**Milestone:** M1 — **FIRST work item; every other epic, in every engine, depends on it.**
+**Priority:** Must Have · **depends_on:** none (root) ·
 **blocks:** EPIC-001…EPIC-009 (and, transitively, every engine) ·
 **provides:** dev-environment, ci-cd, design-system, app-shell, iac-state, auth-bootstrap.
 
@@ -875,11 +800,11 @@ improvising a scaffold.
 `accessibility.md`, and the new `docs/standards/design/` design system. Realises the `../dev-environment.md`
 local-first model and the Lighthouse-100/WCAG-AA gates.
 
-### EPIC-001 — Generative Dashboard (composition + lifecycle)
+### EPIC-001 — Dashboard (fixed default M1 + Generative M2)
 
-**Phase:** 2 (MVP) — needs Constitution Engine GA · **Priority:** Must Have · **mvp:** true ·
-**depends_on:** EPIC-000, EPIC-003, EPIC-008, CE-READ-1, CE-METRICS-1, CE-VERSION-1 ·
-**blocks:** EPIC-002 · **consumes:** CE-METRICS-1, CE-READ-1, CE-VERSION-1, PLAT-SETTINGS-1, PLAT-BILLING-1.
+**Milestone:** **M1** (E1-S0 fixed CE-sourced default) / **M2** (E1-S1..S7 generative surface, needs CE GA)
+· **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003, EPIC-008 (+ CE contracts for M2) ·
+**blocks:** EPIC-002 · **consumes (M2):** CE-METRICS-1, CE-READ-1, CE-VERSION-1, PLAT-SETTINGS-1, PLAT-BILLING-1.
 
 **Description.** The user-facing centrepiece: a declarative generative-UI surface where a workspace member
 describes what they want and the AI composes the best-fit widget from a finite component library and
@@ -887,13 +812,13 @@ streams it into the dashboard grid. This epic owns the full widget lifecycle —
 type, refine, pin (server-side per-user), publish to the workspace library, and role-appropriate starters
 — all bound to live provider metrics contracts, never to free-form code.
 
-> **Staging (user decision).** At MVP the dashboard is a **simple fixed default** (E1-S0). The generative
-> composition surface and full widget lifecycle (E1-S1–E1-S7) are **deferred to Phase 2** and light up
-> per-engine as data sources ship.
+> **Milestone split.** At M1 the dashboard is a **simple fixed default** (E1-S0). The generative
+> composition surface and full widget lifecycle (E1-S1–E1-S7) are **M2** and light up per-engine as data
+> sources ship.
 
 **User stories (PRD §Epic 1) — full acceptance criteria:**
 
-- **E1-S0 — Simple fixed default dashboard (MVP).** As any workspace member, I want a useful default home
+- **E1-S0 — Simple fixed default dashboard (M1).** As any workspace member, I want a useful default home
   on first login so the workspace is not blank before the generative dashboard ships.
   - AC: at MVP the dashboard renders a **fixed, hand-composed set of CE-sourced widgets** (ontology health
     / coverage via `CE-METRICS-1`); no prompt bar, no AI composition.
@@ -905,7 +830,7 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
   - AC (failure): if `CE-METRICS-1` errors on load, each affected tile renders the "data source
     unavailable" state with retry, never a blank tile, and the rest still loads.
   - AC: each tile shows a data-source footer label naming its contract (`CE-METRICS-1`). *(Must, MVP)*
-- **TASK-001 / E1-S1 — Request a widget by describing what you want** *(Phase 2)*. Focus prompt bar (Cmd+K), submit;
+- **TASK-001 / E1-S1 — Request a widget by describing what you want** *(M2)*. Focus prompt bar (Cmd+K), submit;
   AI selects a library component, calls the owning engine's metrics contract for an available category, and
   streams the widget in; streaming header + skeleton within a configurable target (default 1 s, tunable).
   - AC (provider unavailable): source metrics endpoint errors/timeouts or engine not GA → defined "data
@@ -915,24 +840,24 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
   - AC (budget cap mid-stream): workspace AI budget cap (via `PLAT-SETTINGS-1`) reached during streaming →
     generation halts with the E8-S2 cap message; partial widget rolled back (no partial save).
   - AC: every rendered widget shows a footer label naming its data-source contract(s). *(Must)*
-- **TASK-002 / E1-S2 — AI picks the best component type for the intent** *(Phase 2)*. Maps intent to exactly one
+- **TASK-002 / E1-S2 — AI picks the best component type for the intent** *(M2)*. Maps intent to exactly one
   component by declarative rule (count/status→KPI, trend→line/area, comparison→bar, ranked→list, log→
   activity feed, ratio→pie/donut, two-dim matrix→heatmap, alert→banner); named type in prompt overrides.
   - AC (failure): no matching component for the data shape → declines with the unsatisfiable-prompt message
     (E1-S1), no ill-fit chart.
   - AC (change visualisation, FR-006): inline "Change visualisation" re-renders the same data in a new
     type with no re-prompt/re-fetch; incompatible types disabled with a reason. *(Must)*
-- **TASK-003 / E1-S3 — Refine a widget after generation** *(Phase 2)*. Follow-up prompt applies as a delta and
+- **TASK-003 / E1-S3 — Refine a widget after generation** *(M2)*. Follow-up prompt applies as a delta and
   re-renders; refinement history retained (default 10 steps, tunable). On save, the final resolved prompt +
   parameters are stored, not the history. AC (failure): an inapplicable refine preserves prior state with
   an inline error (no silent reset). *(Must)*
-- **TASK-004 / E1-S4 — Pin a widget (server-side, per-user)** *(Phase 2)*. Pin persists the widget definition
+- **TASK-004 / E1-S4 — Pin a widget (server-side, per-user)** *(M2)*. Pin persists the widget definition
   (resolved intent/parameters, component type, data-source bindings, title, column span) **server-side,
   scoped to (tenant, user)** — never localStorage — so it is cross-device, RBAC-scoped, audit-visible
   (supersedes prior OQ-08). Responsive grid (default 1–4 columns, tunable), drag-reorder; auto-refresh
   (default 5 min, tunable) or on demand. AC (failure): refresh provider error → retains last successful
   render with a stale-data badge + timestamp; does not blank. *(Must)*
-- **TASK-005 / E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(Phase 2)*. Publish
+- **TASK-005 / E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(M2)*. Publish
   with name + description → stored server-side, workspace-scoped, listed in the Workspace Library panel
   with author + publish date (mirrors Explorer Saved Views `D2`). Another member adding it gets an
   independent (tenant, user) copy refreshing from the same contract, independently refinable. AC (failure):
@@ -973,15 +898,15 @@ tunable per workspace (owner Architect for provisional values). Pin and publish 
 `PLAT-SETTINGS-1`; the LLM 503 surfaces the prototype `LlmBar` 503 behaviour as a readable, retryable
 offline state.
 
-### EPIC-002 — Widget Library (engine-sourced data categories, phase-gated)
+### EPIC-002 — Widget Library (engine-sourced data categories, milestone-gated)
 
-**Phase:** 2 (MVP) for CE-sourced stories (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) · Phase 3 (Post-MVP)
-for engine-gated stories (S3 per-run, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
-· **Priority:** Must Have (CE-sourced) / Should Have (some MVP) / P0 when source engine ships (engine-gated)
+**Milestone:** **M2** (CE-sourced stories: S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) /
+**post-v1** (engine-gated: S3 per-run, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
+· **Priority:** Must Have (CE-sourced) / P0 when source engine ships (engine-gated)
 · **depends_on:** EPIC-000, EPIC-001, EPIC-004, EPIC-007, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1,
 CE-VERSION-1, CE-EVENT-1 · **blocks:** none ·
 **consumes:** CE-METRICS-1, CE-READ-1, CE-DIFF-1, CE-VERSION-1, CE-EVENT-1, PLAT-AUDIT-1, PLAT-BILLING-1,
-PLAT-CONNECTOR-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1, BE-SELFIMPROVE-1.
+PLAT-CONNECTOR-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1.
 
 **Description.** The catalogue of data-bound widget categories the Generative Dashboard can compose. Each
 category is available only once its source engine is live: Constitution-sourced categories are
@@ -1013,13 +938,9 @@ per-story phase tags, never fragmented further.
   (`shacl_errors_by_severity`) + `CE-READ-1`, data includes active SHACL contraventions by severity/domain,
   policy coverage gaps, self-audit results; contraventions deep-link to the entity via `CE-READ-1`
   (`/resource/{iri}`). AC (failure): unavailable on contract error. *(Must, MVP)*
-- **TASK-006 / E2-S6 — Self-improvement findings widgets** *(Weave-internal; client-scoped deferred)*. Given
-  `BE-SELFIMPROVE-1` configured for Weave-the-product (A3), data includes open proposal count by impact
-  (HIGH/MEDIUM/LOW), oldest unactioned, recent (7d) — Weave-product proposals only, visible only to the
-  Weave-internal platform-operator identity. AC: a non-platform-operator (any client-tenant role) is not
-  offered this widget and its data is not returned. Client-scoped self-improvement (Polaris-style
-  project+org proposals) is **deferred** — see OQ-08. *(Should, Weave-internal)*
-- **TASK-007 / E2-S7 — Ontology and project issue widgets** *(MVP for CE issues; Build issues gated)*. Given
+- **TASK-006 / E2-S6 — (Deferred post-v1).** Self-improvement findings widgets (Weave-internal) deferred
+  with the self-improvement loop. Slot reserved; implemented when the loop lands.
+- **TASK-007 / E2-S7 — Ontology and project issue widgets** *(M2 for CE issues; Build issues gated)*. Given
   `CE-METRICS-1` (`owl_inconsistencies`) + `CE-READ-1` + `CE-VERSION-1`, data includes unsatisfiable OWL
   classes, open validation warnings, version-pin mismatches via the canonical version-lag in `CE-VERSION-1`
   (default stale = lag ≥ 2, tunable); Build-project issues appear once Build is GA. AC (failure):
@@ -1030,19 +951,21 @@ per-story phase tags, never fragmented further.
   counts/failure-rate added via the Events metrics surface; until then those rows render "Events Engine not
   yet available". AC (failure): a degraded/disconnected connector publishes a `PLAT-NOTIFY-1` event.
   *(Connector-health Must at MVP; automation rows P0 when Events ships)*
-- **TASK-009 / E2-S9 — Collaboration activity widgets** *(Phase 2 — Explorer realtime)*. Given async sharing at MVP
-  (saved views + comments per `D1`/`D2`), "recent graph edits by contributor" is sourced from `CE-EVENT-1`
-  actor data and is MVP-eligible. Given Graph Explorer realtime collab (Phase 2, `D1`), active-canvas-
-  session and presence widgets become available; until then they render "available in Phase 2". Presence /
-  active-session is an **Explorer engine surface not yet contracted** — a realtime presence contract is a
-  Phase-2 deliverable (tracked, no contract ID exists yet). *(Should; realtime sub-widgets Phase 2)*
-- **TASK-010 / E2-S10 — Sentiment analysis on audit logs** *(MVP — reads PLAT-AUDIT-1)*. Given `PLAT-AUDIT-1` query
-  API, a periodic NLP job (`claude-haiku-4-5`, PII scrubbed before the model) computes a daily numeric
-  sentiment per engine where positive=+1/neutral=0/negative=−1 and the daily score is the mean of
-  classified entries, so a percentage drop is computable. A spike alert fires when the score drops by more
-  than a configurable threshold (default 20% vs trailing 7-day mean, **provisional — tune in tech spec**,
-  owner Architect) and surfaces the driving entries as ranked "issue signals". AC (failure): NLP provider
-  unavailable → last computed scores with a "sentiment refresh delayed" badge. *(Should, MVP)*
+- **TASK-009 / E2-S9 — Collaboration activity widgets** *(M2 for CE-sourced activity; post-v1 for Explorer realtime)*.
+  Given async sharing at M1 (saved views + comments per `D1`/`D2`), "recent graph edits by contributor"
+  is sourced from `CE-EVENT-1` actor data and is M2-eligible. Given Graph Explorer realtime collab
+  (post-v1, `D1`), active-canvas-session and presence widgets become available; until then they render
+  "available post-v1". Presence / active-session is an **Explorer engine surface not yet contracted** — a
+  realtime presence contract is a post-v1 deliverable (tracked, no contract ID exists yet).
+  *(Should; realtime sub-widgets post-v1)*
+- **TASK-010 / E2-S10 — Operational health widget** *(M2 — reads PLAT-AUDIT-1)*. Given `PLAT-AUDIT-1`
+  query API, the widget aggregates `event_type` and `engine` dimensions to compute error rate, retry rate,
+  and agent-failure rate per engine over a configurable rolling window (default 7 days, tunable). A spike
+  alert fires when any rate exceeds a configurable threshold (default 2× the 7-day baseline, **provisional
+  — tune in tech spec**, owner Architect) and surfaces the driving audit entries ranked by frequency.
+  AC: data sourced exclusively from `PLAT-AUDIT-1` fields (`event_type`, `engine`) — no NLP, no inferred
+  signals. AC (failure): `PLAT-AUDIT-1` unavailable → last aggregated snapshot with a "data refresh
+  delayed" badge. *(Should, M2)*
 - **TASK-011 / E2-S11 — Agent activity feed widget** *(per-engine; populated as engines ship)*. Given `PLAT-AUDIT-1` +
   `PLAT-IDENTITY-1` (canonical principal IRI), the feed shows agent principal, engine, action type, status,
   reverse-chronological, filterable. Given only CE is GA, the feed shows CE agent activity only and labels
@@ -1082,15 +1005,14 @@ per-story phase tags, never fragmented further.
 - [ ] Provider-error degradation is non-destructive and honest: on a contract error each widget shows its
   specified state (unavailable / stale-with-timestamp / delayed badge / "unknown") and never falls back to
   a value that would falsely imply health — one degradation sweep verifies all.
-- [ ] Weave-internal-only categories (S6) return no data and are not offered to any client-tenant role.
-- [ ] Configurable thresholds (version lag amber ≥ 2 / red ≥ 4; sentiment spike 20% vs 7-day mean; growth
-  stagnation window 14 days; burn-rate alert 90% projected; growth window 30/90 days) are surfaced as
-  tunable defaults with their data window + aggregation stated, not hard-coded.
+- [ ] Configurable thresholds (version lag amber ≥ 2 / red ≥ 4; ops-health spike 2× 7-day baseline;
+  growth stagnation window 14 days; burn-rate alert 90% projected; growth window 30/90 days) are surfaced
+  as tunable defaults with their data window + aggregation stated, not hard-coded.
 
-**Technical notes.** Availability is keyed strictly to source-engine GA; Phase 3 is a single "per
-source-engine GA" phase. E2-S3 token dimension and E2-S8 connector-health rows ship real data in Phase 1;
-only their automation/per-run dimensions remain Phase 3. Sentiment (S10) runs a periodic `claude-haiku-4-5`
-NLP job, PII scrubbed before the model; daily numeric score = mean of per-entry +1/0/−1. Compliance (S5),
+**Technical notes.** Availability is keyed strictly to source-engine GA; post-v1 engine-gated stories are
+a single "per source-engine GA" activation. E2-S3 token dimension and E2-S8 connector-health rows ship
+real data at M2; only their automation/per-run dimensions remain post-v1. Operational health (S10)
+aggregates `PLAT-AUDIT-1` by `event_type` + `engine` — no NLP, no external model. Compliance (S5),
 issues (S7), onboarding (S15) deep-link via `CE-READ-1` (`/resource/{iri}`); the agent activity feed (S11)
 keys on the canonical principal IRI from `PLAT-IDENTITY-1`. The ontology-health (S1), completeness (S2),
 issues (S7), growth (S13), and onboarding-progress (S15) widgets read `CE-METRICS-1`
@@ -1103,7 +1025,7 @@ counts ≥ 1 instance against the registered kinds, not a hard-coded list.
 
 ### EPIC-003 — Tenancy, Workspaces & Settings Cascade
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000 ·
+**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000 ·
 **blocks:** EPIC-004, EPIC-008, EPIC-001 · **provides:** PLAT-SETTINGS-1 · **consumes:** none.
 
 **Description.** The multi-tenant spine: create and switch tenant contexts across the 4-level cascade
@@ -1154,7 +1076,7 @@ Phase-1 multi-tenant isolation mechanism decision (OQ-01) and the dev-AWS Cognit
 
 ### EPIC-004 — Authentication, RBAC & Agent Identity
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-003 ·
+**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003 ·
 **blocks:** EPIC-007, EPIC-009, EPIC-002 · **provides:** PLAT-IDENTITY-1 · **consumes:** PLAT-SETTINGS-1.
 
 **Description.** The identity and access spine for humans and agents: SSO via Cognito (default) or Auth0
@@ -1199,12 +1121,12 @@ PROV-O record and audit entry.
 
 **Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per workspace. RBAC at the API via
 JWT validation; roles control read/author/publish/admin per engine/area. `PLAT-IDENTITY-1` records IAM
-role ↔ canonical principal IRI ↔ RBAC role. The "Weave platform operator" is a platform-internal identity
-that never appears in any client workspace's RBAC (see EPIC-009).
+role ↔ canonical principal IRI ↔ RBAC role. A "Weave platform operator" internal identity is defined
+post-v1 alongside the self-improvement loop; it never appears in any client workspace's RBAC.
 
 ### EPIC-005 — Global Navigation & Search
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-009 ·
+**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-009 ·
 **blocks:** none · **consumes:** PLAT-AUDIT-1.
 
 **Description.** The stable information architecture every engine plugs into: a persistent top header with
@@ -1253,7 +1175,7 @@ provisional (owner Architect). The guided tour is role-tailored to the four prim
 
 ### EPIC-006 — Notifications (PLAT-NOTIFY-1)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-007 ·
+**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-007 ·
 **blocks:** EPIC-008, EPIC-009 · **provides:** PLAT-NOTIFY-1 · **consumes:** PLAT-CONNECTOR-1.
 
 **Description.** The single notification service every engine publishes to (`PLAT-NOTIFY-1`): an in-app
@@ -1265,9 +1187,9 @@ duplicated per-engine notification ownership.
 
 - **TASK-001 / E6-S1 — In-app + Slack notification centre.** Given `PLAT-NOTIFY-1` (one service, **open/registerable**
   type taxonomy — not a fixed enum), engines publish notification events; delivery is in-app + Slack (Slack
-  via `PLAT-CONNECTOR-1`). Covered types include: budget, HIGH SHACL violation, self-improvement proposal,
-  build state, HITL-gate fired, automation-failure, connector-degraded, onboarding-activation, version-pin
-  mismatch. Clicking a notification deep-links to the relevant screen; "mark all read" clears the badge;
+  via `PLAT-CONNECTOR-1`). Covered types include: budget, HIGH SHACL violation, build state, HITL-gate
+  fired, automation-failure, connector-degraded, onboarding-activation, version-pin mismatch,
+  ops-health spike. Clicking a notification deep-links to the relevant screen; "mark all read" clears the badge;
   in-app delivery target is a configurable default (default 30 s, **provisional**, owner Architect). AC
   (failure): a delivery-channel failure (e.g. Slack token invalid) → the notification still appears in-app
   and the channel failure is itself recorded. *(Must)*
@@ -1286,9 +1208,8 @@ duplicated per-engine notification ownership.
   user preference defaults to "on" — one combined test proves a channel-down + no-preference notification
   still reaches the in-app centre.
 - [ ] Every covered event type deep-links to the relevant screen and "mark all read" clears the badge —
-  verified across the documented covered set (budget, HIGH SHACL violation, self-improvement proposal,
-  build state, HITL-gate fired, automation-failure, connector-degraded, onboarding-activation, version-pin
-  mismatch).
+  verified across the documented covered set (budget, HIGH SHACL violation, build state, HITL-gate fired,
+  automation-failure, connector-degraded, onboarding-activation, version-pin mismatch, ops-health spike).
 
 **Technical notes.** `PLAT-NOTIFY-1` is one service with an open type taxonomy. Delivery is in-app + Slack
 (Slack via `PLAT-CONNECTOR-1`); in-app delivery target default 30 s is provisional (owner Architect).
@@ -1297,15 +1218,15 @@ write retains the prior preference. A degraded/disconnected connector (EPIC-007)
 
 ### EPIC-007 — Managed Connectors (PLAT-CONNECTOR-1)
 
-**Phase:** 1 (MVP) — config + health (S1, S2) · Phase 2 (MVP) — ingestion + write-back (S3, needs CE GA for
-`CE-WRITE-1`) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-004, CE-WRITE-1 ·
+**Milestone:** M1 (config + health: S1, S2) / v1.0 (ingestion + write-back: S3, needs CE GA for
+`CE-WRITE-1`) · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-004, CE-WRITE-1 ·
 **blocks:** EPIC-002, EPIC-006 · **provides:** PLAT-CONNECTOR-1 ·
 **consumes:** CE-WRITE-1, PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
 
 **Description.** The managed-connector contract (`PLAT-CONNECTOR-1`): configure the seven v1 integrations
 with credentials held exclusively in AWS Secrets Manager, monitor connector health, and ingest connector
-data into the graph with safe agent write-back semantics. Config and health ship in Phase 1 with no engine
-dependency; ingestion is held to Phase 2 because it writes via `CE-WRITE-1`.
+data into the graph with safe agent write-back semantics. Config and health ship at M1 with no engine
+dependency; ingestion is v1.0 (Hammerbarn proof deferred) because it writes via `CE-WRITE-1`.
 
 **User stories (PRD §Epic 7) — full acceptance criteria:**
 
@@ -1359,7 +1280,7 @@ out-of-band conflicts rejected and surfaced. Bidirectional v1 for Atlassian + Se
 
 ### EPIC-008 — Billing, Metering & Budgets (PLAT-BILLING-1)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-003,
+**Milestone:** M1 (minimal — token metering + cascade caps) · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003,
 EPIC-006 · **blocks:** EPIC-001 · **provides:** PLAT-BILLING-1 · **consumes:** PLAT-SETTINGS-1, PLAT-NOTIFY-1.
 
 **Description.** The metering and budget-enforcement primitives (`PLAT-BILLING-1`): a usage/billing
@@ -1412,186 +1333,180 @@ count, plan tier, renewal date; update lag default < 5 min is provisional (owner
 per-PR caps, model-tier gating, and cost-estimate-before-generation gating are explicitly Build-Engine
 generation-loop scope, not platform v1.
 
-### EPIC-009 — Immutable Audit (PLAT-AUDIT-1) & Weave-Product Self-Improvement
+### EPIC-009 — Immutable Audit (PLAT-AUDIT-1)
 
-**Phase:** 1 (MVP) · **Priority:** Must Have · **mvp:** true · **depends_on:** EPIC-000, EPIC-004, EPIC-006,
-BE-SELFIMPROVE-1 · **blocks:** EPIC-002, EPIC-005 · **provides:** PLAT-AUDIT-1 ·
-**consumes:** PLAT-IDENTITY-1, PLAT-NOTIFY-1, BE-SELFIMPROVE-1.
+**Milestone:** M1 (E9-S1 audit trail) / **post-v1** (self-improvement loop) ·
+**Priority:** Must Have · **depends_on:** EPIC-000, EPIC-004, EPIC-006 ·
+**blocks:** EPIC-002, EPIC-005 · **provides:** PLAT-AUDIT-1 ·
+**consumes:** PLAT-IDENTITY-1, PLAT-NOTIFY-1.
 
-**Description.** The single immutable audit/provenance service (`PLAT-AUDIT-1`) every engine emits to, plus
-the Weave-internal product self-improvement loop built on the shared `BE-SELFIMPROVE-1` component. Engines
-emit typed events into one hash-chained, tamper-evident trail; Build's decision-log and Events' run-log are
-views over it. The self-improvement loop collects Weave-product signals, drafts GitHub issues, and
-dispatches approved ones to the dark factory — all gated to Weave-internal operators, never client tenants.
+**Description.** The single immutable audit/provenance service (`PLAT-AUDIT-1`) every engine emits to.
+Engines emit typed events into one hash-chained, tamper-evident trail; Build's decision-log and Events'
+run-log are views over it; CE PROV-O remains semantic provenance AND writes a corresponding entry.
 
 > A2: the platform owns **one** immutable audit/provenance service. Engines EMIT typed events; Build's
-> decision-log and Events' run-log are VIEWS over it; CE PROV-O remains semantic provenance AND writes a
-> corresponding `PLAT-AUDIT-1` entry. A3: the platform owns Weave-product self-improvement via the shared
-> `BE-SELFIMPROVE-1` component; approval is Weave-internal only.
+> decision-log and Events' run-log are VIEWS over it. The Weave-product self-improvement loop (signal
+> collection → draft issue → HITL approval → dark-factory dispatch) is **post-v1**; when built, it
+> dispatches to the existing engineering harness and a minimal internal interface is defined at that time.
+> The audit log itself is the foundation: every signal the loop reads when it lands is in `PLAT-AUDIT-1`.
 
 **User stories (PRD §Epic 9) — full acceptance criteria:**
 
-- **TASK-001 / E9-S1 — Immutable, hash-chained audit trail (PLAT-AUDIT-1).** Given `PLAT-AUDIT-1`, each entry is
-  `{ seq, ts, actor_principal_iri, engine, event_type, target_iri, diff_summary, signature }` and forms a
-  **hash chain** (each entry stores `prev_hash` and `hash`; per-entry ed25519 signature over the
-  canonicalised entry + prev_hash), so tamper-evidence is verifiable, not merely a per-entry signature
-  (matches prototype hash-chain audit). Append-only: deletes are rejected at the **DB-constraint level** and
-  the attempt itself is logged. Queries are filterable by date/actor/event-type/resource/engine, paginated
-  (default ≤ 500 rows/page, tunable), exportable as JSON/NDJSON with a chain-verification procedure
-  (recompute hash over canonicalised entry + prev_hash; verify ed25519 signature). AC (tamper test):
-  altering or deleting any historical entry fails chain verification at a named row. Audit is exposed as a
-  **sub-view under the Compliance area** (E5-S1), readable by the Compliance role. *(Must)*
-- **TASK-002 / E9-S2 — Collect Weave-product improvement signals (Weave-internal).** Given `BE-SELFIMPROVE-1`
-  configured for Weave-the-product, the platform collects signals across error, quality, performance,
-  security, and engagement dimensions (sentiment, error-rate trend, HTTP 5xx rate, HITL-override frequency,
-  retry rate by agent type, spec revision cycles, token-per-task cost, latency regression, visual-
-  regression fail rate, dependency CVEs, feature-adoption drop, sign-off latency, RBAC gaps, budget-overrun
-  frequency, cold-start/timeout rate). AC (provisional thresholds): every numeric threshold is a
-  configurable default and **provisional — to be validated against baseline telemetry in the tech spec**
-  (owner Architect): error rate > default 2× 7-day baseline; 5xx > default 1% over a trailing 5-min window
-  per endpoint; retry rate > default 30%; p99 latency > default 25% vs 7-day rolling p99; version lag amber
-  ≥ default 2 / red ≥ default 4; sentiment drop > default 20% vs 7-day mean; adoption sustained drop ≥
-  default 2 weeks; budget-overrun count per rolling 30 days — each stating its data window + aggregation.
-  Collection cadence is configurable: real-time (default < 5 min) for error/HTTP/cold-start/timeout; hourly
-  for HITL/retry/token/latency; daily for sentiment/spec-revision/adoption/CVE/RBAC. **Weave-internal**:
-  signals are over Weave's own product telemetry; no client-tenant role sees this surface. AC (failure): a
-  signal's telemetry source (CloudWatch, CI scan, `PLAT-AUDIT-1`) unavailable or returning insufficient
-  samples → marked stale/insufficient, does NOT emit a false threshold breach (no draft from missing data).
-  *(Must, Weave-internal)*
-- **TASK-003 / E9-S3 — Draft GitHub issues from signals (DRAFT, Weave-internal repo).** When a signal crosses its
-  (provisional) threshold, `claude-opus-4-8` drafts an issue (title, root-cause hypothesis, evidence with
-  links to audit/log records, signal value vs baseline, suggested-fix category, auto-labels, impact
-  estimate) in **DRAFT** state in **Weave's own product GitHub repo** via a Weave-bot service account whose
-  credential lives in **AWS Secrets Manager only** (never env, never logged). AC (duplicate detection): a
-  new draft is embedded (model + cosine metric in tech spec; S3 Vectors per stack) and compared to open
-  issues; if similarity exceeds a threshold (default 0.85, **provisional — tune against a labelled
-  duplicate set in tech spec**, owner Architect, OQ-09), evidence is appended to the existing issue instead
-  of creating a duplicate. AC (failure): GitHub API unavailable → the draft is queued locally and retried;
-  nothing silently lost. This surface is visible **only to the Weave-internal platform-operator identity**;
-  the Weave product repo and dark-factory dispatch are not exposed in any client workspace's RBAC. *(Must,
-  Weave-internal)*
-- **TASK-004 / E9-S4 — Human approval + dark-factory dispatch (Weave-internal only).** A **Weave-internal platform
-  operator** (NEVER a client workspace admin) sees evidence, the drafted body, a cost estimate, a
-  confidence rating, and Approve → publish & dispatch / Reject / Edit actions. On approval, the issue is
-  published to the Weave repo and a dark-factory task is created following the standard task-brief +
-  HITL-gate + `PLAT-AUDIT-1` pipeline via `BE-SELFIMPROVE-1`; status pipeline: Draft → Approved/Rejected →
-  Dispatched → Implemented. AC (M3 dispatch target clarified): at Platform Phase 1, `BE-SELFIMPROVE-1`'s
-  dispatch target is Weave's **existing engineering harness/repo** (the dark-factory loop already in this
-  codebase), NOT the not-yet-built Build product — Platform P1 delivers and configures the internal
-  instance of the shared component; it does not depend on the Build Engine being GA. On rejection, the
-  draft is retained with reason + rejector identity and is never deleted (append-only). AC (authz failure):
-  a client-tenant role attempting approval/dispatch is rejected with HTTP 403 and logged; the action is not
-  in any client RBAC scope. *(Must, Weave-internal)*
+- **TASK-001 / E9-S1 — Immutable, hash-chained audit trail (PLAT-AUDIT-1).** Given `PLAT-AUDIT-1`, each
+  entry is `{ seq, ts, actor_principal_iri, engine, event_type, target_iri, diff_summary, signature }` and
+  forms a **hash chain** (each entry stores `prev_hash` and `hash`; per-entry ed25519 signature over the
+  canonicalised entry + prev_hash), so tamper-evidence is verifiable, not merely a per-entry signature.
+  Append-only: deletes are rejected at the **DB-constraint level** and the attempt itself is logged.
+  Queries are filterable by date/actor/event-type/resource/engine, paginated (default ≤ 500 rows/page,
+  tunable), exportable as JSON/NDJSON with a chain-verification procedure (recompute hash over
+  canonicalised entry + prev_hash; verify ed25519 signature). AC (tamper test): altering or deleting any
+  historical entry fails chain verification at a named row. Audit is exposed as a **sub-view under the
+  Compliance area** (E5-S1), readable by the Compliance role. *(Must, M1)*
 
 **Epic-level acceptance criteria:**
 
 - [ ] Tamper-evidence is verifiable end to end, not per-entry only: each entry stores `prev_hash` and
   `hash` and a per-entry ed25519 signature over the canonicalised entry + prev_hash, deletes are rejected
   at the DB-constraint level with the attempt itself logged, and altering or deleting any historical entry
-  fails chain verification at a named row — verified by the audit-tamper test (FR-036/FR-037), independent
-  of any single emitter.
-- [ ] The self-improvement loop is Weave-internal end to end and a client-tenant attempt fails closed at
-  every stage: signal collection, the findings/draft surface, and approval/dispatch are visible and
-  actionable only to the Weave-internal platform-operator identity, and a client-tenant approval/dispatch
-  attempt is rejected with HTTP 403 and logged — verified by the self-improvement authz test (FR-043),
-  proving no client RBAC scope reaches the Weave product repo or dark factory.
-- [ ] Missing or insufficient telemetry never manufactures a false breach or a duplicate: a signal whose
-  source is unavailable or under-sampled is marked stale/insufficient and emits no draft, and a new draft
-  above the duplicate-similarity threshold appends evidence to the existing issue rather than creating a
-  duplicate — one combined test covers the no-false-breach and dedup paths.
-- [ ] Append-only history is preserved through the full status pipeline: a rejected draft is retained with
-  reason + rejector identity and never deleted, and the lifecycle Draft → Approved/Rejected → Dispatched →
-  Implemented is recorded — verified by asserting no state transition deletes a prior record.
+  fails chain verification at a named row — verified by the audit-tamper test (FR-036/FR-037),
+  independent of any single emitter.
+- [ ] Audit queries are filterable by date, actor, event-type, resource, and engine; the export procedure
+  produces verifiable JSON/NDJSON with the chain-verification steps documented alongside — verified by
+  running an export and re-verifying each entry's hash chain.
 
 **Technical notes.** `PLAT-AUDIT-1` entry shape: `{ seq, ts, actor_principal_iri, engine, event_type,
 target_iri, diff_summary, signature }`, hash-chained (prev_hash → hash) with a per-entry ed25519 signature
 over the canonicalised entry + prev_hash. Queries filterable by date/actor/event-type/resource/engine,
 paginated (default ≤ 500 rows/page, tunable), exportable as JSON/NDJSON with a chain-verification
 procedure. CE PROV-O remains semantic provenance and also writes a corresponding `PLAT-AUDIT-1` entry.
-Signal collection spans error/quality/performance/security/engagement dimensions; every numeric threshold
-is a configurable default and provisional. Drafting uses `claude-opus-4-8` into DRAFT state in Weave's own
-product repo via a Weave-bot service account (credential in Secrets Manager only). Duplicate detection
-embeds against open issues (S3 Vectors, cosine; default 0.85 similarity, provisional, OQ-09);
-GitHub-API-down → queued + retried. Self-improvement of Weave-the-product is disjoint from Build's
-client-app self-healing (`BE-SELFIMPROVE-1`, E11): same component, separate configuration, disjoint
-approval authorities. This is the **first internal instance of `BE-SELFIMPROVE-1`**, delivered and
-configured at Platform Phase 1 against Weave's existing engineering harness/repo (M3).
+Storage choice (append-only DynamoDB vs PostgreSQL with constraint-based immutability) is OQ-05, deferred
+to Architect at tech-spec.
+
+### EPIC-010 — "What can Weave do for you?" Role-Home (legibility)
+
+**Milestone:** M2 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-001, EPIC-004, CE-METRICS-1 ·
+**blocks:** none · **consumes:** CE-METRICS-1, CE-READ-1, PLAT-SETTINGS-1, PLAT-IDENTITY-1.
+
+**Description.** A role-tailored landing surface that answers "What can Weave do for me?" for every persona
+on their first login and on demand — showing modelled capabilities, what has been generated, what gaps
+exist, and what Weave could generate next. Closes legibility gap L1 (D7): non-technical stakeholders
+currently cannot tell what value Weave delivers to their role without navigating the full IA. M2 ships the
+CE-sourced baseline; the surface expands as engines ship. See `../weave-spec.md` §M2 for the wider
+legibility layer (model-completeness map + trust mechanics).
+
+**User stories (PRD §Epic 10) — full acceptance criteria:**
+
+- **TASK-001 / E10-S1 — Role-tailored capability landing.** WHEN a user navigates to the role-home THE
+  SYSTEM SHALL render a role-tailored view of available Weave capabilities, a summary of what has been
+  modelled (from `CE-METRICS-1`), what can be generated next, and links to the relevant engine areas;
+  engines not yet GA are shown in a defined "coming soon" state with a description of what they will
+  enable — never hidden, never implied as available. AC: a Business Analyst sees "your model has N kinds
+  with M instances; SHACL errors to resolve; next recommended action: publish a version"; an Engineer sees
+  "active projects: N; last generated artefact: <type>". AC (failure): `CE-METRICS-1` unavailable →
+  last-cached snapshot with staleness badge; not a blank screen. *(Must, M2)*
+- **TASK-002 / E10-S2 — Model-completeness surface.** WHEN a role with authoring permissions views the
+  role-home THE SYSTEM SHALL surface which BPMO kinds have no instances, which processes lack actor/policy/
+  system linkage, and what the top three recommended modelling steps are — sourced from `CE-METRICS-1` and
+  `CE-READ-1` completeness data. AC: completeness surface updates within the `CE-METRICS-1` cache window
+  after a new entity is added. AC (failure): `CE-READ-1` unavailable → completeness surface shows
+  last-known data with staleness indicator. *(Should, M2)*
+- **TASK-003 / E10-S3 — Capability discovery (what Weave can generate for this role).** WHEN a user with
+  Build visible views the role-home THE SYSTEM SHALL show a list of generation capabilities available to
+  their role (e.g. "Generate an ops app for this process domain"), with a "Start" action that deep-links
+  to the relevant Build intake. Build-engine items are only surfaced once Build is GA; prior to that they
+  appear in the "coming soon" state. *(Should, M2 — Build GA)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] WHEN a non-technical stakeholder (Viewer) views the role-home THE SYSTEM SHALL display only
+  capabilities available to that role; capabilities requiring author-or-above permissions are not shown —
+  verified by a role-matrix test across Viewer, Business Analyst, and Engineer.
+- [ ] No capability is implied as available when its source engine is not GA: engine-gated items
+  consistently render the defined "coming soon" state — the same engine-availability set used in EPIC-002
+  FR-015 governs role-home availability, and a single test verifies both surfaces are consistent.
+- [ ] The role-home loads within the M1 dashboard performance target (≤ 2 s p95 for the CE-sourced portion,
+  tunable) and degrades to a last-cached snapshot with a staleness indicator when `CE-METRICS-1` or
+  `CE-READ-1` is unavailable — verified by the degradation test.
+
+**Technical notes.** Role-home is a separate route in the main nav (accessible from Dashboard or the
+"?" launcher) — not a modal. The CE-sourced portion (E10-S1, E10-S2) reads `CE-METRICS-1`
+(`entity_count_by_kind`, `shacl_errors_by_severity`, `draft_published_delta`) and `CE-READ-1` completeness
+queries; it does not introduce a new contract. The Build capability surface (E10-S3) is keyed to Build GA.
+Cross-links to `[constitution-engine](constitution-engine.md)`, `[build-engine](build-engine.md)`, `[weave-spec](../weave-spec.md)`.
 
 ---
 
 ## 4. Roadmap
 
-**Build order:** Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding. This engine
-is **#1** — the shell the whole loop runs in (app, navigation, workspace, Cognito, Bedrock routing,
-tenancy), **not an engine**. The Constitution Engine is the first engine that runs on this shell.
+**Build order:** Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding. This is
+**#1** — the shell the whole loop runs in (app, navigation, workspace, Cognito, Bedrock routing, tenancy),
+**not an engine**. The Constitution Engine is the first engine that runs on this shell.
 
 The platform's position is **bidirectional** — the load-bearing point:
 
-- **Unblocks (provides):** the cross-cutting contracts every engine emits to or reads — `PLAT-AUDIT-1`,
-  `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1` — plus the app
-  shell, auth, RBAC and tenancy. **CE and all four engines depend on these.** Phase 1 has **no upstream
-  engine dependency** and must ship first.
-- **Depends on (consumes):** the Generative Dashboard and CE-sourced widgets consume `CE-METRICS-1`,
-  `CE-READ-1`, `CE-DIFF-1`, `CE-VERSION-1`, `CE-EVENT-1`; connector-data ingestion writes via `CE-WRITE-1`.
-  **These cannot be delivered or verified until the Constitution Engine is GA.** This forces the within-MVP
-  split: the shell precedes CE; the dashboard follows it.
-- **Engine-gated expansion:** Build-, Events-, and Explorer-sourced widget rows depend on those engines
-  reaching GA (no contract exists for them yet — tracked as not-yet-contracted engine surfaces). They light
-  up post-MVP as each source engine ships.
+- **Unblocks (provides):** the six PLAT-* contracts every engine emits to or reads (`PLAT-AUDIT-1`,
+  `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`) plus the
+  app shell, auth, RBAC and tenancy. **M1 has no upstream engine dependency and must ship first.**
+- **Depends on (consumes):** the Generative Dashboard + CE-sourced widgets consume `CE-METRICS-1`,
+  `CE-READ-1`, `CE-DIFF-1`, `CE-VERSION-1`, `CE-EVENT-1`. **These cannot be delivered until CE is GA** —
+  this forces the M1/M2 split: the shell precedes CE; the dashboard follows it.
+- **Engine-gated expansion (post-v1):** Build-, Events-, and Explorer-sourced widget rows depend on those
+  engines reaching GA. They light up post-v1 as each source engine ships.
 
-Work that is contract-unblocked may run in parallel — see `../weave-spec.md` §7 (the single
-authoritative timeline).
+See `../weave-spec.md` §7 for the cross-engine critical path (single authoritative timeline).
 
 ```mermaid
 gantt
     title Weave Platform Roadmap
     dateFormat YYYY-MM-DD
-    section Phase 1 (MVP) — Shell & Foundations
-        E3 E4 E5 E6 E7 E8 E9     :a1, 2026-01-01, 30d
-        Spec-approval gate        :milestone, g1a, 2026-01-01, 0d
-        Phase-boundary + pre-deploy :milestone, m1, after a1, 0d
-    section Phase 2 (MVP) — Dashboard (needs CE GA)
-        E1 + CE-sourced E2 + E7-S3 :a2, after m1, 25d
-        HITL gate 2               :milestone, m2, after a2, 0d
-    section Phase 3 (Post-MVP) — Engine-gated widgets
-        E2 Build/Events/Explorer rows :a3, after m2, 20d
-        HITL gate 3               :milestone, m3, after a3, 0d
+    section M1 — Shell & Foundations (no CE dependency)
+        E0 E3 E4 E5 E6 E7(S1,S2) E8 E9   :a1, 2026-01-01, 30d
+        Spec-approval gate                 :milestone, g1a, 2026-01-01, 0d
+        M1 gate + pre-deploy               :milestone, m1, after a1, 0d
+    section M2 — Dashboard + Role-Home (CE GA required)
+        E1 + CE-sourced E2 + E10           :a2, after m1, 25d
+        M2 gate                            :milestone, m2, after a2, 0d
+    section v1.0 — Connector Ingestion (CE GA required)
+        E7-S3 (CE-WRITE-1 validated ops)   :a3, after m2, 15d
+        v1.0 gate                          :milestone, m3, after a3, 0d
+    section post-v1 — Engine-Gated Widgets + Self-Improvement
+        E2 engine-gated + self-improve loop :a4, after m3, 30d
 ```
 
-> Dates are illustrative; the **sequence is authoritative**. Absolute date anchors are non-committed
-> placeholders — the cross-engine build order and its critical path live in `../weave-spec.md` §7.
-> Ordering is expressed by the `after` milestone chain (`m1`, `m2`), not by start dates.
+> Dates are illustrative; the **sequence is authoritative**. The `after` milestone chain (`m1`, `m2`, `m3`)
+> expresses ordering — not absolute dates. See `../weave-spec.md` §7 for cross-engine dependencies.
 
-### Phase 1 — Platform Shell & Cross-Cutting Foundations · MVP
+### M1 — Platform Shell & Cross-Cutting Foundations
 
-**Goal.** Stand up the shell the whole loop runs in and the cross-cutting contracts every engine depends on
-— app chrome + navigation + search, Cognito auth + RBAC + agent identity, the 4-level tenancy/settings
-cascade, notifications, managed-connector config + health, billing/metering + budget caps, the immutable
-hash-chained audit service, and Weave-internal product self-improvement. **No upstream engine dependency;
-unblocks the Constitution Engine and every other engine.** Demonstrable outcome: a tenant-isolated,
-authenticated SPA shell with all six platform contracts live, exercised by the cross-tenant-isolation and
-audit-tamper tests.
+**Goal.** Stand up the shell the whole loop runs in and the six platform contracts every engine depends on:
+app chrome + navigation + search, Cognito auth + RBAC + agent identity, 4-level tenancy/settings cascade,
+notifications, managed-connector config + health, billing/metering + budget caps, and the immutable
+hash-chained audit service. **No upstream engine dependency; unblocks CE and every other engine.**
+Demonstrable outcome: a tenant-isolated, authenticated SPA shell with all six platform contracts live,
+exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-sourced dashboard tiles (E1-S0)
+also ship here as the workspace home.
 
-**Epics:**
+**Epics in M1:**
 
-| Epic | Description | Stories | Priority | MVP? |
-|------|-------------|---------|----------|------|
-| **EPIC-000** | **Foundation & Boilerplate — FIRST; gates everything.** Monorepo, Terraform + S3 state, Next.js shell + design system + Storybook, CI/CD + lint/complexity/SAST/secret gates, Cognito+Bedrock connectivity, test + visual-regression harness, OpenAPI + OTel scaffold, AI evals, local docker-compose stack, Lighthouse-100 + WCAG-AA gates | 9 | Must Have | yes |
-| EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 4-level tighter-wins) | 3 | Must Have | yes |
-| EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have | yes |
-| EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have | yes |
-| EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, in-app + Slack) | 2 | Must Have | yes |
-| EPIC-007 | Managed Connectors — config + health (`PLAT-CONNECTOR-1`, 7 v1 connectors) | 2 of 3 (S1, S2) | Must Have | yes |
-| EPIC-008 | Billing, Metering & Budgets (`PLAT-BILLING-1`, cascade caps, hard pre-call enforcement) | 2 | Must Have | yes |
-| EPIC-009 | Immutable Audit (`PLAT-AUDIT-1`) & Weave-product Self-Improvement (`BE-SELFIMPROVE-1`, Weave-internal) | 4 | Must Have | yes |
+| Epic | Description | Stories | Priority |
+|------|-------------|---------|----------|
+| **EPIC-000** | **Foundation & Boilerplate — FIRST; gates everything.** Monorepo, Terraform + S3 state, Next.js shell + design system + Storybook, CI/CD + quality gates, Cognito + Bedrock connectivity, test harness, OpenAPI + OTel, local docker-compose stack, Lighthouse-100 + WCAG-AA | 9 | Must Have |
+| EPIC-001 (E1-S0) | Fixed CE-sourced default dashboard tiles (no prompt bar; CE-METRICS-1 only) | 1 | Must Have |
+| EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 4-level tighter-wins) | 3 | Must Have |
+| EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have |
+| EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have |
+| EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, in-app + Slack) | 2 | Must Have |
+| EPIC-007 (S1, S2) | Managed Connectors — config + health (`PLAT-CONNECTOR-1`, 7 v1 connectors) | 2 of 3 | Must Have |
+| EPIC-008 | Billing, Metering & Budgets (`PLAT-BILLING-1`, cascade caps, hard pre-call enforcement) | 2 | Must Have |
+| EPIC-009 (E9-S1) | Immutable Audit trail (`PLAT-AUDIT-1`, hash-chained + ed25519, Compliance sub-view) | 1 of 1 | Must Have |
 
-> Epic 7 story S3 (connector-data **ingestion** via `CE-WRITE-1`) is held to Phase 2 because it depends on
-> CE GA. Epic 7 config + health (S1, S2) ship here with no CE dependency.
+> EPIC-007 S3 (connector-data **ingestion** via `CE-WRITE-1`) is held to v1.0 — Hammerbarn proof deferred.
+> EPIC-009 self-improvement stories (E9-S2..S4) are deferred to post-v1.
 
 **Entry criteria (Definition of Ready):**
 
-- [ ] PRD §Epics 3–9 approved; Phase-1 tech spec approved (arch-stack + arch-infra resolve the
-  dev-environment AWS floor per `../dev-environment.md`)
+- [ ] PRD §Epics 3–9 approved; M1 tech spec approved (arch-stack + arch-infra resolve the dev-environment
+  AWS floor per `../dev-environment.md`)
 - [ ] Tasks decomposed; each task brief passes the DoR gate
 - [ ] Multi-tenant isolation mechanism decided (OQ-01) OR the cross-tenant-read test fixed and the
   mechanism stubbed behind it; `PLAT-AUDIT-1` storage choice decided (OQ-05)
@@ -1600,211 +1515,186 @@ audit-tamper tests.
 **Exit criteria (EARS, measurable, human-signed):**
 
 - [ ] WHEN a query is issued in tenant A's context THE SYSTEM SHALL return zero rows from tenant B's seeded
-  data across RDF, Aurora and S3 Vectors, and SHALL reject an unscoped SPARQL query — verified by the
-  cross-tenant-read isolation test (PRD §2.2/§2.6)
+  data across RDF, Aurora and S3 Vectors, and SHALL reject an unscoped SPARQL query — cross-tenant-read
+  isolation test (PRD §2.2/§2.6)
 - [ ] WHEN a member is removed or their role changed THE SYSTEM SHALL reject the next request bearing their
-  prior token within the bounded revocation latency (default ≤ 60 s, tunable) — verified by the revocation
-  integration test (FR-021/FR-024)
+  prior token within the bounded revocation latency (default ≤ 60 s, tunable) — revocation integration
+  test (FR-021/FR-024)
 - [ ] WHEN any historical `PLAT-AUDIT-1` entry is altered or deleted THE SYSTEM SHALL fail chain
-  verification at a named row and SHALL log the delete attempt — verified by the audit tamper test
-  (FR-036/FR-037, PRD §2.6)
+  verification at a named row and SHALL log the delete attempt — audit tamper test (FR-036/FR-037, PRD §2.6)
 - [ ] WHEN AI-generation spend reaches 100% of the effective cascade-resolved cap THE SYSTEM SHALL reject
-  the request before any AI API call with the readable cap message — verified by the budget-enforcement
-  test (FR-035)
+  the request before any AI API call with the readable cap message — budget-enforcement test (FR-035)
 - [ ] WHEN a connector enters a degraded/disconnected state THE SYSTEM SHALL publish a `PLAT-NOTIFY-1` event
-  delivered in-app (and Slack if configured) — verified by the connector-health test (FR-032)
-- [ ] WHEN a Weave-product signal crosses its provisional threshold THE SYSTEM SHALL draft a DRAFT GitHub
-  issue visible only to a Weave-internal platform operator, and SHALL reject a client-tenant approval
-  attempt with HTTP 403 + audit — verified by the self-improvement authz test (FR-043)
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
-  tunable)
-- [ ] **Measurable artefact:** a running tenant-isolated SPA shell with the six platform contracts live
-  (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`,
-  `PLAT-BILLING-1`), deployed to dev-AWS and passing the smoke suite
+  delivered in-app (and Slack if configured) — connector-health test (FR-032)
+- [ ] WHEN the fixed CE-sourced dashboard tiles load at M1 THE SYSTEM SHALL render them from `CE-METRICS-1`
+  with a data-source footer label; a `CE-METRICS-1` error SHALL render the defined unavailable state on
+  the affected tile, not a blank tile — fixed-dashboard test (FR-000)
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] **Measurable artefact:** tenant-isolated SPA shell with all six platform contracts live and the
+  fixed CE-sourced dashboard tiles, deployed to dev-AWS, passing the smoke suite
 - [ ] **Human sign-off recorded** (always the final exit criterion)
 
-**HITL gates (configurable; declared active):**
+**HITL gates:**
 
 | Gate | Active? | Approver | Blocks |
 |------|---------|----------|--------|
-| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
-| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | phase-2 |
+| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | M1 start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | M2 |
 | Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
-| Publish/generate (ontology publish / artefact release) | yes (scoped to E9-S4 self-improvement dispatch only) | Weave-internal platform operator | self-improvement dispatch |
+| Publish/generate | no (no artefact published at M1) | n/a | — |
 
-> Phase-boundary ceremony is load-bearing here — this phase ships auth, RBAC, audit and tenant-isolation,
-> so the security review is real. Pre-AWS-deploy is active because the platform deploys (Cognito, Bedrock,
-> the dev-AWS smoke per `../dev-environment.md` §4). Publish/generate applies only to the Weave-internal
-> self-improvement dispatch (E9-S4); no client artefact is published in this phase.
+> Phase-boundary ceremony is load-bearing — this milestone ships auth, RBAC, audit and tenant-isolation.
 
-**Phase-gate metadata** (evaluated by the phase-gate Stop hook / `/goal` condition):
+**Phase-gate metadata:**
 
 ```text
-phase: 1
-gate_id: weave-platform-gate-1
+phase: M1
+gate_id: weave-platform-gate-M1
 condition: all_exit_criteria_met
 approver: Architect + security reviewer
-blocks: phase-2
+blocks: M2
 ```
 
-### Phase 2 — Generative Dashboard & CE-Sourced Widgets · MVP
+### M2 — Generative Dashboard, Role-Home & CE-Sourced Widgets
 
-**Goal.** Deliver the user-facing centrepiece — the declarative Generative Dashboard (prompt → best-fit
-widget from the finite component library, streamed live) and the **CE-sourced** widget set, plus
-connector-data ingestion into the graph. **Depends on Constitution Engine GA** (consumes `CE-METRICS-1` /
-`CE-READ-1` / `CE-DIFF-1` / `CE-VERSION-1` / `CE-EVENT-1`; ingestion writes via `CE-WRITE-1`). Demonstrable
-outcome: a user types "show me active compliance contraventions by domain" and a live bar chart streams
-from `CE-METRICS-1`; pins persist server-side and reload cross-device; a request for a non-GA category
-renders the defined unavailable state.
+**Goal.** Deliver the user-facing centrepiece — the Generative Dashboard (prompt → best-fit widget
+streamed live from the finite component library), the CE-sourced widget set, and the role-tailored
+"What can Weave do for you?" home (legibility layer). **Depends on CE GA** (consumes `CE-METRICS-1`,
+`CE-READ-1`, `CE-DIFF-1`, `CE-VERSION-1`, `CE-EVENT-1`). Demonstrable outcome: a user types "show me
+active compliance contraventions by domain" and a live bar chart streams from `CE-METRICS-1`; pins persist
+server-side cross-device; a non-GA category renders the defined unavailable state; the role-home shows
+model completeness and what Weave can generate for each role.
 
-**Epics:**
+**Epics in M2:**
 
-| Epic | Description | Stories | Priority | MVP? |
-|------|-------------|---------|----------|------|
-| EPIC-001 | Generative Dashboard (composition + lifecycle: prompt, refine, pin, publish, starters) | 7 | Must Have | yes |
-| EPIC-002 | Widget Library — **CE-sourced stories only** (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) | 9 of 15 | Must Have / Should Have | yes |
-| EPIC-007 | Managed Connectors — **ingestion** story S3 (`CE-WRITE-1`, validated ops) | 1 of 3 (S3) | Must Have | yes |
+| Epic | Description | Stories | Priority |
+|------|-------------|---------|----------|
+| EPIC-001 (E1-S1..S7) | Generative Dashboard — prompt, refine, pin, publish, starters (needs CE GA) | 7 | Must Have |
+| EPIC-002 (CE-sourced) | Widget Library — CE-sourced stories (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) | 9 of 15 | Must Have / Should Have |
+| EPIC-010 | "What can Weave do for you?" role-home (legibility, CE-sourced) | 3 | Must Have |
 
-> Epic 2 is split per the PRD's own per-story Phase tags. CE-sourced stories are MVP here.
-> Build/Events/Explorer-sourced rows are Phase 3. E2-S3 token-spend and E2-S8 connector-health rows already
-> shipped data in Phase 1; their automation/per-run dimensions remain Phase 3.
+**Entry criteria:**
 
-**Entry criteria (Definition of Ready):**
-
-- [ ] Phase 1 gate passed (shell + all six platform contracts live)
-- [ ] **Constitution Engine is GA** and `CE-METRICS-1`/`CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1`/
-  `CE-WRITE-1` are published and pinned (`?version=latest`)
-- [ ] PRD §Epics 1–2 approved; Phase-2 tech spec approved (streaming RSC pattern OQ-02, widget caching
-  OQ-03, widget-state store OQ-13 resolved)
+- [ ] M1 gate passed (shell + all six platform contracts live + fixed dashboard tiles)
+- [ ] **CE is GA** and `CE-METRICS-1`/`CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1` published + pinned
+- [ ] PRD §Epics 1–2, EPIC-010 approved; M2 tech spec approved (streaming RSC pattern OQ-02, widget
+  caching OQ-03, widget-state store OQ-10 resolved)
 - [ ] Tasks decomposed; each task brief passes the DoR gate
 
 **Exit criteria (EARS, measurable, human-signed):**
 
 - [ ] WHEN a user submits "show me active compliance contraventions by domain" THE SYSTEM SHALL stream a
   bar chart from `CE-METRICS-1` within the default target (streaming header ≤ 1 s, tunable) with a
-  data-source footer label — verified by the generative-widget E2E (FR-002/FR-014, PRD §2.6)
+  data-source footer label — generative-widget E2E (FR-002/FR-014)
 - [ ] WHEN a user submits a prompt for a Build/Events/Explorer-sourced category THE SYSTEM SHALL render the
-  defined "source engine not yet available" state, never blank or fabricated data — verified by the
-  unavailable-state test (FR-015, PRD §2.6)
+  defined "source engine not yet available" state, never blank or fabricated — unavailable-state test
+  (FR-015)
 - [ ] WHEN a user pins a widget THE SYSTEM SHALL persist it server-side scoped to (tenant, user) and reload
-  it with live data on a different device, invisible to another tenant — verified by the pin-persistence
-  cross-device test (FR-008, PRD §2.6)
+  it with live data on a different device, invisible to another tenant — pin-persistence test (FR-008)
 - [ ] WHEN a user publishes a pinned widget THE SYSTEM SHALL list it in the server-side workspace-scoped
-  library so another user can add an independent copy — verified by the publish/add test (FR-011, PRD §2.6)
-- [ ] WHEN inbound connector data arrives THE SYSTEM SHALL ingest it into the graph via `CE-WRITE-1` under a
-  connector-scoped agent principal, committing only on SHACL pass — verified by the ingestion test (FR-033)
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
-  tunable)
-- [ ] **Measurable artefact:** a working Generative Dashboard rendering ≥ 9 CE-sourced widget categories
-  with server-side pin + publish, plus live connector ingestion into the graph, deployed to dev-AWS and
-  passing the smoke suite
-- [ ] **Human sign-off recorded** (always the final exit criterion)
+  library so another user can add an independent copy — publish/add test (FR-011)
+- [ ] WHEN a role navigates to the role-home THE SYSTEM SHALL display capabilities appropriate to that role,
+  with non-GA engine capabilities in a defined "coming soon" state, never implied available —
+  role-home role-matrix test (E10-S1)
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] **Measurable artefact:** Generative Dashboard rendering ≥ 9 CE-sourced widget categories with
+  server-side pin + publish, plus role-home, deployed to dev-AWS, passing the smoke suite
+- [ ] **Human sign-off recorded**
 
-**HITL gates (configurable; declared active):**
+**HITL gates:**
 
 | Gate | Active? | Approver | Blocks |
 |------|---------|----------|--------|
-| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
-| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | phase-3 |
-| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
-| Publish/generate (ontology publish / artefact release) | no (widget publish is server-side workspace state, not an external release) | n/a | — |
-
-> Phase-boundary ceremony stays active (the dashboard widens the RBAC + audit surface). Pre-AWS-deploy
-> active (dashboard + ingestion deploy). Publish/generate N/A — publishing a widget to the workspace
-> library is internal server-side state, not an external artefact release.
+| Spec-approval | **mandatory** | PO + exec sponsor | M2 start |
+| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | v1.0 |
+| Pre-AWS-deploy | yes | Workspace admin / release approver | deploy |
+| Publish/generate | no (widget publish is server-side state, not an external release) | n/a | — |
 
 **Phase-gate metadata:**
 
 ```text
-phase: 2
-gate_id: weave-platform-gate-2
+phase: M2
+gate_id: weave-platform-gate-M2
 condition: all_exit_criteria_met
 approver: Architect + security reviewer
-blocks: phase-3
+blocks: v1.0
 ```
 
-### Phase 3 — Engine-Gated Widget Expansion · Post-MVP
+### v1.0 — Connector Ingestion (Lighthouse)
 
-**Goal.** Light up the remaining Widget Library categories as their **source engines reach GA**. A single
-phase keyed to "per source-engine GA" rather than three engine-aligned phases, so Epic 2 is not fragmented
-further. Each category renders its defined "not yet available" state until its engine ships, then activates
-against that engine's metrics surface. Demonstrable outcome: when the Build Engine is GA, the
-active-project pipeline widget renders live project metrics where it previously showed "Build Engine not
-yet available".
+**Goal.** Enable real connector-data ingestion into the graph via `CE-WRITE-1` validated operations.
+Depends on CE GA (E7-S3 was held from M2 to sequence with the Hammerbarn proof). Demonstrable outcome:
+inbound Atlassian data is ingested into the graph under a connector-scoped agent principal, committed only
+on SHACL pass, with write-back idempotency and failure audit.
 
-**Epics:**
+**Epics in v1.0:**
 
-| Epic | Description | Stories | Priority | MVP? |
-|------|-------------|---------|----------|------|
-| EPIC-002 | Widget Library — **engine-gated stories** (S4 Build; Build rows of S7/S12; automation rows of S3/S8; Explorer realtime sub-widgets of S9; per-run dimensions) | 6 of 15 (S3 per-run, S4, S7 Build, S8 automation, S9 realtime, S12) | P0 when source engine ships | no |
+| Epic | Description | Stories | Priority |
+|------|-------------|---------|----------|
+| EPIC-007 (S3) | Managed Connectors — **ingestion** + write-back (`CE-WRITE-1`, validated ops) | 1 of 3 | Must Have |
 
-> These are the PRD's "P0 when `<engine>` ships" and "Phase 2 (Explorer realtime)" stories. They activate
-> incrementally — Build-sourced when Build is GA, Events-sourced when Events is GA, Explorer realtime
-> presence when a realtime presence contract exists (tracked; no contract ID yet, a Phase-2 Explorer
-> deliverable). No new platform contract is introduced here.
+**Entry criteria:**
 
-**Entry criteria (Definition of Ready):**
+- [ ] M2 gate passed (Generative Dashboard + role-home GA)
+- [ ] CE is GA and `CE-WRITE-1` published + pinned
 
-- [ ] Phase 2 gate passed (Generative Dashboard + CE-sourced widgets GA)
-- [ ] At least one downstream engine (Build, Events, or Graph Explorer realtime) is GA and exposes a
-  consumable metrics surface (its metrics endpoint added to that engine's PRD/contracts)
-- [ ] PRD §Epic 2 engine-gated stories re-approved against the now-available engine surfaces
-- [ ] Tasks decomposed for the activatable categories; each task brief passes the DoR gate
+**Exit criteria:**
 
-**Exit criteria (EARS, measurable, human-signed):**
-
-- [ ] WHEN the Build Engine is GA THE SYSTEM SHALL render the active-project pipeline widget (E2-S4) with
-  live project metrics where it previously showed the "Build Engine not yet available" state — verified by
-  the Build-sourced widget test (FR-015)
-- [ ] WHEN the Events Engine is GA THE SYSTEM SHALL add automation counts/failure-rate rows (E2-S8) and
-  per-run automation spend (E2-S3) sourced from the Events metrics surface — verified by the Events-sourced
-  widget test
-- [ ] WHEN a consumer engine's pinned ontology version lags `is_latest` by ≥ the amber threshold (default
-  2, tunable) THE SYSTEM SHALL highlight the version-pin row amber via the canonical `CE-VERSION-1` lag (≥
-  red threshold default 4) — verified by the version-pin widget test (FR-018)
-- [ ] WHEN a source engine is not yet GA THE SYSTEM SHALL continue to render that category's defined
-  unavailable state, never fabricated rows — verified by the not-yet-available regression test (FR-015)
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs (default,
-  tunable)
-- [ ] **Measurable artefact:** the dashboard renders every category whose source engine is GA with live
-  data and the remainder in the defined unavailable state, deployed to dev-AWS and passing the smoke suite
-- [ ] **Human sign-off recorded** (always the final exit criterion)
-
-**HITL gates (configurable; declared active):**
-
-| Gate | Active? | Approver | Blocks |
-|------|---------|----------|--------|
-| Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | phase start |
-| Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | release |
-| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
-| Publish/generate (ontology publish / artefact release) | no (widget activation reads downstream engine metrics; no artefact is published) | n/a | — |
-
-> Phase-boundary + pre-AWS-deploy remain active (each engine-gating change deploys and widens the read
-> surface). Publish/generate N/A — this phase only consumes downstream metrics.
+- [ ] WHEN inbound connector data arrives THE SYSTEM SHALL ingest it into the graph via `CE-WRITE-1` under
+  a connector-scoped agent principal, committing only on SHACL pass — ingestion test (FR-033)
+- [ ] Coverage ≥ 80% · mutation ≥ 70% · 0 blocking bugs
+- [ ] **Human sign-off recorded**
 
 **Phase-gate metadata:**
 
 ```text
-phase: 3
-gate_id: weave-platform-gate-3
+phase: v1.0
+gate_id: weave-platform-gate-v1
 condition: all_exit_criteria_met
+approver: Architect + security reviewer
+blocks: post-v1
+```
+
+### post-v1 — Engine-Gated Widgets & Self-Improvement Loop
+
+**Goal.** Light up remaining Widget Library categories as source engines reach GA; build the Weave-product
+self-improvement loop (signal collection → draft GitHub issue → HITL approval → dark-factory dispatch) as
+a shared component (`BE-SELFIMPROVE-1`, dispatching to the existing engineering harness).
+
+**Epics in post-v1:**
+
+| Epic | Description | Activation |
+|------|-------------|-----------|
+| EPIC-002 (engine-gated) | Widget Library — Build/Events/Explorer rows (S4, S7 Build, S8 automation, S9 realtime, S12) | per source-engine GA |
+| EPIC-009 (E9-S2..S4) | Weave-product self-improvement loop (signal collect → draft issue → HITL approve → dispatch) | after v1.0 + `BE-SELFIMPROVE-1` built |
+
+> Engine-gated stories activate incrementally as each source engine ships. The self-improvement loop
+> defines a minimal internal interface when it lands and dispatches to the existing engineering harness.
+> Client-scoped self-improvement (Polaris-style) is tracked in OQ-08.
+
+**Phase-gate metadata:**
+
+```text
+phase: post-v1
+gate_id: weave-platform-gate-post-v1
+condition: per_engine_ga
 approver: Architect + security reviewer
 blocks: release
 ```
 
 ### HITL gate summary
 
-| Gate | After phase | Approval criteria | Approver |
-|------|-------------|-------------------|----------|
-| Spec-approval (mandatory, every phase) | before each phase | PRD + Phase tech spec approved; tasks DoR-passing | PO + exec sponsor |
-| Gate 1 | Phase 1 | EARS exit criteria met (isolation, revocation, audit-tamper, budget, notify, self-improvement authz) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
-| Gate 2 | Phase 2 | EARS exit criteria met (CE-sourced widget stream, unavailable state, server-side pin/publish, ingestion) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
-| Gate 3 | Phase 3 | EARS exit criteria met (engine-gated activation + not-yet-available regression) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+| Gate | After milestone | Approval criteria | Approver |
+|------|-----------------|-------------------|----------|
+| Spec-approval (mandatory, every milestone) | before each | PRD + tech spec approved; tasks DoR-passing | PO + exec sponsor |
+| Gate M1 | M1 | EARS exit criteria met (isolation, revocation, audit-tamper, budget, notify, fixed-dashboard) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+| Gate M2 | M2 | EARS exit criteria met (generative-widget stream, unavailable state, server-side pin/publish, role-home) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
+| Gate v1.0 | v1.0 | EARS exit criteria met (connector ingestion + write-back, SHACL validation) + security review + human sign-off | Architect + security reviewer |
+| Gate post-v1 | per engine GA | Per-engine exit criteria met (engine-gated widget activation + not-yet-available regression) + human sign-off | Architect + security reviewer |
 
 > Spec-approval is the only globally mandatory gate. Phase-boundary ceremony and pre-AWS-deploy are active
-> on all three phases because the platform ships security-load-bearing surfaces and deploys to dev-AWS each
-> phase. Publish/generate is active only in Phase 1, scoped to the Weave-internal E9-S4 self-improvement
-> dispatch.
+> on M1 and M2 (platform ships security-load-bearing surfaces). Publish/generate is N/A for all platform
+> milestones — no external artefact is published by the platform.
 
 ---
 
