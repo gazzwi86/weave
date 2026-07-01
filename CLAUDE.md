@@ -92,7 +92,7 @@ Decisions are final unless overridden by explicit PRD justification.
 
 - Agent SDK: Anthropic Agent SDK (Claude Agent SDK) — Python primary, TypeScript secondary; generates portable agent code (decided 2026-06-26)
 - Agent runtime: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway) — revisit fit with Anthropic Agent SDK during Build Engine tech spec
-- Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-4-6` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
+- Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-5` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
 - Guardrails: AWS Bedrock Guardrails (PII, content policy, topic blocking)
 
 **Data**
@@ -126,6 +126,11 @@ Decisions are final unless overridden by explicit PRD justification.
 - Secrets: AWS Secrets Manager only — never hardcoded, never in `.env` files
 - Testing: TDD-first; unit → integration → E2E; Playwright for browser tests; mutation ≥ 70%
 - Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per phase
+- Code review: `docs/standards/code-review.md` is the single review rubric — priority-ordered
+  checklist, blocker/major/minor/nit severity, comment discipline (>80% confidence, `file:line`
+  citations), OWASP security checklist, and the new-user→feature flow check. Consumed by both the
+  `/qa` skill and the CI review bot (`.github/workflows/claude-review.yml` — label-gated
+  `claude-review`, subscription-auth, advisory but conversation-resolution-gated on `main`)
 
 ## SDLC — spec-driven flow
 
