@@ -32,10 +32,10 @@ artifacts**.
 ## 2. Background — what we already know (do not re-research)
 
 - Product strategy, scope, and architecture are fixed in `CLAUDE.md`, the `weave-platform` brief,
-  and the `constitution-engine` etc briefs (see `.claude/specs/*/01-brief/*.md`). Confirmed: full W3C stack (RDF/OWL 2 DL / SHACL / SPARQL /
+  and the `constitution-engine` etc briefs (see `docs/specs/*/01-brief/*.md`). Confirmed: full W3C stack (RDF/OWL 2 DL / SHACL / SPARQL /
   PROV-O / SKOS), ArchiMate-3-aligned ~9-type universal ontology, NL + forms authoring, multi-tenant
   AWS SaaS, Constitution Engine ships first.
-- The vision artefacts in `prototypes/thoughts.md` and `prototypes/BluShift-transcript.md` describe
+- The vision artefacts in `.history/thoughts.md` and `prototypes/BluShift-transcript.md` describe
   the intended product surface (constitution, org/network views, dark-factory harness, Polaris
   self-improvement, audit trail). Reference prototypes exist in `prototypes/`.
 - Research must **build on** these, not relitigate them. Where a finding challenges a confirmed

@@ -9,7 +9,7 @@ coverage: n/a
 ---
 # Historical ADRs — current-state decisions
 
-Each file in this directory records an architectural decision that shaped the system as it stands today. These are *historical* ADRs reverse-engineered from code + SME interviews, distinct from forward-looking ADRs in `.claude/specs/<entity>/00-elicit/`.
+Each file in this directory records an architectural decision that shaped the system as it stands today. These are *historical* ADRs reverse-engineered from code + SME interviews, distinct from forward-looking ADRs in `docs/specs/weave/engines/<entity>.md00-elicit/`.
 
 ## Filename convention
 

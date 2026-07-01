@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Complexity Gates — Coding Standard
+description: "Cyclomatic and cognitive complexity budgets enforced across the codebase."
+tags: [standards, complexity]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/complexity.md
+---
+
 # Complexity gates — universal base
 
 **Plugin Law E: complexity as a budget.** Every Weave-generated project

@@ -5,7 +5,7 @@ description: Scaffolds the .claude/ spec and state spine plus docs/ coding stand
 
 # Init
 
-Scaffold the `.claude/` spec and state spine (`.claude/specs/`, `.claude/state/`) plus `docs/standards/` coding standards. This is the first step before running any other Weave command.
+Scaffold the `.claude/` spec and state spine (`docs/specs/`, `.claude/state/`) plus `docs/standards/` coding standards. This is the first step before running any other Weave command.
 
 ## Trigger
 
@@ -95,8 +95,8 @@ Detect the current project state:
 
 | Condition | Path |
 |-----------|------|
-| `.claude/specs/` exists | Already initialized → confirm reinit |
-| Manifest exists (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `pom.xml`, `build.gradle`, `composer.json`) but NO `.claude/specs/` | Brownfield → run discover → reconcile → optional interview → HITL gate |
+| `docs/specs/` exists | Already initialized → confirm reinit |
+| Manifest exists (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `pom.xml`, `build.gradle`, `composer.json`) but NO `docs/specs/` | Brownfield → run discover → reconcile → optional interview → HITL gate |
 | `prototype/` exists | PDD path (handled by Architect) |
 | None of above | Greenfield → standard init |
 
@@ -155,7 +155,7 @@ If `migration.lock` exists, Step 1.5 skips entirely on re-runs — detections be
 Create the following directories:
 ```
 .claude/                      # Project config + spec/state spine
-  specs/                      # Entity specs — <entity>/<phase>/ created on demand by PO/architect skills (NOT pre-created here)
+  specs/                      # Unified spec — docs/specs/weave/engines/<entity>.md (+ <entity>/04-arch/ files) created on demand by PO/architect skills (NOT pre-created here)
   state/
     summaries/
     escalations/
@@ -168,8 +168,8 @@ docs/
   discovery/                  # Brownfield: graph viz, reality doc, shards, index
 ```
 
-Note: spec content is **entity-scoped** under `.claude/specs/<entity>/<phase>/` and is created
-on demand by the PO and architect skills — init only ensures the base `.claude/specs/` directory
+Note: spec content is **entity-scoped** under `docs/specs/weave/engines/` and is created
+on demand by the PO and architect skills — init only ensures the base `docs/specs/` directory
 exists, never a flat `tech-spec/`/`tasks/`/`decisions/` tree. `docs/discovery/`,
 `.claude/state/discovery/`, and `.claude/state/context/` are only populated during brownfield
 init but are always created for structural consistency.
@@ -210,14 +210,14 @@ Overlay files with the same name as a base file **overwrite** the base file
 
 **Spec templates — do NOT copy at init.** Spec artefacts are entity-scoped and created on
 demand: the PO and architect skills instantiate each artefact from `.claude/spec-templates/`
-into `.claude/specs/<entity>/<phase>/` when that entity reaches that phase. Init does not seed
+into `docs/specs/weave/engines/` when that entity reaches that phase. Init does not seed
 a flat `brief.md`/`prd.md`/`roadmap.md`/`tech-spec/` set.
 
 **Few-shot pointer marker:**
 
 After standards copy, write:
 - `<project>/.claude/weave-few-shot.txt` — one line:
-  `plugins/weave/templates/few-shot/`
+  `docs/standards/patterns/`
 
 This lets engineers and agents locate stack-specific examples without
 re-deriving the path.
@@ -226,7 +226,7 @@ re-deriving the path.
 
 Create `.claude/CLAUDE.md` with the project name and basic conventions. This is the "schema layer" — the operational document that agents and humans co-evolve. Initial content should include:
 - Project name
-- Link to `.claude/specs/` for requirements
+- Link to `docs/specs/` for requirements
 - Link to `docs/standards/` for coding conventions
 - If brownfield: link to `docs/discovery/graph.html` and `docs/discovery/brownfield-architecture.md`
 
@@ -307,7 +307,7 @@ Display a summary:
 Weave initialized successfully.
 
 Created:
-  .claude/specs/          - Spec artifacts (brief, PRD, roadmap, tech-spec, epics, tasks)
+  docs/specs/          - Spec artifacts (brief, PRD, roadmap, tech-spec, epics, tasks)
   docs/standards/      - Coding standards (code-style, testing, git-workflow, linting)
   .claude/state/          - Progress tracking
 
@@ -338,7 +338,7 @@ When testing this skill, verify:
 - **Standards copied (base)**: All base standards files are present in `docs/standards/` when `WEAVE_STANDARDS_NONE` is unset
 - **Standards copied (overlay)**: Language-specific overlay files are present in `docs/standards/` and have overwritten any same-named base files
 - **Standards skipped**: When `WEAVE_STANDARDS_NONE=1`, no files are written to `docs/standards/`
-- **Few-shot pointer written**: `.claude/weave-few-shot.txt` exists containing `plugins/weave/templates/few-shot/`
+- **Few-shot pointer written**: `.claude/weave-few-shot.txt` exists containing `docs/standards/patterns/`
 - **Stack shortcode path**: `--stack ts-nextjs-aws` skips MCQ and produces correct `weave.stack` block in `settings.json`
 - **Stack MCQ path**: Without `--stack`, all six MCQ questions are asked in order; IaC question is skipped for `none (local-only)`
 - **Exotic stack escape hatch**: Selecting `other` language shows the bus-factor warning and sets `test_framework`/`e2e_framework` to `"custom"`
@@ -349,7 +349,7 @@ When testing this skill, verify:
 - **Reinitialize safety**: Running init on an existing project warns the user and does not destroy existing work
 - **Confirmation displayed**: Summary output shows what was created and suggests next steps
 - **Template placeholders removed**: No `{{...}}` placeholders remain in copied template files
-- **Brownfield detection**: When `package.json` (or equivalent manifest) exists but `.claude/specs/` does not, brownfield path is triggered
+- **Brownfield detection**: When `package.json` (or equivalent manifest) exists but `docs/specs/` does not, brownfield path is triggered
 - **Brownfield discovery**: Discover skill is invoked, producing `docs/discovery/graph.html`, `docs/discovery/brownfield-architecture.md`, and shard files
 - **Brownfield HITL gate**: User is presented with reality-doc for review before continuing
 - **Greenfield regression**: Empty directory still takes the standard greenfield path

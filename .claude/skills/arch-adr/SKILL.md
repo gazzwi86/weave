@@ -12,7 +12,7 @@ when a new technical choice needs to be captured before it is forgotten or conte
 ## Model
 
 - **Elicitation phase:** claude-opus-4-8 (probing context, surfacing hidden alternatives)
-- **Drafting phase:** claude-sonnet-4-6 (precise, opinionated prose)
+- **Drafting phase:** claude-sonnet-5 (precise, opinionated prose)
 
 ADRs are short documents. The full draft — all sections — is presented to the user in a
 single HITL round. Elicitation is one targeted question before drafting begins.
@@ -24,9 +24,9 @@ Before doing anything else, read:
 1. `CLAUDE.md` — confirmed Weave stack defaults (never document confirmed-stack decisions as ADRs;
    those already live in CLAUDE.md)
 2. `.claude/spec-templates/adr.md` — exact section structure and in-file examples
-3. Any existing ADRs in `.claude/specs/<entity>/04-arch/decisions/` to determine the next
+3. Any existing ADRs in `docs/specs/weave/engines/<entity>/04-arch/decisions/` to determine the next
    sequence number and avoid duplicating a decision already recorded
-4. Any relevant tech-spec at `.claude/specs/<entity>/04-arch/tech-spec.md` for context
+4. Any relevant tech-spec at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for context
 
 Ask the user which entity this ADR belongs to if not supplied. Valid entities include:
 `constitution-engine`, `build-engine`, `events-actions-engine`, `graph-explorer`,
@@ -47,7 +47,7 @@ Reference this when justifying decisions during the HITL loop.
 
 ### Step 1 — Context ingestion
 
-1. Read existing ADRs in `.claude/specs/<entity>/04-arch/decisions/` and determine `NNN`
+1. Read existing ADRs in `docs/specs/weave/engines/<entity>/04-arch/decisions/` and determine `NNN`
    (zero-padded three digits: `001`, `002`, …). If the directory does not exist, `NNN = 001`.
 2. Read `CLAUDE.md` to identify confirmed stack defaults. If the user's decision merely
    reaffirms a confirmed default (e.g. "use FastAPI"), stop and tell the user:
@@ -198,7 +198,7 @@ Ask via AskUserQuestion: **Approve / Amend / Reject**
 After approval:
 
 ```bash
-git add .claude/specs/<entity>/04-arch/decisions/ADR-NNN.md
+git add docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md
 git commit -m "docs(<entity>): add ADR-NNN <decision title in lowercase>"
 ```
 
@@ -207,7 +207,7 @@ Example: `docs(constitution-engine): add ADR-001 use oxigraph as rdf store for d
 Then tell the user:
 
 > "ADR-NNN recorded. If this decision affects the tech-spec, update
-> `.claude/specs/<entity>/04-arch/tech-spec.md` to reference this ADR."
+> the relevant file in `docs/specs/weave/engines/<entity>/04-arch/tech-spec/` to reference this ADR."
 
 ## Constitutional self-check (run before every delivery)
 
@@ -248,12 +248,12 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/decisions/ADR-NNN.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md`
 
 Create the directory if it does not exist:
 
 ```bash
-mkdir -p .claude/specs/<entity>/04-arch/decisions
+mkdir -p docs/specs/weave/engines/<entity>/04-arch/decisions
 ```
 
 Template: `.claude/spec-templates/adr.md`
@@ -265,7 +265,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: ADR
 title: "ADR-NNN: <imperative title>"
+description: "<one-line summary of the decision and its consequence>"
+tags: [<entity>, 04-arch, decision]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Proposed
 created: <YYYY-MM-DD>
 entity: <entity>

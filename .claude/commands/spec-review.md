@@ -11,7 +11,7 @@ Review all specification documents for completeness, consistency, and implementa
 
 ## Description
 
-Reviews all specs in `.claude/specs/` against completeness and consistency criteria. Used automatically by `/implement` before scaffolding, but can also be run standalone.
+Reviews all specs in `docs/specs/` against completeness and consistency criteria. Used automatically by `/implement` before scaffolding, but can also be run standalone.
 
 ## Instructions
 

@@ -3,6 +3,17 @@ name: po-roadmap
 description: Produce a phase-structured delivery roadmap (roadmap.md) for a Weave spec entity, grouping approved epics into sequenced phases with explicit HITL gate criteria. Invoked by the product-owner agent after the PRD is approved; output feeds the architect tech-spec phase.
 ---
 
+> **Consolidated-spec output (post-merge layout).** Every PO artifact for an entity lives as a
+> **section inside one file**: `docs/specs/weave/engines/<entity>.md`. This skill writes/updates
+> **only its own section** and MUST NOT overwrite others — `## Brief` (po-brief),
+> `## Product Requirements (PRD)` (po-prd), `## Epics` with one `### EPIC-NNN` subsection per epic
+> (po-epic), `## Roadmap` (po-roadmap). If the file does not yet exist, create it with merged
+> frontmatter (per `.claude/spec-templates/frontmatter-schema.md`) and a `# <Engine>` heading, then
+> add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
+> this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
+> artifacts (tech spec, tasks, ADRs) remain **files** under
+> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+
 # PO Roadmap Skill
 
 Produce a phase-structured delivery roadmap (`roadmap.md`) for a Weave spec entity, grouping
@@ -11,10 +22,10 @@ boundary. Invoked after the PRD is approved; output feeds the Architect's tech-s
 
 ## Model
 
-- **Primary model:** claude-sonnet-4-6 (all phases — Gantt generation, phase block drafting,
+- **Primary model:** claude-sonnet-5 (all phases — Gantt generation, phase block drafting,
   gate criteria prose)
 - **Reasoning tier note:** Phase-scoping step (Step 2) requires dependency analysis; use
-  extended thinking tokens via claude-sonnet-4-6's thinking budget rather than switching
+  extended thinking tokens via claude-sonnet-5's thinking budget rather than switching
   models. Do not invoke claude-opus-4-8 unless the user explicitly requests it.
 
 ## Input
@@ -24,12 +35,12 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws, EARS notation rules
 2. `.claude/spec-templates/roadmap.md` — section structure (use as scaffold, never leave `{{}}` in output)
 3. `.claude/spec-templates/phase-gate.md` — gate checklist structure; gate exit criteria must mirror this
-4. `.claude/specs/<entity>/01-brief/brief.md` — success criteria and constraints
-5. `.claude/specs/<entity>/02-prd/prd.md` — approved epics and their priorities
+4. `docs/specs/weave/engines/<entity>.md` — success criteria and constraints
+5. `docs/specs/weave/engines/<entity>.md` — approved epics and their priorities
 
 Ask the user which entity this roadmap is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
-`.claude/specs/<entity>/03-roadmap/roadmap.md`
+`docs/specs/weave/engines/<entity>.md`
 
 ## Instructions
 
@@ -194,12 +205,20 @@ Rules:
 - "blocks" must reference the next phase by name (or "Release" for the final gate)
 - Every gate must have a named approver role
 
+### Add a `# Related` section (build the knowledge-graph edges)
+
+Append a `# Related` section linking predecessor and successor documents with `docs/`-relative
+or path-relative markdown links. **Link only files that exist on disk now.**
+- Predecessor (always exists): the PRD — `[prd.md](../02-prd/prd.md)` — and the brief.
+- Do **not** forward-link tech-spec shards (`../04-arch/tech-spec/*.md`) until they exist; the
+  architect skills add the back-link to this roadmap when they run.
+
 ### After all sections approved
 
 Commit the roadmap:
 
 ```bash
-git add .claude/specs/<entity>/03-roadmap/roadmap.md
+git add docs/specs/weave/engines/<entity>.md
 git commit -m "docs(<entity>): add delivery roadmap with <N> phases and HITL gates"
 ```
 
@@ -265,7 +284,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/03-roadmap/roadmap.md`
+File: `docs/specs/weave/engines/<entity>.md`
 Template: `.claude/spec-templates/roadmap.md`
 
 Create the directory if it doesn't exist. Never leave `{{PLACEHOLDER}}` in the output.
@@ -274,12 +293,15 @@ Frontmatter:
 
 ```yaml
 ---
+type: Roadmap
 title: "Roadmap: <entity display name>"
+description: "<one-line summary of the phased delivery roadmap for this entity>"
+tags: [<entity>, 03-roadmap]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
-created: <YYYY-MM-DD>
-entity: <entity>
 phases: <N>
 gates: <N>
+resource: docs/specs/weave/engines/<entity>.md
 ---
 ```
 

@@ -3,6 +3,17 @@ name: po-brief
 description: Produce a high-quality project brief (brief.md) for a Weave spec entity, one section at a time with HITL. Invoked by the product-owner agent as the first PO artifact.
 ---
 
+> **Consolidated-spec output (post-merge layout).** Every PO artifact for an entity lives as a
+> **section inside one file**: `docs/specs/weave/engines/<entity>.md`. This skill writes/updates
+> **only its own section** and MUST NOT overwrite others — `## Brief` (po-brief),
+> `## Product Requirements (PRD)` (po-prd), `## Epics` with one `### EPIC-NNN` subsection per epic
+> (po-epic), `## Roadmap` (po-roadmap). If the file does not yet exist, create it with merged
+> frontmatter (per `.claude/spec-templates/frontmatter-schema.md`) and a `# <Engine>` heading, then
+> add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
+> this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
+> artifacts (tech spec, tasks, ADRs) remain **files** under
+> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+
 # PO Brief Skill
 
 Produce a high-quality project brief (`brief.md`) for a Weave spec entity. One section at
@@ -11,7 +22,7 @@ a time, with HITL review at every section. Opus for elicitation; Sonnet for draf
 ## Model
 
 - **Elicitation phase:** claude-opus-4-8 (wide reasoning, novel framing, root-cause probing)
-- **Drafting phase:** claude-sonnet-4-6 (structured, precise prose)
+- **Drafting phase:** claude-sonnet-5 (structured, precise prose)
 
 ## Input
 
@@ -19,12 +30,12 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/brief.md` — section structure (use as scaffold, never leave `{{}}` in output)
-3. Any prior elicitation output (`.claude/specs/<entity>/00-elicit/*.md` if present)
-4. Any existing brief draft (`.claude/specs/<entity>/01-brief/brief.md` if present) to continue or refine
+3. Any prior elicitation output (`docs/specs/weave/engines/<entity>.md00-elicit/*.md` if present)
+4. Any existing brief draft (`docs/specs/weave/engines/<entity>.md` if present) to continue or refine
 
 Ask the user which entity this brief is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
-`.claude/specs/<entity>/01-brief/brief.md`
+`docs/specs/weave/engines/<entity>.md`
 
 ## Instructions
 
@@ -119,11 +130,48 @@ Table: Decision | Rationale | Date
 List confirmed architectural/product decisions relevant to this entity.
 Link to `CLAUDE.md § Architecture decisions (confirmed)` for the master list.
 
+### Machine-Readability Checklist (run before finalising — blocking)
+
+A brief is the root contract the entire dark factory inherits. Agents are gap-intolerant:
+any ambiguity here is bridged downstream by hallucination, not judgement. Before committing,
+walk this checklist out loud in chat and resolve every `✗` with the user before proceeding.
+The completeness test (AERO): *"Could a downstream agent, given only this brief, derive a
+PRD and tasks without inventing scope, naming, or success conditions?"*
+
+```
+[ ] Acceptance criteria — every Success Criterion is measurable (number or binary signal),
+    time-bounded (date or milestone), and sourced (who measures it, from what system)
+[ ] Success metric — at least one falsifiable top-line metric a stakeholder can verify in 12 months
+[ ] Entity boundary — Scope names what is IN and what is OUT; no capability is left undecided
+[ ] Explicit non-goals — Out-of-Scope rules out the known scope-creep vectors for this entity
+[ ] Testable completion — "done" is stated as an observable condition, not an aspiration
+[ ] Stakeholder identified — Target Users names concrete personas (never "user"), each with a Primary Need
+[ ] Stack alignment — Constraints reference the confirmed Weave stack where relevant (no re-litigation)
+[ ] No placeholders — zero `{{...}}` or `<...>` tokens remain in the file
+[ ] OKF frontmatter — `type: Product Brief` plus title/description/tags/timestamp present
+```
+
+If any item is `✗`, fix it (loop back to the relevant section's HITL) before committing.
+Output the completed checklist in chat — it is the brief's machine-readability receipt.
+
+### Add a `# Related` section (build the knowledge-graph edges)
+
+Append a `# Related` section to the end of the brief that cross-links predecessor and
+successor documents using `docs/`-relative or path-relative markdown links. This is how OKF
+edges form between concepts.
+
+**Discipline (do not break it):** link only files that **exist on disk right now**.
+- Predecessors that may exist: prior elicitation (`../00-elicit/*.md`), the platform brief
+  (`../../weave-platform/01-brief/brief.md`) for an engine entity.
+- Do **not** emit a forward-link to `02-prd/prd.md` or any successor until it exists — an
+  unresolved link becomes a broken OKF cross-link warning. The PRD skill adds the back-link
+  to this brief when it is written.
+
 ### After all sections approved
 
 Commit the brief:
 ```
-git add .claude/specs/<entity>/01-brief/brief.md
+git add docs/specs/weave/engines/<entity>.md
 git commit -m "docs: add <entity> brief"
 ```
 
@@ -170,17 +218,20 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/01-brief/brief.md`
+File: `docs/specs/weave/engines/<entity>.md`
 Template: `.claude/spec-templates/brief.md`
 
 Create the directory if it doesn't exist. Never leave `{{PLACEHOLDER}}` in the output.
-Frontmatter:
+Frontmatter (OKF v0.1 — `type` is mandatory or the bundle fails `/okf-validate`):
 ```yaml
 ---
-title: Brief: <entity display name>
+type: Product Brief
+title: "Brief: <entity display name>"
+description: "<one-line summary of what this entity delivers and for whom>"
+tags: [<entity>, 01-brief]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
-created: <YYYY-MM-DD>
-entity: <entity>
+resource: docs/specs/weave/engines/<entity>.md
 ---
 ```
 

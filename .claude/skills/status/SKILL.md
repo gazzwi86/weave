@@ -62,6 +62,49 @@ Determine status by:
 - File has content but no approval marker -> In Review
 - File has approval marker or is referenced by tasks -> Approved
 
+### Step 3b: Spec Health
+
+Give instant visibility into spec completeness before `/implement` is ever run. Two parts:
+
+**Per-entity map.** For each engine spec `docs/specs/weave/engines/<entity>.md`, report which
+cascade phases are present (now **sections**, not directories) and which phase the entity is in.
+Brief/PRD/Epics/Roadmap are `##`/`###` sections in that file; tech-spec/tasks are files under the
+sibling `docs/specs/weave/engines/<entity>/04-arch/` directory:
+
+```bash
+for f in docs/specs/weave/engines/*.md; do
+  e=$(basename "$f" .md); echo "$e"
+  grep -oE '^## (Brief|Product Requirements|Epics|Roadmap)' "$f"   # PO sections present
+  ls -1 "docs/specs/weave/engines/$e/04-arch" 2>/dev/null         # architect artifacts, if any
+done
+```
+
+```
+Spec Health (per entity):
+  constitution-engine   phase: 01-brief    [brief ✓ | prd – | roadmap – | arch –]
+  build-engine          phase: 01-brief    [brief ✓ | prd – | roadmap – | arch –]
+  ...
+```
+
+**OKF conformance.** Run the bundle validator and surface the headline plus any per-file
+issues (missing `type` frontmatter = hard error; broken cross-links = warning):
+
+```bash
+uv run .claude/scripts/okf_validate.py docs/ 2>&1 | tail -8
+```
+
+Report as:
+
+```
+OKF Bundle:  ✓ conformant (N concepts, M warning(s))   |   ✗ non-conformant (list errors)
+  - missing frontmatter:  <files, if any>
+  - broken cross-links:   <files, if any>
+```
+
+A non-conformant bundle is the single most important thing to flag here — it means a
+spec-producing skill emitted a file without OKF `type` frontmatter, and `/okf-visualize`
+plus any OKF-aware tooling will reject the bundle until it is fixed.
+
 ### Step 4: Suggest Next Action
 
 Based on current state, suggest the logical next step:

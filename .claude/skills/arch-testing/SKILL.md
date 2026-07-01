@@ -12,8 +12,8 @@ strategy (Section 2) and again after the integration strategy (Section 3). Invok
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-4-6 (structured, precise, stack-aware prose)
-- **Complexity review:** claude-sonnet-4-6 (validates mutation thresholds and tool choices)
+- **Drafting phase:** claude-sonnet-5 (structured, precise, stack-aware prose)
+- **Complexity review:** claude-sonnet-5 (validates mutation thresholds and tool choices)
 
 No Opus tier needed — this is a constrained, stack-opinionated document with no novel
 architecture decisions. The Weave stack (pytest, Vitest, Playwright, LocalStack) is fixed.
@@ -24,16 +24,16 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave confirmed stack, laws (especially Law F: no real cloud in tests)
 2. `.claude/spec-templates/tech-spec/testing-strategy.md` — section scaffold
-3. `.claude/specs/<entity>/03-arch/tech-spec/tech-spec.md` if present — to understand
+3. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` if present — to understand
    what is being tested (APIs, components, agents, RDF endpoints, pipelines)
-4. `.claude/specs/<entity>/02-prd/prd.md` if present — to extract acceptance criteria
+4. `docs/specs/weave/engines/<entity>.md` if present — to extract acceptance criteria
    that require E2E coverage
-5. `.claude/specs/<entity>/04-arch/tech-spec/stack.md` if present — to confirm whether
+5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md` if present — to confirm whether
    the entity is Python-only, TypeScript-only, or full-stack
 
 Ask the user which entity this testing strategy is for (e.g. `constitution-engine`,
 `build-engine`, `weave-platform`) if not supplied. Output path is:
-`.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+`docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 
 ## Instructions
 
@@ -398,7 +398,7 @@ After all sections are approved:
 4. Commit:
 
 ```bash
-git add .claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md
 git commit -m "docs(<entity>): add testing strategy"
 ```
 
@@ -446,7 +446,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 
 Template: `.claude/spec-templates/tech-spec/testing-strategy.md`
 
@@ -456,7 +456,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: Testing Strategy
 title: "Testing Strategy: <entity display name>"
+description: "<one-line summary of the testing strategy for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>

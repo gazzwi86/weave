@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: TypeScript Tooling — Coding Standard
+description: "TypeScript/JavaScript tooling overlay: package manager, formatters."
+tags: [standards, tooling, typescript]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/tooling-ts.md
+---
+
 # TypeScript / JavaScript — tooling overlay
 
 > Python tooling: see [`tooling-py.md`](tooling-py.md).

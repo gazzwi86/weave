@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Python Tooling — Coding Standard
+description: "Python tooling overlay: uv, ruff, type checking."
+tags: [standards, tooling, python]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/tooling-py.md
+---
+
 # Python — tooling overlay
 
 > TypeScript tooling: see [`tooling-ts.md`](tooling-ts.md).

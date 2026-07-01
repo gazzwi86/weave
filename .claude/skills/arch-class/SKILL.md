@@ -11,7 +11,7 @@ during the architecture phase after the C4 container diagram has been approved.
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-4-6 (structured generation, precise relationships)
+- **Drafting phase:** claude-sonnet-5 (structured generation, precise relationships)
 - **Reasoning tier:** generation — translates spec intent into typed domain model
 
 ## Input
@@ -21,18 +21,18 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/class.md` — section structure (scaffold; never leave
    `{{}}` in output)
-3. `.claude/specs/<entity>/03-arch/architecture.md` if it exists — confirms Level 3 (module)
-   boundary before class-level work is trustworthy
-4. `.claude/specs/<entity>/02-prd/prd.md` if it exists — domain vocabulary and bounded
+3. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` if it exists — confirms Level 3
+   (module) boundary before class-level work is trustworthy
+4. `docs/specs/weave/engines/<entity>.md` if it exists — domain vocabulary and bounded
    contexts
-5. Any existing draft (`.claude/specs/<entity>/04-arch/tech-spec/class-diagram.md`) to
+5. Any existing draft (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md`) to
    continue or refine
 
 Ask the user which entity this diagram is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
 
 ```
-.claude/specs/<entity>/04-arch/tech-spec/class-diagram.md
+docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md
 ```
 
 ## Instructions
@@ -275,7 +275,7 @@ Run `.claude/scripts/progress.sh` to update `.claude/state/progress.json` if pre
 Commit the diagram:
 
 ```
-git add .claude/specs/<entity>/04-arch/tech-spec/class-diagram.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md
 git commit -m "docs(<entity>): add class diagram"
 ```
 
@@ -325,7 +325,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/tech-spec/class-diagram.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md`
 
 Template: `.claude/spec-templates/architecture/class.md`
 
@@ -335,7 +335,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: Class Diagram Spec
 title: "Class Diagram: <entity display name>"
+description: "<one-line summary of the domain class model for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>

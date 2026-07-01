@@ -17,7 +17,7 @@ legacy project names are dropped.
 
 **Why:** Codenames hide capability and raise the comprehension cost for users, buyers,
 and engineers. A name should let a reader infer the tool's purpose without a glossary.
-The prototype docs (`prototypes/BluShift-transcript.md`, `prototypes/thoughts.md`) use
+The prototype docs (`prototypes/BluShift-transcript.md`, `.history/thoughts.md`) use
 the old codenames — treat their *content* as authoritative but rename on the way in.
 
 **How to apply:** When writing specs, UI labels, code, or docs, never introduce a

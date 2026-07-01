@@ -17,15 +17,11 @@ _HEREDOC_RE = re.compile(r"<<-?\s*'?(\w+)'?.*?^\1$", re.DOTALL | re.MULTILINE)
 
 # Files/dirs that may legitimately contain forbidden literals (rule docs, tests, the
 # linter's own source). One-tuple-per-rule: (suffix or None, substring fragment).
+# The empty-string substr matches any path — used to exempt a whole extension class.
 _EXEMPT_PATH_RULES = (
     (None, "/.claude/scripts/"),
     (None, "/tests/"),
-    (".md", "/rules/"),
-    (".md", "/docs/"),
-    (".md", "/skills/"),
-    (".md", "/reports/"),
-    (".md", "/commands/"),
-    (".md", "/memory/"),
+    (".md", ""),       # all markdown files are documentation, not executable code
 )
 
 _FIX = "uv tool install <pkg>, uvx <pkg>, uv add <pkg>, or uv pip install --system <pkg>"

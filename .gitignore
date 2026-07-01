@@ -60,3 +60,9 @@ test-results/
 .legacy/
 # Weave — throwaway reference prototypes (deleted once specs are complete; not part of the harness)
 prototypes/
+# Weave — local file-history archive (engagement worklogs/findings + superseded specs; not committed)
+.history/
+# Weave — OKF knowledge graph (generated on demand by /okf-visualize or /anatomy; not committed)
+docs/viz.html
+docs/specs/weave/viz.html
+.thinking.md

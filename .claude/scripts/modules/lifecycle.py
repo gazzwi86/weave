@@ -3,6 +3,8 @@
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
 from modules.common import PROJECT_ROOT
 
@@ -13,8 +15,50 @@ def notification(payload: dict) -> None:
         sys.stderr.write(f"Claude says: {msg}\n")
 
 
+def _write_session_snapshot(event: str) -> None:
+    """Write current state to .claude/state/summaries/latest.md."""
+    summaries_dir = PROJECT_ROOT / ".claude" / "state" / "summaries"
+    try:
+        summaries_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+
+    progress_path = PROJECT_ROOT / ".claude" / "state" / "progress.json"
+    progress_content = ""
+    if progress_path.exists():
+        try:
+            progress_content = progress_path.read_text(encoding="utf-8")
+        except OSError:
+            pass
+
+    # Find the most recent PHASE-N.md summary
+    phase_content = ""
+    try:
+        phase_files = sorted(summaries_dir.glob("PHASE-*.md"), reverse=True)
+        if phase_files:
+            phase_content = phase_files[0].read_text(encoding="utf-8")
+    except OSError:
+        pass
+
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    snapshot = (
+        f"# Session Snapshot\n\n"
+        f"Captured at: {now}\n"
+        f"Event: {event}\n\n"
+        f"## Current State\n\n"
+        f"{progress_content or '(no progress.json found)'}\n\n"
+        f"## Last Phase Summary\n\n"
+        f"{phase_content or '(no phase summary found)'}\n"
+    )
+
+    try:
+        (summaries_dir / "latest.md").write_text(snapshot, encoding="utf-8")
+    except OSError:
+        pass
+
+
 def check_setup_status(_payload: dict) -> None:
-    """SessionStart — warn about missing setup (git hooks)."""
+    """SessionStart — warn about missing setup (git hooks) and inject last snapshot."""
     missing = []
 
     try:
@@ -29,6 +73,18 @@ def check_setup_status(_payload: dict) -> None:
 
     if missing:
         sys.stderr.write("setup status:\n  - " + "\n  - ".join(missing) + "\n")
+
+    # Inject last snapshot if recent (< 24 hours)
+    latest = PROJECT_ROOT / ".claude" / "state" / "summaries" / "latest.md"
+    try:
+        if latest.exists():
+            age_seconds = datetime.now(timezone.utc).timestamp() - latest.stat().st_mtime
+            if age_seconds < 86400:
+                content = latest.read_text(encoding="utf-8")
+                if content.strip():
+                    sys.stderr.write(f"[session-snapshot]\n{content}\n")
+    except OSError:
+        pass
 
 
 def subagent_stop(payload: dict) -> None:
@@ -117,8 +173,10 @@ def commit_progress(payload: dict) -> None:
 
 
 def pre_compact(_payload: dict) -> None:
-    """Fires before context compaction. Snapshot state here if needed."""
+    """Fires before context compaction — snapshot state so it survives the compact."""
+    _write_session_snapshot("pre-compact")
 
 
 def session_end(_payload: dict) -> None:
-    """Fires at session end. Flush logs, persist state, etc."""
+    """Fires at session end — persist final state snapshot."""
+    _write_session_snapshot("session-end")

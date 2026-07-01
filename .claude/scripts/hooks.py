@@ -21,21 +21,22 @@ Each module in modules/ owns one logical concern. To add a new hook:
 
 import sys
 
+import harness_manifest
 from modules import common
-from modules import secrets, wiki, eslint, stop
-from modules import memory, lifecycle, circular_deps, claude_review, python_tooling
+from modules import secrets, wiki, stop
+from modules import memory, lifecycle, python_tooling
+from modules import install_safety, git_safety
 
 PRE_TOOL_USE_CHECKS = {
-    "check-no-secrets":   [secrets.check_no_secrets],
-    "check-uv-over-pip":  [python_tooling.check_uv_over_pip],
+    "check-no-secrets":     [secrets.check_no_secrets],
+    "check-uv-over-pip":   [python_tooling.check_uv_over_pip],
+    "check-install-safety": [install_safety.check_install_safety],
+    "check-git-safety":     [git_safety.check_no_verify],
 }
 
 POST_TOOL_USE_CHECKS = {
-    "check-circular-deps":   [circular_deps.check_circular_deps],
     "mark-anatomy-stale":    [wiki.mark_anatomy_stale],
     "commit-progress":       [lifecycle.commit_progress],
-    "claude-review":         [claude_review.claude_review],
-    "check-eslint-security": [eslint.check_eslint_security],
 }
 
 EVENT_HANDLERS = {
@@ -48,6 +49,7 @@ EVENT_HANDLERS = {
     "session-end":          [lifecycle.session_end],
     # CLI-only — invoked by the pre-push git hook, not wired in settings.json
     "check-anatomy-fresh":  [wiki.check_anatomy_fresh],
+    "check-harness-manifest": [harness_manifest.check],
 }
 
 

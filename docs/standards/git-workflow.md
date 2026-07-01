@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Git Workflow — Coding Standard
+description: "Branching, conventional commits, and stacked-PR conventions."
+tags: [standards, git]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/git-workflow.md
+---
+
 # Git Workflow
 
 **Stack-agnostic.** Language-specific tooling (husky, pre-commit) is covered

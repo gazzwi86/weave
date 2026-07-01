@@ -9,7 +9,7 @@ Evaluate whether the current implementation phase meets all quality gates before
 
 ## Model
 
-- **Gate evaluation:** claude-sonnet-4-6 (structured analysis, precise checklist assessment)
+- **Gate evaluation:** claude-sonnet-5 (structured analysis, precise checklist assessment)
 - **Security sub-skill:** delegates to `/security-review` (runs its own model chain)
 
 ## Trigger
@@ -30,7 +30,7 @@ Before doing anything else, read:
 
 1. `.claude/state/progress.json` — current phase name, epics, and task statuses
 2. `.claude/spec-templates/phase-gate.md` — section scaffold for the summary document
-3. `.claude/specs/<entity>/<phase>/*.md` — all spec artifacts for the current phase
+3. `docs/specs/weave/engines/<entity>.md` — all spec artifacts for the current phase
 4. `.claude/state/summaries/` — any prior phase summaries (for continuity context)
 
 Derive `<entity>` and `<phase>` from the `phase` field in `progress.json`.
@@ -103,6 +103,29 @@ MUTATION: runner not configured — skipped. Score assumed 0% (RED).
 
 Do not fabricate a score. A missing runner is a red signal.
 
+### Step 3b — UI verification gate (UI-affecting phases only)
+
+For every UI-affecting feature delivered in this phase, **re-execute** the deterministic UI gate —
+do not trust a prior PASS recorded by the engineer or QA. This is the enforcing seam: the script's
+exit code, not prose, decides.
+
+```bash
+# Launch the built app, then for each UI feature/epic:
+.claude/scripts/ui_verify.sh --full --target <served-url-for-the-feature> \
+  --runbook <path-to-the-feature-run-book>
+```
+
+`ui_verify.sh` fails closed: a missing Playwright/Lighthouse toolchain is a FAILURE, not a skip
+(it never silently passes). Capture the exit code per feature.
+
+**Gate rule:** any `ui_verify.sh` exit ≠ 0 → mark the UI gate RED → the gate **cannot** Approve
+(blocked programmatically, exactly like a CRITICAL security finding). The human approver may Amend
+(fix and re-gate) but Approve is blocked. A run-book that is missing or whose `vouched-by:` is empty
+is itself a RED — a screen no human has vouched for is not done.
+
+If the phase delivered no UI-affecting features, emit `UI-VERIFY: N/A (no UI features this phase)`
+and continue. "No UI features" must be true from the task briefs, not assumed to dodge the gate.
+
 ### Step 4 — Kanban summary presentation
 
 Display the full kanban output captured in Step 1 verbatim, then add:
@@ -163,7 +186,7 @@ Populate every item from the template with real status (checked = pass, unchecke
 - **Deliverables** — all tasks done (from Step 1)
 - **Quality** — lint errors (from any pre-tool-use hook output), complexity thresholds (Plugin Law E:
   cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines), mutation score ≥ 70% (Step 3),
-  QA review complete (check `.claude/specs/<entity>/<phase>/qa-report.md` if present)
+  QA review complete (check `docs/specs/weave/engines/qa-report.md` if present)
 - **Artifacts** — PRs created (check `gh pr list --state open`), conventional commits
   (verify last 10 commits: `git log --oneline -10`), documentation updated
 - **Environment** — verify the correct start commands for Weave's stack:
@@ -203,7 +226,7 @@ Then present the full document content to the user.
 Emit the confidence block, then ask via AskUserQuestion:
 
 **Question:** "Phase gate for `<phase label>` is ready for your review.
-Security: `<PASS|FAIL|CRITICAL>` | Mutation: `<score>%` (`<RED|GREEN>`).
+Security: `<PASS|FAIL|CRITICAL>` | Mutation: `<score>%` (`<RED|GREEN>`) | UI-verify: `<PASS|RED|N/A>`.
 What is your decision?"
 
 **Options:** Approve / Amend / Reject
@@ -264,6 +287,24 @@ What is your decision?"
    ```
 5. Exit 2 (blocks further automated progress).
 
+#### Result block (emit after the decision is recorded)
+
+After recording the chosen decision but **before** the branch's `exit` call (Approve `exit 0`, Reject `exit 2`),
+emit a fenced `result` block as the final chat output of the gate so the orchestrator can parse the outcome
+deterministically (see [Output](#output) for the schema):
+
+- **Approve** → `status: ok`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`
+- **Amend** → `status: fail`, `artifact_path` = `.claude/state/summaries/PHASE-<N>.md`, `failure_class: null`
+  (gate loops back, not blocked)
+- **Reject** → `status: blocked`, `artifact_path` =
+  `.claude/state/escalations/PHASE-<N>-REJECTED-<date>.md`, `failure_class: null`
+
+```result
+status: ok
+artifact_path: .claude/state/summaries/PHASE-1.md
+failure_class: null
+```
+
 ## Constitutional self-check (run before every section delivery)
 
 Walk both Law layers. Write one line per Law, format exactly:
@@ -280,6 +321,7 @@ Gate Law 2 (CRITICAL security blocks Approve): complied | violated | N/A — <re
 Gate Law 3 (mutation < 70% is RED, not amber): complied | violated | N/A — <reason>
 Gate Law 4 (no placeholder in summary doc): complied | violated | N/A — <reason>
 Gate Law 5 (Reject halts dark factory via exit 2): complied | violated | N/A — <reason>
+Gate Law 6 (UI gate re-executed, RED blocks Approve): complied | violated | N/A — <reason>
 ```
 
 If ANY line says "violated": STOP, revise the section, re-run the check.
@@ -320,6 +362,18 @@ Never leave `{{PLACEHOLDER}}` in the output.
 - `.claude/state/escalations/PHASE-<N>-REJECTED-<date>.md` — on Reject only
 - Updated `.claude/state/progress.json` — on Approve only
 
+**Terminal result block (always):**
+
+The gate ends with a fenced `result` block as its final output. The orchestrator reads the **last** such block:
+
+```result
+status: ok | fail | blocked
+artifact_path: <path or null>
+failure_class: logic | dependency | interface | spec-ambiguity | null
+```
+
+Mapping from the HITL decision: Approve → `ok`, Amend → `fail`, Reject → `blocked` (see Step 6).
+
 ## Evaluation Criteria
 
 A well-executed phase gate:
@@ -330,6 +384,8 @@ A well-executed phase gate:
 - Displays the raw kanban board before presenting the summary
 - Produces a `.claude/state/summaries/PHASE-<N>.md` with zero `{{PLACEHOLDER}}` entries
 - Blocks Approve when any CRITICAL security finding is present
+- Re-executes `ui_verify.sh --full` for every UI feature and blocks Approve on any non-zero exit
+  (or a missing/unsigned run-book) — never trusts a cached PASS
 - On Reject: writes an escalation file, halts the dark factory via `exit 2`
 - On Approve: advances `progress.json` to the next phase and signals `/implement` to continue
 - Constitutional self-check trace is present in chat for every section

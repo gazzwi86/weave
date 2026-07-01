@@ -11,7 +11,7 @@ architect phase (04-arch) when a CI/CD design is needed for a new or updated ser
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (structured generation, precise YAML, diagram output)
+- **All phases:** claude-sonnet-5 (structured generation, precise YAML, diagram output)
 
 No Opus tier needed — this is specification drafting with well-defined inputs, not
 open-ended elicitation. If the entity has unusual constraints (novel runtime, bespoke
@@ -25,14 +25,14 @@ Before writing anything, read:
    alternatives unless the user explicitly states otherwise)
 2. `.claude/spec-templates/tech-spec/ci-cd.md` — section scaffold and table formats
 3. **Project type detection** — determine which stack(s) are present:
-   - Python service → read `.claude/spec-templates/few-shot/ci/github-actions-python-uv.md`
-   - TypeScript / Next.js → read `.claude/spec-templates/few-shot/ci/github-actions-ts-monorepo.md`
+   - Python service → read `docs/standards/patterns/ci/github-actions-python-uv.md`
+   - TypeScript / Next.js → read `docs/standards/patterns/ci/github-actions-ts-nextjs.md`
    - Mixed monorepo → read both
 4. Any existing tech spec for this entity
-   (`.claude/specs/<entity>/04-arch/tech-spec/*.md`) to understand service boundaries,
+   (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*.md`) to understand service boundaries,
    deployed artefacts, and infrastructure targets
 5. Ask the user which entity this spec is for if not supplied; output path is:
-   `.claude/specs/<entity>/04-arch/tech-spec/ci-cd.md`
+   `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
 
 ## Instructions
 
@@ -68,7 +68,7 @@ Ask via AskUserQuestion:
 
 Produce the spec in this exact order. For each section:
 
-1. **Write** the section to the file at `.claude/specs/<entity>/04-arch/tech-spec/ci-cd.md`
+1. **Write** the section to the file at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
 2. **Run the constitutional self-check** (see below) — stop and revise if any Law violated
 3. **Present** the section to the user (display the written content)
 4. **Emit a confidence block** (see below) immediately before the HITL question
@@ -176,14 +176,14 @@ pattern is:
 ```
 
 **For Python services**, base the CI job on the few-shot at
-`.claude/spec-templates/few-shot/ci/github-actions-python-uv.md`:
+`docs/standards/patterns/ci/github-actions-python-uv.md`:
 - `astral-sh/setup-uv@v4` with `enable-cache: true` and `cache-dependency-glob: "uv.lock"`
 - `uv sync --frozen --all-extras`
 - Python matrix: `["3.11", "3.12"]`
 - Coverage artifact upload (3.12 only), coverage comment job on PRs
 
 **For TypeScript services**, base the CI job on the few-shot at
-`.claude/spec-templates/few-shot/ci/github-actions-ts-monorepo.md`:
+`docs/standards/patterns/ci/github-actions-ts-nextjs.md`:
 - `pnpm/action-setup@v4` with version 9
 - `pnpm install --frozen-lockfile`
 - Node matrix: `["20", "22"]`
@@ -257,7 +257,7 @@ are configured in Settings → Environments."
 3. Commit the spec:
 
 ```bash
-git add .claude/specs/<entity>/04-arch/tech-spec/ci-cd.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md
 git commit -m "docs(<entity>): add CI/CD pipeline spec"
 ```
 
@@ -306,7 +306,7 @@ Rules:
 
 ## Output
 
-File: `.claude/specs/<entity>/04-arch/tech-spec/ci-cd.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
 
 Template: `.claude/spec-templates/tech-spec/ci-cd.md`
 
@@ -316,7 +316,11 @@ Frontmatter:
 
 ```yaml
 ---
+type: CI/CD Spec
 title: "CI/CD Pipeline Spec: <entity display name>"
+description: "<one-line summary of the CI/CD pipeline for this entity>"
+tags: [<entity>, 04-arch]
+timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>

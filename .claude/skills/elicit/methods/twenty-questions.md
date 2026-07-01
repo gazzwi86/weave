@@ -52,7 +52,7 @@ After 20 questions (or fewer if clarity is reached earlier):
 
 Write the synthesis to the appropriate location:
 - If during PO elicitation: fold findings into the relevant spec section
-- If standalone: create `.claude/specs/<entity>/00-elicit/20Q-{topic-slug}.md`
+- If standalone: create `docs/specs/weave/engines/<entity>.md00-elicit/20Q-{topic-slug}.md`
 
 ### Output Format
 
@@ -97,7 +97,7 @@ Folded into {spec file} / Saved as decision record
 When testing this skill, verify:
 
 - **Progressive narrowing works**: Each round of questions narrows the scope; later questions are more specific than earlier ones
-- **Output captured**: Full analysis is saved to `.claude/specs/<entity>/00-elicit/` (standalone) or folded into the relevant spec (during elicitation)
+- **Output captured**: Full analysis is saved to `docs/specs/weave/engines/<entity>.md00-elicit/` (standalone) or folded into the relevant spec (during elicitation)
 - **Adaptive questioning**: Questions adapt based on previous answers; no fixed script that ignores responses
 - **Progress tracking displayed**: After each round, established facts and open areas are shown
 - **Early completion supported**: Session ends before 20 questions if clarity is reached; does not force unnecessary rounds

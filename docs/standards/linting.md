@@ -1,3 +1,12 @@
+---
+type: Coding Standard
+title: Linting — Coding Standard
+description: "Linter configuration and enforcement rules across languages."
+tags: [standards, linting]
+timestamp: 2026-06-29T00:00:00Z
+resource: docs/standards/linting.md
+---
+
 # Linting Standards
 
 Python linting is covered in [`tooling-py.md`](tooling-py.md) (ruff + mypy).

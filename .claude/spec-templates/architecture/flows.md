@@ -8,7 +8,7 @@ owner: {{OWNER}}
 coverage: {{COVERAGE_PCT}}
 ---
 <!-- Frontmatter schema: templates/frontmatter-schema.md -->
-<!-- Sequence diagrams for each detected entry point. Read .claude/specs/<entity>/04-arch/tech-spec/business-process.md for future-state flows. -->
+<!-- Sequence diagrams for each detected entry point. Read docs/specs/weave/engines/<entity>/04-arch/tech-spec/business-process.md for future-state flows. -->
 # Flows (current state): {{PROJECT_NAME}}
 
 > Coverage: {{COVERAGE_PCT}}% of LOC analysed{{COVERAGE_EXCLUSIONS}}
