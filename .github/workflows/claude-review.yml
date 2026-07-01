@@ -1,0 +1,35 @@
+name: Claude PR Review
+
+# HUMAN-GATED: this never runs on push or on PR open.
+# A reviewer adds the `claude-review` label to a PR to start a review.
+# To re-run, remove the label and add it again.
+# Auth uses a Claude Pro/Max subscription token (no API billing).
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  claude-review:
+    # Only proceed when the trigger is specifically the `claude-review` label.
+    if: github.event.label.name == 'claude-review'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review this pull request. Focus on correctness bugs, security issues,
+            and anything that would break existing behaviour. Post your findings as
+            a single PR review comment, most important first. Be concise and cite
+            file:line for each point. If the PR looks good, say so briefly.
+          claude_args: "--max-turns 10"
