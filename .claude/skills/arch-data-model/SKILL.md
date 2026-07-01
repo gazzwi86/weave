@@ -24,7 +24,7 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/data-model.md` — output scaffold
-3. `.claude/spec-templates/few-shot/data/sqlalchemy-async.md` — SQLAlchemy async style reference
+3. `docs/standards/patterns/data/sqlalchemy-async.md` — SQLAlchemy async style reference
 4. `docs/specs/weave/engines/<entity>.md` — domain entities, bounded context, acceptance criteria
 5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` — if present, for layer overview
 6. Any existing data model draft at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md`
@@ -146,7 +146,7 @@ For each relational entity, produce a definition block:
 Purpose: one sentence.
 
 SQLAlchemy model (Python 3.12, SQLAlchemy 2.0 async style — follow the few-shot at
-`.claude/spec-templates/few-shot/data/sqlalchemy-async.md`):
+`docs/standards/patterns/data/sqlalchemy-async.md`):
 
 ```python
 # app/models/<module>/<table_name>.py

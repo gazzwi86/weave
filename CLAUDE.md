@@ -180,7 +180,7 @@ Decisions are final unless overridden by explicit PRD justification.
 - Python tooling: `uv` only (enforced by hook — rejects bare pip usage)
 - Secrets: AWS Secrets Manager only — never hardcoded, never in `.env` files
 - Testing: TDD-first; unit → integration → E2E; Playwright for browser tests; mutation ≥ 70%
-- Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per phase
+- Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per epic (tasks stack within an epic; the phase gate reviews the epic PRs)
 
 ## SDLC — spec-driven flow
 

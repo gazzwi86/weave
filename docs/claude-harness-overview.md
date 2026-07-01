@@ -12,6 +12,19 @@ resource: docs/claude-harness-overview.md
 > The Weave AI development harness. Read this before touching harness configuration.
 > Last updated: 2026-06-29 (Pass 2 overhaul).
 
+> **⚠️ Recent changes not yet folded into every section below (2026-06/07 harness-refine + patterns
+> engagement — see `.claude/reports/H2`–`H5`). Where this guide and these disagree, these win:**
+> - **UI-verification gate** — `.claude/scripts/ui_verify.sh` (functional click-through + structure/
+>   links-up + axe + 8-state visual + Lighthouse; fail-closed) is re-executed by `phase-gate` and `qa`
+>   (category 3l) and blocks on non-zero; the vision check is advisory; a human-signed run-book is required.
+> - **Delivery = one PR per EPIC** (tasks stack on `feature/{epic}`, verified on the assembled epic), not per task.
+> - **`--no-verify` is blocked** (`check-git-safety`); the pre-push manifest-parity gate (`check-harness-manifest`) is blocking.
+> - **`.claude/HARNESS.md`** — derived element manifest, structural-parity pre-push gate.
+> - **Per-entity, change-aware spec-review** (`/implement` Step 1.5), and **durable resume** from committed `progress.json` (Step 0).
+> - **Golden patterns moved** to `docs/standards/patterns/` (was `.claude/spec-templates/few-shot/`), curated to this exact stack.
+> - **Harness models pinned to `claude-sonnet-5`** in `.claude/agents/*` + skills (the §12 table below predates this).
+> - Operator runbook: **`docs/running-the-implement-loop.md`** is the current source of truth for the loop + HITL gates.
+
 ---
 
 ## 1. What the harness is
@@ -257,7 +270,7 @@ they delegate to skills.
 - **Law A** — common-stack first (Weave defaults, § Stack)
 - **Law B** — functional, browser-runnable, automation-tested (Playwright for UI)
 - **Law C** — council-graded quality for enterprise claims (7-persona, ≥ 4.0/5)
-- **Law D** — stacked PRs (one PR per phase, small commits)
+- **Law D** — stacked PRs (one PR per EPIC; small commits stack within a phase)
 - **Law E** — complexity as a budget (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
 - **Law F** — synthetic verification only (LocalStack, not real cloud in tests)
 
@@ -496,12 +509,12 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 | Elicitation / creative brief writing | claude-opus-4-8 | Wide reasoning, novel framing |
 | Architecture design, C4 diagrams | claude-opus-4-8 | Spatial reasoning, tradeoff analysis |
 | Task brief writing | claude-opus-4-8 | Self-contained, must be complete |
-| PRD stories, flows, OpenAPI | claude-sonnet-4-6 | Structured but not exploratory |
-| Data models, class diagrams | claude-sonnet-4-6 | Precision over creativity |
+| PRD stories, flows, OpenAPI | claude-sonnet-5 | Structured but not exploratory |
+| Data models, class diagrams | claude-sonnet-5 | Precision over creativity |
 | Stack confirmation, open dimensions | claude-haiku-4-5 (detect) + HITL | Fast pattern matching; human confirms |
 | DoR/DoD, YAML/config generation | claude-haiku-4-5 | Mechanical, template-following |
 | Validation, lint checks | claude-haiku-4-5 | Fast, cheap, deterministic |
-| Code implementation (engineer) | claude-sonnet-4-6 | TDD iteration |
+| Code implementation (engineer) | claude-sonnet-5 | TDD iteration |
 | Security review | claude-opus-4-8 | High-stakes, adversarial |
 
 ---

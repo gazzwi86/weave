@@ -25,8 +25,8 @@ Before writing anything, read:
    alternatives unless the user explicitly states otherwise)
 2. `.claude/spec-templates/tech-spec/ci-cd.md` — section scaffold and table formats
 3. **Project type detection** — determine which stack(s) are present:
-   - Python service → read `.claude/spec-templates/few-shot/ci/github-actions-python-uv.md`
-   - TypeScript / Next.js → read `.claude/spec-templates/few-shot/ci/github-actions-ts-monorepo.md`
+   - Python service → read `docs/standards/patterns/ci/github-actions-python-uv.md`
+   - TypeScript / Next.js → read `docs/standards/patterns/ci/github-actions-ts-nextjs.md`
    - Mixed monorepo → read both
 4. Any existing tech spec for this entity
    (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*.md`) to understand service boundaries,
@@ -176,14 +176,14 @@ pattern is:
 ```
 
 **For Python services**, base the CI job on the few-shot at
-`.claude/spec-templates/few-shot/ci/github-actions-python-uv.md`:
+`docs/standards/patterns/ci/github-actions-python-uv.md`:
 - `astral-sh/setup-uv@v4` with `enable-cache: true` and `cache-dependency-glob: "uv.lock"`
 - `uv sync --frozen --all-extras`
 - Python matrix: `["3.11", "3.12"]`
 - Coverage artifact upload (3.12 only), coverage comment job on PRs
 
 **For TypeScript services**, base the CI job on the few-shot at
-`.claude/spec-templates/few-shot/ci/github-actions-ts-monorepo.md`:
+`docs/standards/patterns/ci/github-actions-ts-nextjs.md`:
 - `pnpm/action-setup@v4` with version 9
 - `pnpm install --frozen-lockfile`
 - Node matrix: `["20", "22"]`
