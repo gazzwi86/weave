@@ -25,12 +25,12 @@ coverage: graph-explorer
 
 **Standards referenced (link, not restated):**
 
-- RBAC levels: [docs/standards/rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)
+- RBAC levels: [rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)
 - API conventions (error envelope, pagination, status codes):
-  [docs/standards/api-conventions.md](../../../../../../standards/api-conventions.md)
-- Audit / immutability: [docs/standards/audit-immutability.md](../../../../../../standards/audit-immutability.md)
-- Observability (traces, metrics): [docs/standards/observability.md](../../../../../../standards/observability.md)
-- Node kind visual palette: [docs/standards/design/data-viz.md](../../../../../../standards/design/data-viz.md)
+  [api-conventions.md](../../../../../../standards/api-conventions.md)
+- Audit / immutability: [audit-immutability.md](../../../../../../standards/audit-immutability.md)
+- Observability (traces, metrics): [observability.md](../../../../../../standards/observability.md)
+- Node kind visual palette: [data-viz.md](../../../../../../standards/design/data-viz.md)
 
 > **Renderer adapter invariant.** All diagrams below assume the renderer is accessed via the
 > stable adapter interface (`load(elements)`, `onNodeClick(cb)`, `getViewport()`, `setLayout(name, opts)`,

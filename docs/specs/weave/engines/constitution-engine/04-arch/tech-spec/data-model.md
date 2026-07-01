@@ -20,10 +20,10 @@ coverage: constitution-engine
 
 **Graph edges:**
 
-- Engine spec: [../../constitution-engine.md](../../../constitution-engine.md)
-- Contracts (canonical): [../../../contracts.md](../../../../contracts.md)
-- ADR-001 (tenant isolation): [../../../decisions/ADR-001-tenant-isolation.md](../../../../decisions/ADR-001-tenant-isolation.md)
-- ADR-002 (authority extension): [../../../decisions/ADR-002-authority-extension.md](../../../../decisions/ADR-002-authority-extension.md)
+- Engine spec: [constitution-engine.md](../../../constitution-engine.md)
+- Contracts (canonical): [contracts.md](../../../../contracts.md)
+- ADR-001 (tenant isolation): [ADR-001-tenant-isolation.md](../../../../decisions/ADR-001-tenant-isolation.md)
+- ADR-002 (authority extension): [ADR-002-authority-extension.md](../../../../decisions/ADR-002-authority-extension.md)
 - Standards: [rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md) ·
   [semantic-web.md](../../../../../../standards/semantic-web.md) ·
   [audit-immutability.md](../../../../../../standards/audit-immutability.md)

@@ -59,6 +59,23 @@ brand-gate (M2) and Events (post-v1) deferrals correctly enforced.
 | Build M1 | Consider stubbing dep-summary-handoff + pre-scaffold-review for M1 thinness (ENG-4) |
 | Events | Honest template-activation count (1 unconditional, rest conditional) (writer-events flag) |
 
+## Backlog disposition — /architect M1 pass (2026-07-01)
+
+The `/architect` M1 tech-spec pass cleared the backlog. Isolation and authority were confirmed by
+the user (named-graph+rewriting; ship the open-standard SSOT Authority Extension).
+
+| Ref | Resolved by |
+|-----|-------------|
+| OQ-AUTH-1 / ONT-4 | [ADR-002](decisions/ADR-002-authority-extension.md) — ODRL 2.2 + SKOS + SHACL + PROV-O SSOT; `Actor→holdsRole→Role` split. CE data-model §Actor→holdsRole→Role. |
+| OQ-01 / SEC-1/3 | [ADR-001](decisions/ADR-001-tenant-isolation.md) — named-graph + fail-closed rewriter; connector-write case added to the cross-tenant release gate. Landed in all four engine data-models. |
+| CE TASK-008 (ENG-2) | CE [business-process.md](engines/constitution-engine/04-arch/tech-spec/business-process.md) spike-degrade state — caps scale/optimises queries, never widens tenant scope, preserves the M1 generate step. |
+| GE TASK-001 (ENG-3) | [GE ADR-001](engines/graph-explorer/04-arch/decisions/ADR-001-render-engine.md) — renderer-adapter invariant + per-task rework-delta (~25–35% blended, concentrated in TASK-002). |
+| PLAT audit (SEC-5) | Platform [business-process.md](engines/weave-platform/04-arch/tech-spec/business-process.md) audit-export gate + data-model export-scope note (own-tenant vs operator IAM). |
+| v1.0 SOC2 (SEC-6) | [weave-spec §2.5](weave-spec.md) — concrete EU (eu-west-1) region-pinned option at v1.0. |
+| ONT-6 | CE [data-model.md](engines/constitution-engine/04-arch/tech-spec/data-model.md) §ONT-6 — `rdfs:subClassOf` = formal is-a; `skos:broader` = navigational only. |
+| Build M1 (ENG-4) | Build [business-process.md](engines/build-engine/04-arch/tech-spec/business-process.md) — `dep-summary-handoff` + `pre-scaffold-review` modelled as M1 pass-through stubs. |
+| Events | Deferred — Events is post-v1, not an MVP-path engine; out of scope for this M1 pass. Re-check at the Events tech-spec pass. |
+
 ## Dismissed
 - ONT-2 ("CE-FUNCTION-1/automatable not in contracts.md") — **factually wrong**; grep-verified
   present at contracts.md lines 69–139. Reviewer read a stale/wrong copy.

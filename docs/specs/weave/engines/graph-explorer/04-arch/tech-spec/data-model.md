@@ -137,7 +137,7 @@ reference [contracts.md §CE-READ-1](../../../../contracts.md#ce-read-1--version
 
 Provenance triples (who created/modified a node, when) live in
 `urn:weave:g:tenant:{id}:prov` under the PROV-O vocabulary
-([docs/standards/semantic-web.md](../../../../../../standards/semantic-web.md)).
+([semantic-web.md](../../../../../../standards/semantic-web.md)).
 GE reads provenance in the side panel where CE-READ-1 supplies it; GE does not write PROV-O.
 
 ---
@@ -150,7 +150,7 @@ their OWL class IRIs, and their RDF relationships are specified in
 GE must not maintain a parallel copy of this list.
 
 Visual representation (colour, shape, icon) for each kind is defined in
-[docs/standards/design/data-viz.md](../../../../../../standards/design/data-viz.md).
+[data-viz.md](../../../../../../standards/design/data-viz.md).
 GE reads `GET /api/node-kinds` at canvas boot to get `[{id, label, colour}]` from CE; it falls
 back to `#9CA3AF` grey for any `bpmo_kind` not in the palette response.
 
@@ -215,7 +215,7 @@ When a user clicks a node, GE fetches full properties from
 
 **Raw IRI disclosure rule:** the subject IRI (`node_iri`) is hidden from the default panel view.
 It appears only under an "Advanced" disclosure toggle, and only for users with `ontologist`
-RBAC role ([docs/standards/rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)).
+RBAC role ([rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)).
 
 **Cross-tenant isolation:** if a requested IRI belongs to a different tenant, CE returns `404`
 (not `403`) to avoid leaking tenant existence. GE renders a generic "not found" empty-state.
