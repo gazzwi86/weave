@@ -33,12 +33,17 @@ from app.services.actor_service import ActorService
 router = APIRouter(prefix="/api/v1/actors", tags=["actors"])
 
 
+def get_actor_service(session: AsyncSession = Depends(get_session)) -> ActorService:
+    """Provider: build the service from the request-scoped session — never inside the handler."""
+    return ActorService(session)
+
+
 @router.get("/{actor_id}", response_model=ActorRead)
 async def get_actor(
     actor_id: UUID,
-    session: AsyncSession = Depends(get_session),
+    service: ActorService = Depends(get_actor_service),
 ) -> Actor:
-    actor = await ActorService(session).get(actor_id)
+    actor = await service.get(actor_id)
     if actor is None:
         raise NotFoundError(f"actor {actor_id} not found")  # -> 404 envelope
     return actor  # ORM row, coerced to ActorRead by response_model
@@ -47,10 +52,10 @@ async def get_actor(
 @router.post("/", response_model=ActorRead, status_code=status.HTTP_201_CREATED)
 async def create_actor(
     payload: ActorCreate,
-    session: AsyncSession = Depends(get_session),
+    service: ActorService = Depends(get_actor_service),
 ) -> Actor:
     # SHACL validation runs in the service before any write; a violation -> 422.
-    return await ActorService(session).create(payload)
+    return await service.create(payload)
 ```
 
 ```python
@@ -148,9 +153,12 @@ class RequestInvalid(ApiError):
 
 
 def _envelope(exc: ApiError, request: Request) -> JSONResponse:
+    # 5xx: never render an arbitrary message verbatim — collapse to a fixed generic
+    # string so an uncaught internal error can't leak details. 4xx keep the human message.
+    is_server_error = exc.http_status >= status.HTTP_500_INTERNAL_SERVER_ERROR
     error: dict[str, object] = {
         "code": exc.code,
-        "message": exc.message,  # human-readable; never secrets/PII
+        "message": "internal server error" if is_server_error else exc.message,
         "status": exc.http_status,
         "request_id": request.headers.get("x-request-id", ""),
     }
@@ -199,7 +207,9 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 errors (`NotFoundError`, `ShaclViolation`) subclass `ApiError`, so one handler yields the canonical
 envelope for every failure and clients branch on the stable `code` slug, never the message.
 **Security:** validate-before-commit means a 422 SHACL violation never mutates the graph/row;
-`message` carries no secrets/PII; DSN comes from Secrets Manager, never a literal or `.env`.
+4xx `message` is human-readable and carries no secrets/PII, while any 5xx collapses to a fixed
+`internal server error` string so an uncaught error can't leak details; DSN comes from Secrets
+Manager, never a literal or `.env`.
 **Anti-patterns:** returning FastAPI's bare `{"detail": ...}` instead of the envelope; passing the
 session as a plain argument instead of `Depends`; committing before validation (mutate-then-reject);
 returning the ORM object without a `response_model` (leaks columns / triggers lazy loads).

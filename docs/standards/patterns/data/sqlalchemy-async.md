@@ -7,7 +7,7 @@ timestamp: 2026-07-01
 resource: docs/standards/patterns/data/sqlalchemy-async.md
 topic: data
 stack: python
-verification: "python3 -m py_compile: OK; uvx ruff check (--target-version py312 --select E,W,F,I,B,C90,UP,PLR --line-length 100): All checks passed!"
+verification: "python3 -m py_compile: OK; uvx ruff check (--target-version py312 --select E,W,F,I,B,C90,UP,PLR --line-length 100 --config lint.isort.known-first-party=['app']): All checks passed! (known-first-party mirrors ruff-strict.md so the app.* import stays in its own group)"
 ---
 
 # Data — SQLAlchemy 2.0 Typed Async (python)
@@ -22,6 +22,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import DateTime, ForeignKey, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from app.config import settings  # DSN from AWS Secrets Manager; never a literal or .env
 
 
 class Base(DeclarativeBase):
@@ -45,8 +47,8 @@ class Entity(Base):
     )
 
 
-# DSN comes from Secrets Manager in prod; no embedded credentials.
-engine = create_async_engine("postgresql+asyncpg://localhost/weave", pool_pre_ping=True)
+# DSN sourced from AWS Secrets Manager (via settings); no embedded credentials, no literal DSN.
+engine = create_async_engine(settings.database_url, pool_pre_ping=True)
 Session = async_sessionmaker(engine, expire_on_commit=False)
 
 

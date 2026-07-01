@@ -19,6 +19,8 @@ and bind those plus `trace_id`/`span_id` onto every structlog line so logs join 
 
 ```python
 # app/observability.py
+from typing import Any
+
 import structlog
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -40,6 +42,31 @@ def init_tracing(collector_endpoint: str) -> None:
 
 
 tracer = trace.get_tracer("weave.constitution")
+
+# Defense-in-depth: mask known-sensitive keys before render (symmetry with the Node pino redact
+# list). Discipline keeps secrets/PII out of log fields; this processor is the belt-and-braces.
+_REDACT_KEYS = frozenset({"authorization", "password", "token", "secret", "api_key", "cookie"})
+
+
+def _redact_sensitive(
+    _logger: object, _method: str, event_dict: dict[str, Any]
+) -> dict[str, Any]:
+    for key in event_dict:
+        if key.lower() in _REDACT_KEYS:
+            event_dict[key] = "***"
+    return event_dict
+
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,  # pull in bound trace/tenant/request fields
+        _redact_sensitive,  # drop/mask sensitive keys before they reach the JSON sink
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ]
+)
+
 log = structlog.get_logger()
 
 
@@ -77,7 +104,9 @@ SLO a stable business span to measure. Binding `trace_id`/`span_id` into structl
 from any log line straight into the trace.
 **Security:** never set secrets, tokens, raw credentials, PII, or SQL-with-user-input as span
 attributes or log fields — attribute values are sampled into traces and retained like logs. Keep IDs
-and query text in attributes, out of span names.
+and query text in attributes, out of span names. The `_redact_sensitive` structlog processor is the
+belt-and-braces backstop (mirroring the Node pino `redact` list): it masks known-sensitive keys
+(`authorization`, `password`, `token`, `secret`, …) before any line reaches the JSON sink.
 **Anti-patterns:** interpolating IDs/IRIs into the span name (cardinality explosion); writing to
 CloudWatch directly instead of through ADOT; using `SimpleSpanProcessor` in production (synchronous,
 blocks the request path — use `BatchSpanProcessor`); logging a plain string without the bound

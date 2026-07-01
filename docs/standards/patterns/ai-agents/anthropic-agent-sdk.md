@@ -28,10 +28,13 @@ agent in the Build engine.
 
 Confirmed primary-source shapes:
   @tool / create_sdk_mcp_server / ClaudeAgentOptions / query  — claude-agent-sdk-python docs
-  CLAUDE_CODE_USE_BEDROCK / CLAUDE_CODE_USE_MANTLE / model ids — code.claude.com/docs/en/amazon-bedrock
+  CLAUDE_CODE_USE_BEDROCK + model id anthropic.claude-sonnet-5 — code.claude.com/docs/en/amazon-bedrock
+UNVERIFIED (confirm before use):
+  CLAUDE_CODE_USE_MANTLE — not confirmed as a real env var; verify the exact Bedrock toggle/client
 """
 
 import os
+from contextvars import ContextVar
 
 from claude_agent_sdk import (
     ClaudeAgentOptions,
@@ -40,10 +43,30 @@ from claude_agent_sdk import (
     tool,
 )
 
+# The caller principal is bound per request (e.g. from the authenticated JWT)
+# BEFORE the agent runs; the tool handler reads it to authorize side effects.
+# The model never sees or sets it.
+_caller_principal: ContextVar[str] = ContextVar("caller_principal")
+
+
+class Unauthorized(Exception):
+    """Raised when the caller lacks the required (level, area) permission."""
+
+
+async def authorize(principal: str, *, level: str, area: str, target: str) -> None:
+    """Enforce the caller's (level, area) permission server-side. Raises Unauthorized
+    and writes a PLAT-AUDIT-1 denial entry if the check fails. Wire has_permission /
+    audit_denied to your RBAC + audit services."""
+    if not await has_permission(principal, level=level, area=area, target=target):
+        await audit_denied(principal, level=level, area=area, target=target)
+        raise Unauthorized(f"{principal} denied {level} on {area}")
+
+
 # --- Tool definition -------------------------------------------------------
 # @tool(name, description, input_schema). input_schema is a dict of
-# param-name -> Python type (or a TypedDict). The handler is async and MUST
-# return {"content": [...], "is_error": bool}. The tool becomes callable as
+# param-name -> Python type (or a TypedDict). The handler is async and returns
+# {"content": [...]}; it may include "is_error": True on failure (the MCP
+# isError flag is optional). The tool becomes callable as
 # "mcp__<server_key>__<tool_name>".
 
 
@@ -57,8 +80,9 @@ async def lookup_process_owner(args: dict) -> dict:
 
     # House rule: enforce (level, area) authorization inside the handler itself,
     # against the caller principal — never rely on the model to gate side effects.
-    # (Pseudocode; wire to your RBAC dependency.)
-    # authorize(principal, level="read", area="constitution", target=process_iri)
+    # This is live: it raises Unauthorized + audits on denial before any read/write.
+    principal = _caller_principal.get()
+    await authorize(principal, level="read", area="constitution", target=process_iri)
 
     owner_iri = await resolve_owner(process_iri)  # your service call
     return {"content": [{"type": "text", "text": owner_iri}]}
@@ -75,8 +99,8 @@ async def run_agent(user_prompt: str) -> None:
     )
 
     options = ClaudeAgentOptions(
-        # sonnet-5 is served through the Bedrock "Mantle" endpoint, whose model
-        # ids are prefixed "anthropic." with no version suffix.
+        # anthropic.claude-sonnet-5 is a current Bedrock-served Claude model id
+        # (bare "anthropic." prefix, no region/inference-profile prefix).
         model="anthropic.claude-sonnet-5",
         system_prompt=(
             "You are a Weave Constitution assistant. Answer only from tool results; "
@@ -93,7 +117,10 @@ async def run_agent(user_prompt: str) -> None:
         # (IAM role via STS in prod — never hardcoded keys).
         env={
             "CLAUDE_CODE_USE_BEDROCK": "1",
-            "CLAUDE_CODE_USE_MANTLE": "1",  # required for sonnet-5
+            # UNVERIFIED: CLAUDE_CODE_USE_MANTLE is not confirmed as a real env var.
+            # Verify the exact Bedrock env var / client (e.g. CLAUDE_CODE_USE_BEDROCK)
+            # against current docs before use; drop this line if it is not a real toggle.
+            "CLAUDE_CODE_USE_MANTLE": "1",
             "AWS_REGION": os.environ["AWS_REGION"],
         },
         # SDK isolation: don't load filesystem settings/CLAUDE.md into the agent.
@@ -108,11 +135,12 @@ async def run_agent(user_prompt: str) -> None:
 (`create_sdk_mcp_server`), so there is no subprocess/IPC boundary for a Python tool. Tool
 names are namespaced `mcp__<server_key>__<tool_name>` and must be echoed in
 `allowed_tools` or the model cannot call them. Amazon Bedrock is selected with
-`CLAUDE_CODE_USE_BEDROCK=1`; `claude-sonnet-5` specifically is served through Bedrock's
-*Mantle* endpoint (native Anthropic API shape), whose ids look like
-`anthropic.claude-sonnet-5` — Invoke-API inference-profile ids such as
-`us.anthropic.claude-sonnet-4-6` will not route to it, so set `CLAUDE_CODE_USE_MANTLE=1`
-too. (AgentCore Runtime/Memory/Gateway would host this agent in Weave, but that is a
+`CLAUDE_CODE_USE_BEDROCK=1`. `anthropic.claude-sonnet-5` is a current Bedrock-served Claude
+model id — a bare `anthropic.` prefix, not a region-prefixed inference-profile id such as
+`us.anthropic.…`. The specific env var that selects the native-Anthropic-API ("Mantle")
+Bedrock path — shown here as `CLAUDE_CODE_USE_MANTLE=1` — is **UNVERIFIED**; confirm the
+current toggle (or client class) against code.claude.com before relying on it. (AgentCore
+Runtime/Memory/Gateway would host this agent in Weave, but that is a
 deployment concern documented separately — do not couple the tool/agent definition to it.)
 
 **Security.** *Prompt injection:* treat all tool output and user-supplied graph data as
@@ -127,20 +155,23 @@ access keys in `env` or code, and never run `permission_mode="bypassPermissions"
 **Anti-patterns.**
 - Omitting the tool from `allowed_tools` (silently uncallable) or, conversely,
   `bypassPermissions` to "make it work".
-- Using `us.anthropic.claude-sonnet-4-6` (an Invoke inference profile) as the model id
-  while expecting sonnet-5 — that id is not served on Mantle.
+- Using a region-prefixed Invoke inference-profile id (e.g. `us.anthropic.…`) where the bare
+  `anthropic.`-prefixed Bedrock id is what routes — and note `claude-sonnet-4-6` is a
+  different (older) model than `claude-sonnet-5`, so swapping the version silently changes
+  which model answers.
 - Doing the RBAC check in the prompt instead of in the handler.
 - Hardcoding AWS keys in `env=` instead of using the IAM/STS credential chain.
 - Returning a bare string from a tool instead of the `{"content": [...]}` envelope.
 
 **Confidence.** Medium-high on the SDK surface: `@tool`, `create_sdk_mcp_server`,
 `ClaudeAgentOptions` (incl. `model`, `env`, `permission_mode`, `allowed_tools`,
-`setting_sources`), `query`, the `mcp__server__tool` naming, and the
-`{"content":[...], "is_error":bool}` return envelope are all quoted directly from the
-claude-agent-sdk-python autodocs. Medium on the Bedrock wiring: the env vars
-(`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_MANTLE`, `AWS_REGION`) and the
-`anthropic.claude-sonnet-5` Mantle id are confirmed from code.claude.com, but I could not
-run it, and I did not confirm from primary docs that `ClaudeAgentOptions.env` is the
-*only* accepted place for these vars (setting them in the process environment is the
-documented CLI path and is equivalent). AgentCore specifics were not fetched and are
-deliberately left conceptual.
+`setting_sources`), `query`, the `mcp__server__tool` naming, and the `{"content":[...]}`
+return envelope (with optional `is_error`) are all quoted directly from the
+claude-agent-sdk-python autodocs. The **model id** `anthropic.claude-sonnet-5` is
+**confirmed** as a current Bedrock-served Claude id (Anthropic platform model-ids doc +
+code.claude.com/amazon-bedrock). **Not run / not confirmed:** the agent-SDK↔Bedrock env
+wiring — `CLAUDE_CODE_USE_BEDROCK=1` selects Bedrock per the CLI docs, but
+`CLAUDE_CODE_USE_MANTLE` is **UNVERIFIED** (confirm the exact env var / client before use),
+and I did not confirm that `ClaudeAgentOptions.env` is the *only* accepted place for these
+vars (setting them in the process environment is the documented CLI path and is likely
+equivalent). AgentCore specifics were not fetched and are deliberately left conceptual.

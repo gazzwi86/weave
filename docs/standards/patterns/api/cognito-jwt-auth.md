@@ -28,6 +28,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 from pydantic import BaseModel
 
+from app.audit import record_denial  # PLAT-AUDIT-1 authz-denied sink (rbac-multi-tenancy.md)
 from app.config import settings  # region / user_pool_id / app_client_id from Secrets Manager
 
 _ISSUER = f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.user_pool_id}"
@@ -101,6 +102,8 @@ def require_group(group: str) -> Callable[[Principal], Awaitable[Principal]]:
 
     async def _dep(principal: Principal = Depends(current_principal)) -> Principal:
         if group not in principal.groups:
+            # PLAT-AUDIT-1: write the authz-denied entry BEFORE raising the 403.
+            await record_denial(subject=principal.subject, required_group=group)
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="forbidden")
         return principal
 
@@ -114,7 +117,9 @@ crypto check with no per-request network round-trip. `verify_aud=False` + an exp
 **Security:** pinning `algorithms=["RS256"]` blocks the `alg=none` and HS256-confusion attacks (never
 let the token pick its own algorithm); issuer, expiry, and audience/client-id are all asserted;
 `WWW-Authenticate: Bearer` is returned on 401. Human callers only — machines use IAM/STS, so this
-dependency never sees a Cognito token for a service principal.
+dependency never sees a Cognito token for a service principal. An authenticated-but-unpermitted
+caller triggers a PLAT-AUDIT-1 authz-denied entry (`record_denial(...)`) that is written *before*
+the 403 is raised, so every denial is forensically recorded.
 **Anti-patterns:** skipping the `aud`/`client_id` split (rejects valid access tokens or accepts
 foreign audiences); calling the JWKS endpoint on every request (no cache); trusting claims without
 signature verification (`jwt.decode(..., options={"verify_signature": False})`); returning 403 when

@@ -7,10 +7,18 @@ timestamp: 2026-07-01
 resource: docs/standards/patterns/api/nextjs-route-handler.md
 topic: api
 stack: typescript
-verification: "esbuild 0.28.1 transform-mode syntax check of the 1 ts block via `npx esbuild <tmp>.ts --bundle=false` (extension-based loader) — PASS 2026-07-01"
+verification: "esbuild 0.28.1 transform-mode syntax check of the 1 ts block via `npx esbuild <tmp>.ts --bundle=false` (extension-based loader) — PASS 2026-07-01. NOTE: esbuild checks syntax only, NOT types; tsc --strict conformance was reasoned by eye (no code changed this pass — deployment-model note added only)."
 ---
 
 # API — Next.js 15 App Router Route Handler (typescript)
+
+**Deployment model:** Weave's **primary API is the separate FastAPI backend**; the SPA
+(`frontend/nextjs-shadcn-component.md`) is a static export on CloudFront + S3 with no per-request
+Next.js server runtime. A Next.js route handler like this is therefore a **BFF / edge-adjacent
+concern only** — a thin server-side proxy or token broker deployed on its own compute (e.g. Lambda
+/ a Node server), **not** part of the static S3 bundle and **not** the place general application
+logic lives. Because it reads secrets it pins `runtime = 'nodejs'` (never edge). Reach for it only
+when the SPA genuinely needs a same-origin server hop; most calls go straight to FastAPI.
 
 ## Intent
 

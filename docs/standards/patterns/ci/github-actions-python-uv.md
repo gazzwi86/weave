@@ -51,10 +51,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -86,7 +86,7 @@ jobs:
             --cov-fail-under=80
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: coverage-xml
           path: coverage.xml
@@ -104,10 +104,10 @@ jobs:
       id-token: write   # REQUIRED for OIDC — exchange GH token for AWS creds
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6.8.0
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -120,7 +120,7 @@ jobs:
 
       # OIDC: no stored keys. Assume a least-privilege, per-run session.
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}   # arn:aws:iam::<acct>:role/weave-ci-python
           aws-region: ${{ vars.AWS_REGION }}
@@ -151,10 +151,12 @@ job entirely.
 - **Environment protection.** The AWS job declares `environment: dev`, so GitHub
   Environment protection rules (required reviewers, branch restrictions, wait
   timers) apply before it runs.
-- **Pinned actions.** Actions are pinned to a major version tag here for
-  readability. The **hardened option is to pin to a full commit SHA** (e.g.
-  `astral-sh/setup-uv@<40-char-sha>  # v6.x`) so a compromised or re-tagged
-  release cannot silently change behaviour; renovate/dependabot keeps SHAs current.
+- **SHA-pinned actions.** Every third-party `uses:` is pinned to a full 40-char
+  commit SHA with a trailing `# vX.Y` comment — mandatory here because these jobs
+  hold `id-token: write`, so a re-tagged or compromised action (cf.
+  tj-actions/changed-files, Mar 2025) could otherwise mint AWS STS credentials.
+  A floating tag (`@v4`) is a moving target; renovate/dependabot bumps the SHAs
+  and keeps the version comment current.
 
 **Anti-patterns:**
 - Storing `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` as repo secrets — forbidden;

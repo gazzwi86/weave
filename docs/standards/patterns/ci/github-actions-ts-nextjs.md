@@ -15,13 +15,17 @@ verification: "python3 yaml.safe_load PASS (valid YAML, 'jobs' key present); act
 ## Intent
 
 The CI workflow for the Weave Next.js 15 App Router SPA (TypeScript strict, npm,
-Node 22 LTS). On every pull request it must: install with `npm ci` (lockfile,
-cached), lint with **eslint** (`next/core-web-vitals` + `next/typescript` +
-sonarjs), assert types with **`tsc --noEmit`**, run **vitest** with coverage,
-build with **`next build`**, then run **playwright** E2E against the built app.
-None of these need AWS credentials. Only a deploy step (CloudFront + S3) requests
-an OIDC token and assumes a least-privilege role. There are **no long-lived AWS
-keys** in the repo.
+Node 22 LTS). The SPA is a **static export** (`output: 'export'`): `next build`
+emits a static `./out` bundle that is synced to **S3 and served via CloudFront**
+(`infra/terraform-cloudfront-s3-spa.md`) — there is no per-request Next.js server
+runtime. On every pull request it must: install with `npm ci` (lockfile, cached),
+lint with **eslint** (`next/core-web-vitals` + `next/typescript` + sonarjs), assert
+types with **`tsc --noEmit`**, run **vitest** with coverage, build with **`next
+build`** (→ `./out`), then run **playwright** E2E against that built static bundle.
+None of these need AWS credentials. Only a deploy step (`aws s3 sync ./out` +
+CloudFront invalidation) requests an OIDC token and assumes a least-privilege role.
+There are **no long-lived AWS keys** in the repo. All third-party actions are
+**pinned to a full commit SHA** (with a `# vX.Y` comment) by default.
 
 ```yaml
 # .github/workflows/ci-web.yml
@@ -46,10 +50,10 @@ jobs:
     permissions:
       contents: read   # no AWS access for lint/type/test/build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: npm          # caches ~/.npm keyed on package-lock.json
@@ -78,7 +82,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Cache Next build
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ github.workspace }}/.next/cache
           key: nextjs-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.[jt]s', '**/*.[jt]sx') }}
@@ -92,10 +96,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: npm
@@ -106,12 +110,20 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright (starts app via webServer config)
+      # Build the real static export so Playwright hits a production bundle, not `next dev`.
+      # `output: 'export'` emits ./out; the Playwright webServer serves it (e.g. `npx serve out`),
+      # NOT `next start` (which does not serve static-export output).
+      - name: Build static export
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Run Playwright (webServer serves ./out via `npx serve out`)
         run: npx playwright test
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-report
           path: playwright-report/
@@ -128,10 +140,10 @@ jobs:
       id-token: write   # REQUIRED for OIDC
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
           cache: npm
@@ -142,7 +154,7 @@ jobs:
           npm run build
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}   # arn:aws:iam::<acct>:role/weave-web-deploy
           aws-region: ${{ vars.AWS_REGION }}
@@ -175,10 +187,14 @@ standard (Page Object Model, `data-testid` selectors, axe checks).
 - **Environment protection.** `environment: production` applies GitHub Environment
   protection rules (required reviewers, branch/wait-timer restrictions) before the
   deploy runs; combined with `if: github.ref == 'refs/heads/main'`.
-- **Pinned actions.** Pinned to major version tags for readability; the **hardened
-  option is full commit-SHA pinning** (e.g. `actions/checkout@<sha>  # v4.x`) so a
-  re-tagged/compromised release cannot change behaviour. `NEXT_TELEMETRY_DISABLED`
-  avoids leaking build metadata.
+- **SHA-pinned actions (default).** Every third-party `uses:` is pinned to a
+  full 40-char commit SHA with a trailing `# vX.Y` comment (e.g.
+  `actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1`), so a
+  re-tagged or compromised release (cf. `tj-actions/changed-files`, Mar 2025)
+  cannot silently change behaviour — critical because the deploy job holds
+  `id-token: write` and can mint AWS STS credentials. A floating tag (`@v4`) is a
+  mutable pointer and is not used here. Renovate/Dependabot bumps the SHA and the
+  comment together. `NEXT_TELEMETRY_DISABLED` avoids leaking build metadata.
 
 **Anti-patterns:**
 - Storing AWS keys as repo/environment secrets — use OIDC.

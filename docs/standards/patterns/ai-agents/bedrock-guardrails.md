@@ -62,7 +62,46 @@ def create_grounding_guardrail(bedrock: "boto3.client") -> dict:
                 {"type": "US_SOCIAL_SECURITY_NUMBER", "action": "BLOCK"},
             ]
         },
+        # UNVERIFIED shape — confirm against the current CreateGuardrail schema.
+        # REQUIRED for screen_input to actually catch prompt-injection: the
+        # sensitiveInformationPolicy above screens PII on INPUT, but without a
+        # prompt-attack contentPolicy filter the source="INPUT" screen no-ops on
+        # injection. Wire a PROMPT_ATTACK filter here before relying on it.
+        contentPolicyConfig={
+            "filtersConfig": [
+                {"type": "PROMPT_ATTACK", "inputStrength": "HIGH", "outputStrength": "NONE"},
+            ]
+        },
     )
+
+
+# --- Runtime: screen the USER PROMPT before the model call -------------------
+def screen_input(
+    *,
+    guardrail_id: str,       # from AWS Secrets Manager, never hardcoded
+    guardrail_version: str,  # pinned version string, e.g. "1" (never "DRAFT" in prod)
+    user_query: str,
+) -> None:
+    """Pre-filter the user prompt for prompt-injection and PII BEFORE the model runs.
+    Raise GuardrailBlocked if the guardrail intervenes or the call errors (fail closed).
+
+    REQUIRED as the first-line prompt-injection control — the agent's system prompt is
+    defense-in-depth, not the gate. UNVERIFIED: the exact prompt-attack policy config
+    (e.g. contentPolicyConfig PROMPT_ATTACK filter) is not confirmed against the current
+    CreateGuardrail schema — verify before use.
+    """
+    client = boto3.client("bedrock-runtime")  # ambient IAM role via STS
+    try:
+        result = client.apply_guardrail(
+            guardrailIdentifier=guardrail_id,
+            guardrailVersion=guardrail_version,
+            source="INPUT",  # screens the prompt, not a model response
+            content=[{"text": {"text": user_query, "qualifiers": ["query"]}}],
+        )
+    except (ClientError, BotoCoreError) as exc:
+        raise GuardrailBlocked("input guardrail unavailable") from exc
+    if result["action"] == "GUARDRAIL_INTERVENED":
+        raise GuardrailBlocked(result.get("actionReason", "input_blocked"))
 
 
 # --- Runtime: guard a model response -----------------------------------------
@@ -97,21 +136,29 @@ def guard_response(
         raise GuardrailBlocked(result.get("actionReason", "intervened"))
 
     # Defense-in-depth: also enforce our own floor from the returned scores,
-    # in case the deployed guardrail config drifts below policy.
+    # in case the deployed guardrail config drifts below policy. A MISSING score
+    # defaults to 0.0 (fail closed) — never 1.0 — so a partial/absent assessment
+    # cannot silently pass this floor.
     for assessment in result.get("assessments", []):
         for f in assessment.get("contextualGroundingPolicy", {}).get("filters", []):
-            if f.get("score", 1.0) < GROUNDING_FLOOR:
+            if f.get("score", 0.0) < GROUNDING_FLOOR:
                 raise GuardrailBlocked(f"{f['type'].lower()}_below_floor")
 
-    # Released text is the (possibly PII-masked) content in outputs[].
+    # Released text is the (possibly PII-masked) content in outputs[]. An empty
+    # outputs list means we have no governed text to release — fail closed rather
+    # than fall back to the raw (unmasked) model_response.
     outputs = result.get("outputs") or []
-    return outputs[0]["text"] if outputs else model_response
+    if not outputs:
+        raise GuardrailBlocked("no governed output to release")
+    return outputs[0]["text"]
 ```
 
 **Why.** Contextual grounding needs three inputs — `grounding_source`, `query`, and the
 content to guard — supplied as content blocks with `qualifiers`. Because a model is not
 invoked by `ApplyGuardrail`, the response must be passed explicitly as an extra content
-block (optionally qualified `guard_content`), and the check only runs on OUTPUT. The
+block (optionally qualified `guard_content`), and the check only runs on OUTPUT. The user
+prompt is screened separately and earlier by `screen_input` (`source="INPUT"`) for
+prompt-injection and PII, before the model is ever called. The
 guardrail's authoritative verdict is `action == "GUARDRAIL_INTERVENED"` (the other value is
 `"NONE"`); the per-filter `score`/`threshold` are echoed back so the app can also enforce
 its own floor. Grounding rejects hallucinated facts not in the source; relevance rejects
@@ -123,10 +170,13 @@ response. *PII:* `sensitiveInformationPolicyConfig` masks (`ANONYMIZE`) or block
 detected entities so PII never reaches the user or logs; released text is read from
 `outputs[].text`, not the raw model string. *Fail-closed:* both the `GUARDRAIL_INTERVENED`
 branch **and** the `except` branch raise `GuardrailBlocked` — a throttle, 5xx, or timeout
-must never fall through to returning ungoverned output. The `guardrailIdentifier` and any
-KMS key come from Secrets Manager; the client runs on an IAM role via STS. Screen the *user
-prompt* for PII / prompt-injection in a separate `source="INPUT"` call — don't conflate it
-with the OUTPUT grounding check.
+must never fall through to returning ungoverned output. A *missing* grounding `score`
+defaults to `0.0` (fail closed), and an empty `outputs` list raises rather than leaking the
+raw `model_response`, so config drift or a partial assessment can never silently release
+ungoverned text. The `guardrailIdentifier` and any KMS key come from Secrets Manager; the
+client runs on an IAM role via STS. *Prompt injection / input PII:* screen the user prompt
+with the runnable `screen_input` (`source="INPUT"`) **before** the model call — a required
+first-line control, kept separate from the OUTPUT grounding check.
 
 **Anti-patterns.**
 - Returning `model_response` in a bare `except` (silent fail-open) — the single worst bug here.
@@ -144,9 +194,12 @@ with the OUTPUT grounding check.
 (`type`, `score`, `threshold`, `detected`, `action`) are quoted from the ApplyGuardrail API
 ref and the contextual-grounding user guide. High on the config shape:
 `contextualGroundingPolicyConfig.filtersConfig[]` (`type` `GROUNDING`/`RELEVANCE`,
-`threshold`, `action`, `enabled`) and `sensitiveInformationPolicyConfig.piiEntitiesConfig[]`
-(`type`, `action`) are from the CreateGuardrail API ref. Not confirmed / not run: the exact
+`threshold`, `action`) and `sensitiveInformationPolicyConfig.piiEntitiesConfig[]`
+(`type`, `action`) are from the CreateGuardrail API ref. Not confirmed / not run: the
+`enabled` field on `filtersConfig[]` is a newer addition — confirm it against the current
+CreateGuardrail schema (drop it if the deployed API rejects it). The exact
 PII `type` enum member spellings (e.g. `US_SOCIAL_SECURITY_NUMBER`) were not individually
 verified against the PII-entity reference; treat those literals as illustrative and confirm
-before use. The boto3 method name `create_guardrail`/`apply_guardrail` follows standard
+before use. The `source="INPUT"` prompt-attack screen in `screen_input` is required but its
+prompt-attack policy config is likewise unverified — confirm before first use. The boto3 method name `create_guardrail`/`apply_guardrail` follows standard
 boto3 casing of the documented API operations.

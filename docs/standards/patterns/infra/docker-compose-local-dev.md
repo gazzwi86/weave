@@ -27,7 +27,8 @@ services:
     image: ghcr.io/oxigraph/oxigraph:0.4.4
     command: ["serve", "--location", "/data", "--bind", "0.0.0.0:7878"]
     ports:
-      - "7878:7878"
+      # Bind to loopback only — never expose the dev store on the LAN/Wi-Fi.
+      - "127.0.0.1:7878:7878"
     volumes:
       - oxigraph-data:/data
     healthcheck:
@@ -47,7 +48,7 @@ services:
       POSTGRES_PASSWORD: weave_local_dev
       POSTGRES_DB: weave
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # loopback only — not reachable from the LAN
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -61,7 +62,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"  # loopback only — unauthenticated Redis must not face the LAN
     volumes:
       - redis-data:/data
     healthcheck:
@@ -94,8 +95,9 @@ volumes:
   annotated as inner-loop-only; production credentials live in **AWS Secrets Manager exclusively**
   and are never committed here or in a `.env`. This file must never carry an AWS key, an Anthropic
   `sk-ant-` key, or a real DB DSN.
-- **Localhost-only exposure.** Ports are published for the developer's machine; this compose file is
-  a dev artefact and must not be used to run internet-facing services.
+- **Localhost-only exposure.** Every published port is bound to `127.0.0.1`, so the unauthenticated
+  Redis and the local-password Postgres are reachable only from the developer's machine, never from
+  the LAN/untrusted Wi-Fi. This compose file is a dev artefact and must not run internet-facing services.
 - **Least surface.** Only the three inner-loop stores are defined — no admin UIs or extra services
   that widen the local attack surface.
 
@@ -103,6 +105,8 @@ volumes:
 - Floating `:latest` image tags — non-reproducible builds.
 - A real secret, AWS key, or production DSN embedded here or pulled from a committed `.env`.
 - `redis:6` or an unversioned `redis` image — the stack is pinned to Redis 7.
+- Publishing ports as bare `"5432:5432"` (binds `0.0.0.0`) — exposes the store to the LAN; bind
+  `127.0.0.1:` on every published port.
 - Omitting healthchecks, then racing tests against a not-yet-ready Postgres.
 - Adding LocalStack/Ollama into this same file when a task only needs the core three — keep the base
   stack minimal and layer extras via a compose override.

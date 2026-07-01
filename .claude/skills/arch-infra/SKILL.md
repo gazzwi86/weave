@@ -22,7 +22,7 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave confirmed stack, laws, and architecture decisions
 2. `.claude/spec-templates/architecture/infrastructure.md` — section scaffold (never leave `{{}}` in output)
-3. `.claude/spec-templates/few-shot/infra/` — Terraform/CDK patterns; read the relevant files for the
+3. `docs/standards/patterns/infra/` — Terraform/CDK patterns; read the relevant files for the
    entity's compute shape:
    - Lambda-heavy → `aws-cdk-py-lambda-dynamo.md`
    - ECS-heavy → `docker-compose-local-dev.md` (local parity) + `aws-cloudformation-rds.md` (RDS pattern)

@@ -172,8 +172,11 @@ resource "aws_lambda_function" "api" {
   runtime       = "python3.12"
   handler       = "app.main.handler"
   filename      = var.lambda_zip_path
-  timeout       = 30
-  memory_size   = 512
+  # Key the update on zip CONTENT, not just the path — otherwise a rebuilt same-named
+  # zip shows no diff and `apply` silently ships stale code.
+  source_code_hash = filebase64sha256(var.lambda_zip_path)
+  timeout          = 30
+  memory_size      = 512
 
   vpc_config {
     subnet_ids         = var.subnet_ids
@@ -224,5 +227,7 @@ resource "aws_lambda_function" "api" {
 - Putting the secret *value* (not the ARN) into the Lambda `environment` block.
 - `Resource = "*"` or `secretsmanager:*` on the execution role.
 - Legacy Aurora Serverless v1 (`engine_mode = "serverless"`) — v2 is the standard.
+- Omitting `source_code_hash` on the Lambda — Terraform keys the update on `filename` (the path),
+  so a rebuilt same-named zip shows no diff and `apply` ships stale code.
 - Unpinned provider (`version = ">= 5.0"` with no upper bound) or a missing `required_version`.
 - A publicly accessible cluster, or an unencrypted one.

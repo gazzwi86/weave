@@ -7,7 +7,7 @@ timestamp: 2026-07-01
 resource: docs/standards/patterns/linting/eslint-sonarjs-strict.md
 topic: linting
 stack: typescript
-verification: "node v24.14.1 `node --check <tmp>.mjs` (ESM parse of the eslint.config.mjs block) — PASS 2026-07-01"
+verification: "node v24.14.1 `node --check <tmp>.mjs` (ESM parse of the eslint.config.mjs block) — PASS 2026-07-01. NOTE: node --check verifies syntax only, not that the config API is real; the `eslint-config-next/core-web-vitals` + `/typescript` spreadable-array flat form was cross-checked against current Next.js docs (context7 /vercel/next.js)."
 ---
 
 # Linting — ESLint Flat Config with typescript-eslint + SonarJS (typescript)
@@ -28,11 +28,18 @@ cyclomatic `<= 10`, cognitive `<= 15`, function `<= 50` lines, file `<= 300` lin
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
+// Next.js flat configs (from eslint-config-next). `core-web-vitals` bundles
+// @next/next + eslint-plugin-react-hooks (rules-of-hooks / exhaustive-deps) +
+// jsx-a11y + react; `typescript` layers Next's TS rules. Both are spreadable arrays.
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTs from 'eslint-config-next/typescript';
 
 export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   sonarjs.configs.recommended,
+  ...nextVitals, // next/core-web-vitals — required by fewshot-stack §2 + the CI pattern
+  ...nextTs, // next/typescript
   {
     languageOptions: {
       parserOptions: {
@@ -61,8 +68,9 @@ export default tseslint.config(
     },
   },
   {
-    // Config and generated output are exempt from the budget.
-    ignores: ['.next/', 'node_modules/', 'coverage/', 'eslint.config.mjs'],
+    // Config and generated output are exempt from the budget. `out/` is the static-export
+    // bundle (`output: 'export'` → CloudFront + S3); `.next/` covers the build cache.
+    ignores: ['.next/', 'out/', 'node_modules/', 'coverage/', 'eslint.config.mjs'],
   },
 );
 ```
@@ -70,9 +78,15 @@ export default tseslint.config(
 **Why**
 
 - Flat config composes as an array: `@eslint/js` recommended, then spread
-  `tseslint.configs.recommendedTypeChecked` (spread because it is an array of configs), then
-  the SonarJS flat preset, then the Weave override block. Later entries win, so the budget
-  block overrides preset defaults.
+  `tseslint.configs.recommendedTypeChecked` (spread because it is an array of configs), the
+  SonarJS flat preset, then the spread Next.js flat configs (`eslint-config-next/core-web-vitals`
+  and `/typescript`), then the Weave override block. Later entries win, so the budget block
+  overrides preset defaults.
+- The Next configs are **required by `fewshot-stack.md` §2 and the CI pattern** (which state lint =
+  `next/core-web-vitals` + `next/typescript` + sonarjs). `core-web-vitals` already bundles
+  `eslint-plugin-react-hooks` (`react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`),
+  `jsx-a11y`, and `@next/next` — so a component that misuses a hook or ships an a11y regression
+  fails this same gate; no separate react-hooks install is needed.
 - `projectService: true` + `tsconfigRootDir` turn on type-aware linting — the prerequisite for
   `no-floating-promises` and the `no-unsafe-*` family that keep `any` from leaking through I/O.
 - Every budget rule is `error`, not `warn`: `complexity`/`max-*` come from ESLint core,

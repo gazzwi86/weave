@@ -62,10 +62,11 @@ known-first-party = ["app"]
 **What ruff enforces vs. what it cannot.** ruff covers the numeric parts of Law E it has rules for:
 cyclomatic complexity (`C901`, `max-complexity=10`), parameter count (`PLR0913`, `max-args=5`),
 branch count (`PLR0912`), and statement count (`PLR0915`, a proxy for the "function <= 50 lines"
-limit). ruff has **no** rule for **cognitive complexity**, **per-function line count**, **file length
-(<= 300 lines)**, or **nesting depth (<= 4)** — enforce those via `radon` and code review per
-`complexity.md` (the TypeScript side uses `sonarjs/cognitive-complexity`). Do not claim ruff gates
-what it does not.
+limit). ruff has **no** rule for **cognitive complexity**, **per-function line count**, or **file
+length (<= 300 lines)**, and **no stable rule for nesting depth (<= 4)** — its `PLR1702` is
+preview-only (does not fire under this stable `select`) and defaults to 5 nested blocks, not Law E's
+4. Enforce those via `radon` and code review per `complexity.md` (the TypeScript side uses
+`sonarjs/cognitive-complexity`). Do not claim ruff gates what it does not.
 
 **Why:** one tool, one config, deterministic in CI and pre-commit; the complexity ceilings fail the
 build rather than relying on reviewer vigilance. `known-first-party = ["app"]` gives stable

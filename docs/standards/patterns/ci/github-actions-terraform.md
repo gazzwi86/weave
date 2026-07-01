@@ -51,6 +51,12 @@ jobs:
   plan:
     name: fmt · validate · plan
     runs-on: ubuntu-latest
+    # Gate the OIDC plan to first-party code: run on push to main, or on a PR raised
+    # from a branch in THIS repo — never a fork PR (blocks the pwn-request / OIDC-token
+    # and plan-comment-disclosure vectors from untrusted fork code).
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     environment: dev            # plan role scoped to dev; protection rules apply
     permissions:
       id-token: write           # REQUIRED for OIDC assume-role
@@ -60,15 +66,15 @@ jobs:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # OIDC: short-lived creds for a PLAN-scoped (read-only) role. No secrets.
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_TF_PLAN_ROLE_ARN }}   # arn:aws:iam::<acct>:role/weave-tf-plan
           aws-region: ${{ vars.AWS_REGION }}
@@ -92,7 +98,7 @@ jobs:
 
       - name: Post plan summary to PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7.1.0
         with:
           script: |
             const fs = require('fs');
@@ -123,15 +129,15 @@ jobs:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3.1.2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       # Narrower APPLY-scoped role — distinct from the plan role.
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_TF_APPLY_ROLE_ARN }}   # arn:aws:iam::<acct>:role/weave-tf-apply
           aws-region: ${{ vars.AWS_REGION }}
@@ -152,6 +158,18 @@ if the plan errored. `-lock-timeout` cooperates with the DynamoDB state lock;
 never interrupted mid-state-write. `apply` is a distinct job that only runs on
 push to `main` and only after the `production` environment's protection rules pass.
 
+**Plan/apply are separate runs by design.** The PR `plan` and the post-merge
+`apply` are distinct workflow runs (`pull_request` vs `push`), so `apply`
+intentionally re-plans against current `main` (`init` + `apply`) rather than
+consuming the PR's binary `tfplan` — the human approval gate on the `production`
+environment (required reviewers), not a saved artifact, is the safety control.
+The reviewer approves the *change*; `apply` then re-derives it on the merged tree,
+which also catches drift merged in between. Note `-out=tfplan` writes a binary plan
+that nothing here consumes — the PR comment is built from `plan.txt` (the `tee`
+capture) and apply re-plans — so if you require the *exact* reviewed plan to be the
+one applied, upload `tfplan` as an artifact and `terraform apply tfplan` in a
+same-run gated job instead.
+
 **Security:**
 - **OIDC, not static keys.** Both jobs use `configure-aws-credentials@v4` to
   exchange the OIDC token for a short-lived STS session — no
@@ -170,9 +188,17 @@ push to `main` and only after the `production` environment's protection rules pa
   ephemeral and truncated in the comment.
 - **`id-token: write` scoped per job**; workflow default is `contents: read`;
   `pull-requests: write` is granted only to the plan job for its comment.
-- **Pinned actions.** Pinned to major tags for readability; the **hardened option
-  is full commit-SHA pinning** (e.g. `hashicorp/setup-terraform@<sha>  # v3.x`) so
-  a re-tagged release cannot alter the pipeline. `TF_VERSION` is pinned, not `latest`.
+- **Plan gated to first-party PRs.** The plan job's `if` runs it on push to `main`
+  or on a PR from a branch in this repo, never a fork PR — so untrusted fork code
+  can neither assume the OIDC plan role (pwn-request) nor trigger a plan comment.
+  Note the plan text can still carry confidential-but-non-sensitive values
+  (endpoints, ARNs, generated names): Terraform redacts `sensitive` values but not
+  these, so keep infra repos private and the comment first-party-only.
+- **SHA-pinned actions.** Every third-party `uses:` is pinned to a full 40-char
+  commit SHA with a trailing `# vX.Y` comment — mandatory because these jobs hold
+  `id-token: write`, so a re-tagged/compromised action could otherwise mint AWS STS
+  credentials (tj-actions/changed-files, Mar 2025). renovate/dependabot bumps the
+  SHAs; `TF_VERSION` is pinned, not `latest`.
 
 **Anti-patterns:**
 - `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` as secrets, or committed

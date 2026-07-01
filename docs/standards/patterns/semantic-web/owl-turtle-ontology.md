@@ -58,6 +58,15 @@ weave:performedBy
     rdfs:range weave:Actor ;
     owl:inverseOf weave:performs .
 
+# OWL 2 DL requires a declaration axiom for every entity, so the inverse
+# property is declared explicitly rather than left implicit via owl:inverseOf.
+weave:performs
+    a owl:ObjectProperty ;
+    rdfs:label "performs"@en ;
+    rdfs:comment "Links an actor to the process it carries out."@en ;
+    rdfs:domain weave:Actor ;
+    rdfs:range weave:Process .
+
 weave:processCode
     a owl:DatatypeProperty, owl:FunctionalProperty ;
     rdfs:label "process code"@en ;
@@ -85,8 +94,10 @@ the framework-not-taxonomy rule.
 
 - Mixing `rdfs:Class` and `owl:Class` for the same resource, or using `owl:Thing`/`owl:Nothing`
   as domain/range — tips the ontology into OWL Full and weakens reasoning.
-- Class/individual punning (one IRI as both `owl:Class` and `owl:NamedIndividual`) — distinct
-  from, and not blessed like, the class/concept identity above.
+- Class/individual punning (one IRI as both `owl:Class` and `owl:NamedIndividual`) — OWL 2 DL
+  *permits* this (it does not tip to OWL Full), but as a Weave **house convention** we don't use
+  it: it blurs whether an IRI denotes a type or a thing. This is a house rule, not a W3C
+  constraint, and is distinct from the blessed class/concept identity above.
 - Checking in N-Triples or RDF/XML as the primary source — Turtle is canonical.
 - Hard-coding "8" / "13" / "14" kinds anywhere — resolve the kind set from
   `GET /api/ontology/types` (CE-READ-1).

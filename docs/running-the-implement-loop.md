@@ -1,3 +1,12 @@
+---
+type: Harness Documentation
+title: Running the Implementation Loop
+description: "Operator runbook for the Weave /implement loop: the PDAC cycle, all HITL gates, the ui_verify UI gate, one-PR-per-epic delivery, durable resume, and no-bypass enforcement."
+tags: [harness, documentation, runbook]
+timestamp: 2026-07-01T00:00:00Z
+resource: docs/running-the-implement-loop.md
+---
+
 # Running the implementation loop (operator runbook)
 
 The consultable "how do I actually run this now" guide, current as of the 2026-06-30 harness

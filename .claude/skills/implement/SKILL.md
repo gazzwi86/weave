@@ -80,7 +80,7 @@ Then proceed per project type:
 1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
 2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/python/linting.md` for ruff config
-4. Reference `.claude/spec-templates/few-shot/api/fastapi-router.md` for router patterns
+4. Reference `docs/standards/patterns/api/fastapi-router.md` for router patterns
 5. Invoke the **engineer** subagent to scaffold:
    - `uv init` in the target directory
    - `uv add fastapi pydantic uvicorn[standard]`
@@ -102,7 +102,7 @@ Then proceed per project type:
 1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
 2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/ts/linting.md` for ESLint config
-4. Reference `.claude/spec-templates/few-shot/api/nextjs-route-handler.md` for route handler patterns
+4. Reference `docs/standards/patterns/api/nextjs-route-handler.md` for route handler patterns
 5. Invoke the **engineer** subagent to scaffold:
    - `npx create-next-app@latest --typescript --eslint --app`
    - Install: `vitest @testing-library/react playwright eslint-plugin-sonarjs @stryker-mutator/core @stryker-mutator/vitest-runner tsc-files jscpd license-checker`

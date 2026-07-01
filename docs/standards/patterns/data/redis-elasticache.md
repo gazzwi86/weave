@@ -17,12 +17,15 @@ URL is pulled from Secrets Manager, with tenant-scoped keys and cache-aside get/
 
 ```python
 import json
+from functools import lru_cache
 from typing import Any
 
 import boto3
 import redis.asyncio as redis
 
 _TTL_SECONDS = 300
+# Cache ONLY these non-sensitive fields — never the whole source row (may carry PII).
+_CACHEABLE_FIELDS = ("id", "iri", "label", "kind")
 
 
 def _redis_url() -> str:
@@ -31,19 +34,30 @@ def _redis_url() -> str:
     return json.loads(secret["SecretString"])["url"]  # rediss://... , no hard-coded creds
 
 
-# decode_responses=True → GET returns str, ready for json.loads.
-cache = redis.from_url(_redis_url(), decode_responses=True)
+@lru_cache(maxsize=1)
+def get_cache() -> redis.Redis:
+    """Lazy singleton: build the client on first use — the secret fetch never runs at import."""
+    # decode_responses=True → GET returns str, ready for json.loads.
+    return redis.from_url(_redis_url(), decode_responses=True)
+
+
+def _projection(record: dict[str, Any]) -> dict[str, Any]:
+    """Non-sensitive projection of the source row — the only thing we put in the cache."""
+    return {k: record[k] for k in _CACHEABLE_FIELDS if k in record}
 
 
 async def get_entity(tenant_id: str, entity_id: str) -> dict[str, Any] | None:
+    cache = get_cache()
     key = f"entity:{tenant_id}:{entity_id}"  # tenant-scoped key
     cached = await cache.get(key)
     if cached is not None:
         return json.loads(cached)
     record = await _load_from_source(tenant_id, entity_id)  # cache-aside miss
-    if record is not None:
-        await cache.set(key, json.dumps(record), ex=_TTL_SECONDS)
-    return record
+    if record is None:
+        return None
+    projection = _projection(record)  # cache the projection, not the raw (PII-bearing) row
+    await cache.set(key, json.dumps(projection), ex=_TTL_SECONDS)
+    return projection
 
 
 async def _load_from_source(tenant_id: str, entity_id: str) -> dict[str, Any] | None:
@@ -55,9 +69,12 @@ miss reads through and back-fills with an explicit TTL (`ex=`), so stale entries
 `decode_responses=True` yields `str` so `json` is the single (de)serialization boundary.
 
 **Security:** The connection URL (with any auth token, `rediss://` in-transit TLS) is fetched from
-AWS Secrets Manager at startup — never hard-coded, never in `.env`. Cache keys are tenant-prefixed
-so one tenant can never read another's cached rows.
+AWS Secrets Manager on first use via `get_cache()` — never hard-coded, never in `.env`, and never at
+import time (so tests and offline dev don't hit AWS). Only the non-sensitive `_projection` is cached,
+never the raw source row, so PII never lands in Redis. Cache keys are tenant-prefixed so one tenant
+can never read another's cached rows.
 
-**Anti-patterns:** hard-coded host/password or `Redis(host=..., password=...)` literals; the
-blocking `import redis` client inside async handlers; caching without a TTL (unbounded staleness);
-un-prefixed keys that leak across tenants; caching PII/secrets in plaintext values.
+**Anti-patterns:** hard-coded host/password or `Redis(host=..., password=...)` literals; building
+the client (and fetching its secret) at module import instead of a lazy getter; the blocking
+`import redis` client inside async handlers; caching without a TTL (unbounded staleness);
+un-prefixed keys that leak across tenants; caching the whole source row or any PII/secret in plaintext.

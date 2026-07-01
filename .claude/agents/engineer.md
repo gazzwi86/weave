@@ -118,7 +118,7 @@ On scaffold and on every implementation task, read `weave.stack` from `.claude/s
 
 Never hard-code the TS/Next.js variant in scripts or CI config — always derive from `weave.stack`.
 
-**Few-shot patterns.** Before writing code for a task, consult `templates/few-shot/<topic>/<stack>.md` where `<topic>` matches the task's domain (api / data / infra / ci / linting / observability) and `<stack>` matches the chosen stack. Use it as a starting pattern, not a copy-paste mandate.
+**Few-shot patterns.** Before writing code for a task, consult `docs/standards/patterns/<topic>/<stack>.md` where `<topic>` matches the task's domain (api / frontend / data / semantic-web / ai-agents / infra / ci / linting / observability) and `<stack>` matches the chosen stack. Use it as a starting pattern, not a copy-paste mandate.
 
 **Complexity tool.** Bake the language-specific complexity tool from `templates/standards/base/complexity.md` (sonarjs / Ruff `C901` / Checkstyle / SwiftLint) into the verification script that the task brief's DoD requires. The script must fail CI if any threshold is exceeded without a valid waiver comment.
 

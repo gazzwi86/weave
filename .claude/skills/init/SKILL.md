@@ -217,7 +217,7 @@ a flat `brief.md`/`prd.md`/`roadmap.md`/`tech-spec/` set.
 
 After standards copy, write:
 - `<project>/.claude/weave-few-shot.txt` — one line:
-  `plugins/weave/templates/few-shot/`
+  `docs/standards/patterns/`
 
 This lets engineers and agents locate stack-specific examples without
 re-deriving the path.
@@ -338,7 +338,7 @@ When testing this skill, verify:
 - **Standards copied (base)**: All base standards files are present in `docs/standards/` when `WEAVE_STANDARDS_NONE` is unset
 - **Standards copied (overlay)**: Language-specific overlay files are present in `docs/standards/` and have overwritten any same-named base files
 - **Standards skipped**: When `WEAVE_STANDARDS_NONE=1`, no files are written to `docs/standards/`
-- **Few-shot pointer written**: `.claude/weave-few-shot.txt` exists containing `plugins/weave/templates/few-shot/`
+- **Few-shot pointer written**: `.claude/weave-few-shot.txt` exists containing `docs/standards/patterns/`
 - **Stack shortcode path**: `--stack ts-nextjs-aws` skips MCQ and produces correct `weave.stack` block in `settings.json`
 - **Stack MCQ path**: Without `--stack`, all six MCQ questions are asked in order; IaC question is skipped for `none (local-only)`
 - **Exotic stack escape hatch**: Selecting `other` language shows the bus-factor warning and sets `test_framework`/`e2e_framework` to `"custom"`
