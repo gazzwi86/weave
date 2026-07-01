@@ -52,7 +52,7 @@ security vulnerabilities or plaintext secrets into the codebase
 | AC-4 | WHEN the secret-scan gate detects a plaintext secret (regex patterns for API keys, passwords, connection strings), THE SYSTEM SHALL halt the pipeline immediately, return the file path and line number, and emit `PLAT-AUDIT-1` event `"secret_scan_fail"` — no downstream gates run | `test_secret_scan_halts_pipeline_with_file_and_line` |
 | AC-5 | WHEN the mutation gate runs, THE SYSTEM SHALL compute mutation score only on delta (changed files in this generation run) and FAIL the gate when score is < 70%; the specific surviving mutants MUST be included in the failure evidence | `test_mutation_gate_fails_below_70_percent_with_evidence` |
 | AC-6 | WHEN all five M1 safety gates pass, THE SYSTEM SHALL commit the generated code to a feature branch with a conventional commit message (`feat(<entity>): generate <artefact-name>`) and return `201` with `{commit_sha, branch, gates_passed: [...]}` | `test_all_gates_pass_commits_to_feature_branch` |
-| AC-7 | WHEN generated configuration or code references Claude model IDs, THE SYSTEM SHALL use only the confirmed set (`claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5`); any placeholder or invented model ID MUST cause a SAST-pattern violation that fails the pipeline | `test_generated_code_uses_only_confirmed_model_ids` |
+| AC-7 | WHEN generated configuration or code references Claude model IDs, THE SYSTEM SHALL use only the confirmed set (`claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5`); any placeholder or invented model ID MUST cause a SAST-pattern violation that fails the pipeline | `test_generated_code_uses_only_confirmed_model_ids` |
 | AC-8 | WHEN the CE-BRAND-1 conformance gate is referenced anywhere in the M1 generation pipeline, THE SYSTEM SHALL treat it as NOT APPLICABLE for M1 and not run it; the gate result for CE-BRAND-1 MUST NOT appear in the M1 gate summary | `test_brand_gate_not_run_in_m1` |
 
 ## Implementation
@@ -79,7 +79,7 @@ function generate_app(jwt, project_iri, task_id):
   # DELEGATE: Engineer agent generates artefacts to a temp working dir
   workspace = tempfile.mkdtemp(prefix=f"build-{task_id}-")
   engineer_agent.run(
-    model="claude-sonnet-4-6",
+    model="claude-sonnet-5",
     prompt=build_generation_prompt(brief, bpmo),
     output_dir=workspace
   )
@@ -203,7 +203,7 @@ All three are pending tech-spec additions (DoR blockers).
 |---|---|---|
 | M1 safety gates: SAST/type/mutation ≥70%/pkg-existence/secret-scan — atomic | [build-engine.md FR-029](../../../build-engine.md#21-functional-requirements) | Gates run in the order stated (secret-scan first, mutation last); any failure returns 422 and cleans up workspace |
 | CE-BRAND-1 conformance gate is M2 (not M1) | [build-engine.md decision B7](../../../build-engine.md#key-decisions) + [contracts.md §CE-BRAND-1](../../../../contracts.md#ce-brand-1) | Do NOT call `GET /api/brand/tokens` or `GET /api/brand/voice-rules` in M1 generation; gate result must not appear in M1 gate summary |
-| Engineer agent model: `claude-sonnet-4-6` | [CLAUDE.md](../../../../../../../CLAUDE.md#stack-confirmed) | Hardcoded in routing table; generation uses Sonnet (speed/cost balance); Opus is advisor role only |
+| Engineer agent model: `claude-sonnet-5` | [CLAUDE.md](../../../../../../../CLAUDE.md#stack-confirmed) | Hardcoded in routing table; generation uses Sonnet (speed/cost balance); Opus is advisor role only |
 | Generation grounds in CE-READ-1 (non-degradable) | [build-engine.md FR-002](../../../build-engine.md#21-functional-requirements) | CE-READ-1 unreachable → 503; no degraded generation mode for the generate endpoint (unlike spec-drafting) |
 | Mutation is delta-scoped (changed files only) | [build-engine.md FR-029](../../../build-engine.md#21-functional-requirements) | `mutmut run --use-coverage` on changed files; full-codebase mutation is M2+ |
 | Commit to feature branch (not directly to main) | No ADR yet — decision here | `build/{entity}/{task_id}` branch naming; merge to main is a human step (no autonomous merge — decision B4) |

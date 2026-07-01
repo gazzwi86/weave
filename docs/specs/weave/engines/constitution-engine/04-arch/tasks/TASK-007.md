@@ -78,7 +78,7 @@ sequenceDiagram
     participant UI as Query UI
     participant NL as POST /api/query/nl
     participant SP as GET /api/sparql (CE-READ-1)
-    participant LLM as claude-sonnet-4-6
+    participant LLM as claude-sonnet-5
     participant G as Graph (published version)
 
     U->>UI: NL question
@@ -107,7 +107,7 @@ sequenceDiagram
 | Generated SPARQL returned to caller alongside results | Transparency; analysts can verify and refine the translation; seed for SPARQL editor. | engine spec E7-S1, AC-007-08 |
 | `coverage_gap(process)` ships in M1 as a named SELECT pattern | It is the core "gap analysis" proof-of-value; a stored query avoids requiring analysts to write SPARQL. | contracts.md CE-READ-1 |
 | `authority()` and `escalation()` patterns deferred to M2 | Those patterns require Build Engine integration (agent grounding) which is not yet built. | engine spec E7 scope |
-| NL translation uses claude-sonnet-4-6 with BPMO schema context | Sonnet has sufficient capability for SPARQL translation; BPMO kind list + relationship types injected into context. | CLAUDE.md stack |
+| NL translation uses claude-sonnet-5 with BPMO schema context | Sonnet has sufficient capability for SPARQL translation; BPMO kind list + relationship types injected into context. | CLAUDE.md stack |
 | Explanation of generated SPARQL is a separate LLM call | Keeps the query path synchronous; explanation is optional/on-demand and can be slow. | engine spec E11-S3 spirit |
 
 ## Test Requirements
@@ -144,7 +144,7 @@ pattern implementation, and the SPARQL editor UI with result rendering.
 ## DoR Checklist
 
 - [ ] TASK-003 complete (CE-READ-1 `GET /api/sparql` endpoint stable)
-- [ ] claude-sonnet-4-6 prompt template for NL→SPARQL agreed and tested offline
+- [ ] claude-sonnet-5 prompt template for NL→SPARQL agreed and tested offline
 - [ ] BPMO schema context injection strategy defined (which triples injected into LLM context)
 - [ ] Hammerbarn seed dataset populated with at least one process coverage gap
 - [ ] `coverage_gap(process)` SELECT pattern reviewed and finalised in contracts.md

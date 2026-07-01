@@ -361,7 +361,7 @@ Decisions are final unless overridden by explicit PRD justification.
   Cognito (default) or Auth0 (multi-IdP).
 - **AI/Agents:** Anthropic (Claude) Agent SDK — Python primary, TS secondary; AWS Bedrock
   AgentCore (GA components: Runtime, Memory, Identity, Gateway). Models: `claude-opus-4-8`
-  (elicitation/architecture), `claude-sonnet-4-6` (generation/implementation),
+  (elicitation/architecture), `claude-sonnet-5` (generation/implementation),
   `claude-haiku-4-5` (validation/formatting). Guardrails: AWS Bedrock Guardrails.
 - **Data:** RDF store Oxigraph (dev/test) → Neptune or Jena Fuseki (prod, deferred to CE tech
   spec); Vector AWS S3 Vectors; Relational AWS Aurora PostgreSQL Serverless v2 + SQLAlchemy

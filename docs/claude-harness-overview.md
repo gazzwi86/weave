@@ -496,12 +496,12 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 | Elicitation / creative brief writing | claude-opus-4-8 | Wide reasoning, novel framing |
 | Architecture design, C4 diagrams | claude-opus-4-8 | Spatial reasoning, tradeoff analysis |
 | Task brief writing | claude-opus-4-8 | Self-contained, must be complete |
-| PRD stories, flows, OpenAPI | claude-sonnet-4-6 | Structured but not exploratory |
-| Data models, class diagrams | claude-sonnet-4-6 | Precision over creativity |
+| PRD stories, flows, OpenAPI | claude-sonnet-5 | Structured but not exploratory |
+| Data models, class diagrams | claude-sonnet-5 | Precision over creativity |
 | Stack confirmation, open dimensions | claude-haiku-4-5 (detect) + HITL | Fast pattern matching; human confirms |
 | DoR/DoD, YAML/config generation | claude-haiku-4-5 | Mechanical, template-following |
 | Validation, lint checks | claude-haiku-4-5 | Fast, cheap, deterministic |
-| Code implementation (engineer) | claude-sonnet-4-6 | TDD iteration |
+| Code implementation (engineer) | claude-sonnet-5 | TDD iteration |
 | Security review | claude-opus-4-8 | High-stakes, adversarial |
 
 ---

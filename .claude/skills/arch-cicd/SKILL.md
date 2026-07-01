@@ -11,7 +11,7 @@ architect phase (04-arch) when a CI/CD design is needed for a new or updated ser
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (structured generation, precise YAML, diagram output)
+- **All phases:** claude-sonnet-5 (structured generation, precise YAML, diagram output)
 
 No Opus tier needed — this is specification drafting with well-defined inputs, not
 open-ended elicitation. If the entity has unusual constraints (novel runtime, bespoke

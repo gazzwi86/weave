@@ -80,7 +80,7 @@ See [contracts.md](../../../../contracts.md).
 
 ```mermaid
 flowchart TD
-    Chat[Chat Panel<br/>E11-S1] --> NLparse[claude-sonnet-4-6<br/>NL→operation batch]
+    Chat[Chat Panel<br/>E11-S1] --> NLparse[claude-sonnet-5<br/>NL→operation batch]
     Chat --> explain[AI Explanation<br/>E11-S3]
     Form[Guided Form<br/>E11-S2] --> validate[Client-side SHACL field validation]
     NLparse --> confirm{Modeller confirmation}
@@ -137,7 +137,7 @@ state, LLM integration, and error-path UI. The largest frontend task in M1.
 
 - [ ] TASK-003, TASK-004, TASK-005 complete (API surface stable)
 - [ ] Design mockups for chat panel, guided form, and explanation panel reviewed
-- [ ] claude-sonnet-4-6 prompt template for NL→operation-batch agreed and tested offline
+- [ ] claude-sonnet-5 prompt template for NL→operation-batch agreed and tested offline
 - [ ] Undo semantics confirmed (inverse operation batch, not snapshot revert)
 - [ ] In-browser session history format agreed (localStorage schema)
 

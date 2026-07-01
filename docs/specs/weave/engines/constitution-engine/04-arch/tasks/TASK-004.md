@@ -77,7 +77,7 @@ See [contracts.md](../../../../contracts.md).
 
 ```mermaid
 flowchart LR
-    NL[Natural Language Input] --> LLM[claude-sonnet-4-6<br/>NL→operations parser]
+    NL[Natural Language Input] --> LLM[claude-sonnet-5<br/>NL→operations parser]
     Form[SHACL-Driven Form] --> ops[Operation batch<br/>add_node / update_node / add_edge]
     File[Turtle / OWL file upload] --> parser[Turtle parser + BPMO validator]
     LLM --> ops
@@ -94,7 +94,7 @@ flowchart LR
 |---|---|---|
 | Punned resources (owl:Class + skos:Concept at same IRI) | Single URI for both class semantics and concept labelling; SHACL runs `inference='none'` so no OWL/SHACL conflict. | engine spec decision B1 |
 | BPMO 13-kind constraint enforced at ingestion, not only SHACL | Kind membership is a platform-level constraint; earlier rejection = better UX than SHACL 422. | engine spec §BPMO framework |
-| NL parsing uses claude-sonnet-4-6 to produce operation batches | Sonnet produces structured operation JSON from intent; model is swappable. | CLAUDE.md stack |
+| NL parsing uses claude-sonnet-5 to produce operation batches | Sonnet produces structured operation JSON from intent; model is swappable. | CLAUDE.md stack |
 | Deterministic IRIs from kind + normalised label | Prevents duplicate IRIs for same concept; makes import idempotent. | engine spec E1-S1 ACs |
 | Import collision → HITL resolution, never silent | Silent resolution hides data quality problems; the modeller must own the decision. | engine spec E1-S3 ACs |
 | OWL restrictions authored as OWL 2 DL (not SHACL constraints) | Property restrictions are class-level semantics → OWL; data quality rules → SHACL. Polikoff rule. | engine spec decision B3 |
@@ -131,7 +131,7 @@ their own error handling; NL parsing introduces LLM latency requirements.
 
 - [ ] TASK-001, TASK-002, TASK-003 complete
 - [ ] BPMO 13-kind list and SHACL shapes committed to repo
-- [ ] claude-sonnet-4-6 integration pattern agreed (prompt template, structured output schema)
+- [ ] claude-sonnet-5 integration pattern agreed (prompt template, structured output schema)
 - [ ] Turtle parser library selected (rdflib or equivalent)
 - [ ] Hammerbarn seed dataset available for E2E test
 
@@ -147,7 +147,7 @@ their own error handling; NL parsing introduces LLM latency requirements.
 
 ## Implementation Hints
 
-**NL parsing strategy**: claude-sonnet-4-6 should produce a structured `{operations: [Op]}`
+**NL parsing strategy**: claude-sonnet-5 should produce a structured `{operations: [Op]}`
 JSON object matching the CE-WRITE-1 request schema. Prompt must include the BPMO kind list
 and the existing class IRIs (from CE-READ-1 types) so the model can resolve references
 ("add Activity to the Customer Onboarding process" requires knowing that process IRI).

@@ -548,7 +548,7 @@ exact version tags.
 |---|---|---|
 | OQ-01 | Which OWL reasoner ships in v1 (RDFLib-OWL / Owlready2 / Stardog / ELK)? Tractability at 500k triples? FR-007/FR-028 gate on this. | Architect |
 | OQ-02 | Production RDF store: Neptune vs Jena Fuseki — latency, SPARQL 1.1 compliance, cost at scale. | Architect |
-| OQ-03 | Which Claude model handles NL→operations generation? Token budget per mutation? (Candidate `claude-sonnet-4-6`.) | Architect |
+| OQ-03 | Which Claude model handles NL→operations generation? Token budget per mutation? (Candidate `claude-sonnet-5`.) | Architect |
 | OQ-04 | Final multi-tenant isolation mechanism: store-per-tenant vs named-graph + query-rewriting that rejects unscoped queries. (Expectation + cross-tenant test fixed in NFR Isolation.) | Architect |
 | OQ-05 | *(Resolved)* SPARQL Update is never exposed; writes go only through CE-WRITE-1. Connector→graph ingestion is a platform responsibility writing via CE-WRITE-1 (PLAT-CONNECTOR-1). | — |
 | OQ-06 | *(Resolved by CE-BRAND-1)* Brand/voice serialised as a flattened design-token JSON projection + machine-evaluable VoiceRules over the RDF. | — |

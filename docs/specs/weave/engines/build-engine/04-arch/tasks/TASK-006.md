@@ -122,8 +122,8 @@ function dispatch_pdac(task, state, tenant_id):
   brief = aurora.get_brief(task.id, tenant_id)         # from TASK-002
   dep_summaries = [aurora.get_dep_summary(project_iri, t, tenant_id)
                    for t in task.blocked_by]
-  # DELEGATE: Engineer agent (claude-sonnet-4-6)
-  # ASSESS: QA agent (claude-haiku-4-5 or claude-sonnet-4-6)
+  # DELEGATE: Engineer agent (claude-sonnet-5)
+  # ASSESS: QA agent (claude-haiku-4-5 or claude-sonnet-5)
   # CODIFY: write dep_summary to result
   # (agent internals: Sonnet + Opus advisor implement)
   ...
@@ -155,11 +155,11 @@ class StateSpine(BaseModel):
 ```python
 MODEL_ROUTING = {
   "plan":     {"provider": "anthropic", "model": "claude-opus-4-8"},
-  "delegate": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
-  "assess":   {"provider": "anthropic", "model": "claude-sonnet-4-6"},
+  "delegate": {"provider": "anthropic", "model": "claude-sonnet-5"},
+  "assess":   {"provider": "anthropic", "model": "claude-sonnet-5"},
   "codify":   {"provider": "anthropic", "model": "claude-haiku-4-5"},
 }
-ALLOWED_MODELS = {"claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"}
+ALLOWED_MODELS = {"claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"}
 
 def resolve_model(role: str) -> dict:
   routing = MODEL_ROUTING.get(role)
@@ -243,7 +243,7 @@ All three are pending — to be added to tech-spec before implementation starts 
 |---|---|---|
 | CODIFY is non-skippable; dep summary written before Done | [build-engine.md decision B3](../../../build-engine.md#key-decisions) | `dispatch_pdac` must return `dep_summary` in `TypedResult`; orchestrator writes it before updating task status |
 | Orchestrator turn cap is DISTINCT from per-agent internal caps | [build-engine.md FR-041](../../../build-engine.md#21-functional-requirements) | Orchestrator counts dispatch cycles (not LLM calls); per-agent internal caps are the agent's own concern; routing miss from per-agent halt arrives as `TypedResult {FAIL}` |
-| Confirmed Claude model IDs only: `claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5` | [CLAUDE.md](../../../../../../../CLAUDE.md#stack-confirmed) | `MODEL_ROUTING` constants + `ALLOWED_MODELS` set; `ModelRoutingError` halts the task — never silent invocation |
+| Confirmed Claude model IDs only: `claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5` | [CLAUDE.md](../../../../../../../CLAUDE.md#stack-confirmed) | `MODEL_ROUTING` constants + `ALLOWED_MODELS` set; `ModelRoutingError` halts the task — never silent invocation |
 | State spine committed after every task (blocking) | [build-engine.md FR-044](../../../build-engine.md#21-functional-requirements) | `aurora.commit_state_spine` is synchronous and blocking; 500 ms p99 target; timeout → task NOT marked Done |
 | RLS isolation for state spine and dep summaries | [build-engine.md §2.2 Reliability](../../../build-engine.md#22-non-functional-requirements) | Aurora RLS policy on `state_spines` and `dep_summaries` by `tenant_id`; OQ-06 defers mechanism selection to tech spec |
 | SS-BE-5 operational ceiling: 60 × ~100 = ~6,000 LLM calls | [build-engine.md FR-041](../../../build-engine.md#21-functional-requirements) | Ceiling is stated and monitored; not enforced as a hard ceiling (per-agent cap is agent-internal); PLAT-BILLING-1 alerts before ceiling |

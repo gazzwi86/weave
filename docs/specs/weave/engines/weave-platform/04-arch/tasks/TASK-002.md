@@ -35,7 +35,7 @@ adr_refs: []
 | AC-1 | WHEN a developer runs `make dev`, THE SYSTEM SHALL start the Next.js frontend (port 3000), FastAPI backend (port 8000), Oxigraph SPARQL endpoint (port 7878), Aurora PG (via Docker), and Redis, all healthy within 60 seconds. | integration: `test_dev_stack_healthy` |
 | AC-2 | WHEN an unauthenticated user visits any protected route, THE SYSTEM SHALL redirect to the Cognito hosted UI and return the user to the original path after successful sign-in. | E2E: `test_auth_redirect_and_return` |
 | AC-3 | WHEN a signed-in user's JWT has expired (TTL ≤60 s), THE SYSTEM SHALL silently refresh the token via Cognito refresh token grant, or redirect to sign-in if the refresh token is absent or revoked. | unit: `test_jwt_auto_refresh`, integration: `test_expired_jwt_triggers_refresh` |
-| AC-4 | WHEN a component calls the model-routing client with a model tier (`opus`, `sonnet`, `haiku`), THE SYSTEM SHALL route the request to the corresponding Claude model ID (`claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5-20251001`) via the configured provider (Bedrock or Anthropic direct), with no model ID hard-coded outside the routing table. | unit: `test_model_routing_tier_mapping` |
+| AC-4 | WHEN a component calls the model-routing client with a model tier (`opus`, `sonnet`, `haiku`), THE SYSTEM SHALL route the request to the corresponding Claude model ID (`claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5-20251001`) via the configured provider (Bedrock or Anthropic direct), with no model ID hard-coded outside the routing table. | unit: `test_model_routing_tier_mapping` |
 | AC-5 | WHEN any backend request completes, THE SYSTEM SHALL emit an OpenTelemetry trace span (with `tenant_id`, `engine`, and `principal_iri` attributes) to the ADOT Collector; a missing `tenant_id` attribute is a test failure. | integration: `test_otel_span_has_required_attrs` |
 | AC-6 | WHEN a developer runs `npx storybook`, THE SYSTEM SHALL serve the Storybook catalogue with at least the Button, Input, Badge, and Card shadcn components documented and visually verified at WCAG 2.1 AA contrast. | unit: `test_storybook_components_render` |
 | AC-7 | WHEN `make test` is run locally, THE SYSTEM SHALL execute the full unit + integration suite and report results within 5 minutes without requiring any cloud credentials. | integration: `test_local_test_suite_offline` |
@@ -59,7 +59,7 @@ middleware(request):
 # Backend model-routing client (packages/backend/ai/router.py)
 MODEL_ROUTING_TABLE = {
   "opus":   "claude-opus-4-8",
-  "sonnet": "claude-sonnet-4-6",
+  "sonnet": "claude-sonnet-5",
   "haiku":  "claude-haiku-4-5-20251001",
 }
 
@@ -149,7 +149,7 @@ sequenceDiagram
 |----------|--------|---------------------|
 | Next.js 15 App Router, Tailwind CSS, shadcn/ui | CLAUDE.md stack | App Router middleware handles auth; shadcn is the component baseline for Storybook |
 | JWT TTL ≤60 s (PLAT-IDENTITY-1) | contracts.md PLAT-IDENTITY-1 | Cognito pool configured with `AccessTokenValidity=1minute`; refresh logic mandatory |
-| Claude models: opus-4-8 / sonnet-4-6 / haiku-4-5 | CLAUDE.md AI/Agents | Routing table maps tier strings — no hard-coded IDs elsewhere in the codebase |
+| Claude models: opus-4-8 / sonnet-5 / haiku-4-5 | CLAUDE.md AI/Agents | Routing table maps tier strings — no hard-coded IDs elsewhere in the codebase |
 | AWS Bedrock AgentCore + Anthropic Agent SDK | CLAUDE.md AI/Agents | Provider abstraction must accept both; env var selects active provider |
 | OpenTelemetry + CloudWatch via ADOT Collector | CLAUDE.md Observability | Spans emitted to ADOT via OTLP gRPC (localhost:4317 in dev, ECS sidecar in prod) |
 | Oxigraph for dev/test RDF store | CLAUDE.md Data | Docker image `ghcr.io/oxigraph/oxigraph`; replaced by Neptune in prod (TASK-003 config) |

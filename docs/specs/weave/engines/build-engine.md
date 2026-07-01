@@ -132,7 +132,7 @@ but humans still hand-build everything that runs it.
 - Multi-tenant isolation: state spine, summaries, and investigator outputs are RLS-isolated;
   mechanism deferred to OQ-06.
 - Agent SDK: Anthropic Agent SDK (Python primary); confirmed model IDs only
-  (`claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5`).
+  (`claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5`).
 
 ### Key Decisions
 
@@ -574,7 +574,7 @@ E8-S3 (anatomy/wiki, M2 Must Have), E8-S4 (deploy + demo, M1 Must Have), E8-S5 (
   function in the CE-owned registry; WHEN `CE-READ-1` is unreachable or SHACL shapes cannot be
   resolved, THE SYSTEM SHALL fail atomically — no partial SDK package is emitted.
 - WHEN generated config references model IDs, THE SYSTEM SHALL use only confirmed Claude IDs
-  (`claude-opus-4-8`, `claude-sonnet-4-6`, `claude-haiku-4-5`) — no placeholder IDs.
+  (`claude-opus-4-8`, `claude-sonnet-5`, `claude-haiku-4-5`) — no placeholder IDs.
 
 ---
 

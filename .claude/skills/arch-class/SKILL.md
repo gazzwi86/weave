@@ -11,7 +11,7 @@ during the architecture phase after the C4 container diagram has been approved.
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-4-6 (structured generation, precise relationships)
+- **Drafting phase:** claude-sonnet-5 (structured generation, precise relationships)
 - **Reasoning tier:** generation — translates spec intent into typed domain model
 
 ## Input
