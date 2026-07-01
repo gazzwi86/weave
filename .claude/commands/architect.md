@@ -27,7 +27,7 @@ All documents are delivered section-by-section with HITL review.
 
 When the user runs `/architect`, invoke the `tech-architect` subagent:
 
-1. Read `docs/specs/<entity>/01-brief/brief.md`, `prd.md`, `roadmap.md`, `epics/*.md`
+1. Read `docs/specs/weave/engines/<entity>.md`, `prd.md`, `roadmap.md`, `epics/*.md`
 2. Verify specs are approved (not templates)
 3. Launch tech-architect agent to generate tech spec and tasks
 

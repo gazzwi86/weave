@@ -25,18 +25,18 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, Plugin Laws A-F, EARS notation rules
 2. `.claude/spec-templates/task.md` — section structure (scaffold only; never leave `{{}}` in output)
-3. `docs/specs/<entity>/02-prd/prd.md` — parent PRD; locate FRs that relate to this task
-4. `docs/specs/<entity>/02-prd/epics/EPIC-NNN.md` — parent epic; inherit priority, phase ref,
+3. `docs/specs/weave/engines/<entity>.md` — parent PRD; locate FRs that relate to this task
+4. `docs/specs/weave/engines/<entity>.md` — parent epic; inherit priority, phase ref,
    and story list
-5. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` — architecture decisions, API surface, data model
-6. `docs/specs/<entity>/04-arch/tasks/` — scan existing TASK-NNN.md files to determine the next
+5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` — architecture decisions, API surface, data model
+6. `docs/specs/weave/engines/<entity>/04-arch/tasks/` — scan existing TASK-NNN.md files to determine the next
    sequence number (zero-pad to 3 digits: 001, 002, …) and to avoid `blocked_by` / `unlocks` gaps
-7. Any existing ADRs in `docs/specs/<entity>/04-arch/decisions/` that affect this task
+7. Any existing ADRs in `docs/specs/weave/engines/<entity>/04-arch/decisions/` that affect this task
 
 Ask the user which entity, which epic, and which task (title or PRD story heading) if not supplied
 as arguments. Derive the output path as:
 
-`docs/specs/<entity>/04-arch/tasks/TASK-NNN.md`
+`docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md`
 
 ## Instructions
 
@@ -461,7 +461,7 @@ Bad hints:
 3. Commit the task file:
 
 ```bash
-git add docs/specs/<entity>/04-arch/tasks/TASK-NNN.md
+git add docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md
 git commit -m "docs(<entity>): add TASK-NNN <task-title-slug>"
 ```
 
@@ -469,7 +469,7 @@ git commit -m "docs(<entity>): add TASK-NNN <task-title-slug>"
    `Ready` (DoR satisfied). Commit:
 
 ```bash
-git add docs/specs/<entity>/02-prd/epics/EPIC-NNN.md
+git add docs/specs/weave/engines/<entity>.md
 git commit -m "docs(<entity>): mark TASK-NNN ready in EPIC-NNN"
 ```
 
@@ -566,7 +566,7 @@ pseudocode makes.
 
 ## Output
 
-**File:** `docs/specs/<entity>/04-arch/tasks/TASK-NNN.md`
+**File:** `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md`
 
 Where NNN is zero-padded to 3 digits (001, 002, …). Scan existing files in the directory to
 determine the next number before writing.
@@ -576,7 +576,7 @@ determine the next number before writing.
 Create the directory if it doesn't exist:
 
 ```bash
-mkdir -p docs/specs/<entity>/04-arch/tasks/
+mkdir -p docs/specs/weave/engines/<entity>/04-arch/tasks/
 ```
 
 Never leave `{{PLACEHOLDER}}` in the output. All template variables must be resolved.

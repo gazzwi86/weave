@@ -20,16 +20,16 @@ Before doing anything else, read:
 
 1. `/Users/gareth/Sites/weave/CLAUDE.md` — Weave laws, complexity thresholds, confirmed stack
 2. `.claude/spec-templates/tech-spec/definition-of-done.md` — canonical section scaffold
-3. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` (if present) — entity-specific
+3. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` (if present) — entity-specific
    acceptance criteria and architectural constraints to incorporate into the DoD
-4. `docs/specs/<entity>/02-prd/prd.md` (if present) — user stories and ACs that must be
+4. `docs/specs/weave/engines/<entity>.md` (if present) — user stories and ACs that must be
    reflected in the Testing section
 
 Ask the user which entity this DoD is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
 
 ```
-docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md
 ```
 
 ## Instructions
@@ -107,9 +107,9 @@ Mandatory items:
 - [ ] JSDoc on all new or modified public TypeScript functions and components
 - [ ] Docstrings (Google style) on all new or modified public Python functions and classes
 - [ ] OpenAPI spec updated for any new or modified REST endpoints
-      (`docs/specs/<entity>/04-arch/openapi.yaml`)
+      (`docs/specs/weave/engines/<entity>/04-arch/openapi.yaml`)
 - [ ] SPARQL queries documented inline with a comment explaining intent
-- [ ] ADR created in `docs/specs/<entity>/04-arch/decisions/` if an architectural decision was made
+- [ ] ADR created in `docs/specs/weave/engines/<entity>/04-arch/decisions/` if an architectural decision was made
 - [ ] README or relevant wiki page updated if user-facing behaviour changed
 
 #### Section D — Git Hygiene
@@ -159,7 +159,7 @@ Then ask via AskUserQuestion: **Approve / Amend / Reject**
 Write the approved checklist to:
 
 ```
-docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md
 ```
 
 Create the directory if it does not exist.
@@ -167,7 +167,7 @@ Create the directory if it does not exist.
 ### Step 6 — Commit
 
 ```bash
-git add docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md
 git commit -m "docs(<entity>): add definition of done for tech spec"
 ```
 
@@ -216,7 +216,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/<entity>/04-arch/tech-spec/definition-of-done.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md`
 
 Template: `.claude/spec-templates/tech-spec/definition-of-done.md`
 

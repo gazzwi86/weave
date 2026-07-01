@@ -40,15 +40,15 @@ bash .claude/scripts/progress.sh kanban    # current project/phase + task board
 Then, for the target entity, list what is on disk:
 
 ```bash
-ls -1 docs/specs/<entity>/ 2>/dev/null      # which phases exist (00-elicit … 04-arch)
-ls -1 docs/specs/<entity>/00-elicit/ 2>/dev/null   # prior elicitation output
+ls -1 docs/specs/weave/engines/<entity>.md 2>/dev/null      # which phases exist (00-elicit … 04-arch)
+ls -1 docs/specs/weave/engines/<entity>.md00-elicit/ 2>/dev/null   # prior elicitation output
 ```
 
 Classify the situation and state it in one line before asking anything:
 
 | Found | Mode | Behaviour |
 |---|---|---|
-| No `docs/specs/<entity>/` | **Fresh** | Full elicitation from scratch |
+| No `docs/specs/weave/engines/<entity>.md` | **Fresh** | Full elicitation from scratch |
 | `00-elicit/` has prior output | **Refine** | Read it first; elicit only the gaps it left open — do not re-ask answered questions |
 | `01-brief/` (or later) exists | **Gap-fill** | Target elicitation at the weakest/undecided sections of the existing artifact |
 
@@ -102,7 +102,7 @@ For **General MCQ**: Run structured multiple-choice questioning in batches of 4 
 ### Step 4: Capture Output
 
 - If during PO/Architect flow: fold findings into the relevant spec section
-- If standalone: create `docs/specs/<entity>/00-elicit/{METHOD}-{topic-slug}.md`
+- If standalone: create `docs/specs/weave/engines/<entity>.md00-elicit/{METHOD}-{topic-slug}.md`
 - Always summarize key findings and next steps
 
 **OKF frontmatter is mandatory on any standalone `00-elicit/*.md` file** (it lands in the
@@ -117,7 +117,7 @@ title: "<Method>: <topic> — <entity display name>"
 description: "<one-line summary of what this elicitation session resolved>"
 tags: [<entity>, 00-elicit, <method-slug>]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
-resource: docs/specs/<entity>/00-elicit/<METHOD>-<topic-slug>.md
+resource: docs/specs/weave/engines/<entity>.md00-elicit/<METHOD>-<topic-slug>.md
 ---
 ```
 

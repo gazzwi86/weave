@@ -1,0 +1,19 @@
+{
+  "name": "weave-ui-verify",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic UI-verification harness for the Weave dark factory (structural + a11y now; Playwright functional + pixel-diff + Lighthouse when the browser toolchain is present).",
+  "scripts": {
+    "check:structural": "node structural-check.mjs",
+    "test:e2e": "playwright test",
+    "baselines:docker": "bash update-baselines.sh"
+  },
+  "dependencies": {
+    "axe-core": "^4.12.1",
+    "jsdom": "^25.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

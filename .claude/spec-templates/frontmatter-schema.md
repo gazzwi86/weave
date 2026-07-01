@@ -51,6 +51,10 @@ Multiple globs are permitted as a YAML sequence.
 
 `.claude/skills/<topic>/SKILL.md` frontmatter already carries `name:` and `description:` (required by Claude Code's auto-matching). Weave-generated skills add the provenance block alongside those fields — the two coexist.
 
+## Spec-artifact extension
+
+Spec artefacts under `docs/specs/**` (briefs, PRDs, roadmaps, the inter-engine contracts reference) carry a **merged** frontmatter: the descriptive fields (`type`, `title`, `description`, `tags`, `status`, `timestamp`, `resource`) **and** the provenance block (`source`, `confirmed_by`, `confirmed_on`, `last_verified_sha`, `expires_on`, `owner`, `coverage`). The two coexist — descriptive fields drive discovery/rendering; the provenance block drives drift detection, expiry, and ownership. The PRD template (`.claude/spec-templates/prd.md`) shows the canonical merged shape; default `expires_on` for PRDs/briefs is today + 180 days.
+
 ## Enforcement
 
 - **Reconcile B8** validates shape: every file under `docs/architecture/`, `.claude/state/context/`, `.claude/rules/` must parse as YAML, must have all required fields, must use an allowed `source` literal.

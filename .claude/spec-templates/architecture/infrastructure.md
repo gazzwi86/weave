@@ -4,8 +4,8 @@ required_when: deployment_in_scope
 references:
   - docs/stack-equivalents.md
   - templates/standards/base/complexity.md
-  - templates/few-shot/infra/
-  - templates/few-shot/observability/
+  - docs/standards/patterns/infra/
+  - docs/standards/patterns/observability/
 ---
 
 # Infrastructure: {{PROJECT_NAME}}
@@ -16,7 +16,7 @@ references:
 
 ## Overview
 
-{{PROJECT_NAME}} deploys to **{{cloud_provider}}** ({{region_primary}}{{#if region_dr}}, {{region_dr}} DR{{/if}}) using **{{iac_tool}}** as the IaC layer. Stack row: `{{language}}` / `{{iac}}` from `docs/stack-equivalents.md`. See `templates/few-shot/infra/{{iac_few_shot_file}}` for the seed example.
+{{PROJECT_NAME}} deploys to **{{cloud_provider}}** ({{region_primary}}{{#if region_dr}}, {{region_dr}} DR{{/if}}) using **{{iac_tool}}** as the IaC layer. Stack row: `{{language}}` / `{{iac}}` from `docs/stack-equivalents.md`. See `docs/standards/patterns/infra/{{iac_few_shot_file}}` for the seed example.
 
 ## Cloud Topology
 
@@ -46,7 +46,7 @@ _Replace with actual topology. Mark each node with the AWS/Azure service name. A
 | Package boundaries | One stack per environment tier; shared constructs in `infra/constructs/` |
 | Synth command | `{{synth_command}}` (e.g. `cdk synth`, `pulumi preview`, `sam build`) |
 | Deploy command | `{{deploy_command}}` (e.g. `cdk deploy --all`, `pulumi up`, `sam deploy`) |
-| Few-shot example | `templates/few-shot/infra/{{iac_few_shot_file}}` |
+| Few-shot example | `docs/standards/patterns/infra/{{iac_few_shot_file}}` |
 
 _Stacks/modules must respect the same file-length and complexity limits as application code (see `templates/standards/base/complexity.md`)._
 
@@ -106,8 +106,8 @@ This infra integrates with the observability stack via:
 - **Structured logs:** {{log destination — CloudWatch Logs / Azure Monitor / Datadog}} — log groups per service, retention {{N}} days dev / {{N}} days prod.
 - **Traces:** {{X-Ray / Azure Monitor distributed tracing / OTEL collector}} — sampling rate `{{rate}}` in prod.
 - **Metrics + dashboards:** {{CloudWatch dashboards / Azure Monitor workbooks / Grafana}}.
-- **Alarms:** p99 latency, error rate, DLQ depth — see `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`.
-- **Few-shot example:** `templates/few-shot/observability/{{observability_few_shot_file}}`.
+- **Alarms:** p99 latency, error rate, DLQ depth — see `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`.
+- **Few-shot example:** `docs/standards/patterns/observability/{{observability_few_shot_file}}`.
 
 ## Synthetic Verification (Plugin Law F)
 

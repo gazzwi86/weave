@@ -35,7 +35,9 @@ def phase_gate(payload: dict) -> None:
             ["bash", ".claude/scripts/progress.sh", "phase-check"],
             capture_output=True, text=True, timeout=10
         )
-        if result.returncode != 0 or "COMPLETE" not in result.stdout:
+        # phase-check prints "COMPLETE" or "INCOMPLETE: N remaining" — startswith
+        # avoids the substring trap where "COMPLETE" matches inside "INCOMPLETE".
+        if result.returncode != 0 or not result.stdout.strip().startswith("COMPLETE"):
             return  # phase not complete; nothing to do
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return  # progress.sh unavailable; fail silently

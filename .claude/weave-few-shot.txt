@@ -1,1 +1,1 @@
-.claude/spec-templates/few-shot/
+docs/standards/patterns/

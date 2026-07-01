@@ -12,7 +12,7 @@ with HITL review at every section. Invoked by `/arch-data-model` or from the arc
 
 ## Model
 
-- **All phases:** claude-sonnet-4-6 (precise structured output, code generation, schema drafting)
+- **All phases:** claude-sonnet-5 (precise structured output, code generation, schema drafting)
 
 Rationale: data-model work is a generation and precision task, not open-ended reasoning.
 Sonnet is the right tier. Escalate to claude-opus-4-8 only when the entity boundary is
@@ -24,15 +24,15 @@ Before doing anything else, read:
 
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/data-model.md` — output scaffold
-3. `.claude/spec-templates/few-shot/data/sqlalchemy-async.md` — SQLAlchemy async style reference
-4. `docs/specs/<entity>/02-prd/prd.md` — domain entities, bounded context, acceptance criteria
-5. `docs/specs/<entity>/04-arch/tech-spec/architecture.md` — if present, for layer overview
-6. Any existing data model draft at `docs/specs/<entity>/04-arch/tech-spec/data-model.md`
+3. `docs/standards/patterns/data/sqlalchemy-async.md` — SQLAlchemy async style reference
+4. `docs/specs/weave/engines/<entity>.md` — domain entities, bounded context, acceptance criteria
+5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` — if present, for layer overview
+6. Any existing data model draft at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md`
 
 Ask the user which entity this is for if not supplied. Confirm the output path before writing:
 
 ```
-docs/specs/<entity>/04-arch/tech-spec/data-model.md
+docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md
 ```
 
 ## Instructions
@@ -146,7 +146,7 @@ For each relational entity, produce a definition block:
 Purpose: one sentence.
 
 SQLAlchemy model (Python 3.12, SQLAlchemy 2.0 async style — follow the few-shot at
-`.claude/spec-templates/few-shot/data/sqlalchemy-async.md`):
+`docs/standards/patterns/data/sqlalchemy-async.md`):
 
 ```python
 # app/models/<module>/<table_name>.py
@@ -288,7 +288,7 @@ Update the file frontmatter to set `status: Review` and `confirmed_by: <user>`.
 Commit the artifact:
 
 ```bash
-git add docs/specs/<entity>/04-arch/tech-spec/data-model.md
+git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md
 git commit -m "docs(<entity>): add data-model tech spec"
 ```
 
@@ -355,7 +355,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/<entity>/04-arch/tech-spec/data-model.md`
+File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md`
 
 Template: `.claude/spec-templates/architecture/data-model.md`
 

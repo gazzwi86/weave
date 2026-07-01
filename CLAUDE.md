@@ -2,22 +2,22 @@
 
 A monorepo platform for describing, visualising, and automating how a company operates — through ontologies, knowledge graphs, and data models. Weave lets you map the full enterprise (people, processes, systems, data, rules, relationships) as a navigable graph, and uses that model to generate applications, data products, and automations — regardless of whether the underlying data lives in Snowflake, AWS, Azure, Databricks, or on-prem.
 
-**Positioning:** The operating system for the AI-native company. Model the business → generate code/agents/pipelines → automate. No current tool closes this loop end-to-end.
+**Positioning:** The operating system for the AI-native company — a living digital twin of the organization (DTO). Model the business → generate code/agents/pipelines → automate. The moat is closing that loop on open W3C standards, at mid-market reach, with whole-business NL+forms authoring — not the triple store, which is commoditising fast (Ardoq's 2026 GraphLake acquisition brought RDF/OWL/SHACL to an EA incumbent). This is a time-limited window: differentiate on generation/automation closure before the substrate advantage erodes.
 
 **Core sub-systems:**
-- **Constitution engine** — ontology/graph layer (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. **Ships first.**
+- **Constitution engine** — ontology/graph layer (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. **First engine to ship** (the Platform shell — app/nav/workspace/auth/Cognito/Bedrock — is built first as the foundation everything runs in).
 - **Build engine** — generate apps (UI+API), AI agents, data pipelines, forms/dashboards from the graph model
 - **Events & actions engine** — automations triggered by graph changes AND external events (webhooks, Jira, cron)
-- **Graph explorer** — visualise the company as a force-directed network; drill-in focus views; Figma-style real-time multi-user collab
+- **Graph explorer** — visualise the company as a force-directed network; drill-in focus views; structured C4 canvas; Figma-style real-time multi-user collab (**Phase 2** — MVP ships single-user editing + async sharing)
 
 **Architecture decisions (confirmed):**
 - Single React SPA, modular internally (not micro-frontends)
 - Multi-tenant cloud SaaS
 - Full W3C semantic web: RDF/OWL/SHACL/SPARQL/PROV
-- Weave ships a universal business ontology; clients populate and extend it
-- NL + forms editing for business users (no code required)
+- Weave ships a **process-centric BPMO** (Business Process Management Ontology) — the "business brain" — as the universal *upper framework* (~13 kinds: Process, Activity, Event, DataAsset/Field, System, Service, BusinessCapability, BusinessDomain, Policy, Goal, Actor, Concept, Class + the relationships connecting them: performedBy/consumes/produces/runsOn/realizes/governedBy/…). Processes sit at the centre, linked to the data, systems, capabilities, governance, goals and actors that operate the business — the model an agent reasons inside. Clients extend it with their own domain kinds/instances; it's a **framework, not a populated taxonomy**. ArchiMate-3 aligned; REA + UFO behind the curtain. Grounded in `prototypes/obpm` (NOT the thin weave-prototype UI). Canonical set: `docs/specs/weave/contracts.md` CE-READ-1. See `.claude/memory/decision_ontology-bpmo.md`.
+- NL + forms editing for business users (no code required) — both ship in v1; forms are SHACL-shape-driven
 - AI-native throughout every layer
-- Managed connectors: Snowflake, Databricks, S3, Azure, Jira, ServiceNow
+- Managed connectors (7 integrations): Snowflake, Databricks, S3, Azure Data Lake, Atlassian (Jira + Confluence, one OAuth family), ServiceNow, Slack
 
 **Commercial model:** Fully commercial SaaS + consulting/workshop engagement arm (no open source)
 
@@ -27,24 +27,79 @@ A monorepo platform for describing, visualising, and automating how a company op
 
 ## Laws
 
-1. Don't assume. Don't hide confusion. Surface tradeoffs.
-2. Minimum code that solves the problem. Nothing speculative.
-3. Touch only what you must. Clean up only your own mess, unless instructed otherwise.
-4. Define success criteria. Loop until verified.
+You must strictly adhere to these laws in every interaction:
+
+1. **Don't Assume. Don't Hide Confusion. Surface Trade-offs:** If a requirement, file context, or intent is ambiguous, do not guess. Stop and ask for clarification using simple, high-signal options. Always explicitly state the technical trade-offs of a chosen path.
+2. **Minimum Code that Solves the Problem:** Write the leanest, most direct solution possible. Never add speculative features, "future-proofing," or unrequested boilerplate.
+3. **Touch Only What You Must:** Limit your footprint. Modulate and isolate your changes. Clean up only your own mess; do not refactor or modify adjacent code/assets unless explicitly instructed to do so.
+4. **Define Success Criteria. Loop Until Verified:** Before executing a plan or writing code, define what "success" looks like. Test, analyze, and loop your reasoning until those criteria are objectively met.
+
+## Cognitive Protocol: Thinking fast and slow
+
+When perfoming complex work, such as forming a plan, writing/reviewing code, assessing specs, creating artifacts, or analyzing visual/structural assets (images/webpages), you must execute your thoughts in two distinct, sequential phases:
+
+### Phase 1: Fast Thinking (Intuition & Structure)
+* **Objective:** Form an immediate structural baseline.
+* **Actions:** Analyze raw visual/textual structures, immediate intent, aesthetics, and explicit details. Apply rapid inferences grounded in *where* the asset sits (e.g., its location in the codebase or its visual hierarchy in a UI).
+
+### Phase 2: Slow Thinking (Deliberation & Tree of Thought)
+* **Objective:** Challenge Phase 1, branch out possibilities, and calculate impacts.
+* **Actions:** 
+    * Deconstruct your Phase 1 findings. Actively look for blind spots, hidden technical debt, or edge cases.
+    * Use a **Tree of Thought (ToT)** approach to branch out alternative hypotheses and strategies.
+    * Run a downstream analysis: trace how your proposals will impact dependencies, security, performance, or user experience.
+    * Amend, alter, or completely pivot your initial assumptions based on this deliberation before taking action.
+
+## Workflow
+
+### 1. The Dynamic Scratchpad
+
+Maintain a persistent, evolving **Scratchpad** (eg .thinking.md) at the base of your responses during complex or multi-turn tasks. Use it to track active files, current goals, discovered context, and active hypotheses. (This ensures parallel agent teams or long-context workflows remain seamlessly synchronized). It should not be a commited file in git.
+
+### 2. Impact-Driven File Planning
+When planning changes across files, explicitly map out the proposed modifications, file paths, and success criteria in your plan *before* editing. Update the plan dynamically as your Tree of Thought expands.
+
+### 3. Jargon-Free Elicitation Layer
+* **Internal Processing:** Your internal reasoning (Fast/Slow thinking phases) must be hyper-detailed, rigorous, and technically precise.
+* **User Communication:** Your external prompts, requests, and questions directed to the user must be highly simplified (near ELI5 level). Avoid abbreviations and unclear requests. 
+* **Nuance Extraction:** Use Multiple-Choice Questions (MCQs) and clear scenario trade-offs instead of open-ended questions to extract precise preferences from the user.
+
+## Response template
+
+When tasked with complex execution, format your response using this structure to prove compliance:
+
+### [System 1: Fast Analysis]
+
+* *Observations on immediate structure, context, and obvious intent.*
+
+### [System 2: Slow Deliberation & Tree of Thought]
+
+* *Tree of Thought branching, hidden edge cases, and Law 1 Trade-offs.*
+* *Law 4 Success Criteria definition.*
+
+### [Workspace Scratchpad]
+
+* *Active Files / Context Tracked / Active Goal / Next Steps.*
+
+### [Actionable Output / User Elicitation]
+
+* *The minimal solution (Laws 2 & 3) OR an ELI5 MCQ/clarification request.*
 
 ## Getting started
 
 To begin spec-driven development on a new engine or feature:
 
-1. Run `/po` — the Product Owner agent will guide you through elicitation and produce:
-   - `docs/specs/<entity>/01-brief/brief.md`
-   - `docs/specs/<entity>/02-prd/prd.md`
-   - `docs/specs/<entity>/02-prd/epics/EPIC-*.md`
-   - `docs/specs/<entity>/03-roadmap/roadmap.md`
+1. Run `/po` — the Product Owner agent will guide you through elicitation and produce, as
+   **sections within** the single consolidated engine spec `docs/specs/weave/engines/<entity>.md`:
+   - `## Brief`
+   - `## Product Requirements (PRD)`
+   - `## Epics` (one `### EPIC-NNN` subsection per epic)
+   - `## Roadmap`
 
-2. Review the specs, then run `/architect` to produce the tech spec:
-   - `docs/specs/<entity>/04-arch/tech-spec/*.md`
-   - `docs/specs/<entity>/04-arch/tasks/TASK-*.md`
+2. Review the spec, then run `/architect` to produce the tech spec as files under the engine's
+   sibling artifact directory:
+   - `docs/specs/weave/engines/<entity>/04-arch/tech-spec/*` (architecture, openapi.yaml, …)
+   - `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-*.md`
 
 3. Run `/spec-review` to gate-check completeness before implementation.
 
@@ -61,7 +116,7 @@ To check spec conformance: run `/okf-validate`.
 | Path | What it is | Conventions live in |
 |---|---|---|
 | `.claude/` | Claude Code config — settings, hooks, skills, agents, commands | – |
-| `docs/specs/` | Product specs by entity and phase | `docs/specs/<entity>/<phase>/*.md` |
+| `docs/specs/weave/` | The single unified Weave spec: `weave-spec.md` (program + shared foundations), `contracts.md`, `dev-environment.md`, and `engines/<entity>.md` (one consolidated spec per engine) | `docs/specs/weave/weave-spec.md` |
 | `.claude/spec-templates/` | Spec artifact templates | – |
 | `docs/wiki/` | OKF v0.1 knowledge bundle — per-area anatomy pages (regenerated by `/anatomy`) | `docs/wiki/README.md` |
 
@@ -147,34 +202,55 @@ Weave uses a per-artifact skill harness. Specs cascade: Brief → PRD → Roadma
 - `/status` — progress + kanban + blockers
 
 **Per-artifact skills (invoked by agents, not directly):**
-PO: `po-brief`, `po-prd`, `po-roadmap`, `po-epic`
+PO: `po-brief`, `po-prd`, `po-roadmap`, `po-epic`, `design-system` (UI-bearing projects — PO Phase 3b
+    asks "does this have a UI?" → generates `docs/standards/design/` before /architect)
 Architect: `arch-stack`, `arch-c4`, `arch-openapi`, `arch-data-model`, `arch-flows`, `arch-class`,
            `arch-cicd`, `arch-testing`, `arch-dod`, `arch-dor`, `arch-task-brief`, `arch-adr`, `arch-infra`
 Support: `phase-gate`, `elicit`, `spec-review`, `status`, `implement`
 
-**Spec location:** `docs/specs/<entity>/<phase>/<artifact>.md`
+**Design system (UI-bearing projects):** `docs/standards/design/` (parent `design.md` + tokens/color/
+typography/motion/components/data-viz/layout/iconography/voice) is generated by the `design-system`
+skill and **consumed by the Architect** (task-brief `design_tokens`), **Engineer** (builds against it —
+no ad-hoc hex/px/duration; Law 20), and **QA** (design-conformance + Lighthouse-100/WCAG-AA gate). It
+compiles to DTCG tokens served by `CE-BRAND-1`.
 
-| Phase | Directory | Artifacts |
+**Spec location:** one unified spec at `docs/specs/weave/`. The PO artifacts (brief, PRD, epics,
+roadmap) are **sections inside** `engines/<entity>.md`; the Architect artifacts (tech spec, tasks,
+ADRs) are **files** under the engine's sibling `engines/<entity>/04-arch/` directory (they include
+non-markdown files like `openapi.yaml` and so cannot be sections).
+
+| Artifact | Location | Form |
 |---|---|---|
-| 01-brief | `docs/specs/<entity>/01-brief/` | `brief.md` |
-| 02-prd | `docs/specs/<entity>/02-prd/` | `prd.md`, `epics/EPIC-NNN.md` |
-| 03-roadmap | `docs/specs/<entity>/03-roadmap/` | `roadmap.md` |
-| 04-arch | `docs/specs/<entity>/04-arch/tech-spec/` | architecture, openapi, data-model, flows, etc. |
-| 04-arch/tasks | `docs/specs/<entity>/04-arch/tasks/` | `TASK-NNN.md` |
-| 04-arch/decisions | `docs/specs/<entity>/04-arch/decisions/` | `ADR-NNN.md` |
+| Program plan + shared foundations | `docs/specs/weave/weave-spec.md` | document |
+| Inter-engine contracts (canonical) | `docs/specs/weave/contracts.md` | document |
+| Dev environment | `docs/specs/weave/dev-environment.md` | document |
+| Brief | `docs/specs/weave/engines/<entity>.md` → `## Brief` | section |
+| PRD | `docs/specs/weave/engines/<entity>.md` → `## Product Requirements (PRD)` | section |
+| Epics | `docs/specs/weave/engines/<entity>.md` → `## Epics` (`### EPIC-NNN`) | subsections |
+| Roadmap | `docs/specs/weave/engines/<entity>.md` → `## Roadmap` | section |
+| Tech spec | `docs/specs/weave/engines/<entity>/04-arch/tech-spec/` | files |
+| Tasks | `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md` | files |
+| Decisions (ADR) | `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md` | files |
 
 **Dark factory loop:**
 ```
 /elicit  →  /po  →  /architect  →  /spec-review  →  /implement
                                                        ↓
                     /goal all tasks in phase done, or stop after 60 turns
+                              (tasks → one PR per EPIC on feature/{epic};
+                               UI work must pass the ui_verify gate)
                                                        ↓
                                              phase_gate() Stop hook → HITL
                                              Approve → next phase
 ```
 
+**Operator runbook (read this to run the loop): [`docs/running-the-implement-loop.md`](docs/running-the-implement-loop.md)** —
+the full PDAC loop, all HITL gates (incl. the UI run-book sign-off), the `ui_verify` UI gate, the
+epic-PR model, resume, and the no-bypass enforcement. Every harness element is catalogued in
+[`.claude/HARNESS.md`](.claude/HARNESS.md).
+
 **State spine:** `.claude/state/progress.json` (committed after every task)
-**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update ...`
+**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update|epic-check ...`
 
 ## Navigation
 

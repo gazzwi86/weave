@@ -35,20 +35,17 @@ If the summary is absent or either section contains only template placeholders, 
 Before reviewing, tell the user what will be checked:
 
 ```
-QA Review for {TASK_ID}. I will validate in this order:
-1. Acceptance criteria (each AC has a passing test)
-2. Test coverage (>= 80%)
-3. Code quality (complexity, lint, JSDoc)
-4. Design decision compliance
-5. Diagram compliance
-6. PO review (delivers user value?)
-7. Git hygiene
-8. Edge case extension
+QA Review for {TASK_ID}. I will validate these categories (3a–3l), then extend edge cases:
+  Always:        3a Acceptance criteria · 3b Coverage (>=80%) · 3c Code quality · 3d Design
+                 decisions · 3e Diagram compliance · 3f PO review · 3g Git hygiene · 3k Mutation
+  Conditional:   3h Performance (page) · 3i Accessibility (UI) · 3j API performance (API) ·
+                 3l UI Verification (UI — deterministic ui_verify gate; supersedes 3h/3i for UI)
+Then: Step 4 edge-case extension.
 ```
 
 ### Step 3: Validation Checklist (Per Task)
 
-For each task being validated, read the task brief from `docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
+For each task being validated, read the task brief from `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
 
 Apply the shared review rubric in [`docs/standards/code-review.md`](../../../docs/standards/code-review.md) throughout: its severity taxonomy (blocker/major/minor/nit), comment discipline (>80% confidence, `file:line` citations, no duplication of linter/type-checker output, nit cap), and the new-user→feature flow check are the same standard the CI review bot uses. The categories below are the harness's DoD-specific instantiation of that rubric — the CI bot and `/qa` must not diverge.
 
@@ -99,7 +96,7 @@ Apply the shared review rubric in [`docs/standards/code-review.md`](../../../doc
 
 **Smart detection:** Only run if the task brief mentions page, component, UI, or frontend.
 - Run Lighthouse audit (performance + best practices scores)
-- Check scores against targets in `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+- Check scores against targets in `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 - Check bundle size if applicable
 
 #### 3i. Accessibility (UI-affecting stories only)
@@ -113,7 +110,7 @@ Apply the shared review rubric in [`docs/standards/code-review.md`](../../../doc
 #### 3j. API Performance (API-affecting stories only)
 
 **Smart detection:** Only run if the task brief mentions API endpoint, route handler, or backend service.
-- Measure response times against targets in `docs/specs/<entity>/04-arch/tech-spec/testing-strategy.md`
+- Measure response times against targets in `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
 - Basic load test if applicable (10 concurrent requests)
 
 #### 3k. Mutation Testing (changed files)
@@ -140,6 +137,30 @@ fi
 
 **Gate rule:** mutation score < 70% on changed files → WARN (not FAIL — timeout or runner absent is treated as a
 warning, not a block). Report the surviving mutant count.
+
+#### 3l. UI Verification (UI-affecting stories only) — DETERMINISTIC GATE
+
+**Smart detection:** run only if the task touches a screen/component/page. For UI-affecting tasks
+this is the AUTHORITATIVE gate and supersedes the soft Lighthouse/axe checks in 3h/3i.
+
+Re-execute the deterministic UI gate — do not self-report a pass:
+
+```bash
+# Per-task QA: deterministic checks only (no run-book — a human signs that at the epic/phase gate).
+.claude/scripts/ui_verify.sh --full --target <served-url-for-this-screen>
+```
+
+`ui_verify.sh` runs structure + links-up + axe (browser-free), Playwright functional click-through,
+8-state visual diff, Lighthouse (100 bar), and an advisory vision check. It **fails closed**: a
+missing Playwright/Lighthouse toolchain is a FAIL, not a skip.
+
+**Gate rule:** `ui_verify.sh` exit ≠ 0 → `QA_RESULT: FAIL` (hard, not WARN).
+
+**Run-book:** scaffold a human run-book from `.claude/spec-templates/ui-runbook.md` (fill the steps
+and expected states from the ACs and the nav path) and reference it in the task summary. Do NOT sign
+`vouched-by:` yourself — a human signs it when reviewing the assembled epic at the phase gate
+(`phase-gate` Step 3b re-runs `ui_verify` **with** `--runbook` and blocks Approve if unsigned). A
+screen no human has vouched for is not done.
 
 ### Step 4: Edge Case Extension
 
@@ -213,7 +234,7 @@ failure_class: logic | dependency | interface | spec-ambiguity | null
 ```
 
 - PASS → `status: ok`, `artifact_path` = the task brief path
-  (`docs/specs/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`
+  (`docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`
 - FAIL → `status: fail`, `artifact_path: null`, `failure_class` = best-guess root cause
   (`logic | dependency | interface | spec-ambiguity`)
 - A blocker that must stop the loop (e.g. a CRITICAL security finding) → `status: blocked`, `artifact_path: null`
@@ -235,7 +256,8 @@ When testing this skill, verify:
 - **Catches real issues**: Identifies actual bugs, test gaps, and standards violations rather than false positives
 - **Report format correct**: Pass and fail reports follow the structured templates with all required fields
 - **Edge cases identified**: Additional tests cover boundary values, error conditions, and untested state transitions
-- **All validation categories checked**: None of the 7 validation categories (AC, coverage, quality, design decisions, diagrams, PO review, git hygiene) are skipped
+- **All validation categories checked**: None of the always-on categories (3a AC, 3b coverage, 3c quality, 3d design decisions, 3e diagrams, 3f PO review, 3g git hygiene, 3k mutation) are skipped; conditional categories (3h/3i/3j/3l) run when the task matches
+- **UI gate enforced**: for UI-affecting tasks, `ui_verify.sh` is re-executed and a non-zero exit fails the task (never self-reported, never WARN)
 - **Incremental presentation**: Findings are presented one category at a time, not as a monolithic dump
 - **AC-to-test mapping verified**: Every acceptance criterion has a corresponding passing test
 - **Coverage threshold enforced**: Tasks below 80% coverage are failed

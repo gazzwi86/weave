@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Graph Explorer — Good fixture</title>
+  <style>
+    body { color: #111827; background: #ffffff; font-family: system-ui, sans-serif; }
+    a { color: #1d4ed8; }
+    .muted { color: #4b5563; } /* contrast ratio > 4.5:1 on white */
+  </style>
+</head>
+<body>
+  <!-- A known-GOOD screen: accessible, and every nav link resolves to a real section ("links up"). -->
+  <header>
+    <nav aria-label="Primary">
+      <ul>
+        <li><a href="#explorer" data-testid="nav-explorer">Explorer</a></li>
+        <li><a href="#inspector" data-testid="nav-inspector">Inspector</a></li>
+        <li><a href="#settings" data-testid="nav-settings">Settings</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <h1>Graph Explorer</h1>
+    <section id="explorer" aria-labelledby="explorer-h">
+      <h2 id="explorer-h">Explorer</h2>
+      <p class="muted">Force-directed view of the business graph.</p>
+      <button type="button" aria-label="Zoom to fit">Fit</button>
+      <img src="graph.png" alt="Force-directed graph of processes and systems" width="320" height="180" />
+    </section>
+    <section id="inspector" aria-labelledby="inspector-h">
+      <h2 id="inspector-h">Inspector</h2>
+      <form>
+        <label for="node-name">Node name</label>
+        <input id="node-name" name="node-name" type="text" />
+      </form>
+    </section>
+    <section id="settings" aria-labelledby="settings-h">
+      <h2 id="settings-h">Settings</h2>
+      <p class="muted">Workspace preferences.</p>
+    </section>
+  </main>
+</body>
+</html>

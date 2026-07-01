@@ -43,6 +43,72 @@ This disables the scrubber for the current shell. Do not persist this in a shell
 
 The pack is intentionally conservative — it errs on the side of false positives because the blast radius of a leaked secret dwarfs the cost of rewriting a sentence. Add patterns to `scripts/scrub-intake.sh` (the `rules=(...)` array) when you observe a miss.
 
+## Generated-code secret gate
+
+Everything above describes the **intake scrubber** — a `PreToolUse` hook that *blocks a write
+to disk* before untrusted human input (transcripts, rule files, context notes) reaches a
+git-tracked path. The **generated-code secret gate** is categorically different and must not
+be confused with it.
+
+The Build Engine and Events & Actions Engine *generate code* (apps, agents, pipelines,
+automations). That code is written to the spike / working tree — it already exists on disk.
+The gate is a **pipeline stage that runs on the generated OUTPUT, after the code exists and
+before commit (Build) or activation (Events)**. It does not block the write; it **fails the
+generation**.
+
+| | Intake scrubber | Generated-code secret gate |
+|---|---|---|
+| Trigger | `PreToolUse` on `Write`/`Edit` | Pre-commit (Build) / pre-activation (Events) pipeline stage |
+| Input | Untrusted human-authored intake | Machine-generated code/artefact output |
+| Timing | Before the file reaches disk | After the file exists, before commit/activation |
+| On hit | Blocks the write (file never lands) | Fails the generation — task failed, atomic, no commit/activation |
+| PRD | (harness intake) | Build E8-S1 / FR-010 / FR-029; Events E2-S3 / FR-008 |
+
+### Fail-the-generation semantics
+
+The gate **does not block a write** — the generated file is allowed to land in the
+sandbox/working tree. Instead, on a hit:
+
+- **Build Engine:** the secret-scan gate is one of the mandatory pre-commit gates (SAST,
+  mypy/tsc, delta mutation ≥70%, package-existence, secret-scan, conformance — Build PRD
+  E8-S1, FR-029). Generation is **atomic per task**: a mid-pipeline failure commits nothing
+  (Build PRD E6-S2, "a mid-pipeline failure commits nothing", line ~704). The task is marked
+  failed and classified per the four-class retry taxonomy (E6-S3).
+- **Events & Actions Engine:** the secret-scan runs at **activation** (Events PRD E2-S3,
+  FR-008). On a hit the automation is **not activated**. If the scanner itself is
+  unavailable, activation is **fail-closed** (blocked), never activated unscanned
+  (FR-008: "scanner unavailable → fail-closed").
+
+So the failure mode is *no commit / no activation*, not *no write*. The generated code stays
+on disk for the engineer to inspect and for the audit trail to reference; it simply never
+becomes a committed artefact or a live automation.
+
+### Required patterns
+
+The gate **reuses the platform scrubber pattern set — it does not reinvent it** (Events PRD
+FR-008: "Reuses the platform scrubber pattern set (does not reinvent)"). It runs the shared
+`rules=(...)` array from `scripts/scrub-intake.sh` plus the generation-specific classes
+below, which MUST be detected and MUST fail the generation:
+
+- **AWS keys** — access key IDs (`AKIA[0-9A-Z]{16}`), secret access keys, session tokens.
+- **Anthropic keys** — `sk-ant-` prefixed API keys. Generated agents call models via Bedrock
+  using a Secrets Manager reference, never an inline key. Prototype evidence that this value
+  is a secret, not a literal: `ANTHROPIC_API_KEY` is injected from AWS Secrets Manager in
+  `prototypes/weave-prototype/infra/terraform/variables.tf:32` and `main.tf:54`.
+- **Cognito credentials** — user pool client secrets, app-client secrets, and any inlined
+  Cognito identity-pool credentials (auth is Cognito per CLAUDE.md).
+- **Database DSNs** — connection strings with embedded credentials
+  (`postgres://user:pass@host/db`, Aurora/SQLAlchemy URLs). Generated data pipelines and
+  apps MUST reference Secrets Manager, never an inline DSN.
+
+Any hit fails the generation. There is no `WEAVE_SCRUB=off` escape hatch for this gate — the
+intake-scrubber override applies only to local intake writes, never to generated output bound
+for commit or activation. CI keeps the gate on and fails the build if it fires.
+
+This gate is exercised by the dark-factory behaviour tests in
+[`testing-agents.md`](testing-agents.md#dark-factory-agent-behaviour-tests); a fired gate is
+recorded to the immutable audit trail (`PLAT-AUDIT-1`) exactly like a sandbox BLOCK.
+
 ## Remediation
 
 When the hook blocks a write:

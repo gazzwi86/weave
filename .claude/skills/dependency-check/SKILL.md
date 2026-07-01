@@ -16,7 +16,7 @@ Verify required system dependencies and credentials before scaffolding or at the
 
 ### Step 1: Read Requirements
 
-Read `docs/specs/<entity>/04-arch/tech-spec/architecture.md` and `.claude/settings.json` to determine required dependencies. Also check for a `dependencies` section in the roadmap for phase-specific requirements.
+Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` and `.claude/settings.json` to determine required dependencies. Also check for a `dependencies` section in the roadmap for phase-specific requirements.
 
 ### Step 2: Check System Dependencies
 

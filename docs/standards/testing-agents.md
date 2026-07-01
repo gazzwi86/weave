@@ -27,7 +27,7 @@ All infrastructure is AWS-native where a managed option exists.
 
 ## Offline batch evals — AWS Bedrock Model Evaluation
 
-Use for: regression testing a prompt rewrite, comparing model versions (e.g. Sonnet 4.6
+Use for: regression testing a prompt rewrite, comparing model versions (e.g. Sonnet 5
 vs Opus 4.8), validating Constitution Engine output quality.
 
 **Dataset format (JSONL, stored in S3):**
@@ -44,7 +44,7 @@ aws bedrock create-evaluation-job \
   --job-name "constitution-engine-eval-$(date +%Y%m%d)" \
   --role-arn "arn:aws:iam::ACCOUNT:role/WeaveBedrockEvalRole" \
   --evaluation-config '{"automated": {"datasetMetricConfigs": [{"taskType": "QuestionAndAnswer", "dataset": {"name": "weave-qa", "datasetLocation": {"s3Uri": "s3://weave-evals/datasets/constitution-engine.jsonl"}}, "metricNames": ["Accuracy", "BERTScore", "Robustness"]}]}}' \
-  --inference-config '{"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-sonnet-4-6", "inferenceParams": "{\"maxTokens\": 1024}"}}]}' \
+  --inference-config '{"models": [{"bedrockModel": {"modelIdentifier": "anthropic.claude-sonnet-5", "inferenceParams": "{\"maxTokens\": 1024}"}}]}' \
   --output-data-config '{"s3Uri": "s3://weave-evals/results/"}'
 ```
 
@@ -88,7 +88,7 @@ npm install -D promptfoo
 
 ```yaml
 providers:
-  - id: bedrock:anthropic.claude-sonnet-4-6
+  - id: bedrock:anthropic.claude-sonnet-5
     config:
       region: ap-southeast-2
 
@@ -164,7 +164,7 @@ import boto3
 bedrock = boto3.client("bedrock-runtime", region_name="ap-southeast-2")
 
 response = bedrock.invoke_model(
-    modelId="anthropic.claude-sonnet-4-6",
+    modelId="anthropic.claude-sonnet-5",
     guardrailIdentifier="weave-guardrail-id",
     guardrailVersion="DRAFT",
     trace="ENABLED",
@@ -335,6 +335,200 @@ async def check_budget(tenant_id: str, estimated_tokens: int, db: AsyncSession) 
 | Topic blocking | Guardrails topic policy — block off-topic requests (e.g. "generate code unrelated to Weave") |
 | Audit trail | All agent invocations log to CloudWatch Logs; PROV-O records every graph mutation |
 | Model versioning | Pin `modelId` to a specific version string, never `latest` |
+
+---
+
+## Agent SDK artefact testing
+
+The Build Engine and Events & Actions Engine emit **portable Anthropic Agent SDK artefacts**
+(skills, commands, agents) — `pip`-installable, semver-versioned, referenceable as
+sub-automations (Events PRD FR-027, E7-S1). These artefacts are generated Python and must
+be tested like any other generated code, **as plain functions**, before they are exported
+or referenced.
+
+### Unit-test generated skills as plain Python functions
+
+A generated skill is a Python callable. Test it directly — no SDK runtime, no live model,
+no network. Construct inputs, call the function, assert on the return value.
+
+```python
+# tests/artefacts/test_goods_inward_skill.py
+from generated.goods_inward_receipt import summarise_receipt  # generated artefact
+
+def test_summarise_receipt_returns_grounded_fields():
+    receipt = {"po_number": "PO-4471", "lines": [{"sku": "A1", "qty": 3}]}
+    result = summarise_receipt(receipt)
+    assert result["po_number"] == "PO-4471"
+    assert result["line_count"] == 1
+    # The artefact must not invent fields not present in the input (grounding).
+    assert set(result) <= {"po_number", "line_count", "total_qty"}
+```
+
+### Mock tool calls at the SDK boundary
+
+Generated artefacts dispatch side effects (Slack, outbound API, graph update) through the
+Anthropic Agent SDK tool-dispatch / managed-connector client. **Patch that seam**, never
+the artefact's own logic. The artefact then runs as a pure function with no live Slack,
+API, or graph side effects.
+
+```python
+# tests/artefacts/test_notify_action.py
+from unittest.mock import patch
+from generated.notify_store_manager import run
+
+def test_notify_dispatches_one_slack_message():
+    # Seam = the SDK connector client the generated artefact calls, NOT its logic.
+    with patch("generated.notify_store_manager.connectors.slack.post") as slack:
+        run({"store_id": "S-12", "message": "Receipt logged"})
+    slack.assert_called_once()
+    channel = slack.call_args.kwargs["channel"]
+    assert channel == "#store-S-12"
+```
+
+### Assert idempotency for action artefacts
+
+Action artefacts run under at-least-once delivery (Events PRD E8-S1, FR-029). The artefact
+**must be safe to invoke twice with the same `run_id` / idempotency marker** and produce
+exactly one side effect — completed steps are SKIPPED on replay, not repeated.
+
+```python
+def test_action_is_idempotent_on_redelivery():
+    marker_store = InMemoryIdempotencyStore()
+    event = {"run_id": "run-abc-123", "store_id": "S-12"}
+
+    with patch("generated.notify_store_manager.connectors.slack.post") as slack:
+        run(event, idempotency=marker_store)  # first delivery
+        run(event, idempotency=marker_store)  # SQS redelivery, same run_id
+
+    # Exactly one side effect despite two invocations.
+    slack.assert_called_once()
+```
+
+### Test sub-automation composition
+
+A sub-automation node invokes another automation and maps its input/output (Events PRD
+E7-S2, FR-028). Test that mapping is correct and that **cycles are rejected** — an A→B→A
+chain must block activation, never run.
+
+```python
+def test_sub_automation_maps_output_to_parent_input():
+    child = stub_automation(returns={"risk_score": 0.82})
+    parent = compose(parent_def, children={"score_step": child})
+    out = parent.run({"claim_id": "C-9"})
+    assert out["next"]["score"] == 0.82  # child output mapped into parent
+
+def test_sub_automation_cycle_is_rejected_at_validation():
+    a = automation_def("A", calls=["B"])
+    b = automation_def("B", calls=["A"])  # A -> B -> A
+    with pytest.raises(ActivationBlocked, match="sub-automation cycle detected"):
+        validate_composition([a, b])
+```
+
+---
+
+## Dark-factory agent behaviour tests
+
+The Build Engine dark factory runs agents (Engineer, QA, Architect, Review, Sandbox) under
+hard governance invariants (Build PRD Epics 6–7). These are not eval-style quality tests —
+they are **deterministic behaviour tests** that assert the safety machinery fires. Each maps
+to a PRD acceptance criterion and must be testable, not narrative.
+
+### Sandbox protected-path BLOCK → block + immutable audit entry
+
+A write to a protected path (e.g. `~/.kube/config`) is BLOCKED by the sandbox. The block is
+recorded, flagged, and **never deletable** (Build PRD E6-S2, E7-S1; prototype evidence:
+`prototypes/Blushift/fixtures.jsx:365` — `op: 'Block', target: '~/.kube/config', meta:
+'sandbox BLOCKED • write to protected path • signed ✓', flag:'red'`).
+
+"Immutable" is testable as **append-only / delete-attempt-refused**, not merely "an entry
+exists":
+
+```python
+def test_protected_path_write_blocks_and_writes_immutable_audit(sandbox, audit):
+    with pytest.raises(SandboxBlocked):
+        sandbox.write("~/.kube/config", "data")
+
+    entry = audit.latest()
+    assert entry.op == "Block"
+    assert entry.target == "~/.kube/config"
+    assert entry.flag == "red"
+    # Immutability is the strong assertion: deletion is refused at the store level.
+    with pytest.raises(AuditImmutable):
+        audit.delete(entry.n)
+```
+
+### Retry-count-to-blocker transition
+
+A task is retried up to its **per-class ceiling** (the four-class taxonomy, Build PRD E6-S3:
+infra-flake/transient = 3, logic = 2, interface = 1, spec-ambiguity = 0). On exceeding the
+ceiling the task moves to **Blockers & Escalations** with an AI remediation suggestion — it
+is never left silently RUNNING. A spec-ambiguity failure routes to **replan**, not retry,
+because retrying an ambiguous spec cannot fix it.
+
+```python
+def test_logic_failure_becomes_blocker_after_ceiling():
+    task = run_task(failure_class="logic")  # ceiling = 2
+    assert task.retries == 2
+    assert task.state == "blocker"
+    assert task.remediation  # AI suggestion attached
+    assert task.retry_chip == "retry 2/2"
+
+def test_spec_ambiguity_routes_to_replan_not_retry():
+    task = run_task(failure_class="spec-ambiguity")  # ceiling = 0
+    assert task.retries == 0
+    assert task.state == "replan"  # routed to replan, never retried
+```
+
+### HITL-gate pause / approve / reject (no self-approval)
+
+When a HITL gate fires, the task moves to Review and a `PLAT-NOTIFY-1` event fires (Build PRD
+E6-S4). The approver must be a **human or higher-authority identity**, and **no agent can
+clear a gate its own action triggered** — the dropped invariant most reviewers forget.
+
+```python
+def test_hitl_gate_pauses_until_human_decision(factory):
+    task = factory.run_to_gate("TASK-024")
+    assert task.state == "review"
+    assert task.notified  # PLAT-NOTIFY-1 fired
+
+    task.approve(by=human("sarah.chen"))
+    assert task.state == "in_progress"
+
+def test_agent_cannot_approve_its_own_gate(factory):
+    task = factory.run_to_gate("TASK-024", triggered_by=agent("engineer-1"))
+    with pytest.raises(SelfApprovalForbidden):
+        task.approve(by=agent("engineer-1"))  # same identity that triggered it
+
+def test_mutating_action_refused_when_audit_unreachable(factory, audit):
+    audit.make_unreachable()
+    # Fail-closed: the action is refused rather than performed un-audited (E7-S1).
+    with pytest.raises(AuditUnavailable):
+        factory.run_task("TASK-024")
+```
+
+### Mid-flight replan does not re-run completed tasks
+
+A "Replan" instruction (NL + criticality) re-plans remaining work but **must not re-run
+tasks already in Done** (Build PRD E6-S4; same skip-completed mechanism as the run engine's
+per-step idempotency, Events E8-S1 — "completed steps are SKIPPED").
+
+```python
+def test_replan_preserves_completed_tasks(factory):
+    factory.complete(["TASK-014", "TASK-015", "TASK-016"])
+    factory.run(["TASK-024"])  # in flight
+
+    factory.replan("Tighten checkout validation", criticality="must-fix")
+
+    done = factory.tasks_in_state("done")
+    assert {"TASK-014", "TASK-015", "TASK-016"} <= {t.id for t in done}
+    # Completed tasks are not re-executed by the replan.
+    for t in done:
+        assert t.execution_count == 1
+```
+
+These behaviour tests gate the same generated code that the generation gates protect — the
+**generated-code secret gate** is one of those gates (see
+[`secrets-scanning.md`](secrets-scanning.md#generated-code-secret-gate)).
 
 ---
 
