@@ -12,6 +12,19 @@ resource: docs/claude-harness-overview.md
 > The Weave AI development harness. Read this before touching harness configuration.
 > Last updated: 2026-06-29 (Pass 2 overhaul).
 
+> **⚠️ Recent changes not yet folded into every section below (2026-06/07 harness-refine + patterns
+> engagement — see `.claude/reports/H2`–`H5`). Where this guide and these disagree, these win:**
+> - **UI-verification gate** — `.claude/scripts/ui_verify.sh` (functional click-through + structure/
+>   links-up + axe + 8-state visual + Lighthouse; fail-closed) is re-executed by `phase-gate` and `qa`
+>   (category 3l) and blocks on non-zero; the vision check is advisory; a human-signed run-book is required.
+> - **Delivery = one PR per EPIC** (tasks stack on `feature/{epic}`, verified on the assembled epic), not per task.
+> - **`--no-verify` is blocked** (`check-git-safety`); the pre-push manifest-parity gate (`check-harness-manifest`) is blocking.
+> - **`.claude/HARNESS.md`** — derived element manifest, structural-parity pre-push gate.
+> - **Per-entity, change-aware spec-review** (`/implement` Step 1.5), and **durable resume** from committed `progress.json` (Step 0).
+> - **Golden patterns moved** to `docs/standards/patterns/` (was `.claude/spec-templates/few-shot/`), curated to this exact stack.
+> - **Harness models pinned to `claude-sonnet-5`** in `.claude/agents/*` + skills (the §12 table below predates this).
+> - Operator runbook: **`docs/running-the-implement-loop.md`** is the current source of truth for the loop + HITL gates.
+
 ---
 
 ## 1. What the harness is
@@ -257,7 +270,7 @@ they delegate to skills.
 - **Law A** — common-stack first (Weave defaults, § Stack)
 - **Law B** — functional, browser-runnable, automation-tested (Playwright for UI)
 - **Law C** — council-graded quality for enterprise claims (7-persona, ≥ 4.0/5)
-- **Law D** — stacked PRs (one PR per phase, small commits)
+- **Law D** — stacked PRs (one PR per EPIC; small commits stack within a phase)
 - **Law E** — complexity as a budget (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
 - **Law F** — synthetic verification only (LocalStack, not real cloud in tests)
 

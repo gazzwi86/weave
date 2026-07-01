@@ -1,16 +1,25 @@
 ---
 name: spec-review
-description: Review all specification documents for completeness, consistency, and implementation-readiness. Invoked by /implement before scaffolding, or standalone via /spec-review.
+description: Review a target entity's specification documents (brief, PRD, roadmap, tech spec, task briefs, standards) for completeness, consistency, and implementation-readiness. Invoked by /implement when it first targets an entity — or after that entity's specs change (implement Step 1.5) — and standalone via /spec-review [<entity>]. With no entity it reviews every spec. The harness has multiple engines/specs reviewed across multiple runs, so this is per-target, not once-per-repo.
 ---
 
 # Spec Review
 
-Review all specification documents for completeness, consistency, and implementation-readiness. Used by the implementor before scaffolding to ensure specs are solid.
+Review specification documents for completeness, consistency, and implementation-readiness, so the build runs against solid specs. Scope is **per entity**: review the engine/spec `/implement` is currently targeting, not the whole repo, unless no entity is given.
 
 ## Trigger
 
-- Called by `/implement` before scaffolding (first run)
-- Can be invoked standalone: `/spec-review`
+- Called by `/implement` (Step 1.5) for the entity it is about to implement, when that entity has
+  not been reviewed yet OR its specs changed since the last review. On the first run this also
+  precedes scaffolding.
+- Standalone: `/spec-review [<entity>]` — pass an entity (e.g. `constitution-engine`) to scope the
+  review; omit it to review every entity.
+
+## Step 0: Resolve scope
+
+If an `<entity>` argument is given (or `/implement` passes the current target entity), review only
+that entity's specs under `docs/specs/.../<entity>/...` (+ the shared standards). With no entity,
+review all entities. State the resolved scope before proceeding.
 
 ## Instructions
 

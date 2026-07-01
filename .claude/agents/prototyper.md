@@ -1,7 +1,7 @@
 ---
 name: prototyper
 description: "Weave Prototyper agent. Vibe codes rapid prototypes with hardcoded data. Speed over quality. Can write E2E tests and OpenAPI specs when instructed. Works in isolated worktree per prototype project."
-model: sonnet
+model: claude-sonnet-5
 maxTurns: 100
 isolation: worktree
 tools: Read, Glob, Grep, Write, Edit, Bash, LSP

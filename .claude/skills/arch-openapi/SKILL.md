@@ -23,7 +23,7 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave confirmed stack, Agent Laws A–F
 2. `.claude/spec-templates/architecture/openapi.yaml` — section scaffold and metadata
    header (never leave `{{}}` placeholders in output)
-3. `.claude/spec-templates/few-shot/api/fastapi-router.md` — FastAPI + Pydantic v2
+3. `docs/standards/patterns/api/fastapi-router.md` — FastAPI + Pydantic v2
    patterns (operationId style, response_model conventions, error handling)
 4. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` (if present) — resource list, auth
    approach, non-functional requirements

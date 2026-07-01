@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Graph Explorer — Broken fixture</title>
+  <style>
+    body { color: #111827; background: #ffffff; font-family: system-ui, sans-serif; }
+    /* Deliberately low-contrast text → axe colour-contrast violation. */
+    .muted { color: #cfcfcf; }
+  </style>
+</head>
+<body>
+  <!-- A known-BROKEN screen. It must be CAUGHT by ui_verify. Defects, by category:
+       1. STRUCTURAL "links up": nav points to #inspector but there is NO <section id="inspector"> → dead link.
+       2. STRUCTURAL: no <main> landmark.
+       3. A11Y: <html> has no lang attribute.
+       4. A11Y: button has no accessible name.
+       5. A11Y: <img> has no alt text.
+       6. A11Y: form <input> has no associated <label>.
+       7. A11Y: low-contrast .muted text. -->
+  <header>
+    <nav>
+      <ul>
+        <li><a href="#explorer" data-testid="nav-explorer">Explorer</a></li>
+        <li><a href="#inspector" data-testid="nav-inspector">Inspector</a></li>
+        <li><a href="#settings" data-testid="nav-settings">Settings</a></li>
+      </ul>
+    </nav>
+  </header>
+  <div>
+    <h1>Graph Explorer</h1>
+    <section id="explorer">
+      <h2>Explorer</h2>
+      <p class="muted">Force-directed view of the business graph.</p>
+      <button type="button"></button>
+      <img src="graph.png" width="320" height="180" />
+    </section>
+    <!-- #inspector section is MISSING — the Inspector nav link does not link up. -->
+    <section id="settings">
+      <h2>Settings</h2>
+      <form>
+        <input name="node-name" type="text" />
+      </form>
+    </section>
+  </div>
+</body>
+</html>

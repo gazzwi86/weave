@@ -180,7 +180,7 @@ Decisions are final unless overridden by explicit PRD justification.
 - Python tooling: `uv` only (enforced by hook — rejects bare pip usage)
 - Secrets: AWS Secrets Manager only — never hardcoded, never in `.env` files
 - Testing: TDD-first; unit → integration → E2E; Playwright for browser tests; mutation ≥ 70%
-- Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per phase
+- Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per epic (tasks stack within an epic; the phase gate reviews the epic PRs)
 
 ## SDLC — spec-driven flow
 
@@ -232,13 +232,20 @@ non-markdown files like `openapi.yaml` and so cannot be sections).
 /elicit  →  /po  →  /architect  →  /spec-review  →  /implement
                                                        ↓
                     /goal all tasks in phase done, or stop after 60 turns
+                              (tasks → one PR per EPIC on feature/{epic};
+                               UI work must pass the ui_verify gate)
                                                        ↓
                                              phase_gate() Stop hook → HITL
                                              Approve → next phase
 ```
 
+**Operator runbook (read this to run the loop): [`docs/running-the-implement-loop.md`](docs/running-the-implement-loop.md)** —
+the full PDAC loop, all HITL gates (incl. the UI run-book sign-off), the `ui_verify` UI gate, the
+epic-PR model, resume, and the no-bypass enforcement. Every harness element is catalogued in
+[`.claude/HARNESS.md`](.claude/HARNESS.md).
+
 **State spine:** `.claude/state/progress.json` (committed after every task)
-**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update ...`
+**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update|epic-check ...`
 
 ## Navigation
 

@@ -1,9 +1,10 @@
 ---
 name: quality-assurance
 description: "Weave QA agent. Validates implementation against task brief, acceptance criteria, DoD, and design decisions. Stack-aware: resolves tooling from weave.stack via docs/stack-equivalents.md. Extends tests for edge cases. Functions as PO review. Produces structured failure reports."
-model: sonnet
+model: claude-sonnet-5
 maxTurns: 40
-isolation: worktree
+# isolation: none — QA validates IN PLACE on the shared feature/{epic} branch (same reason as the
+# engineer: one branch can't live in two worktrees, and QA's edge-case tests must land on it).
 tools: Read, Glob, Grep, Write, Edit, Bash, LSP
 ---
 
