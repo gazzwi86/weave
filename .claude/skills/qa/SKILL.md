@@ -47,6 +47,8 @@ Then: Step 4 edge-case extension.
 
 For each task being validated, read the task brief from `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
 
+Apply the shared review rubric in [`docs/standards/code-review.md`](../../../docs/standards/code-review.md) throughout: its severity taxonomy (blocker/major/minor/nit), comment discipline (>80% confidence, `file:line` citations, no duplication of linter/type-checker output, nit cap), and the new-user→feature flow check are the same standard the CI review bot uses. The categories below are the harness's DoD-specific instantiation of that rubric — the CI bot and `/qa` must not diverge.
+
 #### 3a. Acceptance Criteria Met
 - Read the task brief's AC table
 - For each AC, verify:

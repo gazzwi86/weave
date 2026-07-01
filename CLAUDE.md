@@ -181,6 +181,11 @@ Decisions are final unless overridden by explicit PRD justification.
 - Secrets: AWS Secrets Manager only — never hardcoded, never in `.env` files
 - Testing: TDD-first; unit → integration → E2E; Playwright for browser tests; mutation ≥ 70%
 - Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per epic (tasks stack within an epic; the phase gate reviews the epic PRs)
+- Code review: `docs/standards/code-review.md` is the single review rubric — priority-ordered
+  checklist, blocker/major/minor/nit severity, comment discipline (>80% confidence, `file:line`
+  citations), OWASP security checklist, and the new-user→feature flow check. Consumed by both the
+  `/qa` skill and the CI review bot (`.github/workflows/claude-review.yml` — label-gated
+  `claude-review`, subscription-auth, advisory but conversation-resolution-gated on `main`)
 
 ## SDLC — spec-driven flow
 
