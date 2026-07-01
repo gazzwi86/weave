@@ -4,6 +4,10 @@ name: Claude PR Review
 # A reviewer adds the `claude-review` label to a PR to start a review.
 # To re-run, remove the label and add it again.
 # Auth uses a Claude Pro/Max subscription token (no API billing).
+#
+# The review rubric lives in docs/standards/code-review.md — edit that to change
+# review behaviour. Merge is gated by "require conversation resolution" on main,
+# so the bot's inline comments must be resolved before a PR can merge.
 
 permissions:
   contents: read
@@ -24,12 +28,112 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      # Conditionally set up toolchains — only when the manifests exist, so this
+      # is a no-op on an empty repo and "just works" once epic-0 boilerplate lands.
+      - name: Set up Node
+        if: ${{ hashFiles('**/package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Python + uv
+        if: ${{ hashFiles('**/pyproject.toml') != '' }}
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      # Run the deterministic checks and capture their output for the reviewer to
+      # treat as ground truth. Tolerant by design: never fails the job, and skips
+      # cleanly when the tooling/scripts don't exist yet.
+      - name: Collect deterministic signals
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p .ci-review
+          out=.ci-review/checks.md
+          echo "# Deterministic checks for this PR" > "$out"
+          echo "" >> "$out"
+          run() { # run <label> <command...>
+            local label="$1"; shift
+            echo "## $label" >> "$out"
+            echo '```' >> "$out"
+            if "$@" >> "$out" 2>&1; then
+              echo "" >> "$out"; echo '```' >> "$out"; echo "RESULT: pass" >> "$out"
+            else
+              echo "" >> "$out"; echo '```' >> "$out"; echo "RESULT: fail (exit $?)" >> "$out"
+            fi
+            echo "" >> "$out"
+          }
+          has_script() { [ -f package.json ] && node -e "process.exit(!(require('./package.json').scripts||{})['$1'])" 2>/dev/null; }
+
+          if [ -f package.json ]; then
+            npm ci >> "$out" 2>&1 || npm install >> "$out" 2>&1 || true
+            has_script typecheck && run "TypeScript typecheck (npm run typecheck)" npm run --silent typecheck
+            has_script lint && run "Lint (npm run lint)" npm run --silent lint
+            has_script build && run "Build (npm run build)" npm run --silent build
+            has_script test && run "Tests (npm test)" npm test --silent
+          fi
+
+          if [ -f pyproject.toml ]; then
+            uv sync >> "$out" 2>&1 || true
+            run "Ruff (uv run ruff check)" uv run ruff check .
+            run "Mypy (uv run mypy)" uv run mypy .
+            run "Pytest (uv run pytest)" uv run pytest -q
+          fi
+
+          if [ ! -s .ci-review/checks.md ] || ! grep -q '^## ' "$out"; then
+            echo "No build/test tooling detected yet (pre-boilerplate)." >> "$out"
+            echo "Rely on code analysis and logical inference for this review." >> "$out"
+          fi
+          echo "::notice::deterministic signals collected to .ci-review/checks.md"
+
+      - uses: anthropics/claude-code-action@fad22eb3fa582b7357fc0ea48af6645851b884fd # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: "--max-turns 30"
           prompt: |
-            Review this pull request. Focus on correctness bugs, security issues,
-            and anything that would break existing behaviour. Post your findings as
-            a single PR review comment, most important first. Be concise and cite
-            file:line for each point. If the PR looks good, say so briefly.
-          claude_args: "--max-turns 10"
+            You are a senior engineer reviewing this pull request for the Weave project.
+            Produce a rigorous, high-signal review. Weave is a platform that models a
+            company as an ontology/knowledge graph and generates apps, agents, and
+            pipelines from that model.
+
+            FIRST, load project context by reading these files in the repo:
+            - `docs/standards/code-review.md` — THE review rubric: the standard, the
+              priority-ordered checklist, the severity taxonomy, comment discipline, the
+              security checklist, and the required output format. Follow it exactly.
+            - `CLAUDE.md` — the product goal, MVP success criterion, confirmed stack, and
+              conventions.
+            - The other `docs/standards/*.md` referenced by the rubric (testing, complexity,
+              code-style), and `.claude/rules/security.md`.
+            - If the PR body or branch references a task/epic (e.g. `TASK-NNN` / `EPIC-NNN`),
+              read that spec under `docs/specs/` plus `.claude/skills/arch-dod` for the
+              Definition of Done, to review against acceptance criteria.
+            - `.ci-review/checks.md` — deterministic build/typecheck/lint/test results already
+              run for this PR. Treat these as GROUND TRUTH; don't re-run them unless you need
+              more detail than the file gives.
+
+            Then review ONLY the diff and the code it directly touches — never unchanged code,
+            generated files, or `*.lock` files.
+
+            Assess in the rubric's priority order: design, correctness, security, spec & DoD
+            alignment, API contracts & data model, tests, then complexity/naming/docs. Then do
+            the project-level judgement the rubric describes:
+            - Does this changeset move toward the MVP goal, or add scope that doesn't yet need
+              solving?
+            - For user-facing work, trace the path a BRAND-NEW USER takes from first arrival to
+              the feature(s) this PR delivers, and verify the journey holds end to end: the UI
+              states exist and wire together, the API entities/endpoints they call exist and
+              return the expected shapes, and the data model supports it. Cite `file:line`
+              evidence for any broken or missing link, and state explicitly what you could and
+              could not verify.
+
+            Discipline (from the rubric — do not violate): report only findings you are >80%
+            confident are real; every behaviour claim needs a `file:line` citation, not an
+            inference from naming; do NOT report anything the linter/type-checker/CI already
+            enforces; tag every finding blocker/major/minor/nit; at most 5 nits (summarise the
+            rest as a count); comment on the code, not the author, and note genuinely good work.
+
+            Output (per the rubric): post inline PR review comments on the exact lines for
+            specific findings — these become resolvable threads that the merge gate requires you
+            to resolve — and a top-level summary for the project-level judgement. Lead the
+            summary with a one-line severity tally (or "No blocking issues.") followed by the
+            new-user-flow verdict, and end with the machine-readable
+            `<!-- weave-review: {...} -->` footer defined in the rubric.

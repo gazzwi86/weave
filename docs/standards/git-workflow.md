@@ -125,6 +125,17 @@ main
 {{if UI: before/after or Playwright trace path}}
 ```
 
+## Code review
+
+Reviews follow the single rubric in [`code-review.md`](code-review.md) — priority-ordered
+checklist, blocker/major/minor/nit severity, comment discipline, security checklist, and the
+new-user→feature flow check. The same rubric drives the `/qa` skill and the CI review bot
+(`.github/workflows/claude-review.yml`), so human and automated review stay consistent.
+
+On-demand automated review: add the **`claude-review`** label to a PR to run the bot. It posts
+inline comments as resolvable threads; `main` requires all conversations resolved before merge,
+so the bot's findings are advisory in content but merge-gating in effect.
+
 ## Pre-commit / pre-push hooks
 
 **Essential.** Language-specific configuration lives in the tooling overlays
