@@ -388,6 +388,16 @@ Decisions are final unless overridden by explicit PRD justification.
 | **SOC2-readiness path** | v1.0 (designed-for, not retrofit) | Retention policies · access reviews · data-residency controls · audit-export with signature verification — incremented onto the M1/M2 baseline in the CE/Build/Platform v1.0 specs |
 | **Full enterprise** | post-v1 | SSO/SCIM federation · customer-managed keys (CMK) · region residency enforcement · ODRL policy engine |
 
+**Data-residency commitment (SEC-6, concrete).** The SOC2-readiness tier ships a **single-region
+deployment option with an EU (eu-west-1) region choice at v1.0** — all tenant data (Aurora, the
+RDF store, S3 Vectors, audit) pinned to the selected region, no cross-region replication of
+tenant data by default. This is the commitment made to EU prospects *before* signing; full
+per-tenant region residency enforcement (multi-region, data-sovereignty guarantees) is the
+post-v1 "full enterprise" tier. The ODRL policy engine named in that tier is the productionised
+form of the [Authority Extension](decisions/ADR-002-authority-extension.md) (ODRL is already the
+authority vocabulary from M2 — the enterprise tier hardens it into an enforced policy engine, not
+a new dependency).
+
 ---
 
 ## 3. Engines (index)
