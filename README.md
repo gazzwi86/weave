@@ -146,6 +146,17 @@ every HITL gate (including the UI run-book sign-off and the `ui_verify` gate), t
 model, and resume. How the whole harness fits together is in
 [`docs/claude-harness-overview.md`](docs/claude-harness-overview.md).
 
+**Limit-spanning autonomous runs:** `bash .claude/scripts/run-loop.sh` re-invokes the loop headless
+until the phase completes — falling back `claude-fable-5` → `claude-opus-4-8` on a usage limit,
+sleeping until the window resets when both are limited, and halting (never auto-approving) at every
+HITL gate. Kill switch: `touch .claude/state/run-loop.stop`. Toggles live in the `env` block of
+`.claude/settings.json` (a shell env var of the same name overrides):
+
+| Toggle | Default | What it does |
+|---|---|---|
+| `WEAVE_CAVEMAN` | `true` | Passes the caveman system prompt to each headless invocation (compressed output — slower limit burn) |
+| `WEAVE_CAFFEINATE` | `true` | Auto-wraps the loop in `caffeinate -i` so the Mac stays awake for the whole run |
+
 ---
 
 ## Repository layout
@@ -170,7 +181,10 @@ One real client models their company in Weave, and Weave auto-generates one work
 
 ## Caveman
 
-The [Caveman plugin](https://github.com/juliusbrussee/caveman) is always installed in this repo
+The [Caveman plugin](https://github.com/juliusbrussee/caveman) is always installed in this repo.
+Headless `run-loop.sh` invocations enforce it via the `WEAVE_CAVEMAN` toggle in
+`.claude/settings.json` (`env` block, default `true`) — set it to `false`, or run with
+`WEAVE_CAVEMAN=false`, to get plain output.
 
 ---
 
