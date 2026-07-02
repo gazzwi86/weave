@@ -104,7 +104,8 @@ is not done.
 ## Enforcement you cannot bypass
 - `git push/commit --no-verify` and `commit -n` → **blocked** by `check-git-safety`.
 - **Pre-push** runs `check-harness-manifest` (blocking — every harness element must have a row in
-  `.claude/HARNESS.md`) and a blocking `/security-review`.
+  `.claude/HARNESS.md`), OKF validation, and a blocking **Semgrep** scan on changed files (the AI
+  `/security-review` moved to the phase-gate ceremony, 2026-07-02).
 - **Phase-gate** blocks Approve on a CRITICAL security finding, a UI-verify non-zero exit, or an
   unsigned run-book.
 

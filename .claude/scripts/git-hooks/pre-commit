@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-commit:
-#   1. Scan staged files for hardcoded secrets.
-#   2. Refresh anatomy/wiki for staged source changes (if claude CLI is available).
-# Skip with `git commit --no-verify` when truly necessary.
+# Pre-commit (declarative, NO AI inference in the hook path). Philosophy: commit-fast.
+#   1. Scan staged files for hardcoded secrets   (blocking, always)
+#   2. Lint                                      (blocking once an entry point exists)
+#   3. Anatomy freshness check                   (advisory)
+# The heavy pyramid (unit/UI/contract/perf tests, Lighthouse) runs in CI on every push/PR
+# (GitHub Actions — see the scaffolded workflow), NOT locally. The engineer agent's TDD loop
+# and the QA agent's DoD gate run the full suite per task regardless, so nothing ships untested.
+# When a stage fails it prints actionable errors and exits non-zero; fixing the cause (with AI
+# help outside the hook) is the workflow — never `--no-verify`.
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+cd "$PROJECT_ROOT"
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
 if [ -z "$STAGED" ]; then
   exit 0
 fi
 
-# --- Secret scan (blocking) -------------------------------------------------
+# --- 1. Secret scan (blocking) ---------------------------------------------
 # Blocks on patterns that look like real credentials in staged content.
 echo "$STAGED" | while IFS= read -r f; do
   if [ -f "$f" ] && grep -qE \
@@ -22,21 +30,31 @@ echo "$STAGED" | while IFS= read -r f; do
   fi
 done
 
-# --- Anatomy / wiki refresh (advisory) -------------------------------------
-if ! command -v claude >/dev/null 2>&1; then
-  exit 0
+# --- 2. Lint (conditional; activates when code exists) ----------------------
+# Runs the Makefile lint target (preferred aggregation point — the scaffold creates a root
+# Makefile) or, failing that, the package.json lint script. No entry point → clean no-op.
+
+have_make_target() { [ -f Makefile ] && grep -qE "^$1:" Makefile; }
+have_npm_script() {
+  [ -f package.json ] && command -v node >/dev/null 2>&1 \
+    && node -e "process.exit((require('./package.json').scripts||{})['$1']?0:1)" 2>/dev/null
+}
+
+if have_make_target "lint"; then
+  echo "pre-commit: [lint] make lint" >&2
+  make lint || { echo "pre-commit: [lint] failed — fix before committing" >&2; exit 1; }
+elif have_npm_script "lint"; then
+  echo "pre-commit: [lint] npm run lint" >&2
+  npm run lint || { echo "pre-commit: [lint] failed — fix before committing" >&2; exit 1; }
+else
+  echo "pre-commit: [lint] skipped (no entry point yet)" >&2
 fi
 
-# Only refresh for source under wiki-mapped roots. Keep this list in sync with the single source
-# of truth, common.py::TRACKED_ROOTS (apps/packages/infra/src/lib) — area_for_path only maps these.
-# Docs, prototypes, and .claude/ config never have a wiki page, so skipping them avoids spawning an
-# expensive `claude -p` subprocess on every commit.
-TRACKED=$(echo "$STAGED" | grep -E '^(apps|packages|infra|src|lib)/' || true)
-if [ -n "$TRACKED" ]; then
-  echo "pre-commit: refreshing anatomy/wiki for tracked files..." >&2
-  REFRESH="/anatomy refresh $(echo "$TRACKED" | tr '\n' ' ')"
-  claude -p "$REFRESH" --output-format text 2>/dev/null || {
-    echo "pre-commit: /anatomy refresh failed (continuing commit)" >&2
-  }
-  git add ANATOMY.md docs/wiki/ 2>/dev/null || true
+# --- 3. Anatomy freshness (declarative, advisory) --------------------------
+# Replaces the former `claude -p /anatomy refresh` (no AI in the hook path).
+# Advisory only, matching the pre-push treatment; refresh with /anatomy.
+if git rev-parse HEAD >/dev/null 2>&1; then
+  if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh 2>/dev/null; then
+    echo "pre-commit: anatomy may be stale; run /anatomy refresh before pushing" >&2
+  fi
 fi

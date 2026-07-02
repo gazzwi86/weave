@@ -9,7 +9,9 @@ resource: docs/standards/git-workflow.md
 
 # Git Workflow
 
-**Stack-agnostic.** Language-specific tooling (husky, pre-commit) is covered
+**Stack-agnostic.** The harness hooks (`.claude/scripts/git-hooks` via `core.hooksPath`) are the
+only local hook system — never install husky or the Python pre-commit framework in parallel.
+Language-specific tooling is covered
 in [`tooling-ts.md`](tooling-ts.md) and [`tooling-py.md`](tooling-py.md).
 
 ## Commit format — Conventional Commits
@@ -142,8 +144,10 @@ so the bot's findings are advisory in content but merge-gating in effect.
 ([`tooling-ts.md`](tooling-ts.md), [`tooling-py.md`](tooling-py.md)).
 Every stack must wire up:
 
-- **Pre-commit:** lint + type-check + affected tests on staged files.
-- **Pre-push:** full test suite + dependency/security audit.
+- **Pre-commit (commit-fast):** secret scan + lint only.
+- **Pre-push:** harness manifest/OKF parity + Semgrep security scan on changed files.
+- **CI (push-thorough):** the full pyramid — all tests, mutation, audit, Lighthouse — runs in
+  GitHub Actions on every push/PR; the engineer/QA loop also runs the full suite per task.
 - **Never bypass** with `--no-verify`. A failing hook means the change isn't
   ready — fix the issue instead.
 

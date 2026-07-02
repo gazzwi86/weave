@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-push: run /security-review on pending branch changes.
-# Blocks the push on security findings. NOTE: `--no-verify` does NOT work here — it is blocked by
-# the check-git-safety PreToolUse hook (.claude/rules/git-safety.md). Fix the findings, not the gate.
+# Pre-push (declarative, NO AI inference in the hook path):
+#   1. Anatomy freshness                          (advisory)
+#   2. Harness manifest structural parity         (blocking)
+#   3. OKF bundle validation                      (blocking, hard errors only)
+#   4. OKF visualization refresh                  (advisory)
+#   5. Semgrep security scan on changed files     (blocking when semgrep is installed)
+# The former `claude -p /security-review` stage was removed 2026-07-02: it was a second
+# billable, non-deterministic AI call per push. The AI security review now runs once per
+# phase inside the phase-gate ceremony (.claude/skills/phase-gate Step 2), where a human
+# reviews the findings. NOTE: `--no-verify` does NOT work here — it is blocked by the
+# check-git-safety PreToolUse hook (.claude/rules/git-safety.md). Fix findings, not the gate.
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 
@@ -23,40 +31,60 @@ if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-harness-manifest; th
   exit 1
 fi
 
-if ! command -v claude >/dev/null 2>&1; then
-  echo "pre-push: claude CLI not found, skipping /security-review" >&2
+# [blocking] OKF bundle validation (declarative, no AI). Non-strict: only hard
+# errors fail the push, warnings do not.
+echo "pre-push: [blocking] validating OKF bundle (docs/) ..." >&2
+if ! python3 "$PROJECT_ROOT/.claude/scripts/okf_validate.py" docs >&2; then
+  echo "pre-push: OKF bundle non-conformant — fix errors above (run: python3 .claude/scripts/okf_validate.py docs)" >&2
+  exit 1
+fi
+
+# Regenerate the local knowledge graph. Advisory: docs/viz.html is gitignored
+# (local-only), so a failure here must never block the push.
+if python3 "$PROJECT_ROOT/.claude/scripts/okf_visualize.py" docs -o docs/viz.html >/dev/null 2>&1; then
+  echo "pre-push: refreshed docs/viz.html" >&2
+else
+  echo "pre-push: okf_visualize skipped (non-fatal)" >&2
+fi
+
+# --- Semgrep security scan (blocking when installed) ------------------------
+# Declarative SAST replacing the AI review. Scans only files changed in the push
+# range; blocks on ERROR-severity findings. If semgrep is not installed, warn and
+# continue — CI runs the authoritative Semgrep pass on every push regardless.
+if ! command -v semgrep >/dev/null 2>&1; then
+  echo "pre-push: semgrep not installed — skipping local scan (CI still runs it). Install: uv tool install semgrep" >&2
   exit 0
 fi
 
-# Determine diff range. On a fresh repo or branch with no upstream, skip.
+# Determine diff range. On a fresh repo or branch with no upstream, scan whole tree.
 RANGE=""
 if git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-  UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')
-  RANGE="$UPSTREAM..HEAD"
-elif git rev-parse main >/dev/null 2>&1; then
+  RANGE="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}')..HEAD"
+elif git rev-parse main >/dev/null 2>&1 && [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
   RANGE="main..HEAD"
-elif git rev-parse HEAD >/dev/null 2>&1; then
-  # First push — diff entire HEAD tree vs empty
-  RANGE="HEAD"
 fi
 
-if [ -z "$RANGE" ] || [ -z "$(git log "$RANGE" --oneline 2>/dev/null || true)" ]; then
+CHANGED=""
+if [ -n "$RANGE" ]; then
+  CHANGED=$(git diff --name-only --diff-filter=ACM "$RANGE" 2>/dev/null || true)
+else
+  CHANGED=$(git ls-files 2>/dev/null || true)
+fi
+
+# Keep only files that still exist; nothing to scan → pass.
+FILES=()
+while IFS= read -r f; do
+  [ -n "$f" ] && [ -f "$f" ] && FILES+=("$f")
+done <<< "$CHANGED"
+
+if [ "${#FILES[@]}" -eq 0 ]; then
   exit 0
 fi
 
-# [blocking] /security-review pass.
-echo "pre-push: [blocking] running /security-review on $RANGE ..." >&2
-PROMPT="/security-review Review changes in range $RANGE. Output JSON: {\"findings\":[...],\"block\":true|false}. Block on credentials, eval/Function, SQL injection, command injection."
-RESULT=$(claude -p "$PROMPT" --output-format text 2>&1) || {
-  echo "$RESULT" >&2
-  echo "pre-push: /security-review failed; fix the cause (--no-verify is blocked by check-git-safety)" >&2
-  exit 1
-}
-
-if echo "$RESULT" | grep -qE '"block"[[:space:]]*:[[:space:]]*true'; then
-  echo "$RESULT" >&2
-  echo "pre-push: push blocked due to security findings (address them; --no-verify is blocked)" >&2
+echo "pre-push: [blocking] semgrep scan on ${#FILES[@]} changed file(s) ..." >&2
+if ! semgrep scan --config auto --severity ERROR --error --quiet "${FILES[@]}" >&2; then
+  echo "pre-push: push blocked by semgrep findings (fix them; --no-verify is blocked by check-git-safety)" >&2
   exit 1
 fi
 
-echo "pre-push: /security-review passed" >&2
+echo "pre-push: semgrep passed" >&2
