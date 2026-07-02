@@ -116,7 +116,7 @@ Within 12 months, success for Onboarding looks like:
 - **Guided tours** (linear) for core paths plus **contextual tooltips** for complex areas;
   skippable, resumable, with progress indicators.
 - **Role-tailored** tours and guidance keyed to the user's role and access rights via **4 primary
-  paths** (Business, Technical, Compliance, Admin); the 9 canonical platform roles map onto these
+  paths** (Business, Technical, Compliance, Admin); the 10 canonical platform roles map onto these
   (others map to the nearest). Role resolution is IdP-agnostic (Cognito or Auth0) via the platform
   RBAC model — see `weave-platform` Roles & Access.
 
@@ -228,7 +228,7 @@ For the platform-wide master list see `CLAUDE.md § Architecture decisions (conf
 | In-product guided onboarding via an overlay framework (tooltips, modals, beacons, tours) | Guides users through a broad, novel platform in context, where the work happens | 2026-06-26 |
 | A fully-modelled Hammerbarn demo workspace is the learning sandbox | Users learn from a complete, realistic example and see what "good" looks like before touching their own | 2026-06-26 |
 | Combine a fully-populated demo with focused guided tours | Research shows a sandbox plus targeted tours beats either a feature-by-feature tour or an empty start | 2026-06-26 |
-| Onboarding is tailored to role and access via 4 primary paths | Different roles need different paths; the 9 canonical platform roles map onto 4 paths (others map to nearest), resolved IdP-agnostically off the platform RBAC model | 2026-06-26 |
+| Onboarding is tailored to role and access via 4 primary paths | Different roles need different paths; the 10 canonical platform roles map onto 4 paths (others map to nearest), resolved IdP-agnostically off the platform RBAC model | 2026-06-26 |
 | Per-user writable Hammerbarn copy with manual reset | Hands-on practice needs a writable copy that persists; resetting only on explicit action (not a timer) avoids losing in-progress work; canonical graph stays protected | 2026-06-30 |
 | Hammerbarn seed is built as a live pipeline (CE/Build/Events), not a static snapshot | Keeps the demo in step with the real product; full demo GA gated on engine GA, CE+Explorer portion at MVP | 2026-06-30 |
 | Activation/time-to-outcome targets are measure-and-report baselines, not GA gates | 60%/30-min are provisional; the gate threshold is set after the cohort-1 baseline | 2026-06-30 |
@@ -323,14 +323,14 @@ A1).
 
 ### 2.1 Personas & roles
 
-The onboarding paths map the **9 canonical platform human roles** (Platform brief, Roles & Access)
+The onboarding paths map the **10 canonical platform human roles** (Platform brief, Roles & Access)
 onto **4 primary paths** (decision: 4 primary, others map to nearest). The mapping is authoritative
-for FR-013/FR-014.
+for FR-013/FR-014. Per-persona feed/consume detail lives in [`personas.md`](../personas.md).
 
 | Persona (path) | Canonical roles mapped to it | Primary need | Permission level |
 |---|---|---|---|
 | **Business** | Business analyst / SME; Brand / content owner; Viewer / stakeholder (read-only variant) | Concept-light, jargon-free path; NL not SPARQL; hands-on exercises | read / author-instance |
-| **Technical** | Enterprise architect; Engineer / developer; Automation author | Faster path; skips concept intros; modelling + Build + automation depth | author-structure / publish / build |
+| **Technical** | Enterprise architect; Engineer / developer; Automation author; Data steward / data engineer | Faster path; skips concept intros; modelling + Build + automation depth | author-structure / publish / build |
 | **Compliance** | Compliance / risk officer | Governance, SHACL rules, PROV-O audit trail, compliance views | author-governance / audit-read |
 | **Admin** | Workspace admin / owner; Ops / SRE | Workspace setup: RBAC, connectors, billing, retention, runs | admin |
 
@@ -707,7 +707,7 @@ cross-workspace cohort data so that we can improve onboarding globally.
 | FR-010 | Beacons on complex elements when present in the build; per-element server-side dismissal; "Show all hints" restores. Failure: target unmounts → hide beacon/tooltip + log | E2-S2 | P0 (shipped) / P2 | M1 window / post-v1 |
 | FR-011 | Beacon tooltip default ≤60 words tunable + "Learn more" link | E2-S2 | P0 | MVP |
 | FR-012 | Welcome modal on first visit to each shipped area; CTAs adapt: tour areas → "Take a tour"+"Explore freely"; no-tour areas (Compliance, Settings) → "Explore freely"/"Read the guide" only (no dead CTA). Dismissal persisted server-side | E2-S3 | P0 | MVP (shipped areas) |
-| FR-013 | 4 primary role paths (Business/Technical/Compliance/Admin) with explicit 9→4 mapping; resolved from canonical RBAC role(s) via PLAT-IDENTITY-1, IdP-agnostic; per-path first milestone. Failure: not-GA milestone screen → locked | E3-S1 | P0 | MVP · PLAT-IDENTITY-1, PLAT-SETTINGS-1 |
+| FR-013 | 4 primary role paths (Business/Technical/Compliance/Admin) with explicit 10→4 mapping; resolved from canonical RBAC role(s) via PLAT-IDENTITY-1, IdP-agnostic; per-path first milestone. Failure: not-GA milestone screen → locked | E3-S1 | P0 | MVP · PLAT-IDENTITY-1, PLAT-SETTINGS-1 |
 | FR-014 | Multi-role → choose-path modal; zero-role → Business read-only default; Viewer → Business read-only; "Change path" in Help launcher | E3-S1 | P0 | MVP · PLAT-IDENTITY-1 |
 | FR-015 | Onboarding supplies role→starter-widget-set mapping (engine-availability tagged); rendering/removability owned by Platform E1-S6. No widget rendering in onboarding | E3-S2 | P1 | MVP · Platform E1-S6/FR-012, CE-METRICS-1 |
 | FR-016 | Role-gated, phase-tagged exercise set (CE-01/02/03, CE-03b NL, GE-01/02 M1 window; BE-01, AE-01 post-v1); each: goal, 3–5 steps, completion check, indicator. CE-03 raw SPARQL = Technical only; CE-03b NL = Business | E4-S1 | P0 (CE,GE) / P2 (BE,AE) | M1 window / post-v1 · CE-READ-1, CE-WRITE-1, GE-CANVAS-1 |
@@ -857,7 +857,7 @@ not restated — see ../contracts.md PLAT-SETTINGS-1. -->
 | Per-user **writable** Hammerbarn copy; edits persist; **manual** reset only (no auto-30s) | Decision E1. Reset-op target = 30 s; not a session timeout. Reconciles with the prototype's protected canonical demo by adding a user-owned writable copy rather than mutating canonical |
 | Hammerbarn entities map onto the process-centric **BPMO framework** (CE-READ-1), with **Process** as the spine; seed is authored content, not a constant | Decision A1/B1. The six named business processes are **Process** (with Activity steps, Event triggers, performedBy Actors), not BusinessCapability; "Product/Store/Supplier" are Class definitions, not new kinds; instances are Concepts/DataAssets. Counts are content targets, not promises |
 | Seed built as a **live pipeline** (CE/Build/Events), not a static snapshot | Decision E2. Keeps the demo in step with the real product; full demo GA gated on engine GA; CE+Explorer portion at MVP |
-| **4 primary role paths** with explicit 9→4 mapping; IdP-agnostic role resolution | Decisions (role-paths=4). Roles combine on one identity; resolution via PLAT-IDENTITY-1, never a raw Cognito group |
+| **4 primary role paths** with explicit 10→4 mapping; IdP-agnostic role resolution | Decisions (role-paths=4). Roles combine on one identity; resolution via PLAT-IDENTITY-1, never a raw Cognito group |
 | Activation/time-to-outcome = **measure-and-report baselines**, not GA gates | Decision E4. 60% / 30 min are cohort-1 instruments; thresholds set after the baseline |
 | Every threshold = **"default X, tunable"** or cited | Decision E4. No bare confabulated numbers |
 | Onboarding owns **no inter-engine contract**; role→widget mapping is config consumed by Platform | Single source of truth for widget rendering = Platform E1-S6 |
@@ -872,7 +872,7 @@ The Onboarding PRD is satisfied when:
   areas (MVP: Constitution, Explorer) render real seed content; not-yet-shipped areas are
   feature-flagged off, not broken.
 - [ ] A user's role path is resolved via PLAT-IDENTITY-1 to exactly one of the 4 primary paths per
-  the 9→4 mapping, IdP-agnostic; a multi-role user is asked to choose; a zero-role user gets Business
+  the 10→4 mapping, IdP-agnostic; a multi-role user is asked to choose; a zero-role user gets Business
   read-only.
 - [ ] A user edits their **writable** sandbox; edits persist across a sign-out/sign-in; only an
   explicit "Reset demo" click restores canonical state (within the default-30 s target).
@@ -1029,7 +1029,7 @@ M2 Platform/CE features) · **Status:** Backlog · **Priority:** Must Have
 
 **Description.** Resolves every signed-in user to exactly one of the **4 primary onboarding paths**
 (Business, Technical, Compliance, Admin) from their canonical platform role(s) via PLAT-IDENTITY-1,
-IdP-agnostic, per the documented 9→4 mapping. The resolved path drives role-tailored tour/exercise
+IdP-agnostic, per the documented 10→4 mapping. The resolved path drives role-tailored tour/exercise
 content, the per-path first-outcome milestone, and the role→starter-widget-set mapping that Platform
 consumes for the Dashboard.
 
@@ -1041,7 +1041,7 @@ consumes for the Dashboard.
 - [ ] The **single** path resolved in S1 is the same path that selects the widget set in S2 — a user
   resolved to Technical gets Technical milestones *and* the Technical widget set; the two stories
   cannot disagree on a user's path.
-- [ ] The 9→4 mapping is exhaustive and total: each of the 9 canonical platform roles maps to exactly
+- [ ] The 10→4 mapping is exhaustive and total: each of the 10 canonical platform roles maps to exactly
   one path, multi-role users are prompted to choose, and zero-role / Viewer users default to the
   Business read-only variant — verified by a role-resolution test matrix with no unmapped role.
 - [ ] Role resolution reads only canonical RBAC slugs via PLAT-IDENTITY-1 (Cognito or Auth0); no code
@@ -1385,7 +1385,7 @@ not-yet-GA engines are **feature-flagged off**, not broken.
 |------|-------------|----------------------|----------|:---------------------:|
 | EPIC-001 | Hammerbarn Demo Workspace — CE/Explorer seed areas, per-user writable sandbox, manual reset, sandbox-only writes | 3 (E1-S1 CE/Explorer, E1-S2, E1-S3) | Must Have | yes (CE+Explorer only) |
 | EPIC-002 | Guided Tours & Contextual Overlays — CE/Explorer tours, beacons on shipped screens, welcome modals | 3 (E2-S1 CE/GE, E2-S2 shipped, E2-S3) | Must Have | yes (CE+Explorer only) |
-| EPIC-003 | Role-Tailored Onboarding Paths — 4-path 9→4 resolution, role→starter-widget mapping (CE-sourced) | 2 (E3-S1, E3-S2) | Must / Should | yes (role-home guidance = M2) |
+| EPIC-003 | Role-Tailored Onboarding Paths — 4-path 10→4 resolution, role→starter-widget mapping (CE-sourced) | 2 (E3-S1, E3-S2) | Must / Should | yes (role-home guidance = M2) |
 | EPIC-004 | Hands-On Exercises — CE-01/02/03/03b + GE-01/02 in the writable sandbox, progress in checklist | 2 (E4-S1 CE/GE, E4-S2) | Must / Should | yes (CE+Explorer only) |
 | EPIC-005 | Onboarding Checklist & Activation — Dashboard checklist widget, idempotent CE-grounded activation | 2 (E5-S1, E5-S2 Business/Tech/Compliance Must Have; Admin Should Have) | Must Have / Should Have | yes |
 | EPIC-006 | Training Library — placeholder video cards + written walkthroughs, search, What's New | 2 (E6-S1, E6-S2) | Must / Should | yes |
@@ -1426,7 +1426,7 @@ not-yet-GA engines are **feature-flagged off**, not broken.
       edits, and only an explicit "Reset demo" click SHALL restore canonical state within a **default
       30 s, tunable** target — verified by a persistence + reset E2E test.
 - [ ] WHEN a signed-in user's onboarding path is resolved THE SYSTEM SHALL map their canonical role(s)
-      (PLAT-IDENTITY-1, IdP-agnostic) to exactly one of the 4 primary paths per the 9→4 mapping
+      (PLAT-IDENTITY-1, IdP-agnostic) to exactly one of the 4 primary paths per the 10→4 mapping
       (multi-role → choose-path prompt; zero-role/Viewer → Business read-only) — verified by a
       role-resolution test matrix.
 - [ ] WHEN a user reaches a CE-grounded activation milestone in their own workspace THE SYSTEM SHALL

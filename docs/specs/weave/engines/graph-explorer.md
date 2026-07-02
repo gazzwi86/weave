@@ -111,6 +111,10 @@ graph exists, but the organisation cannot see itself in it, so adoption stalls.
 
 ### Target Users
 
+Per-persona feed/consume detail lives in the program persona map, [`../personas.md`](../personas.md).
+The `ontologist` role slug used for IRI disclosure below is the **Enterprise architect** canonical
+role (weave-platform.md §Engine persona → canonical role mapping).
+
 | User | Primary need | Permission level |
 |---|---|---|
 | Operations / business staff | Visual navigable view, no RDF/SPARQL | viewer (read-only) |

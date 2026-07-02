@@ -147,7 +147,8 @@ depend on. CE owns and publishes ALL of the following.
 ### CE-METRICS-1 — Aggregate metrics for the Dashboard
 - `GET /api/metrics/ontology` → `{ entity_count_by_kind, latest_version, draft_published_delta,
   shacl_errors_by_severity, owl_inconsistencies }`.
-- Consumer: Platform fixed dashboard (M1, CE-sourced tiles); composable Generative Dashboard (M2+).
+- Consumer: composable Generative Dashboard (M2+). The **M1 fixed dashboard** is hand-composed
+  CE-sourced tiles and does **not** consume this contract — CE-METRICS-1 lands M2.
 
 ### CE-FUNCTION-1 — Ontology-bound function registry  *(resolves OQ-13 / Build-OQ-12 / EA-OQ-13)*
 - **CE owns** the single registry of *ontology-bound functions*: named, typed, graph-aware logic
@@ -188,13 +189,17 @@ depend on. CE owns and publishes ALL of the following.
   PROV-O and every PLAT-AUDIT-1 entry. Least-privilege role-scope per principal.
 
 ### PLAT-CONNECTOR-1 — Managed connector contract
-- v1 integrations (**7**): Snowflake · Databricks · S3 · Azure Data Lake ·
+- v1 integrations (**7**): Snowflake · Databricks · AWS · Azure Data Lake ·
   **Atlassian (Jira + Confluence, one OAuth/connector family)** · ServiceNow · **Slack**.
 - Exposes: a connector reference/handle model, a programmatic **health-status read API**
   (`status, last_sync, last_error, error_count`), and a data/event **delivery interface**.
   Credentials in AWS Secrets Manager only.
 - Connector-data **ingestion into the graph** is a platform ingestion responsibility that writes
   via CE-WRITE-1 (resolves the duplicated Platform OQ-05 / CE OQ-05).
+- **Milestone: the whole connector surface (config + health + ingestion) is deferred to v1.0**
+  (post-MVP). The MVP/M1 platform delivers its unique value without external integrations; the
+  seven managed connectors are the *extended* value and land at v1.0. Platform still *owns* the
+  contract from M1 (it is one of the six `PLAT-*`), but nothing in M1 depends on a live connector.
 
 ### PLAT-SETTINGS-1 — Tenancy & settings cascade
 - Four-level cascade **Company → Domain → Workspace → Project**, tighter-wins precedence;

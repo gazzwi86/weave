@@ -107,7 +107,7 @@ cross-tenant leak**, a higher blast radius than physical separation. Mitigations
 mandatory: (1) deny-by-default (unscoped ⇒ reject); (2) property-based / fuzz tests on the
 rewriter treated as a security gate; (3) the rewriter is the **only** query path — no code may
 issue a raw store query (grep-enforced invariant); (4) the CE perf/security spike
-([CE TASK-008](../engines/constitution-engine/04-arch/tasks/TASK-008.md)) stress-tests the
+([CE TASK-008](../engines/constitution-engine/m1/tasks/TASK-008.md)) stress-tests the
 rewriter at scale, and its degrade plan **must preserve** the M1 generate step (never widen
 scope to hit a latency target).
 

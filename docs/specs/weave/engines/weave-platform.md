@@ -128,8 +128,9 @@ platform brief owns only the cross-cutting whole and the boundaries between engi
   — named-graph-per-tenant with query-rewriting that rejects unscoped queries, or store-per-tenant; final
   mechanism set in the Constitution Engine tech spec), authentication/authorisation, a single
   agent-identity registry, the AI-native layer used across engines (NL editing, generation, suggestions),
-  and **7 v1 managed connectors**: Snowflake, Databricks, S3, Azure Data Lake, Atlassian (Jira +
-  Confluence — one OAuth family), ServiceNow, and Slack. <!-- SHARED-HOISTED: connector list canonical at ../contracts.md PLAT-CONNECTOR-1 -->
+  and **7 managed connectors** (deferred to v1.0 — post-MVP): Snowflake, Databricks, AWS, Azure Data
+  Lake, Atlassian (Jira + Confluence — one OAuth family), ServiceNow, and Slack. The MVP delivers its
+  value without external integrations; connectors are the extended value and land at v1.0. <!-- SHARED-HOISTED: connector list canonical at ../contracts.md PLAT-CONNECTOR-1 -->
 - **Engagement layer** — the workshop methodology packaged as a repeatable product and GTM motion.
 
 #### Out of Scope
@@ -254,7 +255,9 @@ global context plus a left sidebar for within-area navigation.
 
 - **Top header bar — primary navigation + global chrome.** Persistent across the app.
   - Left: Weave home, and the **workspace switcher** (the company/tenant, plus the demo "Hammerbarn"
-    workspace).
+    workspace). A regular user sees only their own workspace here; a **Weave super admin** sees the
+    workspaces they operate plus an **"Add workspace"** button that opens the create-workspace +
+    first-admin modal (FR-045/FR-046).
   - Centre: the **primary navigation** (top-level areas, below).
   - Right: **global search**, **notifications**, **help & guided-tour launcher** (onboarding), and the
     **account/user menu**.
@@ -316,7 +319,7 @@ in the dashboard grid.
 | Active projects | Project count by phase, recent activity, budget burn, artefacts shipped, success/failure rate |
 | Compliance status | Active SHACL contraventions by severity and domain, policy coverage gaps, self-audit query results |
 | Ontology & project issues | Validation warnings, unsatisfiable OWL classes, entities with no owner, version pin mismatches |
-| Event automation status | Running automations, recent trigger counts, failure rates, connector health (the 7 v1 connectors: Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) |
+| Event automation status | Running automations, recent trigger counts, failure rates, connector health (the 7 connectors: Snowflake, Databricks, AWS, Azure Data Lake, Atlassian, ServiceNow, Slack — connectors ship at v1.0) |
 | Collaboration activity | Active canvas sessions, recent graph edits, top contributors, workshop sessions logged |
 | Operational health | Error rate, retry rate, agent-failure rate by engine — sourced from `PLAT-AUDIT-1` (`event_type` + `engine` dimensions) and `CE-METRICS-1` (`shacl_errors_by_severity`); a spike beyond a configurable threshold fires an alert-banner widget |
 | Agent activity | What AI agents are doing right now across all engines (Build, Automate, Explorer) |
@@ -330,7 +333,9 @@ in the dashboard grid.
 - **Workspace switcher** — company tenant plus the Hammerbarn demo workspace (a **per-user writable** copy
   that persists changes across sessions and resets only on an explicit button; its seed content is
   **live-pipeline built** via CE/Build/Events, with the CE+Explorer portion available at MVP and the full
-  demo gated on Build/Events GA — see the `onboarding` brief).
+  demo gated on Build/Events GA — see the `onboarding` brief). For a **Weave super admin** the switcher
+  also lists every workspace they operate and carries an **"Add workspace"** button (create workspace +
+  first admin user, FR-045/FR-046); a regular user sees only their own workspace.
 - **Global search** — across entities, automations, projects, and docs.
 - **Notifications** — budget alerts, approvals, automation outcomes.
 - **Help & guided-tour launcher** — onboarding overlays, tours, and the training library (see the
@@ -348,19 +353,38 @@ First-draft model of the canonical roles and the access model, covering **both h
 identities**. Referenced by the `onboarding` brief (role-tailored onboarding) and by each engine. The
 detailed permission matrix is refined at PRD / tech spec.
 
-#### Canonical human roles
+#### Canonical human roles — 10 in-tenant roles + Weave super admin (out-of-band, platform operator)
 
 | Role | Primary access |
 |---|---|
-| Workspace admin / owner | Full control: settings, members & roles, integrations, billing, and all engines |
+| **Weave super admin (platform operator)** | Weave-operator identity **outside any single tenant's RBAC**: create workspaces via the UI, create each workspace's initial workspace-admin user, and navigate between workspaces via the header switcher's "Add workspace" flow. Provisioning only — it does not read tenant business data. (Distinct from the post-v1 *self-improvement* operator.) |
+| Workspace admin / owner | Full control **within their workspace**: settings, members & roles, integrations, billing, and all engines |
 | Enterprise architect | Author ontology structure, types, and rules; full model read; build and explore |
 | Business analyst / SME | Author instance data and glossary; explore; limited structural change |
+| Data steward / data engineer | Author schemas, column descriptions, glossaries, data rules, and classification content as instance + glossary data; propose data-quality SHACL shapes for architect/compliance review; read the model and explore. Data domain. |
 | Brand / content owner | Author brand and voice content; read the model |
 | Compliance / risk officer | Author governance/compliance content; audit logs and compliance views; read the model |
 | Engineer / developer | Build projects — spec, generate, code, artefacts; read the model |
 | Ops / SRE | Operate built products — self-healing, runs, deployments |
 | Automation author | Create and manage automations; read the model |
 | Viewer / stakeholder | Read-only explore and dashboards |
+
+Per-persona feed/consume detail (what each role puts into and gets out of the graph) lives in the
+program persona map, [`personas.md`](../personas.md).
+
+#### Engine persona → canonical role mapping
+
+Engine specs use local persona names; this table is the canonical resolution.
+
+| Engine persona | Canonical role |
+|---|---|
+| Ops / transformation lead (Platform) | Ops / SRE |
+| Technical architect (Build) | Enterprise architect |
+| Delivery manager (Build) | Viewer / stakeholder, with author access on Build surfaces |
+| Ops / process owner (Events) | Automation author |
+| Process participant / domain staff (Events) | Viewer / stakeholder |
+| Ops / business staff (Explorer) | Viewer / stakeholder |
+| Ontologist (Explorer) | Enterprise architect |
 
 #### Non-human (agent) identities
 
@@ -387,7 +411,12 @@ AI agents and bots are first-class identities, not anonymous background processe
 - **RBAC** — roles grant permissions scoped to engines/areas and to action level (e.g. read vs author vs
   publish vs administer). Roles can be combined on one identity.
 - **Tenant-scoped** — a user's roles apply within a company workspace (tenant); the Hammerbarn demo is a
-  separate workspace with its own access.
+  separate workspace with its own access. A **regular workspace user only ever sees their own workspace and
+  its dashboard** — no cross-workspace navigation, listing, or data (hard tenant isolation, FR-047).
+- **Platform-operator scope (out-of-band)** — the Weave super admin is a Weave-operator identity that sits
+  *outside* tenant RBAC. It provisions workspaces and their first admins and can switch between workspaces
+  via the header switcher; it is minted as a dedicated Cognito group + `PLAT-IDENTITY-1` principal and is
+  never granted through a client workspace's RBAC (FR-045/FR-046).
 - **Least privilege by default** — admins assign roles; new identities start minimal.
 - **Identity** — authentication via AWS Cognito (default) or Auth0 (multi-IdP), per the stack; org-chart
   identities may sync from SSO/HR systems.
@@ -477,21 +506,26 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | Persona | Description | Primary need | Permission level |
 |---|---|---|---|
 | Operations / transformation lead | Owns how the company runs; first adopter | Model coverage, compliance, activity in one view | author |
-| CTO / exec sponsor | Funds and governs the initiative | Spend, compliance posture, model health at a glance | admin |
+| CTO / exec sponsor | Funds and governs the initiative | Spend, compliance posture, model health at a glance | viewer + billing/budget visibility (least-privilege — an exec who administers is additionally granted workspace admin explicitly) |
 | Enterprise architect | Extends the ontology to the client domain | Ontology health, version status, SHACL errors, growth | publish |
 | Compliance / risk officer | Owns governance/compliance content | Cross-engine compliance views + immutable audit feed | author (read audit) |
 | Engineer / developer | Builds via the Build Engine | Active projects, token spend, agent activity, connectors | author |
 | Business analyst / SME | Edits instance data day to day | Domain changes, project status, role-tailored views | author |
+| Brand / content owner | Owns brand and voice content | Brand/voice assets governed, versioned, honoured downstream | author (brand) |
+| Data steward / data engineer | Owns schemas, glossaries, data rules | Schema/glossary ingest, lineage traversal, data-quality shapes | author (instances + proposed shapes) |
 | Ops / SRE | Operates built products | Automation/connector health, error/latency signals | author |
 | Automation author | Creates and manages automations | Automation status, run health | author |
 | Viewer / stakeholder | Read-only | Read-only explore + dashboards | read |
 | **Agent principals** *(non-human)* | Per `PLAT-IDENTITY-1` | Least-privilege scope per principal | scoped service principal |
+| **Weave super admin** *(platform operator)* | Weave operator, outside tenant RBAC | Create workspaces + first admins; switch between workspaces | platform-operator (out-of-band) |
 
 > Role slugs align with the brief's canonical role list and the platform RBAC model resolved through
 > `PLAT-SETTINGS-1`. Onboarding maps non-primary roles to the four primary paths: Engineer/Automation
 > author → technical; Ops/SRE → admin; Brand/content → business; Viewer → business-read-only
-> (resolve-by-default 10). A "Weave platform operator" internal identity (Weave-engineering only, never
-> in client RBAC) is defined post-v1 alongside the Weave-product self-improvement loop.
+> (resolve-by-default 10). The **Weave super admin (platform operator)** identity provisions workspaces and
+> their first admins and ships at **MVP** (FR-045..047); it sits outside any client workspace's RBAC. The
+> *self-improvement* platform-operator capability (reading audit to draft/dispatch Weave-internal issues)
+> is a separate concern that remains **post-v1** alongside the Weave-product self-improvement loop.
 
 ### 2.1 Functional requirements
 
@@ -529,16 +563,25 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-026 | Persistent top bar; 7 areas incl Compliance (Audit is a Compliance sub-view, not separate); non-GA areas shown disabled | E5-S1 | P0 | MVP |
 | FR-027 | Global search Cmd+K; grouped; `:type`; default 300 ms / 150 ms debounce (provisional); non-GA engine groups omitted; index-down → defined error | E5-S2 | P0 | MVP |
 | FR-028 | Help launcher: docs search, role-tailored tour (4 primary paths), shortcuts, docs link | E5-S3 | P1 | MVP |
-| FR-029 | `PLAT-NOTIFY-1` centre: **open type taxonomy** (not fixed enum); in-app + Slack; deep-link; mark-all-read; channel-failure still delivers in-app + logged; default 30 s delivery (provisional) | E6-S1 | P0 | MVP |
+| FR-029 | `PLAT-NOTIFY-1` centre: **open type taxonomy** (not fixed enum); **in-app delivery at MVP**; **Slack delivery rides the connector timeline (v1.0, via `PLAT-CONNECTOR-1`)**; deep-link; mark-all-read; channel-failure still delivers in-app + logged; default 30 s delivery (provisional) | E6-S1 | P0 | MVP (in-app); v1.0 (Slack) |
 | FR-030 | Per-user notification prefs: toggle each registered type; email digest cadence | E6-S2 | P1 | MVP |
-| FR-031 | `PLAT-CONNECTOR-1` config: 7 v1 connectors (Snowflake·Databricks·S3·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack); credentials **AWS Secrets Manager only**; sync direction+frequency; invalid cred → fail closed, no secret logged | E7-S1 | P0 | MVP |
-| FR-032 | `PLAT-CONNECTOR-1` health read API (status,last_sync,last_error,error_count); degraded/disconnected → `PLAT-NOTIFY-1` event | E7-S2 | P0 | MVP |
-| FR-033 | Connector-data ingestion writes to graph via `CE-WRITE-1` under a connector-scoped principal; write-back: idempotency key, bounded retry (default 3, tunable), conflict-reject, failure → `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | MVP (ingest); bidirectional per OQ-07 |
+| FR-031 | `PLAT-CONNECTOR-1` config: 7 connectors (Snowflake·Databricks·AWS·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack); credentials **AWS Secrets Manager only**; sync direction+frequency; invalid cred → fail closed, no secret logged | E7-S1 | P0 | v1.0 |
+| FR-032 | `PLAT-CONNECTOR-1` health read API (status,last_sync,last_error,error_count); degraded/disconnected → `PLAT-NOTIFY-1` event | E7-S2 | P0 | v1.0 |
+| FR-033 | Connector-data ingestion writes to graph via `CE-WRITE-1` under a connector-scoped principal; write-back: idempotency key, bounded retry (default 3, tunable), conflict-reject, failure → `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | v1.0 (ingest); bidirectional per OQ-07 |
 | FR-034 | `PLAT-BILLING-1` usage screen: per-token + per-run dimensions; per-engine breakdown; default < 5 min lag (provisional); metering never dropped (separate queue); delay → last-known + timestamp | E8-S1 | P0 | MVP (token); per-run when Events ships |
 | FR-035 | Budget cap resolved via `PLAT-SETTINGS-1` cascade (full 4-level, tighter-wins); alerts default 80%/100% (tunable); hard reject **before any AI API call** at 100%; fail-closed under metering lag | E8-S2 | P0 | MVP |
 | FR-036 | `PLAT-AUDIT-1` entries hash-chained (prev_hash→hash) + ed25519 signature; append-only at DB-constraint level; delete rejected + logged | E9-S1 | P0 | MVP |
 | FR-037 | Audit queryable by date/actor/type/resource/engine; paginated (default ≤ 500/page, tunable); JSON/NDJSON export with chain-verification procedure | E9-S1 | P0 | MVP |
 | FR-038 | Audit exposed as a **sub-view under Compliance** (not a separate top-level area); Compliance role read access | E9-S1 | P0 | MVP |
+| FR-045 | **Weave super admin (platform operator)** — a Weave-operator identity, scoped outside any single tenant's RBAC, can create a new workspace via the UI (name, slug, parent Domain, billing plan) and create that workspace's **initial workspace-admin user**; the workspace admin then invites their own members. Enforced via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never granted through tenant RBAC | E3-S4 | P0 | MVP |
+| FR-046 | **Cross-workspace switcher (super admin only)** — the header workspace dropdown lists all workspaces the super admin can operate and includes an **"Add workspace"** button opening a modal that creates a workspace and adds its first admin user; a **regular workspace user sees only their own workspace** in the switcher and switching to any other workspace returns 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | MVP |
+| FR-047 | **Hard tenant isolation for regular users** — a non-super-admin user only ever sees their own workspace and its dashboard (metrics, generative UI), plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data); no *other real workspace's* navigation, listing, or data is exposed, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | MVP |
+
+> **Platform super admin (FR-045..047):** a Weave-operator (platform-operator) role for provisioning
+> workspaces and their first admins and navigating between workspaces. It ships at **MVP** (it is how any
+> client workspace gets created and seeded); it is **not** the post-v1 *self-improvement* operator (that
+> capability — signal→issue→dispatch — remains post-v1). Numbering skips FR-039..044, reserved in prose
+> for the self-improvement loop below.
 
 > **Post-v1 (self-improvement loop):** FR-039..044 (signal collection, draft-issue, dedup, approval/dispatch
 > via the shared component) are deferred. When the loop is built it dispatches to the existing engineering
@@ -702,8 +745,9 @@ The Weave Platform PRD is satisfied when:
 - [ ] A non-admin user is blocked (HTTP 403) outside their role and the denial appears in `PLAT-AUDIT-1`.
 - [ ] After a member is removed, the next request bearing their prior token is rejected within the bounded
   revocation latency (default ≤ 60 s).
-- [ ] An Atlassian (Jira) connector is configured (credential in Secrets Manager, never displayed); its
-  health appears via `PLAT-CONNECTOR-1`; a degraded state raises a `PLAT-NOTIFY-1` event.
+- [ ] *(v1.0 — connectors deferred from MVP)* An Atlassian (Jira) connector is configured (credential in
+  Secrets Manager, never displayed); its health appears via `PLAT-CONNECTOR-1`; a degraded state raises a
+  `PLAT-NOTIFY-1` event.
 - [ ] A budget cap set at a Domain node enforces (tighter-wins) at a child Workspace; spend triggers
   notifications at default 80%/100% and rejects AI requests **before any AI API call** at 100%.
 - [ ] A HIGH-severity SHACL contravention publishes a `PLAT-NOTIFY-1` event delivered in-app (and Slack if
@@ -901,10 +945,11 @@ offline state.
 ### EPIC-002 — Widget Library (engine-sourced data categories, milestone-gated)
 
 **Milestone:** **M2** (CE-sourced stories: S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) /
+**v1.0** (S8 connector-health rows — connectors deferred to v1.0) /
 **post-v1** (engine-gated: S3 per-run, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
 · **Priority:** Must Have (CE-sourced) / P0 when source engine ships (engine-gated)
-· **depends_on:** EPIC-000, EPIC-001, EPIC-004, EPIC-007, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1,
-CE-VERSION-1, CE-EVENT-1 · **blocks:** none ·
+· **depends_on:** EPIC-000, EPIC-001, EPIC-004, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1,
+CE-VERSION-1, CE-EVENT-1 (+ EPIC-007 for S8 connector-health rows, v1.0) · **blocks:** none ·
 **consumes:** CE-METRICS-1, CE-READ-1, CE-DIFF-1, CE-VERSION-1, CE-EVENT-1, PLAT-AUDIT-1, PLAT-BILLING-1,
 PLAT-CONNECTOR-1, PLAT-IDENTITY-1, PLAT-SETTINGS-1.
 
@@ -945,12 +990,13 @@ per-story phase tags, never fragmented further.
   classes, open validation warnings, version-pin mismatches via the canonical version-lag in `CE-VERSION-1`
   (default stale = lag ≥ 2, tunable); Build-project issues appear once Build is GA. AC (failure):
   unavailable per contract. *(Must for CE issues at MVP; Build rows P0 when Build ships)*
-- **TASK-008 / E2-S8 — Event automation and connector-health widgets** *(connector-health MVP; automation gated)*.
+- **TASK-008 / E2-S8 — Event automation and connector-health widgets** *(connector-health v1.0; automation gated)*.
   Given `PLAT-CONNECTOR-1` health-status read API (`status, last_sync, last_error, error_count`),
-  connector-health widgets available at MVP for the 7 v1 connectors. Given Events GA, automation
-  counts/failure-rate added via the Events metrics surface; until then those rows render "Events Engine not
-  yet available". AC (failure): a degraded/disconnected connector publishes a `PLAT-NOTIFY-1` event.
-  *(Connector-health Must at MVP; automation rows P0 when Events ships)*
+  connector-health widgets become available **at v1.0** (connectors are deferred to v1.0 — until then these
+  rows render "Connectors not yet available"). Given Events GA, automation counts/failure-rate added via the
+  Events metrics surface; until then those rows render "Events Engine not yet available". AC (failure): a
+  degraded/disconnected connector publishes a `PLAT-NOTIFY-1` event. *(Connector-health P0 when connectors
+  ship at v1.0; automation rows P0 when Events ships)*
 - **TASK-009 / E2-S9 — Collaboration activity widgets** *(M2 for CE-sourced activity; post-v1 for Explorer realtime)*.
   Given async sharing at M1 (saved views + comments per `D1`/`D2`), "recent graph edits by contributor"
   is sourced from `CE-EVENT-1` actor data and is M2-eligible. Given Graph Explorer realtime collab
@@ -987,10 +1033,11 @@ per-story phase tags, never fragmented further.
   recent role changes (default 7d, tunable), agent principals with broad scope. AC (failure): RBAC/identity
   source unavailable → unavailable state rather than reporting zero gaps. *(Should, MVP)*
 - **TASK-015 / E2-S15 — Workspace onboarding progress widget** *(MVP — CE-sourced)*. Given `CE-METRICS-1`, completion
-  % spans ontology populated (≥1 entity per kind), first published version, plus connector configured via
-  `PLAT-CONNECTOR-1`; each incomplete item has a "Complete now" deep-link; widget auto-dismisses at 100%.
-  Build-project completion item appears only once Build is GA. AC (failure): `CE-METRICS-1` unavailable →
-  last computed completion % with a staleness timestamp rather than a false 0%/100%. *(Must, MVP)*
+  % spans ontology populated (≥1 entity per kind) and first published version; the **connector-configured
+  item appears only once connectors ship at v1.0** (via `PLAT-CONNECTOR-1`). Each incomplete item has a
+  "Complete now" deep-link; widget auto-dismisses at 100%. Build-project completion item appears only once
+  Build is GA. AC (failure): `CE-METRICS-1` unavailable → last computed completion % with a staleness
+  timestamp rather than a false 0%/100%. *(Must, MVP)*
 
 **Epic-level acceptance criteria:**
 
@@ -1010,8 +1057,9 @@ per-story phase tags, never fragmented further.
   as tunable defaults with their data window + aggregation stated, not hard-coded.
 
 **Technical notes.** Availability is keyed strictly to source-engine GA; post-v1 engine-gated stories are
-a single "per source-engine GA" activation. E2-S3 token dimension and E2-S8 connector-health rows ship
-real data at M2; only their automation/per-run dimensions remain post-v1. Operational health (S10)
+a single "per source-engine GA" activation. E2-S3 token dimension ships real data at M2; **E2-S8
+connector-health rows ship at v1.0** (connectors are deferred to v1.0); their automation/per-run dimensions
+remain post-v1 (gated on Events GA). Operational health (S10)
 aggregates `PLAT-AUDIT-1` by `event_type` + `engine` — no NLP, no external model. Compliance (S5),
 issues (S7), onboarding (S15) deep-link via `CE-READ-1` (`/resource/{iri}`); the agent activity feed (S11)
 keys on the canonical principal IRI from `PLAT-IDENTITY-1`. The ontology-health (S1), completeness (S2),
@@ -1053,8 +1101,23 @@ through which budgets, retention, data classification, and RBAC are resolved for
   classification, RBAC. Data-retention config per data type (audit, PROV-O, model versions) within
   platform minimums resolves through the cascade. AC (failure): a loosening attempt without approval is
   rejected and recorded to `PLAT-AUDIT-1`. *(Must)*
+- **TASK-004 / E3-S4 — Weave super admin: provision workspaces + first admins.** A **Weave super admin
+  (platform operator)** — a Weave-operator identity outside any single tenant's RBAC (a dedicated Cognito
+  group minting a `PLAT-IDENTITY-1` principal) — can create a new workspace from the UI (name, slug, parent
+  Domain, billing plan; inherits parent settings, tighter-wins) and create that workspace's **initial
+  workspace-admin user**; the workspace admin then invites their own members (E3-S2). The header workspace
+  switcher lists the workspaces the super admin operates and carries an **"Add workspace"** button opening a
+  modal that does both in one flow (FR-045/FR-046). AC: a **regular workspace user sees only their own
+  workspace** in the switcher; a switch to any other workspace returns 403 with zero cross-tenant data
+  (FR-047, cross-tenant-read test). AC (failure): a non-operator attempting workspace creation or a
+  cross-workspace switch is denied 403 and the denial is recorded to `PLAT-AUDIT-1`. *(Must)*
 
 **Epic-level acceptance criteria:**
+
+- [ ] Workspace provisioning is operator-gated and isolated: only the Weave super admin (platform-operator
+  group, outside tenant RBAC) can create a workspace and its first admin, and the switcher shows a regular
+  user only their own workspace — a non-operator create or cross-workspace switch returns 403 recorded to
+  `PLAT-AUDIT-1`, verified by one operator-vs-regular-user test (FR-045..047).
 
 - [ ] Tenant isolation holds at the storage layer across every backing store: a query in tenant A's
   context returns zero rows from tenant B's seeded data across RDF, Aurora, and S3 Vectors, and an unscoped
@@ -1121,8 +1184,11 @@ PROV-O record and audit entry.
 
 **Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per workspace. RBAC at the API via
 JWT validation; roles control read/author/publish/admin per engine/area. `PLAT-IDENTITY-1` records IAM
-role ↔ canonical principal IRI ↔ RBAC role. A "Weave platform operator" internal identity is defined
-post-v1 alongside the self-improvement loop; it never appears in any client workspace's RBAC.
+role ↔ canonical principal IRI ↔ RBAC role. The **Weave super admin (platform operator)** identity — a
+dedicated Cognito group minting a `PLAT-IDENTITY-1` principal outside any client workspace's RBAC —
+provisions workspaces and their first admins at **MVP** (FR-045..047, story E3-S4). The separate
+*self-improvement* platform-operator capability (audit-reading signal→issue→dispatch) is defined **post-v1**
+alongside the self-improvement loop; neither operator identity ever appears in a client workspace's RBAC.
 
 ### EPIC-005 — Global Navigation & Search
 
@@ -1175,24 +1241,28 @@ provisional (owner Architect). The guided tour is role-tailored to the four prim
 
 ### EPIC-006 — Notifications (PLAT-NOTIFY-1)
 
-**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-007 ·
-**blocks:** EPIC-008, EPIC-009 · **provides:** PLAT-NOTIFY-1 · **consumes:** PLAT-CONNECTOR-1.
+**Milestone:** M1 (in-app) / v1.0 (Slack delivery, connector-gated) · **Priority:** Must Have ·
+**depends_on:** EPIC-000 · **blocks:** EPIC-008, EPIC-009 · **provides:** PLAT-NOTIFY-1 ·
+**consumes:** PLAT-CONNECTOR-1 (Slack, v1.0).
 
 **Description.** The single notification service every engine publishes to (`PLAT-NOTIFY-1`): an in-app
-notification centre plus Slack delivery, with an open, registerable type taxonomy rather than a fixed enum,
-and per-user preferences for type opt-in and email-digest cadence. The one delivery surface that resolves
-duplicated per-engine notification ownership.
+notification centre at M1 — with **Slack delivery riding the connector timeline (v1.0)** — plus an open,
+registerable type taxonomy rather than a fixed enum, and per-user preferences for type opt-in and
+email-digest cadence. The one delivery surface that resolves duplicated per-engine notification ownership.
+Because managed connectors are deferred to v1.0, M1 delivers in-app only; the service is built so an
+additional channel (Slack) plugs in when `PLAT-CONNECTOR-1` ships.
 
 **User stories (PRD §Epic 6) — full acceptance criteria:**
 
-- **TASK-001 / E6-S1 — In-app + Slack notification centre.** Given `PLAT-NOTIFY-1` (one service, **open/registerable**
-  type taxonomy — not a fixed enum), engines publish notification events; delivery is in-app + Slack (Slack
-  via `PLAT-CONNECTOR-1`). Covered types include: budget, HIGH SHACL violation, build state, HITL-gate
-  fired, automation-failure, connector-degraded, onboarding-activation, version-pin mismatch,
-  ops-health spike. Clicking a notification deep-links to the relevant screen; "mark all read" clears the badge;
-  in-app delivery target is a configurable default (default 30 s, **provisional**, owner Architect). AC
-  (failure): a delivery-channel failure (e.g. Slack token invalid) → the notification still appears in-app
-  and the channel failure is itself recorded. *(Must)*
+- **TASK-001 / E6-S1 — In-app notification centre (Slack at v1.0).** Given `PLAT-NOTIFY-1` (one service,
+  **open/registerable** type taxonomy — not a fixed enum), engines publish notification events; **in-app
+  delivery ships at M1** and **Slack delivery lands at v1.0 via `PLAT-CONNECTOR-1`**. Covered types include:
+  budget, HIGH SHACL violation, build state, HITL-gate fired, automation-failure, connector-degraded,
+  onboarding-activation, version-pin mismatch, ops-health spike. Clicking a notification deep-links to the
+  relevant screen; "mark all read" clears the badge; in-app delivery target is a configurable default
+  (default 30 s, **provisional**, owner Architect). AC (failure): a delivery-channel failure (e.g. Slack
+  token invalid, once Slack is live) → the notification still appears in-app and the channel failure is
+  itself recorded. *(Must — in-app M1; Slack v1.0)*
 - **TASK-002 / E6-S2 — Notification preferences.** Settings → Notifications gives per-user toggles per registered type
   + email digest (none/daily/weekly). AC (failure): a preference write failure retains the prior preference
   and shows an error; a missing preference defaults to "on" so no critical alert is silently muted.
@@ -1211,27 +1281,31 @@ duplicated per-engine notification ownership.
   verified across the documented covered set (budget, HIGH SHACL violation, build state, HITL-gate fired,
   automation-failure, connector-degraded, onboarding-activation, version-pin mismatch, ops-health spike).
 
-**Technical notes.** `PLAT-NOTIFY-1` is one service with an open type taxonomy. Delivery is in-app + Slack
-(Slack via `PLAT-CONNECTOR-1`); in-app delivery target default 30 s is provisional (owner Architect).
-Per-user preferences honour a toggle per registered type plus email digest cadence; a failed preference
-write retains the prior preference. A degraded/disconnected connector (EPIC-007) is a primary publisher.
+**Technical notes.** `PLAT-NOTIFY-1` is one service with an open type taxonomy. **In-app delivery ships at
+M1; Slack delivery lands at v1.0 via `PLAT-CONNECTOR-1`** (connectors are deferred to v1.0), so M1 has no
+hard dependency on EPIC-007 — the channel plugs in when connectors ship. In-app delivery target default
+30 s is provisional (owner Architect). Per-user preferences honour a toggle per registered type plus email
+digest cadence; a failed preference write retains the prior preference. Once connectors are live, a
+degraded/disconnected connector (EPIC-007) is a primary publisher.
 
 ### EPIC-007 — Managed Connectors (PLAT-CONNECTOR-1)
 
-**Milestone:** M1 (config + health: S1, S2) / v1.0 (ingestion + write-back: S3, needs CE GA for
-`CE-WRITE-1`) · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-004, CE-WRITE-1 ·
-**blocks:** EPIC-002, EPIC-006 · **provides:** PLAT-CONNECTOR-1 ·
-**consumes:** CE-WRITE-1, PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
+**Milestone:** **v1.0 — whole epic deferred (post-MVP)**: config + health (S1, S2) and ingestion +
+write-back (S3, needs CE GA for `CE-WRITE-1`) all land at v1.0 · **Priority:** Must Have (at v1.0) ·
+**depends_on:** EPIC-000, EPIC-004, CE-WRITE-1 · **blocks:** EPIC-002 (connector-health widgets, v1.0) ·
+**provides:** PLAT-CONNECTOR-1 · **consumes:** CE-WRITE-1, PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
 
-**Description.** The managed-connector contract (`PLAT-CONNECTOR-1`): configure the seven v1 integrations
+**Description.** The managed-connector contract (`PLAT-CONNECTOR-1`): configure the seven integrations
 with credentials held exclusively in AWS Secrets Manager, monitor connector health, and ingest connector
-data into the graph with safe agent write-back semantics. Config and health ship at M1 with no engine
-dependency; ingestion is v1.0 (Hammerbarn proof deferred) because it writes via `CE-WRITE-1`.
+data into the graph with safe agent write-back semantics. **The whole epic is deferred to v1.0 (post-MVP):**
+the MVP/M1 platform delivers its unique value without external integrations; connectors are the *extended*
+value. Config + health were previously M1; they move to v1.0 alongside ingestion (which already needed
+CE GA via `CE-WRITE-1`), so the connector surface ships as one coherent v1.0 increment.
 
 **User stories (PRD §Epic 7) — full acceptance criteria:**
 
-- **TASK-001 / E7-S1 — Configure a data connector.** Given `PLAT-CONNECTOR-1`, the **7 v1 integrations** are:
-  Snowflake · Databricks · S3 · Azure Data Lake · **Atlassian (Jira + Confluence, one OAuth/connector
+- **TASK-001 / E7-S1 — Configure a data connector.** Given `PLAT-CONNECTOR-1`, the **7 integrations** are:
+  Snowflake · Databricks · AWS · Azure Data Lake · **Atlassian (Jira + Confluence, one OAuth/connector
   family)** · ServiceNow · **Slack** (C2/C3). The config UI captures connection type, credentials (**AWS
   Secrets Manager only — no plain-text field**), sync direction (read/write/bidirectional), and sync
   frequency. Credentials are stored exclusively in AWS Secrets Manager; the UI never displays a secret
@@ -1263,7 +1337,7 @@ dependency; ingestion is v1.0 (Hammerbarn proof deferred) because it writes via 
   the last successful poll time, and a write-back failure (target 4xx/5xx or conflict) retries with bounded
   backoff then publishes `connector-degraded` to `PLAT-NOTIFY-1` and records to `PLAT-AUDIT-1` — one
   fail-closed sweep confirms no path yields a false "connected".
-- [ ] The seven v1 connectors are exactly Snowflake · Databricks · S3 · Azure Data Lake · Atlassian (Jira +
+- [ ] The seven connectors are exactly Snowflake · Databricks · AWS · Azure Data Lake · Atlassian (Jira +
   Confluence, one OAuth/connector family) · ServiceNow · Slack, and each carries connection type, sync
   direction (read/write/bidirectional), and sync frequency.
 - [ ] Inbound data reaches the graph only through validated operations: ingestion writes via `CE-WRITE-1`
@@ -1271,8 +1345,11 @@ dependency; ingestion is v1.0 (Hammerbarn proof deferred) because it writes via 
   idempotency key — verified by the ingestion test (FR-033), proving the platform never writes the graph
   directly.
 
-**Technical notes.** The 7 v1 integrations group Atlassian (Jira + Confluence) under one OAuth/connector
-family; "Azure Data Lake" is CLAUDE.md's "Azure". Health read API returns `status`, `last_sync`,
+**Technical notes.** The whole epic is deferred to **v1.0** (post-MVP); nothing in M1 depends on a live
+connector. The 7 integrations group Atlassian (Jira + Confluence) under one OAuth/connector family;
+"AWS" is CLAUDE.md's/the connector-set's AWS integration (formerly labelled "S3" — renamed to reflect the
+broader AWS surface; storage/hosting S3 is unchanged); "Azure Data Lake" is CLAUDE.md's "Azure". Health
+read API returns `status`, `last_sync`,
 `last_error`, `error_count`. Ingestion resolves the duplicated Platform OQ-05 / CE OQ-05 and the connectors
 cross-seam: the platform never writes the graph directly — it goes through `CE-WRITE-1` validated
 operations. Write-back: idempotency key per write; bounded retry (default 3, tunable) on target 4xx/5xx;
@@ -1446,7 +1523,9 @@ The platform's position is **bidirectional** — the load-bearing point:
 
 - **Unblocks (provides):** the six PLAT-* contracts every engine emits to or reads (`PLAT-AUDIT-1`,
   `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`) plus the
-  app shell, auth, RBAC and tenancy. **M1 has no upstream engine dependency and must ship first.**
+  app shell, auth, RBAC and tenancy. **Five of the six ship live at M1; `PLAT-CONNECTOR-1` (managed
+  connectors) is deferred to v1.0** — the MVP delivers its value without external integrations and no M1
+  consumer depends on a live connector. **M1 has no upstream engine dependency and must ship first.**
 - **Depends on (consumes):** the Generative Dashboard + CE-sourced widgets consume `CE-METRICS-1`,
   `CE-READ-1`, `CE-DIFF-1`, `CE-VERSION-1`, `CE-EVENT-1`. **These cannot be delivered until CE is GA** —
   this forces the M1/M2 split: the shell precedes CE; the dashboard follows it.
@@ -1460,14 +1539,14 @@ gantt
     title Weave Platform Roadmap
     dateFormat YYYY-MM-DD
     section M1 — Shell & Foundations (no CE dependency)
-        E0 E3 E4 E5 E6 E7(S1,S2) E8 E9   :a1, 2026-01-01, 30d
+        E0 E3 E4 E5 E6(in-app) E8 E9     :a1, 2026-01-01, 30d
         Spec-approval gate                 :milestone, g1a, 2026-01-01, 0d
         M1 gate + pre-deploy               :milestone, m1, after a1, 0d
     section M2 — Dashboard + Role-Home (CE GA required)
         E1 + CE-sourced E2 + E10           :a2, after m1, 25d
         M2 gate                            :milestone, m2, after a2, 0d
-    section v1.0 — Connector Ingestion (CE GA required)
-        E7-S3 (CE-WRITE-1 validated ops)   :a3, after m2, 15d
+    section v1.0 — Connectors + Ingestion (CE GA required)
+        E7 config+health+ingestion + Slack :a3, after m2, 20d
         v1.0 gate                          :milestone, m3, after a3, 0d
     section post-v1 — Engine-Gated Widgets + Self-Improvement
         E2 engine-gated + self-improve loop :a4, after m3, 30d
@@ -1478,13 +1557,14 @@ gantt
 
 ### M1 — Platform Shell & Cross-Cutting Foundations
 
-**Goal.** Stand up the shell the whole loop runs in and the six platform contracts every engine depends on:
-app chrome + navigation + search, Cognito auth + RBAC + agent identity, 4-level tenancy/settings cascade,
-notifications, managed-connector config + health, billing/metering + budget caps, and the immutable
-hash-chained audit service. **No upstream engine dependency; unblocks CE and every other engine.**
-Demonstrable outcome: a tenant-isolated, authenticated SPA shell with all six platform contracts live,
-exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-sourced dashboard tiles (E1-S0)
-also ship here as the workspace home.
+**Goal.** Stand up the shell the whole loop runs in and the **five M1-live platform contracts** every engine
+depends on: app chrome + navigation + search, Cognito auth + RBAC + agent identity, 4-level tenancy/settings
+cascade, in-app notifications, billing/metering + budget caps, and the immutable hash-chained audit service.
+**Managed connectors (`PLAT-CONNECTOR-1`) are deferred to v1.0** — the MVP delivers its value without
+external integrations. **No upstream engine dependency; unblocks CE and every other engine.**
+Demonstrable outcome: a tenant-isolated, authenticated SPA shell with the five M1-live platform contracts
+live, exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-sourced dashboard tiles
+(E1-S0) also ship here as the workspace home.
 
 **Epics in M1:**
 
@@ -1495,18 +1575,20 @@ also ship here as the workspace home.
 | EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 4-level tighter-wins) | 3 | Must Have |
 | EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have |
 | EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have |
-| EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, in-app + Slack) | 2 | Must Have |
-| EPIC-007 (S1, S2) | Managed Connectors — config + health (`PLAT-CONNECTOR-1`, 7 v1 connectors) | 2 of 3 | Must Have |
+| EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, **in-app only at M1**; Slack v1.0) | 2 | Must Have |
 | EPIC-008 | Billing, Metering & Budgets (`PLAT-BILLING-1`, cascade caps, hard pre-call enforcement) | 2 | Must Have |
 | EPIC-009 (E9-S1) | Immutable Audit trail (`PLAT-AUDIT-1`, hash-chained + ed25519, Compliance sub-view) | 1 of 1 | Must Have |
 
-> EPIC-007 S3 (connector-data **ingestion** via `CE-WRITE-1`) is held to v1.0 — Hammerbarn proof deferred.
+> **EPIC-007 (Managed Connectors) is deferred in full to v1.0** — config + health (S1, S2) and ingestion
+> (S3) all land at v1.0 (see the v1.0 milestone below). The MVP delivers its value without external
+> integrations; nothing in M1 depends on a live connector. EPIC-006 therefore delivers **in-app
+> notifications only at M1**; Slack delivery rides the connector timeline (v1.0).
 > EPIC-009 self-improvement stories (E9-S2..S4) are deferred to post-v1.
 
 **Entry criteria (Definition of Ready):**
 
-- [ ] PRD §Epics 3–9 approved; M1 tech spec approved (arch-stack + arch-infra resolve the dev-environment
-  AWS floor per `../dev-environment.md`)
+- [ ] PRD §Epics 3–6, 8, 9 approved (the M1 epics; Epic 7 Managed Connectors is deferred to v1.0); M1 tech
+  spec approved (arch-stack + arch-infra resolve the dev-environment AWS floor per `../dev-environment.md`)
 - [ ] Tasks decomposed; each task brief passes the DoR gate
 - [ ] Multi-tenant isolation mechanism decided (OQ-01) OR the cross-tenant-read test fixed and the
   mechanism stubbed behind it; `PLAT-AUDIT-1` storage choice decided (OQ-05)
@@ -1524,14 +1606,13 @@ also ship here as the workspace home.
   verification at a named row and SHALL log the delete attempt — audit tamper test (FR-036/FR-037, PRD §2.6)
 - [ ] WHEN AI-generation spend reaches 100% of the effective cascade-resolved cap THE SYSTEM SHALL reject
   the request before any AI API call with the readable cap message — budget-enforcement test (FR-035)
-- [ ] WHEN a connector enters a degraded/disconnected state THE SYSTEM SHALL publish a `PLAT-NOTIFY-1` event
-  delivered in-app (and Slack if configured) — connector-health test (FR-032)
 - [ ] WHEN the fixed CE-sourced dashboard tiles load at M1 THE SYSTEM SHALL render them from `CE-METRICS-1`
   with a data-source footer label; a `CE-METRICS-1` error SHALL render the defined unavailable state on
   the affected tile, not a blank tile — fixed-dashboard test (FR-000)
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
-- [ ] **Measurable artefact:** tenant-isolated SPA shell with all six platform contracts live and the
-  fixed CE-sourced dashboard tiles, deployed to dev-AWS, passing the smoke suite
+- [ ] **Measurable artefact:** tenant-isolated SPA shell with the five M1-live platform contracts
+  (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 / PLAT-IDENTITY-1 / PLAT-SETTINGS-1 / PLAT-BILLING-1`) and the fixed
+  CE-sourced dashboard tiles, deployed to dev-AWS, passing the smoke suite (`PLAT-CONNECTOR-1` lands v1.0)
 - [ ] **Human sign-off recorded** (always the final exit criterion)
 
 **HITL gates:**
@@ -1575,7 +1656,7 @@ model completeness and what Weave can generate for each role.
 
 **Entry criteria:**
 
-- [ ] M1 gate passed (shell + all six platform contracts live + fixed dashboard tiles)
+- [ ] M1 gate passed (shell + the five M1-live platform contracts + fixed dashboard tiles; connectors are v1.0)
 - [ ] **CE is GA** and `CE-METRICS-1`/`CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1` published + pinned
 - [ ] PRD §Epics 1–2, EPIC-010 approved; M2 tech spec approved (streaming RSC pattern OQ-02, widget
   caching OQ-03, widget-state store OQ-10 resolved)
@@ -1620,18 +1701,23 @@ approver: Architect + security reviewer
 blocks: v1.0
 ```
 
-### v1.0 — Connector Ingestion (Lighthouse)
+### v1.0 — Managed Connectors: Config, Health & Ingestion (Lighthouse)
 
-**Goal.** Enable real connector-data ingestion into the graph via `CE-WRITE-1` validated operations.
-Depends on CE GA (E7-S3 was held from M2 to sequence with the Hammerbarn proof). Demonstrable outcome:
-inbound Atlassian data is ingested into the graph under a connector-scoped agent principal, committed only
-on SHACL pass, with write-back idempotency and failure audit.
+**Goal.** Deliver the **whole managed-connector surface** (deferred from M1 as the platform's *extended*
+value): connector config + health (E7-S1, E7-S2), Slack delivery for `PLAT-NOTIFY-1` (EPIC-006), the
+connector-health dashboard rows (E2-S8), and real connector-data ingestion into the graph via `CE-WRITE-1`
+validated operations (E7-S3). Depends on CE GA (ingestion writes via `CE-WRITE-1`). Demonstrable outcome:
+an admin configures a connector (credentials in Secrets Manager, never displayed), its health surfaces via
+`PLAT-CONNECTOR-1`, and inbound Atlassian data is ingested into the graph under a connector-scoped agent
+principal, committed only on SHACL pass, with write-back idempotency and failure audit.
 
 **Epics in v1.0:**
 
 | Epic | Description | Stories | Priority |
 |------|-------------|---------|----------|
-| EPIC-007 (S3) | Managed Connectors — **ingestion** + write-back (`CE-WRITE-1`, validated ops) | 1 of 3 | Must Have |
+| EPIC-007 (S1–S3) | Managed Connectors — config + health + **ingestion** + write-back (`PLAT-CONNECTOR-1`, `CE-WRITE-1` validated ops, 7 connectors) | 3 of 3 | Must Have |
+| EPIC-006 (Slack) | `PLAT-NOTIFY-1` Slack delivery channel (via `PLAT-CONNECTOR-1`) | — | Must Have |
+| EPIC-002 (S8) | Connector-health dashboard widget rows (`PLAT-CONNECTOR-1`) | — | Must Have |
 
 **Entry criteria:**
 
@@ -1640,6 +1726,9 @@ on SHACL pass, with write-back idempotency and failure audit.
 
 **Exit criteria:**
 
+- [ ] WHEN an admin submits connector credentials THE SYSTEM SHALL store them in AWS Secrets Manager only
+  (never displayed/logged) and expose health via `PLAT-CONNECTOR-1`; a degraded/disconnected connector
+  SHALL publish a `PLAT-NOTIFY-1` event — connector config + health test (FR-031/FR-032)
 - [ ] WHEN inbound connector data arrives THE SYSTEM SHALL ingest it into the graph via `CE-WRITE-1` under
   a connector-scoped agent principal, committing only on SHACL pass — ingestion test (FR-033)
 - [ ] Coverage ≥ 80% · mutation ≥ 70% · 0 blocking bugs
@@ -1655,11 +1744,12 @@ approver: Architect + security reviewer
 blocks: post-v1
 ```
 
-### post-v1 — Engine-Gated Widgets & Self-Improvement Loop
+### post-v1 — Engine-Gated Widgets, Self-Improvement, Analytics & MCP Server
 
 **Goal.** Light up remaining Widget Library categories as source engines reach GA; build the Weave-product
 self-improvement loop (signal collection → draft GitHub issue → HITL approval → dark-factory dispatch) as
-a shared component (`BE-SELFIMPROVE-1`, dispatching to the existing engineering harness).
+a shared component (`BE-SELFIMPROVE-1`, dispatching to the existing engineering harness); add
+**product usage analytics** and an **MCP server** over the ontology and system metrics.
 
 **Epics in post-v1:**
 
@@ -1667,10 +1757,14 @@ a shared component (`BE-SELFIMPROVE-1`, dispatching to the existing engineering 
 |------|-------------|-----------|
 | EPIC-002 (engine-gated) | Widget Library — Build/Events/Explorer rows (S4, S7 Build, S8 automation, S9 realtime, S12) | per source-engine GA |
 | EPIC-009 (E9-S2..S4) | Weave-product self-improvement loop (signal collect → draft issue → HITL approve → dispatch) | after v1.0 + `BE-SELFIMPROVE-1` built |
+| Product usage analytics | Privacy-aware event instrumentation: who uses Weave, how much, which features, and what they do — an internal usage/adoption view. Scoped + metered under existing platform primitives; a metering/analytics contract ID is defined when built. | after v1.0 |
+| MCP server | Expose the ontology + system metrics over a Model Context Protocol server so users, agents, and external AI clients can query the ontology, generate reports, and reason over data over time. Access scoped to the caller's access token (workspace + project-level permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their workspace and the projects they can access) and reads via `CE-READ-1` / `CE-METRICS-1`. Inspiration: <https://github.com/fabio-rovai/open-ontologies>. A contract ID is defined when built. | after v1.0 |
 
 > Engine-gated stories activate incrementally as each source engine ships. The self-improvement loop
 > defines a minimal internal interface when it lands and dispatches to the existing engineering harness.
-> Client-scoped self-improvement (Polaris-style) is tracked in OQ-08.
+> Client-scoped self-improvement (Polaris-style) is tracked in OQ-08. Product usage analytics and the MCP
+> server are Platform-owned post-v1 surfaces (mirrored in `../weave-spec.md` §1.4 post-v1); both reuse the
+> existing tenancy/identity primitives for scoping and define a contract ID only when built.
 
 **Phase-gate metadata:**
 
@@ -1689,7 +1783,7 @@ blocks: release
 | Spec-approval (mandatory, every milestone) | before each | PRD + tech spec approved; tasks DoR-passing | PO + exec sponsor |
 | Gate M1 | M1 | EARS exit criteria met (isolation, revocation, audit-tamper, budget, notify, fixed-dashboard) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
 | Gate M2 | M2 | EARS exit criteria met (generative-widget stream, unavailable state, server-side pin/publish, role-home) + security review + pre-deploy smoke + human sign-off | Architect + security reviewer |
-| Gate v1.0 | v1.0 | EARS exit criteria met (connector ingestion + write-back, SHACL validation) + security review + human sign-off | Architect + security reviewer |
+| Gate v1.0 | v1.0 | EARS exit criteria met (connector config + health, Slack delivery, connector-health widgets, ingestion + write-back, SHACL validation) + security review + human sign-off | Architect + security reviewer |
 | Gate post-v1 | per engine GA | Per-engine exit criteria met (engine-gated widget activation + not-yet-available regression) + human sign-off | Architect + security reviewer |
 
 > Spec-approval is the only globally mandatory gate. Phase-boundary ceremony and pre-AWS-deploy are active

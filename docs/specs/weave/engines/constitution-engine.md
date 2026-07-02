@@ -207,10 +207,13 @@ trustworthy and consumable.
 
 ### Target Users / Personas
 
+Per-persona feed/consume detail lives in the program persona map, [`../personas.md`](../personas.md).
+
 | User Type | Description | Primary Need | Permission level |
 |---|---|---|---|
 | Enterprise architect / ontologist | Builds the client's domain taxonomy on top of the shipped framework; curates OWL structure, properties, restrictions, hierarchy | Standards-compliant (OWL/SHACL) modelling with reasoning and validation, without hand-writing RDF | author-ontology + author-shapes + publish |
 | Business analyst / SME | Authors and maintains instance data and glossary terms for their domain | Natural-language *and* guided-form editing (both v1); one agreed definition per business term | author-instances |
+| Data steward / data engineer | Feeds schemas, column descriptions, glossaries, and data rules into the graph; describes lineage and classification | Schema/CSV/R2RML ingest paths (FR-030/FR-041), glossary authoring, lineage traversal via NL query + Explorer | author-instances + propose shapes |
 | Brand / marketing owner | Maintains tone of voice and brand styleguides as governed assets | A single authoritative home for brand standards that downstream generation provably honours (via CE-BRAND-1) | author-brand |
 | Compliance / risk officer | Maintains regulatory, security, and policy constraints; audits the graph | Constraints captured as first-class, queryable, provenance-tracked content that guardrails automation; audit trail | author-shapes + read |
 | Downstream platform engineer / agent | Consumes the graph from Build / Events / Explorer engines | A stable, validated read interface (CE-READ-1) and confidence the model is internally consistent | read (via service principal) |
@@ -410,6 +413,16 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-040 | AI diagram/image-to-data: a vision model extracts BPMO entities/relationships from an uploaded image, proposed through the same per-proposal review + CE-WRITE-1 commit as FR-038; confidence below threshold (default 0.6, tunable) flagged; unreadable image → clear error, no partial commit. AC: extraction routes through CE-WRITE-1; unreadable input proposes nothing. | E12-S3 | P2 | Post-MVP (prioritized) |
 | FR-041 | Structured-data import via W3C **R2RML** (relational/CMDB) + **RML** (CSV/JSON/XML) materialised through CE-WRITE-1 (materialised copy, NOT query-time federation — OQ-17); per-row SHACL with skip-and-report; datatype inference samples ≥ N rows (default 20, tunable); malformed mapping rejected before any commit; the R2RML/RML mapping layer (mapping authoring, storage, execution engine) is detailed in the CE data-model / ingest tech-spec note. AC: failing rows skipped with reason, rest commit; malformed mapping leaves store untouched. | E12-S4 | P2 | Post-MVP (prioritized); distinct from PLAT-CONNECTOR-1 |
 | FR-042 | SKOS cross-notation reconciliation: entities denoting one concept across notations collapse to **one canonical punned resource** (`owl:Class` + `skos:Concept`, decision B1 — no separate cross-notation linking property) via the find-existing-node reconciliation flow; merge proposed above similarity threshold (default 0.85, tunable) for human confirm, never auto-merged below; a merge that would violate SHACL is blocked and surfaced. AC: cross-notation duplicates collapse to one concept on confirm; sub-threshold pairs are not merged. | E12-S5 | P2 | Post-MVP (prioritized) |
+| FR-043 | **Document corpus companion store** (per ADR-003): every artefact ingested via EPIC-012 is retained in S3 with embeddings in **S3 Vectors**, tenant-prefixed per **ADR-001**; each retained artefact is linked to the graph entities extracted from it via `prov:used`. Extraction agents and NL query (CE-READ-1) MAY retrieve source passages so an answer cites **both** the grounded graph IRIs **and** the source text it rests on. **Strictly read-side** — retrieval never mutates the graph; CE-WRITE-1 remains the sole mutation path (CI-asserted, per PRD §10 risk). AC: an ingested document is retrievable after commit and its passages resolve to the entities it produced; no corpus-retrieval path can write to the graph. | E12-S6 | P1 | Post-MVP (prioritized); v1.0; ADR-003 |
+| FR-044 | **Pre-ingestion context capture**: a lightweight metadata step on upload captures source system, owner, date-of-truth, sensitivity, and free-text business context, stored as PROV-O / annotation properties on the ingest `prov:Activity`; the extractor prompt consumes it to improve extraction. AC: uploaded context is persisted on the ingest activity and demonstrably reaches the extractor prompt; skipping the step still permits ingest with system-captured provenance only. | E12-S7 | P2 | Post-MVP (prioritized); v1.0 |
+
+**Recorded candidates (not committed — personas.md §4.3/§4.7):** (a) **SME interview loop** —
+agent drafts follow-up questions from extraction gaps → suggests recipients from the org chart
+(already CE content) → human confirms → share-link questionnaire → answers re-enter as proposals
+through the same per-proposal HITL path; converts the "questionnaire/interview elicitation" nav
+item into future scope. (b) **Risk-artefact ingestion** — risk registers, assessments, and
+heatmaps as named source types with mapping tables for common register formats. Route through /po
+when picked up.
 
 > Every FR is phased; FRs that cannot ship before another engine/contract carry it in "depends-on".
 > Contract-bearing FRs cite the owning `CE-*`/`PLAT-*` contract ID verbatim.
@@ -564,6 +577,16 @@ exact version tags.
 | OQ-16 | UFO / OntoUML rigour as **internal discipline** advised via `sh:Warning` / `sh:Info` (never user-exposed as hard rules) — how deep to enforce-vs-advise? | Architect + PO |
 | OQ-17 | Virtual-graph **SPARQL→SQL federation** (query-time live external data) vs. the v1 materialised-copy import — pending ADR. Clarifies the Non-Goal #11 boundary. | Architect |
 | OQ-18 | Ingest extraction-confidence and reconciliation-similarity defaults (0.6 / 0.85) — confirm and tune against real client documents. | PO |
+
+**Decided 2026-07-02 — NL grounding context caps (single source; task briefs defer to this table):**
+
+| Surface | Cap | Notes |
+|---|---|---|
+| NL query grounding (CE-READ-1 `/api/query/nl`) | ≤ 200 nodes | kind + relationship schema only, no full triples |
+| Chat-authoring proposal context (E11) | ≤ 50 nodes | top-N relevance filter |
+
+Both caps are tunable via `PLAT-SETTINGS-1`; the top-N relevance filter is the shared selection
+mechanism. Supersedes the scattered per-task cap mentions.
 
 ### Key design decisions captured (PRD §7)
 

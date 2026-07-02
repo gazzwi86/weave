@@ -46,7 +46,8 @@ named reference client with a published case study before that happens.**
 > M1 → M2 → v1.0 → post-v1, gates, risks). §2 is the shared foundations every engine inherits
 > (stack, architecture decisions, conventions, security posture). §3 indexes the six per-engine
 > specs. Canonical inter-engine contracts live in [`contracts.md`](contracts.md); the local dev
-> model lives in [`dev-environment.md`](dev-environment.md). Engine specs cite contracts by ID —
+> model lives in [`dev-environment.md`](dev-environment.md); the program persona map (per-persona
+> feed/consume, tagged against the specs) lives in [`personas.md`](personas.md). Engine specs cite contracts by ID —
 > they never restate them.
 
 ---
@@ -71,7 +72,7 @@ The order is **dependency-derived**. Each engine's internal phases map to milest
 
 | # | Engine | Why it sits here | Milestone mapping |
 |---|--------|------------------|--------------------|
-| 1 | **Platform shell** | No upstream engine dep. Owns the six `PLAT-*` contracts. Nothing else stands up without auth, tenancy, identity, audit, notify, billing, and connectors. | P1 → **M1** |
+| 1 | **Platform shell** | No upstream engine dep. Owns the six `PLAT-*` contracts. Nothing else stands up without auth, tenancy, identity, audit, notify, and billing (the five M1-live `PLAT-*`); managed connectors (`PLAT-CONNECTOR-1`) are deferred to **v1.0** — the MVP delivers its value without external integrations, and nothing in M1 depends on a live connector. | P1 → **M1** (connectors v1.0) |
 | 2 | **Constitution Engine** | Contract hub. Provides `CE-READ-1 / CE-WRITE-1 / CE-DIFF-1 / CE-VERSION-1 / CE-BRAND-1 / CE-METRICS-1 / CE-EVENT-1 / CE-FUNCTION-1`. Depends only on `PLAT-IDENTITY-1 / PLAT-AUDIT-1 / PLAT-SETTINGS-1`. | M1 (spine + NL query) · M2 (BRAND-1, FUNCTION-1, METRICS-1) · post-v1 (OWL reasoning) |
 | 3 | **Graph Explorer** | Visualise half of the thin loop. Consumes CE read/write/diff/version spine; provides `GE-CANVAS-1`. | M1 (force canvas READ) · M2 (full editing + overlays) · post-v1 (C4 + Yjs collab) |
 | 4 | **Build Engine** | Generate half. **M1 narrow slice consumes the CE M1 spine only — `CE-BRAND-1` is a M2 gate, not M1.** Provides `BE-ARTEFACT-1` write-back. | M1 (loop epics + safety gates) · M2 (brand-conformance gate) · v1.0 (PM surfaces) · post-v1 (self-heal, agents) |
@@ -84,12 +85,12 @@ Parallelism is gated by which CE milestone publishes the contract a consumer nee
 
 | Wave | Milestone | Runs | Unblocked by |
 |------|-----------|------|--------------|
-| **W0** | M1 | Platform P1 (shell + 6 `PLAT-*`) | nothing — solo foundation |
+| **W0** | M1 | Platform P1 (shell + 5 M1-live `PLAT-*`; `PLAT-CONNECTOR-1` → v1.0) | nothing — solo foundation |
 | **W1** | M1 | CE M1 (spine + NL query: `CE-READ-1 / CE-WRITE-1 / CE-DIFF-1 / CE-VERSION-1`) | Platform P1 `PLAT-IDENTITY-1 / PLAT-AUDIT-1 / PLAT-SETTINGS-1` |
 | **W2** | M1 | **Explorer M1** (force canvas READ) ∥ **Build M1** (narrow loop, safety gates only) | CE M1 spine — both consumers unblock together |
 | **W3** | M2 | **CE M2** (`CE-BRAND-1` + `CE-FUNCTION-1` + `CE-METRICS-1` + `CE-EVENT-1` beta) ∥ **Explorer M2** (full editing) | M1 milestone sign-off |
 | **W4** | M2 | **Build M2** (brand-conformance gate) ∥ **Platform M2** (generative dashboard) | `CE-BRAND-1` (Build M2) · `CE-METRICS-1` (Platform M2) |
-| **W5** | v1.0 | Build v1.0 (PM surfaces) · CE v1.0 (function registry built) · Onboarding v1.0 (Hammerbarn real client) | M2 milestone |
+| **W5** | v1.0 | Build v1.0 (PM surfaces) · CE v1.0 (function registry built) · Onboarding v1.0 (Hammerbarn real client) · Platform v1.0 (`PLAT-CONNECTOR-1` config/health/ingestion) | M2 milestone |
 | **W-post** | post-v1 | Events P1 · Explorer C4+Yjs · CE P3 (OWL) · Build self-heal | contract-gated per item |
 
 > **Key corrections:** Build M1 unblocks at **CE M1** spine, **not** CE Phase 2 — `CE-BRAND-1`
@@ -110,7 +111,9 @@ Parallelism is gated by which CE milestone publishes the contract a consumer nee
 > A client models their company in CE (NL + forms, SHACL-validated) → asks it a plain-language
 > cross-cutting question (**the wow**: NL→SELECT across process + data + system + governance) →
 > sees the answer and the model as a force-directed graph in Explorer → requests one application
-> → Weave's dark factory generates a working app (Next.js UI + FastAPI API) → writes the new
+> → Weave's dark factory **creates a NEW external repo for the project (GitHub/GitLab) as its first
+> step**, generates a working app (M1 demo-default Next.js UI + FastAPI API — the engine is
+> stack-agnostic, driven by client standards from M2) **into that repo** → writes the new
 > services/APIs/data-assets back into the graph via `CE-WRITE-1` + `BE-ARTEFACT-1`.
 
 Demo runs on the **Hammerbarn pre-seed** (synthetic company model). Real-client ingestion is
@@ -148,17 +151,20 @@ Demo runs on the **Hammerbarn pre-seed** (synthetic company model). Real-client 
 - [ ] WHEN the modelled company is opened in Explorer THE SYSTEM SHALL render it as a
       force-directed canvas via `CE-READ-1`, coloured by node-kind, with drill-in and spotlight
       — proving the visualise half of the loop on the same model the artefact was generated from.
-- [ ] WHEN a PO requests one application THE SYSTEM SHALL ground it via `CE-READ-1`, generate
-      one working application (Next.js UI + FastAPI API), pass the **M1 safety gates** (SAST,
-      type-check, delta-scoped mutation ≥ 70% default tunable, package-existence / secret-scan),
-      and write its new services/APIs/data-assets back via `CE-WRITE-1` with PROV-O attribution
-      — closing the model→generate loop end-to-end.
+- [ ] WHEN a PO requests one application THE SYSTEM SHALL, as its first step, **create a NEW external
+      repo for the project (GitHub/GitLab, configured) and write the project boilerplate**, ground the
+      build via `CE-READ-1`, generate one working application **into that repo** (M1 demo-default
+      Next.js UI + FastAPI API; the engine is stack-agnostic per client standards from M2), pass the
+      **M1 safety gates** (SAST, type-check, delta-scoped mutation ≥ 70% default tunable,
+      package-existence / secret-scan), and write its new services/APIs/data-assets back via
+      `CE-WRITE-1` with PROV-O attribution — closing the model→generate loop end-to-end.
 - [ ] WHEN any tenant-A principal reads across CE, Explorer, or Build THE SYSTEM SHALL return
       zero tenant-B data — verified by each engine's mandatory cross-tenant-read isolation test.
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
       across the four M1 components.
 - [ ] **Measurable artefact:** one deployed, demonstrable application (UI + API) with a shareable
-      demo URL, generated from the Hammerbarn pre-seed and written back into that graph.
+      demo URL (Build preview deploy; 72-hour time-limited URL per Build TASK-009), generated from
+      the Hammerbarn pre-seed and written back into that graph.
 - [ ] **Human sign-off recorded** (always the final exit criterion).
 
 #### M1 entry criteria (Definition of Ready)
@@ -175,8 +181,9 @@ Demo runs on the **Hammerbarn pre-seed** (synthetic company model). Real-client 
       principal writing under tenant-A must produce zero data in tenant-B's namespace).
 - [ ] The thin shared dev AWS account ([`dev-environment.md`](dev-environment.md) §1) is
       provisioned and the local-first stack stands up via `docker compose up`.
-- [ ] M1-path contracts pinnable: six `PLAT-*` + CE spine (`CE-READ-1 / WRITE-1 / DIFF-1 /
-      VERSION-1`) + `GE-CANVAS-1` (force-READ) + `BE-ARTEFACT-1`.
+- [ ] M1-path contracts pinnable: the five M1-live `PLAT-*` (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 /
+      PLAT-IDENTITY-1 / PLAT-SETTINGS-1 / PLAT-BILLING-1`; `PLAT-CONNECTOR-1` lands v1.0) + CE spine
+      (`CE-READ-1 / WRITE-1 / DIFF-1 / VERSION-1`) + `GE-CANVAS-1` (force-READ) + `BE-ARTEFACT-1`.
 
 ### 1.4 M2 / v1.0 / post-v1
 
@@ -208,6 +215,18 @@ Events & Actions P1 (whole engine GA) → Explorer C4 + realtime collab (Yjs, `C
 → Onboarding P2 (full Hammerbarn Build + Events seed) → CE P3 (OWL reasoning, OQ-01-gated)
 → Weave self-improvement loop (Platform) → Build self-healing E10 → Build agents/pipelines.
 
+Also post-v1 (Platform-owned, roadmap-level — see [`engines/weave-platform.md`](engines/weave-platform.md) §4 post-v1):
+
+- **Product usage analytics** — privacy-aware event instrumentation of who uses Weave, how much,
+  which features, and what they do, feeding an internal usage/adoption view. Scoped and metered
+  under the existing platform primitives; a metering/analytics contract ID is defined when it is built.
+- **MCP server** — expose the ontology and system metrics over a Model Context Protocol server so
+  users, agents, and external AI clients can query the ontology, generate reports, and reason over
+  data over time. Access is scoped to the caller's access token (workspace + project-level
+  permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their workspace and the
+  projects they can access) and reads via `CE-READ-1` / `CE-METRICS-1`. Inspiration:
+  <https://github.com/fabio-rovai/open-ontologies>. A contract ID is defined when the server is built.
+
 ### 1.5 Program-level HITL gate summary
 
 **Only spec-approval is globally mandatory; every other gate is project/workspace-configurable.**
@@ -236,7 +255,7 @@ Events & Actions P1 (whole engine GA) → Explorer C4 + realtime collab (Yjs, `C
 | `PLAT-AUDIT-1` **(M1)** | Platform | **P** | C | C | C | C | C |
 | `PLAT-NOTIFY-1` **(M1)** | Platform | **P** | C | C | C | C | C |
 | `PLAT-IDENTITY-1` **(M1)** | Platform | **P** | C | C | C | C | C |
-| `PLAT-CONNECTOR-1` **(M1)** | Platform | **P** | C | – | C | C | C (v1.0) |
+| `PLAT-CONNECTOR-1` **(v1.0)** | Platform | **P** | C | – | C | C | C (v1.0) |
 | `PLAT-SETTINGS-1` **(M1)** | Platform | **P** | C | C | C | C | C |
 | `PLAT-BILLING-1` **(M1)** | Platform | **P** | C | – | C | C | – |
 | `CE-READ-1` incl. NL query **(M1)** | CE | C | **P** | C | C | C | C |
@@ -253,8 +272,10 @@ Events & Actions P1 (whole engine GA) → Explorer C4 + realtime collab (Yjs, `C
 | `BE-SDK-1` **(v1.0)** | Build | – | – | – | **P** | – | – |
 | `EA-AUTOMATION-1` **(post-v1)** | Events | C (dashboard) | – | – | – | **P** | C (post-v1) |
 
-> **M1 contracts:** six `PLAT-*` + `CE-READ-1` (NL query included) + `CE-WRITE-1` +
+> **M1 contracts:** the five M1-live `PLAT-*` (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 / PLAT-IDENTITY-1 /
+> PLAT-SETTINGS-1 / PLAT-BILLING-1`) + `CE-READ-1` (NL query included) + `CE-WRITE-1` +
 > `CE-DIFF-1` + `CE-VERSION-1` + `GE-CANVAS-1` (force-READ only) + `BE-ARTEFACT-1`.
+> `PLAT-CONNECTOR-1` is platform-owned but its config/health/ingestion surface lands at **v1.0**.
 >
 > `BE-SELFIMPROVE-1`: owned by Build; both the Weave-internal self-improvement instance
 > (Platform) and client-app self-healing (Build E10) are post-v1.
@@ -271,7 +292,7 @@ gantt
     axisFormat %b
 
     section M1 — Thin Proof
-        Platform P1 — shell + 6 PLAT-*       :crit, plat1, 2026-01-01, 40d
+        Platform P1 — shell + 5 M1 PLAT-*    :crit, plat1, 2026-01-01, 40d
         CE M1 — spine + NL query              :crit, ce_m1, after plat1, 32d
         Explorer M1 — force canvas READ       :ge_m1, after ce_m1, 25d
         Build M1 — narrow loop + safety gates :crit, build_m1, after ce_m1, 40d
@@ -286,6 +307,7 @@ gantt
 
     section v1.0 — Lighthouse
         CE v1.0 — FUNCTION-1 built + deferred  :ce_v10, after m2, 20d
+        Platform v1.0 — PLAT-CONNECTOR-1        :plat_v10, after m2, 20d
         Build v1.0 — full PM surfaces           :build_v10, after m2, 35d
         Onboarding v1.0 — real-client Hammerbarn:onb_v10, after build_v10, 20d
         v1.0 milestone                          :milestone, v10, after onb_v10, 0d
@@ -309,7 +331,7 @@ Ordered M1-relevant first.
 |---|------|--------|------------|
 | R1 | **`CE-BRAND-1` is now a M2 gate, not M1.** Build M1 ships without it. M1 critical path: Platform P1 → CE M1 → Build M1. Risk: CE M2 slips, delaying M2. | Medium (M2) | Stub `CE-BRAND-1` behind a contract test so Build M2 develops against it; do not allow the brand gate to migrate back into M1. |
 | R2 | **CE M1 is the sole gate on both Explorer M1 and Build M1.** A CE M1 slip slips the whole M1 milestone. | High | Treat CE M1 as program-critical; no new scope added to CE M1 without explicit milestone-gate decision. |
-| R3 | **Platform P1 gates everything** — no engine stands up without the six `PLAT-*`. | High | Start first; resource fully; phase-boundary security review is mandatory and real. |
+| R3 | **Platform P1 gates everything** — no engine stands up without the five M1-live `PLAT-*` (`PLAT-CONNECTOR-1` is deferred to v1.0 and gates nothing in M1). | High | Start first; resource fully; phase-boundary security review is mandatory and real. |
 | R4 | **Cytoscape 10k-node perf** — Explorer M1 force canvas at 10k nodes: viewport-culling is net-new; WebGL hatch pattern unowned; unverified. Real technical risk to Explorer M1 exit. | High | Mandatory early benchmark spike before Explorer M1 starts: synthesise 10k BPMO nodes, profile viewport-culling, go/no-go gate on the spike result. |
 | R5 | **M1 scope discipline** — M1 tends to inflate. Brand gate, completeness map, trust-UI, generative dashboard are confirmed M2+; any pull-forward requires an explicit milestone-gate decision with sponsor sign-off. | Medium | OQ-review at each sprint entry; per-engine DoR includes milestone tag check. |
 | R6 | **`CE-EVENT-1` transport not ready** (graph-change stream). | Medium | All consumers degrade to `CE-READ-1` since-version polling. `CE-EVENT-1` is beta in CE M2; live-stream upgrade post-v1. No M1-path dependency. |
@@ -345,8 +367,10 @@ not restate it.
 - NL + forms editing for business users (no code required) — both ship in v1; forms are
   SHACL-shape-driven.
 - AI-native throughout every layer.
-- Managed connectors (7 integrations): Snowflake, Databricks, S3, Azure Data Lake, Atlassian
+- Managed connectors (7 integrations): Snowflake, Databricks, AWS, Azure Data Lake, Atlassian
   (Jira + Confluence, one OAuth family), ServiceNow, Slack. Contract: `PLAT-CONNECTOR-1`.
+  **Deferred to v1.0** (post-MVP): the MVP delivers its value without external integrations;
+  connectors are the extended value.
 - Tenancy/settings: four-level cascade Company → Domain → Workspace → Project (tighter-wins).
   Contract: `PLAT-SETTINGS-1`.
 
@@ -360,9 +384,9 @@ Decisions are final unless overridden by explicit PRD justification.
   15 App Router, Tailwind, shadcn/ui. **API:** REST (OpenAPI 3.1) + SPARQL 1.1. **Auth:** AWS
   Cognito (default) or Auth0 (multi-IdP).
 - **AI/Agents:** Anthropic (Claude) Agent SDK — Python primary, TS secondary; AWS Bedrock
-  AgentCore (GA components: Runtime, Memory, Identity, Gateway). Models: `claude-opus-4-8`
+  AgentCore (GA components: Runtime, Memory, Identity, Gateway). Models: `claude-fable-5`
   (elicitation/architecture), `claude-sonnet-5` (generation/implementation),
-  `claude-haiku-4-5` (validation/formatting). Guardrails: AWS Bedrock Guardrails.
+  validation/formatting also on `claude-sonnet-5` (two-tier policy, haiku dropped 2026-07-02). Guardrails: AWS Bedrock Guardrails.
 - **Data:** RDF store Oxigraph (dev/test) → Neptune or Jena Fuseki (prod, deferred to CE tech
   spec); Vector AWS S3 Vectors; Relational AWS Aurora PostgreSQL Serverless v2 + SQLAlchemy
   async; Cache AWS ElastiCache (Redis 7).

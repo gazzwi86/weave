@@ -488,6 +488,13 @@ artefact-resolution contract — resolve-before-build; claiming "agentic v1" is 
 |---|---|---|---|
 | `EA-AUTOMATION-1` — two-tier automation model (simple declarative interpreted + complex Agent-SDK agentic); grounded in `CE-READ-1`, pinned `CE-VERSION-1`, writes via `CE-WRITE-1`, graph-change via `CE-EVENT-1`, metered `PLAT-BILLING-1`, audited `PLAT-AUDIT-1` | Onboarding (Hammerbarn example automations), Platform dashboard (automation/run health) | [contracts §5](../contracts.md) | beta |
 
+### 2.3b Recorded candidates (not committed)
+
+- **Scan reality for violations** *(post-v1 candidate — personas.md §4.8)*: compliance/risk officers
+  want agents that traverse connector-reachable systems (`PLAT-CONNECTOR-1`) and reconcile findings
+  against graph rules — surfacing violations in *live systems*, beyond graph-write-time SHACL.
+  Depends on connectors (v1.0) + Events GA; route through /po when picked up.
+
 ### 2.4 Open questions (for tech spec)
 
 | # | Question | Owner |
@@ -663,7 +670,7 @@ AI builds it grounded in my actual documented process — not hand-wired against
 - **AC:** Given the Builder is open in split-pane (chat left, canvas right), when I type a description
   (e.g. "When a delivery arrives at any Hammerbarn store, send a Slack notification to the
   #goods-inward channel for that store, following the goods-inward receipt process"), then the AI
-  (claude-opus-4-8) resolves the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
+  (claude-fable-5) resolves the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
   SELECT-only, paginated), resolves related entities, and drafts a simple-tier automation
   (Webhook → Slack notification) with grounding `weave:Process/goods-inward-receipt-process` pinned
   via `CE-VERSION-1`.
