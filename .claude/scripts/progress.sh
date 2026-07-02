@@ -117,13 +117,17 @@ cmd_update() {
   "
 }
 
-# Get next backlog task
+# Get next backlog task (scoped to the current phase's engine when tasks carry an engine field)
 cmd_next() {
   ensure_state
   STATE="$STATE_FILE" node -e "
     const fs = require('fs');
     const data = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
-    const next = data.tasks.find(t => t.status === 'backlog');
+    const engine = (data.phase || '').split('/')[0];
+    const scoped = data.tasks.some(t => t.engine)
+      ? data.tasks.filter(t => !t.engine || t.engine === engine)
+      : data.tasks;
+    const next = scoped.find(t => t.status === 'backlog');
     console.log(next ? next.id : 'NONE');
   "
 }
@@ -167,13 +171,24 @@ cmd_kanban() {
   "
 }
 
-# Check if current phase is complete
+# Check if current phase is complete.
+# Tasks may carry an "engine" field; the phase field is "<engine>/<phase-label>". When engine
+# fields exist, only the current engine's tasks count — so the gate fires at each ENGINE
+# boundary (the engine-end HITL stop), not only when every task in the file is done.
 cmd_phase_check() {
   ensure_state
   STATE="$STATE_FILE" node -e "
     const fs = require('fs');
     const data = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
-    const incomplete = data.tasks.filter(t => t.status !== 'done');
+    const engine = (data.phase || '').split('/')[0];
+    const scoped = data.tasks.some(t => t.engine)
+      ? data.tasks.filter(t => !t.engine || t.engine === engine)
+      : data.tasks;
+    if (scoped.length === 0) {
+      console.log('INCOMPLETE: phase ' + data.phase + ' has no tasks registered');
+      process.exit(0);
+    }
+    const incomplete = scoped.filter(t => t.status !== 'done');
     if (incomplete.length === 0) {
       console.log('COMPLETE');
     } else {
@@ -229,14 +244,19 @@ cmd_list() {
   "
 }
 
-# Get tasks whose dependencies are all satisfied
+# Get tasks whose dependencies are all satisfied (scoped to the current phase's engine when
+# tasks carry an engine field — a later engine's tasks are never "ready" before its phase starts)
 cmd_ready() {
   ensure_state
   STATE="$STATE_FILE" node -e "
     const fs = require('fs');
     const data = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
+    const engine = (data.phase || '').split('/')[0];
     const doneIds = new Set(data.tasks.filter(t => t.status === 'done').map(t => t.id));
-    const ready = data.tasks.filter(t => {
+    const scoped = data.tasks.some(t => t.engine)
+      ? data.tasks.filter(t => !t.engine || t.engine === engine)
+      : data.tasks;
+    const ready = scoped.filter(t => {
       if (t.status !== 'backlog') return false;
       const deps = t.blocked_by || [];
       return deps.every(d => doneIds.has(d));

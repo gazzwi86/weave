@@ -48,8 +48,8 @@ Present the review summary to the user. If critical gaps found, STOP and ask the
 
 **2c. Scaffolding:**
 
-1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+1. Read `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md` for test config
 3. Read `docs/standards/linting.md` for ESLint config
 4. Invoke the **engineer** subagent with this prompt:
 
@@ -59,17 +59,17 @@ You are the Weave Engineer in SCAFFOLDING mode. Set up the project:
 1. Create Next.js app (npx create-next-app@latest --typescript --eslint --app)
 2. Install: vitest @testing-library/react playwright eslint-plugin-sonarjs
 3. Configure ESLint with SonarJS rules per docs/standards/linting.md
-4. Configure Vitest per docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md
+4. Configure Vitest per docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md
 5. Configure Playwright
-6. ESSENTIAL: Install husky + lint-staged for git hooks:
-   - Pre-commit hook: run eslint --fix + vitest run --changed
-   - Pre-push hook: run full test suite (vitest run)
-   - This prevents ANY agent from committing code that fails lint or tests
+6. ESSENTIAL: Do NOT install husky or lint-staged. The harness git hooks
+   (.claude/scripts/git-hooks via core.hooksPath, installed by install.sh) are the
+   single local gate: commit-fast (secrets + lint), push (Semgrep + manifest checks).
+   The full test pyramid runs in .github/workflows/ci.yml on every push and PR.
 7. Create a smoke test that verifies the app renders
 8. Commit each step separately with conventional commits
 
 When done, verify: npm run dev works, npm test passes, npm run lint passes,
-git hooks are active (test by making a deliberate lint error and attempting commit).
+harness git hooks are active (test by staging a fake AKIA key and attempting commit).
 ```
 
 5. **Enforced HITL gate after scaffolding.** Ask user via AskUserQuestion:
@@ -96,7 +96,10 @@ For the task:
 
 #### PLAN
 
-1. Read the task brief: `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`
+1. Read the task brief: the task's `brief` field in `.claude/state/progress.json` gives the exact
+   path. Task IDs in progress.json are engine-namespaced (`PLAT-`, `CE-`, `GE-`, `BE-` prefix on the
+   brief's local `TASK-NNN`); epic IDs likewise (`PLAT-EPIC-006` vs `CE-EPIC-006` are different
+   epics). Always use the namespaced IDs with progress.sh and the local IDs when reading briefs.
 1a. Read progress summaries for all `blocked_by` tasks from `.claude/state/summaries/` — these provide context about decisions, nuances, and edge cases from prior work
 2. Verify the DoR checklist at the bottom of the brief — all items should be checked
 3. If DoR not satisfied, report which items are missing and stop
@@ -135,8 +138,8 @@ WORKFLOW:
 14. Check every item on the DoD checklist
 15. Write progress summary to .claude/state/summaries/{TASK_ID}.md (decisions, nuances, edge cases)
 
-IMPORTANT: Pre-commit hooks (husky + lint-staged) will block commits that fail
-lint or unit tests. Fix these before attempting to commit.
+IMPORTANT: The harness pre-commit hook will block commits containing secrets or
+lint failures. Fix these before attempting to commit; --no-verify is blocked.
 
 Do NOT read spec files other than the task brief. It is self-contained.
 ```

@@ -77,8 +77,8 @@ Then proceed per project type:
 
 **Python/FastAPI scaffold:**
 
-1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+1. Read `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/python/linting.md` for ruff config
 4. Reference `docs/standards/patterns/api/fastapi-router.md` for router patterns
 5. Invoke the **engineer** subagent to scaffold:
@@ -89,8 +89,10 @@ Then proceed per project type:
    - Configure `pytest` with `asyncio_mode = "auto"` in `pyproject.toml`
    - Configure `mypy` with `strict = true`
    - Create a `/health` route returning `{ "status": "ok", "timestamp": ..., "version": ... }`
-   - Generate `.github/workflows/ci.yml` with stages: lint (ruff), typecheck (mypy), unit tests (pytest), build
-   - Install husky pre-commit hook equivalent: `pre-commit` framework with ruff + mypy + pytest hooks
+   - Generate `.github/workflows/ci.yml` with stages: lint (ruff), typecheck (mypy), unit tests (pytest), build.
+     CI carries the full heavy pyramid (all tests, mutation, Lighthouse where UI-bearing) — local git
+     hooks stay commit-fast (harness hooks install in Step 6; do NOT install husky or the Python
+     `pre-commit` framework)
    - Create a smoke test verifying the health endpoint returns 200
    - Commit each step separately with conventional commits
    - Verify: `uv run uvicorn main:app` starts, `uv run pytest` passes, `uv run ruff check .` passes
@@ -99,8 +101,8 @@ Then proceed per project type:
 
 **TypeScript/Next.js 15 scaffold:**
 
-1. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` for tech stack
-2. Read `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md` for test config
+1. Read `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` for tech stack
+2. Read `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md` for test config
 3. Read `.claude/spec-templates/standards/ts/linting.md` for ESLint config
 4. Reference `docs/standards/patterns/api/nextjs-route-handler.md` for route handler patterns
 5. Invoke the **engineer** subagent to scaffold:
@@ -108,14 +110,14 @@ Then proceed per project type:
    - Install: `vitest @testing-library/react playwright eslint-plugin-sonarjs @stryker-mutator/core @stryker-mutator/vitest-runner tsc-files jscpd license-checker`
    - Install `pino` for structured JSON logging
    - Configure ESLint with SonarJS rules per `.claude/spec-templates/standards/ts/linting.md`
-   - Configure Vitest per `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
+   - Configure Vitest per `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md`
    - Configure Playwright
-   - Install husky + lint-staged for git hooks:
-     - Pre-commit hook: `eslint --fix` + `tsc-files --noEmit` + `vitest run --changed`
-     - Pre-push hook: full test suite (`vitest run`) + `npm audit --audit-level=high`
+   - Do NOT install husky or lint-staged — the harness git hooks (Step 6) are the single local gate
    - Create an `/api/health` route returning `{ status: 'ok', timestamp, version }`
-   - Generate `.github/workflows/ci.yml` with stages: lint, typecheck, unit tests, build. If the spec includes
-     deployment requirements, add CD stages targeting AWS (default). The CI pipeline must run on every push and PR.
+   - Generate `.github/workflows/ci.yml` with stages: lint, typecheck, full test suite (unit + UI +
+     contract), `npm audit --audit-level=high`, Semgrep, Lighthouse (UI-bearing), build. CI is where
+     the heavy pyramid lives (local hooks stay commit-fast). If the spec includes deployment
+     requirements, add CD stages targeting AWS (default). The CI pipeline must run on every push and PR.
    - Create a smoke test that verifies the app renders
    - Commit each step separately with conventional commits
    - Verify: `npm run dev` works, `npm test` passes, `npm run lint` passes, git hooks are active
@@ -128,7 +130,14 @@ Then proceed per project type:
 
 ---
 
-6. **Enforced HITL gate after scaffolding.** Ask user via AskUserQuestion:
+6. **Install the harness git hooks (idempotent, one-time).** Run
+   `bash .claude/scripts/git-hooks/install.sh` after the scaffold completes. This sets
+   `core.hooksPath` to `.claude/scripts/git-hooks` — the single active local gate
+   (commit-fast: secrets + lint; push: manifest/OKF parity + Semgrep). The scaffold must not
+   install a parallel hook system (husky / Python `pre-commit` framework); only one hooksPath
+   can win, and it is this one. The heavy test pyramid runs in CI.
+
+7. **Enforced HITL gate after scaffolding.** Ask user via AskUserQuestion:
    - **Approve** — environment works, proceed to tasks
    - **Amend** — something needs fixing (describe)
    - **Reject** — start scaffolding over
@@ -143,7 +152,10 @@ Get the next task ID from `bash .claude/scripts/progress.sh ready`. If result is
 
 #### PLAN
 
-1. Read the task brief: `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`
+1. Read the task brief: the task's `brief` field in `.claude/state/progress.json` gives the exact
+   path. Task IDs in progress.json are engine-namespaced (`PLAT-`, `CE-`, `GE-`, `BE-` prefix on the
+   brief's local `TASK-NNN`); epic IDs likewise (`PLAT-EPIC-006` vs `CE-EPIC-006` are different
+   epics). Always use the namespaced IDs with progress.sh and the local IDs when reading briefs.
 2. Read dependency summaries: for each task in `blocked_by`, read `.claude/state/summaries/{DEP_TASK_ID}.md` to
    understand what was already built
 3. Verify the DoR checklist at the bottom of the brief — all items should be checked
@@ -267,7 +279,7 @@ The Engineer does NOT read spec files other than the task brief. It is self-cont
 16. **PR Review Gate**: Run `/code-review` on the PR. Review any issues raised. Address valid feedback with
     discretion. Commit fixes if needed.
 17. Emit the [result block](#output) for the completed epic: `status: ok`, `artifact_path` set to the task brief
-    path (`docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`.
+    path (the task's `brief` field in progress.json), `failure_class: null`.
 18. Check phase status: `bash .claude/scripts/progress.sh phase-check`
 19. If phase INCOMPLETE: loop back to PLAN with next task
 20. If phase COMPLETE: proceed to Step 4
@@ -323,7 +335,7 @@ When `phase-check` returns COMPLETE:
   one PR per epic, opened only at epic close (`epic-check` COMPLETE)
 - Grouped-epic tasks run sequentially in place on the shared epic branch — no per-task worktree
   for Engineer or QA (a branch cannot live in two worktrees at once)
-- Task briefs: `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`
+- Task briefs: path in each progress.json task's `brief` field (`docs/specs/weave/engines/<entity>/<milestone>/tasks/TASK-NNN.md`)
 - Dependency summaries: `.claude/state/summaries/{TASK_ID}.md`
 
 ## Output
@@ -347,7 +359,7 @@ Example (success):
 
 ```result
 status: ok
-artifact_path: docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-001.md
+artifact_path: docs/specs/weave/engines/<entity>/<milestone>/tasks/TASK-001.md
 failure_class: null
 ```
 

@@ -235,22 +235,28 @@ What is your decision?"
 
 1. Update `.claude/state/summaries/PHASE-<N>.md` — set `status: Approved` in frontmatter
    and check the Approve box in the Decision section.
-2. Advance `progress.json` to the next phase:
-   ```bash
-   # Increment phase label in progress.json (e.g. "phase-1" → "phase-2")
-   # Reset task statuses to "backlog" for the next phase's tasks
-   # The /implement skill or architect will populate next-phase tasks
-   ```
+2. Advance `progress.json` to the next phase **using the `phase_plan` array** (the ordered list
+   of engine phases in `progress.json`; do NOT blindly increment the phase number):
+   - Find the current `phase` in `phase_plan`; the next entry is the new `phase` value.
+   - **A phase boundary in the plan is an engine boundary.** Approving this gate is the
+     explicit engine-end HITL sign-off — say so in the question text so the approver knows
+     they are releasing the next engine to build.
+   - If the current phase is the **last** entry in `phase_plan`, do not advance. Instead run
+     the **program-M1 sign-off ceremony**: verify every M1 exit criterion in
+     `docs/specs/weave/weave-spec.md` §1.3 (validated mutation, NL query, Explorer render,
+     generated app + write-back, cross-tenant isolation zero-leak re-assertion, coverage and
+     mutation thresholds), present the evidence table, and record the human sign-off in
+     `.claude/state/summaries/PROGRAM-M1-SIGNOFF.md`.
    Write the updated `progress.json` via the Write tool.
 3. Commit both files:
    ```bash
    git add .claude/state/summaries/PHASE-<N>.md .claude/state/progress.json
-   git commit -m "chore: phase <N> gate approved — advance to phase <N+1>"
+   git commit -m "chore: phase gate approved — advance to <next phase_plan entry>"
    ```
 4. Signal to `/implement` to continue by printing to stderr:
    ```
-   [phase-gate] Phase <N> approved. Advance progress.json → phase-<N+1>.
-   Run /implement to begin next phase.
+   [phase-gate] <phase> approved (engine boundary). Advanced progress.json → <next phase>.
+   Run /implement to begin the next engine.
    ```
 5. Exit 0. (The implement skill will pick up the new phase on its next invocation.)
 
