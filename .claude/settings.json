@@ -47,7 +47,7 @@
     }
   },
   "plansDirectory": "./.claude/plans",
-  "advisorModel": "opus",
+  "advisorModel": "fable",
   "attribution": {
     "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
     "pr": "Generated with [Claude Code](https://claude.ai/code)"

@@ -68,8 +68,10 @@ def phase_gate(payload: dict) -> None:
 def drift_check(payload: dict) -> None:
     """Stop event — two-stage context drift detection.
 
-    Stage 1 (cheap): estimate transcript token usage. Below STOP_HOOK_DRIFT_GATE
-    (default 30% of context) return immediately, no local-LLM call.
+    Stage 1 (cheap): read occupied context tokens from the last assistant
+    `usage` block (chars/4 estimate as fallback) and divide by the resolved
+    context window. Below STOP_HOOK_DRIFT_GATE (default 30%) return immediately,
+    no local-LLM call.
     Stage 2 (gated): ask the configured local LLM (ollama or lm studio)
     to decide between "nothing", "compact", or "clear". Print verdict to stderr.
 
@@ -78,7 +80,9 @@ def drift_check(payload: dict) -> None:
       LLM_MODEL             — model identifier (e.g. "gemma4:e4b")
       LLM_BASE_URL          — backend HTTP base (defaults per backend)
       LLM_CONTEXT_TOKENS    — local model context window (default 8000)
-      CLAUDE_CONTEXT_TOKENS — Claude's context window (default 200000)
+      CLAUDE_CONTEXT_WINDOW — override for Claude's context window (tokens); wins
+                              over the model-ID registry (see _resolve_context_window)
+      CLAUDE_CONTEXT_TOKENS — legacy alias for the above, kept as a fallback
       STOP_HOOK_DRIFT_GATE  — pct (0-100) below which LLM is skipped (default 30)
 
     All failures are silent no-ops — this hook must never block.
@@ -92,12 +96,16 @@ def drift_check(payload: dict) -> None:
     if not transcript_path:
         return
 
-    context_max = int(os.environ.get("CLAUDE_CONTEXT_TOKENS", "200000"))
+    context_max = _resolve_context_window(payload, transcript_path)
     drift_gate = float(os.environ.get("STOP_HOOK_DRIFT_GATE", "30"))
     if context_max <= 0:
         return
 
-    tokens = _estimate_transcript_tokens(transcript_path)
+    # Prefer the real occupied-context figure from the last assistant `usage`
+    # block; fall back to the chars/4 estimate only when usage is unavailable.
+    tokens = _tokens_from_last_usage(transcript_path)
+    if tokens is None:
+        tokens = _estimate_transcript_tokens(transcript_path)
     if tokens is None:
         return
 
@@ -114,7 +122,7 @@ def drift_check(payload: dict) -> None:
     if not excerpt:
         return
 
-    response = _ask_local_llm(backend, _build_drift_prompt(excerpt, usage_pct))
+    response = _ask_local_llm(backend, _build_drift_prompt(excerpt, usage_pct, context_max))
     if response is None:
         return
 
@@ -150,7 +158,7 @@ def _estimate_transcript_tokens(path: str) -> Optional[int]:
     return chars // 4 if chars else 0
 
 
-def _build_drift_prompt(excerpt: str, usage_pct: float) -> str:
+def _build_drift_prompt(excerpt: str, usage_pct: float, context_window: int) -> str:
     return (
         "You advise on conversation hygiene for a Claude Code coding session. "
         "Given the recent transcript excerpt and current token-usage percentage, "
@@ -160,11 +168,132 @@ def _build_drift_prompt(excerpt: str, usage_pct: float) -> str:
         '  - "clear": the user has clearly moved to a new task/subject — start fresh.\n\n'
         "Respond with JSON ONLY, no prose:\n"
         '  {"action":"nothing"|"compact"|"clear","reason":"<one short sentence>"}\n\n'
-        f"Token usage: {usage_pct:.0f}% of context window.\n\n"
+        f"Token usage: {usage_pct:.0f}% of a {context_window:,}-token context window.\n\n"
         "Recent transcript:\n"
         f"{excerpt}\n\n"
         "JSON:"
     )
+
+
+# Context-window registry. Each entry is a (case-insensitive substring marker,
+# window) pair matched against the model ID; the first hit wins. Only variants
+# that DIFFER from the 200k default need an entry — the 1M-context variants. Every
+# current base model (claude-fable-5, claude-opus-4-8, claude-sonnet-5,
+# claude-haiku-4-5) and any future 200k model falls through to the default.
+#
+# LIMITATION: transcript `model` fields arrive WITHOUT the `[1m]` suffix even on a
+# 1M-context session (verified: a claude-opus-4-8[1m] session logs a bare
+# "claude-opus-4-8"), so a 1M session is resolved from data only if the ID happens
+# to carry a marker — otherwise the CLAUDE_CONTEXT_WINDOW override is the reliable
+# path. Add markers here as new context tiers ship.
+_CONTEXT_WINDOW_DEFAULT = 200_000
+_CONTEXT_WINDOW_MARKERS = (
+    ("[1m]", 1_000_000),
+    ("-1m", 1_000_000),
+)
+
+
+def _window_for_model(model_id: str) -> Optional[int]:
+    """Resolve a model ID to a context window when the registry positively
+    recognises a non-default tier (e.g. a 1M variant); otherwise None so the
+    caller falls back to the legacy env var or the default."""
+    if not model_id:
+        return None
+    mid = model_id.strip().lower()
+    for marker, window in _CONTEXT_WINDOW_MARKERS:
+        if marker in mid:
+            return window
+    return None
+
+
+def _resolve_context_window(payload: dict, transcript_path: Optional[str]) -> int:
+    """Determine the active model's context window in tokens.
+
+    Priority:
+      1. CLAUDE_CONTEXT_WINDOW env override (explicit, wins over everything).
+      2. Model-ID registry — model from the Stop payload, else the last
+         transcript message (only recognised non-default tiers resolve here).
+      3. CLAUDE_CONTEXT_TOKENS legacy env (back-compat for existing setups).
+      4. _CONTEXT_WINDOW_DEFAULT (200k).
+    """
+    override = _positive_int(os.environ.get("CLAUDE_CONTEXT_WINDOW"))
+    if override:
+        return override
+
+    model_id = str(payload.get("model") or "").strip()
+    if not model_id and transcript_path:
+        model_id = _model_from_transcript(transcript_path) or ""
+    window = _window_for_model(model_id)
+    if window:
+        return window
+
+    legacy = _positive_int(os.environ.get("CLAUDE_CONTEXT_TOKENS"))
+    if legacy:
+        return legacy
+
+    return _CONTEXT_WINDOW_DEFAULT
+
+
+def _positive_int(raw: Optional[str]) -> Optional[int]:
+    """Parse a positive int from an env-var string, or None."""
+    if not raw:
+        return None
+    try:
+        val = int(raw.strip())
+    except ValueError:
+        return None
+    return val if val > 0 else None
+
+
+def _model_from_transcript(path: str) -> Optional[str]:
+    """Model ID from the most recent transcript message carrying one, or None.
+    Scans from the end so the currently-active model wins."""
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        msg = event.get("message")
+        model = event.get("model") or (msg.get("model") if isinstance(msg, dict) else None)
+        if model:
+            return str(model)
+    return None
+
+
+def _tokens_from_last_usage(path: str) -> Optional[int]:
+    """Occupied context tokens from the most recent assistant `usage` block:
+    input + cache_read + cache_creation. This is the real context footprint at
+    that turn — more accurate than the chars/4 estimate. None if no usage found."""
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        msg = event.get("message")
+        usage = msg.get("usage") if isinstance(msg, dict) else event.get("usage")
+        if isinstance(usage, dict):
+            total = (
+                (usage.get("input_tokens") or 0)
+                + (usage.get("cache_read_input_tokens") or 0)
+                + (usage.get("cache_creation_input_tokens") or 0)
+            )
+            if total > 0:
+                return total
+    return None
 
 
 def _parse_drift_verdict(text: str) -> Optional[dict]:

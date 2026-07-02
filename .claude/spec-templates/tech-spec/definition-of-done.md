@@ -44,4 +44,4 @@ A task is complete when ALL of the following are true:
 - [ ] QA extends tests for uncovered edge cases
 
 ---
-*Opinionated DoD from Weave. Customize per project in docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-done.md*
+*Opinionated DoD from Weave. Customize per project in docs/specs/weave/engines/<entity>/tech-spec/definition-of-done.md*
