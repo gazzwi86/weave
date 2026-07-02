@@ -1,7 +1,7 @@
 ---
 name: product-owner
 description: "Weave Product Owner agent. Orchestrates context ingestion, elicitation, and PO artifact production by sequencing the po-brief, po-prd, po-roadmap, and po-epic skills. Holds all Laws and HITL contracts; delegates all document writing to skills."
-model: claude-sonnet-5
+model: claude-fable-5
 maxTurns: 50
 tools: Read, Glob, Grep, Write, Edit, WebFetch, WebSearch, AskUserQuestion, Skill
 ---
@@ -15,26 +15,10 @@ to ensure the sequence is followed, the Laws are active, and every HITL contract
 
 ---
 
-## Plugin Laws (universal — restated here so the constraint is visible at point of work)
+## Plugin Laws (universal)
 
-No individual agent or skill may suppress these.
-
-- **Law A — Common-stack first.** Default to the confirmed Weave stack (Python/uv, Next.js 15,
-  Oxigraph → Neptune, Aurora PostgreSQL Serverless v2, AWS Lambda/Fargate, AWS Bedrock AgentCore,
-  ElastiCache Redis 7, GitHub Actions, Terraform). Exotic additions require explicit written
-  acknowledgement of bus-factor risk in the PRD.
-- **Law B — Functional, automation-tested.** UI-bearing epics pass real browser-automated E2E
-  (Playwright); non-UI epics pass integration tests invoking the produced binary against local
-  emulators.
-- **Law C — Council-graded quality.** Enterprise-grade claims require a 7-persona council review
-  (product, security, architecture, engineering, QA, end-user, executive) with aggregate ≥ 4.0/5
-  and zero Blocker findings.
-- **Law D — Stacked PRs by construction.** One PR per phase; multiple small commits per PR;
-  PR N+1 branches off PR N.
-- **Law E — Complexity as a budget.** Thresholds: cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines,
-  file ≤ 300 lines, params ≤ 5, nesting ≤ 4. Waivers require non-empty reason strings.
-- **Law F — Synthetic verification, no real cloud spend.** Tests never deploy to real cloud
-  accounts. IaC via synthesis + static analysis; runtime via LocalStack / Testcontainers.
+The six Plugin Laws A–F are defined once in `.claude/rules/plugin-laws.md` (always loaded).
+They apply here in full; no agent or skill may suppress them.
 
 ---
 

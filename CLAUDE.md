@@ -1,279 +1,149 @@
 # Weave
 
-A monorepo platform for describing, visualising, and automating how a company operates — through ontologies, knowledge graphs, and data models. Weave lets you map the full enterprise (people, processes, systems, data, rules, relationships) as a navigable graph, and uses that model to generate applications, data products, and automations — regardless of whether the underlying data lives in Snowflake, AWS, Azure, Databricks, or on-prem.
+Weave is a monorepo platform that models how a company operates — people, processes, systems,
+data, rules, relationships — as a live knowledge graph, then generates and runs the apps, AI
+agents, data pipelines, and automations that operate the business. Built on the full W3C semantic
+web stack (RDF/OWL/SHACL/SPARQL/PROV), multi-tenant cloud SaaS, single React SPA. Four engines
+ship in order: **Constitution** (the graph/ontology layer — ships first, the MVP), **Build**,
+**Events & Actions**, **Graph Explorer**.
 
-**Positioning:** The operating system for the AI-native company — a living digital twin of the organization (DTO). Model the business → generate code/agents/pipelines → automate. The moat is closing that loop on open W3C standards, at mid-market reach, with whole-business NL+forms authoring — not the triple store, which is commoditising fast (Ardoq's 2026 GraphLake acquisition brought RDF/OWL/SHACL to an EA incumbent). This is a time-limited window: differentiate on generation/automation closure before the substrate advantage erodes.
-
-**Core sub-systems:**
-- **Constitution engine** — ontology/graph layer (RDF/OWL/SHACL/SPARQL/PROV); the live model of the business. **First engine to ship** (the Platform shell — app/nav/workspace/auth/Cognito/Bedrock — is built first as the foundation everything runs in).
-- **Build engine** — generate apps (UI+API), AI agents, data pipelines, forms/dashboards from the graph model
-- **Events & actions engine** — automations triggered by graph changes AND external events (webhooks, Jira, cron)
-- **Graph explorer** — visualise the company as a force-directed network; drill-in focus views; structured C4 canvas; Figma-style real-time multi-user collab (**Phase 2** — MVP ships single-user editing + async sharing)
-
-**Architecture decisions (confirmed):**
-- Single React SPA, modular internally (not micro-frontends)
-- Multi-tenant cloud SaaS
-- Full W3C semantic web: RDF/OWL/SHACL/SPARQL/PROV
-- Weave ships a **process-centric BPMO** (Business Process Management Ontology) — the "business brain" — as the universal *upper framework* (~13 kinds: Process, Activity, Event, DataAsset/Field, System, Service, BusinessCapability, BusinessDomain, Policy, Goal, Actor, Concept, Class + the relationships connecting them: performedBy/consumes/produces/runsOn/realizes/governedBy/…). Processes sit at the centre, linked to the data, systems, capabilities, governance, goals and actors that operate the business — the model an agent reasons inside. Clients extend it with their own domain kinds/instances; it's a **framework, not a populated taxonomy**. ArchiMate-3 aligned; REA + UFO behind the curtain. Grounded in `prototypes/obpm` (NOT the thin weave-prototype UI). Canonical set: `docs/specs/weave/contracts.md` CE-READ-1. See `.claude/memory/decision_ontology-bpmo.md`.
-- NL + forms editing for business users (no code required) — both ship in v1; forms are SHACL-shape-driven
-- AI-native throughout every layer
-- Managed connectors (7 integrations): Snowflake, Databricks, S3, Azure Data Lake, Atlassian (Jira + Confluence, one OAuth family), ServiceNow, Slack
-
-**Commercial model:** Fully commercial SaaS + consulting/workshop engagement arm (no open source)
-
-**MVP success criterion:** One real client models their company → Weave auto-generates one working artefact (app, pipeline, or agent)
-
-**Reference prototypes:** throwaway reference material in `prototypes/` (gitignored, not part of the harness) — delete once specs are complete.
+This repository is a **spec-driven dark-factory harness** — there is no application code yet. Specs
+cascade Brief → PRD → Roadmap → Tech Spec → Tasks, and the `/implement` loop builds from them. For
+the product vision, positioning, engine detail, and the developer quickstart, read
+[`README.md`](README.md). For how the harness works end-to-end, read
+[`docs/claude-harness-overview.md`](docs/claude-harness-overview.md).
 
 ## Laws
 
-You must strictly adhere to these laws in every interaction:
+1. **Don't assume; surface trade-offs.** If a requirement or intent is ambiguous, don't guess —
+   ask with simple, high-signal options, and state the trade-offs of the path you recommend.
+2. **Minimum code that solves the problem.** Leanest direct solution; no speculative features or
+   unrequested boilerplate.
+3. **Touch only what you must.** Isolate your changes; don't refactor adjacent code unless asked.
+4. **Define success, then loop until verified.** State what "done" looks like before you act; test
+   and iterate until those criteria objectively hold.
 
-1. **Don't Assume. Don't Hide Confusion. Surface Trade-offs:** If a requirement, file context, or intent is ambiguous, do not guess. Stop and ask for clarification using simple, high-signal options. Always explicitly state the technical trade-offs of a chosen path.
-2. **Minimum Code that Solves the Problem:** Write the leanest, most direct solution possible. Never add speculative features, "future-proofing," or unrequested boilerplate.
-3. **Touch Only What You Must:** Limit your footprint. Modulate and isolate your changes. Clean up only your own mess; do not refactor or modify adjacent code/assets unless explicitly instructed to do so.
-4. **Define Success Criteria. Loop Until Verified:** Before executing a plan or writing code, define what "success" looks like. Test, analyze, and loop your reasoning until those criteria are objectively met.
 
-## Cognitive Protocol: Thinking fast and slow
+Look at you proposals plans and the questions you ask me and hypothesis as to the impact, best direction, best question.
+Avoid abbreviations and unclear requests, simplify requests to near ELI5 level.
 
-When perfoming complex work, such as forming a plan, writing/reviewing code, assessing specs, creating artifacts, or analyzing visual/structural assets (images/webpages), you must execute your thoughts in two distinct, sequential phases:
+## Working protocol
 
-### Phase 1: Fast Thinking (Intuition & Structure)
-* **Objective:** Form an immediate structural baseline.
-* **Actions:** Analyze raw visual/textual structures, immediate intent, aesthetics, and explicit details. Apply rapid inferences grounded in *where* the asset sits (e.g., its location in the codebase or its visual hierarchy in a UI).
-
-### Phase 2: Slow Thinking (Deliberation & Tree of Thought)
-* **Objective:** Challenge Phase 1, branch out possibilities, and calculate impacts.
-* **Actions:** 
-    * Deconstruct your Phase 1 findings. Actively look for blind spots, hidden technical debt, or edge cases.
-    * Use a **Tree of Thought (ToT)** approach to branch out alternative hypotheses and strategies.
-    * Run a downstream analysis: trace how your proposals will impact dependencies, security, performance, or user experience.
-    * Amend, alter, or completely pivot your initial assumptions based on this deliberation before taking action.
-
-## Workflow
-
-### 1. The Dynamic Scratchpad
-
-Maintain a persistent, evolving **Scratchpad** (eg .thinking.md) at the base of your responses during complex or multi-turn tasks. Use it to track active files, current goals, discovered context, and active hypotheses. (This ensures parallel agent teams or long-context workflows remain seamlessly synchronized). It should not be a commited file in git.
-
-### 2. Impact-Driven File Planning
-When planning changes across files, explicitly map out the proposed modifications, file paths, and success criteria in your plan *before* editing. Update the plan dynamically as your Tree of Thought expands.
-
-### 3. Jargon-Free Elicitation Layer
-* **Internal Processing:** Your internal reasoning (Fast/Slow thinking phases) must be hyper-detailed, rigorous, and technically precise.
-* **User Communication:** Your external prompts, requests, and questions directed to the user must be highly simplified (near ELI5 level). Avoid abbreviations and unclear requests. 
-* **Nuance Extraction:** Use Multiple-Choice Questions (MCQs) and clear scenario trade-offs instead of open-ended questions to extract precise preferences from the user.
-
-## Response template
-
-When tasked with complex execution, format your response using this structure to prove compliance:
-
-### [System 1: Fast Analysis]
-
-* *Observations on immediate structure, context, and obvious intent.*
-
-### [System 2: Slow Deliberation & Tree of Thought]
-
-* *Tree of Thought branching, hidden edge cases, and Law 1 Trade-offs.*
-* *Law 4 Success Criteria definition.*
-
-### [Workspace Scratchpad]
-
-* *Active Files / Context Tracked / Active Goal / Next Steps.*
-
-### [Actionable Output / User Elicitation]
-
-* *The minimal solution (Laws 2 & 3) OR an ELI5 MCQ/clarification request.*
-
-## Getting started
-
-To begin spec-driven development on a new engine or feature:
-
-1. Run `/po` — the Product Owner agent will guide you through elicitation and produce, as
-   **sections within** the single consolidated engine spec `docs/specs/weave/engines/<entity>.md`:
-   - `## Brief`
-   - `## Product Requirements (PRD)`
-   - `## Epics` (one `### EPIC-NNN` subsection per epic)
-   - `## Roadmap`
-
-2. Review the spec, then run `/architect` to produce the tech spec as files under the engine's
-   sibling artifact directory:
-   - `docs/specs/weave/engines/<entity>/04-arch/tech-spec/*` (architecture, openapi.yaml, …)
-   - `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-*.md`
-
-3. Run `/spec-review` to gate-check completeness before implementation.
-
-4. Run `/implement` — the dark factory loop executes tasks one by one, TDD-first.
-
-5. Run `/qa` and `/status` to check progress. `/status` also reports spec health and OKF
-   bundle conformance.
-
-To visualise the full knowledge graph: open `docs/viz.html` (run `/okf-visualize` first).
-To check spec conformance: run `/okf-validate`.
-
-## Layout — read this map before grepping
-
-| Path | What it is | Conventions live in |
-|---|---|---|
-| `.claude/` | Claude Code config — settings, hooks, skills, agents, commands | – |
-| `docs/specs/weave/` | The single unified Weave spec: `weave-spec.md` (program + shared foundations), `contracts.md`, `dev-environment.md`, and `engines/<entity>.md` (one consolidated spec per engine) | `docs/specs/weave/weave-spec.md` |
-| `.claude/spec-templates/` | Spec artifact templates | – |
-| `docs/wiki/` | OKF v0.1 knowledge bundle — per-area anatomy pages (regenerated by `/anatomy`) | `docs/wiki/README.md` |
-
-**Per-package CLAUDE.md files (once packages exist) override global rules.**
-
-## Top-level commands
-
-<!-- TODO: add build, dev, test, lint commands once monorepo packages are scaffolded -->
-
-**Codebase knowledge (wiki):**
-- `/anatomy` — full regeneration of `ANATOMY.md` + `docs/wiki/<area>.md` OKF bundle + `viz.html`
-- `/anatomy refresh <files>` — incremental update for changed files only
-- `/okf-validate` — conformance check of the `docs/wiki/` OKF bundle
-- `/okf-visualize` — render `docs/viz.html` (self-contained Cytoscape.js knowledge graph)
-
-## Stack (confirmed)
-
-Decisions are final unless overridden by explicit PRD justification.
-
-**Application**
-
-- Backend: Python 3.12+, FastAPI, Pydantic v2, uv
-- Frontend: TypeScript strict, Next.js 15 App Router, Tailwind CSS, shadcn/ui
-- API: REST (OpenAPI 3.1) + SPARQL 1.1 for graph traversal
-- Auth: AWS Cognito (default) or Auth0 (multi-IdP)
-
-**AI / Agents**
-
-- Agent SDK: Anthropic Agent SDK (Claude Agent SDK) — Python primary, TypeScript secondary; generates portable agent code (decided 2026-06-26)
-- Agent runtime: AWS Bedrock AgentCore (GA components only: Runtime, Memory, Identity, Gateway) — revisit fit with Anthropic Agent SDK during Build Engine tech spec
-- Models: `claude-opus-4-8` (elicitation/architecture), `claude-sonnet-5` (generation/implementation), `claude-haiku-4-5` (validation/formatting)
-- Guardrails: AWS Bedrock Guardrails (PII, content policy, topic blocking)
-
-**Data**
-
-- RDF store: Oxigraph (dev/test) → Neptune or Jena Fuseki (prod — decision deferred to Constitution Engine tech spec)
-- Vector: AWS S3 Vectors
-- Relational: AWS Aurora PostgreSQL Serverless v2 + SQLAlchemy async
-- Cache: AWS ElastiCache (Redis 7)
-
-**Infrastructure**
-
-- IaC: Terraform
-- Compute: AWS Lambda (primary), ECS Fargate (long-running agents)
-- SPA hosting: CloudFront + S3
-- Secrets: AWS Secrets Manager only
-- CI/CD: GitHub Actions (OIDC to AWS, environment protection rules)
-- Observability: CloudWatch + OpenTelemetry (ADOT Collector)
-
-**Semantic web**
-
-- Ontology: OWL 2 DL, Turtle serialisation
-- Validation: SHACL
-- Provenance: PROV-O
-- Vocabulary: SKOS
-- Query: SPARQL 1.1 + SPARQL Update
-- EA notation: ArchiMate 3
+- **Be thorough, detailed oriented and rigorous.** This is essential to high quality outcomes. Do not compromise 
+  on quality, skip through or defer things that risk not being tracked or picked up later.
+- **Think in two passes.** First a fast structural read (what is this, where does it sit, obvious
+  intent). Then challenge it: branch alternatives, hunt edge cases and hidden debt, trace downstream
+  impact on dependencies/security/performance/UX — and revise before acting.
+- **Plan before editing.** For any multi-file change, surface the proposed file paths, the changes,
+  and success criteria — with trade-offs — before you start. Don't bury a plan behind a fixed
+  response template; write it plainly.
+- **Talk to the user in plain language.** Keep internal reasoning rigorous but make questions to the
+  user near-ELI5: prefer multiple-choice with clear trade-offs over open-ended prompts. Avoid jargon
+  and unexplained abbreviations.
+- **Scratchpad for long work.** For complex multi-turn tasks keep an evolving `.thinking.md`
+  (active files, goal, discovered context, hypotheses) — never commit it to git.
 
 ## Conventions
 
-- Python tooling: `uv` only (enforced by hook — rejects bare pip usage)
-- Secrets: AWS Secrets Manager only — never hardcoded, never in `.env` files
-- Testing: TDD-first; unit → integration → E2E; Playwright for browser tests; mutation ≥ 70%
-- Commits: conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`), stacked PRs per epic (tasks stack within an epic; the phase gate reviews the epic PRs)
-- Code review: `docs/standards/code-review.md` is the single review rubric — priority-ordered
-  checklist, blocker/major/minor/nit severity, comment discipline (>80% confidence, `file:line`
-  citations), OWASP security checklist, and the new-user→feature flow check. Consumed by both the
-  `/qa` skill and the CI review bot (`.github/workflows/claude-review.yml` — label-gated
-  `claude-review`, subscription-auth, advisory but conversation-resolution-gated on `main`)
+- **Python:** `uv` only — bare `pip` is rejected by a hook.
+- **Secrets:** AWS Secrets Manager only — never hardcoded, never in `.env`. See
+  [`.claude/rules/security.md`](.claude/rules/security.md).
+- **Testing:** TDD-first; unit → integration → E2E; Playwright for browser; mutation ≥ 70%. Detail
+  in `docs/standards/testing-py.md`, `testing-ts.md`, `testing-agents.md`.
+- **Commits:** conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`); one PR per EPIC
+  (tasks stack within an epic). Detail in `docs/standards/git-workflow.md`.
+- **Git safety:** never bypass hooks — see [`.claude/rules/git-safety.md`](.claude/rules/git-safety.md).
+- **Code review:** the single rubric is `docs/standards/code-review.md` (consumed by `/qa` and the CI
+  review bot).
+- **Ontology / semantic web:** see [`.claude/rules/ontology-standards.md`](.claude/rules/ontology-standards.md)
+  and `docs/standards/semantic-web.md`.
+- **UI-bearing work** builds against `docs/standards/design/` (design tokens; no ad-hoc hex/px/
+  duration) and must pass the `ui_verify` gate.
 
-## SDLC — spec-driven flow
+## Stack (confirmed — final unless a PRD justifies otherwise)
 
-Weave uses a per-artifact skill harness. Specs cascade: Brief → PRD → Roadmap → Tech Spec → Tasks
-(PDAC loops with HITL gates). See `docs/claude-harness-overview.md` for full harness architecture.
+Python 3.12+ / FastAPI / Pydantic v2 backend; TypeScript-strict / Next.js 15 / Tailwind / shadcn
+frontend; REST (OpenAPI 3.1) + SPARQL 1.1; AWS Cognito auth; Anthropic Agent SDK on Bedrock
+AgentCore; Oxigraph→Neptune/Fuseki RDF store, Aurora Postgres, S3 Vectors, ElastiCache; Terraform +
+GitHub Actions on AWS Lambda/Fargate. Models — two tiers only (haiku dropped 2026-07-02):
+`claude-fable-5` (elicitation, product ownership, architecture — judgement-heavy, low-volume) and
+`claude-sonnet-5` (generation, implementation, QA, validation — volume work). Full table in
+[`README.md`](README.md#stack); semantic-web stack in `.claude/rules/ontology-standards.md`.
 
-**Workflow commands:**
-- `/po` — Product Owner orchestration shell (calls po-brief → po-prd → po-roadmap → po-epic)
-- `/architect` — Tech Architect shell (calls arch-stack → arch-c4 → arch-openapi → … → arch-task-brief)
-- `/elicit` — structured elicitation (20Q, Six Hats, Five Whys, Stochastic)
-- `/implement` — dark factory loop (PDAC per task, phase-gated HITL)
-- `/qa` — 10-category task validation
-- `/spec-review` — pre-scaffold spec completeness gate
-- `/status` — progress + kanban + blockers
+Managed connectors (Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) are
+**deferred to v1.0** — the MVP ships none.
 
-**Per-artifact skills (invoked by agents, not directly):**
-PO: `po-brief`, `po-prd`, `po-roadmap`, `po-epic`, `design-system` (UI-bearing projects — PO Phase 3b
-    asks "does this have a UI?" → generates `docs/standards/design/` before /architect)
-Architect: `arch-stack`, `arch-c4`, `arch-openapi`, `arch-data-model`, `arch-flows`, `arch-class`,
-           `arch-cicd`, `arch-testing`, `arch-dod`, `arch-dor`, `arch-task-brief`, `arch-adr`, `arch-infra`
-Support: `phase-gate`, `elicit`, `spec-review`, `status`, `implement`
+## Layout — read this map before grepping
 
-**Design system (UI-bearing projects):** `docs/standards/design/` (parent `design.md` + tokens/color/
-typography/motion/components/data-viz/layout/iconography/voice) is generated by the `design-system`
-skill and **consumed by the Architect** (task-brief `design_tokens`), **Engineer** (builds against it —
-no ad-hoc hex/px/duration; Law 20), and **QA** (design-conformance + Lighthouse-100/WCAG-AA gate). It
-compiles to DTCG tokens served by `CE-BRAND-1`.
+| Path | What it is |
+|---|---|
+| `.claude/` | Claude Code config — settings, hooks, skills, agents, commands, rules, state |
+| `.claude/rules/*.md` | Always-loaded rules (plugin-laws, git-safety, security, ontology-standards, markdown) |
+| `docs/specs/weave/` | The unified Weave spec (see artifact table below) |
+| `docs/standards/` | Coding standards + `design/` design system |
+| `docs/wiki/` | OKF knowledge bundle — per-area anatomy pages (regenerated by `/anatomy`) |
+| `.claude/spec-templates/` | Spec artifact templates |
 
-**Spec location:** one unified spec at `docs/specs/weave/`. The PO artifacts (brief, PRD, epics,
-roadmap) are **sections inside** `engines/<entity>.md`; the Architect artifacts (tech spec, tasks,
-ADRs) are **files** under the engine's sibling `engines/<entity>/04-arch/` directory (they include
-non-markdown files like `openapi.yaml` and so cannot be sections).
+Per-package `CLAUDE.md` files (once packages exist) override these global rules.
+
+### Spec artifact locations
+
+The unified spec lives at `docs/specs/weave/`. PO artifacts are **sections inside**
+`engines/<entity>.md`; Architect artifacts are **files** under the engine's sibling directory (they
+include non-markdown like `openapi.yaml`, so can't be sections).
 
 | Artifact | Location | Form |
 |---|---|---|
 | Program plan + shared foundations | `docs/specs/weave/weave-spec.md` | document |
-| Inter-engine contracts (canonical) | `docs/specs/weave/contracts.md` | document |
+| Inter-engine contracts (canonical — cite by ID) | `docs/specs/weave/contracts.md` | document |
 | Dev environment | `docs/specs/weave/dev-environment.md` | document |
-| Brief | `docs/specs/weave/engines/<entity>.md` → `## Brief` | section |
-| PRD | `docs/specs/weave/engines/<entity>.md` → `## Product Requirements (PRD)` | section |
-| Epics | `docs/specs/weave/engines/<entity>.md` → `## Epics` (`### EPIC-NNN`) | subsections |
-| Roadmap | `docs/specs/weave/engines/<entity>.md` → `## Roadmap` | section |
-| Tech spec | `docs/specs/weave/engines/<entity>/04-arch/tech-spec/` | files |
-| Tasks | `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md` | files |
-| Decisions (ADR) | `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md` | files |
+| Brief · PRD · Epics · Roadmap | `docs/specs/weave/engines/<entity>.md` (sections) | sections |
+| Tech spec | `docs/specs/weave/engines/<entity>/tech-spec/` | files |
+| Decisions (ADR) | `docs/specs/weave/engines/<entity>/decisions/ADR-NNN.md` | files |
+| Tasks (milestone-scoped) | `docs/specs/weave/engines/<entity>/m1/tasks/TASK-NNN.md` | files |
 
-**Dark factory loop:**
-```
-/elicit  →  /po  →  /architect  →  /spec-review  →  /implement
-                                                       ↓
-                    /goal all tasks in phase done, or stop after 60 turns
-                              (tasks → one PR per EPIC on feature/{epic};
-                               UI work must pass the ui_verify gate)
-                                                       ↓
-                                             phase_gate() Stop hook → HITL
-                                             Approve → next phase
-```
+Tasks are scoped by milestone: `m1/` (thin-proof), then sibling `m2/`, `v1/`, `post-v1/` matching the
+roadmap, created when each milestone is specced. Tech spec and decisions are engine-lifetime (not
+milestone-scoped).
 
-**Operator runbook (read this to run the loop): [`docs/running-the-implement-loop.md`](docs/running-the-implement-loop.md)** —
-the full PDAC loop, all HITL gates (incl. the UI run-book sign-off), the `ui_verify` UI gate, the
-epic-PR model, resume, and the no-bypass enforcement. Every harness element is catalogued in
-[`.claude/HARNESS.md`](.claude/HARNESS.md).
+## Workflow commands (one PDAC-loop step each)
 
-**State spine:** `.claude/state/progress.json` (committed after every task)
-**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update|epic-check ...`
+`/elicit` structured elicitation (20Q, Six Hats, Five Whys, Stochastic) · `/po` Product Owner
+(brief → PRD → roadmap → epics) · `/architect` Tech Architect (stack → C4 → OpenAPI → … → task
+briefs) · `/spec-review` pre-scaffold completeness gate · `/implement` dark-factory loop
+(PDAC per task, phase-gated HITL) · `/qa` task validation · `/status` progress + kanban.
 
-## Navigation
+Knowledge-graph commands: `/anatomy` (regenerate `ANATOMY.md` + `docs/wiki/` + `viz.html`),
+`/anatomy refresh <files>` (incremental), `/okf-validate` (conformance), `/okf-visualize` (render
+`docs/viz.html`).
 
-**Tool priority (use the first available):**
+Full command reference, SDLC flow, hooks, and skills catalogue:
+[`docs/claude-harness-overview.md`](docs/claude-harness-overview.md). Operator runbook for the loop
+and its HITL gates: [`docs/running-the-implement-loop.md`](docs/running-the-implement-loop.md). Every
+harness element is catalogued in [`.claude/HARNESS.md`](.claude/HARNESS.md).
 
-1. **jcodemunch** (if MCP connected) — surgical symbol lookup, no full-file reads.
-   After first code is added, run `index_folder` once. Re-run after large commits.
-   - When symbol name is obvious, call `get_symbol_source` directly.
-   - If that misses, call `search_symbols` then `get_symbol_source`.
-   - Always check `_freshness`; if `"stale_index"`, run `index_folder { incremental: true }`.
+**State spine:** `.claude/state/progress.json` (committed after every task).
+**Progress CLI:** `bash .claude/scripts/progress.sh kanban|ready|phase-check|update|epic-check …`
 
-2. **headroom** (MCP connected) — compresses large tool outputs 60-95% before context.
-   Use `headroom_compress` on large file reads or grep output.
+## Navigation — tool priority (use the first available)
 
+1. **jcodemunch** (if MCP connected) — surgical symbol lookup; run `index_folder` once after first
+   code lands, re-run after large commits; check `_freshness` and re-index if stale.
+2. **headroom** — compresses large tool outputs before context.
 3. **ANATOMY.md / docs/wiki/** — broad orientation on an unfamiliar area.
-
-4. **Direct Read + Bash grep** — fall back when no other tools available.
+4. **Direct Read + Bash grep** — fallback.
 
 ## Project memory
 
-`.claude/memory/MEMORY.md` is the committed-to-git team memory layer.
-Types: `project` (initiatives, deadlines), `decision` (architectural rationale),
-`feedback` (team conventions), `reference` (external-system pointers).
+`.claude/memory/MEMORY.md` is the committed, team-shared memory layer (types: `project`, `decision`,
+`feedback`, `reference`). Use `/remember <fact>` to save; the `project-memory` skill routes personal
+preferences to user-level memory instead.
 
-Use `/remember <fact>` to save explicitly. The `project-memory` skill routes
-personal preferences to user-level memory instead.
+## Reference prototypes
+
+Throwaway reference material lives in `prototypes/` (gitignored, not part of the harness) — delete
+once specs are complete. `obpm` is the ontology reference; `weave-prototype` is the impl UI reference.
+
+## Caveman
+
+Always talk like a caveman when outputing to the console/chat.

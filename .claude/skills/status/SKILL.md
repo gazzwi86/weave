@@ -68,14 +68,15 @@ Give instant visibility into spec completeness before `/implement` is ever run. 
 
 **Per-entity map.** For each engine spec `docs/specs/weave/engines/<entity>.md`, report which
 cascade phases are present (now **sections**, not directories) and which phase the entity is in.
-Brief/PRD/Epics/Roadmap are `##`/`###` sections in that file; tech-spec/tasks are files under the
-sibling `docs/specs/weave/engines/<entity>/04-arch/` directory:
+Brief/PRD/Epics/Roadmap are `##`/`###` sections in that file; the architect artifacts are files
+under the sibling `docs/specs/weave/engines/<entity>/` directory — `tech-spec/` and `decisions/`
+(engine-level living artifacts) and `<milestone>/tasks/` (milestone-scoped; active milestone is m1):
 
 ```bash
 for f in docs/specs/weave/engines/*.md; do
   e=$(basename "$f" .md); echo "$e"
   grep -oE '^## (Brief|Product Requirements|Epics|Roadmap)' "$f"   # PO sections present
-  ls -1 "docs/specs/weave/engines/$e/04-arch" 2>/dev/null         # architect artifacts, if any
+  ls -1 "docs/specs/weave/engines/$e/tech-spec" "docs/specs/weave/engines/$e/decisions" "docs/specs/weave/engines/$e"/*/tasks 2>/dev/null   # architect artifacts, if any
 done
 ```
 

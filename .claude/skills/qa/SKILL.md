@@ -45,7 +45,7 @@ Then: Step 4 edge-case extension.
 
 ### Step 3: Validation Checklist (Per Task)
 
-For each task being validated, read the task brief from `docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
+For each task being validated, read the task brief from `docs/specs/weave/engines/<entity>/<milestone>/tasks/{TASK_ID}.md` and check ALL of the following. Present findings one category at a time -- after each category, note pass/fail before moving to the next.
 
 Apply the shared review rubric in [`docs/standards/code-review.md`](../../../docs/standards/code-review.md) throughout: its severity taxonomy (blocker/major/minor/nit), comment discipline (>80% confidence, `file:line` citations, no duplication of linter/type-checker output, nit cap), and the new-user→feature flow check are the same standard the CI review bot uses. The categories below are the harness's DoD-specific instantiation of that rubric — the CI bot and `/qa` must not diverge.
 
@@ -96,7 +96,7 @@ Apply the shared review rubric in [`docs/standards/code-review.md`](../../../doc
 
 **Smart detection:** Only run if the task brief mentions page, component, UI, or frontend.
 - Run Lighthouse audit (performance + best practices scores)
-- Check scores against targets in `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
+- Check scores against targets in `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md`
 - Check bundle size if applicable
 
 #### 3i. Accessibility (UI-affecting stories only)
@@ -110,7 +110,7 @@ Apply the shared review rubric in [`docs/standards/code-review.md`](../../../doc
 #### 3j. API Performance (API-affecting stories only)
 
 **Smart detection:** Only run if the task brief mentions API endpoint, route handler, or backend service.
-- Measure response times against targets in `docs/specs/weave/engines/<entity>/04-arch/tech-spec/testing-strategy.md`
+- Measure response times against targets in `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md`
 - Basic load test if applicable (10 concurrent requests)
 
 #### 3k. Mutation Testing (changed files)
@@ -234,7 +234,7 @@ failure_class: logic | dependency | interface | spec-ambiguity | null
 ```
 
 - PASS → `status: ok`, `artifact_path` = the task brief path
-  (`docs/specs/weave/engines/<entity>/04-arch/tasks/{TASK_ID}.md`), `failure_class: null`
+  (`docs/specs/weave/engines/<entity>/<milestone>/tasks/{TASK_ID}.md`), `failure_class: null`
 - FAIL → `status: fail`, `artifact_path: null`, `failure_class` = best-guess root cause
   (`logic | dependency | interface | spec-ambiguity`)
 - A blocker that must stop the loop (e.g. a CRITICAL security finding) → `status: blocked`, `artifact_path: null`

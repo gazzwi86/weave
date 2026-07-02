@@ -21,18 +21,18 @@ Before doing anything else, read:
 1. `CLAUDE.md` — Weave product context, confirmed stack, laws
 2. `.claude/spec-templates/architecture/class.md` — section structure (scaffold; never leave
    `{{}}` in output)
-3. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` if it exists — confirms Level 3
+3. `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` if it exists — confirms Level 3
    (module) boundary before class-level work is trustworthy
 4. `docs/specs/weave/engines/<entity>.md` if it exists — domain vocabulary and bounded
    contexts
-5. Any existing draft (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md`) to
+5. Any existing draft (`docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md`) to
    continue or refine
 
 Ask the user which entity this diagram is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied. Output path is:
 
 ```
-docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md
+docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md
 ```
 
 ## Instructions
@@ -275,7 +275,7 @@ Run `.claude/scripts/progress.sh` to update `.claude/state/progress.json` if pre
 Commit the diagram:
 
 ```
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md
+git add docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md
 git commit -m "docs(<entity>): add class diagram"
 ```
 
@@ -325,7 +325,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/class-diagram.md`
+File: `docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md`
 
 Template: `.claude/spec-templates/architecture/class.md`
 
@@ -338,7 +338,7 @@ Frontmatter:
 type: Class Diagram Spec
 title: "Class Diagram: <entity display name>"
 description: "<one-line summary of the domain class model for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>

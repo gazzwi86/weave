@@ -13,18 +13,20 @@ Weave's ontology layer is built on the full W3C semantic web stack: RDF/OWL 2 DL
 SHACL, SPARQL 1.1, SKOS, and PROV-O. These conventions ensure the graph stays
 parseable, valid, and portable across tools.
 
-Weave ships a thin, ArchiMate-3-aligned **upper-ontology framework** — not a populated
-business taxonomy. Clients build their own domain vocabulary and instances on top of it
-("Weave provides the grammar; the company writes the sentences", constitution-engine PRD,
-decision A1). The shipped framework is:
+Weave ships a process-centric, ArchiMate-3-aligned **BPMO upper-ontology framework** — not a
+populated business taxonomy. Clients build their own domain vocabulary and instances on top of
+it ("Weave provides the grammar; the company writes the sentences", constitution-engine PRD,
+decision A1; canonical decision: `.claude/memory/decision_ontology-bpmo.md`). The shipped
+framework is:
 
-- **~8 structural node-kinds:** `weave:BusinessDomain`, `weave:BusinessCapability`,
-  `weave:System`, `weave:Service`, `weave:DataAsset`, `weave:Field`, `weave:Concept`,
-  `weave:Class`.
-- **9 relationship types** between those kinds, drawn from the ArchiMate-3 relationship grammar
-  (e.g. relations such as assignment, realisation, composition, serving). The canonical set is
-  registered by the engine and served via `GET /api/ontology/types` (CE-READ-1) — treat that
-  endpoint, not this list, as authoritative for the exact 9.
+- **~13 structural kinds** with `weave:Process` at the centre: `weave:Process`,
+  `weave:Activity`, `weave:Event`, `weave:DataAsset`, `weave:Field`, `weave:System`,
+  `weave:Service`, `weave:BusinessCapability`, `weave:BusinessDomain`, `weave:Policy`,
+  `weave:Goal`, `weave:Actor`, `weave:Concept`, `weave:Class`.
+- **The relationship types** connecting those kinds (`performedBy`, `consumes`, `produces`,
+  `runsOn`, `realizes`, `governedBy`, …), drawn from the ArchiMate-3 relationship grammar.
+  The canonical set is registered by the engine and served via `GET /api/ontology/types`
+  (CE-READ-1) — treat that endpoint, not this list, as authoritative for the exact set.
 - **W3C scaffolding:** SHACL shapes, PROV-O provenance, and SKOS concept-scheme structure.
 
 Do **not** ship or assume populated client taxonomy terms in the upper ontology. The standard
@@ -339,7 +341,7 @@ the CE-READ-1 / CE-VERSION-1 contracts and the draft → published lifecycle
 ## ArchiMate alignment
 
 Weave's upper-ontology framework (see the intro) is grounded in ArchiMate 3. This is a layer
-mapping — orthogonal to the ~8 structural node-kinds, which classify *what* an entity is; the
+mapping — orthogonal to the ~13 structural kinds, which classify *what* an entity is; the
 ArchiMate layer classifies *which architectural plane* it sits on. The mapping is:
 
 | ArchiMate Layer | Weave OWL namespace |

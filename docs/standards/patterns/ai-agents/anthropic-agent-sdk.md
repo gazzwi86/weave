@@ -156,7 +156,7 @@ access keys in `env` or code, and never run `permission_mode="bypassPermissions"
 - Omitting the tool from `allowed_tools` (silently uncallable) or, conversely,
   `bypassPermissions` to "make it work".
 - Using a region-prefixed Invoke inference-profile id (e.g. `us.anthropic.…`) where the bare
-  `anthropic.`-prefixed Bedrock id is what routes — and note `claude-sonnet-4-6` is a
+  `anthropic.`-prefixed Bedrock id is what routes — and note `claude-sonnet-5` is a
   different (older) model than `claude-sonnet-5`, so swapping the version silently changes
   which model answers.
 - Doing the RBAC check in the prompt instead of in the handler.

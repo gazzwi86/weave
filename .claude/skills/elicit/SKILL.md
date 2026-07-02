@@ -40,7 +40,7 @@ bash .claude/scripts/progress.sh kanban    # current project/phase + task board
 Then, for the target entity, list what is on disk:
 
 ```bash
-ls -1 docs/specs/weave/engines/<entity>.md 2>/dev/null      # which phases exist (00-elicit … 04-arch)
+ls -1 docs/specs/weave/engines/<entity>.md 2>/dev/null      # which cascade sections exist (Brief, PRD, Epics, Roadmap)
 ls -1 docs/specs/weave/engines/<entity>.md00-elicit/ 2>/dev/null   # prior elicitation output
 ```
 

@@ -7,15 +7,15 @@ description: Produce the CI/CD pipeline spec (ci-cd.md) for a Weave entity, cove
 
 Produce the CI/CD pipeline spec (`ci-cd.md`) for a Weave entity, covering the full
 GitHub Actions workflow from lint to production deployment. Invoked as part of the
-architect phase (04-arch) when a CI/CD design is needed for a new or updated service.
+architect phase when a CI/CD design is needed for a new or updated service.
 
 ## Model
 
 - **All phases:** claude-sonnet-5 (structured generation, precise YAML, diagram output)
 
-No Opus tier needed — this is specification drafting with well-defined inputs, not
+No Fable tier needed — this is specification drafting with well-defined inputs, not
 open-ended elicitation. If the entity has unusual constraints (novel runtime, bespoke
-cloud provider) escalate to Opus via the `/architect` skill instead.
+cloud provider) escalate to Fable via the `/architect` skill instead.
 
 ## Input
 
@@ -29,10 +29,10 @@ Before writing anything, read:
    - TypeScript / Next.js → read `docs/standards/patterns/ci/github-actions-ts-nextjs.md`
    - Mixed monorepo → read both
 4. Any existing tech spec for this entity
-   (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*.md`) to understand service boundaries,
+   (`docs/specs/weave/engines/<entity>/tech-spec/*.md`) to understand service boundaries,
    deployed artefacts, and infrastructure targets
 5. Ask the user which entity this spec is for if not supplied; output path is:
-   `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
+   `docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md`
 
 ## Instructions
 
@@ -68,7 +68,7 @@ Ask via AskUserQuestion:
 
 Produce the spec in this exact order. For each section:
 
-1. **Write** the section to the file at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
+1. **Write** the section to the file at `docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md`
 2. **Run the constitutional self-check** (see below) — stop and revise if any Law violated
 3. **Present** the section to the user (display the written content)
 4. **Emit a confidence block** (see below) immediately before the HITL question
@@ -257,7 +257,7 @@ are configured in Settings → Environments."
 3. Commit the spec:
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md
+git add docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md
 git commit -m "docs(<entity>): add CI/CD pipeline spec"
 ```
 
@@ -306,7 +306,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/ci-cd.md`
+File: `docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md`
 
 Template: `.claude/spec-templates/tech-spec/ci-cd.md`
 
@@ -319,7 +319,7 @@ Frontmatter:
 type: CI/CD Spec
 title: "CI/CD Pipeline Spec: <entity display name>"
 description: "<one-line summary of the CI/CD pipeline for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>

@@ -12,16 +12,16 @@ description: Produce a high-quality project brief (brief.md) for a Weave spec en
 > add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
 > this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
 > artifacts (tech spec, tasks, ADRs) remain **files** under
-> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+> `docs/specs/weave/engines/<entity>/{tech-spec,decisions}/` and `<entity>/<milestone>/tasks/` — tasks are grouped by roadmap milestone (m1, m2, v1, post-v1); tech-spec/ and decisions/ are engine-level living artifacts; the active milestone today is m1.
 
 # PO Brief Skill
 
 Produce a high-quality project brief (`brief.md`) for a Weave spec entity. One section at
-a time, with HITL review at every section. Opus for elicitation; Sonnet for drafting.
+a time, with HITL review at every section. Fable for elicitation; Sonnet for drafting.
 
 ## Model
 
-- **Elicitation phase:** claude-opus-4-8 (wide reasoning, novel framing, root-cause probing)
+- **Elicitation phase:** claude-fable-5 (wide reasoning, novel framing, root-cause probing)
 - **Drafting phase:** claude-sonnet-5 (structured, precise prose)
 
 ## Input

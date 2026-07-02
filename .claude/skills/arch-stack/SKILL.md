@@ -11,7 +11,7 @@ it locks the stack so that all subsequent arch-* skills write to a settled found
 
 ## Model
 
-- **Detection / validation phase:** claude-haiku-4-5 (fast, pattern-matching, no novel reasoning)
+- **Detection / validation phase:** claude-sonnet-5 (validation runs on the sonnet tier — haiku dropped 2026-07-02)
 - **Override / ADR phase:** claude-sonnet-5 (structured justification, ADR prose)
 - **HITL questions:** AskUserQuestion (always — no silent defaulting)
 
@@ -24,15 +24,15 @@ Before doing anything else, read:
 2. `docs/specs/weave/engines/<entity>.md` — entity scope, constraints, known decisions
 3. `docs/specs/weave/engines/<entity>.md` — if present; look for technology constraints or
    explicit non-functional requirements (NFRs) that affect stack choice
-4. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/` — if an in-progress draft exists, read any
+4. `docs/specs/weave/engines/<entity>/tech-spec/` — if an in-progress draft exists, read any
    existing files for stack context (skip the rest)
-5. Any ADRs already in `docs/specs/weave/engines/<entity>/04-arch/decisions/` — to detect prior overrides
+5. Any ADRs already in `docs/specs/weave/engines/<entity>/decisions/` — to detect prior overrides
 
 Ask the user which entity this stack confirmation is for if not supplied. Output paths are:
 
-- Stack confirmation block: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md`
+- Stack confirmation block: `docs/specs/weave/engines/<entity>/tech-spec/stack.md`
 - ADR stub (only when a CLAUDE.md default is overridden):
-  `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+  `docs/specs/weave/engines/<entity>/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 ## Instructions
 
@@ -60,7 +60,7 @@ Reference this principle when justifying decisions during the HITL loop.
    | Auth | AWS Cognito (default) or Auth0 | CLAUDE.md |
    | Agent SDK | Anthropic Agent SDK (Python primary, TypeScript secondary) | CLAUDE.md |
    | Agent runtime | AWS Bedrock AgentCore (GA components only) | CLAUDE.md |
-   | Models | claude-opus-4-8 / claude-sonnet-5 / claude-haiku-4-5 | CLAUDE.md |
+   | Models | claude-fable-5 / claude-sonnet-5 | CLAUDE.md |
    | Guardrails | AWS Bedrock Guardrails | CLAUDE.md |
    | RDF store | Oxigraph (dev/test) → Neptune or Jena Fuseki (prod, deferred) | CLAUDE.md |
    | Vector store | AWS S3 Vectors | CLAUDE.md |
@@ -218,7 +218,7 @@ For each override:
 
 **ADR Stub format:**
 
-File: `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+File: `docs/specs/weave/engines/<entity>/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 ```markdown
 ---
@@ -265,7 +265,7 @@ Use <proposed value> for <dimension> in the <entity> entity.
 ### Step 3 — Finalise and write stack confirmation file
 
 After all sections are approved, write the complete `stack.md` file to
-`docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md`.
+`docs/specs/weave/engines/<entity>/tech-spec/stack.md`.
 
 Frontmatter:
 
@@ -274,7 +274,7 @@ Frontmatter:
 type: Stack Confirmation
 title: "Stack Confirmation: <entity display name>"
 description: "<one-line summary of the confirmed technology stack for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Confirmed
 created: <YYYY-MM-DD>
@@ -289,8 +289,8 @@ The file body is the approved Section A + B + C content (and Section D if overri
 ### Step 4 — Commit
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md
-git add docs/specs/weave/engines/<entity>/04-arch/decisions/  # if any ADR stubs written
+git add docs/specs/weave/engines/<entity>/tech-spec/stack.md
+git add docs/specs/weave/engines/<entity>/decisions/  # if any ADR stubs written
 git commit -m "docs(<entity>): stack confirmation"
 ```
 
@@ -368,7 +368,7 @@ Brief or PRD to break the tie; user input is required.
 
 ### Primary file
 
-**Path:** `docs/specs/weave/engines/<entity>/04-arch/tech-spec/stack.md`
+**Path:** `docs/specs/weave/engines/<entity>/tech-spec/stack.md`
 
 **Template:** none (this skill owns its own output structure — no `.claude/spec-templates/`
 file exists for stack confirmation; the structure is defined in Step 3 above)
@@ -380,7 +380,7 @@ file exists for stack confirmation; the structure is defined in Step 3 above)
 type: Stack Confirmation
 title: "Stack Confirmation: <entity display name>"
 description: "<one-line summary of the confirmed technology stack for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Confirmed
 created: <YYYY-MM-DD>
@@ -392,7 +392,7 @@ open-dimensions: <integer — count of deferred dimensions>
 
 ### Secondary files (conditional)
 
-**Path:** `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-<NNN>-stack-override-<dimension>.md`
+**Path:** `docs/specs/weave/engines/<entity>/decisions/ADR-<NNN>-stack-override-<dimension>.md`
 
 Written only when the user explicitly overrides a CLAUDE.md-confirmed dimension. The `NNN`
 sequence continues from the highest existing ADR number in that entity's decisions directory.

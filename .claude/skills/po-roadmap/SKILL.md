@@ -12,7 +12,7 @@ description: Produce a phase-structured delivery roadmap (roadmap.md) for a Weav
 > add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
 > this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
 > artifacts (tech spec, tasks, ADRs) remain **files** under
-> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+> `docs/specs/weave/engines/<entity>/{tech-spec,decisions}/` and `<entity>/<milestone>/tasks/` — tasks are grouped by roadmap milestone (m1, m2, v1, post-v1); tech-spec/ and decisions/ are engine-level living artifacts; the active milestone today is m1.
 
 # PO Roadmap Skill
 
@@ -26,7 +26,7 @@ boundary. Invoked after the PRD is approved; output feeds the Architect's tech-s
   gate criteria prose)
 - **Reasoning tier note:** Phase-scoping step (Step 2) requires dependency analysis; use
   extended thinking tokens via claude-sonnet-5's thinking budget rather than switching
-  models. Do not invoke claude-opus-4-8 unless the user explicitly requests it.
+  models. Do not invoke claude-fable-5 unless the user explicitly requests it.
 
 ## Input
 
@@ -210,7 +210,7 @@ Rules:
 Append a `# Related` section linking predecessor and successor documents with `docs/`-relative
 or path-relative markdown links. **Link only files that exist on disk now.**
 - Predecessor (always exists): the PRD — `[prd.md](../02-prd/prd.md)` — and the brief.
-- Do **not** forward-link tech-spec shards (`../04-arch/tech-spec/*.md`) until they exist; the
+- Do **not** forward-link tech-spec shards (`../tech-spec/*.md`) until they exist; the
   architect skills add the back-link to this roadmap when they run.
 
 ### After all sections approved

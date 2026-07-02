@@ -11,7 +11,7 @@ needs to document how data and control move through the system.
 
 ## Model
 
-- **Flow elicitation:** claude-opus-4-8 (broad reasoning, surfaces edge cases and invisible paths)
+- **Flow elicitation:** claude-fable-5 (broad reasoning, surfaces edge cases and invisible paths)
 - **Diagram drafting:** claude-sonnet-5 (structured Mermaid, concise prose)
 
 ## Input
@@ -22,13 +22,13 @@ Before doing anything else, read:
 2. `.claude/spec-templates/architecture/flows.md` — output scaffold (never leave `{{}}` in output)
 3. Approved PRD: `docs/specs/weave/engines/<entity>.md` (scope, user journeys)
 4. Approved roadmap: `docs/specs/weave/engines/<entity>.md` (phase being specced)
-5. C4 architecture doc if present: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md`
+5. C4 architecture doc if present: `docs/specs/weave/engines/<entity>/tech-spec/architecture.md`
    (component names must be consistent across all arch shards)
-6. Data model if present: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/data-model.md`
+6. Data model if present: `docs/specs/weave/engines/<entity>/tech-spec/data-model.md`
    (entity names used in diagrams must match the ERD)
 
 Ask the user which entity this covers if not supplied. Output path is:
-`docs/specs/weave/engines/<entity>/04-arch/tech-spec/business-process.md`
+`docs/specs/weave/engines/<entity>/tech-spec/business-process.md`
 
 ## Instructions
 
@@ -219,7 +219,7 @@ Run constitutional self-check, present, confidence block, HITL.
 ### Step 5 — Commit
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/business-process.md
+git add docs/specs/weave/engines/<entity>/tech-spec/business-process.md
 git commit -m "docs(<entity>): add business-process flows shard"
 ```
 
@@ -290,7 +290,7 @@ Rules:
 
 ## Output
 
-**File:** `docs/specs/weave/engines/<entity>/04-arch/tech-spec/business-process.md`
+**File:** `docs/specs/weave/engines/<entity>/tech-spec/business-process.md`
 
 **Template:** `.claude/spec-templates/architecture/flows.md`
 
@@ -303,12 +303,12 @@ Create the directory if it does not exist. Never leave `{{PLACEHOLDER}}` in the 
 type: Business Process Spec
 title: "Business Process Flows: <entity display name>"
 description: "<one-line summary of the business process flows for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>
 entity: <entity>
-phase: 04-arch
+phase: arch
 shard: business-process
 flows_covered: <comma-separated list of flow names>
 ---

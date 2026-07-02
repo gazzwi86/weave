@@ -12,7 +12,7 @@ description: Produce a complete Product Requirements Document (prd.md) for a Wea
 > add your section. Determine the next `EPIC-NNN` by scanning existing `### EPIC-` headings **within
 > this file** (max + 1) — there is no per-epic file or `epics/` directory any more. Architect
 > artifacts (tech spec, tasks, ADRs) remain **files** under
-> `docs/specs/weave/engines/<entity>/04-arch/{tech-spec,tasks,decisions}/`.
+> `docs/specs/weave/engines/<entity>/{tech-spec,decisions}/` and `<entity>/<milestone>/tasks/` — tasks are grouped by roadmap milestone (m1, m2, v1, post-v1); tech-spec/ and decisions/ are engine-level living artifacts; the active milestone today is m1.
 
 # PO PRD Skill
 
@@ -22,9 +22,9 @@ output feeds the `/po-roadmap` and `/architect` phases.
 
 ## Model
 
-- **User Stories (epics + stories):** claude-opus-4-8 — wide reasoning; ordered by user pain,
+- **User Stories (epics + stories):** claude-fable-5 — wide reasoning; ordered by user pain,
   novel framing, root-cause story derivation
-- **Functional Requirements:** claude-opus-4-8 — observable-behaviour derivation, failure-mode
+- **Functional Requirements:** claude-fable-5 — observable-behaviour derivation, failure-mode
   analysis, EARS AC authoring
 - **Overview, Product Context:** claude-sonnet-5 — structured, precise prose from known inputs
 - **Non-Functional Requirements:** claude-sonnet-5 — systematic category-by-category

@@ -67,7 +67,7 @@ upstream gate is a critical gap (Step 3), not a warning.
 For each category, read the relevant content and check. Brief / PRD / Epics / Roadmap are now
 `##`/`###` **sections within the single file** `docs/specs/weave/engines/<entity>.md` (check the
 section is present and complete, not that a separate file exists); Tech Spec / Tasks / ADRs are
-**files** under `docs/specs/weave/engines/<entity>/04-arch/`.
+**files** under `docs/specs/weave/engines/<entity>/` — `tech-spec/` and `decisions/` (engine-level living artifacts) and `<milestone>/tasks/` (milestone-scoped; the active milestone today is m1).
 
 **Brief** (`## Brief` in `docs/specs/weave/engines/<entity>.md`):
 - [ ] Mission statement present and clear
@@ -92,7 +92,7 @@ section is present and complete, not that a separate file exists); Tech Spec / T
       stale "Phase: MVP" label; M1 must not exceed the thin-proof scope in `weave-spec.md` §1.3
 - [ ] Timeline is realistic; cross-engine sequence matches `weave-spec.md` §1.2 waves
 
-**Tech Spec** (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/*`):
+**Tech Spec** (`docs/specs/weave/engines/<entity>/tech-spec/*`):
 - [ ] Architecture: C4 diagrams present (all 4 levels)
 - [ ] OpenAPI: all endpoints from PRD covered
 - [ ] Data model: ERD matches API contracts
@@ -102,13 +102,13 @@ section is present and complete, not that a separate file exists); Tech Spec / T
 - [ ] Testing strategy: frameworks, coverage targets, per-task format
 - [ ] DoR/DoD: checklists are actionable
 
-**Task Briefs** (`docs/specs/weave/engines/<entity>/04-arch/tasks/*.md`):
+**Task Briefs** (`docs/specs/weave/engines/<entity>/<milestone>/tasks/*.md`):
 - [ ] Every task has: user story, AC, pseudocode, API contracts, diagram refs, design decisions, DoR/DoD, test requirements, implementation hints
 - [ ] Every AC uses EARS notation (`WHEN [event] THE SYSTEM SHALL [behaviour]`) and has at least one named test in the AC-to-Test Mapping table
 - [ ] Test requirements: named scenarios, type counts, AC-to-test mapping
 - [ ] Tasks are self-contained (no external context needed)
 - [ ] DoR checklist is satisfiable
-- [ ] `adr_refs` frontmatter field is present; if ADRs exist in `docs/specs/weave/engines/<entity>/04-arch/decisions/`, every task brief must have at least one `adr_refs` entry — flag tasks with `adr_refs: []` when ADRs exist
+- [ ] `adr_refs` frontmatter field is present; if ADRs exist in `docs/specs/weave/engines/<entity>/decisions/`, every task brief must have at least one `adr_refs` entry — flag tasks with `adr_refs: []` when ADRs exist
 
 **Standards** (`docs/standards/*`):
 - [ ] Git workflow defined (including pre-commit/pre-push hooks)

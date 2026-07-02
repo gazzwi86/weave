@@ -13,7 +13,7 @@ module structure.
 ## Model
 
 - **All phases:** claude-sonnet-5 (structured, precise infrastructure prose; cost arithmetic)
-- **Escalate to claude-opus-4-8** if the entity introduces a novel deployment pattern not covered by the
+- **Escalate to claude-fable-5** if the entity introduces a novel deployment pattern not covered by the
   Weave confirmed stack (e.g. multi-region active-active, BYOC customer VPCs)
 
 ## Input
@@ -26,14 +26,14 @@ Before doing anything else, read:
    entity's compute shape:
    - Lambda-heavy → `aws-cdk-py-lambda-dynamo.md`
    - ECS-heavy → `docker-compose-local-dev.md` (local parity) + `aws-cloudformation-rds.md` (RDS pattern)
-4. Any prior tech specs for this entity (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/` if present) — pull
+4. Any prior tech specs for this entity (`docs/specs/weave/engines/<entity>/tech-spec/` if present) — pull
    confirmed service choices and ADR numbers
-5. Any existing infrastructure draft (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md`) to
+5. Any existing infrastructure draft (`docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md`) to
    continue or refine
 
 Ask the user which entity this spec is for (e.g. `constitution-engine`, `build-engine`, `weave-platform`)
 if not supplied in the invocation. Output path is:
-`docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md`
+`docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md`
 
 ## Instructions
 
@@ -474,7 +474,7 @@ Include a note:
 
 After all 7 sections are approved:
 
-1. Verify the file at `docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md` is complete and
+1. Verify the file at `docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md` is complete and
    contains no `{{PLACEHOLDER}}` text.
 
 2. Run a final constitutional self-check across the whole document (not just the last section).
@@ -482,7 +482,7 @@ After all 7 sections are approved:
 3. Commit:
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md
+git add docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md
 git commit -m "docs(<entity>): add infrastructure tech spec"
 ```
 
@@ -554,13 +554,13 @@ Rules:
 
 ## Output
 
-File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/infrastructure.md`
+File: `docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md`
 Template: `.claude/spec-templates/architecture/infrastructure.md`
 
 Create the directory if it doesn't exist:
 
 ```bash
-mkdir -p docs/specs/weave/engines/<entity>/04-arch/tech-spec/
+mkdir -p docs/specs/weave/engines/<entity>/tech-spec/
 ```
 
 Never leave `{{PLACEHOLDER}}` in the output. Frontmatter:
@@ -570,7 +570,7 @@ Never leave `{{PLACEHOLDER}}` in the output. Frontmatter:
 type: Infrastructure Spec
 title: "Infrastructure: <entity display name>"
 description: "<one-line summary of the infrastructure design for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>

@@ -155,7 +155,7 @@ If `migration.lock` exists, Step 1.5 skips entirely on re-runs — detections be
 Create the following directories:
 ```
 .claude/                      # Project config + spec/state spine
-  specs/                      # Unified spec — docs/specs/weave/engines/<entity>.md (+ <entity>/04-arch/ files) created on demand by PO/architect skills (NOT pre-created here)
+  specs/                      # Unified spec — docs/specs/weave/engines/<entity>.md (+ <entity>/tech-spec, decisions, <milestone>/tasks files) created on demand by PO/architect skills (NOT pre-created here)
   state/
     summaries/
     escalations/

@@ -12,31 +12,36 @@ open any other spec file to implement the task.
 
 ## Model
 
-- **Drafting phase:** claude-opus-4-8 (deep reasoning, adversarial critic pass, explicit
+- **Drafting phase:** claude-fable-5 (deep reasoning, adversarial critic pass, explicit
   pseudocode, precise contract derivation)
 
-Opus is used throughout: task briefs are implementation contracts, not prose summaries. Every
-ambiguity in a task brief costs the engineer time. Opus's wider reasoning surface is worth the
+Fable is used throughout: task briefs are implementation contracts, not prose summaries. Every
+ambiguity in a task brief costs the engineer time. Fable's wider reasoning surface is worth the
 extra cost to eliminate that ambiguity.
 
 ## Input
 
 Before doing anything else, read:
 
-1. `CLAUDE.md` — Weave product context, confirmed stack, Plugin Laws A-F, EARS notation rules
+1. `CLAUDE.md` — Weave product context, confirmed stack, EARS notation rules — and `.claude/rules/plugin-laws.md` (Plugin Laws A-F)
 2. `.claude/spec-templates/task.md` — section structure (scaffold only; never leave `{{}}` in output)
 3. `docs/specs/weave/engines/<entity>.md` — parent PRD; locate FRs that relate to this task
 4. `docs/specs/weave/engines/<entity>.md` — parent epic; inherit priority, phase ref,
    and story list
-5. `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md` — architecture decisions, API surface, data model
-6. `docs/specs/weave/engines/<entity>/04-arch/tasks/` — scan existing TASK-NNN.md files to determine the next
-   sequence number (zero-pad to 3 digits: 001, 002, …) and to avoid `blocked_by` / `unlocks` gaps
-7. Any existing ADRs in `docs/specs/weave/engines/<entity>/04-arch/decisions/` that affect this task
+5. `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` — architecture decisions, API surface, data model
+6. `docs/specs/weave/engines/<entity>/*/tasks/` — scan existing TASK-NNN.md files **across all
+   milestone folders** to determine the next sequence number (zero-pad to 3 digits: 001, 002, …;
+   TASK numbers are unique per engine, not per milestone) and to avoid `blocked_by` / `unlocks` gaps
+7. Any existing ADRs in `docs/specs/weave/engines/<entity>/decisions/` that affect this task
+
+Tasks are grouped by roadmap milestone (`m1`, `m2`, `v1`, `post-v1`); write each brief into the
+**active milestone** folder — the earliest milestone still in flight per the roadmap, which is `m1`
+today. `tech-spec/` and `decisions/` are engine-level living artifacts (no milestone folder).
 
 Ask the user which entity, which epic, and which task (title or PRD story heading) if not supplied
-as arguments. Derive the output path as:
+as arguments. Derive the output path as (`<milestone>` = active milestone, `m1` today):
 
-`docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md`
+`docs/specs/weave/engines/<entity>/<milestone>/tasks/TASK-NNN.md`
 
 ## Instructions
 
@@ -391,7 +396,7 @@ Size guide:
 | XL   | New sub-system boundary, 10+ ACs, multiple data models, 5+ endpoints |
 
 Estimate tokens by: 2k base + 500 per AC + 1k per endpoint + 1k per diagram reference.
-Estimate cost using claude-opus-4-8 input/output pricing (never use stale pricing — check
+Estimate cost using claude-fable-5 input/output pricing (never use stale pricing — check
 `.claude/memory/MEMORY.md` for any recorded pricing updates, otherwise note "pricing from
 CLAUDE.md at time of writing").
 
@@ -461,7 +466,7 @@ Bad hints:
 3. Commit the task file:
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md
+git add docs/specs/weave/engines/<entity>/<milestone>/tasks/TASK-NNN.md
 git commit -m "docs(<entity>): add TASK-NNN <task-title-slug>"
 ```
 
@@ -566,7 +571,7 @@ pseudocode makes.
 
 ## Output
 
-**File:** `docs/specs/weave/engines/<entity>/04-arch/tasks/TASK-NNN.md`
+**File:** `docs/specs/weave/engines/<entity>/<milestone>/tasks/TASK-NNN.md`
 
 Where NNN is zero-padded to 3 digits (001, 002, …). Scan existing files in the directory to
 determine the next number before writing.
@@ -576,7 +581,7 @@ determine the next number before writing.
 Create the directory if it doesn't exist:
 
 ```bash
-mkdir -p docs/specs/weave/engines/<entity>/04-arch/tasks/
+mkdir -p docs/specs/weave/engines/<entity>/<milestone>/tasks/
 ```
 
 Never leave `{{PLACEHOLDER}}` in the output. All template variables must be resolved.
@@ -588,7 +593,7 @@ Never leave `{{PLACEHOLDER}}` in the output. All template variables must be reso
 type: Task Brief
 title: "Task: TASK-NNN — <Task Title>"
 description: "<one-line summary of what this task delivers>"
-tags: [<entity>, 04-arch, task]
+tags: [<entity>, arch, task]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Backlog
 priority: Must Have | Should Have | Could Have

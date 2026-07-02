@@ -12,9 +12,9 @@ design decisions and quality-attribute invariants.
 
 ## Model
 
-- **Drafting phase:** claude-opus-4-8 (spatial reasoning, tradeoff analysis, adversarial critic)
+- **Drafting phase:** claude-fable-5 (spatial reasoning, tradeoff analysis, adversarial critic)
 
-Opus is required here: C4 diagrams demand accurate boundary reasoning, technology placement,
+Fable is required here: C4 diagrams demand accurate boundary reasoning, technology placement,
 and the ability to hold the full system in context while running the adversarial-critic pass.
 Sonnet is not sufficient for this level of architectural precision.
 
@@ -32,12 +32,12 @@ Before doing anything else, read:
    external systems, and integration requirements
 6. `docs/specs/weave/engines/<entity>.md` — phase structure that shapes the diagram
    boundary (if present)
-7. `docs/specs/weave/engines/<entity>/04-arch/` — any existing ADRs or prior architecture drafts
+7. `docs/specs/weave/engines/<entity>/decisions/` and `docs/specs/weave/engines/<entity>/tech-spec/` — any existing ADRs or prior architecture drafts
 
 Ask the user which entity this diagram is for (e.g. `constitution-engine`, `build-engine`,
 `weave-platform`) if not supplied as an argument. Derive the output path as:
 
-`docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md`
+`docs/specs/weave/engines/<entity>/tech-spec/architecture.md`
 
 ## Instructions
 
@@ -298,7 +298,7 @@ Rules:
 - Add entity-specific decisions surfaced during the diagram phases
 - "Alternatives Rejected" must name at least one alternative, not just say "N/A"
 - "Critic Challenge" is the adversarial question; "Response" is the resolution
-- Reference ADRs if they exist (link to `docs/specs/weave/engines/<entity>/04-arch/decisions/`)
+- Reference ADRs if they exist (link to `docs/specs/weave/engines/<entity>/decisions/`)
 - Reference the confirmed Weave stack for any technology-selection decisions
 
 ---
@@ -351,13 +351,13 @@ placeholders with entity-appropriate thresholds.
 2. Create the output directory if it does not exist:
 
 ```bash
-mkdir -p docs/specs/weave/engines/<entity>/04-arch/tech-spec/
+mkdir -p docs/specs/weave/engines/<entity>/tech-spec/
 ```
 
 3. Commit the architecture file:
 
 ```bash
-git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md
+git add docs/specs/weave/engines/<entity>/tech-spec/architecture.md
 git commit -m "docs(<entity>): add C4 architecture (L1–L3 + design decisions)"
 ```
 
@@ -431,12 +431,12 @@ not specified; quality-attribute thresholds not sourced from the PRD.
 
 ## Output
 
-**File:** `docs/specs/weave/engines/<entity>/04-arch/tech-spec/architecture.md`
+**File:** `docs/specs/weave/engines/<entity>/tech-spec/architecture.md`
 
 Create the directory if it doesn't exist:
 
 ```bash
-mkdir -p docs/specs/weave/engines/<entity>/04-arch/tech-spec/
+mkdir -p docs/specs/weave/engines/<entity>/tech-spec/
 ```
 
 **Template:** `.claude/spec-templates/tech-spec/architecture.md`
@@ -451,7 +451,7 @@ presenting the section to the user.
 type: Architecture Spec
 title: "Architecture: <Entity Display Name>"
 description: "<one-line summary of the C4 architecture for this entity>"
-tags: [<entity>, 04-arch]
+tags: [<entity>, arch]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: Draft
 created: <YYYY-MM-DD>

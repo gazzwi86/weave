@@ -11,7 +11,7 @@ verifying every prerequisite the Engineer needs before starting implementation. 
 
 ## Model
 
-- **Checklist production:** claude-haiku-4-5 (mechanical formatting, deterministic checklist
+- **Checklist production:** claude-sonnet-5 (mechanical formatting, deterministic checklist
   evaluation — no wide reasoning needed)
 
 Haiku is chosen deliberately: the DoR is a mechanical gate, not a creative artefact. Speed and
@@ -26,14 +26,14 @@ Before doing anything else, read:
 2. `.claude/spec-templates/tech-spec/definition-of-ready.md` — canonical DoR checklist
    structure (use as scaffold; never leave `{{}}` in output)
 3. `.claude/spec-templates/task.md` — task brief schema (maps directly to DoR items)
-4. The target task brief: `docs/specs/weave/engines/<entity>/04-arch/tasks/<TASK_ID>.md`
-5. Any existing DoR for this task (`docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md`)
+4. The target task brief: `docs/specs/weave/engines/<entity>/<milestone>/tasks/<TASK_ID>.md`
+5. Any existing DoR for this task (`docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md`)
    to continue or refresh
 
 Ask the user which entity and task ID this DoR is for if not supplied. Confirm the output path:
 
 ```
-docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md
+docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md
 ```
 
 ## Instructions
@@ -113,7 +113,7 @@ For each FAIL item, record the exact field or row that is missing or incomplete.
 - [ ] Design decisions table is populated (not blank)
 - [ ] Each row has: decision text, ADR reference, and impact on this task
 - [ ] Every ADR reference points to a file that exists:
-  `docs/specs/weave/engines/<entity>/04-arch/decisions/ADR-NNN.md`
+  `docs/specs/weave/engines/<entity>/decisions/ADR-NNN.md`
 - [ ] Decisions that affect Weave's confirmed stack (FastAPI, Next.js 15, Oxigraph,
   AWS Bedrock, etc.) are cross-referenced to `CLAUDE.md` rather than re-stated
 
@@ -182,7 +182,7 @@ Then ask via AskUserQuestion: **Approve / Amend / Reject**
 ### Step 5 — Write file and update progress
 
 1. Write the DoR to:
-   `docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md`
+   `docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md`
 
 2. Run:
    ```bash
@@ -191,7 +191,7 @@ Then ask via AskUserQuestion: **Approve / Amend / Reject**
 
 3. Commit:
    ```bash
-   git add docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md
+   git add docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md
    git commit -m "docs: add DoR for <TASK_ID> (<entity>)"
    ```
 
@@ -252,7 +252,7 @@ Rules:
 
 ## Output
 
-File: `docs/specs/weave/engines/<entity>/04-arch/tech-spec/definition-of-ready.md`
+File: `docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md`
 
 Template: `.claude/spec-templates/tech-spec/definition-of-ready.md`
 
@@ -265,7 +265,7 @@ Frontmatter:
 type: Definition of Ready
 title: "Definition of Ready: <TASK_ID> - <task title>"
 description: "<one-line summary of the readiness verdict for this task>"
-tags: [<entity>, 04-arch, task]
+tags: [<entity>, arch, task]
 timestamp: <YYYY-MM-DDThh:mm:ssZ>
 status: READY | NOT READY
 task_id: <TASK_ID>
