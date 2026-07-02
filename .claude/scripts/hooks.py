@@ -25,7 +25,7 @@ import harness_manifest
 from modules import common
 from modules import secrets, wiki, stop
 from modules import memory, lifecycle, python_tooling
-from modules import install_safety, git_safety
+from modules import install_safety, git_safety, limits
 
 PRE_TOOL_USE_CHECKS = {
     "check-no-secrets":     [secrets.check_no_secrets],
@@ -44,6 +44,7 @@ EVENT_HANDLERS = {
     "user-prompt-submit":   [memory.user_prompt_submit],
     "stop":                 [memory.flush_nudge_on_stop, stop.phase_gate, stop.drift_check],
     "subagent-stop":        [lifecycle.subagent_stop],
+    "stop-failure":         [limits.stop_failure],
     "pre-compact":          [lifecycle.pre_compact],
     "session-start":        [memory.inject_memory_index, lifecycle.check_setup_status],
     "session-end":          [lifecycle.session_end],

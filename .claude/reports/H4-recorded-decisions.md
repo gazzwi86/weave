@@ -18,6 +18,13 @@ disk state (`progress.json` + summaries). Make the **portability split** explici
 - *Portable spine* (travels into the Build Engine): `run-loop.sh` + `progress.json` + `audit.py`.
 - *Claude-Code adapter* (swapped per runtime): `/goal`, Stop-hook `exit 2` injection, Skill dispatch.
 **Trigger to reopen.** First requirement for an overnight/CI/headless run, or Build-Engine productization.
+**Reopened 2026-07-02.** Trigger fired: operator requires limit-spanning long runs through M1.
+`run-loop.sh` built at `.claude/scripts/run-loop.sh` as the single deterministic driver — fresh
+`claude -p "/implement"` invocation per iteration reading disk state, halting (exit 3) whenever an
+invocation ends without advancing `progress.json`/HEAD (a HITL gate needs a human). Usage-limit
+handling lives in the Claude-Code adapter layer as designed: primary→fallback model switch
+(default `claude-fable-5` → `claude-opus-4-8`), then sleep-until-window-reset, fed by the
+`StopFailure` hook (`modules/limits.py` → `.claude/state/limit-hit`).
 
 ## ADR-H2 — Vision check stays advisory until it can be deterministic
 **Context.** 3 seats wanted the LLM vision check cut as soft/skippable; operator kept it advisory;
@@ -44,6 +51,11 @@ halts at every gate. Before any lights-out run, REQUIRE: durable event log (beyo
 `events.jsonl`), a global kill-switch / cost ceiling, and a scoped non-prod `AWS_PROFILE` assertion
 that hard-exits on a prod profile (DevEx — the harness sits near AWS/Cognito/Bedrock creds).
 **Trigger.** A concrete need for overnight/CI execution.
+**Reopened 2026-07-02 (partially).** See ADR-H1 reopen note. Preconditions delivered: kill switch
+(`touch .claude/state/run-loop.stop`), cost ceiling (`--max-iterations`, default 25, atop /goal's
+60-turn cap), and the non-prod `AWS_PROFILE` assertion (exit 6 on `*prod*|*prd*|*live*`). Still
+deferred: durable event log beyond the append-only `.claude/logs/run-loop.log` — reopen at the
+first real overnight run. The gates themselves remain human-only; run-loop never auto-approves.
 
 ## ADR-H5 — Harness should pass its own dogfood invariants
 **Context.** Anti-slop seat: `docs/standards/testing-agents.md` specifies dark-factory behaviour

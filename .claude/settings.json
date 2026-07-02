@@ -59,7 +59,8 @@
   },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "teammateMode": "auto"
+    "teammateMode": "auto",
+    "WEAVE_CAVEMAN": "true"
   },
   "permissions": {
     "allow": [
@@ -181,6 +182,17 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "rate_limit|billing_error",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop-failure"
           }
         ]
       }

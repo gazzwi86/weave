@@ -114,7 +114,12 @@ The loop runs supervised under `/goal` (you're present at the gates). If it is k
 re-run `/implement` — Step 0 reconstructs in-flight state from the committed `progress.json` + the
 `.claude/state/summaries/*.md`, and re-enters at any task still `in_progress`. `progress.json` is the
 checkpoint of record (the `.claude/logs/*/events.jsonl` audit stream is local telemetry, not durable).
-Fully unattended/headless execution is **deferred** — see `.claude/reports/H4` ADR-H1/H4.
+For limit-spanning runs use `bash .claude/scripts/run-loop.sh` (ADR-H1, reopened 2026-07-02): it
+re-invokes `claude -p "/implement"` per iteration, falls back `claude-fable-5` → `claude-opus-4-8`
+on a usage limit, sleeps until the window resets when both are limited, and **halts for you**
+(exit 3) at every HITL gate — it never auto-approves. Stop it any time with
+`touch .claude/state/run-loop.stop`; it refuses to start on a prod-looking `AWS_PROFILE`.
+Self-check: `bash .claude/scripts/tests/test_run_loop.sh`.
 
 ## Keeping the harness honest
 `.claude/HARNESS.md` is the manifest — one row per skill/agent/script/module with purpose, who invokes
