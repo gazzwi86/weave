@@ -19,7 +19,7 @@
       "commitFormat": "conventional",
       "branchPattern": "feature/{epic}",
       "worktreeIsolation": false,
-      "_note": "Tasks within an epic commit sequentially onto one feature/{epic} branch and ship as a single epic PR (a coherent, navigable feature). Per-task worktree isolation is OFF (a branch cannot live in two worktrees, and it would break epic assembly) — engineer.md/quality-assurance.md no longer self-isolate. Engagement-level isolation is the operator's own git worktree. The prototyper still uses its own per-prototype worktree (separate concern). See .claude/skills/implement CODIFY."
+      "_note": "Tasks within an epic commit sequentially onto one feature/{epic} branch and ship as a single epic PR (a coherent, navigable feature). Per-task worktree isolation is OFF (a branch cannot live in two worktrees, and it would break epic assembly) \u2014 engineer.md/quality-assurance.md no longer self-isolate. Engagement-level isolation is the operator's own git worktree. The prototyper still uses its own per-prototype worktree (separate concern). See .claude/skills/implement CODIFY."
     },
     "brownfield": {
       "scoutThresholds": {
@@ -73,13 +73,13 @@
       "WebSearch",
       "Read",
       "Write",
-      "Edit"
+      "Edit",
+      "Bash(git commit *)",
+      "Bash(git add *)",
+      "Bash(git checkout *)",
+      "Bash(git push origin *)"
     ],
-    "ask": [
-      "Bash(git push *)",
-      "Bash(rm *)",
-      "Bash(chmod *)"
-    ],
+    "ask": [],
     "deny": [
       "Bash(rm -rf *)",
       "Bash(git push --force*)",
@@ -89,14 +89,14 @@
       "Read(./*.pem)",
       "Read(./*.key)"
     ]
-  },  
+  },
   "_examples": {
-    "_why": "A per-edit LLM security-linter hook was removed from always-on config. It fires on every Edit|Write, making it very expensive for routine tasks. Kept here for reference; see also .claude/examples/expensive-hooks.json for embedding instructions. (The claude -p subprocess variant was deleted with modules/claude_review.py — it duplicated this prompt hook and added a second billable API call per write.)",
+    "_why": "A per-edit LLM security-linter hook was removed from always-on config. It fires on every Edit|Write, making it very expensive for routine tasks. Kept here for reference; see also .claude/examples/expensive-hooks.json for embedding instructions. (The claude -p subprocess variant was deleted with modules/claude_review.py \u2014 it duplicated this prompt hook and added a second billable API call per write.)",
     "per-edit-prompt-hook": {
       "_cost": "~2500 tokens injected into the main context window on every Edit|Write call",
       "_why_disabled": "At 2500 tokens/edit this doubles context size on a typical feature branch. Moved to Stop event (single fire per session) instead.",
       "type": "prompt",
-      "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
+      "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ \u2014 or does not end in .ts, .tsx, .js, .mjs, .py, or .sh \u2014 return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
     }
   },
   "hooks": {
