@@ -1,0 +1,5 @@
+{
+  "name": "weave",
+  "private": true,
+  "workspaces": ["packages/web"]
+}
