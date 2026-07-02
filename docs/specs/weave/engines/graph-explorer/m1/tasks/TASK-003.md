@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-002]
 unlocks: [TASK-005]
-adr_refs: []
+adr_refs: [ADR-001-render-engine]
 timestamp: 2026-07-01T00:00:00Z
 source: hand-authored
 confirmed_by: none
@@ -198,9 +198,9 @@ Error responses:
 
 | Diagram | File | Relevant Section | Summary |
 |---------|------|------------------|---------|
-| Sequence | `../tech-spec/business-process.md` | `#spotlight-flow` | Pending — to be added to tech-spec before implementation starts |
-| State | `../tech-spec/business-process.md` | `#side-panel-states` | Pending — to be added to tech-spec before implementation starts |
-| Data Model | `../tech-spec/data-model.md` | `#node-properties` | Pending — to be added to tech-spec before implementation starts |
+| Sequence | `../../tech-spec/business-process.md` | `#spotlight-flow` | Node-click spotlight + CE-READ-1 side-panel property fetch |
+| State | `../../tech-spec/business-process.md` | `#side-panel-states` | Side-panel state machine (loading → loaded / 404 / error) |
+| Data Model | `../../tech-spec/data-model.md` | `#node-properties` | Property fields + raw-IRI disclosure rule the panel renders |
 
 ### Design Decisions
 

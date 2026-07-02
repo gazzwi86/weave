@@ -314,9 +314,9 @@ non-canvas UI in CI.
 All CE reads/writes are tenant-scoped via CE's named-graph + query-rewriting that rejects any
 unscoped query. Explorer-owned Aurora tables carry `tenant_id` + `workspace_id` on every row.
 
-**Required test:** Given a tenant-A JWT, when any Explorer read is issued (graph load, Saved View
-list, comment fetch, diff), then **zero tenant-B rows/triples** are returned; any attempt to address
-a tenant-B view id or room (post-v1) is rejected.
+**Required test:** WHERE a tenant-A JWT is presented, WHEN any Explorer read is issued (graph load,
+Saved View list, comment fetch, diff) THE SYSTEM SHALL return **zero tenant-B rows/triples**; IF an
+attempt is made to address a tenant-B view id or room (post-v1) THEN THE SYSTEM SHALL reject it.
 
 **Browser:** Chrome, Firefox, Safari — latest 2 major versions. Desktop-first; no mobile in v1.
 
@@ -419,7 +419,6 @@ The Graph Explorer PRD is satisfied when:
 
 ## 3. Epics
 
-> Story ACs use Given/When/Then; epic exit criteria use EARS.
 > **[contracts](../contracts.md)** = `../contracts.md` · **[constitution-engine](constitution-engine.md)** = `../engines/constitution-engine.md`
 > · **[build-engine](build-engine.md)** = `../engines/build-engine.md`
 
@@ -457,67 +456,76 @@ includes the M1 benchmark SPIKE task for OQ-01.
 Run the OQ-01 benchmark harness (browser, hardware, node/edge count, fps sampling defined in
 harness spec) against Cytoscape + fcose at 1k / 5k / 10k nodes. Deliver a benchmark report.
 
-- **AC (go):** Given the harness result, when Cytoscape meets ≤ 8 s load / 60 fps drag at 10k
-  nodes, then the SPIKE passes and E1-S1 performance criterion stands.
-- **AC (no-go):** Given the harness result, when Cytoscape does not meet targets, then the
-  Architect raises OQ-05 decision (WebGL escape hatch — sigma.js/G6); build of E1-S1 is paused
-  until the renderer decision is made.
+- **AC (go):** WHERE the harness result is available, WHEN Cytoscape meets ≤ 8 s load / 60 fps drag
+  at 10k nodes THE SYSTEM SHALL pass the SPIKE and the E1-S1 performance criterion SHALL stand.
+- **AC (no-go):** WHERE the harness result is available, IF Cytoscape does not meet targets THEN the
+  Architect SHALL raise the OQ-05 decision (WebGL escape hatch — sigma.js/G6) and build of E1-S1
+  SHALL be paused until the renderer decision is made.
 - **Owner:** Architect. **Blocks:** E1-S1 performance AC, all 10k NFRs.
 - **ALSO (layout schema):** Design and approve the Explorer-owned Aurora layout-schema
   (tenant_id, workspace_id, graph_id, node_iri, position_x, position_y, locked). Blocks E1-S5.
 
 **E1-S1: View the whole company graph on load**
 
-- **AC:** Given an authenticated user, when the Explorer opens, then nodes and edges of the current
-  **draft** graph load via CE-READ-1 and render in the Cytoscape/fcose force canvas (fcose params at
-  tech spec; randomize/auto-layout runs only for nodes lacking saved positions).
-- **AC:** Given the loaded graph, when rendered, then each node is coloured by its CE BPMO kind
-  (palette served by CE `/api/node-kinds` via CE-READ-1; client palette fallback only). Palette
-  covers every BPMO kind with grey fallback for unrecognised/extension kinds. `Process` takes a
-  prominent hue. Node shape = single ellipse in v1 (kind→shape deferred, OQ-08).
-- **AC (failure):** Given CE-READ-1 returns an error or times out (default 10 s, tunable), when
-  the canvas tries to load, then an empty-state with retry and the CE error message is shown;
-  no partial render.
-- **AC (performance — gated on E1-S0 SPIKE):** Given the OQ-01 reference hardware, when the
-  Explorer loads, then first interactive render completes within default ≤ 3 s at 1k / ≤ 8 s at
-  10k nodes (p95), tunable — verified by the OQ-01 benchmark harness.
+- **AC:** WHERE an authenticated user is present, WHEN the Explorer opens THE SYSTEM SHALL load the
+  nodes and edges of the current **draft** graph via CE-READ-1 and render them in the Cytoscape/fcose
+  force canvas (fcose params at tech spec; randomize/auto-layout runs only for nodes lacking saved
+  positions).
+- **AC:** WHERE the graph is loaded, WHEN it is rendered THE SYSTEM SHALL colour each node by its CE
+  BPMO kind (palette served by CE `/api/node-kinds` via CE-READ-1; client palette fallback only). The
+  palette SHALL cover every BPMO kind with grey fallback for unrecognised/extension kinds, `Process`
+  SHALL take a prominent hue, and node shape SHALL be a single ellipse in v1 (kind→shape deferred,
+  OQ-08).
+- **AC (failure):** IF CE-READ-1 returns an error or times out (default 10 s, tunable) when the canvas
+  tries to load THEN THE SYSTEM SHALL show an empty-state with retry and the CE error message, with no
+  partial render.
+- **AC (performance — gated on E1-S0 SPIKE):** WHERE the OQ-01 reference hardware is used, WHEN the
+  Explorer loads THE SYSTEM SHALL complete first interactive render within default ≤ 3 s at 1k / ≤ 8 s
+  at 10k nodes (p95), tunable — verified by the OQ-01 benchmark harness.
 
 **E1-S2: Pan, zoom, navigate**
 
-- **AC:** Given the canvas, when the user scrolls/pinches, then it zooms; Cmd/Ctrl+0 → fit-to-screen.
-- **AC:** Given semantic zoom thresholds (default 0.55× edge-label, 0.3× node-label, tunable), when
-  zoom crosses a threshold, then labels hide/show accordingly (edge labels on hover when visible).
-- **AC:** Given the canvas, when rendered, then a mini-map (bottom-right) shows viewport position.
-- **AC (failure):** Given Cmd+0 / Cmd+K binding collision, when canvas lacks focus, then the canvas
-  handler does not fire (no global capture).
+- **AC:** WHERE the canvas is shown, WHEN the user scrolls/pinches THE SYSTEM SHALL zoom the canvas;
+  WHEN the user presses Cmd/Ctrl+0 THE SYSTEM SHALL fit the graph to screen.
+- **AC:** WHERE semantic zoom thresholds apply (default 0.55× edge-label, 0.3× node-label, tunable),
+  WHEN zoom crosses a threshold THE SYSTEM SHALL hide/show labels accordingly (edge labels on hover
+  when visible).
+- **AC:** WHERE the canvas is rendered THE SYSTEM SHALL show a mini-map (bottom-right) tracking the
+  viewport position.
+- **AC (failure):** WHERE a Cmd+0 / Cmd+K binding collision exists, IF the canvas lacks focus THEN THE
+  SYSTEM SHALL NOT fire the canvas handler (no global capture).
 
 **E1-S3: Spotlight a node**
 
-- **AC:** Given a node click, then `closedNeighborhood` stays at full opacity; all other elements dim
-  to default 0.18 opacity (tunable).
-- **AC:** Given spotlight, when the side panel opens, then it shows label, human-readable type, and
-  key property values from CE. **Raw IRI not shown** in the default panel; revealed only under
-  "Advanced / technical details" for ontologist-role users.
-- **AC (failure):** Given background click or Escape, then spotlight clears; if side-panel property
-  fetch fails, panel shows label + type already loaded with "details unavailable" notice.
+- **AC:** WHEN a node is clicked THE SYSTEM SHALL keep its `closedNeighborhood` at full opacity and
+  dim all other elements to default 0.18 opacity (tunable).
+- **AC:** WHERE spotlight is active, WHEN the side panel opens THE SYSTEM SHALL show label,
+  human-readable type, and key property values from CE. THE SYSTEM SHALL NOT show the **raw IRI** in
+  the default panel; it SHALL reveal it only under "Advanced / technical details" for ontologist-role
+  users.
+- **AC (failure):** WHEN a background click or Escape occurs THE SYSTEM SHALL clear the spotlight; IF
+  the side-panel property fetch fails THEN THE SYSTEM SHALL show the label + type already loaded with a
+  "details unavailable" notice.
 
 **E1-S4: Search for a node by name or type**
 
-- **AC:** Given Cmd/Ctrl+K (or sidebar search focus), then a search overlay opens; matching
-  nodes highlight on `rdfs:label`, `skos:prefLabel`, and entity-type label; non-matching dim.
-- **AC:** Given a search result click, then the canvas centres and spotlights that node.
-- **AC (failure):** Given Cmd+K not available (browser focus absent), then binding does not fire;
-  sidebar search remains available.
+- **AC:** WHEN Cmd/Ctrl+K is pressed (or the sidebar search takes focus) THE SYSTEM SHALL open a
+  search overlay and highlight nodes matching on `rdfs:label`, `skos:prefLabel`, and entity-type
+  label, dimming non-matching nodes.
+- **AC:** WHEN a search result is clicked THE SYSTEM SHALL centre the canvas on that node and
+  spotlight it.
+- **AC (failure):** IF Cmd+K is not available (browser focus absent) THEN THE SYSTEM SHALL NOT fire
+  the binding and SHALL keep sidebar search available.
 
 **E1-S5: Persist and reset layout (server-side, D2)**
 
-- **AC:** Given a node drag, when drag ends, then its position is persisted **server-side** scoped
-  per (tenant, project, graphId) — not in localStorage. On next Explorer open, saved positions
-  are applied before fcose runs.
-- **AC:** Given "Reset layout", when clicked, then server-side positions are cleared and fcose
-  re-runs from scratch.
-- **AC (failure):** Given a failed position save, then the position is held optimistically in memory
-  with background retry; position is never silently dropped.
+- **AC:** WHERE a node is dragged, WHEN the drag ends THE SYSTEM SHALL persist its position
+  **server-side** scoped per (tenant, project, graphId) — not in localStorage; on next Explorer open
+  THE SYSTEM SHALL apply saved positions before fcose runs.
+- **AC:** WHEN "Reset layout" is clicked THE SYSTEM SHALL clear server-side positions and re-run fcose
+  from scratch.
+- **AC (failure):** IF a position save fails THEN THE SYSTEM SHALL hold the position optimistically in
+  memory with background retry and SHALL never silently drop it.
 - **Blocked by:** E1-S0 layout-schema sign-off.
 
 **Epic-level acceptance criteria (EARS)**
@@ -557,32 +565,33 @@ ACs here** (SS-GE-4 fix).
 
 **E2-S1: Focus a domain**
 
-- **AC:** Given a right-click on a domain node, when "Focus domain" is selected, then the canvas
-  filters to that domain's members; the rest of the graph de-emphasises.
-- **AC:** Given an empty domain, when focused, then an empty-state is shown.
-- **AC (failure):** Given a CE-READ-1 error on domain member fetch, then an error notice is shown;
-  the full graph is restored.
+- **AC:** WHERE a domain node is right-clicked, WHEN "Focus domain" is selected THE SYSTEM SHALL
+  filter the canvas to that domain's members and de-emphasise the rest of the graph.
+- **AC:** WHERE a domain is empty, WHEN it is focused THE SYSTEM SHALL show an empty-state.
+- **AC (failure):** IF a CE-READ-1 error occurs on domain member fetch THEN THE SYSTEM SHALL show an
+  error notice and restore the full graph.
 
 **E2-S2: Expand / collapse neighbourhood**
 
-- **AC:** Given a spotlighted node, when the user requests neighbour expansion, then immediate
-  neighbours load and attach in the canvas.
-- **AC:** Given expansion would add > default 500 nodes (tunable), then a "Load N more nodes —
-  continue?" confirm is shown before fetching.
-- **AC:** Given expand, then collapse reverses: neighbours retract; focus node remains visible.
+- **AC:** WHERE a node is spotlighted, WHEN the user requests neighbour expansion THE SYSTEM SHALL
+  load and attach the immediate neighbours in the canvas.
+- **AC:** IF expansion would add > default 500 nodes (tunable) THEN THE SYSTEM SHALL show a "Load N
+  more nodes — continue?" confirm before fetching.
+- **AC:** WHEN a collapse follows an expand THE SYSTEM SHALL retract the neighbours while keeping the
+  focus node visible.
 
 **E2-S3: Impact / dependency trace** *(SS-GE-4 fix — no hard-coded predicates)*
 
-- **AC:** Given a spotlighted node, when the user requests impact/dependency traversal, then the
-  Explorer sends a SPARQL property-path SELECT to CE-READ-1 using **the predicate closure confirmed
-  against the shipped BPMO relationship types (OQ-09 — resolved before E2-S3 is built)**.
-  Traverse depth default all / cap N (default 6, tunable).
-- **AC:** Given traversal results, then nodes already on canvas are highlighted; off-canvas
-  nodes auto-load (up to cap) or are badged as "N more in chain"; never silently truncate.
-- **AC:** Given impact overlay enabled, then pinned result persists through pan/zoom; source-node
-  delete auto-clears the overlay.
-- **AC (failure):** Given CE-READ-1 returns an error, then traversal results are empty with an
-  error notice; existing canvas elements are unaffected.
+- **AC:** WHERE a node is spotlighted, WHEN the user requests impact/dependency traversal THE SYSTEM
+  SHALL send a SPARQL property-path SELECT to CE-READ-1 using **the predicate closure confirmed
+  against the shipped BPMO relationship types (OQ-09 — resolved before E2-S3 is built)**, traversing
+  to depth default all / cap N (default 6, tunable).
+- **AC:** WHEN traversal results arrive THE SYSTEM SHALL highlight nodes already on canvas, auto-load
+  off-canvas nodes (up to cap) or badge them as "N more in chain", and SHALL never silently truncate.
+- **AC:** WHERE the impact overlay is enabled THE SYSTEM SHALL persist the pinned result through
+  pan/zoom; WHEN the source node is deleted THE SYSTEM SHALL auto-clear the overlay.
+- **AC (failure):** IF CE-READ-1 returns an error THEN THE SYSTEM SHALL leave traversal results empty
+  with an error notice and SHALL leave existing canvas elements unaffected.
 - **Blocked by:** OQ-09 resolved and predicate closure confirmed at CE data-model stage.
 
 **Epic-level acceptance criteria (EARS)**
@@ -621,27 +630,31 @@ Entity-type and relationship-type toggles; client-side property filter; governed
 
 **E3-S1: Entity-type toggles**
 
-- **AC:** Given entity-type toggle panel, when a type is toggled off, then its nodes + incident
-  edges hide and layout re-flows; all-off → empty-state.
-- **AC (failure):** Given toggle results in empty graph, then empty-state is shown (not blank canvas).
+- **AC:** WHERE the entity-type toggle panel is shown, WHEN a type is toggled off THE SYSTEM SHALL
+  hide its nodes + incident edges and re-flow the layout; WHEN all types are off THE SYSTEM SHALL show
+  an empty-state.
+- **AC (failure):** IF a toggle results in an empty graph THEN THE SYSTEM SHALL show an empty-state
+  (not a blank canvas).
 
 **E3-S2: Relationship-type toggles**
 
-- **AC:** Given relationship-type toggles (multi-select), when a type is toggled off, then its
-  edges hide; orphaned nodes de-emphasise (not removed).
+- **AC:** WHERE relationship-type toggles (multi-select) are shown, WHEN a type is toggled off THE
+  SYSTEM SHALL hide its edges and de-emphasise (not remove) orphaned nodes.
 
 **E3-S3: Property filter builder**
 
-- **AC:** Given the filter builder (type + path + operator + value, AND logic, chip display), when
-  a filter is applied, then matching nodes remain highlighted; non-matching dim. **Client-side
-  over loaded nodes only — not a CE query.**
-- **AC:** Given a property path not present on any loaded node, then all nodes non-match (no error).
+- **AC:** WHERE the filter builder (type + path + operator + value, AND logic, chip display) is used,
+  WHEN a filter is applied THE SYSTEM SHALL keep matching nodes highlighted and dim non-matching ones.
+  **Client-side over loaded nodes only — not a CE query.**
+- **AC:** IF a property path is not present on any loaded node THEN THE SYSTEM SHALL treat all nodes as
+  non-matching (no error).
 
 **E3-S4: Governed-content layers**
 
-- **AC:** Given governed-content layer toggles (Glossary / Brand / Governance), when toggled on,
-  then relevant content nodes load and overlay via CE-READ-1.
-- **AC:** Given an empty layer (no governed content), then the toggle is disabled with tooltip.
+- **AC:** WHERE governed-content layer toggles (Glossary / Brand / Governance) are shown, WHEN one is
+  toggled on THE SYSTEM SHALL load and overlay the relevant content nodes via CE-READ-1.
+- **AC:** IF a layer is empty (no governed content) THEN THE SYSTEM SHALL disable the toggle with a
+  tooltip.
 
 ---
 
@@ -663,29 +676,32 @@ Heatmap, diff overlay, pinned impact, domain colouring.
 
 **E4-S1: Heatmap overlay**
 
-- **AC:** Given heatmap enabled (maturity / investment / strategy / lifecycle dimensions), when
-  applied, then nodes colour by **prototype value→colour mapping**; unmatched values → grey with
-  count in legend.
-- **AC:** Given mutually exclusive overlays, when heatmap is active then diff overlay is disabled
-  (and vice versa).
+- **AC:** WHERE the heatmap is enabled (maturity / investment / strategy / lifecycle dimensions), WHEN
+  it is applied THE SYSTEM SHALL colour nodes by the **prototype value→colour mapping** and render
+  unmatched values as grey with a count in the legend.
+- **AC:** WHERE overlays are mutually exclusive, WHEN the heatmap is active THE SYSTEM SHALL disable
+  the diff overlay (and vice versa).
 
 **E4-S2: Version diff overlay**
 
-- **AC:** Given two published versions selected, when diff is applied, then the Explorer calls
-  CE-DIFF-1 and overlays: added (green) / removed (red, default 0.35 opacity, tunable) / modified
-  incl. **edge modifications** (amber); identical → "no differences" banner.
-- **AC (failure):** Given CE-DIFF-1 error, then a retry banner is shown; existing canvas unchanged.
+- **AC:** WHERE two published versions are selected, WHEN diff is applied THE SYSTEM SHALL call
+  CE-DIFF-1 and overlay added (green) / removed (red, default 0.35 opacity, tunable) / modified incl.
+  **edge modifications** (amber); WHEN the versions are identical THE SYSTEM SHALL show a "no
+  differences" banner.
+- **AC (failure):** IF CE-DIFF-1 errors THEN THE SYSTEM SHALL show a retry banner and leave the
+  existing canvas unchanged.
 
 **E4-S3: Pinned impact overlay**
 
-- **AC:** Given an impact traversal (E2-S3) result is pinned, then the overlay persists through
-  pan/zoom/filter changes.
-- **AC:** Given the source node is deleted, then the pinned overlay auto-clears.
+- **AC:** WHERE an impact traversal (E2-S3) result is pinned THE SYSTEM SHALL persist the overlay
+  through pan/zoom/filter changes.
+- **AC:** WHEN the source node is deleted THE SYSTEM SHALL auto-clear the pinned overlay.
 
 **E4-S4: Domain colouring layer**
 
-- **AC:** Given domain colouring enabled, then nodes are coloured by their domain membership
-  (mutually exclusive with type colouring in v1); palette overflow cycles; legend shows mapping.
+- **AC:** WHERE domain colouring is enabled THE SYSTEM SHALL colour nodes by their domain membership
+  (mutually exclusive with type colouring in v1), cycle the palette on overflow, and show the mapping
+  in the legend.
 
 ---
 
@@ -708,32 +724,34 @@ optimistic rollback. Published versions are read-only.
 
 **E5-S1: Quick-add node**
 
-- **AC:** Given a BA / ontologist user, when double-clicking the canvas, then a new node is
-  optimistically rendered and committed via CE-WRITE-1 (`add_node`).
-- **AC:** Given CE-WRITE-1 returns `422`, then SHACL violation is shown as human-readable text and
-  the optimistic node is removed.
-- **AC:** Given CE-WRITE-1 times out (default 10 s, tunable), then the optimistic node is rolled
-  back; no orphan on canvas.
+- **AC:** WHERE a BA / ontologist user is present, WHEN double-clicking the canvas THE SYSTEM SHALL
+  optimistically render a new node and commit it via CE-WRITE-1 (`add_node`).
+- **AC:** IF CE-WRITE-1 returns `422` THEN THE SYSTEM SHALL show the SHACL violation as human-readable
+  text and remove the optimistic node.
+- **AC:** IF CE-WRITE-1 times out (default 10 s, tunable) THEN THE SYSTEM SHALL roll back the
+  optimistic node, leaving no orphan on canvas.
 
 **E5-S2: Draw edge**
 
-- **AC:** Given an edgehandles drag (prototype params, tunable; self-loop blocked), when the edge
-  is released on a valid target, then the edge is committed via CE-WRITE-1 optimistically.
-- **AC:** Given timeout or `422`, then the optimistic edge is rolled back.
+- **AC:** WHERE an edgehandles drag is in progress (prototype params, tunable; self-loop blocked),
+  WHEN the edge is released on a valid target THE SYSTEM SHALL commit the edge via CE-WRITE-1
+  optimistically.
+- **AC:** IF a timeout or `422` occurs THEN THE SYSTEM SHALL roll back the optimistic edge.
 
 **E5-S3: Edit node properties**
 
-- **AC:** Given a BA / ontologist editing a node's label/comment/typed props in the side panel,
-  when saved, then CE-WRITE-1 (`update_node`) is called; CE writes PROV-O + PLAT-AUDIT-1 stamp
-  (actor = editing user's Cognito identity).
-- **AC:** Given concurrent same-property edit by two users, then LWW-with-version-check applies;
-  second writer receives `409` and a conflict notice.
+- **AC:** WHERE a BA / ontologist edits a node's label/comment/typed props in the side panel, WHEN it
+  is saved THE SYSTEM SHALL call CE-WRITE-1 (`update_node`) and CE SHALL write a PROV-O + PLAT-AUDIT-1
+  stamp (actor = editing user's Cognito identity).
+- **AC:** WHERE two users edit the same property concurrently THE SYSTEM SHALL apply
+  LWW-with-version-check and the second writer SHALL receive `409` and a conflict notice.
 
 **E5-S4: Delete node / edge**
 
-- **AC:** Given a delete action, when confirmed (after reference warning), then CE-WRITE-1 is
-  called; cascaded reification/annotation cleanup is reflected on canvas from CE response.
-- **AC:** Given CE-WRITE-1 failure, then nothing is removed from canvas.
+- **AC:** WHERE a delete action is taken, WHEN it is confirmed (after a reference warning) THE SYSTEM
+  SHALL call CE-WRITE-1 and reflect the cascaded reification/annotation cleanup on canvas from the CE
+  response.
+- **AC:** IF CE-WRITE-1 fails THEN THE SYSTEM SHALL remove nothing from canvas.
 
 **Epic-level acceptance criteria (EARS)**
 
@@ -766,20 +784,21 @@ M2 stories ship async collaboration (S1–S3). Post-v1 stories (S4–S5) are stu
 
 **E6-S1: Share a saved view**
 
-- **AC:** Given a user shares a Saved View, then PLAT-NOTIFY-1 notifies eligible recipients;
-  recipients without graph access are excluded (no cross-user data leak).
+- **AC:** WHEN a user shares a Saved View THE SYSTEM SHALL notify eligible recipients via
+  PLAT-NOTIFY-1 and SHALL exclude recipients without graph access (no cross-user data leak).
 
 **E6-S2: Comment on a node or view**
 
-- **AC:** Given a comment is submitted on a node or view, then it is persisted server-side
-  (Explorer Aurora, tenant + workspace scoped); failed write → draft preserved + retry.
+- **AC:** WHEN a comment is submitted on a node or view THE SYSTEM SHALL persist it server-side
+  (Explorer Aurora, tenant + workspace scoped); IF the write fails THEN THE SYSTEM SHALL preserve the
+  draft and retry.
 
 **E6-S3: Live-refresh (poll fallback)**
 
-- **AC:** Given the Explorer is open, then it polls CE-READ-1 (`since-version`, default 30 s,
-  tunable) for graph changes and reconciles in place.
-- **AC:** Given CE-EVENT-1 becomes available (post-v1), then the polling fallback is replaced by
-  the event stream; the user experience is equivalent.
+- **AC:** WHILE the Explorer is open THE SYSTEM SHALL poll CE-READ-1 (`since-version`, default 30 s,
+  tunable) for graph changes and reconcile them in place.
+- **AC:** WHEN CE-EVENT-1 becomes available (post-v1) THE SYSTEM SHALL replace the polling fallback
+  with the event stream, keeping the user experience equivalent.
 
 **E6-S4/S5 (post-v1 stubs):** Yjs CRDT realtime co-edit + presence/cursors; workshop follow-me.
 Dependencies: OQ-02/OQ-07 resolved; CE-EVENT-1 shipped; post-v1 tech spec approved.
@@ -803,20 +822,22 @@ Server-side, team-shared named views (filters, overlays, domain focus, viewport,
 
 **E7-S1: Save a view**
 
-- **AC:** Given the user saves a view (current filters, overlays, domain focus, viewport, and
-  **server-side layout** D2), then it is persisted with a required name. Name collision →
-  overwrite/rename prompt.
+- **AC:** WHEN the user saves a view (current filters, overlays, domain focus, viewport, and
+  **server-side layout** D2) THE SYSTEM SHALL persist it with a required name; IF the name collides
+  THEN THE SYSTEM SHALL prompt to overwrite or rename.
 
 **E7-S2: Workspace-shared view library**
 
-- **AC:** Given the shared library, when opened, then workspace members can see all views scoped
-  to their tenant + workspace. Creator deletes own; workspace admin (PLAT-SETTINGS-1) deletes any.
-- **AC:** Given a saved view references now-deleted entities, then those are flagged on load.
+- **AC:** WHERE the shared library exists, WHEN it is opened THE SYSTEM SHALL let workspace members
+  see all views scoped to their tenant + workspace; a creator SHALL be able to delete their own and a
+  workspace admin (PLAT-SETTINGS-1) SHALL be able to delete any.
+- **AC:** IF a saved view references now-deleted entities THEN THE SYSTEM SHALL flag them on load.
 
 **E7-S3: Featured pinned views**
 
-- **AC:** Given admin-pinned views (limit default 5, tunable), then they appear prominently in the
-  panel. Exceeding the limit → admin prompted to unpin another.
+- **AC:** WHERE views are admin-pinned (limit default 5, tunable) THE SYSTEM SHALL show them
+  prominently in the panel; IF the limit is exceeded THEN THE SYSTEM SHALL prompt the admin to unpin
+  another.
 
 ---
 
@@ -836,15 +857,15 @@ Load specific published versions read-only; visual diff between two versions.
 
 **E8-S1: View a specific published version**
 
-- **AC:** Given the Versions panel (via CE-VERSION-1), when a published version is selected, then
-  the canvas loads that version via CE-READ-1 in read-only mode. Default canvas = **draft**;
-  `latest` = newest published. The edit UI is disabled for all historical versions.
+- **AC:** WHERE the Versions panel (via CE-VERSION-1) is shown, WHEN a published version is selected
+  THE SYSTEM SHALL load that version via CE-READ-1 in read-only mode. Default canvas = **draft**;
+  `latest` = newest published. THE SYSTEM SHALL disable the edit UI for all historical versions.
 
 **E8-S2: Compare two versions**
 
-- **AC:** Given two versions selected, when diff is requested, then the Explorer calls CE-DIFF-1
-  and applies the diff overlay (green/red/amber incl. edge mods; see FR-016). JSON summary export
-  available (PDF/CSV → OQ-06).
+- **AC:** WHERE two versions are selected, WHEN diff is requested THE SYSTEM SHALL call CE-DIFF-1 and
+  apply the diff overlay (green/red/amber incl. edge mods; see FR-016) and SHALL make a JSON summary
+  export available (PDF/CSV → OQ-06).
 
 ---
 
@@ -866,21 +887,21 @@ pattern → `{entity_iri, missing_link}`. Closes legibility gap L2 (cold-start r
 
 **E10-S1: View completeness overlay**
 
-- **AC:** Given a BA / ontologist opens the Model-Completeness view, when the overlay is enabled,
-  then the Explorer calls CE-READ-1 `coverage_gap(process)` and overlays each returned
-  `entity_iri` with a gap indicator (badge or colour); entities with no gaps are neutral.
-- **AC:** Given the query returns an empty result (no gaps), then a "No coverage gaps found"
-  confirmation is shown.
-- **AC (failure):** Given a CE-READ-1 error, then a retry notice is shown; the canvas reverts to
-  non-overlay state.
+- **AC:** WHERE a BA / ontologist opens the Model-Completeness view, WHEN the overlay is enabled THE
+  SYSTEM SHALL call CE-READ-1 `coverage_gap(process)` and overlay each returned `entity_iri` with a
+  gap indicator (badge or colour), leaving entities with no gaps neutral.
+- **AC:** IF the query returns an empty result (no gaps) THEN THE SYSTEM SHALL show a "No coverage
+  gaps found" confirmation.
+- **AC (failure):** IF a CE-READ-1 error occurs THEN THE SYSTEM SHALL show a retry notice and revert
+  the canvas to non-overlay state.
 
 **E10-S2: Drill into a gap**
 
-- **AC:** Given a gap-flagged entity is clicked, then the side panel lists the missing links from
-  the `coverage_gap` result (`missing_link` values).
-- **AC:** Given the side panel lists a missing link, then a shortcut action is available: either
-  open the CE editing surface for that entity type, or — if E5 (visual editing) is active —
-  initiate the relevant edge creation inline on the canvas.
+- **AC:** WHEN a gap-flagged entity is clicked THE SYSTEM SHALL list the missing links from the
+  `coverage_gap` result (`missing_link` values) in the side panel.
+- **AC:** WHERE the side panel lists a missing link THE SYSTEM SHALL offer a shortcut action: either
+  open the CE editing surface for that entity type, or — IF E5 (visual editing) is active — initiate
+  the relevant edge creation inline on the canvas.
 
 **Epic-level acceptance criteria (EARS)**
 
@@ -924,14 +945,15 @@ prototype); budget at post-v1 tech spec.
 
 **E9-S1: Embeddable force canvas**
 
-- **AC:** Given the Build Engine mounts GE-CANVAS-1 with `{source, filterByIri, mode:"force",
-  readonly, version}`, then the component renders the force-directed slice scoped to
-  `filterByIri`; `readonly:true` disables editing; `version` pins the read.
-- **AC:** Given a project-architecture edit via the embedded canvas (when `readonly:false`), then
-  it writes back through CE-WRITE-1 (server-side authz boundary; never writes triples directly).
-- **AC:** Given `filterByIri` matching no entities, then an empty-state is shown (no error).
-- **AC (isolation):** Given the component mounted under a tenant-A context, then zero tenant-B
-  entities appear regardless of `filterByIri`.
+- **AC:** WHEN the Build Engine mounts GE-CANVAS-1 with `{source, filterByIri, mode:"force",
+  readonly, version}` THE SYSTEM SHALL render the force-directed slice scoped to `filterByIri`;
+  `readonly:true` SHALL disable editing and `version` SHALL pin the read.
+- **AC:** WHEN a project-architecture edit is made via the embedded canvas (with `readonly:false`) THE
+  SYSTEM SHALL write it back through CE-WRITE-1 (server-side authz boundary; never writing triples
+  directly).
+- **AC:** IF `filterByIri` matches no entities THEN THE SYSTEM SHALL show an empty-state (no error).
+- **AC (isolation):** WHERE the component is mounted under a tenant-A context THE SYSTEM SHALL show
+  zero tenant-B entities regardless of `filterByIri`.
 
 **E9-S2: C4 structured view (post-v1)**
 
@@ -1007,6 +1029,7 @@ the 10k-node risk and the WebGL escape-hatch go/no-go.
 - [ ] M1 PRD approved; M1 tech spec approved (Aurora layout schema, OQ-01 harness definition).
 - [ ] Upstream contracts stubbable: CE-READ-1, PLAT-SETTINGS-1, PLAT-IDENTITY-1.
 - [ ] E1-S0 SPIKE scope defined; benchmark harness spec written.
+- [ ] OQ-09 predicate-closure hand-off from CE M1 data-model on the M1 board — gates TASK-005 AC-6/AC-7.
 
 **Exit criteria (EARS):**
 

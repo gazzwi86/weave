@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-002, TASK-003]
 unlocks: []
-adr_refs: []
+adr_refs: [ADR-001-render-engine]
 timestamp: 2026-07-01T00:00:00Z
 source: hand-authored
 confirmed_by: none
@@ -268,9 +268,9 @@ Error responses (all CE-READ-1 calls):
 
 | Diagram | File | Relevant Section | Summary |
 |---------|------|------------------|---------|
-| Sequence | `../tech-spec/business-process.md` | `#drill-in-flow` | Pending — to be added to tech-spec before implementation starts |
-| State | `../tech-spec/business-process.md` | `#traversal-overlay-state` | Pending — to be added to tech-spec before implementation starts |
-| Data Model | `../tech-spec/data-model.md` | `#bpmo-relationship-types` | Pending — OQ-09 resolution required before this diagram can be written; flagged as blocker for AC-6 |
+| Sequence | `../../tech-spec/business-process.md` | `#drill-in-flow` | Domain focus, expand/collapse, and OQ-09-gated impact traversal flows |
+| State | `../../tech-spec/business-process.md` | `#traversal-overlay-state` | Impact-overlay state machine (idle → loading → active / error) |
+| Data Model | `../../tech-spec/data-model.md` | `#bpmo-relationship-types` | Candidate predicate vocabulary; OQ-09 closure subset gates AC-6/AC-7 |
 
 ### Design Decisions
 
@@ -294,6 +294,8 @@ Error responses (all CE-READ-1 calls):
 - `should NOT contain any hard-coded predicate IRI string literal in traversal query builder
   function`
 - `should badge "N more in chain" when traversal result count exceeds the depth cap`
+- `should show error notice and restore canvas opacity on CE-READ-1 failure`
+- `should remove expanded neighbour nodes on collapse while keeping the focus node`
 
 ### Integration Tests (minimum 3)
 
@@ -302,6 +304,8 @@ Error responses (all CE-READ-1 calls):
   traversal rows (CE-READ-1 stub)`
 - `should return zero traversal hops under tenant-A JWT when source node IRI belongs to tenant-B
   (cross-tenant isolation, CE-READ-1 stub)`
+- `should call CE-READ-1 /api/ontology/resource/{iri} and attach new nodes without duplicates
+  (CE-READ-1 stub)`
 
 ### E2E Tests (minimum 2)
 

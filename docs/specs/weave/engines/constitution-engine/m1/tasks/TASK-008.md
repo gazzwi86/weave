@@ -13,7 +13,7 @@ created: 2026-07-01
 owner_role: Architect
 blocked_by: ["TASK-001", "TASK-003"]
 unlocks: ["Build Engine M1 grounding calls", "Graph Explorer M1 read calls"]
-adr_refs: []
+adr_refs: [ADR-001]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -72,7 +72,7 @@ recorded and inform the production store decision (Neptune vs Jena Fuseki) but d
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-008-07 | WHEN write p95 exceeds 800 ms at 100k triples, THE SYSTEM SHALL record the failure in the benchmark report and the Architect SHALL trigger one of: (a) switch SHACL shape loading to startup-cached + async-invalidation, (b) batch SPARQL UPDATE into a single transaction, or (c) defer Build Engine grounding calls to M2 pending optimisation. |
+| AC-008-07 | WHEN write p95 exceeds 800 ms at 100k triples, THE SYSTEM SHALL record the failure in the benchmark report and the Architect SHALL trigger one of: (a) switch SHACL shape loading to startup-cached + async-invalidation, (b) batch SPARQL UPDATE into a single transaction, or (c) cap the NL-grounding context to one golden-path process slice — the M1 generate step is preserved and never deferred to M2 (weave-spec §1.2; degrade may cap graph scale / optimise queries, never delete the M1 generate step). |
 | AC-008-08 | WHEN read p95 exceeds 300 ms at 100k triples, THE SYSTEM SHALL record the failure and the Architect SHALL evaluate: (a) add Oxigraph index tuning for BPMO query patterns, (b) introduce Redis result cache with CE-EVENT-1 invalidation, or (c) widen the threshold and record a documented risk. |
 | AC-008-09 | WHEN a degrade plan is invoked, THE ARCHITECT SHALL record the decision in an ADR before closing this SPIKE. |
 

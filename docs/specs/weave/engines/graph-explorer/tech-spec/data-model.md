@@ -18,9 +18,9 @@ coverage: graph-explorer
 
 # Graph Explorer — Data Model (M1)
 
-**Engine spec:** [graph-explorer.md](../../../graph-explorer.md)
-**Inter-engine contracts:** [contracts.md](../../../../contracts.md)
-**Tenant isolation:** [ADR-001 — named-graph + query-rewriting](../../../../decisions/ADR-001-tenant-isolation.md)
+**Engine spec:** [graph-explorer.md](../../graph-explorer.md)
+**Inter-engine contracts:** [contracts.md](../../../contracts.md)
+**Tenant isolation:** [ADR-001 — named-graph + query-rewriting](../../../decisions/ADR-001-tenant-isolation.md)
 **Renderer strategy:** [ADR-001 (GE-local) — Cytoscape.js + fcose](../decisions/ADR-001-render-engine.md)
 
 > **Ownership boundary.** Graph Explorer does NOT own the tenant RDF graph. All graph reads flow
@@ -49,7 +49,7 @@ at review.
 GE reads graph data exclusively through CE's rewriter. No SPARQL query leaves GE without a
 tenant-scoped named graph injected by the rewriter; an unscoped query is **rejected (fail-closed)**.
 
-The canonical named-graph scheme (from [ADR-001](../../../../decisions/ADR-001-tenant-isolation.md)):
+The canonical named-graph scheme (from [ADR-001](../../../decisions/ADR-001-tenant-isolation.md)):
 
 | Graph IRI | Contents | Writable by GE? |
 |---|---|---|
@@ -117,7 +117,7 @@ erDiagram
 
 GE is a **consumer** of the BPMO ontology, not its owner. The mapping below traces each
 read-model field to its CE-originated RDF term. Do not redefine these terms in GE code;
-reference [contracts.md §CE-READ-1](../../../../contracts.md#ce-read-1--versioned-read-interface).
+reference [contracts.md §CE-READ-1](../../../contracts.md#ce-read-1--versioned-read-interface).
 
 ### CE Read-Model → RDF/OWL
 
@@ -137,7 +137,7 @@ reference [contracts.md §CE-READ-1](../../../../contracts.md#ce-read-1--version
 
 Provenance triples (who created/modified a node, when) live in
 `urn:weave:g:tenant:{id}:prov` under the PROV-O vocabulary
-([semantic-web.md](../../../../../../standards/semantic-web.md)).
+([semantic-web.md](../../../../../standards/semantic-web.md)).
 GE reads provenance in the side panel where CE-READ-1 supplies it; GE does not write PROV-O.
 
 ---
@@ -146,11 +146,11 @@ GE reads provenance in the side panel where CE-READ-1 supplies it; GE does not w
 
 GE renders nodes typed by the 13 BPMO kinds defined and owned by CE. The canonical list,
 their OWL class IRIs, and their RDF relationships are specified in
-[contracts.md §CE-READ-1](../../../../contracts.md#ce-read-1--versioned-read-interface).
+[contracts.md §CE-READ-1](../../../contracts.md#ce-read-1--versioned-read-interface).
 GE must not maintain a parallel copy of this list.
 
 Visual representation (colour, shape, icon) for each kind is defined in
-[data-viz.md](../../../../../../standards/design/data-viz.md).
+[data-viz.md](../../../../../standards/design/data-viz.md).
 GE reads `GET /api/node-kinds` at canvas boot to get `[{id, label, colour}]` from CE; it falls
 back to `#9CA3AF` grey for any `bpmo_kind` not in the palette response.
 
@@ -183,7 +183,7 @@ The following 13 kinds are the M1 vocabulary. Each maps to one `weave:` OWL clas
 ## BPMO Relationship Types
 
 The vocabulary of edge predicates GE renders is defined in CE and returned by CE-READ-1. The
-canonical list is in [contracts.md §CE-READ-1](../../../../contracts.md#ce-read-1--versioned-read-interface).
+canonical list is in [contracts.md §CE-READ-1](../../../contracts.md#ce-read-1--versioned-read-interface).
 
 Known predicate IRIs (informational — CE is authoritative):
 
@@ -215,7 +215,7 @@ When a user clicks a node, GE fetches full properties from
 
 **Raw IRI disclosure rule:** the subject IRI (`node_iri`) is hidden from the default panel view.
 It appears only under an "Advanced" disclosure toggle, and only for users with `ontologist`
-RBAC role ([rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)).
+RBAC role ([rbac-multi-tenancy.md](../../../../../standards/rbac-multi-tenancy.md)).
 
 **Cross-tenant isolation:** if a requested IRI belongs to a different tenant, CE returns `404`
 (not `403`) to avoid leaking tenant existence. GE renders a generic "not found" empty-state.
@@ -297,9 +297,9 @@ schema or ER diagram:
 
 | Entity | Milestone | Reason deferred |
 |---|---|---|
-| `explorer_saved_views` | M2 | Requires `locked` positions + named-layout management (FR-009) |
-| `explorer_comments` | M2 | Async sharing (FR-010) |
+| `explorer_saved_views` | M2 | Requires `locked` positions + named-layout management (FR-028) |
+| `explorer_comments` | M2 | Async sharing (FR-024) |
 | Canvas edit model (node/edge CRUD) | M2 | CE-WRITE-1 not in M1 |
-| GE-CANVAS-1 embeddable component | M2 | Depends on stable M1 canvas (FR-011) |
+| GE-CANVAS-1 embeddable component | M2 | Depends on stable M1 canvas (FR-034) |
 | C4 structured canvas | post-v1 | Separate layout mode |
 | Yjs CRDT real-time collab | post-v1 | CE-EVENT-1 + operational transform complexity |

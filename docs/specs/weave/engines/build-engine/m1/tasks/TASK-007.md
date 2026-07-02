@@ -37,9 +37,10 @@ resource: docs/specs/weave/engines/build-engine/m1/tasks/TASK-007.md
 commands passing — silent passes are defects, not acceptable shortcuts
 
 > **FRs covered:** FR-046 (DoR gate in PLAN before DELEGATE), FR-047 (DoD gate — QA agent
-> self-runs commands), FR-055 (pre-scaffold spec-review gate: brief→PRD→roadmap→tech-spec→
-> impl-ready cascade with hard blockers). M2 gates (full QA suite, phase-gate ceremony,
-> coverage audit) are explicitly out of scope.
+> self-runs commands), FR-055 (pre-scaffold spec-review gate — **M1 pass-through stub**: runs the
+> brief→PRD→roadmap→tech-spec→impl-ready cascade, records findings, but **never halts**; M2 activates
+> cascade-blocking). M2 gates (full QA suite, phase-gate ceremony, coverage audit) are explicitly out
+> of scope.
 
 ## Acceptance Criteria
 
@@ -49,8 +50,8 @@ commands passing — silent passes are defects, not acceptable shortcuts
 | AC-2 | WHEN the DoR gate passes all checks, THE SYSTEM SHALL record `gate: "DoR", result: "READY"` in `PLAT-AUDIT-1` and allow the orchestrator to dispatch to DELEGATE | `test_dor_gate_pass_logged_to_audit` |
 | AC-3 | WHEN the DoD gate runs after ASSESS, THE SYSTEM SHALL have the QA agent execute each command itself (lint, type-check, coverage, mutation, SAST); WHEN any command returns a non-zero exit code or cannot be invoked, THE SYSTEM SHALL record that command as `NOT VERIFIED` and the overall DoD gate as `FAIL` — a command that cannot run is not skipped | `test_dod_gate_marks_not_verified_for_unrunnable_command` |
 | AC-4 | WHEN all DoD gate commands pass (exit code 0), THE SYSTEM SHALL record `gate: "DoD", result: "PASS"` in `PLAT-AUDIT-1` and allow the orchestrator to advance to CODIFY | `test_dod_gate_pass_logged_to_audit` |
-| AC-5 | WHEN the pre-scaffold gate runs before a first build, THE SYSTEM SHALL check the cascade (brief present → PRD present → roadmap present → tech-spec present → impl-ready flag set); WHEN any step fails, THE SYSTEM SHALL return `{gate: "pre_scaffold", result: "BLOCKED", failing_step: "<step>", reason: "<text>"}` and halt scaffolding | `test_pre_scaffold_gate_blocks_on_missing_prd` |
-| AC-6 | WHEN a critical gap is detected in the pre-scaffold gate (e.g. tech-spec absent), THE SYSTEM SHALL fire a `PLAT-NOTIFY-1` `spec_gap_critical` event and not proceed to scaffolding | `test_pre_scaffold_critical_gap_fires_notify` |
+| AC-5 | WHEN the pre-scaffold gate runs before a first build, THE SYSTEM SHALL check the cascade (brief present → PRD present → roadmap present → tech-spec present → impl-ready flag set) and RECORD every failing step in `{gate: "pre_scaffold", result: "PROCEED", findings: [{step, reason}]}`; in M1 the gate is a **pass-through stub** that **always PROCEEDS** — it never halts scaffolding (M2 activates blocking — FR-055) | `test_pre_scaffold_gate_records_findings_and_proceeds_on_missing_prd` |
+| AC-6 | WHEN a critical gap is detected in the pre-scaffold gate (e.g. tech-spec absent), THE SYSTEM SHALL fire a `PLAT-NOTIFY-1` `spec_gap_critical` event as a **warning** and, in M1, still PROCEED to scaffolding — the finding is recorded but non-blocking (M2 activates blocking — FR-055) | `test_pre_scaffold_critical_gap_fires_notify_and_proceeds` |
 | AC-7 | WHEN the DoR gate result is `NOT READY`, THE SYSTEM SHALL include the list of failing checks in `{failing_checks: ["<field>", ...]}` so the replan agent can address specific gaps — a generic error message is not acceptable | `test_dor_gate_not_ready_includes_failing_checks` |
 
 ## Implementation
@@ -130,14 +131,16 @@ function run_pre_scaffold_gate(jwt, project_iri):
     ("impl_ready",  lambda s: s.impl_ready_flag),
   ]
 
+  # M1 stub: record every finding, fire warnings, but NEVER halt. M2 activates cascade-blocking (FR-055).
+  findings = []
   for step_name, check in CASCADE_STEPS:
     if not check(spec):
+      findings.append({"step": step_name, "reason": f"{step_name} not present or not ready"})
       plat_notify_client.fire("spec_gap_critical",
-                              project_iri=project_iri, failing_step=step_name)
-      return 200 with {"gate": "pre_scaffold", "result": "BLOCKED",
-                       "failing_step": step_name, "reason": f"{step_name} not present or not ready"}
+                              project_iri=project_iri, failing_step=step_name)  # warning only
 
-  return 200 with {"gate": "pre_scaffold", "result": "PASS"}
+  # M1 always PROCEEDs regardless of findings
+  return 200 with {"gate": "pre_scaffold", "result": "PROCEED", "findings": findings}
 ```
 
 ### API Contracts
@@ -185,9 +188,10 @@ Response `200`:
 ```json
 {
   "gate": "string — \"pre_scaffold\"",
-  "result": "string — PASS | BLOCKED",
-  "failing_step": "string | null — present only when BLOCKED",
-  "reason": "string | null"
+  "result": "string — always PROCEED in M1 (pass-through stub; M2 adds BLOCKED — FR-055)",
+  "findings": [
+    { "step": "string — failing cascade step", "reason": "string" }
+  ]
 }
 ```
 
@@ -207,7 +211,7 @@ Sequence and data model are pending tech-spec additions (DoR blockers).
 |---|---|---|
 | DoD gate: QA agent runs commands itself — no simulation | [build-engine.md FR-047](../../../build-engine.md#21-functional-requirements) | `qa_agent.run_command()` shells out; `CommandNotFound` → `NOT_VERIFIED` (fail); never mock the command result |
 | Unrunnable command = `NOT_VERIFIED` = FAIL | [build-engine.md FR-047](../../../build-engine.md#21-functional-requirements) | Prevents silent passes when a tool is missing from the environment; the DoD gate is only as strong as the weakest runnable command |
-| Pre-scaffold cascade is ordered and short-circuits on first gap | [build-engine.md FR-055](../../../build-engine.md#21-functional-requirements) | Stops at the first failing step; does not collect all gaps (unlike DoR gate); rationale: later steps cannot be evaluated without earlier ones |
+| Pre-scaffold cascade is an M1 pass-through stub (records findings, always PROCEEDs) | [build-engine.md FR-055](../../../build-engine.md#21-functional-requirements) | M1 collects **all** cascade findings and fires `spec_gap_critical` warnings but **never halts** scaffolding; M2 activates cascade-blocking (short-circuit + BLOCKED on first gap) — FR-055 |
 | Gate results persisted to PLAT-AUDIT-1 (not just returned) | [contracts.md `PLAT-AUDIT-1`](../../../../contracts.md#plat-audit-1) | Immutable record of every gate evaluation; audit record must be written before the gate result is returned to the caller |
 | M2 gates (full QA, phase-gate ceremony, coverage audit) explicitly out of scope | [build-engine.md §4 Milestone Table](../../../build-engine.md#milestone-table) | Do NOT implement FR-052, FR-053, FR-054 in this task — they land in M2 |
 
@@ -220,8 +224,8 @@ Sequence and data model are pending tech-spec additions (DoR blockers).
 - `should return NOT_READY when ac_to_test_map count differs from acceptance_criteria count`
 - `should mark command NOT_VERIFIED when command binary not found`
 - `should mark overall DoD FAIL when any command returns non-zero exit code`
-- `should return BLOCKED on pre-scaffold with failing_step "prd" when PRD is absent`
-- `should fire PLAT-NOTIFY-1 spec_gap_critical when pre-scaffold finds critical gap`
+- `should record findings and PROCEED on pre-scaffold when PRD is absent`
+- `should fire PLAT-NOTIFY-1 spec_gap_critical and still PROCEED when pre-scaffold finds critical gap`
 
 ### Integration Tests (minimum 3)
 
@@ -241,8 +245,8 @@ N/A — gates are backend-only API endpoints in M1; covered by integration tests
 | AC-2 | Integration | `should record DoR gate result to PLAT-AUDIT-1 on READY result` |
 | AC-3 | Unit | `should mark command NOT_VERIFIED when command binary not found` |
 | AC-4 | Integration | `should record DoD gate result to PLAT-AUDIT-1 on FAIL with command details` |
-| AC-5 | Unit | `should return BLOCKED on pre-scaffold with failing_step "prd" when PRD is absent` |
-| AC-6 | Unit | `should fire PLAT-NOTIFY-1 spec_gap_critical when pre-scaffold finds critical gap` |
+| AC-5 | Unit | `should record findings and PROCEED on pre-scaffold when PRD is absent` |
+| AC-6 | Unit | `should fire PLAT-NOTIFY-1 spec_gap_critical and still PROCEED when pre-scaffold finds critical gap` |
 | AC-7 | Unit | `should return NOT_READY with failing_checks when brief has no acceptance_criteria` |
 
 ## Dependencies

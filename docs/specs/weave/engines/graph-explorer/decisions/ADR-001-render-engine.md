@@ -18,7 +18,7 @@ coverage: graph-explorer
 # ADR-001: Graph Explorer render engine — Cytoscape.js + fcose (default, spike-gated)
 
 **Scope:** [Graph Explorer](../../graph-explorer.md) only. Output of the
-[TASK-001 benchmark spike](../tasks/TASK-001.md). Clears council **ENG-3** (renderer-swap
+[TASK-001 benchmark spike](../m1/tasks/TASK-001.md). Clears council **ENG-3** (renderer-swap
 rework-delta estimate).
 
 > **Label disambiguation (important).** GE's task briefs use **GE-local** OQ numbers:

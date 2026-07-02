@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: ["TASK-003", "TASK-004"]
 unlocks: ["TASK-006"]
-adr_refs: []
+adr_refs: [ADR-002]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -73,6 +73,16 @@ of scope for M1.
 Instance mutations use **CE-WRITE-1** (`POST /api/operations/apply`).
 Property pre-population and browse queries use **CE-READ-1** (`GET /api/ontology/resource/{iri}`,
 `GET /api/sparql`). See [contracts.md](../../../../contracts.md).
+
+## Diagram References
+
+This task has no task-local diagram; the relevant flows and structures live in the tech spec.
+
+| Diagram | Source | What it covers |
+|---|---|---|
+| CE-WRITE-1 write path | [architecture.md](../../tech-spec/architecture.md) (Level 3, write path) | Clone → SHACL → commit pipeline these mutations flow through |
+| Instance/edge data model | [data-model.md](../../tech-spec/data-model.md) | BPMO kinds, tenant graph scheme, SHACL-shaped instance properties |
+| Instance mutation + browse flows | [business-process.md](../../tech-spec/business-process.md) | Add/edit/delete + browse/search process flows |
 
 ## Design Decisions
 

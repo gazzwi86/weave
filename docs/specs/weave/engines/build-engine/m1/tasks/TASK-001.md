@@ -52,7 +52,7 @@ scoping before the full Project Registry UI ships in v1.0
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN a valid `POST /api/projects` is received with a Cognito JWT and a `name` field, THE SYSTEM SHALL create a project record with a deterministic `project_iri` (`urn:weave:project:{tenant_id}:{slug}`) and pin the latest published CE version via `CE-VERSION-1`; returning `201` with `{project_iri, pinned_version_iri, created_at}` | `test_create_project_returns_201_with_iri` |
+| AC-1 | WHEN a valid `POST /api/projects` is received with a Cognito JWT and a `name` field, THE SYSTEM SHALL create a project record with a deterministic `project_iri` (`urn:weave:project:{tenant_id}:{slug}`) and pin the latest published CE version via `CE-VERSION-1`; returning `201` with `{project_iri, pinned_graph_version_iri, created_at}` | `test_create_project_returns_201_with_iri` |
 | AC-2 | WHEN `CE-VERSION-1` (`GET /api/ontology/versions`) is unreachable at project creation time, THE SYSTEM SHALL return `503` with `{"error": "ce_version_unavailable"}` and not persist a project record | `test_create_project_fails_503_when_ce_unreachable` |
 | AC-3 | WHEN an unauthenticated request reaches `POST /api/projects`, THE SYSTEM SHALL return `401` with `{"error": "unauthorised"}` and the `Www-Authenticate: Bearer` header | `test_create_project_returns_401_without_jwt` |
 | AC-4 | WHEN a tenant-B principal queries `GET /api/projects/{project_iri}`, THE SYSTEM SHALL return `404` for a project owned by tenant-A (RLS enforced at DB level) | `test_project_rlsi_tenant_b_cannot_read_tenant_a` |
@@ -85,16 +85,16 @@ function create_project(jwt, name, description=None):
   # Pin CE version (must succeed before persisting)
   versions = ce_read_client.get("/api/ontology/versions")  # raises on non-2xx → 503
   latest = next(v for v in versions if v["is_latest"])
-  pinned_version_iri = latest["version_iri"]
+  pinned_graph_version_iri = latest["version_iri"]
 
   # Persist
   aurora.execute(
-    "INSERT INTO projects (project_iri, tenant_id, slug, name, description, pinned_version_iri, created_at)"
+    "INSERT INTO projects (project_iri, tenant_id, slug, name, description, pinned_graph_version_iri, created_at)"
     " VALUES (:iri, :t, :s, :n, :d, :v, now())",
-    iri=project_iri, t=tenant_id, s=slug, n=name, d=description, v=pinned_version_iri
+    iri=project_iri, t=tenant_id, s=slug, n=name, d=description, v=pinned_graph_version_iri
   )  # raises IntegrityError on race-condition duplicate → retry as 409
 
-  return 201 with {"project_iri": project_iri, "pinned_version_iri": pinned_version_iri,
+  return 201 with {"project_iri": project_iri, "pinned_graph_version_iri": pinned_graph_version_iri,
                    "created_at": "<iso8601>"}
 ```
 
@@ -116,7 +116,7 @@ Response `201`:
 ```json
 {
   "project_iri": "string — stable urn:weave:project:{tenant}:{slug}",
-  "pinned_version_iri": "string — IRI of the pinned CE version (from CE-VERSION-1)",
+  "pinned_graph_version_iri": "string — IRI of the pinned CE version (from CE-VERSION-1)",
   "created_at": "string — ISO 8601 UTC timestamp"
 }
 ```
@@ -138,7 +138,7 @@ Response `200`:
 {
   "project_iri": "string",
   "name": "string",
-  "pinned_version_iri": "string",
+  "pinned_graph_version_iri": "string",
   "created_at": "string"
 }
 ```

@@ -359,7 +359,8 @@ BusinessCapability, BusinessDomain, Goal, and Policy. Instance categories like "
 are **Class** definitions punned with Concept (decision B1) — not new kinds. Counts are content
 targets owned by the content admin, not contractual constants. The full entity-class→BPMO-kind
 mapping table is content, not PRD — it lives in the **Hammerbarn Content Brief**
-(`docs/specs/weave/onboarding-content-brief.md`, to be created). The seed is produced as a **live
+(`docs/specs/weave/onboarding-content-brief.md`, to be created — content artifact tracked in
+EPIC-001). The seed is produced as a **live
 pipeline**: CE via CE-WRITE-1 (ontology/glossary/brand/governance); Build via BE-ARTEFACT-1
 (post-v1); Events via EA-AUTOMATION-1 (post-v1).
 
@@ -369,15 +370,15 @@ pipeline**: CE via CE-WRITE-1 (ontology/glossary/brand/governance); Build via BE
 enter a complete, explorable example workspace (Hammerbarn) on first sign-in so that I can see what
 a finished Weave model looks like before facing my own blank workspace.
 
-- **AC:** Given a newly provisioned tenant, when the user opens the workspace switcher, then a
-  "Hammerbarn Demo" workspace is present with no setup or invitation, and is labelled "Demo —
+- **AC:** WHERE a tenant is newly provisioned, WHEN the user opens the workspace switcher THE SYSTEM
+  SHALL present a "Hammerbarn Demo" workspace with no setup or invitation, labelled "Demo —
   fictional data".
-- **AC:** Given the Hammerbarn workspace, when the user opens Constitution and Explorer, then the
-  ontology (entities across the BPMO kinds — Process and its surrounding actors, systems, services,
-  data, capabilities, goals, policies), glossary, brand, and governance content render, sourced via
-  CE-READ-1 (`?version=latest`) and the Explorer canvas (GE-CANVAS-1).
-- **AC (failure mode):** Given a seed artefact whose producing engine has not shipped (Build /
-  Events at MVP), when the user opens that area, then the area is **feature-flagged off** with a
+- **AC:** WHEN the user opens Constitution and Explorer in the Hammerbarn workspace THE SYSTEM SHALL
+  render the ontology (entities across the BPMO kinds — Process and its surrounding actors, systems,
+  services, data, capabilities, goals, policies), glossary, brand, and governance content, sourced
+  via CE-READ-1 (`?version=latest`) and the Explorer canvas (GE-CANVAS-1).
+- **AC (failure mode):** IF a seed artefact's producing engine has not shipped (Build / Events at
+  MVP) and the user opens that area THEN THE SYSTEM SHALL show the area **feature-flagged off** with a
   "Coming soon" note — the workspace must not render a broken/empty Build or Automate tab.
 - **Priority:** Must Have (CE+Explorer content) · Could Have→Must at Build/Events GA (Build project,
   app, automations)
@@ -385,20 +386,20 @@ a finished Weave model looks like before facing my own blank workspace.
 **E1-S2: Reset the writable demo sandbox to its original state.** As a **new user**, I want to reset
 my demo sandbox copy to its original state so that I can redo exercises or undo accidental changes.
 
-- **AC:** Given a user's first open of Hammerbarn, when the copy is provisioned, then it is a
-  **per-user WRITABLE copy** keyed by `(tenant_id, user_id)` (decision E1); edits **persist across
-  sessions** and devices and are server-side, never localStorage.
-- **AC:** Given sandbox edits, when the user clicks the explicit "Reset demo" button and confirms,
-  then the sandbox is restored to the canonical Hammerbarn state; reset is **not** automatic and
-  never fires on a timer (decision E1).
-- **AC:** Given a reset operation, when it runs, then it completes within a **default 30 s, tunable**
+- **AC:** WHEN the copy is provisioned on a user's first open of Hammerbarn THE SYSTEM SHALL make it
+  a **per-user WRITABLE copy** keyed by `(tenant_id, user_id)` (decision E1), with edits that
+  **persist across sessions** and devices and are server-side, never localStorage.
+- **AC:** WHEN the user clicks the explicit "Reset demo" button and confirms THE SYSTEM SHALL restore
+  the sandbox to the canonical Hammerbarn state; reset is **not** automatic and never fires on a
+  timer (decision E1).
+- **AC:** WHEN a reset operation runs THE SYSTEM SHALL complete it within a **default 30 s, tunable**
   target (decision E4); the duration is the reset-op target, not a session timeout.
-- **AC (failure mode):** Given a reset triggered while an exercise is in progress, when the reset
-  confirms, then the in-progress exercise is abandoned with a warning, exercise completion flags for
-  that exercise are cleared, and the sandbox is left in the known canonical state.
-- **AC (failure mode):** Given a reset that fails or exceeds the target, when the error is detected,
-  then the user sees a retry + error toast and the sandbox is left in a known state (either fully
-  reset or unchanged), never partial.
+- **AC (failure mode):** IF a reset is confirmed while an exercise is in progress THEN THE SYSTEM
+  SHALL abandon the in-progress exercise with a warning, clear that exercise's completion flags, and
+  leave the sandbox in the known canonical state.
+- **AC (failure mode):** IF a reset fails or exceeds the target THEN THE SYSTEM SHALL show a retry +
+  error toast and leave the sandbox in a known state (either fully reset or unchanged), never
+  partial.
 - **Priority:** Must Have · **depends-on:** PLAT-SETTINGS-1 (per-user copy/isolation), CE-WRITE-1
   (seed re-apply)
 
@@ -406,14 +407,14 @@ my demo sandbox copy to its original state so that I can redo exercises or undo 
 exercises in the demo workspace that make changes to my own writable copy so that I can practice
 without affecting anyone else.
 
-- **AC:** Given an exercise that writes, when the write executes, then it targets the user's sandbox
-  copy only (via CE-WRITE-1 with `target=draft` on the sandbox graph) and is isolated from the
-  canonical Hammerbarn dataset and from every other user's sandbox.
-- **AC:** Given a user is in their sandbox copy, when any demo screen renders, then a "Practice mode"
-  banner is visible at the top.
-- **AC (failure mode):** Given a write attempt against the **canonical** Hammerbarn graph by a
-  non-content-admin identity, when it is issued, then it is rejected with HTTP 403 and the attempt is
-  recorded via PLAT-AUDIT-1 (mirrors the prototype's protected-demo behaviour; resolves).
+- **AC:** WHEN an exercise's write executes THE SYSTEM SHALL target the user's sandbox copy only (via
+  CE-WRITE-1 with `target=draft` on the sandbox graph), isolated from the canonical Hammerbarn
+  dataset and from every other user's sandbox.
+- **AC:** WHERE the user is in their sandbox copy, WHEN any demo screen renders THE SYSTEM SHALL
+  display a "Practice mode" banner at the top.
+- **AC (failure mode):** IF a non-content-admin identity issues a write attempt against the
+  **canonical** Hammerbarn graph THEN THE SYSTEM SHALL reject it with HTTP 403 and record the attempt
+  via PLAT-AUDIT-1 (mirrors the prototype's protected-demo behaviour; resolves).
 - **Priority:** Must Have · **depends-on:** CE-WRITE-1, PLAT-SETTINGS-1
 
 #### Epic 2: Guided Tours & Contextual Overlays
@@ -426,20 +427,20 @@ without affecting anyone else.
 guided tour for each shipped engine area so that I am walked through the navigation, screens, and key
 features in context.
 
-- **AC:** Given a shipped area (M1 window: Constitution, Explorer; post-v1: Platform Dashboard,
-  Build, Events), when the user starts its tour, then each step highlights the target element (dimmed
-  overlay + spotlight), shows a tooltip (**default ≤ 40 words, tunable** — see NFR copy-budget note),
-  and shows Back/Next + a step indicator (e.g. "3 of 9"). Step count is a **default 5–12, tunable**
-  authoring guideline.
-- **AC:** Given a tour, when the user clicks "Skip tour" or presses Escape, then the tour exits
-  without deleting progress; "Resume tour" picks up from the last completed step (resume point
-  persisted server-side per `(tenant, user)`).
-- **AC:** Given a tour, when the user navigates, then it is keyboard navigable
-  (Tab/Arrow/Enter/Escape), not time-limited, and never requires interacting with the highlighted
+- **AC:** WHERE a shipped area (M1 window: Constitution, Explorer; post-v1: Platform Dashboard,
+  Build, Events), WHEN the user starts its tour THE SYSTEM SHALL highlight each step's target element
+  (dimmed overlay + spotlight), show a tooltip (**default ≤ 40 words, tunable** — see NFR copy-budget
+  note), and show Back/Next + a step indicator (e.g. "3 of 9"). Step count is a **default 5–12,
+  tunable** authoring guideline.
+- **AC:** WHEN the user clicks "Skip tour" or presses Escape THE SYSTEM SHALL exit the tour without
+  deleting progress; "Resume tour" picks up from the last completed step (resume point persisted
+  server-side per `(tenant, user)`).
+- **AC:** WHEN the user navigates a tour THE SYSTEM SHALL be keyboard navigable
+  (Tab/Arrow/Enter/Escape), not time-limited, and never require interacting with the highlighted
   element to advance.
-- **AC (failure mode):** Given a tour step whose anchor element is absent (UI changed, or the area's
-  engine has not shipped), when the step would render, then the step is **skipped with a logged
-  warning** and never blocks the tour; a tour for a not-yet-shipped engine is feature-flagged off,
+- **AC (failure mode):** IF a tour step's anchor element is absent (UI changed, or the area's engine
+  has not shipped) when the step would render THEN THE SYSTEM SHALL **skip the step with a logged
+  warning** and never block the tour; a tour for a not-yet-shipped engine is feature-flagged off,
   not broken.
 - **Priority:** Must Have (Constitution, Explorer) · post-v1 (Build, Events, Dashboard) ·
   **depends-on:** the target engine's UI shipping
@@ -448,31 +449,30 @@ features in context.
 contextual beacons on complex UI elements so that I understand a feature without starting a guided
 tour.
 
-- **AC:** Given a complex element exists in the current build (e.g. SPARQL editor, flow canvas, SHACL
+- **AC:** WHERE a complex element exists in the current build (e.g. SPARQL editor, flow canvas, SHACL
   validation panel, PROV-O provenance chain, agent tool-use console, generative dashboard prompt
-  bar), when its screen renders, then a pulsing beacon appears on it.
-- **AC:** Given a beacon, when clicked, then a tooltip (**default ≤ 60 words, tunable** — see
-  copy-budget note) opens explaining the element with a "Learn more" link to the relevant training
+  bar), WHEN its screen renders THE SYSTEM SHALL display a pulsing beacon on it.
+- **AC:** WHEN a beacon is clicked THE SYSTEM SHALL open a tooltip (**default ≤ 60 words, tunable** —
+  see copy-budget note) explaining the element with a "Learn more" link to the relevant training
   walkthrough.
-- **AC:** Given a beacon, when dismissed, then dismissal is persisted **per user, server-side**; a
-  "Show all hints" toggle in the Help launcher restores all dismissed beacons.
-- **AC (failure mode):** Given a beacon whose target element is absent or unmounts while its tooltip
-  is open, when the screen renders or the unmount occurs, then the beacon/tooltip is hidden and a
-  warning logged — no orphaned tooltip.
+- **AC:** WHEN a beacon is dismissed THE SYSTEM SHALL persist the dismissal **per user, server-side**;
+  a "Show all hints" toggle in the Help launcher restores all dismissed beacons.
+- **AC (failure mode):** IF a beacon's target element is absent or unmounts while its tooltip is open
+  THEN THE SYSTEM SHALL hide the beacon/tooltip and log a warning — no orphaned tooltip.
 - **Priority:** Must Have (elements on shipped screens) · post-v1 (elements on post-v1 screens)
 
 **E2-S3: Welcome modals for first visit to each shipped area.** As a **new user**, I want a welcome
 modal on my first visit to each shipped area so that I get a 2–3 sentence orientation before
 exploring.
 
-- **AC:** Given a shipped area, when the user visits it for the first time, then a welcome modal
-  shows the area name, a 2–3 sentence description, and CTAs. **If a tour exists** for that area the
-  CTAs are "Take a tour" and "Explore freely"; **if no tour exists** (e.g. Compliance, Settings) the
-  modal shows only "Explore freely" / "Read the guide" — no dead "Take a tour" CTA.
-- **AC:** Given a dismissed welcome modal for an area, when the user revisits that area, then it
-  never fires again (dismissal persisted server-side per user).
-- **AC (failure mode):** Given an area that has not shipped, when feature-flagged off, then no welcome
-  modal exists for it.
+- **AC:** WHERE an area is shipped, WHEN the user visits it for the first time THE SYSTEM SHALL show a
+  welcome modal with the area name, a 2–3 sentence description, and CTAs. **If a tour exists** for
+  that area the CTAs are "Take a tour" and "Explore freely"; **if no tour exists** (e.g. Compliance,
+  Settings) the modal shows only "Explore freely" / "Read the guide" — no dead "Take a tour" CTA.
+- **AC:** WHERE a welcome modal for an area has been dismissed, WHEN the user revisits that area THE
+  SYSTEM SHALL never fire it again (dismissal persisted server-side per user).
+- **AC (failure mode):** IF an area has not shipped (feature-flagged off) THEN THE SYSTEM SHALL have
+  no welcome modal for it.
 - **Priority:** Must Have (shipped areas)
 
 > Area list reconciliation: welcome modals fire for the areas that have shipped and appear in
@@ -486,22 +486,22 @@ exploring.
 tours, exercises, and first-outcome milestone to reflect my role in Weave so that I am guided toward
 the actions most valuable for my job — not a generic sequence.
 
-- **AC:** Given a signed-in user, when their onboarding path is resolved, then it is one of the **4
-  primary paths** (Business, Technical, Compliance, Admin) determined from the canonical role(s)
-  resolved via the platform RBAC model / PLAT-IDENTITY-1 — **IdP-agnostic** (Cognito or Auth0), per
+- **AC:** WHEN a signed-in user's onboarding path is resolved THE SYSTEM SHALL resolve it to one of
+  the **4 primary paths** (Business, Technical, Compliance, Admin) determined from the canonical
+  role(s) via the platform RBAC model / PLAT-IDENTITY-1 — **IdP-agnostic** (Cognito or Auth0), per
   the Personas mapping table.
-- **AC:** Given a user with multiple roles, when they first sign in, then they are prompted to choose
-  a starting path; given a user with zero roles, when resolved, then they default to the Business
-  read-only variant.
-- **AC:** Given any user, when they open Help launcher → "Change my onboarding path", then they can
+- **AC:** WHEN a user with multiple roles first signs in THE SYSTEM SHALL prompt them to choose a
+  starting path; WHEN a user with zero roles is resolved THE SYSTEM SHALL default them to the
+  Business read-only variant.
+- **AC:** WHEN any user opens Help launcher → "Change my onboarding path" THE SYSTEM SHALL let them
   switch paths at any time.
 - **AC:** Each path's first milestone (measure-and-report, not a GA gate): Business → browse the
   Hammerbarn ontology and use the chat panel to find **Process**es with no assigned owner (no
   `performedBy` Actor; NL, not SPARQL); Technical → create your first entity type in your own
   workspace; Compliance → view the compliance dashboard and inspect one policy's enforcement status;
   Admin → invite a team member and configure a data connector.
-- **AC (failure mode):** Given a path whose first-milestone screen belongs to a not-yet-GA engine,
-  when the path is resolved, then the milestone is shown **locked** with a prerequisite note rather
+- **AC (failure mode):** IF a path's first-milestone screen belongs to a not-yet-GA engine when the
+  path is resolved THEN THE SYSTEM SHALL show the milestone **locked** with a prerequisite note rather
   than a broken deep-link.
 - **Priority:** Must Have · **depends-on:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
 
@@ -509,16 +509,20 @@ the actions most valuable for my job — not a generic sequence.
 dashboard to show role-appropriate starter widgets on first load so that the dashboard makes sense
 from the moment I land.
 
-- **AC:** Given a role path, when the Platform Dashboard loads starter widgets (rendering and
-  removability **owned by Platform PRD E1-S6 / FR-012**), then onboarding supplies the
+- **AC:** WHERE a role path, WHEN the Platform Dashboard loads starter widgets (rendering and
+  removability **owned by Platform PRD E1-S6 / FR-012**) THE SYSTEM SHALL supply the
   role→widget-set mapping consumed by that feature. Onboarding does **not** render or remove widgets
   and does not re-specify widget lists here (single source of truth = Platform).
 - **AC:** The mapping is: Business → ontology health + graph completeness; Technical → token spend +
   active projects + agent activity; Compliance → compliance status + audit feed + self-improvement
   findings; Admin → RBAC coverage + connector health + onboarding progress.
-- **AC (failure mode):** Given a mapped widget whose source engine has not shipped, when the
-  Dashboard resolves widgets, then Platform omits it (handled by Platform E1-S6); onboarding's
-  mapping carries an engine-availability tag so MVP = CE-sourced widgets only (resolve-by-default #5).
+- **AC (failure mode):** IF a mapped widget's source engine has not shipped, WHEN the Dashboard
+  resolves widgets THEN THE SYSTEM SHALL have Platform omit it (handled by Platform E1-S6);
+  onboarding's mapping carries an engine-availability tag so MVP = CE-sourced widgets only
+  (resolve-by-default #5). The Business ontology-health + graph-completeness tile is backed by
+  CE-METRICS-1, which is GA at **CE M2** (not the M1 window): WHERE CE-METRICS-1 is live THE SYSTEM
+  SHALL activate that tile, and IF CE-METRICS-1 is not yet live THEN THE SYSTEM SHALL gracefully omit
+  it via the engine-availability tag.
 - **Priority:** Should Have · **depends-on:** Platform E1-S6 / FR-012, CE-METRICS-1
 
 #### Epic 4: Hands-On Exercises
@@ -527,9 +531,9 @@ from the moment I land.
 structured hands-on exercises in the Hammerbarn sandbox so that I practice each engine capability by
 doing.
 
-- **AC:** Given v1 GA, when the exercise set is listed, then it contains at least the following, each
-  with a title, goal, 3–5 step instructions, a completion check, and a completion indicator
-  (checkmark + micro-animation). Each exercise is **role-gated** and **phase-tagged**:
+- **AC:** WHERE v1 GA, WHEN the exercise set is listed THE SYSTEM SHALL include at least the
+  following, each with a title, goal, 3–5 step instructions, a completion check, and a completion
+  indicator (checkmark + micro-animation). Each exercise is **role-gated** and **phase-tagged**:
 
   | ID | Exercise | Path(s) | Completion check (mechanism) | Phase |
   |---|---|---|---|---|
@@ -544,21 +548,21 @@ doing.
 
   (Resolves: CE-03 raw SPARQL gated to Technical; CE-03b NL path for Business; completion checks
   name a concrete CE-READ-1/CE-WRITE-1/GE-CANVAS-1 signal.)
-- **AC:** Given a user who resets their sandbox, when an exercise that was complete is redone, then
-  exercise progress can be re-earned (completion flags cleared on reset — E1-S2).
-- **AC (failure mode):** Given an exercise gated behind a feature the user's role cannot access or an
-  engine that has not shipped, when the exercise list renders, then that exercise is hidden or shown
-  disabled with an explanation — never a broken step.
+- **AC:** WHERE a user has reset their sandbox, WHEN an exercise that was complete is redone THE
+  SYSTEM SHALL let exercise progress be re-earned (completion flags cleared on reset — E1-S2).
+- **AC (failure mode):** IF an exercise is gated behind a feature the user's role cannot access or an
+  engine that has not shipped, WHEN the exercise list renders THEN THE SYSTEM SHALL hide that exercise
+  or show it disabled with an explanation — never a broken step.
 - **Priority:** Must Have (CE/GE exercises) · post-v1 (BE-01, AE-01) · **depends-on:** CE-READ-1,
   CE-WRITE-1, GE-CANVAS-1; BE-ARTEFACT-1 (BE-01); EA-AUTOMATION-1 (AE-01)
 
 **E4-S2: Exercise progress visible in the onboarding checklist.** As a **new user**, I want my
 exercise progress reflected in the onboarding checklist so that I know how far I have come.
 
-- **AC:** Given a completed exercise, when the checklist renders, then the matching item shows
-  complete with a timestamp.
-- **AC (failure mode):** Given an analytics/state-write failure on completion, when detected, then
-  the completion is retried and the checklist reflects the last persisted state (no silent loss).
+- **AC:** WHERE an exercise is completed, WHEN the checklist renders THE SYSTEM SHALL show the
+  matching item complete with a timestamp.
+- **AC (failure mode):** IF an analytics/state-write failure occurs on completion THEN THE SYSTEM
+  SHALL retry the completion and reflect the last persisted state in the checklist (no silent loss).
 - **Priority:** Should Have · **depends-on:** E5-S1
 
 #### Epic 5: Onboarding Checklist & Activation
@@ -567,44 +571,46 @@ exercise progress reflected in the onboarding checklist so that I know how far I
 checklist on my Dashboard that tracks progress from demo exploration to first real outcome so that I
 always have a clear next step.
 
-- **AC:** Given the Dashboard, when it renders, then the checklist widget shows **role-configurable**
-  items: explore the Hammerbarn demo (auto-complete on first demo visit); complete the guided tour
-  for your primary area; complete ≥ 1 hands-on exercise; **reach your activation milestone**
-  (per-path, E5-S2); plus admin-only "invite a team member" and "configure a data connector".
-- **AC:** Given an item, when rendered, then it shows a checkbox, label, "Why this matters"
+- **AC:** WHEN the Dashboard renders THE SYSTEM SHALL show a checklist widget with
+  **role-configurable** items: explore the Hammerbarn demo (auto-complete on first demo visit);
+  complete the guided tour for your primary area; complete ≥ 1 hands-on exercise; **reach your
+  activation milestone** (per-path, E5-S2); plus admin-only "invite a team member" and "configure a
+  data connector".
+- **AC:** WHEN an item is rendered THE SYSTEM SHALL show a checkbox, label, "Why this matters"
   description, and a "Do it now" deep-link.
-- **AC:** Given all items complete, when 100% is reached, then a celebration moment plays and the
-  widget relabels "Onboarding complete"; the widget **auto-dismisses after a default 7 days, tunable
-  per workspace** (decision E4 — config-driven, not hard-coded).
-- **AC:** Given a dismissed checklist, when the user opens Help launcher → "Show onboarding
-  checklist", then it is restored.
-- **AC (failure mode):** Given a checklist item whose engine has not shipped, when rendered, then it
-  is shown **locked** with a prerequisite note.
+- **AC:** WHEN all items are complete and 100% is reached THE SYSTEM SHALL play a celebration moment
+  and relabel the widget "Onboarding complete"; the widget **auto-dismisses after a default 7 days,
+  tunable per workspace** (decision E4 — config-driven, not hard-coded).
+- **AC:** WHEN the user opens Help launcher → "Show onboarding checklist" on a dismissed checklist
+  THE SYSTEM SHALL restore it.
+- **AC (failure mode):** IF a checklist item's engine has not shipped, WHEN it is rendered THEN THE
+  SYSTEM SHALL show it **locked** with a prerequisite note.
 - **Priority:** Must Have · **depends-on:** Platform Dashboard, PLAT-SETTINGS-1 (per-user state)
 
 **E5-S2: Activation milestone detection (idempotent).** As a **platform analytics system**, I want to
 automatically detect when a user reaches their activation milestone so that completion is tracked
 without manual marking.
 
-- **AC:** Given a per-path activation milestone, when its triggering action occurs **in the user's
-  own workspace**, then it is detected from a concrete signal: Business/Technical → CE-EVENT-1 change
-  event `{change_type:"added", actor:<user principal>}` for the first committed entity (or SPARQL run
-  via CE-READ-1 for Technical); Compliance → first governance/compliance entity or SHACL validation
-  result viewed via **CE-READ-1** (a CE-grounded, contracted signal). If CE-EVENT-1 transport is not
-  ready, degrade to polling CE-READ-1 with a since-version (CE-EVENT-1 note; resolve-by-default #4).
+- **AC:** WHERE a per-path activation milestone, WHEN its triggering action occurs **in the user's
+  own workspace** THE SYSTEM SHALL detect it from a concrete signal: Business/Technical → CE-EVENT-1
+  change event `{change_type:"added", actor:<user principal>}` for the first committed entity (or
+  SPARQL run via CE-READ-1 for Technical); Compliance → first governance/compliance entity or SHACL
+  validation result viewed via **CE-READ-1** (a CE-grounded, contracted signal). If CE-EVENT-1
+  transport is not ready, degrade to polling CE-READ-1 with a since-version (CE-EVENT-1 note;
+  resolve-by-default #4).
 - **AC (Admin — Should Have):** Admin activation requires a contracted platform member-management
   signal (OQ-08, not yet contracted). Until Platform commits to that contract: the Admin checklist
   item "Invite first team member" is shown with a "pending platform signal" badge and requires
   **manual self-mark** (the admin ticks the checklist item). Do not over-claim PLAT-IDENTITY-1 (the
   agent-principal registry — not human-invite detection). Re-promote Admin activation to Must Have
   when Platform contracts the signal.
-- **AC:** Given milestone detection, when it fires, then the checklist item auto-completes, an
-  `onboarding-activation` event is published to PLAT-NOTIFY-1, an analytics event is recorded (see E8
-  schema), and a celebratory toast fires.
-- **AC (idempotency / failure mode):** Given the same milestone re-triggering, when detected again,
-  then the toast and analytics event fire **exactly once per `(tenant, user, milestone)`** using a
-  persisted `activated` flag — no double-fire. If the activation engine is unavailable, the milestone
-  stays locked rather than mis-firing.
+- **AC:** WHEN milestone detection fires THE SYSTEM SHALL auto-complete the checklist item, publish
+  an `onboarding-activation` event to PLAT-NOTIFY-1, record an analytics event (see E8 schema), and
+  fire a celebratory toast.
+- **AC (idempotency / failure mode):** IF the same milestone re-triggers and is detected again THEN
+  THE SYSTEM SHALL fire the toast and analytics event **exactly once per `(tenant, user, milestone)`**
+  using a persisted `activated` flag — no double-fire. IF the activation engine is unavailable THEN
+  THE SYSTEM SHALL keep the milestone locked rather than mis-firing.
 - **Priority:** Must Have (Business/Technical/Compliance) · **Should Have** (Admin — OQ-08
   uncontracted; manual self-mark fallback) · **depends-on:** CE-EVENT-1 (Should Have; degrade to
   CE-READ-1 poll), PLAT-NOTIFY-1, PLAT-IDENTITY-1
@@ -614,26 +620,26 @@ without manual marking.
 **E6-S1: Training library accessible from the help launcher.** As a **new user**, I want a training
 library so that I can learn at my own pace beyond tours.
 
-- **AC:** Given Help launcher → "Training", when opened, then it shows video walkthrough cards
+- **AC:** WHEN Help launcher → "Training" is opened THE SYSTEM SHALL show video walkthrough cards
   (thumbnail placeholder labelled "Video — coming soon", title, duration, description — real video
   streams from S3/CloudFront when produced) and written walkthroughs (Markdown + screenshots).
-- **AC:** Given the library, when rendered, then content categories cover Introduction, Ontologies,
-  Graph Explorer, Build (post-v1), Automation (post-v1), Compliance & Governance, Administration.
-  post-v1 categories are shown but flagged "available when the engine ships".
-- **AC:** Given a search field, when a keyword is entered, then content is filtered; results return
-  within a **default ≤ 300 ms, tunable** target.
-- **AC (failure mode):** Given a video asset that fails to load, when playback is attempted, then the
-  card shows the placeholder/error state, never a broken player.
+- **AC:** WHEN the library is rendered THE SYSTEM SHALL cover content categories Introduction,
+  Ontologies, Graph Explorer, Build (post-v1), Automation (post-v1), Compliance & Governance,
+  Administration. post-v1 categories are shown but flagged "available when the engine ships".
+- **AC:** WHEN a keyword is entered in the search field THE SYSTEM SHALL filter content; results
+  return within a **default ≤ 300 ms, tunable** target.
+- **AC (failure mode):** IF a video asset fails to load when playback is attempted THEN THE SYSTEM
+  SHALL show the card's placeholder/error state, never a broken player.
 - **Priority:** Must Have (placeholders + written) · **depends-on:** S3/CloudFront hosting (OQ-04)
 
 **E6-S2: What's New changelog.** As any user, I want a "What's new" feed in the help launcher so that
 I know what changed.
 
-- **AC:** Given Help launcher → "What's new", when opened, then it shows the **last N release items
+- **AC:** WHEN Help launcher → "What's new" is opened THE SYSTEM SHALL show the **last N release items
   (default 5, tunable**): version, date, headline, 1–2 sentence description; a blue dot on the help
   icon flags unread items.
-- **AC (failure mode):** Given the release feed is unavailable, when opened, then the panel shows an
-  empty-state message, not an error blocking the launcher.
+- **AC (failure mode):** IF the release feed is unavailable when opened THEN THE SYSTEM SHALL show the
+  panel's empty-state message, not an error blocking the launcher.
 - **Priority:** Should Have
 
 #### Epic 7: Help Launcher
@@ -641,22 +647,23 @@ I know what changed.
 **E7-S1: Persistent help launcher in the top header.** As any user, I want a persistent help launcher
 (? icon) in the top header so that help is never more than one click away.
 
-- **AC:** Given any screen, when the user opens the ? launcher, then the panel offers: search across
+- **AC:** WHEN the user opens the ? launcher on any screen, THE SYSTEM SHALL offer in the panel: search across
   help + training content; "Take a tour" (current area's tour, or a list if none); "Show hints";
   "Training library"; "Keyboard shortcuts"; "What's new"; "Contact support" (new tab).
-- **AC:** Given the launcher, when the user presses Shift+? (or ? outside a text field) it opens, and
-  Escape closes it; the launcher is keyboard-accessible throughout.
-- **AC (failure mode):** Given the current area has no tour, when "Take a tour" is chosen, then the
-  launcher shows the list of available tours — no dead action.
+- **AC:** WHEN the user presses Shift+? (or ? outside a text field), THE SYSTEM SHALL open the launcher,
+  and WHEN the user presses Escape THE SYSTEM SHALL close it; the launcher SHALL be keyboard-accessible
+  throughout.
+- **AC (failure mode):** WHERE the current area has no tour, WHEN "Take a tour" is chosen THE SYSTEM
+  SHALL show the list of available tours — no dead action.
 - **Priority:** Must Have
 
 **E7-S2: Contextual help panel per screen.** As any user, I want screen-relevant help so that I get
 targeted help without searching.
 
-- **AC:** Given the launcher open on a screen, when "Help for this page" renders, then it shows 2–4
-  links relevant to the active engine/screen.
-- **AC (failure mode):** Given no contextual links exist for a screen, when rendered, then the
-  section is hidden (not an empty box).
+- **AC:** WHERE the launcher is open on a screen, WHEN "Help for this page" renders THE SYSTEM SHALL
+  show 2–4 links relevant to the active engine/screen.
+- **AC (failure mode):** IF no contextual links exist for a screen, WHEN the panel is rendered THEN
+  THE SYSTEM SHALL hide the section (not show an empty box).
 - **Priority:** Should Have
 
 #### Epic 8: Onboarding Analytics
@@ -665,7 +672,7 @@ targeted help without searching.
 admin** (Weave-internal), I want completion rates by role so that I can measure and improve
 onboarding.
 
-- **AC:** Given Settings → Onboarding analytics, when opened, then it shows: tour completion % per
+- **AC:** WHEN Settings → Onboarding analytics is opened, THE SYSTEM SHALL show: tour completion % per
   tour per role; exercise completion % per exercise per role; checklist completion within a **default
   7-day window, tunable**; activation rate within that window by role; time-to-activation (median +
   p90); per-tour drop-off step.
@@ -673,22 +680,23 @@ onboarding.
   tenant_id, user_principal_iri, anonymised_cohort_key, ts_first_signin, ts_event }`.
   `user_principal_iri` is retained **per-tenant only** (raw); cross-workspace aggregation (E8-S2) uses
   only `anonymised_cohort_key` (a non-reversible hash; no tenant-identifiable fields).
-- **AC:** Given the analytics view, when accessed, then it is restricted to workspace admins (RBAC via
-  PLAT-SETTINGS-1); access attempts are audited via PLAT-AUDIT-1.
-- **AC:** Given an event, when emitted, then the dashboard reflects it within a **default 5 min,
-  tunable** freshness target.
-- **AC (failure mode):** Given an analytics event delivery failure, when detected, then the event is
-  retried via a durable queue; metering/activation correctness does not depend on dashboard freshness.
+- **AC:** WHEN the analytics view is accessed, THE SYSTEM SHALL restrict it to workspace admins (RBAC
+  via PLAT-SETTINGS-1) and SHALL audit access attempts via PLAT-AUDIT-1.
+- **AC:** WHEN an event is emitted, THE SYSTEM SHALL reflect it in the dashboard within a **default 5
+  min, tunable** freshness target.
+- **AC (failure mode):** IF an analytics event delivery failure is detected, THEN THE SYSTEM SHALL
+  retry the event via a durable queue; metering/activation correctness does not depend on dashboard
+  freshness.
 - **Priority:** Should Have · **depends-on:** PLAT-IDENTITY-1, PLAT-SETTINGS-1, PLAT-AUDIT-1
 
 **E8-S2: Anonymised cohort analytics.** As a **Weave product team** (internal), I want anonymised
 cross-workspace cohort data so that we can improve onboarding globally.
 
-- **AC:** Given cohort analytics, when aggregated, then they use only the non-reversible
+- **AC:** WHEN cohort analytics are aggregated, THE SYSTEM SHALL use only the non-reversible
   `anonymised_cohort_key` — **no PII, no tenant-identifiable field** — reconciling E8-S1's per-tenant
   raw retention with this no-PII global view.
-- **AC (failure mode):** Given a cohort below a minimum size (**default k=20, tunable**), when
-  aggregated, then it is suppressed to prevent re-identification.
+- **AC (failure mode):** IF a cohort is below a minimum size (**default k=20, tunable**), WHEN
+  aggregated THEN THE SYSTEM SHALL suppress it to prevent re-identification.
 - **Priority:** Should Have
 
 ### 2.3 Functional requirements
@@ -789,8 +797,8 @@ cross-workspace cohort data so that we can improve onboarding globally.
 - **Mechanism (named, per resolve-by-default #6):** named-graph-per-`(tenant,user)` with
   query-rewriting that **rejects any unscoped query**, OR store-per-tenant — final topology deferred
   to OQ-02 (Architect), but the expectation and the test are pinned here.
-- **Cross-tenant-read test:** Given a tenant-A / user-A JWT, when a sandbox query is issued without an
-  explicit scope, then zero tenant-B and zero other-user triples are returned.
+- **Cross-tenant-read test:** WHEN a sandbox query is issued without an explicit scope under a
+  tenant-A / user-A JWT, THE SYSTEM SHALL return zero tenant-B and zero other-user triples.
 
 #### Internationalisation
 
@@ -1051,7 +1059,8 @@ consumes for the Dashboard.
   via its engine-availability tag) rather than producing a broken deep-link.
 
 **Dependencies.** *Blocked by:* PLAT-IDENTITY-1 (canonical role resolution, user principal IRI);
-PLAT-SETTINGS-1 (per-user path state, tunable cascade); CE-METRICS-1 (Business-path starter widgets);
+PLAT-SETTINGS-1 (per-user path state, tunable cascade); CE-METRICS-1 (Business-path starter widgets —
+GA at CE M2; the E3-S2 tile graceful-omits via its engine-availability tag until then);
 Platform E1-S6 / FR-012 (owns starter-widget rendering and removability — onboarding supplies mapping
 only). *Blocks:* none (terminal consumer). The resolved path is consumed across onboarding — EPIC-002
 tours, EPIC-004 exercise gating, and EPIC-005 activation milestones all key off it.
@@ -1401,9 +1410,12 @@ not-yet-GA engines are **feature-flagged off**, not broken.
 - [ ] PRD section approved; Phase-1 tech spec approved (OQ-01 tour framework, OQ-02 sandbox topology,
       OQ-04 video hosting, OQ-05 analytics tool, OQ-06 tour-anchor strategy resolved).
 - [ ] Tasks decomposed; each task brief passes the DoR gate.
-- [ ] **Upstream contracts GA at M1 window:** CE-READ-1, CE-WRITE-1, CE-VERSION-1, CE-METRICS-1 (CE-EVENT-1
+- [ ] **Upstream contracts GA at M1 window:** CE-READ-1, CE-WRITE-1, CE-VERSION-1 (CE-EVENT-1
       **Should Have** — degrade to CE-READ-1 since-version poll if not ready); GE-CANVAS-1;
       PLAT-IDENTITY-1, PLAT-NOTIFY-1, PLAT-AUDIT-1.
+- [ ] **CE-METRICS-1 GA at CE M2 (not the M1 window):** gates the E3-S2 Business-path ontology-health /
+      graph-completeness starter tile — WHERE CE-METRICS-1 is live THE SYSTEM SHALL activate the tile,
+      IF not yet live THEN THE SYSTEM SHALL gracefully omit it via the engine-availability tag until M2.
 - [ ] **PLAT-SETTINGS-1 tenant model available** — gates the writable-sandbox P0 (per-user copy +
       isolation topology, OQ-02). Writable exercises build only once the tenant model exists.
 - [ ] **OQ-08 resolved (Should Have + fallback):** Admin-path activation demoted to Should Have with

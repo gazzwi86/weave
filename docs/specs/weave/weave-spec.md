@@ -91,10 +91,12 @@ Parallelism is gated by which CE milestone publishes the contract a consumer nee
 | **W3** | M2 | **CE M2** (`CE-BRAND-1` + `CE-FUNCTION-1` + `CE-METRICS-1` + `CE-EVENT-1` beta) ∥ **Explorer M2** (full editing) | M1 milestone sign-off |
 | **W4** | M2 | **Build M2** (brand-conformance gate) ∥ **Platform M2** (generative dashboard) | `CE-BRAND-1` (Build M2) · `CE-METRICS-1` (Platform M2) |
 | **W5** | v1.0 | Build v1.0 (PM surfaces) · CE v1.0 (function registry built) · Onboarding v1.0 (Hammerbarn real client) · Platform v1.0 (`PLAT-CONNECTOR-1` config/health/ingestion) | M2 milestone |
+| **W1–W4 (carve-out)** | M1–M2 window | **Onboarding CE+Explorer slice** (EPIC-001–008: tours, starter widgets, activation detection) develops **in parallel** — never an M1/M2 exit gate; first *delivery* remains Onboarding v1.0 at W5 (carve-out approved 2026-07-02) | Hammerbarn raw pre-seed (M1 program artefact) + CE/Explorer contracts as each lands |
 | **W-post** | post-v1 | Events P1 · Explorer C4+Yjs · CE P3 (OWL) · Build self-heal | contract-gated per item |
 
 > **Key corrections:** Build M1 unblocks at **CE M1** spine, **not** CE Phase 2 — `CE-BRAND-1`
-> is M2. Build M1 safety gates = SAST / type-check / secret-scan / mutation (no brand conformance).
+> is M2. Build M1 safety gates = secret-scan / SAST / type-check / package-existence / mutation
+> (5 gates, no brand conformance).
 > NL query (`POST /api/query/nl`) is in **CE M1** ([contracts](contracts.md) `CE-READ-1`). `CE-FUNCTION-1`
 > (ontology-bound function registry) is **M2/v1.0** — decision locked now, build not M1.
 > **M1 critical path:** Platform P1 → CE M1 → Build M1 (Explorer M1 parallel with Build M1).
@@ -138,7 +140,7 @@ Demo runs on the **Hammerbarn pre-seed** (synthetic company model). Real-client 
 | Generative dashboard | **M2** |
 | Weave self-improvement loop | post-v1 |
 | Events & Actions (whole engine) | post-v1 |
-| Full Onboarding + real-client ingestion | **v1.0** |
+| Full Onboarding + real-client ingestion | **v1.0** — the Onboarding CE+Explorer slice may *develop* in the M1–M2 window per the W1–W4 carve-out (§1.2), but nothing Onboarding gates M1/M2 exit |
 
 #### M1 exit criteria (EARS, measurable, human-signed)
 

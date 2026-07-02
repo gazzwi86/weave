@@ -20,8 +20,8 @@ coverage: build-engine
 **Graph edges:**
 [Build Engine spec](../../../build-engine.md) ·
 [Inter-engine contracts](../../../../contracts.md) ·
-[ADR-001 Tenant isolation](../../../../decisions/ADR-001-tenant-isolation.md) ·
-[ADR-002 Authority extension](../../../../decisions/ADR-002-authority-extension.md)
+[ADR-001 Tenant isolation](../../../decisions/ADR-001-tenant-isolation.md) ·
+[ADR-002 Authority extension](../../../decisions/ADR-002-authority-extension.md)
 
 ---
 
@@ -41,7 +41,7 @@ M1** — the rows exist, the behaviour is a pass-through (see
 
 ## Named-Graph Isolation Scheme
 
-Per [ADR-001](../../../../decisions/ADR-001-tenant-isolation.md), every RDF read and write passes
+Per [ADR-001](../../../decisions/ADR-001-tenant-isolation.md), every RDF read and write passes
 through the **fail-closed query-rewriting middleware** — the single enforcement point.
 No engine code issues raw store queries.
 
@@ -72,6 +72,11 @@ erDiagram
     string slug
     string project_iri
     string pinned_graph_version_iri
+    string repo_provider
+    string repo_url
+    string repo_default_branch
+    string scm_token_secret_ref
+    string repo_bootstrap_status
     string demo_output_location_ref
     boolean write_back_complete
     string write_back_artefact_iri
@@ -221,6 +226,11 @@ RLS: `tenant_id = current_setting('app.tenant_id')::uuid` enforced on all querie
 | `slug` | TEXT NOT NULL | URL-safe slug; forms the project IRI |
 | `project_iri` | TEXT NOT NULL | `urn:weave:project:{tenant_id}:{slug}` |
 | `pinned_graph_version_iri` | TEXT | set on first generation run (CE-VERSION-1) |
+| `repo_provider` | TEXT | source-control provider: `github \| gitlab` (TASK-010, FR-061) |
+| `repo_url` | TEXT | URL of the project's external repo; set on bootstrap |
+| `repo_default_branch` | TEXT | default branch of the bootstrapped repo |
+| `scm_token_secret_ref` | TEXT | AWS Secrets Manager reference for the provider token — **never the token value** |
+| `repo_bootstrap_status` | TEXT | `pending \| bootstrapped \| failed`; `bootstrapped` gates idempotent re-run |
 | `demo_output_location_ref` | TEXT | S3 URI of generated demo app bundle |
 | `write_back_complete` | BOOLEAN | true once BE-ARTEFACT-1 write-back succeeds |
 | `write_back_artefact_iri` | TEXT | `urn:weave:artefact:{tenant_id}:{run_id}` |
@@ -516,12 +526,12 @@ and denies by default** (`coverage_gap` signal). ODRL/SKOS full Authority Extens
 
 ## Cross-Tenant Isolation Invariant
 
-Per [ADR-001](../../../../decisions/ADR-001-tenant-isolation.md):
+Per [ADR-001](../../../decisions/ADR-001-tenant-isolation.md):
 
 - A build job reads **only** `urn:weave:g:framework ∪ urn:weave:g:tenant:{ctx.tenant_id}`.
 - Write-back targets `urn:weave:g:tenant:{ctx.tenant_id}` derived from **request context**,
   never from the payload; a payload naming another tenant's graph is a 403 + PLAT-AUDIT-1 entry.
-- Aurora: `tenant_id` column + RLS on all 10 tables; base query layer enforces the predicate
+- Aurora: `tenant_id` column + RLS on all 11 tables; base query layer enforces the predicate
   at the ORM level — no ad-hoc `WHERE tenant_id = ?` scattered through service code.
 - **Release gate (mandatory):** `test_cross_tenant_read_returns_zero_rows` +
   `test_unscoped_query_is_rejected` + connector-write isolation case must pass before M1 ship.

@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: ["PLAT-SETTINGS-1 provisioned"]
 unlocks: ["TASK-002", "TASK-003", "TASK-004", "TASK-005", "TASK-006"]
-adr_refs: []
+adr_refs: [ADR-001]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -39,7 +39,7 @@ no structural errors can accumulate silently.
 | AC-001-02 | WHEN SHACL evaluation yields one or more `sh:Violation` results, THE SYSTEM SHALL discard the scratch graph and return `422 {violations:[{focus_node, path, severity, message}]}`. |
 | AC-001-03 | WHEN SHACL evaluation yields only `sh:Warning` or `sh:Info` results, THE SYSTEM SHALL commit the change and include advisories in the `201` response body. |
 | AC-001-04 | WHEN a request carries an `idempotency_key` already seen within 24 hours, THE SYSTEM SHALL return the original `201` response body without re-applying operations. |
-| AC-001-05 | WHEN an `add_node` operation has the same case-insensitive label and kind as an existing node in the same tenant graph, THE SYSTEM SHALL reject the batch with `409 {existing_iri}`. |
+| AC-001-05 | WHEN an `add_node` operation has the same case-insensitive label and kind as an existing node in the same tenant graph, THE SYSTEM SHALL reconcile the create to the existing node and return it as a successful result (not an error), resolving the batch `ref` to the existing IRI (CE-WRITE-1 dedup; contracts.md, data-model.md). |
 | AC-001-06 | WHEN an `update_node` operation names only a subset of properties, THE SYSTEM SHALL retract only the named properties and assert new values, leaving all other triples (position, colour, domain annotations) unchanged. |
 | AC-001-07 | WHEN a request carries no valid JWT or an expired JWT, THE SYSTEM SHALL return `401` before any graph operation. |
 | AC-001-08 | WHEN a valid JWT belongs to a principal whose role lacks write permission per PLAT-SETTINGS-1, THE SYSTEM SHALL return `403`. |
@@ -90,7 +90,7 @@ sequenceDiagram
 | Partial-update: retract only named predicates | Preserves display and annotation triples the caller did not include. Prevents inadvertent data loss. | engine spec decision B2 |
 | `sh:Violation` → 422, advisories → 201 | Mirrors HTTP semantics; violations are blocking errors, warnings are informational. | engine spec E6-S2 ACs |
 | Idempotency via 24h key window | Safe retry under network failure; 24h is sufficient for all UI-driven retry loops. | contracts.md CE-WRITE-1 |
-| OWL class graph and SHACL shapes graph are separate named graphs | `weave:graph/ontology` for OWL, `weave:graph/shapes` for SHACL; validator queries only the shapes graph. | engine spec decision B3 |
+| Validator reads framework shapes + tenant shapes; graphs follow the ADR-001 scheme | BPMO OWL classes and framework SHACL shapes both live in `urn:weave:g:framework`; per-tenant custom shapes live in the tenant's shapes subgraph within `urn:weave:g:tenant:{id}`. There is no separate OWL/SHACL top-level graph — OWL/SHACL confusion is prevented by `inference='none'` (decision B1), not graph separation. | ADR-001; data-model.md |
 
 ## Test Requirements
 
@@ -99,7 +99,7 @@ sequenceDiagram
 | Unit | SHACL evaluator flags `sh:Violation`, passes `sh:Warning` and `sh:Info` correctly | AC-001-02, AC-001-03 |
 | Unit | Partial-update retract/assert leaves untouched predicates intact in scratch graph | AC-001-06 |
 | Unit | Idempotency key lookup returns cached response without re-applying | AC-001-04 |
-| Unit | Case-insensitive duplicate label+kind detection per tenant | AC-001-05 |
+| Unit | Case-insensitive duplicate label+kind create reconciles to the existing node (success, no error) | AC-001-05 |
 | Integration | Full clone→SHACL→commit cycle against Oxigraph dev store | AC-001-01, AC-001-10 |
 | Integration | `401` on missing/expired JWT | AC-001-07 |
 | Integration | `403` on authenticated but unauthorised role | AC-001-08 |
@@ -124,7 +124,7 @@ sequenceDiagram
 - [ ] Oxigraph reachable in CI environment
 - [ ] BPMO SHACL shape files checked in and versioned
 - [ ] CE-WRITE-1 contract frozen (contracts.md)
-- [ ] Multi-tenant named-graph routing strategy confirmed (OQ-04 resolved or provisional decision recorded)
+- [ ] Multi-tenant named-graph routing confirmed per ADR-001 (`urn:weave:g:framework` + `urn:weave:g:tenant:{id}`)
 - [ ] Acceptance criteria signed off by PO
 
 ## DoD Checklist
@@ -161,6 +161,9 @@ for each update_op in operations:
 refreshed when shapes are updated. Do not reload on every request — cache with ETL-style
 invalidation.
 
-**OWL/SHACL graph separation**: `weave:graph/ontology` holds class hierarchy; `weave:graph/shapes`
-holds SHACL shapes. The validator queries only `weave:graph/shapes`. Mixing them breaks the
-Polikoff rule and corrupts OWL reasoning.
+**Framework vs tenant shapes**: BPMO OWL classes and framework SHACL shapes both live in
+`urn:weave:g:framework` (read-only SSOT); per-tenant custom shapes live in the tenant's shapes
+subgraph within `urn:weave:g:tenant:{id}` (ADR-001). The validator loads framework shapes + the
+tenant's shapes and runs with `inference='none'` — the Polikoff rule is enforced by disabling
+inference on the SHACL gate, not by a separate graph. Do not reintroduce the old flat named-graph
+scheme (ADR-001 supersedes it).

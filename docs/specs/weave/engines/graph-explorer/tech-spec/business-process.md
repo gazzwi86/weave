@@ -18,19 +18,19 @@ coverage: graph-explorer
 
 # Graph Explorer — Business Process (M1)
 
-**Engine spec:** [graph-explorer.md](../../../graph-explorer.md)
-**Inter-engine contracts:** [contracts.md](../../../../contracts.md)
-**Tenant isolation:** [ADR-001 — named-graph + query-rewriting](../../../../decisions/ADR-001-tenant-isolation.md)
+**Engine spec:** [graph-explorer.md](../../graph-explorer.md)
+**Inter-engine contracts:** [contracts.md](../../../contracts.md)
+**Tenant isolation:** [ADR-001 — named-graph + query-rewriting](../../../decisions/ADR-001-tenant-isolation.md)
 **Renderer strategy:** [ADR-001 (GE-local) — Cytoscape.js + fcose](../decisions/ADR-001-render-engine.md)
 
 **Standards referenced (link, not restated):**
 
-- RBAC levels: [rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)
+- RBAC levels: [rbac-multi-tenancy.md](../../../../../standards/rbac-multi-tenancy.md)
 - API conventions (error envelope, pagination, status codes):
-  [api-conventions.md](../../../../../../standards/api-conventions.md)
-- Audit / immutability: [audit-immutability.md](../../../../../../standards/audit-immutability.md)
-- Observability (traces, metrics): [observability.md](../../../../../../standards/observability.md)
-- Node kind visual palette: [data-viz.md](../../../../../../standards/design/data-viz.md)
+  [api-conventions.md](../../../../../standards/api-conventions.md)
+- Audit / immutability: [audit-immutability.md](../../../../../standards/audit-immutability.md)
+- Observability (traces, metrics): [observability.md](../../../../../standards/observability.md)
+- Node kind visual palette: [data-viz.md](../../../../../standards/design/data-viz.md)
 
 > **Renderer adapter invariant.** All diagrams below assume the renderer is accessed via the
 > stable adapter interface (`load(elements)`, `onNodeClick(cb)`, `getViewport()`, `setLayout(name, opts)`,
@@ -246,7 +246,7 @@ sequenceDiagram
 ```
 
 > Raw IRI (`node_iri`) is shown only under the "Advanced" disclosure in the side panel and only
-> for users with `ontologist` RBAC role ([rbac-multi-tenancy.md](../../../../../../standards/rbac-multi-tenancy.md)).
+> for users with `ontologist` RBAC role ([rbac-multi-tenancy.md](../../../../../standards/rbac-multi-tenancy.md)).
 > Opacity 0.18 for dimmed nodes is tunable via `config.spotlight_dim_opacity`.
 
 ---
@@ -451,10 +451,10 @@ The following flows are **out of scope for M1** and must not appear in the M1 im
 | Flow | Milestone | Reason deferred |
 |---|---|---|
 | Graph-node editing (create / update / delete) | M2 | Requires CE-WRITE-1 |
-| Saved views (named layout snapshots) | M2 | Requires `locked` positions + saved-view table (FR-009) |
-| Async canvas share link | M2 | FR-010 |
-| Overlay editor (decorators, comments) | M2 | FR-010 |
-| GE-CANVAS-1 embeddable component (force mode) | M2 | Depends on stable M1 canvas (FR-011) |
+| Saved views (named layout snapshots) | M2 | Requires `locked` positions + saved-view table (FR-028) |
+| Async canvas share link | M2 | FR-023 |
+| Overlay editor (decorators, comments) | M2 | FR-024 |
+| GE-CANVAS-1 embeddable component (force mode) | M2 | Depends on stable M1 canvas (FR-034) |
 | CE-DIFF-1 / VERSION-1 version spine | M2 | Not in M1 CE-READ-1 scope |
 | C4 structured canvas mode | post-v1 | Separate layout engine |
 | Real-time multi-user collab (Yjs CRDT) | post-v1 | CE-EVENT-1 + CRDT complexity |

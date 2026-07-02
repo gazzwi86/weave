@@ -134,9 +134,10 @@ The migration SQL produced here becomes the schema for TASK-004's Aurora endpoin
 
 | Diagram | File | Relevant Section | Summary |
 |---------|------|------------------|---------|
-| Sequence | `../tech-spec/business-process.md` | `#graph-load` | Pending — to be added to tech-spec before implementation starts |
-| State | `../tech-spec/business-process.md` | `#benchmark-decision` | Pending — to be added to tech-spec before implementation starts |
-| Data Model | `../tech-spec/data-model.md` | `#layout-schema` | Pending — this task IS the schema design input; data-model doc updated after AC-5 |
+| Sequence | `../../tech-spec/business-process.md` | `#graph-load` | CE-READ-1 paginated graph-load sequence the benchmark fixtures emulate |
+| State | `../../tech-spec/business-process.md` | `#benchmark-decision` | Go/no-go state machine driving the OQ-01 SPIKE and the ADR-001 flip |
+| Data Model | `../../tech-spec/data-model.md` | `#layout-schema` | Normative `explorer_layout_positions` DDL + RLS this task designs and approves |
+| Performance | `../../tech-spec/architecture.md` | `#10k-node-performance-budget` | 10k-node render/drag budget the benchmark measures against |
 
 ### Design Decisions
 
@@ -145,8 +146,8 @@ The migration SQL produced here becomes the schema for TASK-004's Aurora endpoin
 | Cytoscape.js + fcose for force layout (prototype-proven); WebGL escape hatch (sigma.js/G6) if 10k targets fail (SS-GE-1) | [graph-explorer.md §2.5](../../../graph-explorer.md#25-key-design-decisions) | Benchmark must use the exact fcose params from `prototype-findings.md`; deviation from prototype params invalidates the comparison |
 | Force canvas at 10k nodes is an unverified target (OQ-01 / OQ-05) | [graph-explorer.md §2.2](../../../graph-explorer.md#22-non-functional-requirements) | Performance ACs in TASK-002 are gated on this SPIKE; never assert 10k targets as settled before AC-2 or AC-3 is signed |
 | Explorer-owned Aurora tables, tenant + workspace scoped, server-side layout (D2) | [graph-explorer.md §2.5](../../../graph-explorer.md#25-key-design-decisions) | Schema must carry `tenant_id` + `workspace_id` on every row; row-level security required |
-| Aurora PostgreSQL Serverless v2 + SQLAlchemy async (confirmed stack) | [CLAUDE.md](../../../../../CLAUDE.md) | Migration SQL must be compatible with Aurora PostgreSQL; no alternative stores |
-| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../CLAUDE.md) | Database credentials for Aurora never in `.env` or source |
+| Aurora PostgreSQL Serverless v2 + SQLAlchemy async (confirmed stack) | [CLAUDE.md](../../../../../../../CLAUDE.md) | Migration SQL must be compatible with Aurora PostgreSQL; no alternative stores |
+| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../../../CLAUDE.md) | Database credentials for Aurora never in `.env` or source |
 
 ## Test Requirements
 

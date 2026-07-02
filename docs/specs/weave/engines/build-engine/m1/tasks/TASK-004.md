@@ -11,7 +11,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-001, TASK-003]
 unlocks: [TASK-006]
-adr_refs: []
+adr_refs: [ADR-002]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -303,9 +303,11 @@ N/A — no UI surface in M1; covered by integration tests.
   }` — this avoids N+1 CE calls.
 - `PLAT-SETTINGS-1` returns the effective value and the level it was set at; cache the response
   for the duration of a single request (not across requests) to avoid stale cap enforcement.
-- The no-self-approval check: after resolving stakeholder IRIs from CE, compare against
-  `claims["custom:principal_iri"]` (the agent's registered IRI) — fail with
-  `403 {"error": "self_approval_not_permitted"}` if they match.
+- The no-self-approval check: after resolving stakeholder IRIs from CE, compare against the
+  submitting principal's IRI — the same `stakeholder_iri` resolved above via
+  `resolve_stakeholder(claims.sub, ce_read_client)` (CE-READ-1), consistent with TASK-001/003
+  (`custom:tenant_id` claim + `sub`, no `principal_iri` claim) and TASK-005's PLAT-IDENTITY-1
+  lookup — fail with `403 {"error": "self_approval_not_permitted"}` if they match.
 - `sign-off` approvals are stored in a `request_sign_offs` table keyed by
   `(request_id, stakeholder_iri)` with a unique constraint — idempotent on double-submit.
 - When calling `POST /api/projects` in the auto-create path, pass the request name as the

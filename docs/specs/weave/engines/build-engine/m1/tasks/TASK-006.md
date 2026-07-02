@@ -11,7 +11,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-001, TASK-002, TASK-004, TASK-005, TASK-010]
 unlocks: [TASK-007, TASK-008]
-adr_refs: []
+adr_refs: [ADR-001]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -64,10 +64,15 @@ and never route to an unapproved model
 | AC-2 | WHEN either the orchestrator turn cap OR the cascading cost cap (FR-004/FR-008) is reached, THE SYSTEM SHALL halt to a HITL gate (via TASK-005 `fire_hitl_gate`) with full state preserved; the per-agent cap halt also routes to HITL via `TypedResult {status: FAIL, failure_class: "logic"}` | `test_either_cap_halt_routes_to_hitl_with_state_preserved` |
 | AC-3 | WHEN a cap-halt or crash occurs mid-task, THE SYSTEM SHALL resume from the last committed CODIFY checkpoint on the next dispatch; a task restarted from scratch when a CODIFY checkpoint exists is a defect | `test_resume_from_codify_checkpoint_after_crash` |
 | AC-4 | WHEN a task reaches CODIFY, THE SYSTEM SHALL write its dependency summary `{task_id, decisions: [...], edge_cases: [...], outputs: [...]}` to the tenant-scoped store (Aurora, RLS-isolated by `project_iri + task_id`) before the task is marked Done; CODIFY is non-skippable | `test_codify_writes_dep_summary_before_task_done` |
-| AC-5 | WHEN a task enters PLAN, THE SYSTEM SHALL load every predecessor's dependency summary from the tenant-scoped store before dispatching to DELEGATE; WHEN any predecessor summary is missing, THE SYSTEM SHALL hold the task in `Ready` with status `"missing_handoff"` and not dispatch it | `test_plan_holds_task_when_predecessor_summary_missing` |
+| AC-5 | WHEN a task enters PLAN, THE SYSTEM SHALL load every available predecessor dependency summary from the tenant-scoped store on a **best-effort** basis; WHEN any predecessor summary is missing, THE SYSTEM SHALL log a `missing_handoff` warning and dispatch the task anyway — in M1 a missing handoff **NEVER holds** the task (M2 activates the hold gate — FR-043) | `test_plan_warns_and_proceeds_when_predecessor_summary_missing` |
 | AC-6 | WHEN the configured model provider for a role (PLAN/DELEGATE/ASSESS/CODIFY) is unreachable, THE SYSTEM SHALL fall back per the fallback policy or halt the task and emit a routing error; it MUST NEVER silently invoke an unapproved or fallback model not in the confirmed set | `test_model_routing_miss_halts_task_not_silent_invoke` |
 | AC-7 | WHEN a tenant-B principal queries the state spine (`GET /api/state/{project_iri}`), THE SYSTEM SHALL return zero rows belonging to tenant-A (`404` or empty result); cross-tenant reads are a security defect | `test_state_spine_rls_tenant_b_sees_no_tenant_a_rows` |
 | AC-8 | WHEN the state spine is committed after a task, THE SYSTEM SHALL complete the commit within 500 ms p99; a commit timeout MUST block the task from being marked Done rather than silently skip | `test_state_spine_commit_blocks_on_timeout` |
+
+> **Cost-cap scope (M1, AC-2):** the M1 cost gate is **raw `PLAT-BILLING-1` metering + the
+> pre-generation estimate (FR-004)** — a coarse budget check read against the pre-gen estimate before
+> dispatch (`budget_cap_exceeded`). The **cascading run-time cost cap (FR-008)** referenced in AC-2 is
+> **v1.0**, not M1; M1 does not enforce a cascading run-time cap.
 
 ## Implementation
 
@@ -94,13 +99,12 @@ function run_dark_factory(project_iri, tenant_id, turn_cap=60):
     task = state.next_ready_task()       # ready = DoR passed, deps resolved
     if not task: break                   # all tasks done or blocked
 
-    # Check predecessor dep summaries (PLAN gate)
+    # Check predecessor dep summaries (M1: best-effort — log warning, never hold; M2 gates on it — FR-043)
     missing = [t for t in task.blocked_by
                if not aurora.dep_summary_exists(project_iri, t, tenant_id)]
     if missing:
-      aurora.update_task(task.id, status="Ready", blocked_reason="missing_handoff",
-                         missing_summaries=missing)
-      continue
+      log.warning("missing_handoff", task_id=task.id, missing_summaries=missing)
+      # M1 stub: do NOT hold — dispatch anyway. M2 activates the hold gate (FR-043).
 
     # Check budget cap before dispatch
     if budget_cap_exceeded(project_iri, tenant_id):  # PLAT-BILLING-1
@@ -266,7 +270,7 @@ All three are pending — to be added to tech-spec before implementation starts 
 
 - `should halt orchestrator loop and fire HITL when dispatch_count reaches turn_cap`
 - `should resume from existing codify_checkpoint after simulated crash`
-- `should hold task in Ready with missing_handoff when predecessor dep summary absent`
+- `should log missing_handoff warning and dispatch task when predecessor dep summary absent`
 - `should raise ModelRoutingError when role maps to a model not in ALLOWED_MODELS`
 - `should block task Done transition when state spine commit times out`
 - `should write dep_summary to tenant-scoped store before task status becomes Done`
@@ -289,7 +293,7 @@ N/A — dark-factory loop is backend-only in M1; covered by integration tests.
 | AC-2 | Unit | `should halt orchestrator loop and fire HITL when dispatch_count reaches turn_cap` |
 | AC-3 | Unit | `should resume from existing codify_checkpoint after simulated crash` |
 | AC-4 | Unit | `should write dep_summary to tenant-scoped store before task status becomes Done` |
-| AC-5 | Unit | `should hold task in Ready with missing_handoff when predecessor dep summary absent` |
+| AC-5 | Unit | `should log missing_handoff warning and dispatch task when predecessor dep summary absent` |
 | AC-6 | Unit | `should raise ModelRoutingError when role maps to a model not in ALLOWED_MODELS` |
 | AC-7 | Integration | `should return 0 tasks for tenant-B querying tenant-A state spine (RLS)` |
 | AC-8 | Unit | `should block task Done transition when state spine commit times out` |

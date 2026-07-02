@@ -583,7 +583,7 @@ The Events & Actions Engine PRD is satisfied when:
 
 ### EPIC-001 — Automation Registry
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-008, `CE-READ-1`, `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **Consumes:** `CE-READ-1`,
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** EPIC-008, `CE-READ-1`, `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **Consumes:** `CE-READ-1`,
 `CE-VERSION-1`, `PLAT-CONNECTOR-1`. **PRD ref:** prd.md#epic-1-automation-registry.
 
 **Description:** A workspace-scoped registry that lists every automation with its status, trigger
@@ -601,13 +601,13 @@ without opening each automation.
 As an **automation author**, I want to see all automations in a list with status and recent run data
 so that I can manage my automation library at a glance.
 
-- **AC:** Given a workspace with automations, when I open Automate → Automations, then each row shows
-  name, status chip (Active/Draft/Paused), trigger-type icon, linked CE entity (label + IRI, resolved
+- **AC:** WHERE a workspace has automations, WHEN I open Automate → Automations THE SYSTEM SHALL show
+  each row with name, status chip (Active/Draft/Paused), trigger-type icon, linked CE entity (label + IRI, resolved
   via `CE-READ-1`), pinned ontology version (`CE-VERSION-1`), last run (relative ts), 7-day run count,
   and Edit/Pause/Delete buttons. Filters: All/Active/Draft/Paused/Mine; sort by last run, run count,
   name; search by name or linked entity.
-- **AC:** Given the CE read interface (`CE-READ-1`) is unavailable, when the list renders, then rows
-  still display from the engine's own store and the CE-derived label shows a "CE unavailable — showing
+- **AC:** IF the CE read interface (`CE-READ-1`) is unavailable WHEN the list renders THEN THE SYSTEM SHALL
+  still display rows from the engine's own store and show the CE-derived label a "CE unavailable — showing
   cached label" badge rather than failing the whole list.
 - **Priority:** Must Have
 
@@ -615,15 +615,15 @@ so that I can manage my automation library at a glance.
 As an **automation author**, I want health indicators on each automation card so that I can spot
 failures and stale version pins without opening each automation.
 
-- **AC:** Given an automation whose last run exhausted retries, when the card renders, then a red dot
-  + "Last run failed (N retries exhausted)" tooltip appears.
-- **AC:** Given an automation whose pin lags the latest published version by ≥ the canonical staleness
-  threshold (`CE-VERSION-1`; default lag ≥ 2, tunable per workspace), when the card renders, then an
-  amber "Pin stale — N versions behind" chip appears.
-- **AC:** Given a connector the automation depends on reports `degraded`/disconnected via
-  `PLAT-CONNECTOR-1` health-status, when the card renders, then a warning chip appears.
-- **AC:** Given the `PLAT-CONNECTOR-1` health API itself errors, when the card renders, then the chip
-  shows "connector health unknown" (fail-visible, not silently green).
+- **AC:** WHERE an automation's last run exhausted retries, WHEN the card renders THE SYSTEM SHALL show a red dot
+  + "Last run failed (N retries exhausted)" tooltip.
+- **AC:** WHERE an automation's pin lags the latest published version by ≥ the canonical staleness
+  threshold (`CE-VERSION-1`; default lag ≥ 2, tunable per workspace), WHEN the card renders THE SYSTEM SHALL show an
+  amber "Pin stale — N versions behind" chip.
+- **AC:** WHERE a connector the automation depends on reports `degraded`/disconnected via
+  `PLAT-CONNECTOR-1` health-status, WHEN the card renders THE SYSTEM SHALL show a warning chip.
+- **AC:** IF the `PLAT-CONNECTOR-1` health API itself errors WHEN the card renders THEN THE SYSTEM SHALL show the chip
+  as "connector health unknown" (fail-visible, not silently green).
 - **Priority:** Must Have
 
 **Epic-level acceptance criteria:**
@@ -647,7 +647,7 @@ widgets (`EA-AUTOMATION-1` consumers).
 
 ### EPIC-002 — Natural-Language Automation Builder
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-003, EPIC-006, EPIC-007, `CE-READ-1`, `CE-VERSION-1`. **Blocks:** EPIC-010.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** EPIC-003, EPIC-006, EPIC-007, `CE-READ-1`, `CE-VERSION-1`. **Blocks:** EPIC-010.
 **Consumes:** `CE-READ-1`, `CE-VERSION-1`. **PRD ref:** prd.md#epic-2-natural-language-automation-builder.
 
 **Description:** A split-pane Builder (NL chat left, flow canvas right) where an operations owner
@@ -667,21 +667,21 @@ As an **operations owner**, I want to describe an automation in natural language
 specific BPMO `Process` or `Activity` (or a governing `Policy`) in my company's ontology so that the
 AI builds it grounded in my actual documented process — not hand-wired against raw APIs.
 
-- **AC:** Given the Builder is open in split-pane (chat left, canvas right), when I type a description
+- **AC:** WHERE the Builder is open in split-pane (chat left, canvas right), WHEN I type a description
   (e.g. "When a delivery arrives at any Hammerbarn store, send a Slack notification to the
-  #goods-inward channel for that store, following the goods-inward receipt process"), then the AI
-  (claude-fable-5) resolves the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
-  SELECT-only, paginated), resolves related entities, and drafts a simple-tier automation
+  #goods-inward channel for that store, following the goods-inward receipt process") THE SYSTEM SHALL,
+  via the AI (claude-fable-5), resolve the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
+  SELECT-only, paginated), resolve related entities, and draft a simple-tier automation
   (Webhook → Slack notification) with grounding `weave:Process/goods-inward-receipt-process` pinned
   via `CE-VERSION-1`.
-- **AC:** Given the description is ambiguous and matches multiple processes, when the AI cannot
-  resolve a single entity, then it asks ONE clarifying question inline (not a modal); after a default
-  of 3 unresolved clarification rounds (tunable per workspace) it falls back to the explicit "Link to
+- **AC:** WHERE the description is ambiguous and matches multiple processes, WHEN the AI cannot
+  resolve a single entity THE SYSTEM SHALL ask ONE clarifying question inline (not a modal), and after a default
+  of 3 unresolved clarification rounds (tunable per workspace) SHALL fall back to the explicit "Link to
   ontology" searcher (E6-S1) rather than looping.
-- **AC (failure mode):** Given the `CE-READ-1` SPARQL lookup times out or returns 5xx, or the
-  referenced entity exists only in a draft (unpublished) version, when the AI attempts to ground, then
-  it does NOT fabricate an IRI — it surfaces "couldn't reach / resolve the ontology; the process may
-  need publishing in the Constitution Engine first" and leaves the draft ungrounded (and therefore
+- **AC (failure mode):** IF the `CE-READ-1` SPARQL lookup times out or returns 5xx, or the
+  referenced entity exists only in a draft (unpublished) version, WHEN the AI attempts to ground, THEN
+  THE SYSTEM SHALL NOT fabricate an IRI — it SHALL surface "couldn't reach / resolve the ontology; the process may
+  need publishing in the Constitution Engine first" and leave the draft ungrounded (and therefore
   non-activatable per E6-S1).
 - **Priority:** Must Have
 
@@ -689,33 +689,33 @@ AI builds it grounded in my actual documented process — not hand-wired against
 As an **automation author**, I want to refine a draft automation by typing follow-up instructions so
 that I can iterate without switching to the canvas.
 
-- **AC:** Given a draft automation, when I type a follow-up (e.g. "add a HITL approval gate before the
-  Slack notification for deliveries over the high-value threshold"), then the canonical definition is
-  updated transactionally and the canvas re-projects with a diff summary in chat.
-- **AC:** Given any AI draft action, when I click "Undo last AI change", then the canonical definition
-  reverts to the prior committed state and both views re-project.
-- **AC (failure mode):** Given the AI edit fails validation against the definition schema, when the
-  apply is attempted, then the canonical definition is left unchanged and the chat shows the specific
-  validation error — no partial/torn write to the definition.
+- **AC:** WHERE a draft automation exists, WHEN I type a follow-up (e.g. "add a HITL approval gate before the
+  Slack notification for deliveries over the high-value threshold") THE SYSTEM SHALL update the canonical definition
+  transactionally and re-project the canvas with a diff summary in chat.
+- **AC:** WHERE any AI draft action exists, WHEN I click "Undo last AI change" THE SYSTEM SHALL revert the canonical
+  definition to the prior committed state and re-project both views.
+- **AC (failure mode):** IF the AI edit fails validation against the definition schema, WHEN the
+  apply is attempted, THEN THE SYSTEM SHALL leave the canonical definition unchanged and show the specific
+  validation error in the chat — no partial/torn write to the definition.
 - **Priority:** Must Have
 
 **E2-S3: Save as Draft, Test, and Activate**
 As an **automation author**, I want to save a draft, dry-run it, and activate it when ready so that I
 can test and review before it goes live.
 
-- **AC:** Given a draft, when I click "Save as Draft", then the canonical definition is persisted and
-  the automation does not run.
-- **AC:** Given a draft, when I click "Test" with a sample event payload, then it runs in dry-run mode
-  (no real external calls, no `CE-WRITE-1` commit, no metering) and shows the expected result.
-- **AC:** Given I click "Activate", then activation validation runs: (a) a grounding link resolves to
+- **AC:** WHEN I click "Save as Draft" THE SYSTEM SHALL persist the canonical definition and
+  not run the automation.
+- **AC:** WHEN I click "Test" with a sample event payload THE SYSTEM SHALL run it in dry-run mode
+  (no real external calls, no `CE-WRITE-1` commit, no metering) and show the expected result.
+- **AC:** WHEN I click "Activate" THE SYSTEM SHALL run activation validation: (a) a grounding link resolves to
   an entity present in a PUBLISHED version via `CE-READ-1`/`CE-VERSION-1`; (b) all required
   trigger/action fields are populated; (c) the secret-scan (E2 / FR-008) passes; (d) any high-value
-  action carries a HITL gate (Security NFR). On pass, the automation is published and begins running.
-- **AC (failure mode):** Given the secret-scan service is unavailable at activation, when Activate is
-  clicked, then activation is **fail-closed** (blocked) with "secret-scan unavailable — cannot
+  action carries a HITL gate (Security NFR); and on pass SHALL publish the automation and begin running it.
+- **AC (failure mode):** IF the secret-scan service is unavailable at activation, WHEN Activate is
+  clicked, THEN THE SYSTEM SHALL **fail-closed** (block) with "secret-scan unavailable — cannot
   activate" — never fail-open.
-- **AC (failure mode):** Given the grounding IRI does not resolve in the pinned published version,
-  when Activate is clicked, then activation is blocked with "grounding entity not found in the
+- **AC (failure mode):** IF the grounding IRI does not resolve in the pinned published version,
+  WHEN Activate is clicked, THEN THE SYSTEM SHALL block activation with "grounding entity not found in the
   selected published version".
 - **Priority:** Must Have
 
@@ -739,7 +739,7 @@ Builder; EPIC-010 "Use template" opens templates pre-populated in this Builder.
 
 ### EPIC-003 — Visual Flow Canvas
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-007. **Blocks:** EPIC-002, EPIC-010. **Consumes:** (none).
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** EPIC-007. **Blocks:** EPIC-002, EPIC-010. **Consumes:** (none).
 **PRD ref:** prd.md#epic-3-visual-flow-canvas.
 
 **Description:** A visual flow canvas that draws the automation as a directed acyclic graph across the
@@ -757,17 +757,17 @@ activation.
 As an **automation author**, I want a visual flow canvas showing trigger, condition, action, gate,
 and control nodes so that I can inspect and edit the automation without reading JSON.
 
-- **AC:** Given an automation definition, when the canvas renders, then it draws a directed acyclic
+- **AC:** WHERE an automation definition exists, WHEN the canvas renders THE SYSTEM SHALL draw a directed acyclic
   graph with node types: Trigger (webhook / Jira / ServiceNow / Slack / cron / graph-change),
   Condition (if/else on an entity property or ontology attribute), Action (Slack notification / API
   call / agent run / graph update / sub-automation), HITL Gate (approvers + deadline), Error Handler
   (retry + on-failure), End.
-- **AC:** Given the canvas, when I interact with it, then it is zoomable, pannable, keyboard-navigable
-  (Tab cycles nodes, Enter opens inspector, Escape closes), shows a minimap when content overflows the
-  viewport, has a fit-to-view control, and exports the current view as PNG. Exact input bindings are
+- **AC:** WHEN I interact with the canvas THE SYSTEM SHALL be zoomable, pannable, keyboard-navigable
+  (Tab cycles nodes, Enter opens inspector, Escape closes), show a minimap when content overflows the
+  viewport, have a fit-to-view control, and export the current view as PNG. Exact input bindings are
   deferred to the design spec (OQ-08).
-- **AC (failure mode):** Given a definition with a cycle or a disconnected node, when the canvas
-  validates, then the offending nodes are highlighted and Activate is blocked with "automation graph
+- **AC (failure mode):** IF a definition has a cycle or a disconnected node, WHEN the canvas
+  validates, THEN THE SYSTEM SHALL highlight the offending nodes and block Activate with "automation graph
   must be acyclic and fully connected".
 - **Priority:** Must Have
 
@@ -775,15 +775,15 @@ and control nodes so that I can inspect and edit the automation without reading 
 As an **automation author**, I want canvas edits and chat edits to never diverge so that neither
 representation is stale.
 
-- **AC:** Given the canonical automation definition (one JSON document) is the single source of truth
-  and both chat and canvas are projections over it, when I make a canvas edit (node property, node
-  add/remove, edge change), then it is applied as a transaction against the definition and the chat
-  shows "Canvas updated — [diff]".
-- **AC:** Given an AI edit from chat, when applied, then the canvas re-projects within a default of
+- **AC:** WHERE the canonical automation definition (one JSON document) is the single source of truth
+  and both chat and canvas are projections over it, WHEN I make a canvas edit (node property, node
+  add/remove, edge change) THE SYSTEM SHALL apply it as a transaction against the definition and show
+  "Canvas updated — [diff]" in the chat.
+- **AC:** WHEN an AI edit from chat is applied THE SYSTEM SHALL re-project the canvas within a default of
   500 ms (ASSUMPTION — tunable; confirm in tech spec) with a "Syncing…" indicator while in flight.
-- **AC (failure mode / conflict):** Given a canvas edit and an AI edit target the definition
-  concurrently, when both attempt to commit, then the definition uses last-writer-wins with an
-  optimistic version token; the losing edit is rejected and its author shown the diff to re-apply. No
+- **AC (failure mode / conflict):** IF a canvas edit and an AI edit target the definition
+  concurrently, WHEN both attempt to commit, THEN THE SYSTEM SHALL resolve by last-writer-wins with an
+  optimistic version token, reject the losing edit, and show its author the diff to re-apply — no
   silent merge.
 - **Priority:** Must Have
 
@@ -808,7 +808,7 @@ through canvas node inspectors.
 ### EPIC-004 — Trigger Sources
 
 **Phase:** Phase 1 — v1 GA (S1–S3); Phase 2 — CE-gated (S4 graph-change). **Priority:** Must
-Have (S1–S3) · Should Have (S4, depends on `CE-EVENT-1`). **Status:** Backlog.**Depends on:** EPIC-008, `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **Blocks:** EPIC-010.
+Have (S1–S3) · Should Have (S4, depends on `CE-EVENT-1`). **Status:** Backlog. **Depends on:** EPIC-008, `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **Blocks:** EPIC-010.
 **Consumes:** `PLAT-CONNECTOR-1`, `CE-EVENT-1`, `CE-READ-1`. **PRD ref:** prd.md#epic-4-trigger-sources.
 
 **Description:** The set of event sources that start an automation: configurable webhooks (opaque
@@ -828,17 +828,17 @@ triggers gate on `PLAT-CONNECTOR-1` health and the engine never holds connector 
 As an **integration engineer**, I want to configure a webhook trigger so that any external system
 that can POST HTTP can trigger an automation.
 
-- **AC:** Given a webhook trigger node, when configured, then the engine issues an endpoint URL whose
-  path embeds an **opaque tenant+automation token** resolved server-side; the inbound request is
-  mapped to its tenant via that token BEFORE any tenant-scoped resource is touched (tenant is NEVER
+- **AC:** WHEN a webhook trigger node is configured THE SYSTEM SHALL issue an endpoint URL whose
+  path embeds an **opaque tenant+automation token** resolved server-side, and SHALL map the inbound request
+  to its tenant via that token BEFORE any tenant-scoped resource is touched (tenant is NEVER
   inferred from the request body). The node inspector shows a copyable URL and a "Send test event"
   pane; the event schema is auto-inferred on first test or specified manually.
-- **AC (security):** Given any automation whose webhook drives a write or external action, when it is
-  activated, then HMAC-SHA256 verification is **REQUIRED** (secret in AWS Secrets Manager, never in
+- **AC (security):** WHERE an automation's webhook drives a write or external action, WHEN it is
+  activated, THE SYSTEM SHALL **REQUIRE** HMAC-SHA256 verification (secret in AWS Secrets Manager, never in
   the definition) — it is optional only for read-only/no-side-effect automations.
-- **AC (failure mode):** Given an inbound payload with a bad/absent HMAC (where required), an
+- **AC (failure mode):** IF an inbound payload has a bad/absent HMAC (where required), an
   unresolvable token, an oversized body (> default 256 KB, tunable per tenant), or a payload that does
-  not match the inferred schema, when it is received, then it is rejected and routed to DLQ with a
+  not match the inferred schema, WHEN it is received, THEN THE SYSTEM SHALL reject it and route it to DLQ with a
   typed reason ("signature invalid" / "unknown endpoint" / "payload too large" / "schema mismatch");
   per-endpoint rate limiting applies (default 100 req/min, tunable per tenant).
 - **Priority:** Must Have
@@ -847,15 +847,15 @@ that can POST HTTP can trigger an automation.
 As an **integration engineer**, I want to trigger automations from Atlassian and ServiceNow events so
 that Weave automations can respond to external ticketing systems.
 
-- **AC:** Given a configured Atlassian connector (`PLAT-CONNECTOR-1`, one OAuth family covering Jira +
-  Confluence), when I add a Jira trigger, then event types issue created/updated/
-  status-changed-to-[value]/comment-added are selectable with filters (project key, issue type).
-- **AC:** Given a configured ServiceNow connector (`PLAT-CONNECTOR-1`), when I add a ServiceNow
-  trigger, then incident created/state-changed and change-request state-changed are selectable with
+- **AC:** WHERE a configured Atlassian connector (`PLAT-CONNECTOR-1`, one OAuth family covering Jira +
+  Confluence) exists, WHEN I add a Jira trigger THE SYSTEM SHALL make event types issue created/updated/
+  status-changed-to-[value]/comment-added selectable with filters (project key, issue type).
+- **AC:** WHERE a configured ServiceNow connector (`PLAT-CONNECTOR-1`) exists, WHEN I add a ServiceNow
+  trigger THE SYSTEM SHALL make incident created/state-changed and change-request state-changed selectable with
   filters (category, assignment group).
-- **AC (failure mode):** Given the connector is unconfigured or reports `degraded` via the
-  `PLAT-CONNECTOR-1` health-status read API, when I try to activate, then activation is blocked and
-  the trigger node shows the connector status; the engine does NOT operate its own connector or hold
+- **AC (failure mode):** IF the connector is unconfigured or reports `degraded` via the
+  `PLAT-CONNECTOR-1` health-status read API, WHEN I try to activate, THEN THE SYSTEM SHALL block activation and
+  show the connector status on the trigger node; the engine does NOT operate its own connector or hold
   credentials.
 - **Priority:** Must Have
 
@@ -863,32 +863,32 @@ that Weave automations can respond to external ticketing systems.
 As an **integration engineer**, I want to trigger automations on a schedule or from a Slack event so
 that time-based and Slack-native workflows are supported.
 
-- **AC:** Given a cron trigger, when configured, then it accepts cron syntax with a human-readable
+- **AC:** WHEN a cron trigger is configured THE SYSTEM SHALL accept cron syntax with a human-readable
   preview, interval (every N min/hours), and calendar-based (first/next business day) modes.
-- **AC:** Given the **platform-managed Slack connector** (`PLAT-CONNECTOR-1`; Slack is one of the 7 v1
-  managed connectors, token in AWS Secrets Manager), when I add a Slack trigger, then "message in
-  channel (optional keyword filter)" and "slash command" event types are selectable.
-- **AC (failure mode):** Given the Slack connector reports `degraded`, when a Slack-triggered
-  automation is active, then inbound Slack events are buffered to the run queue if the connector
-  delivery interface still delivers, else the automation is auto-flagged "connector degraded" via a
-  `PLAT-NOTIFY-1` event and runs are not silently lost.
+- **AC:** WHERE the **platform-managed Slack connector** (`PLAT-CONNECTOR-1`; Slack is one of the 7 v1
+  managed connectors, token in AWS Secrets Manager) exists, WHEN I add a Slack trigger THE SYSTEM SHALL make "message in
+  channel (optional keyword filter)" and "slash command" event types selectable.
+- **AC (failure mode):** IF the Slack connector reports `degraded`, WHEN a Slack-triggered
+  automation is active, THEN THE SYSTEM SHALL buffer inbound Slack events to the run queue if the connector
+  delivery interface still delivers, else auto-flag the automation "connector degraded" via a
+  `PLAT-NOTIFY-1` event so runs are not silently lost.
 - **Priority:** Must Have
 
 **E4-S4: Graph-change triggers (secondary)**
 As an **automation author**, I want to trigger automations from changes inside the company graph so
 that internal model changes can drive reactions.
 
-- **AC:** Given a graph-change trigger, when configured, then entity-type + event (added / property
-  updated / deleted / constraint-violated) + filter (property or SHACL shape) are selectable, and the
-  trigger consumes the Constitution Engine change stream `CE-EVENT-1`
-  (`{change_type, entity_iri, version_iri, actor, ts}`). The UI labels this trigger "Secondary".
-- **AC (degradation):** Given `CE-EVENT-1` transport is not yet available (transport deferred to CE
-  tech-spec), when a graph-change trigger is active, then the engine **degrades to polling**
-  `CE-READ-1` with a since-version diff and accepts the higher latency — there is NO claim of a
+- **AC:** WHEN a graph-change trigger is configured THE SYSTEM SHALL make entity-type + event (added / property
+  updated / deleted / constraint-violated) + filter (property or SHACL shape) selectable, and SHALL
+  consume the Constitution Engine change stream `CE-EVENT-1`
+  (`{change_type, entity_iri, version_iri, actor, ts}`); the UI labels this trigger "Secondary".
+- **AC (degradation):** IF `CE-EVENT-1` transport is not yet available (transport deferred to CE
+  tech-spec), WHEN a graph-change trigger is active, THEN THE SYSTEM SHALL **degrade to polling**
+  `CE-READ-1` with a since-version diff and accept the higher latency — there is NO claim of a
   push-only path. Graph-change triggers are therefore **Should Have** and depend on CE.
-- **AC:** Given high-frequency entity types, when graph-change automations are created, then a
+- **AC:** WHERE entity types are high-frequency, WHEN graph-change automations are created THE SYSTEM SHALL apply a
   per-workspace cap (default 10 graph-change automations, tunable; the real constraint is event
-  volume) prevents runaway load.
+  volume) to prevent runaway load.
 - **Priority:** Should Have (depends on `CE-EVENT-1`)
 
 **Epic-level acceptance criteria:**
@@ -915,7 +915,7 @@ enqueues from these triggers. S4 (graph-change) blocks EPIC-010 graph-change tem
 ### EPIC-005 — Action Types
 
 **Phase:** Phase 1 — v1 GA (S1–S3, S5); Phase 2 — CE-gated (S4 graph update). **Priority:** Must
-Have (S1–S3, S5) · Should Have (S4, depends on `CE-WRITE-1`). **Status:** Backlog.**Depends on:** EPIC-006, EPIC-008, `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`,
+Have (S1–S3, S5) · Should Have (S4, depends on `CE-WRITE-1`). **Status:** Backlog. **Depends on:** EPIC-006, EPIC-008, `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`, `PLAT-IDENTITY-1`,
 `PLAT-AUDIT-1`, `CE-WRITE-1`. **Blocks:** EPIC-010. **Consumes:** `PLAT-CONNECTOR-1`, `PLAT-NOTIFY-1`,
 `PLAT-IDENTITY-1`, `PLAT-AUDIT-1`, `CE-WRITE-1`. **PRD ref:** prd.md#epic-5-action-types.
 
@@ -940,13 +940,13 @@ per-step idempotency so no side effect fires twice on redelivery.
 As an **automation author**, I want to send a Slack notification so that process-relevant events
 notify the right people on the right channel.
 
-- **AC:** Given a Slack Notification action, when configured, then the target (channel or a person
+- **AC:** WHEN a Slack Notification action is configured THE SYSTEM SHALL set the target (channel or a person
   from the graph's `Person.slack_id`) and a rich-text body with `{{entity.property}}` interpolation
-  against the triggering entity are set, with an inline preview; delivery is via the platform-managed
+  against the triggering entity, with an inline preview; delivery is via the platform-managed
   Slack connector (`PLAT-CONNECTOR-1`) and/or `PLAT-NOTIFY-1` (Slack channel), with the bot token held
   in AWS Secrets Manager and never shown in the definition.
-- **AC (failure mode):** Given Slack delivery fails (rate-limited / channel gone / connector
-  degraded), when the action runs, then it follows the Error Handler retry policy then DLQ; the
+- **AC (failure mode):** IF Slack delivery fails (rate-limited / channel gone / connector
+  degraded), WHEN the action runs, THEN THE SYSTEM SHALL follow the Error Handler retry policy then DLQ; the
   per-step idempotency marker (E8-S1) prevents a re-send of an already-delivered message on retry.
 - **Priority:** Must Have
 
@@ -954,15 +954,15 @@ notify the right people on the right channel.
 As an **integration engineer**, I want to make an outbound HTTP call so that automations can update
 external systems beyond managed connectors.
 
-- **AC:** Given an API Call action, when configured, then method, URL (with interpolation), headers
-  (with Secrets Manager references for auth — never inline secrets), and JSON body are set; optionally
+- **AC:** WHEN an API Call action is configured THE SYSTEM SHALL set method, URL (with interpolation), headers
+  (with Secrets Manager references for auth — never inline secrets), and JSON body; optionally
   the response is mapped (JSONPath → target entity property IRI) for a follow-on graph update via
   `CE-WRITE-1`. A "Run test call" performs a dry run with no graph commit.
-- **AC (security):** Given an interpolated value resolves to a secret at run time, when the outbound
-  payload is assembled, then the run-time egress secret-scrub (FR-008b) redacts it before the call,
-  and a `PLAT-AUDIT-1` event records the redaction.
-- **AC (failure mode):** Given the call returns 5xx/timeout, when the action runs, then it retries per
-  the Error Handler then DLQs; 4xx is treated as terminal (no retry) unless explicitly configured
+- **AC (security):** WHERE an interpolated value resolves to a secret at run time, WHEN the outbound
+  payload is assembled, THE SYSTEM SHALL redact it via the run-time egress secret-scrub (FR-008b) before the call,
+  and record the redaction in a `PLAT-AUDIT-1` event.
+- **AC (failure mode):** IF the call returns 5xx/timeout, WHEN the action runs, THEN THE SYSTEM SHALL retry per
+  the Error Handler then DLQ; 4xx is treated as terminal (no retry) unless explicitly configured
   retriable.
 - **Priority:** Must Have
 
@@ -970,17 +970,17 @@ external systems beyond managed connectors.
 As an **automation author**, I want to trigger an Anthropic Agent SDK agent as an action so that
 complex, reasoning-heavy responses can be automated.
 
-- **AC:** Given an Agent Run action (the complex tier of `EA-AUTOMATION-1`), when configured, then an
+- **AC:** WHEN an Agent Run action (the complex tier of `EA-AUTOMATION-1`) is configured THE SYSTEM SHALL set an
   agent artefact reference, input payload (triggering entity IRI + optional context), and a timeout
-  (default 60 s, tunable per automation) are set. **Resolve-before-build: OQ-09** — the AgentCore
+  (default 60 s, tunable per automation). **Resolve-before-build: OQ-09** — the AgentCore
   Runtime vs ECS Fargate binding and artefact-resolution contract must close before this story can be
   implemented; this story is blocked until the tech spec resolves OQ-09.
-- **AC (governance):** Given an Agent Run action, when it is about to dispatch, then it passes the
-  governance gate sequence (E5-S5) and runs under a per-automation least-privilege service principal
+- **AC (governance):** WHEN an Agent Run action is about to dispatch THE SYSTEM SHALL pass it through the
+  governance gate sequence (E5-S5) and run it under a per-automation least-privilege service principal
   minted by `PLAT-IDENTITY-1`; its principal IRI is recorded in every `PLAT-AUDIT-1` event and any
   PROV-O attribution.
-- **AC (failure mode):** Given the agent run times out or the runtime is unreachable, when the run is
-  in flight, then the run is recorded as a terminal failure in the run log; per-step idempotency
+- **AC (failure mode):** IF the agent run times out or the runtime is unreachable, WHEN the run is
+  in flight, THEN THE SYSTEM SHALL record the run as a terminal failure in the run log; per-step idempotency
   (E8-S1) prevents a duplicate agent run on SQS redelivery (the in-flight agent step's completion
   marker gates re-execution).
 - **Priority:** Must Have (engine-internal phase-1 priority — blocked on OQ-09 resolve-before-build;
@@ -990,46 +990,46 @@ complex, reasoning-heavy responses can be automated.
 As an **automation author**, I want to write a property change or new relationship back to the company
 graph so that external events keep the ontology current.
 
-- **AC:** Given a Graph Update action, when configured, then target entity IRI (resolved from the
-  triggering event), operation (update property / add relationship), property IRI, and value are set.
-- **AC:** Given the action runs, then the write goes through `CE-WRITE-1`
+- **AC:** WHEN a Graph Update action is configured THE SYSTEM SHALL set target entity IRI (resolved
+  from the triggering event), operation (update property / add relationship), property IRI, and value.
+- **AC:** WHEN the action runs THE SYSTEM SHALL route the write through `CE-WRITE-1`
   (`POST /api/operations/apply`) with `actor` = the automation's `PLAT-IDENTITY-1` service-principal
   IRI; CE validates on a throwaway clone and commits only on no `sh:Violation`, returning
   `201 {activity_iri, applied_count, version_iri}` (a PROV-O activity attributed to the principal) or
   `422 {violations:[…]}`.
-- **AC (failure mode):** Given `CE-WRITE-1` returns 422, when the action runs, then the run records a
-  terminal "SHACL validation failed" step with the violation list — NOT retried (terminal). Given it
-  returns 5xx/timeout, then it is retried per the Error Handler then DLQs (distinct from 422).
-- **AC (provenance):** Given the PROV-O attribution, then the automation principal is represented as a
-  `prov:SoftwareAgent` IRI distinct from human (`user`) and interactive-LLM (`llm`) actor classes so
-  compliance reports (E9-S2) can filter by actor class.
+- **AC (failure mode):** IF `CE-WRITE-1` returns 422 when the action runs THEN THE SYSTEM SHALL record
+  a terminal "SHACL validation failed" step with the violation list — NOT retried (terminal). IF it
+  returns 5xx/timeout THEN THE SYSTEM SHALL retry per the Error Handler then DLQ (distinct from 422).
+- **AC (provenance):** WHERE PROV-O attribution is recorded THE SYSTEM SHALL represent the automation
+  principal as a `prov:SoftwareAgent` IRI distinct from human (`user`) and interactive-LLM (`llm`)
+  actor classes so compliance reports (E9-S2) can filter by actor class.
 - **Priority:** Should Have (depends on `CE-WRITE-1`)
 
 **E5-S5: HITL approval gate + autonomous-action governance**
 As an **operations owner**, I want a deterministic governance gate before any autonomous action so
 that sensitive actions cannot proceed without the right human approving them.
 
-- **AC (gate sequence):** Given any autonomous action (Agent Run, Graph Update, or high-value API
-  call), when it is about to dispatch, then the engine runs the deterministic 4-step gate against the
+- **AC (gate sequence):** WHEN any autonomous action (Agent Run, Graph Update, or high-value API
+  call) is about to dispatch THE SYSTEM SHALL run the deterministic 4-step gate against the
   grounded process step, in order: (1) **explicit deny** on the step → blocked regardless of
   authority; (2) the principal's **authority level < required** → routed to human; (3) the step's
   `automatable` flag (`CE-READ-1` — **CE-owned SHACL boolean on `Activity`/`Process`**, default
   `false`; absent ⇒ route-to-human) is false → routed to human regardless of any value threshold;
   (4) otherwise the **HITL trigger fires** if configured. Explicit deny beats every authority level.
-- **AC (HITL config completeness):** Given a HITL Gate node, when saved, then it MUST carry
-  `escalatesTo` (a Role from the org model), `escalationDeadline` (an ISO-8601 `xsd:duration`), and
-  the bound `triggeredByStep`; a definition missing any of these fails validation and cannot activate
-  (mirrors the grounded `HITLTriggerShape` minCount 1 constraints).
-- **AC (no self-approval):** Given the automation's service principal is the subject of a HITL gate,
-  when an approval is attempted, then that same principal CANNOT approve it (no-self-approval
-  invariant); only a human approver in `escalatesTo` may decide.
-- **AC (run behaviour):** Given a HITL gate fires, when the run pauses, then approver(s) receive an
-  in-app + optional Slack notification (published via `PLAT-NOTIFY-1`) showing the trigger, the
+- **AC (HITL config completeness):** WHEN a HITL Gate node is saved THE SYSTEM SHALL require it to
+  carry `escalatesTo` (a Role from the org model), `escalationDeadline` (an ISO-8601 `xsd:duration`),
+  and the bound `triggeredByStep`; a definition missing any of these fails validation and cannot
+  activate (mirrors the grounded `HITLTriggerShape` minCount 1 constraints).
+- **AC (no self-approval):** WHERE the automation's service principal is the subject of a HITL gate,
+  IF an approval is attempted by that same principal THEN THE SYSTEM SHALL NOT allow it
+  (no-self-approval invariant); only a human approver in `escalatesTo` may decide.
+- **AC (run behaviour):** WHEN a HITL gate fires and the run pauses THE SYSTEM SHALL send approver(s)
+  an in-app + optional Slack notification (published via `PLAT-NOTIFY-1`) showing the trigger, the
   pending action, and Approve/Reject; on approval the run continues, on rejection it terminates with a
   required reason; the decision (approve/reject, approver identity, ts, reason) is emitted to
   `PLAT-AUDIT-1`.
-- **AC (failure mode):** Given the escalation deadline passes with no decision, when the deadline
-  fires, then the run escalates to `escalatesTo` (notify + optional Slack alert) and remains paused;
+- **AC (failure mode):** IF the escalation deadline passes with no decision THEN THE SYSTEM SHALL
+  escalate the run to `escalatesTo` (notify + optional Slack alert) and keep it paused;
   it is never auto-approved.
 - **Priority:** Must Have
 
@@ -1054,28 +1054,29 @@ type — invokable ad-hoc against a single instance (an action button), not only
 automation flow — so that a permitted user can apply a governed, validated change to one entity on
 demand (e.g. "ApproveClaim" on a `Claim`).
 
-- **AC:** Given the Builder, when I define a **saved object-bound action**, then I bind it to a CE
-  object type (resolved via `CE-READ-1`, e.g. class `Claim`), declare its **typed inputs** (name +
-  datatype + required/optional, defaults declarable per input), and define its **effects** as a
-  `CE-WRITE-1` operation set against the bound instance; the action is grounded to the CE type and
-  pinned via `CE-VERSION-1` like any automation.
-- **AC:** Given a permitted user invokes the action ad-hoc against a single instance (the action
-  button on that entity), then the engine resolves the target instance IRI, applies the declared
+- **AC:** WHERE in the Builder, WHEN I define a **saved object-bound action** THE SYSTEM SHALL let me
+  bind it to a CE object type (resolved via `CE-READ-1`, e.g. class `Claim`), declare its **typed
+  inputs** (name + datatype + required/optional, defaults declarable per input), and define its
+  **effects** as a `CE-WRITE-1` operation set against the bound instance; the action is grounded to
+  the CE type and pinned via `CE-VERSION-1` like any automation.
+- **AC:** WHEN a permitted user invokes the action ad-hoc against a single instance (the action
+  button on that entity) THE SYSTEM SHALL resolve the target instance IRI, apply the declared
   effects via `CE-WRITE-1` (`POST /api/operations/apply`) — SHACL-validated on a throwaway clone,
-  committed only on no `sh:Violation` — and the existing **deterministic governance gate** (E5-S5:
-  deny→authority→`automatable`→HITL) runs before any effect; a high-value or non-automatable action
+  committed only on no `sh:Violation` — and run the existing **deterministic governance gate** (E5-S5:
+  deny→authority→`automatable`→HITL) before any effect; a high-value or non-automatable action
   routes to the HITL gate exactly as in a flow.
-- **AC (provenance):** Given the action is **user-invoked**, then PROV-O attribution and the
-  `PLAT-AUDIT-1` event record the invoking **human user** (`user` actor class) as the actor — distinct
-  from the `prov:SoftwareAgent` automation principal used for flow-driven writes — so compliance
-  reports (E9-S2) can still filter by actor class; the run is metered via `PLAT-BILLING-1` (per-run).
-- **AC (failure mode):** Given `CE-WRITE-1` returns `422 {violations}`, then the action records a
-  terminal "SHACL validation failed" step with the violation list and applies **no** partial change
+- **AC (provenance):** WHERE the action is **user-invoked** THE SYSTEM SHALL record the invoking
+  **human user** (`user` actor class) as the actor in PROV-O attribution and the `PLAT-AUDIT-1` event
+  — distinct from the `prov:SoftwareAgent` automation principal used for flow-driven writes — so
+  compliance reports (E9-S2) can still filter by actor class; the run is metered via `PLAT-BILLING-1`
+  (per-run).
+- **AC (failure mode):** IF `CE-WRITE-1` returns `422 {violations}` THEN THE SYSTEM SHALL record a
+  terminal "SHACL validation failed" step with the violation list and apply **no** partial change
   (the write is atomic per `CE-WRITE-1`); a 5xx/timeout is retried per the Error Handler then DLQ'd,
   distinct from the terminal 422.
-- **AC (failure mode):** Given the invoking user lacks the authority the bound step requires, then the
-  invocation is routed to a human per the governance gate (or rejected) — it is never applied on the
-  invoker's behalf without clearing the gate.
+- **AC (failure mode):** IF the invoking user lacks the authority the bound step requires THEN THE
+  SYSTEM SHALL route the invocation to a human per the governance gate (or reject it) — it is never
+  applied on the invoker's behalf without clearing the gate.
 - **Priority:** Should Have (depends on `CE-WRITE-1`; saved actions may be publishable to
   `CE-FUNCTION-1` in Phase 2 — CE owns that registry; E5-S6 does NOT define the function primitive,
   it authors a reusable action that REFERENCES the CE type)
@@ -1112,7 +1113,7 @@ compliance reports (E9-S2) filter by actor. Run-time egress secret-scrub is FR-0
 
 ### EPIC-006 — Ontology Grounding
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`. **Blocks:** EPIC-002,
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`. **Blocks:** EPIC-002,
 EPIC-005. **Consumes:** `CE-READ-1`, `CE-VERSION-1`, `CE-DIFF-1`, `PLAT-NOTIFY-1`.
 **PRD ref:** prd.md#epic-6-ontology-grounding.
 
@@ -1131,33 +1132,34 @@ cannot silently break live automations. Pins are immutable except via an explici
 As a **compliance officer**, I want every automation grounded in a specific BPMO `Process`,
 `Activity`, or governing `Policy` so that no automation runs without a documented justification.
 
-- **AC:** Given an automation with no grounding link, when I open Activate, then it is disabled with
-  "Link this automation to a BPMO `Process`, `Activity`, or `Policy` first".
-- **AC:** Given the Builder, when I click "Link to ontology", then a searcher over CE BPMO
-  `Process`/`Activity` entities and the `Policy` kinds they are `governedBy` (via `CE-READ-1`) opens;
+- **AC:** WHERE an automation has no grounding link, WHEN I open Activate THE SYSTEM SHALL disable it
+  with "Link this automation to a BPMO `Process`, `Activity`, or `Policy` first".
+- **AC:** WHERE in the Builder, WHEN I click "Link to ontology" THE SYSTEM SHALL open a searcher over
+  CE BPMO `Process`/`Activity` entities and the `Policy` kinds they are `governedBy` (via `CE-READ-1`);
   selecting one sets the grounding link; the grounding (label + IRI + kind) shows on the registry card
   and Builder header.
-- **AC (failure mode):** Given a referenced process exists only in a draft (unpublished) version, when
-  grounding is attempted, then it is rejected with "publish this process in the Constitution Engine
-  first" — grounding may only resolve to an entity present in a PUBLISHED version (`CE-VERSION-1`).
+- **AC (failure mode):** IF grounding is attempted against a referenced process that exists only in a
+  draft (unpublished) version THEN THE SYSTEM SHALL reject it with "publish this process in the
+  Constitution Engine first" — grounding may only resolve to an entity present in a PUBLISHED version
+  (`CE-VERSION-1`).
 - **Priority:** Must Have
 
 **E6-S2: Ontology version pinning**
 As an **integration engineer**, I want each automation pinned to a specific published ontology version
 so that ontology evolution does not silently break live automations.
 
-- **AC:** Given activation, when the automation publishes, then it records the pinned `version_iri`
+- **AC:** WHEN the automation publishes on activation THE SYSTEM SHALL record the pinned `version_iri`
   (the newest published version at that moment via `CE-VERSION-1`); the pin is immutable except via an
   explicit "Upgrade pin".
-- **AC:** Given "Upgrade pin", when invoked, then it shows a `CE-DIFF-1` diff of the grounded entities
-  (added/removed/modified nodes AND edges) between the pinned and target versions and requires
+- **AC:** WHEN "Upgrade pin" is invoked THE SYSTEM SHALL show a `CE-DIFF-1` diff of the grounded
+  entities (added/removed/modified nodes AND edges) between the pinned and target versions and require
   confirmation.
-- **AC:** Given an active automation whose pin lags latest (default lag ≥ 2, `CE-VERSION-1`, tunable),
-  when it runs, then it continues against the pinned version's schema — no silent breakage.
-- **AC (failure mode — forced obsolescence):** Given a pinned version is withdrawn (regulatory /
-  security) or the grounded entity IRI is absent in the pinned snapshot, when this is detected
-  (activation-time check + on the next `CE-EVENT-1`/poll), then affected automations are auto-paused
-  and flagged "pinned version withdrawn — review required" with a `PLAT-NOTIFY-1` event.
+- **AC:** WHERE an active automation's pin lags latest (default lag ≥ 2, `CE-VERSION-1`, tunable),
+  WHEN it runs THE SYSTEM SHALL continue against the pinned version's schema — no silent breakage.
+- **AC (failure mode — forced obsolescence):** IF a pinned version is withdrawn (regulatory /
+  security) or the grounded entity IRI is absent in the pinned snapshot, WHEN this is detected
+  (activation-time check + on the next `CE-EVENT-1`/poll), THEN THE SYSTEM SHALL auto-pause affected
+  automations and flag them "pinned version withdrawn — review required" with a `PLAT-NOTIFY-1` event.
 - **Priority:** Must Have
 
 **Epic-level acceptance criteria:**
@@ -1186,7 +1188,7 @@ link before activation).
 
 **Phase:** Phase 1 — v1 GA (S1 interpreter); Phase 2 — Fast-Follow (S1 export, S2 composition).
 **Priority:** Must Have (S1 v1 interpreter) · Should Have (S1 export, S2 composition — Phase 2).
-**Status:** Backlog.. **Depends on:** (none). **Blocks:** EPIC-002, EPIC-003.
+**Status:** Backlog. **Depends on:** (none). **Blocks:** EPIC-002, EPIC-003.
 **Provides:** `EA-AUTOMATION-1`. **PRD ref:** prd.md#epic-7-two-tier-automation-model--composition.
 
 **Description:** The execution model behind every automation: a simple tier (declarative JSON,
@@ -1204,18 +1206,19 @@ Phase-2 fast-follows that do not block v1 GA.
 As a **platform engineer**, I want automations realised through the two-tier model so that simple
 flows run cheaply and complex flows can reason, with portability on the roadmap.
 
-- **AC:** Given an automation, when it is classified, then the engine assigns a tier per
+- **AC:** WHEN an automation is classified THE SYSTEM SHALL assign a tier per
   `EA-AUTOMATION-1`: **simple** (declarative JSON, runtime-interpreted) for trigger→action(s) without
   reasoning; **complex** (Anthropic Agent SDK agentic action/trigger) when an Agent Run or multi-step
   reasoning is present. The tier is auto-selected and overridable in Builder → Settings.
-- **AC (v1 runtime):** Given v1, when an automation is activated, then it is executed by the **runtime
-  interpreter** over the canonical definition (interpreter-first); a downloadable, portable Agent-SDK
-  artefact is NOT promised at v1.
-- **AC (Phase 2 export):** Given the fast-follow export capability (Phase 2), when an automation is
-  exported, then a portable Agent-SDK artefact (skill / command / agent) is produced, versioned by
-  semver, and downloadable as a `pip`-installable package; this does not block v1 GA.
-- **AC (failure mode):** Given tier classification is ambiguous, when auto-selection runs, then it
-  defaults to the simple tier unless an Agent Run node is present, and surfaces the choice to the
+- **AC (v1 runtime):** WHERE v1, WHEN an automation is activated THE SYSTEM SHALL execute it by the
+  **runtime interpreter** over the canonical definition (interpreter-first); a downloadable, portable
+  Agent-SDK artefact is NOT promised at v1.
+- **AC (Phase 2 export):** WHERE the fast-follow export capability (Phase 2) is live, WHEN an
+  automation is exported THE SYSTEM SHALL produce a portable Agent-SDK artefact (skill / command /
+  agent), versioned by semver, and downloadable as a `pip`-installable package; this does not block
+  v1 GA.
+- **AC (failure mode):** IF tier classification is ambiguous when auto-selection runs THEN THE SYSTEM
+  SHALL default to the simple tier unless an Agent Run node is present, and surface the choice to the
   author for override — never silently picks the costlier tier.
 - **Priority:** Must Have (v1 interpreter) · Phase 2 (artefact export)
 
@@ -1223,11 +1226,11 @@ flows run cheaply and complex flows can reason, with portability on the roadmap.
 As an **automation author**, I want to reference one automation from another so that I can compose
 workflows from reusable blocks.
 
-- **AC:** Given a Sub-automation node, when configured, then I select an automation from the registry
-  and map input/output properties; calls are synchronous (within the parent's timeout) or async
-  (fire-and-forget).
-- **AC (failure mode):** Given a sub-automation call introduces a cycle (A→B→A), when validated, then
-  activation is blocked with "sub-automation cycle detected".
+- **AC:** WHEN a Sub-automation node is configured THE SYSTEM SHALL let me select an automation from
+  the registry and map input/output properties; calls are synchronous (within the parent's timeout)
+  or async (fire-and-forget).
+- **AC (failure mode):** IF a sub-automation call introduces a cycle (A→B→A) when validated THEN THE
+  SYSTEM SHALL block activation with "sub-automation cycle detected".
 - **Priority:** Should Have
 
 **Epic-level acceptance criteria:**
@@ -1254,8 +1257,10 @@ referenceable as a sub-automation (FR-027). Sub-automation calls (E7-S2) are syn
 
 ### EPIC-008 — Run Engine & Reliability
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`, `BE-SELFIMPROVE-1`. **Blocks:** EPIC-001, EPIC-004,
-EPIC-005, EPIC-009. **Consumes:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`, `BE-SELFIMPROVE-1`.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1`. **Degrades gracefully without:** `BE-SELFIMPROVE-1`
+(contract-gated — the "create self-healing issue" on-failure action is unavailable until it is live;
+notify/log/stop stay functional). **Blocks:** EPIC-001, EPIC-004,
+EPIC-005, EPIC-009. **Consumes:** `PLAT-BILLING-1`, `PLAT-NOTIFY-1` (and `BE-SELFIMPROVE-1` where live).
 **PRD ref:** prd.md#epic-8-run-engine--reliability.
 
 **Description:** The reliable execution spine for every automation: at-least-once delivery over SQS
@@ -1295,47 +1300,51 @@ stateDiagram-v2
 As an **integration engineer**, I want at-least-once delivery and per-step idempotent execution so
 that no event is dropped and no side effect fires twice.
 
-- **AC:** Given a trigger event, when it is enqueued, then it is consumed from an SQS queue; ordering
+- **AC:** WHEN a trigger event is enqueued THE SYSTEM SHALL consume it from an SQS queue; ordering
   is NOT guaranteed (SQS standard). Each run is assigned a `run_id` derived from the trigger event ID;
   a duplicate delivery detects the existing `run_id` and is discarded.
-- **AC (per-step idempotency):** Given a run that fails mid-flight after a side effect (e.g. Slack
-  sent, then crash before ack), when the message is redelivered, then each completed step's
-  idempotency completion marker is checked first and completed steps are SKIPPED — the run replays
-  from the last incomplete step, not from the top. Best-effort steps (where dedupe is impossible) are
-  documented per action type.
-- **AC (paused runs):** Given a HITL-gated run (which may pause for hours or business days far
-  exceeding any SQS visibility timeout), when it pauses, then it is **acked/removed from the queue**
-  and persisted as a durable paused-run record (state machine — runtime model in OQ-09), resumed on
-  approval — it is NEVER held as an in-flight SQS message.
+- **AC (per-step idempotency):** WHERE a run fails mid-flight after a side effect (e.g. Slack sent,
+  then crash before ack), WHEN the message is redelivered THE SYSTEM SHALL check each completed step's
+  idempotency completion marker first and SKIP completed steps — the run replays from the last
+  incomplete step, not from the top. Best-effort steps (where dedupe is impossible) are documented per
+  action type.
+- **AC (paused runs):** WHEN a HITL-gated run pauses (it may pause for hours or business days far
+  exceeding any SQS visibility timeout) THE SYSTEM SHALL **ack/remove it from the queue** and persist
+  it as a durable paused-run record (state machine — runtime model in OQ-09), resumed on approval —
+  it is NEVER held as an in-flight SQS message.
 - **Priority:** Must Have
 
 **E8-S2: Retry policy and dead-letter handling**
 As an **integration engineer**, I want configurable retries and a DLQ so that failures are handled and
 inspectable.
 
-- **AC:** Given an Error Handler node, when configured, then max retries (default 3, max 10 — tunable
-  per automation), backoff (default exponential 2s/4s/8s, tunable), and on-failure action (notify /
-  log / create self-healing issue via `BE-SELFIMPROVE-1` / stop) are set.
-- **AC:** Given retries are exhausted, when the run fails terminally, then the event moves to a
+- **AC:** WHEN an Error Handler node is configured THE SYSTEM SHALL set max retries (default 3, max 10
+  — tunable per automation), backoff (default exponential 2s/4s/8s, tunable), and on-failure action
+  (notify / log / stop).
+- **AC (degradable):** WHERE `BE-SELFIMPROVE-1` is live THE SYSTEM SHALL additionally offer the
+  on-failure action "create self-healing issue" (HITL-gated, no autonomous merge). IF
+  `BE-SELFIMPROVE-1` is not yet available THEN THE SYSTEM SHALL mark that option unavailable while
+  notify / log / stop remain functional.
+- **AC:** WHEN retries are exhausted and the run fails terminally THE SYSTEM SHALL move the event to a
   per-workspace SQS DLQ (default retention 14 days, tunable; not auto-reprocessed); run history shows
   the last error and a "Retry from DLQ" button.
-- **AC (failure mode):** Given DLQ depth > 0, when monitored, then a `PLAT-NOTIFY-1` event fires and
-  the depth is exposed as a CloudWatch metric.
+- **AC (failure mode):** IF DLQ depth > 0 when monitored THEN THE SYSTEM SHALL fire a `PLAT-NOTIFY-1`
+  event and expose the depth as a CloudWatch metric.
 - **Priority:** Must Have
 
 **E8-S3: Run metering for usage-based billing**
 As the **Weave platform**, I want every run to emit a metering event so that per-run billing is
 accurate.
 
-- **AC:** Given a run completes (success/failure/rejected), when it terminates, then it emits a
+- **AC:** WHEN a run completes (success/failure/rejected) THE SYSTEM SHALL emit a
   metering event to `PLAT-BILLING-1` on the **per-run** dimension:
   `{automation_id, tenant_id, run_id, trigger_type, action_types[], duration_ms, outcome, ts}`; token
   usage for Agent Run actions is metered by `PLAT-BILLING-1` on the **per-token** dimension (the two
   dimensions co-exist per the platform billing decision).
-- **AC (reliability):** Given metering, when emitted, then it uses a separate queue from run outcome
-  so metering events are never dropped even if the run fails (per `PLAT-BILLING-1`).
-- **AC (failure mode):** Given the metering queue is unavailable, when a run completes, then the
-  metering event is durably buffered and retried — a billing event is never silently lost.
+- **AC (reliability):** WHEN a metering event is emitted THE SYSTEM SHALL use a separate queue from
+  run outcome so metering events are never dropped even if the run fails (per `PLAT-BILLING-1`).
+- **AC (failure mode):** IF the metering queue is unavailable when a run completes THEN THE SYSTEM
+  SHALL durably buffer and retry the metering event — a billing event is never silently lost.
 - **Priority:** Must Have
 
 **Epic-level acceptance criteria:**
@@ -1353,14 +1362,16 @@ accurate.
   CloudWatch depth metric.
 
 **Dependencies:** Blocked by `PLAT-BILLING-1` (per-run + per-token metering dimensions), `PLAT-NOTIFY-1`
-(DLQ depth + run-failure notifications), `BE-SELFIMPROVE-1` (on-failure "create self-healing issue"
-action, HITL-gated). Runtime/state-machine model and SQS visibility-timeout sizing are OQ-09. Blocks:
+(DLQ depth + run-failure notifications). `BE-SELFIMPROVE-1` is contract-gated, not a hard blocker — the
+on-failure "create self-healing issue" action (HITL-gated) degrades to unavailable while it is not
+live; notify/log/stop stay functional. Runtime/state-machine model and SQS visibility-timeout sizing
+are OQ-09. Blocks:
 every triggered run (EPIC-004) and every action (EPIC-005) executes through this spine; EPIC-009 audit
 emission rides the run/step lifecycle; EPIC-005 idempotency markers are defined here.
 
 ### EPIC-009 — Audit & Compliance Reporting
 
-**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog.**Depends on:** EPIC-008, `PLAT-AUDIT-1`, `CE-READ-1`. **Consumes:** `PLAT-AUDIT-1`, `CE-READ-1`.
+**Phase:** Phase 1 — v1 GA. **Priority:** Must Have. **Status:** Backlog. **Depends on:** EPIC-008, `PLAT-AUDIT-1`, `CE-READ-1`. **Consumes:** `PLAT-AUDIT-1`, `CE-READ-1`.
 **PRD ref:** prd.md#epic-9-audit--compliance-reporting-views-over-plat-audit-1. (Views over
 `PLAT-AUDIT-1`.)
 
@@ -1379,35 +1390,35 @@ SHACL violations, exportable with audit sequence numbers and signatures.
 As a **compliance officer**, I want every run recorded immutably so that I can prove automated actions
 followed CE rules.
 
-- **AC:** Given any run or step, when it executes, then the engine EMITS a typed `PLAT-AUDIT-1` event
+- **AC:** WHEN any run or step executes THE SYSTEM SHALL EMIT a typed `PLAT-AUDIT-1` event
   (`{seq, ts, actor_principal_iri, engine:"events", event_type, target_iri, diff_summary, signature}`)
   — the engine keeps NO independent signed store; the run-log is a filtered VIEW over `PLAT-AUDIT-1`.
   Events-specific fields (`grounded_entity_iri`, `ontology_version_pinned`, `trigger_payload_hash`,
   per-step `step_type`/`step_config_hash`/`outcome`/`external_call_url`, `hitl_decision`) ride as a
   typed payload.
-- **AC:** Given `PLAT-AUDIT-1`, then append-only + signature + sequence are enforced by the platform
-  service at the DB-constraint level; a delete attempt is rejected and itself logged. The engine does
-  not re-implement signing.
-- **AC:** Given HITL decisions, when made, then approve/reject + approver Cognito identity + ts +
-  reason are emitted as distinct `PLAT-AUDIT-1` events.
-- **AC (failure mode):** Given `PLAT-AUDIT-1` is unavailable at run time, when an audit-bearing step
-  completes, then the event is durably buffered and retried (audit completeness is never sacrificed
-  for run throughput); if buffering also fails the run is marked degraded and flagged.
+- **AC:** WHERE `PLAT-AUDIT-1` is used THE SYSTEM SHALL enforce append-only + signature + sequence at
+  the platform service's DB-constraint level; a delete attempt is rejected and itself logged. The
+  engine does not re-implement signing.
+- **AC:** WHEN HITL decisions are made THE SYSTEM SHALL emit approve/reject + approver Cognito identity
+  + ts + reason as distinct `PLAT-AUDIT-1` events.
+- **AC (failure mode):** IF `PLAT-AUDIT-1` is unavailable at run time when an audit-bearing step
+  completes THEN THE SYSTEM SHALL durably buffer and retry the event (audit completeness is never
+  sacrificed for run throughput); if buffering also fails the run is marked degraded and flagged.
 - **Priority:** Must Have
 
 **E9-S2: Compliance reporting for regulated processes**
 As a **compliance officer**, I want a compliance report for a specific ontology process so that I can
 prove automated actions followed obligations.
 
-- **AC:** Given the Audit & Compliance screen, when I filter by grounded process IRI (typeahead via
-  `CE-READ-1`) + date range, then a report (a VIEW over `PLAT-AUDIT-1`) shows run count, success %,
-  failure breakdown, HITL approvals vs rejections, and any step that hit a `CE-WRITE-1` 422 SHACL
-  violation; it can filter by actor class (human / interactive-LLM / `prov:SoftwareAgent` automation
-  principal).
-- **AC:** Given a report, when exported (PDF or JSON), then it includes `PLAT-AUDIT-1` sequence numbers
-  + signatures and a signature-verification section.
-- **AC (failure mode):** Given a "Red run" (any 422 SHACL violation or HITL rejection), when the report
-  renders, then it is flagged distinctly.
+- **AC:** WHERE the Audit & Compliance screen, WHEN I filter by grounded process IRI (typeahead via
+  `CE-READ-1`) + date range THE SYSTEM SHALL show a report (a VIEW over `PLAT-AUDIT-1`) with run count,
+  success %, failure breakdown, HITL approvals vs rejections, and any step that hit a `CE-WRITE-1` 422
+  SHACL violation; it can filter by actor class (human / interactive-LLM / `prov:SoftwareAgent`
+  automation principal).
+- **AC:** WHEN a report is exported (PDF or JSON) THE SYSTEM SHALL include `PLAT-AUDIT-1` sequence
+  numbers + signatures and a signature-verification section.
+- **AC (failure mode):** IF a report renders a "Red run" (any 422 SHACL violation or HITL rejection)
+  THEN THE SYSTEM SHALL flag it distinctly.
 - **Priority:** Must Have
 
 **Epic-level acceptance criteria:**
@@ -1452,18 +1463,18 @@ immediately activatable.
 **E10-S1: Reusable automation templates**
 As an **automation author**, I want pre-built templates so that I start from a working pattern.
 
-- **AC:** Given Automate → Templates, when it loads, then all six templates ship at v1 GA — **4
+- **AC:** WHEN Automate → Templates loads THE SYSTEM SHALL ship all six templates at v1 GA — **4
   activatable, 2 flagged-unavailable** (graph-change nodes require `CE-EVENT-1`):
   - *Activatable at GA:* "Notify on delivery arrival" (webhook → Slack) · "Escalate unresolved
     incident" (ServiceNow → HITL gate → agent run) · "Update graph on Jira close" (Jira →
     `CE-WRITE-1` graph update) · "Daily compliance summary" (cron → agent run → Slack).
   - *Flagged-unavailable until `CE-EVENT-1` lands:* "New employee onboarding" (graph-change →
     multi-step agent run) · "Stock reorder trigger" (graph-change: SHACL violation → API call → Slack).
-- **AC:** Given a template, when I click "Use template", then it opens pre-populated in the Builder and
-  I MUST set a grounding link to a published entity before activating.
-- **AC (failure mode):** Given a template references a connector/trigger type not available in the
-  tenant (e.g. graph-change before `CE-EVENT-1`), when opened, then the unavailable nodes are flagged
-  and the template cannot activate until resolved.
+- **AC:** WHEN I click "Use template" THE SYSTEM SHALL open it pre-populated in the Builder and
+  require me to set a grounding link to a published entity before activating.
+- **AC (failure mode):** IF a template references a connector/trigger type not available in the
+  tenant (e.g. graph-change before `CE-EVENT-1`) when opened THEN THE SYSTEM SHALL flag the
+  unavailable nodes and the template cannot activate until resolved.
 - **Priority:** Should Have
 
 **Epic-level acceptance criteria:**
@@ -1506,18 +1517,18 @@ minimum is rejected, tightening locally is allowed.
 As a **workspace admin**, I want defaults and limits governed through the platform settings cascade so
 that company/domain minimums cannot be loosened locally.
 
-- **AC:** Given Automate Settings, when I view a setting (default HITL timeout, default retry policy,
+- **AC:** WHEN I view a setting in Automate Settings (default HITL timeout, default retry policy,
   default pin behaviour, max concurrent runs [default 20, tunable], max runs/automation/min [default
   60, tunable], notification prefs, audit retention [default 12 months; min 30 days; tunable], HITL
-  high-value threshold), then each shows its **source level** (Company / Domain / Workspace / Project)
-  resolved via `PLAT-SETTINGS-1` (tighter-wins).
-- **AC (cascade enforcement):** Given a company/domain has set a minimum (e.g. audit retention or the
-  HITL high-value threshold), when a workspace tries to LOOSEN it, then the change is rejected
-  ("loosening requires parent approval"); tightening locally is allowed.
-- **AC (high-value threshold):** Given the HITL high-value threshold, then it is a **per-tenant,
-  currency-configurable default** (~£10,000-equivalent; unit-/currency-aware, not a fixed GBP literal)
-  above which any external-effect action requires a HITL gate — enforced at the engine level, not just
-  the UI.
+  high-value threshold) THE SYSTEM SHALL show its **source level** (Company / Domain / Workspace /
+  Project) resolved via `PLAT-SETTINGS-1` (tighter-wins).
+- **AC (cascade enforcement):** WHERE a company/domain has set a minimum (e.g. audit retention or the
+  HITL high-value threshold), IF a workspace tries to LOOSEN it THEN THE SYSTEM SHALL reject the
+  change ("loosening requires parent approval"); tightening locally is allowed.
+- **AC (high-value threshold):** WHERE the HITL high-value threshold applies THE SYSTEM SHALL treat it
+  as a **per-tenant, currency-configurable default** (~£10,000-equivalent; unit-/currency-aware, not a
+  fixed GBP literal) above which any external-effect action requires a HITL gate — enforced at the
+  engine level, not just the UI.
 - **Priority:** Must Have
 
 **Epic-level acceptance criteria:**
@@ -1624,6 +1635,7 @@ end-to-end via the Builder, activated, and run.
 - [ ] PRD section approved; Phase-1 tech spec approved (run-engine runtime model OQ-09, storage OQ-02,
       isolation OQ-11, webhook ingestion OQ-07, canvas framework OQ-01/bindings OQ-08, agent-run
       runtime OQ-09, principal granularity OQ-10 resolved enough to build)
+- [ ] OQ-09 resolved (agent execution runtime + artefact-resolution contract) — blocks E5-S3
 - [ ] Tasks decomposed; each task brief passes the DoR gate
 - [ ] Upstream contracts available in the shared dev account: `PLAT-AUDIT-1`, `PLAT-NOTIFY-1`,
       `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1` (Atlassian/ServiceNow/Slack), `PLAT-BILLING-1`,

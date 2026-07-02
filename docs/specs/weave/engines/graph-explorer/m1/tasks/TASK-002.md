@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-001]
 unlocks: [TASK-003, TASK-004, TASK-005]
-adr_refs: []
+adr_refs: [ADR-001-render-engine]
 timestamp: 2026-07-01T00:00:00Z
 source: hand-authored
 confirmed_by: none
@@ -217,9 +217,10 @@ Error responses:
 
 | Diagram | File | Relevant Section | Summary |
 |---------|------|------------------|---------|
-| Sequence | `../tech-spec/business-process.md` | `#canvas-initial-load` | Pending — to be added to tech-spec before implementation starts |
-| State | `../tech-spec/business-process.md` | `#canvas-load-state` | Pending — to be added to tech-spec before implementation starts |
-| Data Model | `../tech-spec/data-model.md` | `#bpmo-node-kinds` | Pending — to be added to tech-spec before implementation starts |
+| Sequence | `../../tech-spec/business-process.md` | `#canvas-initial-load` | Full canvas boot: palette + saved positions + paginated CE-READ-1 load |
+| State | `../../tech-spec/business-process.md` | `#canvas-load-state` | Load state machine (loading → rendered / CE-error empty-state) |
+| Data Model | `../../tech-spec/data-model.md` | `#bpmo-node-kinds` | 13 BPMO kinds + grey fallback the palette colours nodes by |
+| Component | `../../tech-spec/architecture.md` | `#level-3-component--spa-canvas-module` | SPA Canvas Module boundary and renderer-adapter seam |
 
 ### Design Decisions
 
@@ -230,8 +231,8 @@ Error responses:
 | CE error → empty-state; no partial render (FR-001) | [graph-explorer.md §2.1](../../../graph-explorer.md#21-functional-requirements) | Cytoscape must NOT be initialised if elements is empty due to error; prevents phantom canvas state |
 | Semantic zoom thresholds tunable (not hard-coded literals) (FR-005) | [graph-explorer.md §2.1](../../../graph-explorer.md#21-functional-requirements) | Threshold values must come from a config object; no magic numbers in component |
 | No global keyboard capture for Cmd+K / Cmd+0 (FR-007) | [graph-explorer.md §2.1](../../../graph-explorer.md#21-functional-requirements) | Key listener must check `cy.container().contains(document.activeElement)` before firing |
-| React SPA, modular; Next.js 15 App Router; TypeScript strict (confirmed stack) | [CLAUDE.md](../../../../../CLAUDE.md) | ExplorerCanvas is a Next.js client component (dynamic import with `ssr: false`); Cytoscape runs in browser only |
-| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../CLAUDE.md) | No API keys or CE connection strings in `.env` or source; fetched via Secrets Manager at runtime |
+| React SPA, modular; Next.js 15 App Router; TypeScript strict (confirmed stack) | [CLAUDE.md](../../../../../../../CLAUDE.md) | ExplorerCanvas is a Next.js client component (dynamic import with `ssr: false`); Cytoscape runs in browser only |
+| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../../../CLAUDE.md) | No API keys or CE connection strings in `.env` or source; fetched via Secrets Manager at runtime |
 
 ## Test Requirements
 
@@ -242,6 +243,7 @@ Error responses:
 - `should hide node labels when canvas zoom drops below the node-label threshold (config-driven)`
 - `should NOT prevent default key event when canvas container does not contain activeElement`
 - `should paginate CE-READ-1 SPARQL calls until has_more_pages is false`
+- `should render MiniMap component mounted in bottom-right viewport corner`
 
 ### Integration Tests (minimum 3)
 

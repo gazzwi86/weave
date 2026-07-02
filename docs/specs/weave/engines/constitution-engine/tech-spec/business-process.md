@@ -280,6 +280,10 @@ That constraint is inviolable.
 | NL query p95 (`POST /api/query/nl`) | ≤ 500 ms | 100k triples |
 | 500k-triple load | Measured but not gating M1 launch | — |
 
+These are the internal per-operation budgets that roll up to the user-facing NFR latency ceilings
+in [constitution-engine.md §NFR](../../constitution-engine.md); the two must stay consistent (this
+table decomposes those ceilings, it does not override them).
+
 ### Decision flowchart
 
 ```mermaid
@@ -309,8 +313,8 @@ flowchart TD
     REMEASURE_B -->|"≤ 800 ms"| GO
     REMEASURE_B -->|"Still > 800 ms"| ESC
 
-    DC["Degrade C<br/>Defer Build Engine grounding<br/>to M2<br/>NL query uses base framework only"] --> GODC
-    GODC(["Go with constraint<br/>M1 ships<br/>Build grounding deferred"])
+    DC["Degrade C<br/>Cap NL-grounding context to one<br/>golden-path process slice<br/>(M1 generate step preserved)"] --> GODC
+    GODC(["Go with constraint<br/>M1 ships<br/>NL grounding scoped to golden-path slice"])
 
     ESC(["Escalate to<br/>architecture board<br/>M1 launch gated"])
 
@@ -347,11 +351,11 @@ stateDiagram-v2
     QueryOptimised --> GoThreshold : read p95 ≤ 300ms
     QueryOptimised --> Escalated : still failing
 
-    NLFail --> DegradeC_Applied : defer Build grounding to M2
-    DegradeC_Applied --> GoWithConstraint : NL p95 ≤ 500ms on base framework
+    NLFail --> DegradeC_Applied : cap grounding to golden-path slice
+    DegradeC_Applied --> GoWithConstraint : NL p95 ≤ 500ms on scoped slice
 
     GoThreshold --> [*] : M1 launches; full pipeline
-    GoWithConstraint --> [*] : M1 launches; Build grounding M2
+    GoWithConstraint --> [*] : M1 launches; grounding scoped to golden-path slice
     Escalated --> [*] : M1 gated; arch board reviews
 
     note right of DegradeA_Applied
@@ -371,10 +375,10 @@ stateDiagram-v2
     end note
 
     note right of DegradeC_Applied
-        Build Engine grounding
-        (agent uses tenant + framework only).
-        No cross-tenant reads.
-        Tenant isolation inviolate.
+        NL grounding context capped to one
+        golden-path process slice (bounded subgraph).
+        M1 generate step preserved — never deferred to M2.
+        No cross-tenant reads; tenant isolation inviolate.
     end note
 ```
 

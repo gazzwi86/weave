@@ -20,8 +20,8 @@ coverage: build-engine
 **Graph edges:**
 [Build Engine spec](../../../build-engine.md) ·
 [Inter-engine contracts](../../../../contracts.md) ·
-[ADR-001 Tenant isolation](../../../../decisions/ADR-001-tenant-isolation.md) ·
-[ADR-002 Authority extension](../../../../decisions/ADR-002-authority-extension.md)
+[ADR-001 Tenant isolation](../../../decisions/ADR-001-tenant-isolation.md) ·
+[ADR-002 Authority extension](../../../decisions/ADR-002-authority-extension.md)
 
 ---
 
@@ -224,6 +224,63 @@ sequenceDiagram
 
 ---
 
+## Repo Bootstrap Flow {#repo-bootstrap-flow}
+
+**Run step 0** (TASK-010, FR-061 / decision B9). Before the first PLAN, the orchestrator ensures
+the project's **NEW external repository** exists on the configured source-control provider
+(GitHub or GitLab) and its boilerplate/harness is pushed. All generated output (TASK-008) lands in
+that client-owned repo — **never inside Weave**. The provider + auth token are a project/workspace
+setting (`PLAT-SETTINGS-1` for config; token in **AWS Secrets Manager** only, referenced by
+`scm_token_secret_ref`). Source control is **not** a `PLAT-CONNECTOR-1` connector and is available
+at M1.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Orch as Dark Factory Orchestrator<br/>(Build principal — PLAT-IDENTITY-1)
+  participant Settings as PLAT-SETTINGS-1
+  participant Secrets as AWS Secrets Manager
+  participant Driver as ScmDriver<br/>(GitHubDriver | GitLabDriver)
+  participant Repo as External repo<br/>(GitHub / GitLab)
+  participant Aurora as Aurora (projects, RLS)
+  participant Audit as PLAT-AUDIT-1
+
+  Orch->>Aurora: Load project — repo already bootstrapped?
+  alt project.repo_bootstrap_status = bootstrapped
+    Aurora-->>Orch: existing repo handle (idempotent — reuse, no second repo)
+  else not yet bootstrapped
+    Orch->>Settings: Resolve source_control provider (project cascade)
+    alt provider unconfigured OR unsupported
+      Settings-->>Orch: no valid provider
+      Orch->>Orch: RepoBootstrapError(repo_provider_unconfigured) — run NOT started (fail-closed, before PLAN)
+    else provider resolved
+      Orch->>Secrets: Get deploy token by scm_token_secret_ref (never logged)
+      alt token missing / invalid
+        Secrets-->>Orch: no token
+        Orch->>Orch: RepoBootstrapError(repo_auth_invalid) — run NOT started
+      else token resolved
+        Orch->>Driver: select driver(provider)
+        Driver->>Repo: Create-or-adopt repo (private) · set default branch
+        Driver->>Repo: Push project boilerplate / harness (initial commit)
+        Orch->>Aurora: Persist repo handle {repo_provider, repo_url,<br/>repo_default_branch, scm_token_secret_ref, repo_bootstrap_status=bootstrapped}
+        Orch->>Audit: Emit repo_bootstrapped {provider, repo_url} — no token in event
+        Note over Driver,Repo: M2 (FR-062): branch-protection rules, full CI,<br/>rich .claude-style scaffold + env-verification HITL gate
+      end
+    end
+  end
+```
+
+**Invariants:**
+
+- **Idempotent re-run** — a project whose `repo_bootstrap_status = bootstrapped` reuses the existing
+  repo handle; a second run never creates a second repo.
+- **Token never logged** — the provider token is read from Secrets Manager at use and never appears
+  in any response body, log line, or `PLAT-AUDIT-1` event.
+- **Fail-closed** — an unconfigured provider or invalid token halts the run **before PLAN**; the
+  run is not started and no code is generated. There is no Weave-internal repo fallback.
+
+---
+
 ## Dark Factory PDAC Sequence
 
 The core agentic loop: Plan → Delegate → Assess → Codify (non-skippable per B3).
@@ -243,9 +300,9 @@ sequenceDiagram
   Note over Eng: dep-summary-handoff STUB (M1 pass-through)<br/>Row written; no merge logic yet — ENG-4 M2
   Eng->>Eng: ASSESS — implement, self-evaluate against ACs
   Note over Eng: pre-scaffold-review STUB (M1 pass-through)<br/>Gate present but non-blocking — ENG-4 M2
-  Eng->>Haiku: CODIFY — validate all EARS ACs, run DoD checks
-  Note over Haiku: CODIFY is non-skippable (B3)
-  Haiku-->>Eng: AC results (pass / fail per criterion)
+  Eng->>Validator: CODIFY — validate all EARS ACs, run DoD checks
+  Note over Validator: CODIFY is non-skippable (B3)
+  Validator-->>Eng: AC results (pass / fail per criterion)
   alt All ACs pass
     Eng->>Eng: Commit artefacts (branch + sha)
     Eng->>Audit: Emit PLAT-AUDIT-1 event {task_id, actor_principal_iri, event=task.complete}
@@ -276,7 +333,7 @@ stateDiagram-v2
   complete --> [*]
 ```
 
-**CODIFY is non-skippable (B3):** a task cannot move to `complete` without Haiku
+**CODIFY is non-skippable (B3):** a task cannot move to `complete` without claude-sonnet-5
 validation of all EARS ACs. A task in `complete` state is a DoD guarantee.
 
 ---
@@ -340,7 +397,7 @@ sequenceDiagram
   BE->>Gen: Graph snapshot → Generate Next.js UI + FastAPI API
   Gen-->>BE: Generated artefact bundle (branch)
   loop Each of 5 M1 gates — atomic
-    BE->>Gates: Run gate (SAST · type-check · mutation≥70% · pkg-existence · secret-scan)
+    BE->>Gates: Run gate (secret-scan · SAST · type-check · pkg-existence · mutation≥70%)
     Gates-->>BE: result (passed | failed)
   end
   alt All 5 gates pass
@@ -381,11 +438,11 @@ See [gate_results table](data-model.md#gate-results-table) for storage.
 
 ```mermaid
 flowchart TD
-  A[Artefact bundle ready on isolated branch] --> B[1. SAST — Bandit · Semgrep]
-  B -->|pass| C[2. Type-check — mypy · tsc]
-  C -->|pass| D[3. Delta mutation ≥ 70%]
+  A[Artefact bundle ready on isolated branch] --> B[1. Secret scan]
+  B -->|pass| C[2. SAST — Bandit · Semgrep]
+  C -->|pass| D[3. Type-check — mypy · tsc]
   D -->|pass| E[4. Package existence hard-block]
-  E -->|pass| F[5. Secret scan]
+  E -->|pass| F[5. Delta mutation ≥ 70%]
   F -->|all 5 pass| G[Gates PASSED — run_id.gate_status = passed]
   B -->|fail| H[Atomic rollback — gate_results row written<br/>HITL escalation]
   C -->|fail| H
@@ -399,11 +456,11 @@ flowchart TD
 
 | Gate | Tool(s) | Failure action |
 |---|---|---|
+| Secret scan | trufflehog / gitleaks | Hard block — any detected secret (runs first, fail-fast) |
 | SAST | Bandit (Python), Semgrep | Hard block — all findings ≥ MEDIUM |
 | Type-check | mypy (Python), tsc (TypeScript) | Hard block — any type error |
-| Delta mutation ≥ 70% | mutation test runner (delta-scoped) | Hard block — coverage < 70% on changed lines |
 | Package existence | pip/npm registry lookup | Hard block — any unresolvable package |
-| Secret scan | trufflehog / gitleaks | Hard block — any detected secret |
+| Delta mutation ≥ 70% | mutation test runner (delta-scoped) | Hard block — coverage < 70% on changed lines |
 
 CE-BRAND-1 conformance is **not a M1 gate** — deferred to M2 (B7).
 
@@ -419,7 +476,7 @@ flowchart LR
   subgraph DoR["Definition of Ready — checked before generate starts"]
     DR1[CE-READ-1 reachable and returning data]
     DR2[graph_version_iri pinned on project]
-    DR3[task_brief content validated by Haiku]
+    DR3[task_brief content validated by claude-sonnet-5]
     DR4[automatable flag resolved — auto or HITL decision made]
     DR5[no unresolved blockers in build_tasks.blocked_by]
   end
@@ -496,7 +553,7 @@ flowchart LR
 
 ### pre-scaffold-review (ENG-4 STUB)
 
-In M1 the pre-scaffold check step is present in the PDAC flow but **non-blocking**. The Haiku
+In M1 the pre-scaffold check step is present in the PDAC flow but **non-blocking**. The claude-sonnet-5
 validator runs the check; a warning is emitted if it would have gated, but the loop continues.
 
 ```mermaid
@@ -511,7 +568,7 @@ flowchart LR
 
 ## Performance-Spike Degrade Note
 
-Per [ADR-001 Consequences](../../../../decisions/ADR-001-tenant-isolation.md): the CE performance
+Per [ADR-001 Consequences](../../../decisions/ADR-001-tenant-isolation.md): the CE performance
 and security spike ([CE TASK-008](../../../constitution-engine/m1/tasks/TASK-008.md)) stress-
 tests the query-rewriting middleware. If the spike reveals rewriter fragility:
 

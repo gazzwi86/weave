@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: ["TASK-001"]
 unlocks: ["TASK-003", "TASK-004"]
-adr_refs: []
+adr_refs: [ADR-001]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -37,7 +37,7 @@ replay or audit the model's history with confidence.
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-002-01 | WHEN a mutation commits successfully via CE-WRITE-1, THE SYSTEM SHALL append a `prov:Activity` record to `weave:graph/prov` containing: `prov:wasAssociatedWith` (LLM agent IRI from PLAT-IDENTITY-1), `prov:wasStartedBy` (approving human IRI from PLAT-IDENTITY-1), `prov:generated` (new version IRI), `prov:used` (source version IRI), `prov:startedAtTime`, `prov:endedAtTime`. |
+| AC-002-01 | WHEN a mutation commits successfully via CE-WRITE-1, THE SYSTEM SHALL append a `prov:Activity` record to `urn:weave:g:tenant:{id}:prov` containing: `prov:wasAssociatedWith` (LLM agent IRI from PLAT-IDENTITY-1), `prov:wasStartedBy` (approving human IRI from PLAT-IDENTITY-1), `prov:generated` (new version IRI), `prov:used` (source version IRI), `prov:startedAtTime`, `prov:endedAtTime`. |
 | AC-002-02 | WHEN a commit occurs, THE SYSTEM SHALL emit one PLAT-AUDIT-1 event with fields `{seq, ts, actor_principal_iri, engine:"constitution", event_type, target_iri, diff_summary, signature}` — see [contracts.md](../../../../contracts.md) for the canonical shape. |
 | AC-002-03 | WHEN the provenance graph is queried after a failed mutation attempt, THE SYSTEM SHALL contain no `prov:Activity` record for that attempt. |
 | AC-002-04 | WHEN the PLAT-AUDIT-1 sink is unavailable, THE SYSTEM SHALL still commit the graph change and queue the audit event for retry; the mutation MUST NOT be rolled back. |
@@ -47,11 +47,13 @@ replay or audit the model's history with confidence.
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-002-06 | WHEN a mutation commits, THE SYSTEM SHALL assign the resulting snapshot a draft version IRI (e.g., `weave:version/{uuid}/draft`) and persist it as the new working state. |
-| AC-002-07 | WHEN an authorised principal calls `POST /api/ontology/versions/{version_iri}/publish`, THE SYSTEM SHALL transition the draft to a published version IRI (e.g., `weave:version/{uuid}`), immutable thereafter. |
+| AC-002-06 | WHEN a mutation commits, THE SYSTEM SHALL persist the resulting snapshot into the tenant draft (working) graph `urn:weave:g:tenant:{id}` as the new working state. |
+| AC-002-07 | WHEN an authorised principal calls `POST /api/ontology/versions/{version_iri}/publish`, THE SYSTEM SHALL transition the draft to an immutable published version graph `urn:weave:g:tenant:{id}:v{semver}` (the version IRI), immutable thereafter. |
 | AC-002-08 | WHEN `?version=latest` is specified on any read endpoint, THE SYSTEM SHALL resolve it to the newest published version IRI, not a draft. |
-| AC-002-09 | WHEN a published version is requested for update, THE SYSTEM SHALL reject with `409 {message:"version is published and immutable"}`. |
-| AC-002-10 | WHEN a draft version is abandoned (not published within 30 days), THE SYSTEM SHALL mark it `weave:status/expired`; expired drafts are excluded from `?version=latest` resolution. |
+| AC-002-09 | WHEN a published version is requested for update, THE SYSTEM SHALL reject with `405 {message:"version is published and immutable"}` (business-process.md immutability guarantee). |
+<!-- AC-002-10 removed 2026-07-03: invented 30-day draft-expiry + `weave:status/expired` had no
+canonical source (not in contracts.md / data-model.md / business-process.md); scope not owned by M1. -->
+
 
 ### E9-S3 — Version History and Diff
 
@@ -74,16 +76,14 @@ See [contracts.md](../../../../contracts.md) for all canonical shapes — do not
 stateDiagram-v2
     [*] --> Draft : commit via CE-WRITE-1
     Draft --> Published : POST /api/ontology/versions/{iri}/publish
-    Draft --> Expired : 30-day TTL without publish
     Published --> [*] : immutable (no further transitions)
-    Expired --> [*] : archived (queryable, not writable)
 ```
 
 ## Design Decisions
 
 | Decision | Rationale | Source |
 |---|---|---|
-| PROV-O records in a separate named graph `weave:graph/prov` | Keeps provenance queryable via SPARQL without polluting the ontology graph. | engine spec §E9 |
+| PROV-O records in the tenant provenance graph `urn:weave:g:tenant:{id}:prov` | Keeps provenance queryable via SPARQL without polluting the ontology graph; append-only per ADR-001. | ADR-001; engine spec §E9 |
 | LLM identified as `prov:SoftwareAgent`, human as `prov:Person` | Preserves W3C PROV-O semantics; auditors can distinguish automated from human changes. | engine spec §E9-S1 |
 | Draft before publish; `?version=latest` resolves to newest published | Draft state allows review before exposure to downstream engines; published = stable contract. | engine spec §E9-S2 |
 | Version IRIs are immutable once published | Immutability is required for audit integrity and reproducibility; any change must create a new version. | engine spec §Key Decisions |
@@ -98,15 +98,14 @@ stateDiagram-v2
 | Unit | Draft version IRI assigned on commit; published IRI on publish call | AC-002-06, AC-002-07 |
 | Unit | `?version=latest` resolves to newest published, not draft | AC-002-08 |
 | Unit | Diff returns empty result when `from == to` | AC-002-13 |
-| Unit | 30-day TTL expiry marks draft as `weave:status/expired` | AC-002-10 |
-| Integration | Provenance graph contains correct triples after commit (query `weave:graph/prov`) | AC-002-01 |
+| Integration | Provenance graph contains correct triples after commit (query `urn:weave:g:tenant:{id}:prov`) | AC-002-01 |
 | Integration | No provenance record written on failed mutation | AC-002-03 |
 | Integration | PLAT-AUDIT-1 event emitted after successful commit | AC-002-02 |
 | Integration | Commit succeeds even when PLAT-AUDIT-1 sink is stubbed to fail | AC-002-04 |
 | Integration | Diff endpoint returns correct added/removed/modified for known change | AC-002-12 |
 | Integration | `404` on diff for non-existent version IRI | AC-002-14 |
 | E2E | Modeller publishes a draft; published version appears in version list | AC-002-07, AC-002-11 |
-| E2E | Attempt to mutate a published version returns 409 | AC-002-09 |
+| E2E | Attempt to mutate a published version returns 405 | AC-002-09 |
 
 ## Dependencies
 
@@ -125,7 +124,7 @@ careful triple-level comparison.
 - [ ] PLAT-IDENTITY-1 returns canonical principal IRIs for LLM agent and human approver
 - [ ] PLAT-AUDIT-1 sink available (real or stub) in integration environment
 - [ ] PROV-O namespace prefixes agreed and committed to BPMO ontology prefix declaration
-- [ ] Draft/published IRI naming scheme confirmed and documented
+- [ ] Draft/published IRI naming scheme per ADR-001 (`urn:weave:g:tenant:{id}` draft, `urn:weave:g:tenant:{id}:v{semver}` published)
 
 ## DoD Checklist
 
@@ -133,7 +132,7 @@ careful triple-level comparison.
 - [ ] PROV-O graph populated correctly after every successful commit
 - [ ] No provenance record on failed mutations (verified by graph query)
 - [ ] PLAT-AUDIT-1 events delivered or queued (never silently dropped)
-- [ ] Published version IRIs are immutable (write attempt returns 409)
+- [ ] Published version IRIs are immutable (write attempt returns 405)
 - [ ] Diff endpoint tested against regressions on known change sets
 - [ ] `?version=latest` resolution tested with multiple published versions present
 - [ ] No PII or secrets logged (provenance records may include IRI but not JWT payload)
@@ -146,7 +145,7 @@ Use SPARQL UPDATE with an explicit graph target:
 
 ```
 INSERT DATA {
-  GRAPH <weave:graph/prov> {
+  GRAPH <urn:weave:g:tenant:{id}:prov> {
     <activity_iri> a prov:Activity ;
         prov:wasAssociatedWith <llm_agent_iri> ;
         prov:wasStartedBy     <human_iri> ;
@@ -161,7 +160,3 @@ INSERT DATA {
 **Diff algorithm**: query the two version snapshots with SPARQL. Find triples in version A not
 in version B (removed), triples in B not in A (added). For `modified`, match by subject+predicate
 and compare objects. Edges (`weave:relatesTo`, etc.) must be included in the diff query.
-
-**Draft TTL expiry**: implement as a background job (Lambda cron or FastAPI startup task)
-that marks drafts older than 30 days. Do not expire drafts inline on read — latency impact
-and race conditions.

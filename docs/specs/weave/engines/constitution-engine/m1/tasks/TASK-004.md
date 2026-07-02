@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: ["TASK-001", "TASK-002", "TASK-003"]
 unlocks: ["TASK-005", "TASK-006"]
-adr_refs: []
+adr_refs: [ADR-002]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null

@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-07-01
 blocked_by: [TASK-001, TASK-002]
 unlocks: []
-adr_refs: []
+adr_refs: [ADR-001-render-engine]
 timestamp: 2026-07-01T00:00:00Z
 source: hand-authored
 confirmed_by: none
@@ -252,9 +252,9 @@ Error responses (all three endpoints):
 
 | Diagram | File | Relevant Section | Summary |
 |---------|------|------------------|---------|
-| Sequence | `../tech-spec/business-process.md` | `#layout-persist-flow` | Pending — to be added to tech-spec before implementation starts |
-| State | `../tech-spec/business-process.md` | `#layout-load-state` | Pending — to be added to tech-spec before implementation starts |
-| Data Model | `../tech-spec/data-model.md` | `#explorer-layout-positions` | Pending — approved schema delivered by TASK-001; data-model doc must be updated before this task starts |
+| Sequence | `../../tech-spec/business-process.md` | `#layout-persist-flow` | Drag-end UPSERT to Aurora with SET LOCAL RLS + optimistic retry |
+| State | `../../tech-spec/business-process.md` | `#layout-load-state` | Clean → Dirty → Persisting → RetryPending layout lifecycle |
+| Data Model | `../../tech-spec/data-model.md` | `#explorer-layout-positions` | Approved `explorer_layout_positions` DDL + RLS this task implements |
 
 ### Design Decisions
 
@@ -262,10 +262,10 @@ Error responses (all three endpoints):
 |----------|-----------|---------------------|
 | Server-side layout persistence per (tenant, workspace, graphId) — not localStorage (D2, FR-008) | [graph-explorer.md §2.5](../../../graph-explorer.md#25-key-design-decisions) | Every read/write must be scoped by all three keys; no per-browser storage path |
 | Aurora schema: `explorer_layout_positions` with RLS policy `tenant_id = current_setting('app.current_tenant_id')::uuid` | TASK-001 deliverable (AC-4) | `SET LOCAL app.current_tenant_id` must be called inside every `async with db.begin()` block before any query; failing to do so bypasses RLS |
-| Aurora PostgreSQL Serverless v2 + SQLAlchemy async + asyncpg driver (confirmed stack) | [CLAUDE.md](../../../../../CLAUDE.md) | Use `asyncpg` dialect; parameterised queries only via `text()` + named params (no string concatenation) |
+| Aurora PostgreSQL Serverless v2 + SQLAlchemy async + asyncpg driver (confirmed stack) | [CLAUDE.md](../../../../../../../CLAUDE.md) | Use `asyncpg` dialect; parameterised queries only via `text()` + named params (no string concatenation) |
 | Failed layout save → optimistic hold + retry + non-blocking toast; never silently dropped (FR-008) | [graph-explorer.md §2.1](../../../graph-explorer.md#21-functional-requirements) | Client retry logic: 3 attempts with [2 s, 4 s, 8 s] delays; toast on exhaustion; all tunable |
 | `locked` field reserved for M2 Saved Views; default `false` at insert; not writable via this task's API | [graph-explorer.md §1.1](../../../graph-explorer.md#scope) | This task's POST endpoint does not accept a `locked` field; DB default handles it |
-| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../CLAUDE.md) | Aurora connection string fetched from Secrets Manager at startup; never in `.env` or source |
+| Secrets in AWS Secrets Manager only | [CLAUDE.md](../../../../../../../CLAUDE.md) | Aurora connection string fetched from Secrets Manager at startup; never in `.env` or source |
 
 ## Test Requirements
 

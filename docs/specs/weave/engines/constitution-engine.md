@@ -260,9 +260,9 @@ Per-persona feed/consume detail lives in the program persona map, [`../personas.
 
 - Standards are mandatory, not negotiable: OWL 2 DL ontology, Turtle serialisation, SHACL validation,
   SPARQL 1.1 (SELECT-only query surface; writes via the validated operations API, not raw SPARQL
-  Update), PROV-O provenance, SKOS for the glossary. ODRL is NOT in the v1 stack — PII/sensitive
-  handling uses SHACL plus data-classification properties in v1; ODRL policy enforcement is deferred
-  to a later stack decision.
+  Update), PROV-O provenance, SKOS for the glossary. M1 PII/sensitive handling uses SHACL plus
+  data-classification properties; ODRL 2.2 enters at M2 as the authority-extension vocabulary
+  (ADR-002 — the single-source-of-truth authority model), not a later undecided stack question.
 - RDF store is Oxigraph in dev/test; the production store (Neptune vs Jena Fuseki) is deferred to this
   engine's tech spec and must support SPARQL 1.1 and the expected scale.
 - Natural-language authoring relies on the platform AI layer (Anthropic models via Bedrock); NL→RDF
@@ -360,7 +360,7 @@ writes back through CE-WRITE-1); (5) the immutable cross-engine audit log as an 
 (Platform PLAT-AUDIT-1; this engine emits to it — CE PROV-O is the semantic-model provenance and also
 writes a PLAT-AUDIT-1 entry); (6) designing brand/creative assets; (7) enforcing constraints at
 generation time (downstream engines enforce); (8) choosing the production RDF store (tech spec);
-(9) ODRL policy enforcement (not in v1 stack; v1 uses SHACL + data-classification, OQ-09); (10) process
+(9) ODRL policy enforcement enters at M2 as the authority-extension vocabulary (ADR-002); M1 uses SHACL + data-classification; (10) process
 mining/discovery, conformance checking, and a PQL (engine *ingests* OCEL 2.0 event data, OQ-14, as
 modellable data, builds no discovery/conformance algorithms or PQL; heavy mining integrated/partnered);
 (11) query-time live federation of external data (current ingestion is a **materialised copy** via
@@ -376,7 +376,7 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-003 | **Exactly one** mutation entry point (`POST /api/operations/apply`, CE-WRITE-1) writes to the trusted graph; it always runs prospective SHACL validation on a clone; no auto-apply or raw SPARQL Update may write. AC: legacy auto-apply path absent; bypass attempt rejected. | E6-S1 | P0 | MVP |
 | FR-004 | Prospective validation **clones** the target graph, applies the batch, runs SHACL, commits only if zero `sh:Violation`. AC: a batch with one violation commits nothing. | E6-S1 | P0 | MVP |
 | FR-005 | `sh:Violation` → HTTP 422 (graph unchanged); `sh:Warning` and `sh:Info` are advisory, surfaced, never block. AC: each severity exercised. | E6-S1, E5-S3 | P0 | MVP |
-| FR-006 | Every committed change produces a PROV-O `prov:Activity` in `weave:graph/prov` recording authoring-agent kind (`prov:SoftwareAgent` for LLM, `prov:Person` for approving human via `prov:wasAssociatedWith`) and the PLAT-IDENTITY-1 principal IRI; AND emits the same event to PLAT-AUDIT-1. AC: 100% of commits carry both; audit-emit failure retried + logged. | E9-S1 | P0 | MVP; PLAT-AUDIT-1, PLAT-IDENTITY-1 |
+| FR-006 | Every committed change produces a PROV-O `prov:Activity` in `urn:weave:g:tenant:{id}:prov` (ADR-001 named-graph scheme) recording authoring-agent kind (`prov:SoftwareAgent` for LLM, `prov:Person` for approving human via `prov:wasAssociatedWith`) and the PLAT-IDENTITY-1 principal IRI; AND emits the same event to PLAT-AUDIT-1. AC: 100% of commits carry both; audit-emit failure retried + logged. | E9-S1 | P0 | MVP; PLAT-AUDIT-1, PLAT-IDENTITY-1 |
 | FR-007 | OWL **consistency check runs before each publish**; inconsistencies block publish with affected classes + violated axioms; reasoner-unavailable blocks publish (never publishes unchecked). AC: inconsistent draft cannot publish. | E8-S2 | P1 | MVP; gated on OQ-01 |
 | FR-008 | Draft → published version lifecycle with immutable published named graphs (version IRIs); publish snapshots draft + generates PROV-O change log; existing versions never altered. AC: prior versions byte-identical after a new publish. | E9-S2 | P0 | MVP |
 | FR-009 | `?version=latest` resolves to the **newest published version** (decision B2); downstream auto-tracks unless pinned. AC: publishing v1.3 makes `latest` resolve to v1.3. | E9-S2 | P0 | MVP |
@@ -396,9 +396,9 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-023 | Glossary search matches `prefLabel`/`altLabel`/`definition`; no-match → empty-state with create affordance. AC: empty search not an error. | E3-S3 | P0 | MVP |
 | FR-024 | Brand & Voice screen stores brand individuals + VoiceRules with versioning + PROV-O; AI extraction from pasted styleguide, with form fallback when AI unavailable. AC: form path works at 503. | E4-S1, E4-S2 | P0 | MVP |
 | FR-025 | Governance screen: SHACL shapes stored in the **authoring tenant's** shapes graph (never global) with PROV-O; browsable by target class; shape change invalidates validation cache across all workers/instances. AC: cross-tenant shape-leak test passes. | E5-S1, E5-S3 | P0 | MVP; PLAT-SETTINGS-1 |
-| FR-026 | Self-audit gap queries available from Governance screen; PII/sensitive handling via SHACL + data-classification properties (NOT ODRL in v1); schedulable; failed run → PLAT-NOTIFY-1. AC: gap query lists uncovered entities. | E5-S2 | P1 | MVP; PLAT-NOTIFY-1 |
+| FR-026 | Self-audit gap queries available from Governance screen; PII/sensitive handling via SHACL + data-classification properties in M1 (ODRL authority extension enters at M2 per ADR-002); schedulable; failed run → PLAT-NOTIFY-1. AC: gap query lists uncovered entities. | E5-S2 | P1 | MVP; PLAT-NOTIFY-1 |
 | FR-027 | `GET /api/validate` returns a full SHACL report (JSON-LD/Turtle) incl. violations/warnings/info, tenant-scoped; bad version → 404; no JWT → 401. AC: report enumerates all severities. | E6-S3 | P0 | MVP |
-| FR-028 | OWL inferred triples materialised **per published version** (e.g. `weave:graph/v1.2.0/inferred`) at publish; pinned reads include/exclude inferred deterministically per version; reasoner-timeout (default 30s, tunable) → no partial graph. AC: v1.2 read excludes v1.3 inferences. | E8-S1, E1-S4 | P1 | MVP; gated on OQ-01 |
+| FR-028 | OWL inferred triples materialised **per published version** (e.g. `urn:weave:g:tenant:{id}:v1.2.0:inferred`) at publish; pinned reads include/exclude inferred deterministically per version; reasoner-timeout (default 30s, tunable) → no partial graph. AC: v1.2 read excludes v1.3 inferences. | E8-S1, E1-S4 | P1 | MVP; gated on OQ-01 |
 | FR-029 | Inferred triples labelled as inferred in query results and instance views. AC: asserted vs inferred distinguishable in output. | E8-S1 | P1 | MVP |
 | FR-030 | Bulk-populate: CSV/table upload with AI column-to-property mapping + xsd datatype inference sampling ≥ N rows (default 20, tunable, not 1) shown for human correction before commit; rows failing SHACL flagged + skipped with reason; passing rows commit. AC: skipped-row reason surfaced. | E2-S3 | P1 | MVP |
 | FR-031 | RBAC role × action matrix enforced (the grid in §2.2 → Security → RBAC matrix); resolved through PLAT-SETTINGS-1 cascade. AC: a BA cannot publish; a viewer cannot author; an architect can author-ontology + publish. | (RBAC) | P0 | MVP; PLAT-SETTINGS-1 |
@@ -445,6 +445,10 @@ duration) are post-spike tunable. OQ-13 (perf threshold confirmation) is closed 
 - Publish (snapshot + OWL consistency check + per-version inference + PROV-O): **default < 30 s** for
   graphs up to 500k triples (UNVERIFIED, OQ-13); reasoner budget default 30 s, tunable.
 
+These user-facing ceilings decompose into the internal per-operation budgets and TASK-008 go/no-go
+thresholds in [business-process.md §TASK-008 Perf-Spike Degrade Contingency](constitution-engine/tech-spec/business-process.md);
+the two must stay consistent.
+
 **Security**
 
 - All REST + SPARQL endpoints require a Cognito JWT / service principal (FR-032); RBAC enforced per
@@ -476,7 +480,7 @@ available operation for any principal, including admin (FR-006 append-only invar
 - Secrets: all credentials (database, Cognito, AI provider keys) via **AWS Secrets Manager** only;
   never in env files or source.
 - PII / sensitive data: classify via SHACL + data-classification properties; surface gaps in
-  self-audit queries (FR-026). **ODRL is NOT in the v1 stack** (OQ-09).
+  self-audit queries (FR-026). **ODRL enters at M2 as the authority-extension vocabulary** (ADR-002; OQ-09 resolved).
 
 **Reliability**
 
@@ -511,8 +515,9 @@ available operation for any principal, including admin (FR-006 append-only invar
 - **Multi-tenant isolation mechanism (named):** each tenant's graph data is isolated such that **no
   query — with or without an explicit `GRAPH` clause — can return another tenant's triples.**
   Implemented as either store-per-tenant OR named-graph + query-rewriting middleware that injects the
-  tenant graph and **rejects any unscoped query**. Final mechanism is a tech-spec decision (OQ-04);
-  the expectation and test are fixed here.
+  tenant graph and **rejects any unscoped query**. Final mechanism resolved by ADR-001:
+  named-graph-per-tenant + mandatory fail-closed query-rewriting (OQ-04 closed); the expectation and
+  test are fixed here.
 - **Cross-tenant-read test (required):** a tenant-A JWT issuing an unscoped SPARQL query returns
   **zero** tenant-B triples. A companion **cross-tenant shape-leak test** confirms a tenant-A custom
   SHACL shape never affects a tenant-B commit (FR-025).
@@ -562,12 +567,12 @@ exact version tags.
 | OQ-01 | Which OWL reasoner ships in v1 (RDFLib-OWL / Owlready2 / Stardog / ELK)? Tractability at 500k triples? FR-007/FR-028 gate on this. | Architect |
 | OQ-02 | Production RDF store: Neptune vs Jena Fuseki — latency, SPARQL 1.1 compliance, cost at scale. | Architect |
 | OQ-03 | Which Claude model handles NL→operations generation? Token budget per mutation? (Candidate `claude-sonnet-5`.) | Architect |
-| OQ-04 | Final multi-tenant isolation mechanism: store-per-tenant vs named-graph + query-rewriting that rejects unscoped queries. (Expectation + cross-tenant test fixed in NFR Isolation.) | Architect |
+| OQ-04 | *(Resolved by ADR-001)* Named-graph-per-tenant + mandatory fail-closed query-rewriting; store-per-tenant retained only as a documented fallback if the CE spike proves rewriting fragile. Expectation + cross-tenant test fixed in NFR Isolation. | — |
 | OQ-05 | *(Resolved)* SPARQL Update is never exposed; writes go only through CE-WRITE-1. Connector→graph ingestion is a platform responsibility writing via CE-WRITE-1 (PLAT-CONNECTOR-1). | — |
 | OQ-06 | *(Resolved by CE-BRAND-1)* Brand/voice serialised as a flattened design-token JSON projection + machine-evaluable VoiceRules over the RDF. | — |
 | OQ-07 | RBAC **enforcement layer**: FastAPI middleware vs attribute-level SHACL (the policy matrix itself is fixed in FR-031/§2.2). | Architect |
 | OQ-08 | Authoring conversation history: v1 is session-only; at what phase does server-side persistence become a requirement? | PO |
-| OQ-09 | ODRL policy enforcement (PII/sensitive): not in v1 stack (v1 uses SHACL + data-classification). Should ODRL be added to the stack later, and update CLAUDE.md? | Architect |
+| OQ-09 | *(Resolved by ADR-002)* ODRL 2.2 enters at M2 as the canonical authority-extension vocabulary (the SSOT authority model); M1 PII/sensitive handling uses SHACL + data-classification. | — |
 | OQ-10 | Expand the query surface beyond SELECT (CONSTRUCT/ASK/DESCRIBE) post-v1, with SSRF mitigation if `SERVICE` is ever re-enabled. | Architect |
 | OQ-11 | Should published versions carry advisory released/deprecated lifecycle states + a single-active-release pointer? (Must NOT redefine `latest` = newest published, decision B2.) | Architect + PO |
 | OQ-12 | CE-EVENT-1 transport: SNS fan-out vs WebSocket vs change-feed. **Status (M1): beta. Polling fallback via CE-READ-1 since-version (FR-015) is the M1 degradation path. Events Engine is post-v1; no M1 dependency.** | Architect |
@@ -644,7 +649,7 @@ The Constitution Engine PRD is satisfied when:
 | Risk | Impact | Likelihood | Mitigation |
 |---|---|---|---|
 | Chosen OWL reasoner is intractable at 500k triples | High | Med | OQ-01; FR-007/FR-028 gate on it; reasoner budget (default 30 s) + fail-closed publish; fall back to consistency-check-only if materialisation is too costly. |
-| Named-graph isolation leaks across tenants | High | Med | NFR Isolation names the mechanism + a mandatory cross-tenant-read test; OQ-04 picks the final mechanism (store-per-tenant favoured if rewriting proves fragile). |
+| Named-graph isolation leaks across tenants | High | Med | NFR Isolation names the mechanism + a mandatory cross-tenant-read test; ADR-001 fixes named-graph + fail-closed query-rewriting as the single enforcement point (OQ-04 closed; store-per-tenant retained only as a fallback if the CE spike proves rewriting fragile). |
 | A second mutation path reintroduces the validation bypass | High | Med | FR-003 mandates exactly one entry point; CI test asserts no auto-apply / raw-Update write surface exists. |
 | Performance thresholds prove wrong | Med | High | All flagged UNVERIFIED defaults (OQ-13); none is a hard GA gate. |
 | AI-provider outage blocks all authoring | Med | Med | Forms + SPARQL stay live at 503 (FR-001/FR-018/FR-033). |
@@ -698,7 +703,7 @@ here.
   EPIC-008, gated on OQ-01). Inferred relationships and logical inconsistencies surface so I correct
   them before they propagate.
   - AC: inference materialised **at publish** (not per-commit), per published version, into a
-    per-version inferred named graph (e.g. `weave:graph/v1.2.0/inferred`); inferred triples labelled as
+    per-version inferred named graph (e.g. `urn:weave:g:tenant:{id}:v1.2.0:inferred`); inferred triples labelled as
     inferred.
   - AC (failure): reasoner timeout at the configured budget (default 30 s, tunable) → publish surfaces a
     reasoner-timeout error and produces no partial inferred graph.
@@ -875,7 +880,7 @@ with live violation coverage. Scheduled self-audit gap queries (E5-S2) are carve
   FR-026).
   - AC: built-in gap-detection SPARQL SELECT queries available from the Governance screen; results list
     affected entities with links; a self-audit can be scheduled and results surfaced in the dashboard;
-    PII/sensitive handling uses SHACL + data-classification properties (not ODRL in v1).
+    PII/sensitive handling uses SHACL + data-classification properties in M1 (ODRL authority extension enters at M2 per ADR-002).
   - AC (failure): a scheduled self-audit that fails to run emits a PLAT-NOTIFY-1 notification rather than
     failing silently.
 
@@ -885,17 +890,17 @@ with live violation coverage. Scheduled self-audit gap queries (E5-S2) are carve
 violations; shows "validation pending" rather than stale/empty coverage. All shapes PROV-O-stamped via
 CE-WRITE-1.
 
-**`automatable` property (SS-EA-4, M1):** CE owns the `weave:automatable` SHACL-shaped boolean on
+**`automatable` property (SS-EA-4, M2 — retagged 2026-07-02: no M1 consumer; no M1 task built it):** CE owns the `weave:automatable` SHACL-shaped boolean on
 Activity and Process (default `false` = route-to-human). This is a governance shape: it belongs in the
 per-tenant shapes graph alongside compliance rules, enforced by the same SHACL gate (E6-S1). The Events
 Engine reads it as a safety hinge (EA-AUTOMATION-1) — no activity routes to a fully-automated agent
 unless this property is explicitly set `true` by a governance owner. **CE owns; Events consumes.**
 
 **Technical notes:** The per-tenant shapes graph is the heart of the cross-tenant security property — it
-shares the same isolation mechanism (store-per-tenant OR named-graph + query-rewriting, OQ-04) as
+shares the same isolation mechanism (named-graph + fail-closed query-rewriting per ADR-001) as
 instance data; the shape-leak test is a required security-review sub-gate this phase. Cache invalidation
 must be **external** (shared, e.g. Redis/ElastiCache) so a shape edited on one worker is honoured by all.
-PII/sensitive handling uses SHACL + data-classification properties, NOT ODRL in v1 (OQ-09). Severity
+PII/sensitive handling uses SHACL + data-classification properties in M1; the ODRL authority extension enters at M2 (ADR-002, OQ-09 resolved). Severity
 handling aligns with EPIC-006: `sh:Violation` blocks; `sh:Warning`/`sh:Info` advisory.
 
 ### EPIC-006 — SHACL Validation (Cross-Cutting)
@@ -975,13 +980,12 @@ when the AI is offline. Server-side saved/shared queries (E7-S3) are carried to 
     message naming the disallowed construct; nothing executes against the store.
 - **TASK-003 / E7-S4 — Ground an agent in what it may do (agent-authority queries)** (Should;
   **Milestone: M2** — full authority/escalation patterns; `coverage_gap` SELECT ships M1 via E7-S1/S2).
-  - AC (Given/When/Then): given a populated BPMO graph where processes are linked to their Actors,
-    Systems, Services, DataAssets, and Policies, when a caller issues a built-in agent-authority SPARQL
-    SELECT (e.g. "which Activities of process X may an autonomous agent execute alone vs. route to a
-    human", "who may read this DataAsset", "which Actor does this exception escalate to and within what
-    deadline"), then the graph returns the answer from the modelled `governedBy` / `performedBy` /
-    `accesses` relationships and policy/constraint individuals — no answer invented where the graph is
-    silent.
+  - AC (EARS): WHEN a caller issues a built-in agent-authority SPARQL SELECT (e.g. "which Activities of
+    process X may an autonomous agent execute alone vs. route to a human", "who may read this DataAsset",
+    "which Actor does this exception escalate to and within what deadline") against a populated BPMO graph
+    where processes are linked to their Actors, Systems, Services, DataAssets, and Policies, THE SYSTEM
+    SHALL return the answer from the modelled `governedBy` / `performedBy` / `accesses` relationships and
+    policy/constraint individuals — no answer invented where the graph is silent.
   - AC (default, tunable): where the graph does not state a permission, the answer defaults to **deny /
     route-to-human** (tunable per workspace); an explicit deny in the model overrides any inferred
     authority.
@@ -1033,7 +1037,7 @@ the heavy reasoner and is upgraded in place here.
     published-without-check); the draft remains editable.
 - **TASK-002 / E8-S1 — Infer implied relationships at publish, per version** (Should, gated on OQ-01).
   - AC: inference runs **at publish** and materialises into a **per-version** inferred named graph (e.g.
-    `weave:graph/v1.2.0/inferred`) so a pinned read of v1.2 never sees inferences from v1.3; inferred
+    `urn:weave:g:tenant:{id}:v1.2.0:inferred`) so a pinned read of v1.2 never sees inferences from v1.3; inferred
     triples labelled as inferred in results.
   - AC (failure): if inference exceeds the reasoner budget (default 30 s, tunable), publish fails with a
     reasoner-timeout error; no partial inferred graph is committed.
@@ -1075,13 +1079,13 @@ CE-VERSION-1. **This epic owns CE-DIFF-1 and CE-VERSION-1 — they land in Phase
     (stated reason or chat message), the **authoring-agent kind** (the LLM as a `prov:SoftwareAgent`, the
     human as a `prov:Person` via `prov:wasAssociatedWith` the approval activity), and the **canonical
     principal IRI** minted by PLAT-IDENTITY-1; the same event is emitted to PLAT-AUDIT-1.
-  - AC: PROV records live in `weave:graph/prov`, append-only, never overwritten; 100% of committed
+  - AC: PROV records live in `urn:weave:g:tenant:{id}:prov`, append-only, never overwritten; 100% of committed
     changes across all content areas carry a PROV-O record.
   - AC (failure): if the PLAT-AUDIT-1 emit fails, the commit is not silently accepted as audited — emit
     is retried; the discrepancy is itself logged.
 - **TASK-002 / E9-S2 — Draft → published version lifecycle** (Must).
   - AC: the engine maintains a draft named graph and one or more immutable published named graphs
-    identified by version IRIs (e.g. `weave:graph/v1.2.0`); publishing snapshots the draft, generates a
+    identified by version IRIs (e.g. `urn:weave:g:tenant:{id}:v1.2.0`); publishing snapshots the draft, generates a
     PROV-O change log from the diff, and never alters an existing published version.
   - AC (decision B2): `?version=latest` resolves to the **newest published version**; downstream
     auto-tracks latest unless pinned. (Released/deprecated lifecycle states are advisory metadata only and
@@ -1095,7 +1099,7 @@ CE-VERSION-1. **This epic owns CE-DIFF-1 and CE-VERSION-1 — they land in Phase
     returns an empty diff, not an error.
 
 **Epic-level AC (FR-006, FR-008, FR-009, FR-013, FR-014):** 100% of commits carry PROV-O (append-only
-`weave:graph/prov`; LLM = `prov:SoftwareAgent`; approving human = `prov:Person`) + PLAT-AUDIT-1 event —
+`urn:weave:g:tenant:{id}:prov`; LLM = `prov:SoftwareAgent`; approving human = `prov:Person`) + PLAT-AUDIT-1 event —
 failed emit → retried + logged, never silently accepted. Publishing → immutable version IRI; all prior
 versions byte-identical; `?version=latest` = newest published (B2). Server-computed diff includes edge
 modifications; CE-VERSION-1 is the canonical version-lag source (consumers read, never recompute).
@@ -1219,10 +1223,10 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
 - **TASK-001 / E12-S1 — Agent-driven conversational document ingest [USER PRIORITY]** (Must-within-epic,
   FR-038). Upload an existing enterprise document (BPM, policy, runbook, process doc) and have an agent
   propose, through the chat panel, additions linked to what the graph already holds.
-  - AC (Given/When/Then): given an uploaded document, when the agent processes it, then it extracts
-    candidate entities + relationships, maps them to the BPMO kinds, and — reusing the propose-mutations +
-    find-existing-node reconciliation flow — proposes additions **linked to the relevant existing graph
-    resources** (same-label + same-kind matches reused, not duplicated), surfaced in the chat panel as a
+  - AC (EARS): WHEN the agent processes an uploaded document, THE SYSTEM SHALL extract candidate entities +
+    relationships, map them to the BPMO kinds, and — reusing the propose-mutations + find-existing-node
+    reconciliation flow — propose additions **linked to the relevant existing graph resources**
+    (same-label + same-kind matches reused, not duplicated), surfaced in the chat panel as a
     human-readable per-proposal operation list.
   - AC (HITL): the human reviews and accepts/rejects **per proposal**; each accepted proposal is
     SHACL-validated on a throwaway clone (prospective pre-flight) and committed through CE-WRITE-1 with a
@@ -1235,9 +1239,9 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
   - AC (failure — invalid): a proposal that would produce a `sh:Violation` is blocked at commit (422) with
     the violation shown against the proposal; the graph is unchanged.
 - **TASK-002 / E12-S2 — Structured model import (ArchiMate Exchange Format + BPMN)** (Should, FR-039).
-  - AC (Given/When/Then): given a well-formed ArchiMate Exchange Format or BPMN (BBO) file, when imported,
-    then it is converted to RDF and materialised through CE-WRITE-1 with a per-notation SHACL
-    well-formedness shape checked before commit; the importer maps ArchiMate/BPMN element types to BPMO
+  - AC (EARS): WHEN a well-formed ArchiMate Exchange Format or BPMN (BBO) file is imported, THE SYSTEM
+    SHALL convert it to RDF and materialise it through CE-WRITE-1 with a per-notation SHACL
+    well-formedness shape checked before commit, mapping ArchiMate/BPMN element types to BPMO
     kinds (BPMN task→Activity, BPMN event→Event, ArchiMate application-component→System/Service).
   - AC (default, tunable): elements that do not map to a framework kind are imported as the nearest kind
     with a flag, defaulting to **Concept** (tunable mapping) and listed for review, not silently dropped.
@@ -1245,15 +1249,15 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
     reason; nothing committed; a partially-valid file commits only the valid elements and reports the
     skipped ones.
 - **TASK-003 / E12-S3 — AI diagram / image-to-data** (Should, FR-040).
-  - AC (Given/When/Then): given an uploaded image, when the vision model processes it, then it proposes
+  - AC (EARS): WHEN the vision model processes an uploaded image, THE SYSTEM SHALL propose
     BPMO entities + relationships through the same per-proposal review + CE-WRITE-1 commit flow as E12-S1.
   - AC (default, tunable): extraction confidence below a threshold (default 0.6, tunable) flags the
     proposal for explicit review.
   - AC (failure): if the vision model cannot parse the image (unreadable / unsupported), the surface
     returns a clear error and proposes nothing; no partial commit.
 - **TASK-004 / E12-S4 — Structured-data import (R2RML + RML)** (Should, FR-041).
-  - AC (Given/When/Then): given a source dataset and a mapping, when the import runs, then the mapping
-    materialises RDF committed through CE-WRITE-1 (materialised copy, not a live virtual graph),
+  - AC (EARS): WHEN the import runs over a source dataset and a mapping, THE SYSTEM SHALL materialise
+    RDF committed through CE-WRITE-1 (materialised copy, not a live virtual graph),
     SHACL-validated per row, with PROV-O attribution naming the source.
   - AC (default, tunable): rows failing SHACL are flagged + skipped with a per-row reason; the rest commit;
     committed-vs-skipped summary (consistent with the bulk-CSV flow, FR-030); datatype inference samples at
@@ -1263,8 +1267,8 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
   - Note: materialised-copy import, explicitly NOT query-time SPARQL→SQL federation (OQ-17) and distinct
     from the platform's live connectors (Non-Goal #4).
 - **TASK-005 / E12-S5 — SKOS cross-notation reconciliation** (Should, FR-042).
-  - AC (Given/When/Then): given entities ingested from multiple notations that denote the same concept,
-    when reconciliation runs, then they collapse to **one canonical resource** via the same
+  - AC (EARS): WHEN reconciliation runs over entities ingested from multiple notations that denote the
+    same concept, THE SYSTEM SHALL collapse them to **one canonical resource** via the same
     find-existing-node reconciliation flow (same-label + same-kind reuse), so the concept is one punned
     `owl:Class` + `skos:Concept` (decision B1 — no separate cross-notation linking property), and
     downstream reads see one canonical concept.
@@ -1620,7 +1624,7 @@ DoR.
   with the affected classes + violated axioms if inconsistent (and block, never publish unchecked, if the
   reasoner is unavailable) — verified by an inconsistent-draft-cannot-publish test (FR-007).
 - [ ] WHEN a version is published THE SYSTEM SHALL materialise inferred triples into a per-version inferred
-  named graph (e.g. `weave:graph/v1.2.0/inferred`), label them as inferred, and ensure a pinned read of
+  named graph (e.g. `urn:weave:g:tenant:{id}:v1.2.0:inferred`), label them as inferred, and ensure a pinned read of
   v1.2 never sees v1.3 inferences; a reasoner timeout (default 30 s, tunable) SHALL produce no partial
   inferred graph — verified by a pinned-read isolation test (FR-028, FR-029).
 - [ ] WHEN a user uploads a CSV/table THE SYSTEM SHALL present a column→property mapping with xsd datatype
