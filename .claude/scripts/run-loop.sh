@@ -3,9 +3,10 @@
 #
 # Repeatedly invokes `claude -p "/implement"` (fresh context per invocation, resuming from the
 # committed .claude/state/progress.json spine) until the current phase is COMPLETE. Survives
-# usage limits: on a limit error it falls back from the primary model to the fallback model,
-# and once both are exhausted it sleeps until the usage window resets. Halts — never
-# auto-approves — whenever an invocation ends without advancing state (a HITL gate needs you).
+# usage limits: on a limit error it falls back from the primary model to the fallback model;
+# once both are exhausted it polls every LIMIT_SLEEP secs until the 5-hour usage window resets,
+# then retries the primary model first. Limit waits do not count against the iteration ceiling.
+# Halts — never auto-approves — whenever an invocation ends without advancing state (HITL gate).
 #
 # ADR-H4 preconditions implemented here:
 #   kill switch   touch .claude/state/run-loop.stop   (checked every iteration)
@@ -52,6 +53,7 @@ while [ $# -gt 0 ]; do
     *) echo "run-loop.sh: unknown flag $1" >&2; exit 64 ;;
   esac
 done
+PRIMARY_MODEL="$MODEL"
 
 # Caveman toggle: env var wins, else the settings.json env block (headless shells lack the var).
 CAVEMAN="${WEAVE_CAVEMAN:-$(python3 -c "import json; print(json.load(open('$ROOT/.claude/settings.json')).get('env', {}).get('WEAVE_CAVEMAN', ''))" 2>/dev/null || true)}"
@@ -142,10 +144,14 @@ while :; do
       notify "Limit on $MODEL — continuing on $FALLBACK_MODEL"
       MODEL="$FALLBACK_MODEL"
     else
-      log "usage limit on fallback too — sleeping ${LIMIT_SLEEP}s until window resets."
+      log "usage limit on fallback too — sleeping ${LIMIT_SLEEP}s, then retrying primary."
       notify "All models limited — sleeping ${LIMIT_SLEEP}s"
       sleep "$LIMIT_SLEEP"
+      # ponytail: poll every LIMIT_SLEEP rather than blind 5h sleep — resumes within one
+      # poll of the window reset. Window may have reset: try primary first again.
+      MODEL="$PRIMARY_MODEL"
     fi
+    iter=$((iter - 1))  # limit waits don't count against the iteration ceiling
     continue
   fi
 

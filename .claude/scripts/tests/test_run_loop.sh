@@ -35,6 +35,10 @@ case "\$mode" in
   limit-on-fable)
     if echo "\$@" | grep -q fable; then echo "Error: weekly usage limit reached"; exit 1; fi
     echo '{"result":"ok"}'; exit 0 ;;
+  limit-twice)
+    n=\$(cat "$SANDBOX/count" 2>/dev/null || echo 0); n=\$((n+1)); echo "\$n" >"$SANDBOX/count"
+    if [ "\$n" -le 2 ]; then echo "Error: usage limit reached"; exit 1; fi
+    echo '{"result":"ok"}'; exit 0 ;;
   hard-error) echo "Error: something unrelated broke"; exit 1 ;;
   *) echo '{"result":"ok"}'; exit 0 ;;
 esac
@@ -68,6 +72,15 @@ echo limit-on-fable >"$SANDBOX/stub-mode"
 expect_exit 3 "limit falls back then halts at gate" bash "$RUN_LOOP"
 grep -q "claude-opus-4-8" "$SANDBOX/calls.log" && echo "PASS: fallback model used" || { echo "FAIL: fallback model never invoked"; fails=$((fails+1)); }
 grep -q "caveman" "$SANDBOX/calls.log" && echo "PASS: caveman system prompt passed" || { echo "FAIL: caveman system prompt missing"; fails=$((fails+1)); }
+
+# 4b. Both models limited → sleeps window, retries primary again, limit waits don't burn
+# the iteration ceiling (ceiling=1: without the iter decrement this exits 5, not 3).
+echo limit-twice >"$SANDBOX/stub-mode"
+rm -f "$SANDBOX/count"; : >"$SANDBOX/calls.log"
+expect_exit 3 "limit wait restores primary within ceiling" env RUN_LOOP_MAX_ITERATIONS=1 bash "$RUN_LOOP"
+[ "$(wc -l <"$SANDBOX/calls.log" | tr -d ' ')" -eq 3 ] && sed -n '3p' "$SANDBOX/calls.log" | grep -q fable \
+  && echo "PASS: primary retried after window sleep" \
+  || { echo "FAIL: primary not retried after window sleep"; fails=$((fails+1)); }
 
 # 5. Non-limit CLI error stops with 2 (no spin). Also: env WEAVE_CAVEMAN=false overrides settings.json.
 echo hard-error >"$SANDBOX/stub-mode"

@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-02T05:56:01+00:00
+Captured at: 2026-07-02T23:04:23+00:00
 Event: session-end
 
 ## Current State
@@ -179,7 +179,7 @@ Event: session-end
       "id": "PLAT-TASK-005",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-005",
-      "title": "Global navigation, search, and fixed CE-sourced dashboard (M1)",
+      "title": "Global navigation, search, and dashboard shell (M1)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-TASK-002",
