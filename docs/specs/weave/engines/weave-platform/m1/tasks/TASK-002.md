@@ -121,6 +121,7 @@ def traced_request(handler):
 | Diagram | Notes |
 |---------|-------|
 | Auth flow | Inline Mermaid below |
+| Containers + auth middleware placement | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L2/L3 (`auth_mw`, Model Router boundary) |
 
 ```mermaid
 sequenceDiagram

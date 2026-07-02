@@ -120,7 +120,9 @@ Not applicable — this task produces IaC modules and CI pipeline configuration,
 
 | Diagram | Notes |
 |---------|-------|
-| Infra topology | Inline Mermaid below — no tech-spec file exists yet |
+| Infra topology | Inline Mermaid below |
+| System context + containers | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L1/L2 (deployable units, AWS boundary) |
+| CI test lanes | [`tech-spec/testing-strategy.md`](../../tech-spec/testing-strategy.md) §1 (pyramid + CI gates the pipeline must wire) |
 
 ```mermaid
 graph TD

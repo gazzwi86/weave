@@ -11,8 +11,8 @@ epic: EPIC-004
 milestone: M1
 created: 2026-06-30
 blocked_by: [TASK-002, TASK-003]
-unlocks: [TASK-005, TASK-006, TASK-009]
-adr_refs: []
+unlocks: [TASK-005, TASK-009]
+adr_refs: [ADR-001, ADR-002]
 ---
 
 # Task: TASK-004 — RBAC enforcement and agent identity registry (PLAT-IDENTITY-1)
@@ -149,6 +149,7 @@ ROLE_RANK = { "read": 0, "author": 1, "publish": 2, "admin": 3 }
 | Diagram | Notes |
 |---------|-------|
 | Auth paths: human vs. agent | Inline Mermaid below |
+| RBAC enforcer + identity registry | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L3 (`rbac`, `identity_svc`; ADR-002 authority levels) |
 
 ```mermaid
 sequenceDiagram

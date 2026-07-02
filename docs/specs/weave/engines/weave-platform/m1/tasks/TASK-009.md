@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-06-30
 blocked_by: [TASK-004, TASK-007]
 unlocks: []
-adr_refs: []
+adr_refs: [ADR-001]
 ---
 
 # Task: TASK-009 — Immutable hash-chained audit trail (PLAT-AUDIT-1)
@@ -168,6 +168,7 @@ def verify_chain(tenant_id: str) -> VerifyResult:
 | Diagram | Notes |
 |---------|-------|
 | Hash chain structure | Inline Mermaid below |
+| Audit service placement | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L3 (`audit_svc`) + D2 (in-transaction chain) + audit invariants |
 
 ```mermaid
 graph LR

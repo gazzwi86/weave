@@ -172,7 +172,7 @@
       "id": "PLAT-TASK-005",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-005",
-      "title": "Global navigation, search, and fixed CE-sourced dashboard (M1)",
+      "title": "Global navigation, search, and dashboard shell (M1)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-TASK-002",

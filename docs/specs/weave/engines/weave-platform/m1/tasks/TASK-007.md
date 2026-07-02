@@ -143,6 +143,7 @@ def update_prefs(recipient_iri: str, event_type: str, channels: list[str]):
 | Diagram | Notes |
 |---------|-------|
 | Dispatch flow with channel failure | Inline Mermaid below |
+| Notification service placement | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L3 (`notify_svc`) + Invariants (delivery, short-circuit) |
 
 ```mermaid
 sequenceDiagram
@@ -231,7 +232,7 @@ sequenceDiagram
 - [ ] Pseudocode provided
 - [ ] PLAT-NOTIFY-1 contract confirmed (open taxonomy, mandatory in_app)
 - [ ] Slack failure behaviour specified (max 3 attempts, backoff)
-- [ ] TASK-006 complete (Slack connector configured)
+- [ ] Slack connector interface stub defined (TASK-006 lands v1.0; M1 short-circuits to `channel_unavailable` per scope note)
 
 ## Definition of Done Checklist
 

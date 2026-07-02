@@ -12,7 +12,7 @@ milestone: M1
 created: 2026-06-30
 blocked_by: [TASK-001]
 unlocks: [TASK-004, TASK-008]
-adr_refs: []
+adr_refs: [ADR-001]
 ---
 
 # Task: TASK-003 — Multi-tenant workspaces and 4-level settings cascade (PLAT-SETTINGS-1)
@@ -146,6 +146,7 @@ def rewrite_for_tenant(sparql: str, named_graph_iri: str) -> str:
 |---------|-------|
 | Settings cascade | Inline Mermaid below |
 | Tenant data model | Inline Mermaid below |
+| Scoped RDF access + settings service | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L3 (`settings_svc`, `rdf_scoped` choke point, ADR-001) |
 
 ```mermaid
 graph TD

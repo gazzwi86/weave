@@ -534,48 +534,48 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 
 | ID | Requirement (behaviour + failure mode + acceptance) | Story | Priority | Milestone |
 |---|---|---|---|---|
-| FR-000 | At M1 the dashboard renders a **fixed, hand-composed** set of CE-sourced tiles (ontology health / coverage via `CE-METRICS-1`); no prompt bar, no AI composition; tiles are role-appropriate; footer label names the contract; `CE-METRICS-1` error → affected tile renders defined unavailable state, rest still loads | E1-S0 | P0 | M1 |
-| FR-001 | Prompt bar visible, keyboard-focusable (Cmd+K), always present; focus testable headlessly | E1-S1 | P0 | M2 |
-| FR-002 | AI selects component type, calls owning metrics contract, streams widget; on provider error → defined unavailable state, never blank/hallucinated | E1-S1 | P0 | M2 (CE contracts) |
-| FR-003 | Streaming header/skeleton within default 1 s (tunable); on LLM 503 → offline state, retryable | E1-S1 | P0 | M2 |
-| FR-004 | AI declines unsatisfiable prompts with a named reason — missing/unavailable data source (E1-S1) or no matching component for the data shape (E1-S2); never blank/hallucinated | E1-S1, E1-S2 | P0 | M2 |
-| FR-005 | Declarative component mapping (count→KPI … alert→banner); no free-form code | E1-S2 | P0 | M2 |
-| FR-006 | "Change visualisation" switches type without re-prompt | E1-S2 | P1 | M2 |
-| FR-007 | "Refine" delta prompt; history default 10 steps (tunable); failed refine preserves prior state | E1-S3 | P0 | M2 |
-| FR-008 | Pin persists widget **server-side, (tenant,user)-scoped** (not localStorage); cross-device, RBAC-scoped, audit-visible | E1-S4 | P0 | M2 |
-| FR-009 | Pinned auto-refresh default 5 min (tunable) + manual; provider error → last render + stale badge | E1-S4 | P0 | M2 |
-| FR-010 | Responsive grid default 1–4 columns (tunable); drag-reorder | E1-S4 | P1 | M2 |
-| FR-011 | Publish to **server-side, workspace-scoped** library; author+date; 403 if no author perm | E1-S5 | P0 | M2 |
-| FR-012 | Role-tailored CE-sourced starter widgets; "Suggested"; individually removable | E1-S6 | P0 | M2 |
-| FR-013 | Example prompts (default 4–6, tunable) scoped to available categories; disappear after default 3 widgets (tunable) | E1-S7 | P1 | M2 |
-| FR-014 | Data-source footer label citing the contract(s) on every widget | E1-S0, E1-S1 | P0 | M1 |
-| FR-015 | A widget category is available **once its source engine is live**; CE-sourced categories M2, others "P0 when source engine ships"; non-GA categories render a defined unavailable state | E2-S1–S15 | P0–P1 per story | phased per category |
-| FR-016 | Compliance widgets deep-link to the entity via `CE-READ-1` (`/resource/{iri}`) | E2-S5 | P0 | M2 |
-| FR-017 | Operational health widget over `PLAT-AUDIT-1` (`event_type` + `engine` dimensions): error rate, retry rate, agent-failure rate per engine; sourced from `PLAT-AUDIT-1` aggregate + `CE-METRICS-1` (`shacl_errors_by_severity`); spike beyond configurable threshold (default 2× 7-day baseline, tunable) fires an alert-banner widget | E2-S10 | P1 | M2 |
-| FR-018 | Version-pin lag computed via `CE-VERSION-1` canonical lag; amber ≥ default 2, red ≥ default 4 (tunable) | E2-S12 | P1 | P0 when Build/Events ship |
-| FR-019 | Onboarding progress widget; deep-links; auto-dismiss at 100%; Build item only when Build GA | E2-S15 | P0 | M2 |
-| FR-020 | Workspace switcher lists accessible workspaces + Hammerbarn demo; reload on switch; 403 + zero cross-tenant data on unauthorized switch | E3-S1 | P0 | MVP |
-| FR-021 | Member removal/role-change enforced via short token TTL (default ≤ 60 s) + per-request session-version revocation check; next request with prior token rejected within bounded latency | E3-S2 | P0 | MVP |
-| FR-022 | Settings cascade `PLAT-SETTINGS-1` (Company→Domain→Workspace→Project, tighter-wins); resolution API returns effective value + level; loosening needs parent approval; covers budget/retention/classification/RBAC | E3-S3 | P0 | MVP |
-| FR-023 | Cognito default; Auth0 SAML/OIDC per workspace; IdP outage → defined error, no unauth fallback | E4-S1 | P0 | MVP |
-| FR-024 | RBAC at API via JWT (roles resolved via `PLAT-SETTINGS-1`); 403 + audit on denial; reconciled to FR-021's single revocation latency | E4-S2 | P0 | MVP |
-| FR-025 | Agent identities via `PLAT-IDENTITY-1`: canonical principal IRI in PROV-O + every `PLAT-AUDIT-1` entry; AWS/secret access via **IAM role assumed by STS** (not Cognito); registry maps IAM role↔principal↔RBAC role | E4-S3 | P0 | MVP |
-| FR-026 | Persistent top bar; 7 areas incl Compliance (Audit is a Compliance sub-view, not separate); non-GA areas shown disabled | E5-S1 | P0 | MVP |
-| FR-027 | Global search Cmd+K; grouped; `:type`; default 300 ms / 150 ms debounce (provisional); non-GA engine groups omitted; index-down → defined error | E5-S2 | P0 | MVP |
-| FR-028 | Help launcher: docs search, role-tailored tour (4 primary paths), shortcuts, docs link | E5-S3 | P1 | MVP |
-| FR-029 | `PLAT-NOTIFY-1` centre: **open type taxonomy** (not fixed enum); **in-app delivery at MVP**; **Slack delivery rides the connector timeline (v1.0, via `PLAT-CONNECTOR-1`)**; deep-link; mark-all-read; channel-failure still delivers in-app + logged; default 30 s delivery (provisional) | E6-S1 | P0 | MVP (in-app); v1.0 (Slack) |
-| FR-030 | Per-user notification prefs: toggle each registered type; email digest cadence | E6-S2 | P1 | MVP |
-| FR-031 | `PLAT-CONNECTOR-1` config: 7 connectors (Snowflake·Databricks·AWS·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack); credentials **AWS Secrets Manager only**; sync direction+frequency; invalid cred → fail closed, no secret logged | E7-S1 | P0 | v1.0 |
-| FR-032 | `PLAT-CONNECTOR-1` health read API (status,last_sync,last_error,error_count); degraded/disconnected → `PLAT-NOTIFY-1` event | E7-S2 | P0 | v1.0 |
-| FR-033 | Connector-data ingestion writes to graph via `CE-WRITE-1` under a connector-scoped principal; write-back: idempotency key, bounded retry (default 3, tunable), conflict-reject, failure → `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | v1.0 (ingest); bidirectional per OQ-07 |
-| FR-034 | `PLAT-BILLING-1` usage screen: per-token + per-run dimensions; per-engine breakdown; default < 5 min lag (provisional); metering never dropped (separate queue); delay → last-known + timestamp | E8-S1 | P0 | MVP (token); per-run when Events ships |
-| FR-035 | Budget cap resolved via `PLAT-SETTINGS-1` cascade (full 4-level, tighter-wins); alerts default 80%/100% (tunable); hard reject **before any AI API call** at 100%; fail-closed under metering lag | E8-S2 | P0 | MVP |
-| FR-036 | `PLAT-AUDIT-1` entries hash-chained (prev_hash→hash) + ed25519 signature; append-only at DB-constraint level; delete rejected + logged | E9-S1 | P0 | MVP |
-| FR-037 | Audit queryable by date/actor/type/resource/engine; paginated (default ≤ 500/page, tunable); JSON/NDJSON export with chain-verification procedure | E9-S1 | P0 | MVP |
-| FR-038 | Audit exposed as a **sub-view under Compliance** (not a separate top-level area); Compliance role read access | E9-S1 | P0 | MVP |
-| FR-045 | **Weave super admin (platform operator)** — a Weave-operator identity, scoped outside any single tenant's RBAC, can create a new workspace via the UI (name, slug, parent Domain, billing plan) and create that workspace's **initial workspace-admin user**; the workspace admin then invites their own members. Enforced via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never granted through tenant RBAC | E3-S4 | P0 | MVP |
-| FR-046 | **Cross-workspace switcher (super admin only)** — the header workspace dropdown lists all workspaces the super admin can operate and includes an **"Add workspace"** button opening a modal that creates a workspace and adds its first admin user; a **regular workspace user sees only their own workspace** in the switcher and switching to any other workspace returns 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | MVP |
-| FR-047 | **Hard tenant isolation for regular users** — a non-super-admin user only ever sees their own workspace and its dashboard (metrics, generative UI), plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data); no *other real workspace's* navigation, listing, or data is exposed, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | MVP |
+| FR-000 | WHEN the dashboard loads at M2, THE SYSTEM SHALL render a **fixed, hand-composed** set of CE-sourced tiles (ontology health / coverage via `CE-METRICS-1`) with no prompt bar and no AI composition; the tiles SHALL be role-appropriate and the footer SHALL name the contract; IF `CE-METRICS-1` errors THEN THE SYSTEM SHALL render the defined unavailable state on the affected tile while the rest still loads | E1-S0 | P0 | M2 |
+| FR-001 | WHILE the dashboard is displayed, THE SYSTEM SHALL keep the prompt bar visible, always present, and keyboard-focusable (Cmd+K), with focus testable headlessly | E1-S1 | P0 | M2 |
+| FR-002 | WHEN a user submits a prompt, THE SYSTEM SHALL select a component type, call the owning metrics contract, and stream the widget; IF the provider errors THEN THE SYSTEM SHALL render the defined unavailable state and SHALL NOT render a blank or hallucinated result | E1-S1 | P0 | M2 (CE contracts) |
+| FR-003 | WHEN a widget is generating, THE SYSTEM SHALL render a streaming header/skeleton within a default 1 s (tunable); IF the LLM returns 503 THEN THE SYSTEM SHALL show a retryable offline state | E1-S1 | P0 | M2 |
+| FR-004 | IF a prompt is unsatisfiable (missing/unavailable data source per E1-S1, or no matching component for the data shape per E1-S2) THEN THE SYSTEM SHALL decline it with a named reason and SHALL NOT return a blank or hallucinated result | E1-S1, E1-S2 | P0 | M2 |
+| FR-005 | WHEN the AI maps an intent to a component, THE SYSTEM SHALL use the declarative component mapping (count→KPI … alert→banner) and SHALL NOT emit free-form code | E1-S2 | P0 | M2 |
+| FR-006 | WHEN a user selects "Change visualisation", THE SYSTEM SHALL switch the component type without a re-prompt | E1-S2 | P1 | M2 |
+| FR-007 | WHEN a user submits a "Refine" delta prompt, THE SYSTEM SHALL apply it and keep a history of a default 10 steps (tunable); IF a refine fails THEN THE SYSTEM SHALL preserve the prior state | E1-S3 | P0 | M2 |
+| FR-008 | WHEN a user pins a widget, THE SYSTEM SHALL persist it **server-side, (tenant,user)-scoped** (not in localStorage), cross-device, RBAC-scoped, and audit-visible | E1-S4 | P0 | M2 |
+| FR-009 | WHILE a pinned widget is displayed, THE SYSTEM SHALL auto-refresh it on a default 5 min interval (tunable) and on manual demand; IF the provider errors THEN THE SYSTEM SHALL keep the last render and show a stale badge | E1-S4 | P0 | M2 |
+| FR-010 | WHEN the dashboard grid renders, THE SYSTEM SHALL lay widgets out responsively across a default 1–4 columns (tunable) and SHALL allow drag-reorder | E1-S4 | P1 | M2 |
+| FR-011 | WHEN a user publishes a widget, THE SYSTEM SHALL store it in the **server-side, workspace-scoped** library with author + date; IF the user lacks author permission THEN THE SYSTEM SHALL return 403 | E1-S5 | P0 | M2 |
+| FR-012 | WHEN a user first loads the dashboard, THE SYSTEM SHALL present role-tailored CE-sourced starter widgets labelled "Suggested", each individually removable | E1-S6 | P0 | M2 |
+| FR-013 | WHILE the prompt bar is empty, THE SYSTEM SHALL show example prompts (default 4–6, tunable) scoped to available categories; WHEN the user has default 3 widgets (tunable) THE SYSTEM SHALL hide them | E1-S7 | P1 | M2 |
+| FR-014 | WHEN a widget renders, THE SYSTEM SHALL display a data-source footer label citing the contract(s) | E1-S0, E1-S1 | P0 | M2 |
+| FR-015 | WHERE a widget category's source engine is live, THE SYSTEM SHALL make that category available (CE-sourced categories at M2, others "P0 when source engine ships"); IF a category's source engine is not GA THEN THE SYSTEM SHALL render the defined unavailable state | E2-S1–S15 | P0–P1 per story | phased per category |
+| FR-016 | WHEN a user selects a compliance widget entry, THE SYSTEM SHALL deep-link to the entity via `CE-READ-1` (`/resource/{iri}`) | E2-S5 | P0 | M2 |
+| FR-017 | WHEN the operational-health widget renders, THE SYSTEM SHALL compute error rate, retry rate, and agent-failure rate per engine from `PLAT-AUDIT-1` (`event_type` + `engine` dimensions) aggregate plus `CE-METRICS-1` (`shacl_errors_by_severity`); WHEN a rate spikes beyond a configurable threshold (default 2× 7-day baseline, tunable) THE SYSTEM SHALL fire an alert-banner widget | E2-S10 | P1 | M2 |
+| FR-018 | WHEN the version-pin widget renders, THE SYSTEM SHALL compute lag via `CE-VERSION-1` canonical lag and mark rows amber WHERE lag ≥ default 2 and red WHERE lag ≥ default 4 (tunable) | E2-S12 | P1 | P0 when Build/Events ship |
+| FR-019 | WHEN the onboarding-progress widget renders, THE SYSTEM SHALL show progress with deep-links and auto-dismiss at 100%; WHERE Build is GA THE SYSTEM SHALL include the Build item | E2-S15 | P0 | M2 |
+| FR-020 | WHEN a user opens the workspace switcher, THE SYSTEM SHALL list accessible workspaces + the Hammerbarn demo; WHEN the user switches THE SYSTEM SHALL reload; IF the switch is unauthorized THEN THE SYSTEM SHALL return 403 with zero cross-tenant data | E3-S1 | P0 | M1 |
+| FR-021 | WHEN a member is removed or their role changes, THE SYSTEM SHALL enforce it via a short token TTL (default ≤ 60 s) plus a per-request session-version revocation check, so the next request bearing the prior token is rejected within bounded latency | E3-S2 | P0 | M1 |
+| FR-022 | WHEN a setting is resolved, THE SYSTEM SHALL apply the `PLAT-SETTINGS-1` cascade (Company→Domain→Workspace→Project, tighter-wins) and return the effective value + level; IF a change loosens a parent value THEN THE SYSTEM SHALL require parent approval; the cascade SHALL cover budget/retention/classification/RBAC | E3-S3 | P0 | M1 |
+| FR-023 | WHERE a workspace uses Cognito (default) or Auth0 SAML/OIDC, THE SYSTEM SHALL authenticate via that IdP; IF the IdP has an outage THEN THE SYSTEM SHALL return a defined error and SHALL NOT fall back to an unauthenticated session | E4-S1 | P0 | M1 |
+| FR-024 | WHEN an API request is received, THE SYSTEM SHALL enforce RBAC via JWT (roles resolved via `PLAT-SETTINGS-1`); IF the role lacks permission THEN THE SYSTEM SHALL return 403 and record the denial to audit, reconciled to FR-021's single revocation latency | E4-S2 | P0 | M1 |
+| FR-025 | WHEN an agent identity acts, THE SYSTEM SHALL bind it to a canonical principal IRI via `PLAT-IDENTITY-1` in PROV-O and every `PLAT-AUDIT-1` entry; WHERE an agent accesses AWS/secrets THE SYSTEM SHALL use an **IAM role assumed by STS** (not Cognito); the registry SHALL map IAM role↔principal↔RBAC role | E4-S3 | P0 | M1 |
+| FR-026 | WHILE any screen is displayed, THE SYSTEM SHALL render the persistent top bar with 7 areas incl Compliance (Audit is a Compliance sub-view, not separate); WHERE an area is non-GA THE SYSTEM SHALL show it disabled | E5-S1 | P0 | M1 |
+| FR-027 | WHEN a user invokes global search (Cmd+K), THE SYSTEM SHALL return grouped results with `:type` filtering within a default 300 ms / 150 ms debounce (provisional) and SHALL omit non-GA engine groups; IF the index is down THEN THE SYSTEM SHALL return a defined error | E5-S2 | P0 | M1 |
+| FR-028 | WHEN a user opens the help launcher, THE SYSTEM SHALL provide docs search, a role-tailored tour (4 primary paths), shortcuts, and a docs link | E5-S3 | P1 | M1 |
+| FR-029 | WHEN an engine publishes a notification, THE SYSTEM SHALL deliver it through `PLAT-NOTIFY-1` with an **open type taxonomy** (not a fixed enum), **in-app at M1** and **Slack on the connector timeline (v1.0, via `PLAT-CONNECTOR-1`)**, with deep-link and mark-all-read; IF a channel fails THEN THE SYSTEM SHALL still deliver in-app and log it; default 30 s delivery (provisional) | E6-S1 | P0 | M1 (in-app); v1.0 (Slack) |
+| FR-030 | WHEN a user sets notification preferences, THE SYSTEM SHALL let them toggle each registered type and set an email-digest cadence | E6-S2 | P1 | M1 |
+| FR-031 | WHEN an admin configures a connector, THE SYSTEM SHALL support the 7 connectors (Snowflake·Databricks·AWS·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack), store credentials in **AWS Secrets Manager only**, and capture sync direction+frequency; IF a credential is invalid THEN THE SYSTEM SHALL fail closed and SHALL NOT log the secret | E7-S1 | P0 | v1.0 |
+| FR-032 | WHEN the `PLAT-CONNECTOR-1` health API is read, THE SYSTEM SHALL return status, last_sync, last_error, error_count; WHEN a connector is degraded/disconnected THE SYSTEM SHALL emit a `PLAT-NOTIFY-1` event | E7-S2 | P0 | v1.0 |
+| FR-033 | WHEN connector data is ingested, THE SYSTEM SHALL write it to the graph via `CE-WRITE-1` under a connector-scoped principal; WHEN writing back THE SYSTEM SHALL use an idempotency key with bounded retry (default 3, tunable) and conflict-reject; IF a write-back fails THEN THE SYSTEM SHALL emit `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | v1.0 (ingest); bidirectional per OQ-07 |
+| FR-034 | WHEN the usage screen renders, THE SYSTEM SHALL show `PLAT-BILLING-1` per-token + per-run dimensions with a per-engine breakdown at a default < 5 min lag (provisional) and SHALL never drop metering (separate queue); IF metering is delayed THEN THE SYSTEM SHALL show last-known + timestamp | E8-S1 | P0 | M1 (token); per-run when Events ships |
+| FR-035 | WHEN AI spend is evaluated, THE SYSTEM SHALL resolve the budget cap via the `PLAT-SETTINGS-1` cascade (full 4-level, tighter-wins) and alert at default 80%/100% (tunable); WHEN spend reaches 100% THE SYSTEM SHALL hard-reject **before any AI API call**; WHILE metering lags THE SYSTEM SHALL fail closed | E8-S2 | P0 | M1 |
+| FR-036 | WHEN a `PLAT-AUDIT-1` entry is written, THE SYSTEM SHALL hash-chain it (prev_hash→hash) with an ed25519 signature, append-only at the DB-constraint level; IF a delete is attempted THEN THE SYSTEM SHALL reject and log it | E9-S1 | P0 | M1 |
+| FR-037 | WHEN audit is queried, THE SYSTEM SHALL filter by date/actor/type/resource/engine, paginate (default ≤ 500/page, tunable), and export JSON/NDJSON with a chain-verification procedure | E9-S1 | P0 | M1 |
+| FR-038 | WHERE audit is surfaced, THE SYSTEM SHALL expose it as a **sub-view under Compliance** (not a separate top-level area) with Compliance-role read access | E9-S1 | P0 | M1 |
+| FR-045 | WHERE a **Weave super admin (platform operator)** identity is scoped outside any single tenant's RBAC, THE SYSTEM SHALL let them create a new workspace via the UI (name, slug, parent Domain, billing plan) and create that workspace's **initial workspace-admin user**, after which the workspace admin invites their own members; THE SYSTEM SHALL enforce this via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never through tenant RBAC | E3-S4 | P0 | M1 |
+| FR-046 | WHEN a super admin opens the header workspace dropdown, THE SYSTEM SHALL list all workspaces they can operate and include an **"Add workspace"** button opening a modal that creates a workspace and adds its first admin user; WHERE the user is a regular workspace user THE SYSTEM SHALL show only their own workspace, and IF they switch to any other workspace THEN THE SYSTEM SHALL return 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | M1 |
+| FR-047 | WHERE a user is not a super admin, THE SYSTEM SHALL show only their own workspace and its dashboard (metrics, generative UI) plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data), and SHALL NOT expose any *other real workspace's* navigation, listing, or data, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | M1 |
 
 > **Platform super admin (FR-045..047):** a Weave-operator (platform-operator) role for provisioning
 > workspaces and their first admins and navigating between workspaces. It ships at **MVP** (it is how any
@@ -732,11 +732,12 @@ in v1.
 
 The Weave Platform PRD is satisfied when:
 
-- [ ] At M1 (only CE in scope): the fixed default dashboard renders CE-sourced tiles from `CE-METRICS-1`
-  with no prompt bar; a `CE-METRICS-1` error renders the defined "data source unavailable" state on the
-  affected tile. At M2 (CE GA): "show me active compliance contraventions by domain" streams a bar chart
-  from `CE-METRICS-1`; a prompt for a Build/Events-sourced category renders the defined "source engine
-  not yet available" state rather than empty or fabricated data.
+- [ ] At M1: the dashboard route renders its defined placeholder/empty state with zero CE calls
+  (E1-S0 moved to M2, 2026-07-02). At M2 (CE GA): the fixed default dashboard renders CE-sourced tiles
+  from `CE-METRICS-1` with no prompt bar, and a `CE-METRICS-1` error renders the defined "data source
+  unavailable" state on the affected tile; "show me active compliance contraventions by domain" streams
+  a bar chart from `CE-METRICS-1`; a prompt for a Build/Events-sourced category renders the defined
+  "source engine not yet available" state rather than empty or fabricated data.
 - [ ] A generated widget pinned by a user persists **server-side** and reloads on a different device for
   the same user; it is not visible to another tenant.
 - [ ] A published workspace widget is added to a different user's dashboard from the server-side library.
@@ -797,33 +798,36 @@ improvising a scaffold.
 **User stories (PRD §Epic 0):**
 
 - **E0-S1 — Monorepo + tooling scaffold.** As a platform engineer, I want a scaffolded monorepo so work
-  starts on a consistent base. **AC:** Given a clone, when `<bootstrap>` runs, then the workspace, package
-  layout, `uv`+`pnpm`, conventional-commit hooks, and npm scripts exist; `<test>`/`<lint>` run green.
-  **AC (failure):** a bare `pip install` is rejected by the uv-enforce gate. *(Must)*
-- **E0-S2 — IaC + remote state.** **AC:** Given the Terraform root, when `terraform apply` runs against the
-  shared dev account, then base AWS (Cognito pool, Bedrock access, networking, Secrets Manager) is
-  provisioned and state persists in **S3 with DynamoDB locking**; no secret is committed (secret-scan).
+  starts on a consistent base. **AC (EARS):** WHEN `<bootstrap>` runs on a fresh clone, THE SYSTEM SHALL
+  provide the workspace, package layout, `uv`+`pnpm`, conventional-commit hooks, and npm scripts, and
+  `<test>`/`<lint>` SHALL run green. **AC (failure, EARS):** IF a bare `pip install` is attempted THEN THE
+  SYSTEM SHALL reject it via the uv-enforce gate. *(Must)*
+- **E0-S2 — IaC + remote state.** **AC (EARS):** WHEN `terraform apply` runs against the shared dev account
+  from the Terraform root, THE SYSTEM SHALL provision base AWS (Cognito pool, Bedrock access, networking,
+  Secrets Manager) and persist state in **S3 with DynamoDB locking**, and SHALL NOT commit any secret
+  (secret-scan). *(Must)*
+- **E0-S3 — App shell + design system + Storybook.** **AC (EARS):** WHEN the Next.js 15 shell boots, THE
+  SYSTEM SHALL render the nav/providers/theming using the **design system** (`docs/standards/design/`
+  tokens), and **Storybook** SHALL render the component catalogue with a visual-regression baseline.
   *(Must)*
-- **E0-S3 — App shell + design system + Storybook.** **AC:** Given the Next.js 15 shell, when it boots,
-  then it renders the nav/providers/theming using the **design system** (`docs/standards/design/` tokens),
-  and a **Storybook** renders the component catalogue with a visual-regression baseline. *(Must)*
-- **E0-S4 — CI/CD + quality gates.** **AC:** Given a PR, when CI runs (GitHub Actions, OIDC to AWS, env
-  protection), then it is **red** on any of: lint error, **complexity** over budget, **SAST** high
-  finding, **secret** detected, or non-conventional commit. *(Must)*
-- **E0-S5 — Test + release gates.** **AC:** Given the built app, when CI runs, then unit + UI +
-  **Playwright E2E** + **visual-regression** execute, and the release gate is **red** unless **Lighthouse
-  = 100 across all four categories** and **axe = 0** (WCAG 2.1 AA). *(Must)*
-- **E0-S6 — Auth + model connectivity.** **AC:** Given a request, when auth resolves, then Cognito issues a
-  JWT with role claims + agent service principals; and the **model-routing abstraction** resolves
-  provider+model per env (local→Ollama, cloud→Bedrock) from one config — no AWS creds for the local inner
-  loop (`../dev-environment.md §3`). *(Must)*
-- **E0-S7 — API + observability scaffold.** **AC:** an **OpenAPI 3.1** contract is generated + validated in
-  CI (`api-conventions.md`); **OTel/ADOT** spans emit; a health route + smoke test pass. *(Must)*
-- **E0-S8 — AI evaluation harness.** **AC:** **promptfoo** CI evals + **Bedrock Model Evaluation** run on
-  prompt/agent changes (`testing-agents.md`). **Priority:** Should.
-- **E0-S9 — Local dev environment.** **AC:** Given a clone, when `docker compose up` runs, then a full
-  local stack (Oxigraph, Postgres, LocalStack S3/SQS/SNS, Redis, Ollama) starts with seed data and **zero
-  live AWS** for the inner loop (`../dev-environment.md` DX1/DX4). *(Must)*
+- **E0-S4 — CI/CD + quality gates.** **AC (EARS):** WHEN CI runs on a PR (GitHub Actions, OIDC to AWS, env
+  protection), THE SYSTEM SHALL fail **red** on any of: lint error, **complexity** over budget, **SAST**
+  high finding, **secret** detected, or non-conventional commit. *(Must)*
+- **E0-S5 — Test + release gates.** **AC (EARS):** WHEN CI runs on the built app, THE SYSTEM SHALL execute
+  unit + UI + **Playwright E2E** + **visual-regression**, and the release gate SHALL be **red** unless
+  **Lighthouse = 100 across all four categories** and **axe = 0** (WCAG 2.1 AA). *(Must)*
+- **E0-S6 — Auth + model connectivity.** **AC (EARS):** WHEN auth resolves for a request, THE SYSTEM SHALL
+  issue a Cognito JWT with role claims + agent service principals, and the **model-routing abstraction**
+  SHALL resolve provider+model per env (local→Ollama, cloud→Bedrock) from one config with no AWS creds for
+  the local inner loop (`../dev-environment.md §3`). *(Must)*
+- **E0-S7 — API + observability scaffold.** **AC (EARS):** WHEN CI runs, THE SYSTEM SHALL generate +
+  validate an **OpenAPI 3.1** contract (`api-conventions.md`), emit **OTel/ADOT** spans, and pass a health
+  route + smoke test. *(Must)*
+- **E0-S8 — AI evaluation harness.** **AC (EARS):** WHEN prompt/agent changes are made, THE SYSTEM SHALL run
+  **promptfoo** CI evals + **Bedrock Model Evaluation** (`testing-agents.md`). **Priority:** Should.
+- **E0-S9 — Local dev environment.** **AC (EARS):** WHEN `docker compose up` runs on a clone, THE SYSTEM
+  SHALL start a full local stack (Oxigraph, Postgres, LocalStack S3/SQS/SNS, Redis, Ollama) with seed data
+  and **zero live AWS** for the inner loop (`../dev-environment.md` DX1/DX4). *(Must)*
 
 **Epic-level acceptance criteria:**
 
@@ -844,11 +848,12 @@ improvising a scaffold.
 `accessibility.md`, and the new `docs/standards/design/` design system. Realises the `../dev-environment.md`
 local-first model and the Lighthouse-100/WCAG-AA gates.
 
-### EPIC-001 — Dashboard (fixed default M1 + Generative M2)
+### EPIC-001 — Dashboard (fixed default + Generative, M2)
 
-**Milestone:** **M1** (E1-S0 fixed CE-sourced default) / **M2** (E1-S1..S7 generative surface, needs CE GA)
-· **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003, EPIC-008 (+ CE contracts for M2) ·
-**blocks:** EPIC-002 · **consumes (M2):** CE-METRICS-1, CE-READ-1, CE-VERSION-1, PLAT-SETTINGS-1, PLAT-BILLING-1.
+**Milestone:** **M2** — both the E1-S0 fixed CE-sourced default and the E1-S1..S7 generative surface need
+CE GA (`CE-METRICS-1`) · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003, EPIC-008, CE GA
+(`CE-METRICS-1`) · **blocks:** EPIC-002 · **consumes:** CE-METRICS-1, CE-READ-1, CE-VERSION-1,
+PLAT-SETTINGS-1, PLAT-BILLING-1.
 
 **Description.** The user-facing centrepiece: a declarative generative-UI surface where a workspace member
 describes what they want and the AI composes the best-fit widget from a finite component library and
@@ -856,65 +861,79 @@ streams it into the dashboard grid. This epic owns the full widget lifecycle —
 type, refine, pin (server-side per-user), publish to the workspace library, and role-appropriate starters
 — all bound to live provider metrics contracts, never to free-form code.
 
-> **Milestone split.** At M1 the dashboard is a **simple fixed default** (E1-S0). The generative
-> composition surface and full widget lifecycle (E1-S1–E1-S7) are **M2** and light up per-engine as data
-> sources ship.
+> **Milestone.** The whole dashboard is **M2** because it depends on CE GA. At M1 the shell renders the
+> Dashboard route with a defined placeholder/empty state and **no CE data**; the fixed CE-sourced default
+> (E1-S0) and the generative composition surface and full widget lifecycle (E1-S1–E1-S7) all ship at **M2**
+> and light up per-engine as data sources ship.
 
 **User stories (PRD §Epic 1) — full acceptance criteria:**
 
-- **E1-S0 — Simple fixed default dashboard (M1).** As any workspace member, I want a useful default home
-  on first login so the workspace is not blank before the generative dashboard ships.
-  - AC: at MVP the dashboard renders a **fixed, hand-composed set of CE-sourced widgets** (ontology health
-    / coverage via `CE-METRICS-1`); no prompt bar, no AI composition.
-  - AC: the fixed default **persists as the workspace default** across sessions and devices (server-side,
-    not localStorage); read-only-composed at MVP (members do not add/remove tiles until the Phase-2
-    lifecycle ships).
-  - AC: when a Phase-2 engine ships new metrics, its widgets become **available to add via the generative
-    surface** — the fixed default is the floor, not a ceiling.
-  - AC (failure): if `CE-METRICS-1` errors on load, each affected tile renders the "data source
-    unavailable" state with retry, never a blank tile, and the rest still loads.
-  - AC: each tile shows a data-source footer label naming its contract (`CE-METRICS-1`). *(Must, MVP)*
-- **TASK-001 / E1-S1 — Request a widget by describing what you want** *(M2)*. Focus prompt bar (Cmd+K), submit;
-  AI selects a library component, calls the owning engine's metrics contract for an available category, and
-  streams the widget in; streaming header + skeleton within a configurable target (default 1 s, tunable).
-  - AC (provider unavailable): source metrics endpoint errors/timeouts or engine not GA → defined "data
-    source unavailable" state (named reason + retry), never blank/hallucinated.
-  - AC (LLM provider down): AI provider unconfigured/unreachable → defined offline state (HTTP 503 as a
-    readable message, matching prototype `LlmBar` 503), retryable.
-  - AC (budget cap mid-stream): workspace AI budget cap (via `PLAT-SETTINGS-1`) reached during streaming →
-    generation halts with the E8-S2 cap message; partial widget rolled back (no partial save).
-  - AC: every rendered widget shows a footer label naming its data-source contract(s). *(Must)*
-- **TASK-002 / E1-S2 — AI picks the best component type for the intent** *(M2)*. Maps intent to exactly one
-  component by declarative rule (count/status→KPI, trend→line/area, comparison→bar, ranked→list, log→
-  activity feed, ratio→pie/donut, two-dim matrix→heatmap, alert→banner); named type in prompt overrides.
-  - AC (failure): no matching component for the data shape → declines with the unsatisfiable-prompt message
-    (E1-S1), no ill-fit chart.
-  - AC (change visualisation, FR-006): inline "Change visualisation" re-renders the same data in a new
-    type with no re-prompt/re-fetch; incompatible types disabled with a reason. *(Must)*
-- **TASK-003 / E1-S3 — Refine a widget after generation** *(M2)*. Follow-up prompt applies as a delta and
-  re-renders; refinement history retained (default 10 steps, tunable). On save, the final resolved prompt +
-  parameters are stored, not the history. AC (failure): an inapplicable refine preserves prior state with
-  an inline error (no silent reset). *(Must)*
-- **TASK-004 / E1-S4 — Pin a widget (server-side, per-user)** *(M2)*. Pin persists the widget definition
-  (resolved intent/parameters, component type, data-source bindings, title, column span) **server-side,
-  scoped to (tenant, user)** — never localStorage — so it is cross-device, RBAC-scoped, audit-visible
-  (supersedes prior OQ-08). Responsive grid (default 1–4 columns, tunable), drag-reorder; auto-refresh
-  (default 5 min, tunable) or on demand. AC (failure): refresh provider error → retains last successful
-  render with a stale-data badge + timestamp; does not blank. *(Must)*
-- **TASK-005 / E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(M2)*. Publish
-  with name + description → stored server-side, workspace-scoped, listed in the Workspace Library panel
-  with author + publish date (mirrors Explorer Saved Views `D2`). Another member adding it gets an
-  independent (tenant, user) copy refreshing from the same contract, independently refinable. AC (failure):
-  publish by a user lacking author permission → HTTP 403 with reason. *(Must)*
-- **TASK-006 / E1-S6 — Default starter widgets (first load).** First login pre-populates role-appropriate
-  **MVP-eligible (CE-sourced) starter widgets only**; non-GA-source widgets are not offered as starters.
-  Labelled "Suggested", individually removable; the Suggested state clears once the user pins/removes any.
-  AC (failure): a starter's source contract (`CE-METRICS-1`) errors on first load → unavailable state with
-  retry, never a blank tile, rest still loads. *(Must)*
-- **TASK-007 / E1-S7 — Prompt examples and suggestions.** Empty prompt bar shows role-tailored example prompts
-  (default 4–6, tunable) scoped to **available** categories; disappear after a configurable number of
-  widgets (default 3, tunable). Clicking an example populates the bar and generates the widget. AC
-  (failure): a clicked example resolving to a non-GA-source category surfaces "source engine not yet
+- **E1-S0 — Fixed CE-sourced default dashboard (M2).** As any workspace member, I want a useful default
+  home once CE is GA so the workspace surfaces live model health.
+  - AC (EARS): WHEN CE is GA and the dashboard loads at M2, THE SYSTEM SHALL render a **fixed, hand-composed
+    set of CE-sourced widgets** (ontology health / coverage via `CE-METRICS-1`) with no prompt bar and no AI
+    composition.
+  - AC (EARS): THE SYSTEM SHALL persist the fixed default **as the workspace default** across sessions and
+    devices (server-side, not localStorage), read-only-composed at M2 (members do not add/remove tiles until
+    the Phase-2 lifecycle ships).
+  - AC (EARS): WHEN a Phase-2 engine ships new metrics, THE SYSTEM SHALL make its widgets **available to add
+    via the generative surface** — the fixed default is the floor, not a ceiling.
+  - AC (failure, EARS): IF `CE-METRICS-1` errors on load THEN THE SYSTEM SHALL render each affected tile in
+    the "data source unavailable" state with retry, never a blank tile, while the rest still loads.
+  - AC (EARS): WHEN a tile renders, THE SYSTEM SHALL show a data-source footer label naming its contract
+    (`CE-METRICS-1`). *(Must, M2)*
+- **TASK-001 / E1-S1 — Request a widget by describing what you want** *(M2)*. WHEN a user focuses the prompt
+  bar (Cmd+K) and submits, THE SYSTEM SHALL select a library component, call the owning engine's metrics
+  contract for an available category, and stream the widget in, rendering a streaming header + skeleton
+  within a configurable target (default 1 s, tunable).
+  - AC (provider unavailable, EARS): IF the source metrics endpoint errors/times out or the engine is not
+    GA THEN THE SYSTEM SHALL show the defined "data source unavailable" state (named reason + retry) and
+    SHALL NOT render blank/hallucinated.
+  - AC (LLM provider down, EARS): IF the AI provider is unconfigured/unreachable THEN THE SYSTEM SHALL show
+    the defined offline state (HTTP 503 as a readable message, matching prototype `LlmBar` 503), retryable.
+  - AC (budget cap mid-stream, EARS): WHEN the workspace AI budget cap (via `PLAT-SETTINGS-1`) is reached
+    during streaming, THE SYSTEM SHALL halt generation with the E8-S2 cap message and roll back the partial
+    widget (no partial save).
+  - AC (EARS): WHEN a widget renders, THE SYSTEM SHALL show a footer label naming its data-source
+    contract(s). *(Must)*
+- **TASK-002 / E1-S2 — AI picks the best component type for the intent** *(M2)*. WHEN the AI resolves a
+  prompt, THE SYSTEM SHALL map the intent to exactly one component by declarative rule (count/status→KPI,
+  trend→line/area, comparison→bar, ranked→list, log→activity feed, ratio→pie/donut, two-dim matrix→heatmap,
+  alert→banner); WHERE a named type appears in the prompt THE SYSTEM SHALL let it override.
+  - AC (failure, EARS): IF no component matches the data shape THEN THE SYSTEM SHALL decline with the
+    unsatisfiable-prompt message (E1-S1) and SHALL NOT render an ill-fit chart.
+  - AC (change visualisation, FR-006, EARS): WHEN a user selects inline "Change visualisation", THE SYSTEM
+    SHALL re-render the same data in a new type with no re-prompt/re-fetch and SHALL disable incompatible
+    types with a reason. *(Must)*
+- **TASK-003 / E1-S3 — Refine a widget after generation** *(M2)*. WHEN a user submits a follow-up prompt,
+  THE SYSTEM SHALL apply it as a delta and re-render, retaining refinement history (default 10 steps,
+  tunable); WHEN the widget is saved THE SYSTEM SHALL store the final resolved prompt + parameters, not the
+  history. AC (failure, EARS): IF a refine is inapplicable THEN THE SYSTEM SHALL preserve the prior state
+  with an inline error (no silent reset). *(Must)*
+- **TASK-004 / E1-S4 — Pin a widget (server-side, per-user)** *(M2)*. WHEN a user pins a widget, THE SYSTEM
+  SHALL persist its definition (resolved intent/parameters, component type, data-source bindings, title,
+  column span) **server-side, scoped to (tenant, user)** — never localStorage — so it is cross-device,
+  RBAC-scoped, and audit-visible (supersedes prior OQ-08), and SHALL lay pins out in a responsive grid
+  (default 1–4 columns, tunable) with drag-reorder and auto-refresh (default 5 min, tunable) or on demand.
+  AC (failure, EARS): IF a refresh provider error occurs THEN THE SYSTEM SHALL retain the last successful
+  render with a stale-data badge + timestamp and SHALL NOT blank. *(Must)*
+- **TASK-005 / E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(M2)*. WHEN a
+  user publishes a widget with name + description, THE SYSTEM SHALL store it server-side, workspace-scoped,
+  and list it in the Workspace Library panel with author + publish date (mirrors Explorer Saved Views `D2`);
+  WHEN another member adds it THE SYSTEM SHALL give them an independent (tenant, user) copy refreshing from
+  the same contract, independently refinable. AC (failure, EARS): IF a user lacking author permission
+  publishes THEN THE SYSTEM SHALL return HTTP 403 with reason. *(Must)*
+- **TASK-006 / E1-S6 — Default starter widgets (first load).** WHEN a user first logs in, THE SYSTEM SHALL
+  pre-populate role-appropriate **MVP-eligible (CE-sourced) starter widgets only** and SHALL NOT offer
+  non-GA-source widgets as starters; THE SYSTEM SHALL label them "Suggested", individually removable, and
+  clear the Suggested state once the user pins/removes any. AC (failure, EARS): IF a starter's source
+  contract (`CE-METRICS-1`) errors on first load THEN THE SYSTEM SHALL show the unavailable state with
+  retry, never a blank tile, while the rest still loads. *(Must)*
+- **TASK-007 / E1-S7 — Prompt examples and suggestions.** WHILE the prompt bar is empty, THE SYSTEM SHALL
+  show role-tailored example prompts (default 4–6, tunable) scoped to **available** categories; WHEN the
+  user has a configurable number of widgets (default 3, tunable) THE SYSTEM SHALL hide them; WHEN a user
+  clicks an example THE SYSTEM SHALL populate the bar and generate the widget. AC (failure, EARS): IF a
+  clicked example resolves to a non-GA-source category THEN THE SYSTEM SHALL surface "source engine not yet
   available" rather than appearing to fail. *(Should)*
 
 **Epic-level acceptance criteria:**
@@ -961,28 +980,32 @@ per-story phase tags, never fragmented further.
 
 **User stories (PRD §Epic 2) — full acceptance criteria:**
 
-- **TASK-001 / E2-S1 — Ontology health widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1` (`entity_count_by_kind`,
-  `latest_version`, `draft_published_delta`, `shacl_errors_by_severity`, `owl_inconsistencies`), prompts
-  like "ontology health" / "what changed since last publish" resolve to bound widgets. AC (failure):
-  `CE-METRICS-1` errors → unavailable state. *(Must, MVP)*
-- **TASK-002 / E2-S2 — Graph completeness / knowledge-gap widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1` +
-  `CE-READ-1`, data includes model coverage % per kind, entities missing required properties (SHACL
-  warnings), capabilities with no owner, domains with zero instances; "show me knowledge gaps" resolves.
-  AC (failure): unavailable on contract error. *(Must, MVP)*
-- **TASK-003 / E2-S3 — AI/token spend widgets** *(P0 when metering live; CE-portion at MVP)*. Given `PLAT-BILLING-1`
-  metering (per-token AI + per-run automation), data includes spend 7d/30d, by engine/user/project, budget
-  burn vs cap (via `PLAT-SETTINGS-1`), cost trend; burn-rate alert at a configurable projected-burn
-  threshold (default 90% projected, tunable). AC (failure): metering-pipeline gap → "metering delayed" with
-  last-known timestamp (events never dropped — separate queue per `PLAT-BILLING-1`). *(Must — token at MVP;
-  per-run automation dimension P0 when Events ships)*
-- **TASK-004 / E2-S4 — Active project pipeline widgets** *(P0 when Build Engine ships)*. Given Build GA with project
-  metrics, data includes project count by phase, projects at risk, artefacts shipped, agent
-  success/failure rate. AC (engine not GA): renders "Build Engine not yet available". *(P0 when Build ships;
-  dark until then)*
-- **TASK-005 / E2-S5 — Compliance status widgets** *(MVP — CE-sourced)*. Given `CE-METRICS-1`
-  (`shacl_errors_by_severity`) + `CE-READ-1`, data includes active SHACL contraventions by severity/domain,
-  policy coverage gaps, self-audit results; contraventions deep-link to the entity via `CE-READ-1`
-  (`/resource/{iri}`). AC (failure): unavailable on contract error. *(Must, MVP)*
+- **TASK-001 / E2-S1 — Ontology health widgets** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1` provides
+  (`entity_count_by_kind`, `latest_version`, `draft_published_delta`, `shacl_errors_by_severity`,
+  `owl_inconsistencies`), WHEN a user prompts "ontology health" / "what changed since last publish" THE
+  SYSTEM SHALL resolve them to bound widgets. AC (failure, EARS): IF `CE-METRICS-1` errors THEN THE SYSTEM
+  SHALL show the unavailable state. *(Must, MVP)*
+- **TASK-002 / E2-S2 — Graph completeness / knowledge-gap widgets** *(MVP — CE-sourced)*. WHERE
+  `CE-METRICS-1` + `CE-READ-1` provide model coverage % per kind, entities missing required properties
+  (SHACL warnings), capabilities with no owner, and domains with zero instances, WHEN a user prompts "show
+  me knowledge gaps" THE SYSTEM SHALL resolve it to a bound widget. AC (failure, EARS): IF a contract errors
+  THEN THE SYSTEM SHALL show the unavailable state. *(Must, MVP)*
+- **TASK-003 / E2-S3 — AI/token spend widgets** *(P0 when metering live; CE-portion at MVP)*. WHERE
+  `PLAT-BILLING-1` metering (per-token AI + per-run automation) provides spend 7d/30d by engine/user/project,
+  budget burn vs cap (via `PLAT-SETTINGS-1`), and cost trend, THE SYSTEM SHALL render the spend widgets and
+  SHALL fire a burn-rate alert WHEN projected burn exceeds a configurable threshold (default 90% projected,
+  tunable). AC (failure, EARS): IF the metering pipeline gaps THEN THE SYSTEM SHALL show "metering delayed"
+  with a last-known timestamp (events never dropped — separate queue per `PLAT-BILLING-1`). *(Must — token
+  at MVP; per-run automation dimension P0 when Events ships)*
+- **TASK-004 / E2-S4 — Active project pipeline widgets** *(P0 when Build Engine ships)*. WHERE Build is GA
+  with project metrics, THE SYSTEM SHALL render project count by phase, projects at risk, artefacts
+  shipped, and agent success/failure rate. AC (failure, EARS): WHERE Build is not GA THE SYSTEM SHALL
+  render "Build Engine not yet available". *(P0 when Build ships; dark until then)*
+- **TASK-005 / E2-S5 — Compliance status widgets** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1`
+  (`shacl_errors_by_severity`) + `CE-READ-1` are available, THE SYSTEM SHALL render active SHACL
+  contraventions by severity/domain, policy coverage gaps, and self-audit results, and WHEN a
+  contravention is selected THE SYSTEM SHALL deep-link to the entity via `CE-READ-1` (`/resource/{iri}`).
+  AC (failure, EARS): IF a contract errors THEN THE SYSTEM SHALL show the unavailable state. *(Must, MVP)*
 - **TASK-006 / E2-S6 — (Deferred post-v1).** Self-improvement findings widgets (Weave-internal) deferred
   with the self-improvement loop. Slot reserved; implemented when the loop lands.
 - **TASK-007 / E2-S7 — Ontology and project issue widgets** *(M2 for CE issues; Build issues gated)*. Given
@@ -991,53 +1014,60 @@ per-story phase tags, never fragmented further.
   (default stale = lag ≥ 2, tunable); Build-project issues appear once Build is GA. AC (failure):
   unavailable per contract. *(Must for CE issues at MVP; Build rows P0 when Build ships)*
 - **TASK-008 / E2-S8 — Event automation and connector-health widgets** *(connector-health v1.0; automation gated)*.
-  Given `PLAT-CONNECTOR-1` health-status read API (`status, last_sync, last_error, error_count`),
-  connector-health widgets become available **at v1.0** (connectors are deferred to v1.0 — until then these
-  rows render "Connectors not yet available"). Given Events GA, automation counts/failure-rate added via the
-  Events metrics surface; until then those rows render "Events Engine not yet available". AC (failure): a
-  degraded/disconnected connector publishes a `PLAT-NOTIFY-1` event. *(Connector-health P0 when connectors
-  ship at v1.0; automation rows P0 when Events ships)*
+  WHERE the `PLAT-CONNECTOR-1` health-status read API (`status, last_sync, last_error, error_count`) is
+  live (**v1.0** — connectors are deferred to v1.0), THE SYSTEM SHALL render connector-health widgets;
+  until then THE SYSTEM SHALL render "Connectors not yet available". WHERE Events is GA, THE SYSTEM SHALL
+  add automation counts/failure-rate via the Events metrics surface; until then THE SYSTEM SHALL render
+  "Events Engine not yet available". AC (failure, EARS): WHEN a connector degrades or disconnects THE
+  SYSTEM SHALL publish a `PLAT-NOTIFY-1` event. *(Connector-health P0 when connectors ship at v1.0;
+  automation rows P0 when Events ships)*
 - **TASK-009 / E2-S9 — Collaboration activity widgets** *(M2 for CE-sourced activity; post-v1 for Explorer realtime)*.
-  Given async sharing at M1 (saved views + comments per `D1`/`D2`), "recent graph edits by contributor"
-  is sourced from `CE-EVENT-1` actor data and is M2-eligible. Given Graph Explorer realtime collab
-  (post-v1, `D1`), active-canvas-session and presence widgets become available; until then they render
-  "available post-v1". Presence / active-session is an **Explorer engine surface not yet contracted** — a
+  WHERE async sharing is live at M1 (saved views + comments per `D1`/`D2`), THE SYSTEM SHALL source
+  "recent graph edits by contributor" from `CE-EVENT-1` actor data (M2-eligible). WHERE Graph Explorer
+  realtime collab is live (post-v1, `D1`), THE SYSTEM SHALL enable active-canvas-session and presence
+  widgets; until then THE SYSTEM SHALL render "available post-v1". Presence / active-session is an **Explorer engine surface not yet contracted** — a
   realtime presence contract is a post-v1 deliverable (tracked, no contract ID exists yet).
   *(Should; realtime sub-widgets post-v1)*
-- **TASK-010 / E2-S10 — Operational health widget** *(M2 — reads PLAT-AUDIT-1)*. Given `PLAT-AUDIT-1`
-  query API, the widget aggregates `event_type` and `engine` dimensions to compute error rate, retry rate,
-  and agent-failure rate per engine over a configurable rolling window (default 7 days, tunable). A spike
-  alert fires when any rate exceeds a configurable threshold (default 2× the 7-day baseline, **provisional
-  — tune in tech spec**, owner Architect) and surfaces the driving audit entries ranked by frequency.
-  AC: data sourced exclusively from `PLAT-AUDIT-1` fields (`event_type`, `engine`) — no NLP, no inferred
-  signals. AC (failure): `PLAT-AUDIT-1` unavailable → last aggregated snapshot with a "data refresh
-  delayed" badge. *(Should, M2)*
-- **TASK-011 / E2-S11 — Agent activity feed widget** *(per-engine; populated as engines ship)*. Given `PLAT-AUDIT-1` +
-  `PLAT-IDENTITY-1` (canonical principal IRI), the feed shows agent principal, engine, action type, status,
-  reverse-chronological, filterable. Given only CE is GA, the feed shows CE agent activity only and labels
-  other engines as not-yet-available (no fabricated rows). AC (failure): `PLAT-AUDIT-1` unreachable →
-  unavailable state rather than an empty feed misread as "no agent activity". *(Should; rows per engine
-  appear as each engine ships)*
-- **TASK-012 / E2-S12 — Version pinning status widget** *(P0 when Build/Events ship; CE-version source MVP)*. Given
-  `CE-VERSION-1` canonical version-lag, lag is computed centrally; rows where lag ≥ amber threshold
-  (default 2, tunable) highlight amber, lag ≥ red threshold (default 4, tunable) red. Given Build/Events
-  not GA, no consumer rows; CE's own draft-vs-published delta shown at MVP. AC (failure): `CE-VERSION-1`
-  unreachable → lag "unknown" rather than 0. *(P0 when Build/Events ship)*
-- **TASK-013 / E2-S13 — Graph growth trend widget** *(MVP — CE-sourced)*. Given `CE-METRICS-1` history, a line chart
-  shows entity + relationship count over a configurable window (default 30/90 days, tunable). A
-  flat/declining trend beyond a configurable window (default 14 days, tunable) → "model may be stagnating"
-  footer advisory. AC (failure): history unavailable → last cached series with a staleness badge, not an
-  empty/zeroed chart. *(Must, MVP)*
-- **TASK-014 / E2-S14 — RBAC and access coverage widget** *(MVP — platform-sourced)*. Given the platform RBAC model
-  (via `PLAT-SETTINGS-1`) + `PLAT-IDENTITY-1`, data includes users with no role, areas with no owner,
-  recent role changes (default 7d, tunable), agent principals with broad scope. AC (failure): RBAC/identity
-  source unavailable → unavailable state rather than reporting zero gaps. *(Should, MVP)*
-- **TASK-015 / E2-S15 — Workspace onboarding progress widget** *(MVP — CE-sourced)*. Given `CE-METRICS-1`, completion
-  % spans ontology populated (≥1 entity per kind) and first published version; the **connector-configured
-  item appears only once connectors ship at v1.0** (via `PLAT-CONNECTOR-1`). Each incomplete item has a
-  "Complete now" deep-link; widget auto-dismisses at 100%. Build-project completion item appears only once
-  Build is GA. AC (failure): `CE-METRICS-1` unavailable → last computed completion % with a staleness
-  timestamp rather than a false 0%/100%. *(Must, MVP)*
+- **TASK-010 / E2-S10 — Operational health widget** *(M2 — reads PLAT-AUDIT-1)*. WHERE the `PLAT-AUDIT-1`
+  query API is available, THE SYSTEM SHALL aggregate `event_type` and `engine` dimensions to compute error
+  rate, retry rate, and agent-failure rate per engine over a configurable rolling window (default 7 days,
+  tunable); WHEN any rate exceeds a configurable threshold (default 2× the 7-day baseline, **provisional —
+  tune in tech spec**, owner Architect) THE SYSTEM SHALL fire a spike alert and surface the driving audit
+  entries ranked by frequency. AC (EARS): THE SYSTEM SHALL source data exclusively from `PLAT-AUDIT-1`
+  fields (`event_type`, `engine`) — no NLP, no inferred signals. AC (failure, EARS): IF `PLAT-AUDIT-1` is
+  unavailable THEN THE SYSTEM SHALL show the last aggregated snapshot with a "data refresh delayed" badge.
+  *(Should, M2)*
+- **TASK-011 / E2-S11 — Agent activity feed widget** *(per-engine; populated as engines ship)*. WHERE
+  `PLAT-AUDIT-1` + `PLAT-IDENTITY-1` (canonical principal IRI) are available, THE SYSTEM SHALL show agent
+  principal, engine, action type, and status, reverse-chronological and filterable. WHERE only CE is GA,
+  THE SYSTEM SHALL show CE agent activity only and label other engines as not-yet-available (no fabricated
+  rows). AC (failure, EARS): IF `PLAT-AUDIT-1` is unreachable THEN THE SYSTEM SHALL show the unavailable
+  state rather than an empty feed misread as "no agent activity". *(Should; rows per engine appear as each
+  engine ships)*
+- **TASK-012 / E2-S12 — Version pinning status widget** *(P0 when Build/Events ship; CE-version source MVP)*.
+  WHERE `CE-VERSION-1` canonical version-lag is available, THE SYSTEM SHALL compute lag centrally and
+  highlight rows amber WHERE lag ≥ the amber threshold (default 2, tunable) and red WHERE lag ≥ the red
+  threshold (default 4, tunable). WHERE Build/Events are not GA, THE SYSTEM SHALL show no consumer rows and
+  SHALL show CE's own draft-vs-published delta at MVP. AC (failure, EARS): IF `CE-VERSION-1` is unreachable
+  THEN THE SYSTEM SHALL show lag "unknown" rather than 0. *(P0 when Build/Events ship)*
+- **TASK-013 / E2-S13 — Graph growth trend widget** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1` history is
+  available, THE SYSTEM SHALL render a line chart of entity + relationship count over a configurable window
+  (default 30/90 days, tunable); WHEN the trend is flat/declining beyond a configurable window (default
+  14 days, tunable) THE SYSTEM SHALL show a "model may be stagnating" footer advisory. AC (failure, EARS):
+  IF history is unavailable THEN THE SYSTEM SHALL show the last cached series with a staleness badge, not
+  an empty/zeroed chart. *(Must, MVP)*
+- **TASK-014 / E2-S14 — RBAC and access coverage widget** *(MVP — platform-sourced)*. WHERE the platform
+  RBAC model (via `PLAT-SETTINGS-1`) + `PLAT-IDENTITY-1` are available, THE SYSTEM SHALL render users with
+  no role, areas with no owner, recent role changes (default 7d, tunable), and agent principals with broad
+  scope. AC (failure, EARS): IF the RBAC/identity source is unavailable THEN THE SYSTEM SHALL show the
+  unavailable state rather than reporting zero gaps. *(Should, MVP)*
+- **TASK-015 / E2-S15 — Workspace onboarding progress widget** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1`
+  is available, THE SYSTEM SHALL compute completion % spanning ontology populated (≥1 entity per kind) and
+  first published version; the **connector-configured item SHALL appear only once connectors ship at v1.0**
+  (via `PLAT-CONNECTOR-1`) and the Build-project completion item only once Build is GA. THE SYSTEM SHALL
+  give each incomplete item a "Complete now" deep-link and SHALL auto-dismiss the widget at 100%.
+  AC (failure, EARS): IF `CE-METRICS-1` is unavailable THEN THE SYSTEM SHALL show the last computed
+  completion % with a staleness timestamp rather than a false 0%/100%. *(Must, MVP)*
 
 **Epic-level acceptance criteria:**
 
@@ -1083,24 +1113,26 @@ through which budgets, retention, data classification, and RBAC are resolved for
 
 **User stories (PRD §Epic 3) — full acceptance criteria:**
 
-- **TASK-001 / E3-S1 — Create and switch workspaces (4-level cascade).** Given the 4-level cascade Company → Domain →
-  Workspace → Project (`PLAT-SETTINGS-1`, A4), switching context reloads the app into that node's effective
-  settings; all data is tenant-isolated at the storage layer per the §2.2 isolation mechanism. Workspace
-  creation requires name, slug, parent (Domain), and billing plan; the new node inherits parent settings
-  (tighter-wins). AC (failure): a switch to an inaccessible context → HTTP 403 with zero cross-tenant data
-  loaded (cross-tenant-read test). *(Must)*
+- **TASK-001 / E3-S1 — Create and switch workspaces (4-level cascade).** WHERE the 4-level cascade Company →
+  Domain → Workspace → Project (`PLAT-SETTINGS-1`, A4) applies, WHEN a user switches context THE SYSTEM
+  SHALL reload the app into that node's effective settings, with all data tenant-isolated at the storage
+  layer per the §2.2 isolation mechanism. WHEN a workspace is created THE SYSTEM SHALL require name, slug,
+  parent (Domain), and billing plan, and SHALL inherit parent settings (tighter-wins). AC (failure, EARS):
+  IF a switch targets an inaccessible context THEN THE SYSTEM SHALL return HTTP 403 with zero cross-tenant
+  data loaded (cross-tenant-read test). *(Must)*
 - **TASK-002 / E3-S2 — Invite and manage members (bounded revocation).** An invite sends a Cognito-triggered email;
   the admin assigns one or more canonical roles resolved through `PLAT-SETTINGS-1`. AC (revocation,
   reconciled): on removal/role-change, enforcement is short-lived access tokens (default TTL ≤ 60 s,
   tunable) plus a per-request session-version check against a revocation list, so the next request bearing
   a prior token is rejected within one bounded latency (default ≤ 60 s, tunable). FR-021 and FR-024 use
   this one mechanism and latency — "immediate" is replaced by the bounded value. *(Must)*
-- **TASK-003 / E3-S3 — Settings cascade (budgets, retention, policy, RBAC).** Given `PLAT-SETTINGS-1`, reading a
-  setting at any node returns the effective value AND which level set it; a child may only tighten a parent
-  value; loosening requires parent approval. Applies to AI budget caps, data retention, data
-  classification, RBAC. Data-retention config per data type (audit, PROV-O, model versions) within
-  platform minimums resolves through the cascade. AC (failure): a loosening attempt without approval is
-  rejected and recorded to `PLAT-AUDIT-1`. *(Must)*
+- **TASK-003 / E3-S3 — Settings cascade (budgets, retention, policy, RBAC).** WHEN a setting is read at any
+  node THE SYSTEM SHALL return the effective value AND which level set it (`PLAT-SETTINGS-1`); THE SYSTEM
+  SHALL allow a child only to tighten a parent value and SHALL require parent approval for loosening. This
+  applies to AI budget caps, data retention, data classification, and RBAC; data-retention config per data
+  type (audit, PROV-O, model versions) within platform minimums resolves through the cascade. AC (failure,
+  EARS): IF a loosening is attempted without approval THEN THE SYSTEM SHALL reject it and record it to
+  `PLAT-AUDIT-1`. *(Must)*
 - **TASK-004 / E3-S4 — Weave super admin: provision workspaces + first admins.** A **Weave super admin
   (platform operator)** — a Weave-operator identity outside any single tenant's RBAC (a dedicated Cognito
   group minting a `PLAT-IDENTITY-1` principal) — can create a new workspace from the UI (name, slug, parent
@@ -1158,14 +1190,15 @@ PROV-O record and audit entry.
   validates role membership (resolved through `PLAT-SETTINGS-1`) and rejects unauthorised ops with HTTP
   403. Roles control read/author/publish/admin per engine/area (full matrix in tech spec). AC (failure): a
   JWT for a role lacking a permission → 403 and the denial recorded to `PLAT-AUDIT-1`. *(Must)*
-- **TASK-003 / E4-S3 — Agent identities via the platform registry (IAM-backed).** Given `PLAT-IDENTITY-1`, each agent
-  principal is minted/scoped by the registry, reconciling Platform agent classes + Build's 5 dark-factory
-  roles + Events' per-automation principals into one canonical principal IRI; the IRI appears in PROV-O and
-  every `PLAT-AUDIT-1` entry. AC (machine auth path): an agent accessing AWS/secrets assumes an **IAM role
-  via STS** (short-lived credentials; never raw secret values) — human (Cognito) and machine (IAM/STS)
-  paths are distinct; the registry records which IAM role maps to which canonical principal IRI and RBAC
-  role. Admins view agent principals + scopes in Settings. AC (failure): an out-of-scope principal action
-  is denied (least-privilege) and logged to `PLAT-AUDIT-1`. *(Must)*
+- **TASK-003 / E4-S3 — Agent identities via the platform registry (IAM-backed).** WHEN an agent principal
+  is created THE SYSTEM SHALL mint/scope it via the `PLAT-IDENTITY-1` registry, reconciling Platform agent
+  classes + Build's 5 dark-factory roles + Events' per-automation principals into one canonical principal
+  IRI, and THE SYSTEM SHALL stamp that IRI into PROV-O and every `PLAT-AUDIT-1` entry. AC (machine auth
+  path, EARS): WHEN an agent accesses AWS/secrets THE SYSTEM SHALL have it assume an **IAM role via STS**
+  (short-lived credentials; never raw secret values) — human (Cognito) and machine (IAM/STS) paths are
+  distinct; THE SYSTEM SHALL record which IAM role maps to which canonical principal IRI and RBAC role.
+  Admins view agent principals + scopes in Settings. AC (failure, EARS): IF a principal acts out of scope
+  THEN THE SYSTEM SHALL deny the action (least-privilege) and log it to `PLAT-AUDIT-1`. *(Must)*
 
 **Epic-level acceptance criteria:**
 
@@ -1254,15 +1287,16 @@ additional channel (Slack) plugs in when `PLAT-CONNECTOR-1` ships.
 
 **User stories (PRD §Epic 6) — full acceptance criteria:**
 
-- **TASK-001 / E6-S1 — In-app notification centre (Slack at v1.0).** Given `PLAT-NOTIFY-1` (one service,
-  **open/registerable** type taxonomy — not a fixed enum), engines publish notification events; **in-app
-  delivery ships at M1** and **Slack delivery lands at v1.0 via `PLAT-CONNECTOR-1`**. Covered types include:
-  budget, HIGH SHACL violation, build state, HITL-gate fired, automation-failure, connector-degraded,
-  onboarding-activation, version-pin mismatch, ops-health spike. Clicking a notification deep-links to the
-  relevant screen; "mark all read" clears the badge; in-app delivery target is a configurable default
-  (default 30 s, **provisional**, owner Architect). AC (failure): a delivery-channel failure (e.g. Slack
-  token invalid, once Slack is live) → the notification still appears in-app and the channel failure is
-  itself recorded. *(Must — in-app M1; Slack v1.0)*
+- **TASK-001 / E6-S1 — In-app notification centre (Slack at v1.0).** WHEN an engine publishes a
+  notification event THE SYSTEM SHALL deliver it via `PLAT-NOTIFY-1` (one service, **open/registerable**
+  type taxonomy — not a fixed enum); **in-app delivery ships at M1** and **Slack delivery lands at v1.0 via
+  `PLAT-CONNECTOR-1`**. Covered types include: budget, HIGH SHACL violation, build state, HITL-gate fired,
+  automation-failure, connector-degraded, onboarding-activation, version-pin mismatch, ops-health spike.
+  WHEN a notification is clicked THE SYSTEM SHALL deep-link to the relevant screen; WHEN "mark all read" is
+  selected THE SYSTEM SHALL clear the badge; the in-app delivery target is a configurable default (default
+  30 s, **provisional**, owner Architect). AC (failure, EARS): IF a delivery channel fails (e.g. Slack
+  token invalid, once Slack is live) THEN THE SYSTEM SHALL still deliver the notification in-app and record
+  the channel failure itself. *(Must — in-app M1; Slack v1.0)*
 - **TASK-002 / E6-S2 — Notification preferences.** Settings → Notifications gives per-user toggles per registered type
   + email digest (none/daily/weekly). AC (failure): a preference write failure retains the prior preference
   and shows an error; a missing preference defaults to "on" so no critical alert is silently muted.
@@ -1304,18 +1338,20 @@ CE GA via `CE-WRITE-1`), so the connector surface ships as one coherent v1.0 inc
 
 **User stories (PRD §Epic 7) — full acceptance criteria:**
 
-- **TASK-001 / E7-S1 — Configure a data connector.** Given `PLAT-CONNECTOR-1`, the **7 integrations** are:
-  Snowflake · Databricks · AWS · Azure Data Lake · **Atlassian (Jira + Confluence, one OAuth/connector
-  family)** · ServiceNow · **Slack** (C2/C3). The config UI captures connection type, credentials (**AWS
-  Secrets Manager only — no plain-text field**), sync direction (read/write/bidirectional), and sync
-  frequency. Credentials are stored exclusively in AWS Secrets Manager; the UI never displays a secret
-  after entry; the Slack token lives in Secrets Manager (C2). AC (failure): an invalid credential at save →
-  config fails closed (connector marked disconnected) and no secret is logged. *(Must)*
+- **TASK-001 / E7-S1 — Configure a data connector.** WHERE `PLAT-CONNECTOR-1` is live, THE SYSTEM SHALL
+  support the **7 integrations**: Snowflake · Databricks · AWS · Azure Data Lake · **Atlassian (Jira +
+  Confluence, one OAuth/connector family)** · ServiceNow · **Slack** (C2/C3). WHEN a connector is
+  configured THE SYSTEM SHALL capture connection type, credentials (**AWS Secrets Manager only — no
+  plain-text field**), sync direction (read/write/bidirectional), and sync frequency, SHALL store
+  credentials exclusively in AWS Secrets Manager, and SHALL never display a secret after entry; the Slack
+  token lives in Secrets Manager (C2). AC (failure, EARS): IF a credential is invalid at save THEN THE
+  SYSTEM SHALL fail closed (connector marked disconnected) and SHALL NOT log the secret. *(Must)*
   <!-- SHARED-HOISTED: connector list is canonical here (this engine owns PLAT-CONNECTOR-1); master refs ../contracts.md PLAT-CONNECTOR-1 -->
-- **TASK-002 / E7-S2 — Monitor connector health.** Given `PLAT-CONNECTOR-1` health-status read API, each connector
-  shows status (connected/degraded/disconnected), last_sync, last_error, error_count. A degraded/
-  disconnected connector fires a `PLAT-NOTIFY-1` event. AC (failure): the health read API itself unreachable
-  → the row shows "health unknown" with the last successful poll time, never a false "connected". *(Must)*
+- **TASK-002 / E7-S2 — Monitor connector health.** WHEN the `PLAT-CONNECTOR-1` health-status read API is
+  queried THE SYSTEM SHALL show each connector's status (connected/degraded/disconnected), last_sync,
+  last_error, and error_count; WHEN a connector degrades or disconnects THE SYSTEM SHALL fire a
+  `PLAT-NOTIFY-1` event. AC (failure, EARS): IF the health read API is itself unreachable THEN THE SYSTEM
+  SHALL show "health unknown" with the last successful poll time, never a false "connected". *(Must)*
 - **TASK-003 / E7-S3 — Connector-data ingestion + write-back semantics.** Inbound connector data: **platform
   ingestion** writes it into the graph via `CE-WRITE-1` (validated operations; resolves the duplicated
   Platform OQ-05 / CE OQ-05 and the connectors cross-seam) under a connector-scoped agent principal
@@ -1373,11 +1409,12 @@ effective cap.
 
 **User stories (PRD §Epic 8) — full acceptance criteria:**
 
-- **TASK-001 / E8-S1 — Usage dashboard in Settings.** Given `PLAT-BILLING-1` (two dimensions: per-run automation +
-  per-token AI), Settings → Billing shows cycle spend, per-engine token breakdown, per-run automation
-  count, plan tier, renewal date; usage updates with a configurable lag (default < 5 min, **provisional**,
-  owner Architect). AC (failure): a metering delay → last-known totals with a staleness timestamp; metering
-  events never dropped (separate queue from run outcome). *(Must)*
+- **TASK-001 / E8-S1 — Usage dashboard in Settings.** WHEN Settings → Billing renders THE SYSTEM SHALL
+  show `PLAT-BILLING-1` cycle spend across both dimensions (per-run automation + per-token AI), per-engine
+  token breakdown, per-run automation count, plan tier, and renewal date, updating with a configurable lag
+  (default < 5 min, **provisional**, owner Architect). AC (failure, EARS): IF metering is delayed THEN THE
+  SYSTEM SHALL show last-known totals with a staleness timestamp; metering events SHALL never be dropped
+  (separate queue from run outcome). *(Must)*
 - **TASK-002 / E8-S2 — Set and enforce budget caps (cascade-resolved).** A cap set at any cascade node
   (`PLAT-SETTINGS-1`, tighter-wins; v1 supports the full Company/Domain/Workspace/Project cascade per A4)
   tracks spend against the effective cap; notifications fire at configurable thresholds (default 80% and
@@ -1429,16 +1466,17 @@ run-log are views over it; CE PROV-O remains semantic provenance AND writes a co
 
 **User stories (PRD §Epic 9) — full acceptance criteria:**
 
-- **TASK-001 / E9-S1 — Immutable, hash-chained audit trail (PLAT-AUDIT-1).** Given `PLAT-AUDIT-1`, each
-  entry is `{ seq, ts, actor_principal_iri, engine, event_type, target_iri, diff_summary, signature }` and
-  forms a **hash chain** (each entry stores `prev_hash` and `hash`; per-entry ed25519 signature over the
-  canonicalised entry + prev_hash), so tamper-evidence is verifiable, not merely a per-entry signature.
-  Append-only: deletes are rejected at the **DB-constraint level** and the attempt itself is logged.
-  Queries are filterable by date/actor/event-type/resource/engine, paginated (default ≤ 500 rows/page,
-  tunable), exportable as JSON/NDJSON with a chain-verification procedure (recompute hash over
-  canonicalised entry + prev_hash; verify ed25519 signature). AC (tamper test): altering or deleting any
-  historical entry fails chain verification at a named row. Audit is exposed as a **sub-view under the
-  Compliance area** (E5-S1), readable by the Compliance role. *(Must, M1)*
+- **TASK-001 / E9-S1 — Immutable, hash-chained audit trail (PLAT-AUDIT-1).** WHEN a `PLAT-AUDIT-1` entry
+  is written THE SYSTEM SHALL persist `{ seq, ts, actor_principal_iri, engine, event_type, target_iri,
+  diff_summary, signature }` into a **hash chain** (each entry stores `prev_hash` and `hash`; per-entry
+  ed25519 signature over the canonicalised entry + prev_hash), so tamper-evidence is verifiable, not merely
+  a per-entry signature. THE SYSTEM SHALL enforce append-only at the **DB-constraint level**: IF a delete
+  is attempted THEN THE SYSTEM SHALL reject it and log the attempt itself. WHEN audit is queried THE SYSTEM
+  SHALL filter by date/actor/event-type/resource/engine, paginate (default ≤ 500 rows/page, tunable), and
+  export JSON/NDJSON with a chain-verification procedure (recompute hash over canonicalised entry +
+  prev_hash; verify ed25519 signature). AC (tamper test, EARS): WHEN any historical entry is altered or
+  deleted THE SYSTEM SHALL fail chain verification at a named row. Audit is exposed as a **sub-view under
+  the Compliance area** (E5-S1), readable by the Compliance role. *(Must, M1)*
 
 **Epic-level acceptance criteria:**
 
@@ -1563,15 +1601,16 @@ cascade, in-app notifications, billing/metering + budget caps, and the immutable
 **Managed connectors (`PLAT-CONNECTOR-1`) are deferred to v1.0** — the MVP delivers its value without
 external integrations. **No upstream engine dependency; unblocks CE and every other engine.**
 Demonstrable outcome: a tenant-isolated, authenticated SPA shell with the five M1-live platform contracts
-live, exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-sourced dashboard tiles
-(E1-S0) also ship here as the workspace home.
+live, exercised by the cross-tenant-isolation and audit-tamper tests. The dashboard route ships as the
+workspace home with a defined placeholder/empty state — the fixed CE-sourced tiles (E1-S0) moved to M2
+(2026-07-02: they consume `CE-METRICS-1`, a CE M2 contract; keeping them at M1 contradicted "no upstream
+engine dependency").
 
 **Epics in M1:**
 
 | Epic | Description | Stories | Priority |
 |------|-------------|---------|----------|
 | **EPIC-000** | **Foundation & Boilerplate — FIRST; gates everything.** Monorepo, Terraform + S3 state, Next.js shell + design system + Storybook, CI/CD + quality gates, Cognito + Bedrock connectivity, test harness, OpenAPI + OTel, local docker-compose stack, Lighthouse-100 + WCAG-AA | 9 | Must Have |
-| EPIC-001 (E1-S0) | Fixed CE-sourced default dashboard tiles (no prompt bar; CE-METRICS-1 only) | 1 | Must Have |
 | EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 4-level tighter-wins) | 3 | Must Have |
 | EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have |
 | EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have |
@@ -1584,6 +1623,9 @@ live, exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-s
 > integrations; nothing in M1 depends on a live connector. EPIC-006 therefore delivers **in-app
 > notifications only at M1**; Slack delivery rides the connector timeline (v1.0).
 > EPIC-009 self-improvement stories (E9-S2..S4) are deferred to post-v1.
+> **EPIC-001 (incl. E1-S0 fixed tiles) is M2 in full** — E1-S0 consumes `CE-METRICS-1` (a CE M2
+> contract), so nothing dashboard-data-bearing ships at M1; the shell renders the dashboard route with
+> its defined empty state.
 
 **Entry criteria (Definition of Ready):**
 
@@ -1606,13 +1648,12 @@ live, exercised by the cross-tenant-isolation and audit-tamper tests. Fixed CE-s
   verification at a named row and SHALL log the delete attempt — audit tamper test (FR-036/FR-037, PRD §2.6)
 - [ ] WHEN AI-generation spend reaches 100% of the effective cascade-resolved cap THE SYSTEM SHALL reject
   the request before any AI API call with the readable cap message — budget-enforcement test (FR-035)
-- [ ] WHEN the fixed CE-sourced dashboard tiles load at M1 THE SYSTEM SHALL render them from `CE-METRICS-1`
-  with a data-source footer label; a `CE-METRICS-1` error SHALL render the defined unavailable state on
-  the affected tile, not a blank tile — fixed-dashboard test (FR-000)
+- [ ] WHEN the M1 dashboard route loads THE SYSTEM SHALL render the defined placeholder/empty state
+  without issuing any CE contract call — dashboard-shell test (E1-S0 moved to M2)
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
 - [ ] **Measurable artefact:** tenant-isolated SPA shell with the five M1-live platform contracts
-  (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 / PLAT-IDENTITY-1 / PLAT-SETTINGS-1 / PLAT-BILLING-1`) and the fixed
-  CE-sourced dashboard tiles, deployed to dev-AWS, passing the smoke suite (`PLAT-CONNECTOR-1` lands v1.0)
+  (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 / PLAT-IDENTITY-1 / PLAT-SETTINGS-1 / PLAT-BILLING-1`) and the
+  placeholder dashboard home, deployed to dev-AWS, passing the smoke suite (`PLAT-CONNECTOR-1` lands v1.0)
 - [ ] **Human sign-off recorded** (always the final exit criterion)
 
 **HITL gates:**
@@ -1650,13 +1691,13 @@ model completeness and what Weave can generate for each role.
 
 | Epic | Description | Stories | Priority |
 |------|-------------|---------|----------|
-| EPIC-001 (E1-S1..S7) | Generative Dashboard — prompt, refine, pin, publish, starters (needs CE GA) | 7 | Must Have |
+| EPIC-001 (E1-S0..S7) | Dashboard — fixed CE-sourced default tiles (E1-S0, moved from M1 2026-07-02) + Generative surface: prompt, refine, pin, publish, starters (needs CE GA) | 8 | Must Have |
 | EPIC-002 (CE-sourced) | Widget Library — CE-sourced stories (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) | 9 of 15 | Must Have / Should Have |
 | EPIC-010 | "What can Weave do for you?" role-home (legibility, CE-sourced) | 3 | Must Have |
 
 **Entry criteria:**
 
-- [ ] M1 gate passed (shell + the five M1-live platform contracts + fixed dashboard tiles; connectors are v1.0)
+- [ ] M1 gate passed (shell + the five M1-live platform contracts + placeholder dashboard home; connectors are v1.0)
 - [ ] **CE is GA** and `CE-METRICS-1`/`CE-READ-1`/`CE-DIFF-1`/`CE-VERSION-1`/`CE-EVENT-1` published + pinned
 - [ ] PRD §Epics 1–2, EPIC-010 approved; M2 tech spec approved (streaming RSC pattern OQ-02, widget
   caching OQ-03, widget-state store OQ-10 resolved)
@@ -1664,6 +1705,9 @@ model completeness and what Weave can generate for each role.
 
 **Exit criteria (EARS, measurable, human-signed):**
 
+- [ ] WHEN the fixed CE-sourced dashboard tiles load THE SYSTEM SHALL render them from `CE-METRICS-1`
+  with a data-source footer label; IF `CE-METRICS-1` errors THEN THE SYSTEM SHALL render the defined
+  unavailable state on the affected tile, not a blank tile — fixed-dashboard test (FR-000, moved from M1)
 - [ ] WHEN a user submits "show me active compliance contraventions by domain" THE SYSTEM SHALL stream a
   bar chart from `CE-METRICS-1` within the default target (streaming header ≤ 1 s, tunable) with a
   data-source footer label — generative-widget E2E (FR-002/FR-014)

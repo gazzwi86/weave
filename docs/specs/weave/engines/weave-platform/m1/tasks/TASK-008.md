@@ -150,6 +150,7 @@ def set_cap(tenant_id: str, scope_iri: str, key: str, value_usd: float, actor_ir
 | Diagram | Notes |
 |---------|-------|
 | Pre-call gate flow | Inline Mermaid below |
+| Billing service + Model Router boundary | [`tech-spec/architecture.md`](../../tech-spec/architecture.md) — C4 L2/L3 (`billing_svc`, D4 blast-radius decision) + Budget invariant |
 
 ```mermaid
 sequenceDiagram
