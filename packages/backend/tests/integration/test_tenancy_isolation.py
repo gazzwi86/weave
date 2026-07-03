@@ -341,3 +341,57 @@ async def test_sparql_curie_graph_clause_cannot_cross_scope(platform_stack: Path
     finally:
         await clear_graph(workspace_a.named_graph_iri)
         await clear_graph(workspace_b.named_graph_iri)
+
+
+async def test_invite_member_route_rejects_foreign_workspace(client: AsyncClient) -> None:
+    """PR #11 finding (2, IDOR): `POST /workspaces/{id}/members` never
+    checked that `workspace_id` actually belongs to the caller's tenant --
+    the workspaces FK is cross-tenant and RLS only constrains the tenant_id
+    *column being written*, so tenant A could invite into tenant B's real
+    workspace. Must 404, not silently create a foreign-tenant membership row.
+    """
+    tenant_a = _unique_tenant("tenant-idor-a")
+    tenant_b = _unique_tenant("tenant-idor-b")
+    async with tenant_connection(tenant_b) as conn:
+        workspace_b = await create_workspace(
+            conn, tenant_id=tenant_b, slug="ws", display_name="B"
+        )
+
+    tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.post(
+        f"/api/workspaces/{workspace_b.id}/members",
+        json={"email": "victim@tenant-b.example", "role": "viewer"},
+        headers=headers,
+    )
+
+    assert response.status_code == 404
+
+    async with tenant_connection(tenant_b) as conn:
+        rows = await conn.fetch(
+            "SELECT 1 FROM workspace_members WHERE workspace_id = $1", workspace_b.id
+        )
+    assert rows == [], "no membership row must be created against a foreign workspace"
+
+
+async def test_revoke_member_route_rejects_foreign_workspace(client: AsyncClient) -> None:
+    """PR #11 finding (2, IDOR): same gap on revoke -- must 404 on a
+    foreign workspace_id rather than silently succeeding (204) with no-op.
+    """
+    tenant_a = _unique_tenant("tenant-idor-revoke-a")
+    tenant_b = _unique_tenant("tenant-idor-revoke-b")
+    async with tenant_connection(tenant_b) as conn:
+        workspace_b = await create_workspace(
+            conn, tenant_id=tenant_b, slug="ws", display_name="B"
+        )
+
+    tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.delete(
+        f"/api/workspaces/{workspace_b.id}/members/some-user-sub",
+        headers=headers,
+    )
+
+    assert response.status_code == 404
