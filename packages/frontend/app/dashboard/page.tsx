@@ -1,4 +1,4 @@
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
 import { auth } from "@/auth";
 
@@ -30,8 +30,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-[var(--space-4)]">
+      {/* FAIL (ui_verify step B, axe page-has-heading-one): CardTitle renders
+       * an h3, so the page had no h1 at all. This is the page's real title. */}
+      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        Weave Dashboard
+      </h1>
       <Card>
-        <CardTitle>Weave Dashboard</CardTitle>
         <CardContent>
           {principal ? (
             <p data-testid="principal-iri">{principal.principal_iri}</p>
