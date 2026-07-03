@@ -71,6 +71,11 @@ async def invite_member_route(
     gateway: Annotated[InviteGateway, Depends(get_invite_gateway)],
 ) -> MemberResponse:
     async with tenant_connection(principal.tenant_id) as conn:
+        workspace = await get_workspace(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        )
+        if workspace is None:
+            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
         try:
             member = await invite_member(
                 conn,
@@ -104,6 +109,11 @@ async def revoke_member_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> Response:
     async with tenant_connection(principal.tenant_id) as conn:
+        workspace = await get_workspace(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        )
+        if workspace is None:
+            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
         removed = await revoke_member(
             conn, tenant_id=principal.tenant_id, workspace_id=workspace_id, user_sub=user_sub
         )

@@ -13,6 +13,13 @@ class MemberAlreadyActive(Exception):
     """Raised when inviting an email that already has an active membership."""
 
 
+class MemberNotFound(Exception):
+    """Raised when an activate/lookup targets a workspace_id+email pair
+    with no matching invite row (PR #11 finding 6: `_to_member(None)` on a
+    missing `RETURNING` row used to crash with an opaque AttributeError).
+    """
+
+
 class Member(BaseModel):
     id: str
     workspace_id: str
@@ -37,7 +44,9 @@ async def invite_member(
     conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, email: str, role: str
 ) -> Member:
     existing = await conn.fetchrow(
-        "SELECT status FROM workspace_members WHERE workspace_id = $1 AND email = $2",
+        "SELECT status FROM workspace_members WHERE tenant_id = $1 AND workspace_id = $2"
+        " AND email = $3",
+        tenant_id,
         workspace_id,
         email,
     )
@@ -48,7 +57,7 @@ async def invite_member(
         """
         INSERT INTO workspace_members (tenant_id, workspace_id, email, role)
         VALUES ($1, $2, $3, $4)
-        ON CONFLICT (workspace_id, email)
+        ON CONFLICT (tenant_id, workspace_id, email)
         DO UPDATE SET role = EXCLUDED.role
         RETURNING id, workspace_id, email, role, status, user_sub
         """,
@@ -79,6 +88,8 @@ async def activate_member(
         email,
         user_sub,
     )
+    if row is None:
+        raise MemberNotFound(f"no invite for {email} in workspace {workspace_id}")
     return _to_member(row)
 
 

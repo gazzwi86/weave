@@ -39,7 +39,15 @@ CREATE TABLE IF NOT EXISTS workspace_members (
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active')),
     invited_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     activated_at TIMESTAMPTZ,
-    UNIQUE (workspace_id, email)
+    -- PR #11 finding 2: tenant-scoped, not just (workspace_id, email) -- a
+    -- global unique index let a second tenant's INSERT ON CONFLICT
+    -- silently overwrite another tenant's real invite for the same
+    -- workspace_id+email. The router-level ownership check (routers/
+    -- tenancy.py) is the primary fix; this is belt-and-braces at the
+    -- schema level. No deployed environments yet, so amending 0001
+    -- directly is acceptable rather than adding a migration to fix a
+    -- migration.
+    UNIQUE (tenant_id, workspace_id, email)
 );
 ALTER TABLE workspace_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspace_members FORCE ROW LEVEL SECURITY;
