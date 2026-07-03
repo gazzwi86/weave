@@ -91,3 +91,22 @@ async def test_verify_access_token_propagates_ttl_exceeded_distinctly() -> None:
 
     with pytest.raises(TokenTtlExceeded):
         await verify_access_token(token, _client())
+
+
+async def test_replayed_agent_token_past_its_real_expiry_is_rejected() -> None:
+    """QA edge case (AC-2/AC-5): an agent token minted within its 60s ceiling
+    (so it never trips `TokenTtlExceeded`) but *replayed* after wall-clock
+    time has actually passed its `exp` must still be rejected -- via PyJWT's
+    own expiry check, before `enforce_token_ttl_ceiling` ever runs. Confirms
+    the ceiling check is a floor on top of, not a substitute for, real expiry
+    enforcement.
+    """
+    now = int(time.time())
+    stale_claims = _sign(principal_type="agent", lifetime=60)
+    stale_claims["iat"] = now - 120
+    stale_claims["exp"] = now - 60  # expired 60s ago, well within the 60s ceiling
+    token = jwt.encode(stale_claims, PRIVATE_KEY, algorithm="RS256", headers={"kid": KEY_ID})
+
+    with pytest.raises(TokenVerificationError) as exc_info:
+        await verify_access_token(token, _client())
+    assert not isinstance(exc_info.value, TokenTtlExceeded)
