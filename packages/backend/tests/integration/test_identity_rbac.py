@@ -280,24 +280,12 @@ async def test_get_principal_route_never_leaks_cross_tenant(client: AsyncClient)
     assert cross_tenant.json()["detail"] == {"error": "principal_not_found"}
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AC-3 gap (deviation #4 / cross-task ledger 'PLAT-EPIC-003 PR review' "
-        "finding, assigned to this task): settings and workspace-switch routes "
-        "check only tenant identity via get_current_principal, not workspace "
-        "membership or role. A tenant member with zero workspace_members row "
-        "for this workspace can still read/write its settings and switch into "
-        "it. Remove this xfail once settings/switch are gated on "
-        "require_workspace_role (or an equivalent membership check)."
-    ),
-)
 async def test_non_member_can_reach_workspace_settings_and_switch(client: AsyncClient) -> None:
-    """QA edge case documenting the deviation-4 gap: a valid principal of the
+    """QA FAIL remediation (AC-3, was deviation #4): a valid principal of the
     *same tenant* who has never been invited to this workspace (no
-    workspace_members row at all, not even "read") should be forbidden from
+    workspace_members row at all, not even "read") must be forbidden from
     reading/writing its settings or switching into it -- AC-3 says "every
-    endpoint checks role". Currently both succeed with 200.
+    endpoint checks role", with no carve-out.
     """
     tenant_id = _unique_tenant("tenant-outsider")
     workspace_id, _admin_headers = await _create_workspace_via_route(
@@ -317,3 +305,31 @@ async def test_non_member_can_reach_workspace_settings_and_switch(client: AsyncC
         headers=outsider_headers,
     )
     assert settings_response.status_code == 403, settings_response.text
+
+
+async def test_member_with_required_role_can_reach_workspace_settings_and_switch(
+    client: AsyncClient,
+) -> None:
+    """Positive counterpart to the outsider test above: an actual member
+    (the workspace creator, auto-admin per PLAT-TASK-004's bootstrap) must
+    still succeed once role gating is added -- proves the fix isn't a
+    blanket 403 for the whole tenant.
+    """
+    tenant_id = _unique_tenant("tenant-member")
+    workspace_id, admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin", slug="member-ws"
+    )
+
+    switch_response = await client.post(
+        f"/api/workspaces/{workspace_id}/switch", headers=admin_headers
+    )
+    assert switch_response.status_code == 200, switch_response.text
+
+    settings_response = await client.get(
+        "/api/settings/some-key",
+        params={"context": f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"},
+        headers=admin_headers,
+    )
+    # The role gate passed and the request reached the resolver -- the key
+    # simply doesn't exist yet, so 404 (not 403) is the proof of success.
+    assert settings_response.status_code == 404, settings_response.text

@@ -33,6 +33,18 @@ def scope_of(iri: str) -> str:
     return _KIND_TOKEN_TO_SCOPE[parts[-2]]
 
 
+def workspace_of(iri: str) -> str | None:
+    """Extract the workspace-id segment from a workspace- or project-scoped
+    IRI. Returns `None` for company/domain scope, which has no workspace
+    segment at all -- there's no membership row to check there, so those
+    scopes stay tenant-match-only (see module docstring on `domain`).
+    """
+    if scope_of(iri) not in ("workspace", "project"):
+        return None
+    parts = iri.split(":")
+    return parts[parts.index("ws") + 1]
+
+
 def tenant_of(iri: str) -> str:
     """Extract the tenant-id segment from a scope IRI.
 
