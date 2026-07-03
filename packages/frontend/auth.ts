@@ -9,7 +9,13 @@ import { refreshAccessToken, shouldRefresh, type WeaveJWT } from "@/lib/auth/ref
 // an env-var change only, never a code change.
 const OIDC_ISSUER_URL = process.env.OIDC_ISSUER_URL ?? "http://localhost:9001";
 const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID ?? "weave-dev";
-const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET ?? "dev-secret";
+function requireClientSecret(): string {
+  if (process.env.OIDC_CLIENT_SECRET) return process.env.OIDC_CLIENT_SECRET;
+  if (process.env.NODE_ENV !== "production") return "dev-secret";
+  throw new Error("OIDC_CLIENT_SECRET must be set in production");
+}
+
+const OIDC_CLIENT_SECRET = requireClientSecret();
 
 function tokenEndpointConfig() {
   return {
