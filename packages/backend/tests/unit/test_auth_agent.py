@@ -58,6 +58,9 @@ def test_sign_agent_token_is_verifiable_and_capped_at_60s() -> None:
 
     header = jwt.get_unverified_header(token)
     assert header["kid"] == JWKS["keys"][0]["kid"]
+    # nosemgrep: python.jwt.security.unverified-jwt-decode.unverified-jwt-decode
+    # Test-only: reads claims off a token the test itself just minted to assert its
+    # shape (type, TTL). Signature integrity is covered by verify.py's own tests.
     claims = jwt.decode(token, options={"verify_signature": False})
     assert claims["principal_type"] == "agent"
     assert claims["exp"] - claims["iat"] == AGENT_TOKEN_TTL_SECONDS
