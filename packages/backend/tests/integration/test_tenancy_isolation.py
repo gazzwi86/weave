@@ -174,3 +174,99 @@ async def test_member_revocation_invalidates_session(
     )
     assert revoked_response.status_code == 401
     assert revoked_response.json()["detail"]["error"] == "session_revoked"
+
+
+async def test_member_revoke_route_removes_row_and_is_idempotent(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case (AC-3): drives the *actual* `DELETE
+    /api/workspaces/{wid}/members/{uid}` HTTP route -- not just the
+    session-version-bump half already covered by
+    `test_member_revocation_invalidates_session` above -- and asserts the
+    role binding is really gone from the table. Also checks the brief's
+    idempotent-delete shape: revoking an already-gone member stays 204,
+    never 404/500.
+    """
+    tenant_id = _unique_tenant("tenant-revoke-http")
+    admin_sub = "u-admin"
+    member_sub = "u-member"
+
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="ws", display_name="Revoke-via-HTTP workspace"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email="member@acme-corp.example",
+            role="viewer",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email="member@acme-corp.example", user_sub=member_sub
+        )
+
+    admin_tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {admin_tokens.access_token}"}
+
+    first_delete = await client.delete(
+        f"/api/workspaces/{workspace.id}/members/{member_sub}", headers=headers
+    )
+    assert first_delete.status_code == 204
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_sub = $2",
+            workspace.id,
+            member_sub,
+        )
+    assert rows == [], "role binding must actually be removed from the table"
+
+    # Idempotency: revoking an already-revoked (non-existent) member is a
+    # no-op, still 204 -- never a 404 or 500 for a repeat delete.
+    second_delete = await client.delete(
+        f"/api/workspaces/{workspace.id}/members/{member_sub}", headers=headers
+    )
+    assert second_delete.status_code == 204
+
+
+async def test_settings_route_cache_invalidated_on_write(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA validation (AC-4): `settings/cache.py` had zero test coverage
+    anywhere in the suite before this -- the 30s-TTL Redis cache and its
+    invalidate-on-write path were unverified. Drives the actual `GET`/`PUT
+    /api/settings/{key}` HTTP routes: a `GET` populates the cache, a `PUT`
+    changing the value must invalidate it so the *next* `GET` sees the new
+    value rather than a stale cached one.
+    """
+    tenant_id = _unique_tenant("tenant-settings-cache")
+    company_iri = f"urn:weave:tenant:{tenant_id}:company"
+    user_sub = "u-settings-admin"
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    await client.put(
+        "/api/settings/theme",
+        json={"scope_iri": company_iri, "value": "dark"},
+        headers=headers,
+    )
+
+    first_get = await client.get(
+        "/api/settings/theme", params={"context": company_iri}, headers=headers
+    )
+    assert first_get.status_code == 200
+    assert first_get.json()["value"] == "dark"  # now cached
+
+    put_response = await client.put(
+        "/api/settings/theme",
+        json={"scope_iri": company_iri, "value": "light"},
+        headers=headers,
+    )
+    assert put_response.status_code == 200
+
+    second_get = await client.get(
+        "/api/settings/theme", params={"context": company_iri}, headers=headers
+    )
+    assert second_get.status_code == 200
+    assert second_get.json()["value"] == "light", "stale cached value served after invalidation"

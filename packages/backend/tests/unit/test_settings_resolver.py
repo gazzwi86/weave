@@ -115,6 +115,27 @@ async def test_settings_looser_override_rejected() -> None:
     assert exc_info.value.tighter_scope == "workspace"
 
 
+async def test_settings_cascade_from_project_context_skips_to_company() -> None:
+    """QA edge case (AC-4/ADR-004): resolving from a *project*-scoped
+    context with no workspace- or domain-level value set must still fall
+    all the way through to company, skipping the unmodelled `domain`
+    level silently (per ADR-004) rather than raising or returning the
+    wrong scope.
+    """
+    project_iri = f"{_WORKSPACE_IRI}:project:11111111-1111-1111-1111-111111111112"
+    conn = _FakeConnection({(_COMPANY_IRI, "theme"): {"scope": "company", "value": '"dark"'}})
+
+    resolved = await resolve_setting(
+        conn,
+        tenant_id="acme-corp",
+        key="theme",
+        context_iri=project_iri,
+    )
+
+    assert resolved.value == "dark"
+    assert resolved.resolved_from_iri == _COMPANY_IRI
+
+
 async def test_settings_company_write_allowed_when_no_tighter_override_exists() -> None:
     conn = _FakeConnection()
 
