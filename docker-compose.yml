@@ -1,0 +1,76 @@
+# Local-first dev stack (AC-1b). `make up` / `make down`. No real AWS: every
+# AWS-shaped call goes to localstack. Never pushed anywhere, never applies
+# Terraform against this — it's a pure local sandbox.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: weave
+      POSTGRES_DB: weave
+      # ponytail: local-only ephemeral container, loopback-only port, so
+      # trust auth (no password) is fine here — real envs use Aurora +
+      # Secrets Manager (infra/terraform/modules/secrets), never this image.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./seed/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weave -d weave"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: s3,sqs,sns
+    ports:
+      - "4566:4566"
+    # localstack ships its own HEALTHCHECK; no override needed.
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # No Docker-native HEALTHCHECK is possible for oxigraph: its official image
+  # is a single static binary with no shell/curl (verified via `docker
+  # inspect` + `docker run --entrypoint sh`), so readiness+seeding is polled
+  # from the test/host side instead (see test_local_stack.py).
+  oxigraph:
+    image: ghcr.io/oxigraph/oxigraph:latest
+    ports:
+      - "7878:7878"
+
+  # One-shot loader: waits for oxigraph's HTTP API, then PUTs the seed
+  # triples into the default graph via the SPARQL 1.1 Graph Store Protocol.
+  # Exits 0 once done; not part of the long-running service set.
+  oxigraph-seed:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      - oxigraph
+    volumes:
+      - ./seed/oxigraph:/seed:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        until curl -sf http://oxigraph:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D;
+        do sleep 1; done;
+        curl -sf -X PUT -H "Content-Type: text/turtle" --data-binary @/seed/seed.ttl
+        http://oxigraph:7878/store?default

@@ -1,0 +1,4 @@
+@prefix ex: <http://example.org/weave/> .
+
+ex:localStack a ex:SeedRecord ;
+    ex:note "weave local-first stack seed" .
