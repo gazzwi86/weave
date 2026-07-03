@@ -15,6 +15,7 @@ from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.routers import auth as auth_router
 
 pytestmark = pytest.mark.integration
 
@@ -55,3 +56,29 @@ async def test_refresh_rejects_empty_body(client: AsyncClient) -> None:
     response = await client.post("/api/auth/refresh", json={"refresh_token": ""})
 
     assert response.status_code == 422
+
+
+async def test_refresh_rate_limit_returns_429_after_default_limit(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Edge case (QA): Law 18's rate limiter is wired through a FastAPI
+    dependency on this route -- test_rate_limit.py only proves the pure
+    sliding-window function works in isolation. This proves the actual HTTP
+    endpoint returns 429 once the shared per-client bucket is exhausted.
+    Resets the module-level store first so this test doesn't inherit (or
+    leave behind) request counts shared with the other tests in this file.
+    """
+    monkeypatch.setattr(auth_router, "_refresh_rate_limit_store", {})
+
+    for _ in range(5):
+        response = await client.post(
+            "/api/auth/refresh", json={"refresh_token": "not-a-real-token"}
+        )
+        assert response.status_code == 401  # invalid token, but request was let through
+
+    limited_response = await client.post(
+        "/api/auth/refresh", json={"refresh_token": "not-a-real-token"}
+    )
+
+    assert limited_response.status_code == 429
+    assert limited_response.json()["detail"]["error"] == "rate_limited"
