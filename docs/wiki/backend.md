@@ -15,3 +15,7 @@ _(empty — run /anatomy)_
 <!-- stale: packages/backend/src/weave_api/__init__.py --> <!-- at: 2026-07-02T23:10:06.784811+00:00 -->
 
 <!-- stale: packages/backend/tests/unit/test_health.py --> <!-- at: 2026-07-02T23:10:15.619083+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/__init__.py --> <!-- at: 2026-07-03T04:22:40.595287+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/health.py --> <!-- at: 2026-07-03T04:22:45.686795+00:00 -->
