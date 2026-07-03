@@ -25,7 +25,12 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
 
-SERVICES = ("oxigraph", "postgres", "localstack", "redis", "ollama")
+# oxigraph is checked separately: its official image is a single static
+# binary with no shell/curl, so it can't run a Docker-native HEALTHCHECK
+# (verified via `docker inspect` + `docker run --entrypoint sh`). Readiness
+# *and* seeding are confirmed together via _oxigraph_seeded() below — the
+# ASK query only returns true once the oxigraph-seed loader has run.
+SERVICES = ("postgres", "localstack", "redis", "ollama")
 BOOT_TIMEOUT_SECONDS = 240
 POLL_INTERVAL_SECONDS = 5
 
@@ -53,6 +58,24 @@ def _all_healthy(repo_root: Path) -> bool:
     return all(statuses.get(svc) == "healthy" for svc in SERVICES)
 
 
+def _oxigraph_seeded() -> bool:
+    result = subprocess.run(
+        [
+            "curl",
+            "-sf",
+            "-H",
+            "Accept: application/sparql-results+json",
+            "http://localhost:7878/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if result.returncode != 0:
+        return False
+    return bool(json.loads(result.stdout)["boolean"])
+
+
 @pytest.fixture
 def running_stack(repo_root: Path) -> Iterator[Path]:
     up = _compose(repo_root, "up", "-d")
@@ -66,11 +89,14 @@ def running_stack(repo_root: Path) -> Iterator[Path]:
 def test_local_stack_boots(running_stack: Path) -> None:
     repo_root = running_stack
 
+    def _ready() -> bool:
+        return _all_healthy(repo_root) and _oxigraph_seeded()
+
     deadline = time.monotonic() + BOOT_TIMEOUT_SECONDS
-    while time.monotonic() < deadline and not _all_healthy(repo_root):
+    while time.monotonic() < deadline and not _ready():
         time.sleep(POLL_INTERVAL_SECONDS)
 
-    assert _all_healthy(repo_root), "not all 5 local-first services became healthy in time"
+    assert _ready(), "not all 5 local-first services became healthy (and seeded) in time"
 
     # Seed data present: postgres seed table populated by docker-entrypoint-initdb.d.
     pg_check = subprocess.run(
@@ -96,21 +122,10 @@ def test_local_stack_boots(running_stack: Path) -> None:
     assert pg_check.returncode == 0, pg_check.stderr
     assert int(pg_check.stdout.strip()) > 0, "expected seeded rows in postgres seed_check table"
 
-    # Seed data present: oxigraph has at least one triple loaded.
-    oxigraph_check = subprocess.run(
-        [
-            "curl",
-            "-sf",
-            "-H",
-            "Accept: application/sparql-results+json",
-            "http://localhost:7878/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
-    assert oxigraph_check.returncode == 0, oxigraph_check.stderr
-    assert json.loads(oxigraph_check.stdout)["boolean"] is True
+    # Seed data present: oxigraph has at least one triple loaded (already
+    # confirmed by the wait loop above via _oxigraph_seeded(), re-asserted
+    # here so a failure reads as an explicit test assertion, not a timeout).
+    assert _oxigraph_seeded(), "expected at least one triple loaded in oxigraph"
 
     # Zero live AWS: localstack is the only thing answering AWS-shaped endpoints.
     localstack_check = subprocess.run(
