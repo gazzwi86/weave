@@ -7,6 +7,23 @@ import { useEffect, useState } from "react";
 import { SearchResultItem } from "./search-result-item";
 import { useEntitySearch } from "./use-entity-search";
 
+/** PR #13 finding (4): a search failure must read as "Search unavailable",
+ * never the same "No results." shown for a real empty search. */
+function SearchListEmptyState({ error }: { error: boolean }) {
+  if (error) {
+    return (
+      <div className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
+        Search unavailable.
+      </div>
+    );
+  }
+  return (
+    <Command.Empty className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+      No results.
+    </Command.Empty>
+  );
+}
+
 /** AC-2/3/4: Cmd+K (or Ctrl+K) opens the palette; typing 2+ chars queries
  * the tenant-scoped `/api/search` proxy; selecting a result navigates to
  * the (not-yet-built) resource detail route via client-side routing.
@@ -14,7 +31,7 @@ import { useEntitySearch } from "./use-entity-search";
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const results = useEntitySearch(query);
+  const { results, error } = useEntitySearch(query);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,9 +66,7 @@ export function CommandPalette() {
         className="w-full border-none bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)] outline-none"
       />
       <Command.List>
-        <Command.Empty className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
-          No results.
-        </Command.Empty>
+        <SearchListEmptyState error={error} />
         {results.map((result) => (
           <SearchResultItem key={result.iri} result={result} onSelect={handleSelect} />
         ))}
