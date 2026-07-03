@@ -40,16 +40,23 @@ class ResolvedSetting:
 async def resolve_setting(
     conn: asyncpg.Connection, *, tenant_id: str, key: str, context_iri: str
 ) -> ResolvedSetting:
-    for iri in ancestor_chain(context_iri):
-        row = await conn.fetchrow(
-            """
-            SELECT scope, value FROM settings
-            WHERE tenant_id = $1 AND scope_iri = $2 AND key = $3
-            """,
-            tenant_id,
-            iri,
-            key,
-        )
+    # PR #11 finding 8: one query for the whole chain instead of a
+    # sequential SELECT per ancestor scope. `ancestor_chain` is already
+    # tightest-first, so the first hit found while walking it in Python is
+    # the tightest-wins result -- no need to re-rank by SCOPE_RANK here.
+    chain = ancestor_chain(context_iri)
+    rows = await conn.fetch(
+        """
+        SELECT scope_iri, scope, value FROM settings
+        WHERE tenant_id = $1 AND scope_iri = ANY($2) AND key = $3
+        """,
+        tenant_id,
+        chain,
+        key,
+    )
+    by_iri = {row["scope_iri"]: row for row in rows}
+    for iri in chain:
+        row = by_iri.get(iri)
         if row is not None:
             return ResolvedSetting(
                 key=key,
