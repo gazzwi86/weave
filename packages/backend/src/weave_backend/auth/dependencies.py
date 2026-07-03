@@ -22,6 +22,9 @@ class Principal(BaseModel):
     sub: str
     tenant_id: str
     principal_iri: str
+    #: Session version embedded in the token at issue time (PLAT-TASK-003
+    #: AC-3). Defaults to 0 for tokens issued before this claim existed.
+    session_version: int = 0
 
 
 def _bearer_token(request: Request) -> str:
@@ -49,5 +52,8 @@ async def get_current_principal(
     # values must be set on the span here, while it's still guaranteed open.
     add_tenant_attributes(trace.get_current_span())
     return Principal(
-        sub=claims["sub"], tenant_id=claims["tenant_id"], principal_iri=claims["principal_iri"]
+        sub=claims["sub"],
+        tenant_id=claims["tenant_id"],
+        principal_iri=claims["principal_iri"],
+        session_version=int(claims.get("session_version", "0")),
     )

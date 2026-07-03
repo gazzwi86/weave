@@ -33,7 +33,7 @@ async def client() -> AsyncIterator[AsyncClient]:
 
 
 async def test_expired_jwt_triggers_refresh(client: AsyncClient) -> None:
-    tokens = issue_token_pair(sub="dev-user-1", tenant_id="acme-corp")
+    tokens = await issue_token_pair(sub="dev-user-1", tenant_id="acme-corp")
 
     response = await client.post(
         "/api/auth/refresh", json={"refresh_token": tokens.refresh_token}

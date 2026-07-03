@@ -44,7 +44,7 @@ async def client(exporter: InMemorySpanExporter) -> AsyncIterator[AsyncClient]:
 async def test_otel_span_has_required_attrs(
     client: AsyncClient, exporter: InMemorySpanExporter
 ) -> None:
-    tokens = issue_token_pair(sub="dev-user-1", tenant_id="acme-corp")
+    tokens = await issue_token_pair(sub="dev-user-1", tenant_id="acme-corp")
     exporter.clear()
 
     response = await client.get(

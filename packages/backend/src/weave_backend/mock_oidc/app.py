@@ -26,6 +26,9 @@ from weave_backend.mock_oidc.tokens import (
 app = FastAPI(title="Weave Mock OIDC Provider")
 
 _DEFAULT_EMAIL = "dev-user-1@weave.local"
+# PLAT-TASK-003: extended from a single hardcoded tenant so cross-tenant
+# tests can sign in as a second tenant's user via the `tenant_id` form field.
+_DEFAULT_TENANT_ID = "acme-corp"
 
 
 @app.get("/.well-known/openid-configuration")
@@ -69,6 +72,8 @@ async def authorize(redirect_uri: str, state: str | None = None) -> str:
     <input type="hidden" name="state" value="{safe_state}">
     <label for="email">Email</label>
     <input id="email" name="email" value="{_DEFAULT_EMAIL}">
+    <label for="tenant_id">Tenant</label>
+    <input id="tenant_id" name="tenant_id" value="{_DEFAULT_TENANT_ID}">
     <button type="submit">Sign in</button>
   </form>
 </body>
@@ -80,9 +85,10 @@ async def login(
     redirect_uri: str = Form(...),
     state: str = Form(""),
     email: str = Form(_DEFAULT_EMAIL),
+    tenant_id: str = Form(_DEFAULT_TENANT_ID),
 ) -> RedirectResponse:
     sub = email.split("@")[0] or "dev-user"
-    code = start_authorization_code(sub=sub, tenant_id="acme-corp")
+    code = start_authorization_code(sub=sub, tenant_id=tenant_id)
     query = f"code={code}" + (f"&state={state}" if state else "")
     return RedirectResponse(f"{redirect_uri}?{query}", status_code=303)
 
@@ -104,9 +110,9 @@ async def token(
     refresh_token: str | None = Form(None),
 ) -> dict[str, object]:
     if grant_type == "authorization_code":
-        pair = exchange_authorization_code(code) if code else None
+        pair = await exchange_authorization_code(code) if code else None
     elif grant_type == "refresh_token":
-        pair = exchange_refresh_token(refresh_token) if refresh_token else None
+        pair = await exchange_refresh_token(refresh_token) if refresh_token else None
     else:
         raise HTTPException(status_code=400, detail={"error": "unsupported_grant_type"})
 
