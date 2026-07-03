@@ -333,3 +333,158 @@ async def test_member_with_required_role_can_reach_workspace_settings_and_switch
     # The role gate passed and the request reached the resolver -- the key
     # simply doesn't exist yet, so 404 (not 403) is the proof of success.
     assert settings_response.status_code == 404, settings_response.text
+
+
+async def test_non_member_forbidden_on_settings_write_and_sparql(client: AsyncClient) -> None:
+    """QA re-validation of 5bf7d04 (AC-3, item 1): the earlier outsider test
+    only proved settings-GET and switch 403 for a zero-membership principal.
+    `PUT /api/settings/{key}` (author ceiling) and `POST /api/sparql` are
+    the other two named routes in AC-3's "every endpoint checks role" list
+    and had zero negative coverage until now.
+    """
+    tenant_id = _unique_tenant("tenant-outsider2")
+    workspace_id, _admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin", slug="outsider2-ws"
+    )
+    outsider_tokens = await issue_token_pair(sub="u-outsider2", tenant_id=tenant_id)
+    outsider_headers = {"Authorization": f"Bearer {outsider_tokens.access_token}"}
+
+    settings_put = await client.put(
+        "/api/settings/some-key",
+        json={
+            "scope_iri": f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}",
+            "value": "x",
+        },
+        headers=outsider_headers,
+    )
+    assert settings_put.status_code == 403, settings_put.text
+
+    sparql_response = await client.post(
+        "/api/sparql",
+        json={
+            "query": "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }",
+            "workspace_id": workspace_id,
+        },
+        headers=outsider_headers,
+    )
+    assert sparql_response.status_code == 403, sparql_response.text
+
+
+async def test_read_role_member_cannot_write_settings_author_ceiling(
+    client: AsyncClient,
+) -> None:
+    """QA re-validation of 5bf7d04 (AC-3/ADR-007, item 4): ADR-007 sets the
+    settings-write ceiling at "author", not merely "member". A workspace
+    member holding only "read" must still 403 on the PUT route -- membership
+    alone isn't enough, the role rank must clear the ceiling too. An
+    "author" member, by contrast, must succeed (200).
+    """
+    tenant_id = _unique_tenant("tenant-ceiling")
+    workspace_id, _admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin", slug="ceiling-ws"
+    )
+    async with tenant_connection(tenant_id) as conn:
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            email="reader@example.invalid",
+            role="read",
+        )
+        await activate_member(
+            conn, workspace_id=workspace_id, email="reader@example.invalid", user_sub="u-reader"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            email="author3@example.invalid",
+            role="author",
+        )
+        await activate_member(
+            conn,
+            workspace_id=workspace_id,
+            email="author3@example.invalid",
+            user_sub="u-author3",
+        )
+    reader_tokens = await issue_token_pair(sub="u-reader", tenant_id=tenant_id)
+    author_tokens = await issue_token_pair(sub="u-author3", tenant_id=tenant_id)
+    scope_iri = f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"
+
+    reader_response = await client.put(
+        "/api/settings/some-key",
+        json={"scope_iri": scope_iri, "value": "x"},
+        headers={"Authorization": f"Bearer {reader_tokens.access_token}"},
+    )
+    assert reader_response.status_code == 403, reader_response.text
+
+    author_response = await client.put(
+        "/api/settings/some-key",
+        json={"scope_iri": scope_iri, "value": "x"},
+        headers={"Authorization": f"Bearer {author_tokens.access_token}"},
+    )
+    assert author_response.status_code == 200, author_response.text
+
+
+async def test_workspace_role_enforced_against_the_requested_workspace_not_another(
+    client: AsyncClient,
+) -> None:
+    """QA re-validation of 5bf7d04 (item 2): a member of workspace A, with a
+    real role there, must still 403 on switch/settings/sparql for workspace
+    B (same tenant, different workspace, no membership row) -- proves
+    `enforce_workspace_role` resolves membership against the *requested*
+    workspace_id, never the caller's other/active workspace.
+    """
+    tenant_id = _unique_tenant("tenant-cross-ws")
+    workspace_a, _admin_a_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-cross", slug="cross-ws-a"
+    )
+    workspace_b, _admin_b_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-cross-b", slug="cross-ws-b"
+    )
+    async with tenant_connection(tenant_id) as conn:
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace_a,
+            email="member-a@example.invalid",
+            role="admin",
+        )
+        await activate_member(
+            conn,
+            workspace_id=workspace_a,
+            email="member-a@example.invalid",
+            user_sub="u-member-a",
+        )
+    member_a_tokens = await issue_token_pair(sub="u-member-a", tenant_id=tenant_id)
+    member_a_headers = {"Authorization": f"Bearer {member_a_tokens.access_token}"}
+
+    switch_response = await client.post(
+        f"/api/workspaces/{workspace_b}/switch", headers=member_a_headers
+    )
+    assert switch_response.status_code == 403, switch_response.text
+
+    settings_response = await client.get(
+        "/api/settings/some-key",
+        params={"context": f"urn:weave:tenant:{tenant_id}:ws:{workspace_b}"},
+        headers=member_a_headers,
+    )
+    assert settings_response.status_code == 403, settings_response.text
+
+    sparql_response = await client.post(
+        "/api/sparql",
+        json={
+            "query": "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }",
+            "workspace_id": workspace_b,
+        },
+        headers=member_a_headers,
+    )
+    assert sparql_response.status_code == 403, sparql_response.text
+
+    # Sanity: the same member, same role, against their *own* workspace A,
+    # still succeeds -- proves the 403s above are workspace-specific, not a
+    # blanket break.
+    own_switch_response = await client.post(
+        f"/api/workspaces/{workspace_a}/switch", headers=member_a_headers
+    )
+    assert own_switch_response.status_code == 200, own_switch_response.text
