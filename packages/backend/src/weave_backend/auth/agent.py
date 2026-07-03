@@ -13,6 +13,7 @@ types, per this task's design decision.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import secrets
 import time
@@ -33,8 +34,7 @@ class StsValidationError(Exception):
     """Raised when `GetCallerIdentity` fails to resolve a caller ARN."""
 
 
-def get_caller_identity_arn(sts_token: str) -> str:
-    """Resolves the IAM role ARN behind an STS session token."""
+def _get_caller_identity_arn_sync(sts_token: str) -> str:
     endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", "http://localhost:4566")
     client = boto3.client(
         "sts",
@@ -49,6 +49,19 @@ def get_caller_identity_arn(sts_token: str) -> str:
     except (BotoCoreError, ClientError) as exc:
         raise StsValidationError(str(exc)) from exc
     return str(identity["Arn"])
+
+
+async def get_caller_identity_arn(sts_token: str) -> str:
+    """Resolves the IAM role ARN behind an STS session token. Runs the
+    synchronous boto3 call off the event loop via `asyncio.to_thread` --
+    agents remint ~every 60s, and a blocking STS round trip here would
+    stall every in-flight request process-wide (single-threaded asyncio
+    loop). A single cached module-level client (the httpx/asyncpg pattern)
+    isn't viable here: the session token being resolved IS the client's
+    credential, so each call still needs its own client bound to it -- only
+    the network call itself moves off-loop.
+    """
+    return await asyncio.to_thread(_get_caller_identity_arn_sync, sts_token)
 
 
 def sign_agent_token(*, sub: str, tenant_id: str, principal_iri: str) -> str:
