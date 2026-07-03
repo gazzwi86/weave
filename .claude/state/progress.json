@@ -11,7 +11,7 @@
     {
       "id": "PLAT-EPIC-000",
       "title": "Foundation & Boilerplate",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-003",
@@ -152,11 +152,12 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-003",
       "title": "Multi-tenant workspaces and 4-level settings cascade (PLAT-SETTINGS-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-003.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-003.md",
+      "retry_count": 1
     },
     {
       "id": "PLAT-TASK-004",
