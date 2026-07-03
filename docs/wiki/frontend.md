@@ -44,7 +44,7 @@ Module augmentation for session/JWT shapes (gotcha: augment `@auth/core/jwt`, th
 
 ## tests/e2e/auth.spec.ts
 
-Playwright: redirect → mock-OIDC login → return-to-dashboard round trip; query-string return_to behaviour.
+Playwright: redirect → mock-OIDC login → return-to-dashboard round trip; query-string return_to behaviour. `auth.ts` fails closed in production when OIDC_CLIENT_SECRET is unset.
 
 ## .storybook/
 
