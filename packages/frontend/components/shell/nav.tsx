@@ -21,6 +21,11 @@ export function Nav() {
           <Link
             key={item.href}
             href={item.href}
+            // FAIL-4 (ui_verify/Lighthouse): most areas have no route yet in
+            // M1 -- prefetching them fires RSC requests that 404 and log
+            // console errors, tanking best-practices. Re-enable per-item
+            // once each engine ships its route.
+            prefetch={false}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "text-[length:var(--text-label)] font-[var(--font-weight-medium)]",
