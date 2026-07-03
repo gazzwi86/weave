@@ -58,7 +58,7 @@ async def test_otel_span_has_required_attrs(
     attrs = spans[-1].attributes or {}
     assert attrs.get("tenant_id") == "acme-corp"
     assert attrs.get("engine") == "platform"
-    assert attrs.get("principal_iri") == "urn:weave:principal:dev-user-1"
+    assert attrs.get("principal_iri") == "urn:weave:principal:user:dev-user-1"
 
 
 async def test_health_request_still_gets_default_tenant_span(
