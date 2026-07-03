@@ -22,11 +22,15 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.9.4",
     "httpx>=0.28.1",
+    "mutmut>=3.6.0",
     "mypy>=2.1.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pyyaml>=6.0.3",
     "ruff>=0.15.20",
+    "types-pyyaml>=6.0.12.20260518",
 ]
 
 [tool.ruff]
@@ -59,7 +63,12 @@ max-statements = 50
 max-nested-blocks = 4
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+# S101 asserts are the point of a test. S603/S607: tests intentionally shell
+# out to known dev tools (terraform/docker/gitleaks/make) by name for
+# portability across machines/CI. S311: random test-fixture data generation,
+# not a cryptographic use. S105: false positive — "Secret"/"Match" below are
+# gitleaks JSON report field names, not credentials.
+"tests/**" = ["S101", "S603", "S607", "S311", "S105"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -73,5 +82,10 @@ no_implicit_optional = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers -m 'not integration and not e2e'"
 asyncio_mode = "auto"
+markers = [
+  "integration: needs terraform/docker/network; excluded from the default fast run",
+  "e2e: static or live end-to-end assertions; excluded from the default fast run",
+  "docker: boots the full docker-compose stack (slow, image pulls); local/nightly only",
+]

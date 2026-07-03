@@ -45,9 +45,26 @@ __pycache__/
 
 # Test / coverage
 coverage/
+.coverage
 .nyc_output/
 playwright-report/
 test-results/
+
+# Mutation testing (mutmut)
+mutants/
+.mutmut-cache
+
+# Terraform (state backend is gitignored — never commit real/local state;
+# .terraform.lock.hcl IS committed on purpose, it pins provider versions)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Session audit trail (full transcripts — may contain secrets/PII; local-only)
 .claude/logs/
