@@ -130,9 +130,10 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-000",
       "title": "Monorepo scaffold, IaC, CI/CD pipeline",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-001.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-001.md",
+      "retry_count": 0
     },
     {
       "id": "PLAT-TASK-002",
