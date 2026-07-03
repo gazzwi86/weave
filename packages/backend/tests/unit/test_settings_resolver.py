@@ -29,11 +29,17 @@ class _FakeConnection:
     def __init__(self, rows: dict[tuple[str, str], dict[str, Any]] | None = None) -> None:
         self.rows = rows or {}
 
+    async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
+        if "scope_iri = ANY($2)" in query:
+            _tenant_id, scope_iris, key = args
+            return [
+                {"scope_iri": iri, "scope": row["scope"], "value": row["value"]}
+                for iri in scope_iris
+                if (row := self.rows.get((iri, key))) is not None
+            ]
+        raise AssertionError(f"unexpected query: {query}")
+
     async def fetchrow(self, query: str, *args: Any) -> dict[str, Any] | None:
-        if "scope_iri = $2" in query:
-            _tenant_id, scope_iri, key = args
-            row = self.rows.get((scope_iri, key))
-            return {"scope": row["scope"], "value": row["value"]} if row else None
         if "scope_rank < $3" in query:
             _tenant_id, key, rank = args
             tighter = [r for (_iri, k), r in self.rows.items() if k == key and r["rank"] < rank]
