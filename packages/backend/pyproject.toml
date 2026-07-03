@@ -8,13 +8,23 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=0.116.0",
+    "boto3>=1.43.40",
     "fastapi>=0.139.0",
+    "httpx>=0.28.1",
+    "opentelemetry-api>=1.43.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.43.0",
+    "opentelemetry-instrumentation-fastapi>=0.64b0",
+    "opentelemetry-sdk>=1.43.0",
     "pydantic>=2.13.4",
+    "pyjwt[crypto]>=2.13.0",
+    "python-multipart>=0.0.20",
     "uvicorn[standard]>=0.49.0",
 ]
 
 [project.scripts]
 weave-backend = "weave_backend:main"
+weave-mock-oidc = "weave_backend.mock_oidc.app:main"
 
 [build-system]
 requires = ["uv_build>=0.11.3,<0.12.0"]
@@ -23,7 +33,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "bandit>=1.9.4",
-    "httpx>=0.28.1",
     "mutmut>=3.6.0",
     "mypy>=2.1.0",
     "pytest>=9.1.1",
