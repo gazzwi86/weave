@@ -16,7 +16,13 @@ describe("GET /api/search", () => {
     vi.mocked(auth).mockReset();
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(JSON.stringify({ results: [], total: 0 }), { status: 200 }))
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ results: [], total: 0 }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          })
+      )
     );
   });
 
@@ -51,5 +57,42 @@ describe("GET /api/search", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ results: [], total: 0 });
+  });
+
+  // PR #13 finding (4): a gateway-down 502 with an HTML (non-JSON) body used
+  // to blow up on the unconditional `.json()` call -- must come back as a
+  // distinguishable error, not crash or silently proxy garbage.
+  it("returns a distinguishable error when upstream returns a non-JSON body", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("<html>Bad Gateway</html>", {
+            status: 502,
+            headers: { "content-type": "text/html" },
+          })
+      )
+    );
+
+    const response = await GET(makeRequest("q=acme"));
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "upstream_unavailable" });
+  });
+
+  it("returns a distinguishable error when the backend is unreachable", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      })
+    );
+
+    const response = await GET(makeRequest("q=acme"));
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "upstream_unavailable" });
   });
 });
