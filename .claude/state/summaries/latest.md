@@ -1,7 +1,7 @@
 # Session Snapshot
 
-Captured at: 2026-07-03T04:00:36+00:00
-Event: session-end
+Captured at: 2026-07-03T17:42:30+00:00
+Event: pre-compact
 
 ## Current State
 
@@ -18,22 +18,22 @@ Event: session-end
     {
       "id": "PLAT-EPIC-000",
       "title": "Foundation & Boilerplate",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-003",
       "title": "Tenancy, Workspaces & Settings Cascade",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-004",
       "title": "Authentication, RBAC & Agent Identity",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-005",
       "title": "Global Navigation & Search",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-006",
@@ -137,55 +137,60 @@ Event: session-end
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-000",
       "title": "Monorepo scaffold, IaC, CI/CD pipeline",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-001.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-001.md",
+      "retry_count": 0
     },
     {
       "id": "PLAT-TASK-002",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-000",
       "title": "App shell, design system, auth bootstrap, model routing, local dev",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-002.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-002.md",
+      "retry_count": 0
     },
     {
       "id": "PLAT-TASK-003",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-003",
       "title": "Multi-tenant workspaces and 4-level settings cascade (PLAT-SETTINGS-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-003.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-003.md",
+      "retry_count": 1
     },
     {
       "id": "PLAT-TASK-004",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-004",
       "title": "RBAC enforcement and agent identity registry (PLAT-IDENTITY-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-002",
         "PLAT-TASK-003"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-004.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-004.md",
+      "retry_count": 2
     },
     {
       "id": "PLAT-TASK-005",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-005",
       "title": "Global navigation, search, and dashboard shell (M1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-002",
         "PLAT-TASK-004"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-005.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-005.md",
+      "retry_count": 2
     },
     {
       "id": "PLAT-TASK-007",
@@ -283,7 +288,7 @@ Event: session-end
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003",
@@ -296,7 +301,7 @@ Event: session-end
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL\u2192SELECT Query and SPARQL Editor",
+      "title": "NL→SELECT Query and SPARQL Editor",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003"

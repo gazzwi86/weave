@@ -1,6 +1,15 @@
 # Spec review — weave-platform
 
-**Date:** 2026-07-02 · **Verdict:** PASS (after fixes) · **Reviewed by:** /spec-review via /implement Step 1.5
+**Date:** 2026-07-03 (delta re-review; full review 2026-07-02) · **Verdict:** PASS · **Reviewed by:** /spec-review via /implement Step 1.5
+
+## Delta re-review 2026-07-03
+
+Spec changes since 2026-07-02 review checked (3e25d3e..HEAD): skill-name renames
+(arch-c4→arch-diagrams, arch-testing→arch-quality, arch-infra→arch-delivery), package path renames
+(packages/api→backend, packages/web→frontend), weave-spec.md W1–W4 Onboarding carve-out note and
+Build M1 gate-list clarification. All cosmetic/naming — no scope, AC, or contract changes.
+Mechanical gate invariants re-verified: 0 Gherkin leaks, 4 tech-spec shards present, adr_refs
+consistent with finding #7, 0 stale milestone tags, 0 stale package paths. No new gaps.
 
 ## Findings and resolutions
 
