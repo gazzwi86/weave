@@ -1,4 +1,5 @@
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
 import { auth } from "@/auth";
 
 interface WhoamiResponse {
@@ -39,6 +40,7 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      <DashboardPlaceholder />
     </main>
   );
 }
