@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import jwt
 
 from weave_backend.mock_oidc.keys import KEY_ID, PRIVATE_KEY
+from weave_backend.tenancy.sessions import get_session_version
 
 ACCESS_TOKEN_TTL_SECONDS = 300  # ADR-001: real AWS Cognito minimum validity
 
@@ -52,16 +53,22 @@ def _sign(claims: dict[str, str], ttl: int) -> str:
     return jwt.encode(payload, PRIVATE_KEY, algorithm="RS256", headers={"kid": KEY_ID})
 
 
-def issue_token_pair(*, sub: str, tenant_id: str) -> TokenPair:
+async def issue_token_pair(*, sub: str, tenant_id: str) -> TokenPair:
     """Issue a fresh access/id/refresh token set for `sub`, rooting a new
-    refresh-token entry so a later refresh-grant can reissue for the same claims.
+    refresh-token entry so a later refresh-grant can reissue for the same
+    claims. The signed tokens additionally carry `session_version` (read
+    from the same Redis a real revoke bumps) -- kept out of `_claims()` so
+    the exact-equality `test_claims_shape` pin still holds; this is
+    runtime-only, added at sign time.
     """
     claims = _claims(sub, tenant_id)
     refresh_token = secrets.token_urlsafe(32)
     _REFRESH_TOKENS[refresh_token] = claims
+    session_version = await get_session_version(tenant_id, sub)
+    signed_claims = {**claims, "session_version": str(session_version)}
     return TokenPair(
-        access_token=_sign(claims, ACCESS_TOKEN_TTL_SECONDS),
-        id_token=_sign(claims, ACCESS_TOKEN_TTL_SECONDS),
+        access_token=_sign(signed_claims, ACCESS_TOKEN_TTL_SECONDS),
+        id_token=_sign(signed_claims, ACCESS_TOKEN_TTL_SECONDS),
         refresh_token=refresh_token,
         expires_in=ACCESS_TOKEN_TTL_SECONDS,
     )
@@ -73,15 +80,15 @@ def start_authorization_code(*, sub: str, tenant_id: str) -> str:
     return code
 
 
-def exchange_authorization_code(code: str) -> TokenPair | None:
+async def exchange_authorization_code(code: str) -> TokenPair | None:
     claims = _AUTH_CODES.pop(code, None)
     if claims is None:
         return None
-    return issue_token_pair(sub=claims["sub"], tenant_id=claims["tenant_id"])
+    return await issue_token_pair(sub=claims["sub"], tenant_id=claims["tenant_id"])
 
 
-def exchange_refresh_token(refresh_token: str) -> TokenPair | None:
+async def exchange_refresh_token(refresh_token: str) -> TokenPair | None:
     claims = _REFRESH_TOKENS.get(refresh_token)
     if claims is None:
         return None
-    return issue_token_pair(sub=claims["sub"], tenant_id=claims["tenant_id"])
+    return await issue_token_pair(sub=claims["sub"], tenant_id=claims["tenant_id"])

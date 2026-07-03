@@ -59,13 +59,23 @@ def test_sign_gives_each_call_a_distinct_jti() -> None:
     assert first["jti"] != second["jti"]
 
 
-def test_issue_token_pair_fields() -> None:
-    pair = issue_token_pair(sub="u1", tenant_id="tenant1")
+async def test_issue_token_pair_fields() -> None:
+    pair = await issue_token_pair(sub="u1", tenant_id="tenant1")
 
     assert len(pair.refresh_token) == 43  # secrets.token_urlsafe(32)
     assert pair.expires_in == 300
     assert _decode(pair.id_token)["tenant_id"] == "tenant1"
     assert _decode(pair.access_token)["sub"] == "u1"
+
+
+async def test_issue_token_pair_embeds_session_version() -> None:
+    """PLAT-TASK-003 AC-3: a freshly issued token carries the current
+    session version (0 when Redis is unreachable/unset), separate from the
+    pinned `_claims()` shape above.
+    """
+    pair = await issue_token_pair(sub="u-session", tenant_id="tenant1")
+
+    assert _decode(pair.access_token)["session_version"] == "0"
 
 
 def test_start_authorization_code_length() -> None:
@@ -74,10 +84,10 @@ def test_start_authorization_code_length() -> None:
     assert len(code) == 22  # secrets.token_urlsafe(16)
 
 
-def test_exchange_refresh_token_reissues_for_the_same_claims() -> None:
-    original = issue_token_pair(sub="dave", tenant_id="acme")
+async def test_exchange_refresh_token_reissues_for_the_same_claims() -> None:
+    original = await issue_token_pair(sub="dave", tenant_id="acme")
 
-    reissued = exchange_refresh_token(original.refresh_token)
+    reissued = await exchange_refresh_token(original.refresh_token)
 
     assert reissued is not None
     claims = _decode(reissued.access_token)
