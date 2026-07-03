@@ -19,7 +19,11 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 4,
+  // Every auth spec shares one in-memory rate-limit budget (lib/rate-limit.ts,
+  // keyed by x-forwarded-for -- absent locally, so every request is "unknown").
+  // Parallel workers race real OIDC logins against that shared budget and hang
+  // mid-callback. One worker always, not just in CI.
+  workers: 1,
   reporter: "html",
   // Matches e2e/ui-verify's tolerance (0.01) -- ledger item 2's visual baselines.
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
