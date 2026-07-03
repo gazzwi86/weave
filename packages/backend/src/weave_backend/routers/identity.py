@@ -29,7 +29,7 @@ from weave_backend.identity.registry import (
     resolve_workspace_tenant,
 )
 from weave_backend.rate_limit import check_rate_limit
-from weave_backend.rbac import require_tenant_admin
+from weave_backend.rbac import enforce_workspace_role, require_tenant_admin
 from weave_backend.schemas.identity import (
     AgentListResponse,
     AgentSummaryResponse,
@@ -124,7 +124,17 @@ async def list_agents_route(
     workspace_id: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> AgentListResponse:
+    # PR #12 review finding 1 (same AC-3 class as settings/sparql/switch):
+    # a tenant member with zero membership rows in this workspace could
+    # enumerate every agent in it. Read-role membership is now required.
     async with tenant_connection(principal.tenant_id) as conn:
+        await enforce_workspace_role(
+            conn,
+            tenant_id=principal.tenant_id,
+            workspace_id=workspace_id,
+            user_sub=principal.sub,
+            min_role="read",
+        )
         agents = await list_tenant_agents(
             conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
         )
