@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
@@ -42,7 +43,7 @@ def _require_own_tenant_scope(principal: Principal, scope_iri: str) -> None:
 
 
 async def _require_workspace_role_for_scope(
-    principal: Principal, scope_iri: str, min_role: str
+    conn: asyncpg.Connection, principal: Principal, scope_iri: str, min_role: str
 ) -> None:
     """QA FAIL remediation (AC-3): company/domain scope has no workspace
     segment (`workspace_of` returns `None`) -- there's no membership row to
@@ -50,19 +51,20 @@ async def _require_workspace_role_for_scope(
     precedent (company-scope settings are usable by any tenant member).
     Workspace/project scope must additionally prove active membership at
     `min_role`, rejecting a non-member (no row at all) the same as an
-    insufficient one.
+    insufficient one. Takes an already-open `conn` (PR #12 review finding 3)
+    -- the caller's own `tenant_connection` block, so a settings request
+    never acquires two pool connections.
     """
     workspace_id = workspace_of(scope_iri)
     if workspace_id is None:
         return
-    async with tenant_connection(principal.tenant_id) as conn:
-        await enforce_workspace_role(
-            conn,
-            tenant_id=principal.tenant_id,
-            workspace_id=workspace_id,
-            user_sub=principal.sub,
-            min_role=min_role,
-        )
+    await enforce_workspace_role(
+        conn,
+        tenant_id=principal.tenant_id,
+        workspace_id=workspace_id,
+        user_sub=principal.sub,
+        min_role=min_role,
+    )
 
 
 @router.get("/settings/{key}", response_model=ResolvedSettingResponse)
@@ -72,13 +74,15 @@ async def get_setting_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> ResolvedSettingResponse:
     _require_own_tenant_scope(principal, context)
-    await _require_workspace_role_for_scope(principal, context, min_role="read")
     redis = get_redis()
-    cached = await get_cached(redis, tenant_id=principal.tenant_id, key=key, context_iri=context)
-    if cached is not None:
-        return ResolvedSettingResponse(**cached.__dict__)
-
     async with tenant_connection(principal.tenant_id) as conn:
+        await _require_workspace_role_for_scope(conn, principal, context, min_role="read")
+        cached = await get_cached(
+            redis, tenant_id=principal.tenant_id, key=key, context_iri=context
+        )
+        if cached is not None:
+            return ResolvedSettingResponse(**cached.__dict__)
+
         try:
             resolved = await resolve_setting(
                 conn, tenant_id=principal.tenant_id, key=key, context_iri=context
@@ -99,12 +103,12 @@ async def set_setting_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> SetSettingResponse:
     _require_own_tenant_scope(principal, body.scope_iri)
-    # ADR-007: "author" ceiling, not "admin" -- a settings write is a config
-    # change, not a membership/access change (that's what "admin" gates on
-    # invite/revoke). Any contributor at "author" or above may write settings
-    # in a workspace/project they belong to.
-    await _require_workspace_role_for_scope(principal, body.scope_iri, min_role="author")
     async with tenant_connection(principal.tenant_id) as conn:
+        # ADR-007: "author" ceiling, not "admin" -- a settings write is a
+        # config change, not a membership/access change (that's what "admin"
+        # gates on invite/revoke). Any contributor at "author" or above may
+        # write settings in a workspace/project they belong to.
+        await _require_workspace_role_for_scope(conn, principal, body.scope_iri, min_role="author")
         try:
             await set_setting(
                 conn,
