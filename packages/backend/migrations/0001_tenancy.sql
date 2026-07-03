@@ -63,7 +63,11 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT NOT NULL,
     value JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (scope_iri, key)
+    -- PR #11 finding 4: tenant-scoped, not just (scope_iri, key) -- same
+    -- cross-tenant ON CONFLICT clobber risk as workspace_members above.
+    -- The router-level ownership check (routers/settings.py) is the
+    -- primary fix; this is belt-and-braces at the schema level.
+    UNIQUE (tenant_id, scope_iri, key)
 );
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings FORCE ROW LEVEL SECURITY;
