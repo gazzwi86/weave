@@ -21,6 +21,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 4,
   reporter: "html",
+  // Matches e2e/ui-verify's tolerance (0.01) -- ledger item 2's visual baselines.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: {
     baseURL: process.env.TEST_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",

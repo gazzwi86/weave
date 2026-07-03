@@ -37,6 +37,9 @@ yarn-error.log*
 # playwright
 /test-results/
 /playwright-report/
+# visual baselines must come from the Linux/CI run, never a local macOS one -- see
+# tests/e2e/visual-baselines.spec.ts's platform-gating comment.
+tests/e2e/*.spec.ts-snapshots/
 
 # vercel
 .vercel
