@@ -50,12 +50,16 @@ async def jwks() -> dict[str, list[dict[str, Any]]]:
 
 
 @app.get("/authorize", response_class=HTMLResponse)
-async def authorize(redirect_uri: str, state: str) -> str:
+async def authorize(redirect_uri: str, state: str | None = None) -> str:
     """Renders a real, Playwright-drivable login form (AC-2) rather than an
     instant silent redirect — proving the redirect-and-return round trip.
+
+    ``state`` is optional: a PKCE-only OAuth client (next-auth's default,
+    with no ``redirectProxyUrl`` configured) never sends it, same as a real
+    Cognito authorization request.
     """
     safe_redirect_uri = escape(redirect_uri, quote=True)
-    safe_state = escape(state, quote=True)
+    safe_state = escape(state or "", quote=True)
     return f"""<!doctype html>
 <html lang="en">
 <body>
@@ -74,12 +78,13 @@ async def authorize(redirect_uri: str, state: str) -> str:
 @app.post("/login")
 async def login(
     redirect_uri: str = Form(...),
-    state: str = Form(...),
+    state: str = Form(""),
     email: str = Form(_DEFAULT_EMAIL),
 ) -> RedirectResponse:
     sub = email.split("@")[0] or "dev-user"
     code = start_authorization_code(sub=sub, tenant_id="acme-corp")
-    return RedirectResponse(f"{redirect_uri}?code={code}&state={state}", status_code=303)
+    query = f"code={code}" + (f"&state={state}" if state else "")
+    return RedirectResponse(f"{redirect_uri}?{query}", status_code=303)
 
 
 def _token_response(pair: TokenPair) -> dict[str, object]:
