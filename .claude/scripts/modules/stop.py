@@ -316,6 +316,7 @@ def _parse_drift_verdict(text: str) -> Optional[dict]:
 def _ask_local_llm(backend: str, prompt: str) -> Optional[str]:
     """POST to a local LLM (ollama or lm studio). Returns response text or None."""
     import urllib.error
+    import urllib.parse
     import urllib.request
 
     model = os.environ.get("LLM_MODEL", "").strip()
@@ -343,13 +344,17 @@ def _ask_local_llm(backend: str, prompt: str) -> Optional[str]:
     else:
         return None
 
+    if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
+        return None
+
     req = urllib.request.Request(
         url, data=body,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        # scheme restricted to http/https above, closing the file:// vector this rule audits for.
+        with urllib.request.urlopen(req, timeout=15) as resp:  # noqa: S310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             data = json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, OSError, json.JSONDecodeError, TimeoutError):
         return None
