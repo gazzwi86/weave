@@ -178,8 +178,8 @@ def _build_drift_prompt(excerpt: str, usage_pct: float, context_window: int) -> 
 # Context-window registry. Each entry is a (case-insensitive substring marker,
 # window) pair matched against the model ID; the first hit wins. Only variants
 # that DIFFER from the 200k default need an entry — the 1M-context variants. Every
-# current base model (claude-fable-5, claude-opus-4-8, claude-sonnet-5,
-# claude-haiku-4-5) and any future 200k model falls through to the default.
+# current base model (claude-fable-5, claude-sonnet-5) and any future 200k model
+# falls through to the default.
 #
 # LIMITATION: transcript `model` fields arrive WITHOUT the `[1m]` suffix even on a
 # 1M-context session (verified: a claude-opus-4-8[1m] session logs a bare

@@ -710,7 +710,7 @@ in v1.
 | OQ-08 | Client-scoped self-improvement (Polaris-style project+org proposals over client signals) — **deferred post-v1** along with the Weave-product self-improvement loop. Interface and proposal entity schema defined when the loop lands. | PO + Build team |
 | OQ-09 | ODRL policy enforcement: deferred from v1 (v1 uses SHACL + data-classification properties for PII/sensitive handling); revisit as a later stack decision. | Architect |
 | OQ-10 | Per-user dashboard widget state store choice (server-side decided; which store — Aurora vs DynamoDB) and render-cache strategy. | Architect |
-| OQ-14 | **Local development experience / dev-loop — RESOLVED at PRD level** in `../dev-environment.md`: thin shared dev account (Cognito + Bedrock + small entities), everything else local (Oxigraph, Postgres, LocalStack, Redis, Ollama); tiered Ollama+Bedrock model routing via a configurable provider abstraction; full local test pyramid + gates → HITL → dev-AWS smoke → deploy. Residual tech-spec items listed in that doc. <!-- SHARED-HOISTED: dev-loop detail — see ../dev-environment.md --> | Architect (arch-stack + arch-infra) |
+| OQ-14 | **Local development experience / dev-loop — RESOLVED at PRD level** in `../dev-environment.md`: thin shared dev account (Cognito + Bedrock + small entities), everything else local (Oxigraph, Postgres, LocalStack, Redis, Ollama); tiered Ollama+Bedrock model routing via a configurable provider abstraction; full local test pyramid + gates → HITL → dev-AWS smoke → deploy. Residual tech-spec items listed in that doc. <!-- SHARED-HOISTED: dev-loop detail — see ../dev-environment.md --> | Architect (arch-stack + arch-delivery) |
 
 ### 2.5 Key design decisions captured
 
@@ -1630,7 +1630,7 @@ engine dependency").
 **Entry criteria (Definition of Ready):**
 
 - [ ] PRD §Epics 3–6, 8, 9 approved (the M1 epics; Epic 7 Managed Connectors is deferred to v1.0); M1 tech
-  spec approved (arch-stack + arch-infra resolve the dev-environment AWS floor per `../dev-environment.md`)
+  spec approved (arch-stack + arch-delivery resolve the dev-environment AWS floor per `../dev-environment.md`)
 - [ ] Tasks decomposed; each task brief passes the DoR gate
 - [ ] Multi-tenant isolation mechanism decided (OQ-01) OR the cross-tenant-read test fixed and the
   mechanism stubbed behind it; `PLAT-AUDIT-1` storage choice decided (OQ-05)

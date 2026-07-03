@@ -25,6 +25,6 @@ Each file in this directory records an architectural decision that shaped the sy
 
 ## Authoring
 
-- `discover` does NOT auto-generate historical ADRs. They are populated by `interview --role architect`, which emits candidates for human promotion.
+- ADRs are hand-authored via the `arch-adr` skill; there is no auto-generation step.
 - If you supersede an ADR, set `Status: Superseded-by: ADR-NNN` and file the replacement; never delete.
-- `reconcile` B8 validates frontmatter shape on every ADR file.
+- No automated frontmatter validation currently exists for ADR files.

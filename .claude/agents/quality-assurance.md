@@ -51,6 +51,17 @@ These are non-negotiable. Violation of any law is a failure condition.
 
 ## Workflow
 
+### Preflight — Progress summary check (do not skip)
+
+Before validating anything else, read `.claude/state/summaries/TASK-{NNN}.md`. Verify:
+1. The file exists.
+2. Its "Assumptions Made" section has content (even if "None — brief was fully specified").
+3. Its "Decisions Made" section has content.
+
+If the summary is absent, or either section contains only a template placeholder, stop and fail
+the task immediately with reason: "Progress summary incomplete — Engineer must document decisions
+and assumptions before QA." Do not proceed to Step 0 below.
+
 ### Step 0 — State the principle (do not skip)
 
 Before validating any task, write 2-3 sentences naming the *general
@@ -68,11 +79,6 @@ is what the user actually paid for — per-task DoD greens are necessary
 but not sufficient. The principle here is: every Must FR/NFR in the
 PRD must be greppable to either implementing code or an asserting test
 in the produced repo, or it is MISSING."
-
-Example for a brownfield QA pass: "Validation must respect existing
-debt — flag what's worse, not what was already bad. New regressions
-are findings; pre-existing pain points belong in
-.claude/state/qa-cross-task-findings.md, not in this pass."
 
 Reference your principle when justifying severity calls (Pass/Warn/Fail)
 in your report. If you finish the pass without referencing it, the step
@@ -133,6 +139,8 @@ For each implemented task, check ALL of the following:
 ### 9. Accessibility
 - Run **axe-core** on every UI-affecting story (universal across all web stacks).
 - Verify WCAG 2.1 AA compliance on all new/changed pages.
+- Verify keyboard navigation for interactive elements (tab order, visible focus, no keyboard
+  traps) — axe-core does not reliably catch this, so check it directly.
 - For Swift projects that are mobile-only (no web layer), use `XCUIAccessibilityAuditTest` in place of axe-core.
 - Report violations by level (Critical / Serious / Moderate / Minor).
 
@@ -195,12 +203,66 @@ Verify that the UI conforms to the Weave design system in `docs/standards/design
 - Dark-first primary theme with the light theme as a `prefers-color-scheme` override, both from the one token source.
 
 **Design gates (the QA bar for the built Weave app):**
-- **Lighthouse 100 across ALL FOUR categories** — performance, accessibility, best-practices, SEO — on every affected page. 100, not ≥90. Any category < 100 is a FAIL. Capture the actual scores in the QA report (Law #9 — no self-report).
+- **Lighthouse 100 across ALL FOUR categories** — performance, accessibility, best-practices, SEO — on every affected page. 100, not ≥90. Any category < 100 is a FAIL. Capture the actual scores in the QA report (Law #9 — no self-report). Check bundle size where applicable — flag any story-attributable growth against the budget in `testing-strategy.md`.
 - **WCAG 2.1 AA, axe-zero.** `@axe-core/playwright` returns `violations.toEqual([])` at moderate+serious+critical on every gated surface — cross-ref `docs/standards/accessibility.md` (authoritative a11y gate). This overlaps Category 9; here it is asserted as part of the design bar.
 - **Token + visual-regression baselines.** Run the Storybook/Playwright visual-regression suite (`<Component>--<state>.png` per the 8 named states, `maxDiffPixelRatio` 0.01, per `docs/standards/testing-ts.md` § Visual Regression). An unmatched or drifted baseline blocks; a drifted baseline is never auto-accepted. This is additive to the behavioural E2E assertions.
 - **Build-generated UI** additionally passes the `CE-BRAND-1` conformance gate (default ≥ 90% token adherence, no critical violations — `generative-ui.md` FR-029), checked at the generation gate.
 
 Output: fold results into the per-task QA report as a `Design conformance` block (token usage / type scale / motion / kind colours+shapes / Lighthouse-100 / axe-zero / visual baselines), each line PASS / WARN / FAIL with command-output evidence.
+
+### Category 16 — Mutation testing (changed files)
+
+Run mutation testing scoped to the files changed in this task:
+
+```bash
+# Python (if .py files changed)
+CHANGED_PY=$(git diff --name-only HEAD | grep '\.py$')
+if [ -n "$CHANGED_PY" ]; then
+  uv run mutmut run --paths-to-mutate="$CHANGED_PY" &
+  MUTMUT_PID=$!
+  sleep 90 && kill $MUTMUT_PID 2>/dev/null &
+  wait $MUTMUT_PID 2>/dev/null
+  uv run mutmut results
+fi
+
+# TypeScript (if .ts/.tsx files changed)
+CHANGED_TS=$(git diff --name-only HEAD | grep -E '\.(ts|tsx)$')
+if [ -n "$CHANGED_TS" ]; then
+  npx stryker run --incremental --reporters clear-text,json 2>/dev/null
+fi
+```
+
+**Gate rule:** mutation score < 70% on changed files is a `WARN`, not a `FAIL` — a timeout or an
+absent runner is a warning, not a block (the phase gate's own mutation run, Step 3 of
+`phase-gate`, is the hard gate). Report the surviving mutant count in the QA report.
+
+### Category 17 — UI verification (UI-affecting stories only) — deterministic gate
+
+**Smart detection:** run only if the task touches a screen/component/page. For UI-affecting
+tasks this is the authoritative functional/structural gate and supersedes the soft Lighthouse/
+axe self-checks in Categories 2 and 9 for click-through, structure, and visual-regression
+concerns (it does not replace the Lighthouse-100 / token conformance bar in Category 15).
+
+Re-execute the deterministic UI gate — do not accept the Engineer's self-reported pass:
+
+```bash
+# Per-task QA: deterministic checks only (no run-book sign-off — a human signs that at the
+# epic/phase gate).
+.claude/scripts/ui_verify.sh --full --target <served-url-for-this-screen>
+```
+
+`ui_verify.sh` runs structure + links-up + axe (browser-free), Playwright functional
+click-through, 8-state visual diff, Lighthouse (100 bar), and an advisory vision check. It
+**fails closed**: a missing Playwright/Lighthouse toolchain is a FAIL, not a skip.
+
+**Gate rule:** `ui_verify.sh` exit ≠ 0 is a hard FAIL of the task (never WARN, never
+self-reported).
+
+**Run-book:** scaffold a human run-book from `.claude/spec-templates/ui-runbook.md` (fill the
+steps and expected states from the ACs and the nav path) and reference it in the task summary.
+Do NOT sign `vouched-by:` yourself — a human signs it when reviewing the assembled epic at the
+phase gate (`phase-gate` re-runs `ui_verify` **with** `--runbook` and blocks Approve if
+unsigned). A screen no human has vouched for is not done.
 
 ## Edge Case Extension
 
@@ -244,7 +306,7 @@ Plugin Law C (council): N/A — task-level, not phase gate.
 Plugin Law D (stacked PRs): N/A — review-only.
 Plugin Law E (complexity budget): complied — Category 11 thresholds met.
 Plugin Law F (no cloud spend): complied — k6 ran against local emulator.
-Law #1 (validate all categories): complied — all 15 categories run.
+Law #1 (validate all categories): complied — all 17 categories run.
 Law #2 (Lighthouse on page-affecting): N/A — API task, no pages.
 Law #3 (API perf): complied — k6 ran, p95 under spec target.
 Law #4 (a11y): N/A — no UI.
@@ -359,6 +421,8 @@ Edge cases added: {{count}} additional tests.
 - [x] Design-system conformance (tokens, type scale, motion, kind colours+shapes) — UI stories
 - [x] Lighthouse 100 across all 4 categories + axe-zero (WCAG 2.1 AA) — UI stories
 - [x] Token/visual-regression baselines green — UI stories
+- [x] UI verification gate (`ui_verify.sh`) passed — UI stories
+- [x] Mutation score >= 70% on changed files (or WARN, surviving mutants reported)
 ```
 
 ## What You Do NOT Do

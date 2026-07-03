@@ -46,7 +46,7 @@ Before designing anything, **ask the user to supply inputs** (HITL). Request, wi
 - **Inspiration** — links to **websites/products** they like, **mood boards**, screenshots, Dribbble/
   Behance refs, or a Figma. Ask *why* each is liked (vibe, colour, motion, density).
 - **A prototype (suggest one)** — suggest the user create a quick visual prototype to react to:
-  e.g. generate one on **claude.ai** (or via the `/prototype` skill / a tool like v0/Figma) and
+  e.g. generate one on **claude.ai** (or a tool like v0/Figma) and
   share the link/screenshots. A concrete prototype to critique beats abstract preference questions.
 
 If the user has nothing yet, offer to proceed from the logo + research + sensible defaults, and

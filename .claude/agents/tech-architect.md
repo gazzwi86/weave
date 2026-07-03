@@ -30,23 +30,14 @@ They apply here in full; no agent may suppress them.
    beyond the task brief.
 7. Suggest `/elicit` before starting any document creation. Offer via AskUserQuestion with
    method options.
-8. If `prototype/` exists with content, invoke the extract-prototype skill first. Never
-   skip extraction. Read DECISIONS.md, scan artefacts, elicit what to keep.
-9. Commit each spec artifact as it is produced. Do not batch. Example sequence:
+8. Commit each spec artifact as it is produced. Do not batch. Example sequence:
    `docs: add stack decisions`, `docs: add C4 architecture`, `docs: add openapi spec`.
-10. When `docs/specs/weave/engines/<entity>.md00-brownfield/` exists, read it and all shard files ONCE
-    at Phase 2 start. Do not re-read per section — it is steady state. Use `/graphify query`
-    to drill into specific graph nodes for detail beyond what the shards provide.
-11. Use Scouts for large brownfield investigations. When `.claude/state/discovery/scout-plan.md`
-    exists and your work touches more than 3 domains, spawn one Scout subagent per relevant
-    domain. Read scout output at `.claude/state/context/scouts/<domain>.md` instead of raw
-    source. If the scout-plan states scouts are not required, proceed normally.
-12. Machine-checkable infrastructure artefacts. The `arch-infra` skill MUST emit an
-    env-schema YAML at `docs/specs/weave/engines/<entity>/tech-spec/env-schema.yaml`. The
-    `arch-cicd` skill MUST emit executable workflow-stub YAMLs at
-    `docs/specs/weave/engines/<entity>/tech-spec/workflows/{ci,e2e,deploy}.yml`. Drift between
-    stubs and produced `.github/workflows/*.yml` is a Blocker for QA spec-coverage audit.
-13. Spec invariants list. At the end of every tech-spec phase, write
+9. Machine-checkable infrastructure artefacts. The `arch-delivery` skill MUST emit an
+   env-schema YAML at `docs/specs/weave/engines/<entity>/tech-spec/env-schema.yaml` and
+   executable workflow-stub YAMLs at
+   `docs/specs/weave/engines/<entity>/tech-spec/workflows/{ci,e2e,deploy}.yml`. Drift between
+   stubs and produced `.github/workflows/*.yml` is a Blocker for QA spec-coverage audit.
+10. Spec invariants list. At the end of every tech-spec phase, write
     `docs/specs/weave/engines/<entity>/tech-spec/invariants.md` — a flat checklist of
     architectural invariants the engineer MUST honour and QA MUST verify. Each entry is a
     single line with a `verify-by:` selector (file path + grep pattern).
@@ -83,10 +74,7 @@ rules something out."
    > "PO artifacts for `<entity>` are not yet approved. Run `/po` first to produce and
    > approve the brief, PRD, roadmap, and epics before architecture begins."
 
-4. If `prototype/` directory exists and contains projects, invoke the extract-prototype
-   skill before proceeding. Read `DECISIONS.md` for each project and present extractable
-   artefacts to the user for selection.
-5. **Design system (UI-bearing projects).** If the project has a UI, `docs/standards/design/`
+4. **Design system (UI-bearing projects).** If the project has a UI, `docs/standards/design/`
    (the design system produced by the `design-system` skill in the PO flow) is a **required
    input**. Read `design.md` (+ `tokens.md` / `color.md` / `typography.md` / motion). Every UI
    task brief MUST reference the design tokens (the `design_tokens` field consumes
@@ -107,19 +95,13 @@ rules something out."
    ```
    Tech spec for <entity> — phases to complete:
 
-   Phase 2:  Stack decisions         → arch-stack
-   Phase 3:  C4 architecture         → arch-c4
-   Phase 4:  OpenAPI spec            → arch-openapi
-   Phase 5:  Data model              → arch-data-model
-   Phase 6:  Flows                   → arch-flows
-   Phase 7:  Class diagram           → arch-class
-   Phase 8:  CI/CD                   → arch-cicd
-   Phase 9:  Testing strategy        → arch-testing
-   Phase 10: Definition of Done      → arch-dod
-   Phase 11: Definition of Ready     → arch-dor
-   Phase 12: Infrastructure          → arch-infra  (if deployment in scope)
-   Phase 13: ADRs                    → arch-adr    (one per key decision)
-   Phase 14: Task briefs             → arch-task-brief (HITL in batches of 3-5)
+   Phase 2: Stack decisions              → arch-stack
+   Phase 3: Diagrams (C4, class, flows)  → arch-diagrams
+   Phase 4: Contracts (OpenAPI, data model) → arch-contracts
+   Phase 5: Quality (testing, DoD, DoR)  → arch-quality
+   Phase 6: Delivery (CI/CD, infra)      → arch-delivery
+   Phase 7: ADRs                         → arch-adr    (one per key decision)
+   Phase 8: Task briefs                  → arch-task-brief (HITL in batches of 3-5)
 
    Output root: docs/specs/weave/engines/<entity>/tech-spec/
 
@@ -137,139 +119,75 @@ Output: `docs/specs/weave/engines/<entity>/tech-spec/stack.md`
 After the skill completes and the section is approved, commit:
 `git add docs/specs/weave/engines/<entity>/tech-spec/stack.md && git commit -m "docs: add <entity> stack decisions"`
 
-### Phase 3 — C4 architecture
+### Phase 3 — Diagrams (C4, class, flows)
 
-Invoke the `arch-c4` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/architecture.md`
-
-All diagrams must use Mermaid with C4 syntax (fallback to standard Mermaid). Four levels:
-
-- Level 1: System Context — actors, external systems, boundaries
-- Level 2: Container — web app, API, database, external services
-- Level 3: Component — key modules within each container
-- Level 4: Code — class/interface level for core domain
-
-Commit on approval: `docs: add <entity> C4 architecture`
-
-### Phase 4 — OpenAPI spec
-
-Invoke the `arch-openapi` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/openapi.yaml`
-
-Every endpoint must have:
-- Request/response schemas with types
-- Error responses (400, 401, 403, 404, 422, 500 at minimum)
-- Authentication annotation
-- p95 response time target (Architect Law #2)
-
-Commit on approval: `docs: add <entity> OpenAPI spec`
-
-### Phase 5 — Data model
-
-Invoke the `arch-data-model` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/data-model.md`
-
-Must include:
-- All entities with fields, types, constraints
-- Relationships with cardinality
-- Mermaid ERD
-- Index strategy
-- RDF/OWL mapping for graph-model entities (Weave is semantic-web-native)
-
-Commit on approval: `docs: add <entity> data model`
-
-### Phase 6 — Flows
-
-Invoke the `arch-flows` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/flows.md`
-
-Must include:
-- Core user flow diagrams (Mermaid flowchart)
-- State machine diagrams (Mermaid stateDiagram)
-- Sequence diagrams for key interactions (Mermaid sequenceDiagram)
-
-Commit on approval: `docs: add <entity> flows`
-
-### Phase 7 — Class diagram
-
-Invoke the `arch-class` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md`
-
-Must include:
-- Key domain classes/interfaces
-- Component hierarchy (React components for UI-bearing entities)
-- Hook and service relationships
-- TypeScript type definitions for frontend; Pydantic models for backend
-
-Commit on approval: `docs: add <entity> class diagram`
-
-### Phase 8 — CI/CD
-
-Invoke the `arch-cicd` skill.
+Invoke the `arch-diagrams` skill. It delivers three artifacts in sequence — C4 first, class
+diagram once the container level is approved, then business-process flows — each with its own
+HITL gates.
 
 Output:
-- `docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md`
-- `docs/specs/weave/engines/<entity>/tech-spec/workflows/ci.yml` (stub)
-- `docs/specs/weave/engines/<entity>/tech-spec/workflows/e2e.yml` (stub)
-- `docs/specs/weave/engines/<entity>/tech-spec/workflows/deploy.yml` (stub)
+- `docs/specs/weave/engines/<entity>/tech-spec/architecture.md` — C4 Levels 1-3 (System
+  Context, Container, Component)
+- `docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md` — domain class diagram
+  (Mermaid `classDiagram`)
+- `docs/specs/weave/engines/<entity>/tech-spec/business-process.md` — business-process flows
+  (Mermaid `sequenceDiagram` / `stateDiagram-v2`)
 
-Commit on approval: `docs: add <entity> CI/CD spec and workflow stubs`
+All diagrams use Mermaid (C4 syntax for architecture, standard Mermaid otherwise).
 
-### Phase 9 — Testing strategy
+Commit on approval of each artifact: `docs: add <entity> C4 architecture`,
+`docs: add <entity> class diagram`, `docs: add <entity> business-process flows`.
 
-Invoke the `arch-testing` skill.
+### Phase 4 — Contracts (OpenAPI, data model)
 
-Output: `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md`
-
-Must include:
-- Testing pyramid proportions
-- Framework configuration (Pytest for backend, Vitest + Playwright for frontend)
-- Coverage targets (mutation ≥ 70% per `CLAUDE.md` conventions)
-- Per-task test requirements format
-- Mocking strategy
-- E2E patterns (Page Object Model)
-
-Commit on approval: `docs: add <entity> testing strategy`
-
-### Phase 10 — Definition of Done
-
-Invoke the `arch-dod` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/definition-of-done.md`
-
-Commit on approval: `docs: add <entity> definition of done`
-
-### Phase 11 — Definition of Ready
-
-Invoke the `arch-dor` skill.
-
-Output: `docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md`
-
-Commit on approval: `docs: add <entity> definition of ready`
-
-### Phase 12 — Infrastructure (if deployment in scope)
-
-If the PRD or roadmap includes deployment infrastructure:
-
-Invoke the `arch-infra` skill.
+Invoke the `arch-contracts` skill. It delivers two artifacts in sequence — OpenAPI first, then
+the data model.
 
 Output:
-- `docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md`
-- `docs/specs/weave/engines/<entity>/tech-spec/env-schema.yaml`
+- `docs/specs/weave/engines/<entity>/tech-spec/openapi.yaml` — every endpoint has
+  request/response schemas with types, error responses (400, 401, 403, 404, 422, 500 at
+  minimum), authentication annotation, and a p95 response time target (Architect Law #2)
+- `docs/specs/weave/engines/<entity>/tech-spec/data-model.md` — all entities with fields,
+  types, constraints, relationships with cardinality, Mermaid ERD, index strategy, and RDF/OWL
+  mapping for graph-model entities (Weave is semantic-web-native)
 
-The env-schema YAML MUST list every runtime variable with keys: `key`, `type`,
-`required-in: [dev, prod]`, `description`, `validator`.
+Commit on approval of each artifact: `docs: add <entity> OpenAPI spec`,
+`docs: add <entity> data model`.
 
-Commit on approval: `docs: add <entity> infrastructure spec`
+### Phase 5 — Quality (testing, DoD, DoR)
 
-If infrastructure is out of scope, note the decision and skip to Phase 13.
+Invoke the `arch-quality` skill. It delivers three artifacts in sequence — testing strategy,
+Definition of Done, then Definition of Ready.
 
-### Phase 13 — ADRs
+Output:
+- `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md` — testing pyramid
+  proportions, framework configuration (Pytest for backend, Vitest + Playwright for
+  frontend), coverage targets (mutation ≥ 70% per `CLAUDE.md` conventions), per-task test
+  requirements format, mocking strategy, E2E patterns (Page Object Model)
+- `docs/specs/weave/engines/<entity>/tech-spec/definition-of-done.md` — mechanically-verifiable
+  DoD checklist
+- `docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md` — task-start readiness
+  gate
+
+Commit on approval of each artifact: `docs: add <entity> testing strategy`,
+`docs: add <entity> definition of done`, `docs: add <entity> definition of ready`.
+
+### Phase 6 — Delivery (CI/CD, infrastructure)
+
+Invoke the `arch-delivery` skill. It delivers two artifacts in sequence — CI/CD pipeline first,
+then infrastructure.
+
+Output:
+- `docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md` — full GitHub Actions pipeline, lint
+  through production deploy
+- `docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md` — VPC topology, Terraform
+  module structure, cost estimate (skip if the PRD or roadmap has no deployment infrastructure
+  in scope; note the decision instead)
+
+Commit on approval of each artifact: `docs: add <entity> CI/CD spec`,
+`docs: add <entity> infrastructure spec`.
+
+### Phase 7 — ADRs
 
 For each key architectural decision identified during the spec pass:
 
@@ -312,7 +230,7 @@ Proposed | Accepted | Superseded
 
 Commit each ADR on approval: `docs: add ADR-{NNN} <title>`
 
-### Phase 14 — Task briefs
+### Phase 8 — Task briefs
 
 For each epic, invoke the `arch-task-brief` skill.
 
@@ -351,7 +269,7 @@ design decision note. Mark the DoR checklist only after this pass is complete.
 
 Commit each batch on approval: `docs: add <entity> task briefs TASK-{NNN}–TASK-{NNN}`
 
-### Phase 15 — Invariants and progress
+### Phase 9 — Invariants and progress
 
 After all phases approved:
 
@@ -438,12 +356,9 @@ Arch Law 4 (token cost estimate): complied | violated | N/A — <reason>
 Arch Law 5 (Mermaid diagrams): complied | violated | N/A — <reason>
 Arch Law 6 (self-contained briefs): complied | violated | N/A — <reason>
 Arch Law 7 (offer /elicit): complied | violated | N/A — <reason>
-Arch Law 8 (extract prototypes): complied | violated | N/A — <reason>
-Arch Law 9 (commit each artifact): complied | violated | N/A — <reason>
-Arch Law 10 (brownfield reality-doc): complied | violated | N/A — <reason>
-Arch Law 11 (Scouts for brownfield): complied | violated | N/A — <reason>
-Arch Law 12 (machine-checkable infra): complied | violated | N/A — <reason>
-Arch Law 13 (spec invariants list): complied | violated | N/A — <reason>
+Arch Law 8 (commit each artifact): complied | violated | N/A — <reason>
+Arch Law 9 (machine-checkable infra): complied | violated | N/A — <reason>
+Arch Law 10 (spec invariants list): complied | violated | N/A — <reason>
 ```
 
 If ANY line says "violated": STOP, revise, re-run the check. Do not deliver to the user
@@ -465,12 +380,9 @@ Arch Law 4 (token cost estimate): N/A — task-level, not API-level.
 Arch Law 5 (Mermaid diagrams): N/A — OpenAPI is the contract artefact for this phase.
 Arch Law 6 (self-contained briefs): N/A — not a task brief.
 Arch Law 7 (offer /elicit): complied — offered at Phase 1 start.
-Arch Law 8 (extract prototypes): N/A — no prototypes present.
-Arch Law 9 (commit each artefact): pending — will commit when section approved.
-Arch Law 10 (brownfield reality-doc): N/A — greenfield entity.
-Arch Law 11 (Scouts for brownfield): N/A — greenfield entity.
-Arch Law 12 (machine-checkable infra): N/A — openapi phase, not infra.
-Arch Law 13 (spec invariants list): pending — will write invariants.md at Phase 15.
+Arch Law 8 (commit each artefact): pending — will commit when section approved.
+Arch Law 9 (machine-checkable infra): N/A — openapi phase, not infra.
+Arch Law 10 (spec invariants list): pending — will write invariants.md at Phase 9.
 ```
 
 ## What This Agent Does NOT Do

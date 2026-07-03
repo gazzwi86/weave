@@ -91,16 +91,11 @@ If `--advanced` is supplied, ask `AskUserQuestion` after the IaC question:
 
 ### Step 1: Detect Project State
 
-Detect the current project state:
+Every project is greenfield — there is no existing-codebase detection. The only branch point is
+whether Weave has already been initialized here:
 
-| Condition | Path |
-|-----------|------|
-| `docs/specs/` exists | Already initialized → confirm reinit |
-| Manifest exists (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Gemfile`, `pom.xml`, `build.gradle`, `composer.json`) but NO `docs/specs/` | Brownfield → run discover → reconcile → optional interview → HITL gate |
-| `prototype/` exists | PDD path (handled by Architect) |
-| None of above | Greenfield → standard init |
-
-**Brownfield path:** Run `${CLAUDE_PLUGIN_ROOT}/skills/dependency-check/SKILL.md` (brownfield-specific checks verify graphify is installed). Then invoke `${CLAUDE_PLUGIN_ROOT}/skills/discover/SKILL.md`, then `${CLAUDE_PLUGIN_ROOT}/skills/reconcile/SKILL.md` (mode A), then optionally `${CLAUDE_PLUGIN_ROOT}/skills/interview/SKILL.md`. Present reality-doc + graph for HITL review before continuing to Step 2.
+- `docs/specs/` exists → already initialized → confirm reinit
+- Otherwise → standard greenfield init
 
 **Already initialized:** Ask via AskUserQuestion:
 - "A Weave project structure already exists. Reinitialize? This will NOT overwrite existing specs."
@@ -159,20 +154,16 @@ Create the following directories:
   state/
     summaries/
     escalations/
-    discovery/                # Brownfield: graph.json
-    context/                  # Brownfield: SME interview outputs
+    context/                  # Coexistence artefacts (e.g. rule-candidates.md from Step 1.5)
   _intake/                    # Gitignored: raw SME transcripts staging area
   rules/                      # Path-scoped unconditional constraints (≤60 lines each)
 docs/
   standards/                  # Coding standards (base + stack overlay)
-  discovery/                  # Brownfield: graph viz, reality doc, shards, index
 ```
 
 Note: spec content is **entity-scoped** under `docs/specs/weave/engines/` and is created
 on demand by the PO and architect skills — init only ensures the base `docs/specs/` directory
-exists, never a flat `tech-spec/`/`tasks/`/`decisions/` tree. `docs/discovery/`,
-`.claude/state/discovery/`, and `.claude/state/context/` are only populated during brownfield
-init but are always created for structural consistency.
+exists, never a flat `tech-spec/`/`tasks/`/`decisions/` tree.
 
 **Gitignore fragment** — ensure the project's `.gitignore` contains (append if missing):
 ```
@@ -228,7 +219,6 @@ Create `.claude/CLAUDE.md` with the project name and basic conventions. This is 
 - Project name
 - Link to `docs/specs/` for requirements
 - Link to `docs/standards/` for coding conventions
-- If brownfield: link to `docs/discovery/graph.html` and `docs/discovery/brownfield-architecture.md`
 
 ### Step 5: Initialize State
 
@@ -267,30 +257,6 @@ already exists, deep-merge (do not clobber keys not listed here):
       "commitFormat": "conventional",
       "branchPattern": "feature/TASK-{id}",
       "worktreeIsolation": true
-    },
-    "brownfield": {
-      "scoutThresholds": {
-        "totalNodes": 500,
-        "topLevelClusters": 6,
-        "largestClusterNodes": 150,
-        "graphJsonSizeMb": 5
-      },
-      "freshness": {
-        "sessionBannerAgeCommits": 50,
-        "ruleStaleDays": 90,
-        "shardStaleDays": 180,
-        "adrStaleDays": 365
-      },
-      "coverage": {
-        "minPctForDeepArtefacts": 85,
-        "supportedLanguagesPath": "${CLAUDE_PLUGIN_ROOT}/templates/supported-languages.yml"
-      },
-      "claudeMd": {
-        "rootLineCap": 60,
-        "domainLineCap": 100,
-        "ruleLineCap": 60,
-        "shardLineCap": 200
-      }
     }
   }
 }
@@ -333,7 +299,7 @@ your session with one of:
 
 When testing this skill, verify:
 
-- **Correct structure created**: All directories (specs/, specs/tech-spec/, specs/epics/, specs/tasks/, specs/decisions/, standards/, state/, discovery/, state/discovery/, state/context/) exist after init
+- **Correct structure created**: All directories (specs/, specs/tech-spec/, specs/epics/, specs/tasks/, specs/decisions/, standards/, state/, state/context/) exist after init
 - **No overwrites of existing specs**: If specs already have content, they are preserved; only empty templates are written to new files
 - **Standards copied (base)**: All base standards files are present in `docs/standards/` when `WEAVE_STANDARDS_NONE` is unset
 - **Standards copied (overlay)**: Language-specific overlay files are present in `docs/standards/` and have overwritten any same-named base files
@@ -349,7 +315,4 @@ When testing this skill, verify:
 - **Reinitialize safety**: Running init on an existing project warns the user and does not destroy existing work
 - **Confirmation displayed**: Summary output shows what was created and suggests next steps
 - **Template placeholders removed**: No `{{...}}` placeholders remain in copied template files
-- **Brownfield detection**: When `package.json` (or equivalent manifest) exists but `docs/specs/` does not, brownfield path is triggered
-- **Brownfield discovery**: Discover skill is invoked, producing `docs/discovery/graph.html`, `docs/discovery/brownfield-architecture.md`, and shard files
-- **Brownfield HITL gate**: User is presented with reality-doc for review before continuing
-- **Greenfield regression**: Empty directory still takes the standard greenfield path
+- **Greenfield only**: Any directory (empty or not) takes the standard greenfield path — there is no other branch

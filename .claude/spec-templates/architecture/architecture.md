@@ -53,9 +53,9 @@ C4Container
 
 ### Level 3: Component — DRAFT (unverified grouping)
 
-> **This section was auto-generated from Graphify clusters. Cluster shape ≠ architectural component. Do not trust without SME confirmation.** See `.claude/state/context/patterns.md` for grouping rationale once an SME has reviewed.
+> **This section groups related code — verify the grouping reflects real architectural boundaries, not just directory structure.** See `.claude/state/context/patterns.md` for grouping rationale once an SME has reviewed.
 >
-> Status: `DRAFT — unverified grouping`. Run `/interview architect` to confirm or correct.
+> Status: `DRAFT — unverified grouping`. Confirm or correct this grouping with the team.
 
 ```mermaid
 %% Placeholder cluster map (not C4 L3 until SME-confirmed).

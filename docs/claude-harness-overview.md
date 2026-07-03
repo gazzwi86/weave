@@ -159,23 +159,17 @@ Elicitation
   └─ /elicit (20Q, Six Hats, Five Whys, Stochastic Reasoning)
 
 Product Owner phase          [HITL: section-by-section within each artifact]
-  └─ po-brief     → docs/specs/weave/engines/<entity>.md
-  └─ po-prd       → docs/specs/weave/engines/<entity>.md
-  └─ po-roadmap   → docs/specs/weave/engines/<entity>.md
+  └─ po-strategy  → docs/specs/weave/engines/<entity>.md (Brief → PRD → Roadmap, in strict sequence)
   └─ po-epic      → docs/specs/weave/engines/<entity>.md (one per epic)
 
 Tech Architect phase         [HITL: section-by-section within each artifact]
   └─ arch-stack          → docs/specs/weave/engines/<entity>/tech-spec/stack.md
-  └─ arch-c4             → docs/specs/weave/engines/<entity>/tech-spec/architecture.md
-  └─ arch-openapi        → docs/specs/weave/engines/<entity>/tech-spec/openapi.yaml
-  └─ arch-data-model     → docs/specs/weave/engines/<entity>/tech-spec/data-model.md
-  └─ arch-flows          → docs/specs/weave/engines/<entity>/tech-spec/business-process.md
-  └─ arch-class          → docs/specs/weave/engines/<entity>/tech-spec/class-diagram.md
-  └─ arch-cicd           → docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md
-  └─ arch-testing        → docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md
-  └─ arch-dod            → docs/specs/weave/engines/<entity>/tech-spec/definition-of-done.md
-  └─ arch-dor            → docs/specs/weave/engines/<entity>/tech-spec/definition-of-ready.md
-  └─ arch-infra          → docs/specs/weave/engines/<entity>/tech-spec/infrastructure.md
+  └─ arch-diagrams       → docs/specs/weave/engines/<entity>/tech-spec/architecture.md,
+                            class-diagram.md, business-process.md (C4 → class → flows)
+  └─ arch-contracts      → docs/specs/weave/engines/<entity>/tech-spec/openapi.yaml, data-model.md
+  └─ arch-quality        → docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md,
+                            definition-of-done.md, definition-of-ready.md
+  └─ arch-delivery       → docs/specs/weave/engines/<entity>/tech-spec/ci-cd.md, infrastructure.md
   └─ arch-adr            → docs/specs/weave/engines/<entity>/decisions/ADR-NNN.md (per key decision)
   └─ arch-task-brief     → docs/specs/weave/engines/<entity>/m1/tasks/TASK-NNN.md (batched 3-5 for HITL)
 
@@ -204,26 +198,18 @@ Implementation phase (dark factory)
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `po-brief` | `/po` → product-owner agent | `engines/<entity>.md` → ## Brief | Fable (elicit) → Sonnet (draft) |
-| `po-prd` | `/po` → product-owner agent | `engines/<entity>.md` → ## PRD | Fable (stories) → Sonnet (NFRs) |
-| `po-roadmap` | `/po` → product-owner agent | `engines/<entity>.md` → ## Roadmap | Sonnet |
+| `po-strategy` | `/po` → product-owner agent | `engines/<entity>.md` → Brief, PRD, Roadmap (strict sequence, each gated on prior approval) | Fable (elicit/stories) → Sonnet (draft/NFRs) |
 | `po-epic` | `/po` → product-owner agent | `engines/<entity>.md` → ### EPIC-NNN | Sonnet |
 
 ### Tech Architect skills
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `arch-stack` | `/architect` → tech-architect agent | `<entity>/tech-spec/stack.md` | Haiku + HITL |
-| `arch-c4` | `/architect` → tech-architect agent | `<entity>/tech-spec/architecture.md` | Fable |
-| `arch-openapi` | `/architect` → tech-architect agent | `<entity>/tech-spec/openapi.yaml` | Sonnet |
-| `arch-data-model` | `/architect` → tech-architect agent | `<entity>/tech-spec/data-model.md` | Sonnet |
-| `arch-flows` | `/architect` → tech-architect agent | `<entity>/tech-spec/business-process.md` | Sonnet |
-| `arch-class` | `/architect` → tech-architect agent | `<entity>/tech-spec/class-diagram.md` | Sonnet |
-| `arch-cicd` | `/architect` → tech-architect agent | `<entity>/tech-spec/ci-cd.md` | Sonnet |
-| `arch-testing` | `/architect` → tech-architect agent | `<entity>/tech-spec/testing-strategy.md` | Sonnet |
-| `arch-dod` | `/architect` → tech-architect agent | `<entity>/tech-spec/definition-of-done.md` | Haiku |
-| `arch-dor` | `/architect` → tech-architect agent | `<entity>/tech-spec/definition-of-ready.md` | Haiku |
-| `arch-infra` | `/architect` → tech-architect agent | `<entity>/tech-spec/infrastructure.md` | Sonnet |
+| `arch-stack` | `/architect` → tech-architect agent | `<entity>/tech-spec/stack.md` | Sonnet + HITL |
+| `arch-diagrams` | `/architect` → tech-architect agent | `<entity>/tech-spec/architecture.md`, `class-diagram.md`, `business-process.md` (C4 → class → flows) | Fable |
+| `arch-contracts` | `/architect` → tech-architect agent | `<entity>/tech-spec/openapi.yaml`, `data-model.md` | Sonnet |
+| `arch-quality` | `/architect` → tech-architect agent | `<entity>/tech-spec/testing-strategy.md`, `definition-of-done.md`, `definition-of-ready.md` | Sonnet |
+| `arch-delivery` | `/architect` → tech-architect agent | `<entity>/tech-spec/ci-cd.md`, `infrastructure.md` | Sonnet |
 | `arch-adr` | Architect, on decisions | `<entity>/decisions/ADR-NNN.md` | Sonnet |
 | `arch-task-brief` | `/architect` → tech-architect agent | `<entity>/m1/tasks/TASK-NNN.md` | Fable |
 
@@ -232,20 +218,12 @@ Implementation phase (dark factory)
 | Skill | Trigger | Purpose |
 |---|---|---|
 | `elicit` | `/elicit` | 20Q, Six Hats, Five Whys, Stochastic Reasoning |
-| `interview` | PO brownfield path | SME knowledge extraction |
 | `implement` | `/implement` | Dark factory orchestration (PDAC loop) |
-| `qa` | Auto per task | 10-category task validation |
 | `phase-gate` | Stop hook → implement | Phase completion HITL ceremony |
 | `spec-review` | Pre-scaffold | Spec completeness gate |
 | `status` | `/status` | Progress dashboard |
 | `dependency-check` | Pre-phase | Tool and credential availability |
-| `discover` | Brownfield init | Codebase graph analysis |
-| `reconcile` | Brownfield / wiki-lint | Graph ↔ spec drift detection |
-| `scout` | Brownfield | Targeted file/module investigation |
-| `thinking-tools` | Any agent | Reasoning frameworks (SCAMPER, OODA, etc.) |
 | `project-memory` | `/remember` | Save team facts to committed memory |
-| `prototype` | `/prototype` | Rapid vibe-coded prototype |
-| `extract-prototype` | Architect | Extract tests/patterns from prototype |
 | `okf-validate` | `/okf-validate` | OKF conformance checker |
 | `okf-visualize` | `/okf-visualize` | OKF interactive graph renderer |
 
@@ -259,17 +237,16 @@ they delegate to skills.
 
 | Agent | File | Triggered by | Calls skills |
 |---|---|---|---|
-| Product Owner | `agents/product-owner.md` | `/po` | po-brief, po-prd, po-roadmap, po-epic |
-| Tech Architect | `agents/tech-architect.md` | `/architect` | arch-stack + 12 arch-* skills |
+| Product Owner | `agents/product-owner.md` | `/po` | po-strategy, po-epic |
+| Tech Architect | `agents/tech-architect.md` | `/architect` | arch-stack, arch-diagrams, arch-contracts, arch-quality, arch-delivery, arch-adr, arch-task-brief |
 | Engineer | `agents/engineer.md` | implement skill (subagent) | scaffold, TDD implementation |
-| QA | `agents/quality-assurance.md` | implement skill (subagent) | qa skill + reporting |
-| Prototyper | `agents/prototyper.md` | `/prototype` | prototype skill |
+| QA | `agents/quality-assurance.md` | implement skill (subagent) or `/qa` | validation + reporting (in-agent, no separate skill) |
 
 ### Agent Laws (universal, baked into every agent)
 
 - **Law A** — common-stack first (Weave defaults, § Stack)
 - **Law B** — functional, browser-runnable, automation-tested (Playwright for UI)
-- **Law C** — council-graded quality for enterprise claims (7-persona, ≥ 4.0/5)
+- **Law C** — council-graded quality for enterprise claims (5-persona, ≥ 4.0/5)
 - **Law D** — stacked PRs (one PR per EPIC; small commits stack within a phase)
 - **Law E** — complexity as a budget (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
 - **Law F** — synthetic verification only (LocalStack, not real cloud in tests)

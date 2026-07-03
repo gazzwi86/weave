@@ -18,32 +18,7 @@
     "git": {
       "commitFormat": "conventional",
       "branchPattern": "feature/{epic}",
-      "worktreeIsolation": false,
-      "_note": "Tasks within an epic commit sequentially onto one feature/{epic} branch and ship as a single epic PR (a coherent, navigable feature). Per-task worktree isolation is OFF (a branch cannot live in two worktrees, and it would break epic assembly) \u2014 engineer.md/quality-assurance.md no longer self-isolate. Engagement-level isolation is the operator's own git worktree. The prototyper still uses its own per-prototype worktree (separate concern). See .claude/skills/implement CODIFY."
-    },
-    "brownfield": {
-      "scoutThresholds": {
-        "totalNodes": 500,
-        "topLevelClusters": 6,
-        "largestClusterNodes": 150,
-        "graphJsonSizeMb": 5
-      },
-      "freshness": {
-        "sessionBannerAgeCommits": 50,
-        "ruleStaleDays": 90,
-        "shardStaleDays": 180,
-        "adrStaleDays": 365
-      },
-      "coverage": {
-        "minPctForDeepArtefacts": 85,
-        "supportedLanguagesPath": "${CLAUDE_PLUGIN_ROOT}/templates/supported-languages.yml"
-      },
-      "claudeMd": {
-        "rootLineCap": 60,
-        "domainLineCap": 100,
-        "ruleLineCap": 60,
-        "shardLineCap": 200
-      }
+      "worktreeIsolation": false
     }
   },
   "plansDirectory": "./.claude/plans",

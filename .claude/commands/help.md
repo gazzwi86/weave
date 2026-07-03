@@ -53,10 +53,6 @@ Display the full command table:
 | `/implement` | TDD implementation loop | After tasks are approved |
 | `/qa` | Standalone quality check | Ad-hoc validation outside the loop |
 | `/status` | Kanban progress dashboard | Anytime — check where things stand |
-| `/six-hats` | Six Thinking Hats facilitation | Exploring perspectives on a decision |
-| `/five-whys` | 5 Whys root cause analysis | Understanding why behind a requirement |
-| `/twenty-questions` | Structured scope narrowing | Broad topic that needs focusing |
-| `/stochastic-reasoning` | Weighted decision evaluation | Choosing between competing approaches |
 | `/spec-review` | Audit specs for completeness | Before scaffolding or anytime |
 | `/help` | This guide | Learning the system |
 

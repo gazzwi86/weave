@@ -30,10 +30,7 @@ git --version         # Git
 
 # Framework-specific (from tech spec)
 npx --version         # npx (for create-next-app, husky, etc.)
-
-# Brownfield discovery (required when brownfield path detected)
-command -v graphify   # Graphify knowledge graph CLI
-command -v uv         # uv (Graphify installer)
+command -v uv          # uv (required for Python packages repo-wide)
 
 # Optional / phase-specific (from roadmap)
 gh --version          # GitHub CLI (for PR creation)
@@ -41,18 +38,6 @@ docker --version      # Docker (if containerised deployment)
 aws --version         # AWS CLI (if AWS deployment)
 terraform --version   # Terraform (if IaC required)
 ```
-
-### Brownfield-Specific Checks
-
-When a brownfield project is detected (manifest exists, no `docs/specs/`):
-
-1. **Graphify is required.** Check `command -v graphify`. If missing:
-   ```
-   ✗ graphify — NOT FOUND
-     Install: uv tool install graphifyy && graphify claude install
-     Docs: https://graphify.net
-   ```
-2. If missing, STOP — brownfield discovery cannot proceed without Graphify.
 
 ### Step 3: Report Status
 

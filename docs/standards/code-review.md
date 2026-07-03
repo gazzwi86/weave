@@ -10,8 +10,8 @@ review time, so keep it current; when this document changes, review behaviour ch
 
 Synthesised from Google's Engineering Practices, Conventional Comments, the OWASP code-review
 guidance, and Anthropic's Claude code-review tooling, then grounded in this repo's Definition
-of Done (`.claude/skills/arch-dod`), the QA categories (`.claude/skills/qa`), and the
-standards in this directory.
+of Done (`.claude/skills/arch-quality`), the QA categories (`.claude/agents/quality-assurance.md`),
+and the standards in this directory.
 
 ## The standard
 
@@ -32,7 +32,7 @@ Design and correctness first; style last. The linter and CI own style — review
    conditions, wrong error handling, and subtle regressions to existing behaviour.
 3. **Security** — See the checklist below and `.claude/rules/security.md`.
 4. **Spec & Definition of Done alignment** — Does the change satisfy its task brief's
-   acceptance criteria (EARS) and the DoD (sections A–E in `.claude/skills/arch-dod`)? Flag
+   acceptance criteria (EARS) and the DoD (sections A–E in `.claude/skills/arch-quality`)? Flag
    any `Must` requirement that the diff claims to deliver but does not.
 5. **API contracts & data model** — Do the API entities, endpoints, Pydantic v2 models, and
    SQLAlchemy/RDF shapes referenced by the change actually exist and match the OpenAPI spec and

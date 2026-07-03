@@ -2,25 +2,18 @@
 set -euo pipefail
 
 # Pre-push (declarative, NO AI inference in the hook path):
-#   1. Anatomy freshness                          (advisory)
-#   2. Harness manifest structural parity         (blocking)
-#   3. OKF bundle validation                      (blocking, hard errors only)
-#   4. OKF visualization refresh                  (advisory)
-#   5. Semgrep security scan on changed files     (blocking when semgrep is installed)
+#   1. Harness manifest structural parity         (blocking)
+#   2. OKF bundle validation                      (blocking, hard errors only)
+#   3. OKF visualization refresh                  (advisory)
+#   4. Semgrep security scan on changed files     (blocking when semgrep is installed)
 # The former `claude -p /security-review` stage was removed 2026-07-02: it was a second
 # billable, non-deterministic AI call per push. The AI security review now runs once per
 # phase inside the phase-gate ceremony (.claude/skills/phase-gate Step 2), where a human
 # reviews the findings. NOTE: `--no-verify` does NOT work here — it is blocked by the
 # check-git-safety PreToolUse hook (.claude/rules/git-safety.md). Fix findings, not the gate.
+# Anatomy freshness is checked in pre-commit only (advisory, redundant to repeat here).
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
-
-# Check if the anatomy is stale (only meaningful once there are commits). Advisory.
-if git rev-parse HEAD >/dev/null 2>&1; then
-  if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh 2>/dev/null; then
-    echo "pre-push: anatomy may be stale; consider refreshing before push" >&2
-  fi
-fi
 
 # [blocking] Harness manifest structural row-parity gate. Unlike the anatomy
 # check above, this one BLOCKS: an exit 2 (a discovered element with no row in

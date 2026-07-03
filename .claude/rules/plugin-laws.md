@@ -11,7 +11,7 @@ restating it.
   (Playwright default; Selenium/Cypress/Puppeteer where the brief mandates) that also asserts
   backend state changed. Non-UI projects pass integration tests invoking the produced binary/infra
   against local emulators.
-- **Law C — Council-graded quality.** Enterprise-grade claims require a 7-persona council review
+- **Law C — Council-graded quality.** Enterprise-grade claims require a 5-persona council review
   (product, security, architecture, engineering, QA, end-user, executive) with aggregate ≥ 4.0/5
   and zero Blocker findings.
 - **Law D — Stacked PRs by construction.** One PR per phase; multiple small commits per PR;

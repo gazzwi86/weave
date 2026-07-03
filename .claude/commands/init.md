@@ -10,7 +10,8 @@ Initialize a project for Weave spec-driven development.
 
 ## Description
 
-Scaffolds the `docs/` directory with spec templates, coding standards, and state tracking. Detects project state (greenfield, brownfield, PDD, already-initialized) and takes the appropriate path. For brownfield, runs discovery (graph extraction, reality-doc generation) and reconciliation before creating the standard scaffold.
+Scaffolds the `docs/` directory with spec templates, coding standards, and state tracking. Every
+project is greenfield; the only state check is whether Weave has already been initialized here.
 
 This is the first step before running any other Weave command.
 
@@ -18,8 +19,7 @@ This is the first step before running any other Weave command.
 
 When the user runs `/init`, invoke the `init` skill. The skill owns:
 
-- Project-state detection (greenfield / brownfield / PDD / already-initialized)
-- Brownfield orchestration (dependency-check → discover → reconcile → optional interview → HITL gate)
+- Project-state detection (already-initialized vs. fresh)
 - Directory creation, template copy, state initialization, settings generation
 - Confirmation summary
 
