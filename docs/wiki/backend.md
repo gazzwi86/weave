@@ -62,7 +62,7 @@ OTel tracing with tenant attributes (ADR-002: raw ASGI middleware, ContextVar st
 
 - `context.py` — ContextVars for `tenant_id` / `engine` / `principal_iri`
 - `middleware.py` — `TenantContextMiddleware`, `install_tenant_context_middleware(app)`
-- `tracing.py` — `setup_tracing(app, testing=)` → InMemorySpanExporter in tests; `add_tenant_attributes(span, scope)` — missing `tenant_id` raises in test mode
+- `tracing.py` — `setup_tracing(app, testing=)` → InMemorySpanExporter in tests, BatchSpanProcessor+OTLP in prod; `add_tenant_attributes(span)` — missing `tenant_id` raises in test mode
 
 ## src/weave_backend/routers/auth.py
 
@@ -88,7 +88,7 @@ OTel tracing with tenant attributes (ADR-002: raw ASGI middleware, ContextVar st
 
 ## src/weave_backend/scripts/mutation_gate.py
 
-- `evaluate(...)` / `main(stats_path)` — mutmut JSON stats → CI exit code, 70% threshold
+- `evaluate(...)` / `main(stats_path)` — mutmut JSON stats → CI exit code, 70% threshold; fails loudly on interrupted runs (total>0, checked==0)
 
 ## tests/
 
