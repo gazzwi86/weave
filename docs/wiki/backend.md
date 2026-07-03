@@ -90,6 +90,47 @@ OTel tracing with tenant attributes (ADR-002: raw ASGI middleware, ContextVar st
 
 - `evaluate(...)` / `main(stats_path)` — mutmut JSON stats → CI exit code, 70% threshold; fails loudly on interrupted runs (total>0, checked==0)
 
+## src/weave_backend/tenancy/
+
+Multi-tenant workspaces + membership (PLAT-TASK-003).
+
+- `workspaces.py` — `create_workspace(tid, slug, ...)`: transactional create + named-graph IRI mint (`urn:weave:tenant:{tid}:ws:{wid}`), 409 on dup slug
+- `members.py` — invite (202, pending record w/ role) / revoke (204) flows; duplicate-active 409
+- `invite_gateway.py` — `InviteGateway` Protocol + recording fake (real Cognito adapter = later env-switch)
+- `sessions.py` / `session_guard.py` — Redis session-version per (tenant_id, user_id); bump on revoke; `require_active_session` rejects stale versions (RBAC in PLAT-TASK-004 composes on this)
+
+## src/weave_backend/settings/
+
+4-level settings cascade PLAT-SETTINGS-1 (tighter wins: Project→Workspace→Domain→Company).
+
+- `scope.py` — scope-chain derivation from context IRI (domain level unmodeled yet — ADR-004)
+- `resolver.py` — tightest-first resolution (`resolved_at`, `resolved_from_iri`); looser-override → 422
+- `cache.py` — Redis TTL-30s cache keyed (context_iri, key), invalidated on write
+
+## src/weave_backend/rdf/
+
+- `query_rewriter.py` — SPARQL scope enforcement: rdflib algebra parsing (not string match), SELECT/CONSTRUCT only, unscoped query → 400 `unscoped_query_rejected`, SERVICE federation rejected, GRAPH rewritten to caller's named graph
+- `oxigraph_client.py` — HTTP client for Oxigraph (7878), named-graph reads/writes
+
+## src/weave_backend/audit/emitter.py
+
+PLAT-AUDIT-1 forward seam — `AuditEvent` + emitter Protocol, Postgres `audit_events` sink; every mutation route emits (hash-chain store lands in PLAT-TASK-009).
+
+## src/weave_backend/storage/tenant_objects.py
+
+Tenant-prefixed object storage over LocalStack S3 (S3 Vectors stand-in) — prefix isolation enforced.
+
+## src/weave_backend/db/
+
+- `pool.py` — asyncpg pool (non-superuser `weave_app` role so RLS applies — ADR-003)
+- `migrate.py` + `migrations/0001_tenancy.sql` — plain-SQL migration runner; tenant_id CHECK + FORCE ROW LEVEL SECURITY on all tenancy tables
+
+## src/weave_backend/routers/ (TASK-003 additions)
+
+- `tenancy.py` — POST /api/tenants/{tid}/workspaces, member invite/revoke, POST /api/workspaces/{wid}/switch
+- `settings.py` — GET/PUT /api/settings/{key} (cascade resolve / audited write)
+- `sparql.py` — scoped SPARQL endpoint through the query rewriter choke point
+
 ## tests/
 
 `tests/unit` (fast, offline), `tests/integration` (markers: `integration`, `docker`), `tests/e2e` (static CI-workflow assertions, e.g. `test_oidc_deploy.py`). Terraform validate/plan tests run offline via a git-ignored local-backend `override.tf`.
