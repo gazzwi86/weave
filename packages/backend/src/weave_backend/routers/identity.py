@@ -58,7 +58,7 @@ async def mint_agent_token(
     _rate_limited: Annotated[None, Depends(_enforce_agent_token_rate_limit)],
 ) -> AgentTokenResponse:
     try:
-        iam_role_arn = get_caller_identity_arn(body.sts_token)
+        iam_role_arn = await get_caller_identity_arn(body.sts_token)
     except StsValidationError as exc:
         raise HTTPException(
             status_code=401, detail={"error": "sts_validation_failed"}
