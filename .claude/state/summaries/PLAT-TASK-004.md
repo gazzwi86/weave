@@ -208,3 +208,158 @@ three target modules is 86%, above the 80% DoD bar.
    migration draft (ADR-006) — a genuine bug found by running real tests, not
    a brief deviation (the IRI *mint formula* itself is unchanged, exactly as
    specified).
+
+## QA pass (2026-07-04)
+
+**Verdict: FAIL (1 blocking item — deviation #4 / AC-3).** Everything else
+checked out: fast suite 111 passed (110 + 1 new), docker-marked suite 20
+passed + 1 xfail (19 + 2 new, one xfailed by design), ruff/mypy/bandit clean,
+`docker compose down -v` performed before the docker lane both times (no
+leaked containers found either time — engineer's bug #2 fix holds).
+
+### FAIL-1 — AC-3 "every endpoint checks role" is not met by settings/sparql/
+workspace-switch (deviation #4)
+
+- Root cause: **logic gap, not test gap.** `rbac.assert_all_routes_guarded`
+  only proves a route depends on `get_current_principal` (authenticated +
+  correct tenant) — it never proves a route depends on
+  `require_workspace_role`/`require_tenant_admin` (an actual role/membership
+  check). "RBAC by-default" as built is really "authentication by-default";
+  role enforcement remains opt-in per route.
+- Confirmed by grepping every router: `invite_member_route` /
+  `revoke_member_route` use `require_workspace_role("admin")`;
+  `get_setting_route` / `set_setting_route` / `run_sparql_route` /
+  `switch_workspace_route` use bare `get_current_principal` only — no
+  workspace-membership or role check at all.
+  (`packages/backend/src/weave_backend/routers/settings.py:44,70`,
+  `routers/sparql.py:44`, `routers/tenancy.py:154`.)
+- Proven live, not just by reading code: new test
+  `test_non_member_can_reach_workspace_settings_and_switch`
+  (`tests/integration/test_identity_rbac.py`) mints a token for a tenant
+  member who has **zero** `workspace_members` row for the target workspace
+  (never invited, any role) and gets **200** on both
+  `POST /workspaces/{id}/switch` and `GET /settings/{key}?context=...`. Marked
+  `xfail(strict=True)` so the suite stays green today but turns into a hard
+  failure the moment the gap is silently fixed without removing the marker
+  (or silently widens).
+- Why this is a FAIL and not a PASS-acceptable scope narrowing: (a) AC-3's
+  brief text is unqualified — "every endpoint checks role" — with no carve-out
+  language comparable to AC-5's explicit "ADR-001 adjustment"; (b) the exact
+  gap was pre-assigned to this task by name in
+  `.claude/state/qa-cross-task-findings.md` ("PLAT-EPIC-003 PR review": *"RBAC
+  (PLAT-TASK-004) must gate settings + tenancy routes on workspace
+  membership/role, not just tenant identity"*) — that finding named settings
+  and tenancy routes specifically, not only invite/revoke; (c) the risk is
+  real and live: any authenticated member of a tenant (regardless of role, or
+  even with zero membership anywhere) can read/write another workspace's
+  settings and run arbitrary SPARQL against it, and can switch into it,
+  purely because they share a tenant — a within-tenant lateral-movement hole,
+  the same class of bug this task was created to close.
+- Classification: **logic** (route wiring), not a test/dependency/interface
+  gap — the fix is adding `require_workspace_role("read")` (or the
+  appropriate ceiling per route) to the three route functions named above.
+  Not a spec-ambiguity call: the ledger's owner assignment was explicit.
+- This does NOT block: AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, ADR-005, ADR-006,
+  the TTL ceiling, the JWKS-cache/shared-client/WEAVE_TESTING fixes, or the
+  agent registry tenant-scoping — all independently verified below and all
+  PASS.
+
+### Verified PASS items (with evidence)
+
+- AC-1 (idempotent human mint): `ensure_human_principal`'s
+  `ON CONFLICT (tenant_id, sub) DO UPDATE`; embedded in JWT `principal_iri`.
+  Covered by unit + docker tests.
+- AC-2 (agent STS auth): `test_agent_sts_auth_mints_iri` — 200, correct IRI,
+  TTL 60, DB row + audit row asserted directly, not just HTTP status.
+- AC-4 (revoked session): `test_revoked_session_returns_401` — exact body
+  `{"error": "session_revoked"}`, distinct from the 403 `forbidden` shape.
+- AC-5 (per-token-type TTL ceiling): `test_jwt_ttl_ceiling.py` — both
+  ceilings (300/301 human, 60/61 agent) checked at the exact boundary, plus
+  the missing-`principal_type` default-to-human case. New edge test proves
+  the ceiling doesn't substitute for real expiry enforcement (replayed
+  already-expired-but-under-ceiling agent token still 401s).
+- AC-6 (admin-only principal lookup incl. tenant scoping): existing
+  `test_get_principal_route_is_admin_only` (200/404/403) plus new
+  `test_get_principal_route_never_leaks_cross_tenant` — a genuinely distinct
+  real principal in tenant B (different `sub`, so a different IRI) is
+  invisible to tenant A's admin (404, not a leaked 200). The brief's own test
+  only proved a *nonexistent* IRI 404s within one tenant; this closes the
+  gap of proving a *real* cross-tenant row doesn't leak.
+- AC-7 (agent registry tenant-scoped): `test_agent_registry_tenant_scoped` —
+  zero cross-tenant rows returned; ADR-006's schema fix independently
+  verified necessary (read migration + summary's documented reproduction).
+- ADR-005/ADR-006: read both; reasoning holds, consequences honestly stated
+  (ADR-005 flags its own Aurora follow-up; ADR-006 flags its own future-need
+  caveat). Grepped for `REFERENCES principals` / FK use of `principals.iri`
+  elsewhere in the schema — none found, so the mid-task PK change broke no
+  other contract.
+- Cross-task ledger fixes (JWKS cache, shared httpx client, `WEAVE_TESTING`
+  removal): all three read and independently confirmed real, not cosmetic —
+  `_jwk_cache` dict with TTL and a test asserting exactly one HTTP fetch for
+  two lookups; a module-level singleton `httpx.AsyncClient` with a loop-rebind
+  guard; zero `WEAVE_TESTING` reads left in `src/` (grep), `setup_tracing`
+  threads an explicit `testing`/`_strict_tenant_attributes` flag instead.
+- Coverage: fast-lane-only aggregate reported at 86% across the three target
+  modules holds; `rbac.py` (68%) and `auth/dependencies.py` (63%)'s uncovered
+  lines are `require_workspace_role`/`require_tenant_admin`'s dependency
+  closures and `get_current_principal`'s body — by hand-tracing, every
+  branch in both is hit by a *named* docker test (session-revoked path by
+  `test_revoked_session_returns_401`; insufficient-role 403 by
+  `test_rbac_author_cannot_delete_member`; admin-only 403/404/200 by
+  `test_get_principal_route_is_admin_only` and the new cross-tenant test).
+  Independently attempted combined coverage (`--cov` + docker lane) twice,
+  after a clean `docker compose down -v` both times — reproduced the
+  documented segfault inside `asyncpg`/`platform_stack`'s own migration run
+  both times, confirming the engineer's claim that this is a genuine
+  coverage-tracer/live-I/O fragility (not simply the leaked-container bug,
+  which is separately confirmed fixed — see below). No numeric coverage
+  report was obtainable for the docker-only lines; accepted per the brief's
+  own fallback instruction, on the strength of the by-hand trace above.
+- Leaked-container bug (engineer's bug #2): independently reproduced its
+  *cause* — the combined-coverage segfault attempt above left a real
+  `weave-localstack-1` container running (confirmed via `docker ps -a`), and
+  a subsequent `docker compose down -v` removed it. This is exactly the
+  failure mode the engineer described; the mitigation (`down -v` before every
+  docker-lane run) is confirmed necessary and sufficient — the docker lane
+  itself, run clean, is reliably 19/19 (now 20/20 + 1 xfail) with zero
+  flakiness across three separate runs this QA pass.
+- RBAC-by-default structural check: grepped every router; every route
+  function depends (directly or transitively) on `get_current_principal`
+  except the three explicitly `@public`-marked ones (`/api/health`,
+  `/api/auth/refresh`, `/api/auth/agent-token`) — no silently-unprotected
+  route exists. Minor doc nit (not a finding, not filed): this summary's
+  "Decisions" section says "only `/api/health` and `/api/auth/refresh` are
+  marked public," omitting `/api/auth/agent-token`'s `@public` decorator
+  (`routers/identity.py:55`) — harmless, but worth fixing in the next touch
+  of this file so the doc matches the code.
+- Complexity/lint/security: ruff (incl. `C901` max-complexity=10,
+  `PLR09xx`) clean, mypy clean (95 files), bandit 0 High / 2 pre-existing
+  Medium (`B104`, `noqa`'d dev entrypoints) / 3 Low. No complexity waivers
+  used or needed.
+- Git hygiene: 10 commits (`b77427a..4fabd3a` inclusive), each a conventional,
+  single-purpose commit (`test:` red-first, then `feat:`/`fix:`, `docs:`
+  last) — matches TDD-first convention.
+
+### Edge cases added (3, committed `test(qa): edge cases for PLAT-TASK-004`,
+commit `6b93c72`)
+
+1. `test_get_principal_route_never_leaks_cross_tenant` (passes) — real
+   cross-tenant principal row stays invisible, not just a nonexistent IRI.
+2. `test_non_member_can_reach_workspace_settings_and_switch` (xfail, strict)
+   — documents FAIL-1 live; flips to a hard failure if silently "fixed"
+   without removing the marker.
+3. `test_replayed_agent_token_past_its_real_expiry_is_rejected` (passes) — a
+   ceiling-compliant agent token replayed after real wall-clock expiry still
+   401s via PyJWT's own exp check, not the ceiling logic.
+
+### Cross-task ledger
+
+Read `.claude/state/qa-cross-task-findings.md` before this pass (required —
+findings tagged `affects: [..., PLAT-TASK-004]`). All three ledger items
+assigned to this task that claimed a *fix* here were independently verified
+real (JWKS cache, shared httpx client, `WEAVE_TESTING` removal — see above).
+The fourth ledger item assigned here (settings+tenancy membership/role gating)
+is the one this pass fails on (FAIL-1) — only partially closed. Appending a
+row below per Category 13 since FAIL-1 itself is a live gap other tasks may
+build on top of (anything in PLAT-TASK-005's UI that assumes settings/sparql
+are already role-gated would be building on a false assumption).
