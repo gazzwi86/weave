@@ -22,8 +22,13 @@ pytestmark = pytest.mark.skipif(
 
 
 def _fake_aws_access_key() -> str:
-    """Build a syntactically-valid, never-real AWS access key id at runtime."""
-    suffix = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+    """Build a syntactically-valid, never-real AWS access key id at runtime.
+
+    Real AWS access key ids (and gitleaks' `aws-access-token` rule) are
+    base32-shaped: `AKIA` + 16 chars from [A-Z2-7] only — no 0/1/8/9.
+    """
+    alphabet = string.ascii_uppercase + "234567"
+    suffix = "".join(random.choice(alphabet) for _ in range(16))
     return "AKIA" + suffix
 
 
@@ -53,7 +58,7 @@ def test_secret_scan_rejects_credential_pattern(repo_root: Path, tmp_path: Path)
     findings = json.loads(report_path.read_text())
     assert len(findings) == 1
     finding = findings[0]
-    assert finding["File"] == "leaked_config.py"
+    assert Path(finding["File"]).name == "leaked_config.py"
     assert finding["RuleID"]
     # --redact must strip the raw secret from both the report and stdout/stderr.
     assert finding["Secret"] == "REDACTED"
