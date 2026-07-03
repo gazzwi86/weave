@@ -363,3 +363,85 @@ is the one this pass fails on (FAIL-1) — only partially closed. Appending a
 row below per Category 13 since FAIL-1 itself is a live gap other tasks may
 build on top of (anything in PLAT-TASK-005's UI that assumes settings/sparql
 are already role-gated would be building on a false assumption).
+
+## QA re-validation pass (2026-07-04, targeted on fix commit 5bf7d04)
+
+`docker compose down -v` run clean before this pass (no leaked containers).
+Read the full `5bf7d04` diff (`rbac.py::enforce_workspace_role`,
+`settings/scope.py::workspace_of`, and the 4 call sites in
+`routers/settings.py`/`sparql.py`/`tenancy.py`).
+
+**FAIL-1 (AC-3, settings/sparql/switch ungated on workspace role): RESOLVED,
+verified.** Added 4 new tests to `tests/integration/test_identity_rbac.py`
+(committed `test(qa): edge cases for PLAT-TASK-004`, this pass) closing the
+coverage gap the original fix's own tests left open (they only covered
+settings-GET and switch, never settings-PUT or sparql):
+
+1. `test_non_member_forbidden_on_settings_write_and_sparql` — zero-membership
+   principal gets 403 on `PUT /api/settings/{key}` and `POST /api/sparql`
+   (the two routes the engineer's own tests didn't touch).
+2. `test_read_role_member_cannot_write_settings_author_ceiling` — a workspace
+   member with `role="read"` still 403s on the settings PUT route (ADR-007's
+   author ceiling isn't satisfied by membership alone); a `role="author"`
+   member gets 200.
+3. `test_workspace_role_enforced_against_the_requested_workspace_not_another`
+   — the explicit cross-workspace probe: a member of workspace A (with
+   `role="admin"` there) gets 403 on switch/settings-GET/sparql for
+   workspace B (same tenant, no membership row there), proving
+   `enforce_workspace_role` resolves the *requested* workspace_id in every
+   case (scope_iri for settings, body/session workspace_id for sparql, path
+   param for switch) — never a stale/cached/active one. A same-member,
+   same-role request against their *own* workspace A still 200s in the same
+   test, ruling out a blanket-break false positive.
+4. The original `test_non_member_can_reach_workspace_settings_and_switch`
+   (now un-xfailed by the engineer) still passes as a real 403.
+
+All 4 named routes (settings GET, settings PUT, sparql, switch) now have
+explicit negative (403) coverage. `workspace_of` returning `None` for
+company/domain scope traced against both IRI shapes and confirmed intended
+(matches pre-existing company-scope settings test precedent — tenant-match
+only, no membership row possible there by design, not an escalation path).
+
+**FAIL-2 (new this pass): ADR-007 is missing.** Cited by name in the fix
+commit message and in a code comment (`routers/settings.py:102`) but
+`docs/specs/weave/engines/weave-platform/decisions/ADR-007.md` does not
+exist anywhere in the repo (grepped fully — 2 citation hits, 0 documents).
+Breaks the ADR-005/006 precedent this same task established, and leaves
+`okf-validate` with a dangling reference. The underlying decision (author,
+not admin, ceiling on settings writes) is verified sound by test #2 above —
+this is a documentation-completeness gap, not a security regression. Per
+Law #7 (QA never modifies implementation, and an ADR is the Engineer's
+design-decision record, not a QA-authored test), QA does not write this
+file — filed as a narrow FAIL blocking full task closure, see ledger.
+
+**Regression check:** fast suite 117 passed (up from 111 pre-fix baseline
+— +6 from the engineer's fix-commit tests, +4 from this pass, net of the
+1 un-xfailed test no longer counted as xfail); docker suite (`-m
+"integration and docker and not stack"`) 25 passed, 0 xfail remaining;
+ruff clean; mypy clean (59 source files).
+
+**Test-fixture hazard (engineer-flagged) investigated and confirmed real**:
+`test_local_stack.py::test_local_stack_boots` owns a function-scoped
+`running_stack` fixture with its own `down -v` in `finally`. Reproduced live
+— running the full `-m "integration and docker"` marker set (omitting the
+already-in-place `and not stack` exclusion) tears down the shared
+session-scoped `platform_stack` fixture's containers mid-session via that
+fixture's teardown, causing 12 failures in every test file alphabetically
+after `test_local_stack.py` (`test_tenancy_isolation.py`,
+`test_workspace_switch_e2e.py`). The `pytest.mark.stack` marker + `and not
+stack` filter (already present) is the correct, working mitigation —
+`test_dev_stack_healthy.py` is NOT implicated (it sorts before
+`platform_stack` is ever created). Filed as a Warn on the ledger, owner
+Engineer, action: document the marker convention in `testing-strategy.md`/CI
+config before PLAT-TASK-005's CI job is wired up, so the exclusion isn't
+lost to an unrelated CI job edit.
+
+**Verdict: FAIL (narrow).** All 7 ACs are now functionally met and verified
+live, including AC-3 in full (all 4 named routes gate on workspace role, not
+just tenant identity), zero regressions, lint/typecheck clean. The single
+outstanding blocker is process/documentation, not functional or security:
+`ADR-007.md` must exist with OKF frontmatter before this task is fully
+closed (checklist item 6 cannot pass against a file that doesn't exist).
+Ledger updated: FAIL-1 → RESOLVED/CLOSED (commit `5bf7d04` + this pass's
+verification); new FAIL-2 → open (ADR-007 missing); new Warn → filed
+(fixture-teardown hazard, affects PLAT-TASK-005/CI).
