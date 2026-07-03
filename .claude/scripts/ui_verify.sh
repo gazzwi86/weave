@@ -98,14 +98,33 @@ fi
 
 # --- Step B: Playwright functional click-through + 8-state visual diff -------
 # FAIL-CLOSED: missing toolchain is a failure, not a skip.
+# Spec source depends on the target: a real served app is verified by ITS OWN per-feature
+# Playwright suite (specs live alongside the feature, per the nav.spec.ts header); the committed
+# fixture is verified by the gate's own self-test spec. Running the fixture self-test against a
+# real app asserts fixture-only testids/baselines and fails spuriously — that is a harness bug,
+# not a soft-gate: both branches below remain fail-closed (missing suite = FAIL, not skip).
 step "B. functional click-through + visual (Playwright)"
-if [ ! -d "$E2E/node_modules/@playwright" ]; then
-  note "✗ @playwright/test not installed in $E2E (fail-closed; run 'npm ci' + 'npx playwright install --with-deps chromium')"; fail=1
-elif ! (cd "$E2E" && UIV_TARGET="$TARGET" npx playwright test 2>&1 | sed 's/^/    /'); then
-  note "✗ Playwright functional/visual checks failed"; fail=1
-else
-  note "✓ functional click-through + visual baselines passed"
-fi
+APP_E2E="$REPO/packages/frontend"
+case "$TARGET" in
+  http://*|https://*)
+    if [ ! -f "$APP_E2E/playwright.config.ts" ]; then
+      note "✗ no app Playwright suite at packages/frontend (fail-closed)"; fail=1
+    elif [ ! -d "$APP_E2E/node_modules/@playwright" ]; then
+      note "✗ @playwright/test not installed in $APP_E2E (fail-closed; run 'npm ci' there)"; fail=1
+    elif ! (cd "$APP_E2E" && TEST_BASE_URL="$TARGET" npx playwright test 2>&1 | sed 's/^/    /'); then
+      note "✗ app functional click-through failed"; fail=1
+    else
+      note "✓ app functional click-through passed (per-feature suite vs $TARGET)"
+    fi ;;
+  *)
+    if [ ! -d "$E2E/node_modules/@playwright" ]; then
+      note "✗ @playwright/test not installed in $E2E (fail-closed; run 'npm ci' + 'npx playwright install --with-deps chromium')"; fail=1
+    elif ! (cd "$E2E" && npx playwright test 2>&1 | sed 's/^/    /'); then
+      note "✗ gate self-test vs fixture failed"; fail=1
+    else
+      note "✓ gate self-test vs fixture passed"
+    fi ;;
+esac
 
 # --- Step C: Lighthouse (100 across perf/a11y/best-practices/seo) ------------
 step "C. Lighthouse (app bar = 100 / category)"
