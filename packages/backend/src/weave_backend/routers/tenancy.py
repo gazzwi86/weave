@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
+from weave_backend.rbac import require_workspace_role
 from weave_backend.schemas.tenancy import (
     CreateWorkspaceRequest,
     InviteMemberRequest,
@@ -17,7 +20,12 @@ from weave_backend.schemas.tenancy import (
     WorkspaceResponse,
 )
 from weave_backend.tenancy.invite_gateway import InviteGateway, get_invite_gateway
-from weave_backend.tenancy.members import MemberAlreadyActive, invite_member, revoke_member
+from weave_backend.tenancy.members import (
+    MemberAlreadyActive,
+    activate_member,
+    invite_member,
+    revoke_member,
+)
 from weave_backend.tenancy.sessions import bump_session_version, set_active_workspace
 from weave_backend.tenancy.workspaces import (
     WorkspaceSlugTaken,
@@ -31,6 +39,24 @@ router = APIRouter(prefix="/api", tags=["tenancy"])
 def _require_own_tenant(principal: Principal, tenant_id: str) -> None:
     if principal.tenant_id != tenant_id:
         raise HTTPException(status_code=403, detail={"error": "tenant_mismatch"})
+
+
+async def _grant_creator_admin_membership(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, principal: Principal
+) -> None:
+    """RBAC bootstrap (PLAT-TASK-004): the workspace creator becomes its
+    first admin member immediately, active (not pending) -- there's no
+    invite-acceptance round trip for your own workspace. `.invalid` is
+    IANA-reserved (RFC 2606) for exactly this kind of non-routable
+    placeholder; the JWT carries no real email claim to invite with.
+    """
+    placeholder_email = f"{principal.sub}@workspace-owner.invalid"
+    await invite_member(
+        conn, tenant_id=tenant_id, workspace_id=workspace_id, email=placeholder_email, role="admin"
+    )
+    await activate_member(
+        conn, workspace_id=workspace_id, email=placeholder_email, user_sub=principal.sub
+    )
 
 
 @router.post("/tenants/{tenant_id}/workspaces", status_code=201, response_model=WorkspaceResponse)
@@ -49,6 +75,9 @@ async def create_workspace_route(
             raise HTTPException(
                 status_code=409, detail={"error": "workspace_slug_taken"}
             ) from exc
+        await _grant_creator_admin_membership(
+            conn, tenant_id=tenant_id, workspace_id=workspace.id, principal=principal
+        )
         await default_audit_emitter.emit(
             conn,
             AuditEvent(
@@ -66,15 +95,10 @@ async def create_workspace_route(
 async def invite_member_route(
     workspace_id: str,
     body: InviteMemberRequest,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(require_workspace_role("admin"))],
     gateway: Annotated[InviteGateway, Depends(get_invite_gateway)],
 ) -> MemberResponse:
     async with tenant_connection(principal.tenant_id) as conn:
-        workspace = await get_workspace(
-            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
-        )
-        if workspace is None:
-            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
         try:
             member = await invite_member(
                 conn,
@@ -105,14 +129,9 @@ async def invite_member_route(
 async def revoke_member_route(
     workspace_id: str,
     user_sub: str,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(require_workspace_role("admin"))],
 ) -> Response:
     async with tenant_connection(principal.tenant_id) as conn:
-        workspace = await get_workspace(
-            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
-        )
-        if workspace is None:
-            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
         removed = await revoke_member(
             conn, tenant_id=principal.tenant_id, workspace_id=workspace_id, user_sub=user_sub
         )
@@ -124,7 +143,7 @@ async def revoke_member_route(
                     tenant_id=principal.tenant_id,
                     event_type="member.revoked",
                     actor_iri=principal.principal_iri,
-                    subject_iri=f"urn:weave:principal:{user_sub}",
+                    subject_iri=human_principal_iri(user_sub),
                     payload={"workspace_id": workspace_id},
                 ),
             )
