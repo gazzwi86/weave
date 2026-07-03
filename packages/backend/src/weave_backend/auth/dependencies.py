@@ -18,7 +18,7 @@ from opentelemetry import trace
 from pydantic import BaseModel
 
 from weave_backend.auth.oidc_client import get_oidc_client
-from weave_backend.auth.verify import TokenVerificationError, verify_access_token
+from weave_backend.auth.verify import TokenTtlExceeded, TokenVerificationError, verify_access_token
 from weave_backend.observability.context import principal_iri_var, tenant_id_var
 from weave_backend.observability.tracing import add_tenant_attributes
 from weave_backend.tenancy.sessions import get_session_version
@@ -31,6 +31,9 @@ class Principal(BaseModel):
     #: Session version embedded in the token at issue time (PLAT-TASK-003
     #: AC-3). Defaults to 0 for tokens issued before this claim existed.
     session_version: int = 0
+    #: "human" or "agent" (PLAT-TASK-004 AC-2/AC-3) -- defaults to "human"
+    #: for tokens issued before this claim existed.
+    principal_type: str = "human"
 
 
 def _bearer_token(request: Request) -> str:
@@ -47,6 +50,8 @@ async def get_current_principal(
     token = _bearer_token(request)
     try:
         claims = await verify_access_token(token, client)
+    except TokenTtlExceeded as exc:
+        raise HTTPException(status_code=401, detail={"error": "token_ttl_exceeded"}) from exc
     except TokenVerificationError as exc:
         raise HTTPException(status_code=401, detail="invalid access token") from exc
 
@@ -62,6 +67,7 @@ async def get_current_principal(
         tenant_id=claims["tenant_id"],
         principal_iri=claims["principal_iri"],
         session_version=int(claims.get("session_version", "0")),
+        principal_type=claims.get("principal_type", "human"),
     )
 
     current_session_version = await get_session_version(principal.tenant_id, principal.sub)
