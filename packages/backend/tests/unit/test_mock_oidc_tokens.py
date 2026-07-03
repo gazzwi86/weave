@@ -35,7 +35,8 @@ def test_claims_shape() -> None:
     assert _claims("u1", "tenant1") == {
         "sub": "u1",
         "tenant_id": "tenant1",
-        "principal_iri": "urn:weave:principal:u1",
+        "principal_iri": "urn:weave:principal:user:u1",
+        "principal_type": "human",
     }
 
 
