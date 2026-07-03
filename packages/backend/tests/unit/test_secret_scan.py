@@ -65,3 +65,37 @@ def test_secret_scan_rejects_credential_pattern(repo_root: Path, tmp_path: Path)
     assert finding["Match"] == "REDACTED"
     assert "AKIA" not in result.stdout
     assert "AKIA" not in result.stderr
+
+
+def test_secret_scan_allows_weave_test_prefix(repo_root: Path, tmp_path: Path) -> None:
+    """Edge case: the `.gitleaks.toml` allowlist must actually allowlist.
+
+    The rejection test above only proves a *real*-shaped key is caught. It
+    doesn't prove the `WEAVE_TEST_`-prefixed allowlist regex (also in
+    `.gitleaks.toml`) has any effect — a typo'd regex there would pass that
+    test just as well. This asserts a `WEAVE_TEST_`-prefixed fixture,
+    embedded in an otherwise-detectable credential assignment, is let through.
+    """
+    fixture = tmp_path / "fixture_config.py"
+    fixture.write_text(f'aws_access_key_id = "WEAVE_TEST_{_fake_aws_access_key()}"\n')
+    report_path = tmp_path / "report.json"
+
+    result = subprocess.run(
+        [
+            "gitleaks",
+            "detect",
+            "--no-git",
+            f"--source={tmp_path}",
+            f"--config={repo_root / '.gitleaks.toml'}",
+            "--redact",
+            "--report-format=json",
+            f"--report-path={report_path}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, "WEAVE_TEST_-prefixed fixture should be allowlisted, not flagged"
+    findings = json.loads(report_path.read_text()) if report_path.exists() else []
+    assert findings == []

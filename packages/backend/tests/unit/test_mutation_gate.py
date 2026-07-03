@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -89,3 +91,23 @@ def test_main_prints_structural_pass_message(
     out = capsys.readouterr().out
     assert "no mutants exercised yet" in out
     assert "passing structurally" in out
+
+
+def test_cli_invocation_matches_ci_usage(tmp_path: Path) -> None:
+    """Edge case: covers the `if __name__ == "__main__":` block itself.
+
+    Every other test here calls `main()` directly — none of them exercise the
+    `python -m weave_backend.scripts.mutation_gate <path>` invocation that
+    `ci.yml`'s mutation job actually runs. Runs the module as a real
+    subprocess, the exact way CI does, so a broken argv/entrypoint wiring
+    would fail here even though every direct `main()` call still passes.
+    """
+    stats_path = _write_stats(tmp_path, {"killed": 5, "survived": 5, "total": 10})
+    result = subprocess.run(
+        [sys.executable, "-m", "weave_backend.scripts.mutation_gate", stats_path],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "mutation score: 50.0%" in result.stdout
