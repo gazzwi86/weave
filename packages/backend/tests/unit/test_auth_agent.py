@@ -30,17 +30,19 @@ class _FakeStsClient:
         return {"Arn": self._arn}
 
 
-def test_get_caller_identity_arn_returns_the_resolved_arn(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_caller_identity_arn_returns_the_resolved_arn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_arn = "arn:aws:iam::000000000000:role/test-agent"
     monkeypatch.setattr(
         "weave_backend.auth.agent.boto3.client",
         lambda *a, **kw: _FakeStsClient(arn=fake_arn),
     )
 
-    assert get_caller_identity_arn("any-session-token") == fake_arn
+    assert await get_caller_identity_arn("any-session-token") == fake_arn
 
 
-def test_get_caller_identity_arn_wraps_client_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_caller_identity_arn_wraps_client_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     error = ClientError({"Error": {"Code": "AccessDenied", "Message": "no"}}, "GetCallerIdentity")
     monkeypatch.setattr(
         "weave_backend.auth.agent.boto3.client",
@@ -48,7 +50,7 @@ def test_get_caller_identity_arn_wraps_client_errors(monkeypatch: pytest.MonkeyP
     )
 
     with pytest.raises(StsValidationError):
-        get_caller_identity_arn("bad-session-token")
+        await get_caller_identity_arn("bad-session-token")
 
 
 def test_sign_agent_token_is_verifiable_and_capped_at_60s() -> None:
