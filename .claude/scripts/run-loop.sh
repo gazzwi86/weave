@@ -98,7 +98,23 @@ fingerprint() {
 }
 
 is_limit() {
-  printf '%s' "$1" | grep -qiE 'rate.?limit|usage limit|limit (reached|exceeded)|quota|overloaded|billing'
+  printf '%s' "$1" | grep -qiE 'rate.?limit|usage limit|session limit|hit your .*limit|limit (reached|exceeded)|quota|overloaded|billing|resets [0-9]'
+}
+
+# Seconds to sleep when all models are limited: prefer the exact window-reset time the
+# stop-failure hook parsed into limit-hit (resets_at, UTC ISO) + 60s margin, clamped to
+# [60, 21600]; fall back to the blind LIMIT_SLEEP poll when no reset time was captured.
+limit_sleep_secs() {
+  python3 - "$LIMIT_FLAG" "$LIMIT_SLEEP" <<'PY' 2>/dev/null || echo "$LIMIT_SLEEP"
+import json, sys
+from datetime import datetime, timezone
+try:
+    resets = json.load(open(sys.argv[1])).get("resets_at")
+    secs = (datetime.fromisoformat(resets) - datetime.now(timezone.utc)).total_seconds() + 60
+    print(max(60, min(21600, int(secs))))
+except Exception:
+    print(sys.argv[2])
+PY
 }
 
 phase_complete() {
@@ -144,11 +160,12 @@ while :; do
       notify "Limit on $MODEL — continuing on $FALLBACK_MODEL"
       MODEL="$FALLBACK_MODEL"
     else
-      log "usage limit on fallback too — sleeping ${LIMIT_SLEEP}s, then retrying primary."
-      notify "All models limited — sleeping ${LIMIT_SLEEP}s"
-      sleep "$LIMIT_SLEEP"
-      # ponytail: poll every LIMIT_SLEEP rather than blind 5h sleep — resumes within one
-      # poll of the window reset. Window may have reset: try primary first again.
+      wait_secs="$(limit_sleep_secs)"
+      log "usage limit on fallback too — sleeping ${wait_secs}s (resets_at-aware), then retrying primary."
+      notify "All models limited — sleeping ${wait_secs}s"
+      sleep "$wait_secs"
+      # Sleeps until the parsed window-reset time (+60s) when limit-hit carries resets_at;
+      # otherwise polls every LIMIT_SLEEP. Window may have reset: try primary first again.
       MODEL="$PRIMARY_MODEL"
     fi
     iter=$((iter - 1))  # limit waits don't count against the iteration ceiling

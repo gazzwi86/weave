@@ -39,6 +39,9 @@ case "\$mode" in
     n=\$(cat "$SANDBOX/count" 2>/dev/null || echo 0); n=\$((n+1)); echo "\$n" >"$SANDBOX/count"
     if [ "\$n" -le 2 ]; then echo "Error: usage limit reached"; exit 1; fi
     echo '{"result":"ok"}'; exit 0 ;;
+  session-limit)
+    if echo "\$@" | grep -q fable; then echo "You've hit your session limit · resets 11:20pm (Australia/Melbourne)"; exit 1; fi
+    echo '{"result":"ok"}'; exit 0 ;;
   hard-error) echo "Error: something unrelated broke"; exit 1 ;;
   *) echo '{"result":"ok"}'; exit 0 ;;
 esac
@@ -70,7 +73,7 @@ rm -f "$SANDBOX/.claude/state/done-marker"
 # 4. Limit on primary → falls back to opus; fallback run advances nothing → halts for human (3).
 echo limit-on-fable >"$SANDBOX/stub-mode"
 expect_exit 3 "limit falls back then halts at gate" bash "$RUN_LOOP"
-grep -q "claude-opus-4-8" "$SANDBOX/calls.log" && echo "PASS: fallback model used" || { echo "FAIL: fallback model never invoked"; fails=$((fails+1)); }
+grep -q "claude-sonnet-5" "$SANDBOX/calls.log" && echo "PASS: fallback model used" || { echo "FAIL: fallback model never invoked"; fails=$((fails+1)); }
 grep -q "caveman" "$SANDBOX/calls.log" && echo "PASS: caveman system prompt passed" || { echo "FAIL: caveman system prompt missing"; fails=$((fails+1)); }
 
 # 4b. Both models limited → sleeps window, retries primary again, limit waits don't burn
@@ -95,5 +98,37 @@ rm -f "$FLAG"
 echo '{"reason":"rate_limit"}' | (cd "$SCRIPTS" && CLAUDE_PROJECT_DIR="$REPO_ROOT" python3 hooks.py stop-failure) 2>/dev/null
 [ -f "$FLAG" ] && echo "PASS: stop-failure hook writes limit flag" || { echo "FAIL: limit flag not written"; fails=$((fails+1)); }
 rm -f "$FLAG"
+
+# 7. Hook parses the window-reset time out of a session-limit message into resets_at (UTC ISO).
+echo '{"reason":"You'\''ve hit your session limit · resets 11:20pm (Australia/Melbourne)"}' \
+  | (cd "$SCRIPTS" && CLAUDE_PROJECT_DIR="$REPO_ROOT" python3 hooks.py stop-failure) 2>/dev/null
+grep -q '"resets_at"' "$FLAG" 2>/dev/null \
+  && echo "PASS: resets_at parsed from session-limit message" \
+  || { echo "FAIL: resets_at not parsed into limit flag"; fails=$((fails+1)); }
+rm -f "$FLAG"
+
+# 8. is_limit recognises the "session limit … resets" phrasing (no flag file, rc!=0 path):
+#    stub emits the session-limit text for the primary → loop must fall back, not exit 2.
+rm -f "$SANDBOX/.claude/state/done-marker" "$SANDBOX/count"
+echo session-limit >"$SANDBOX/stub-mode"
+: >"$SANDBOX/calls.log"
+RUN_LOOP_MAX_ITERATIONS=1 bash "$RUN_LOOP" >/dev/null 2>&1 || true
+grep -q "claude-sonnet-5" "$SANDBOX/calls.log" \
+  && echo "PASS: session-limit text triggers fallback (is_limit)" \
+  || { echo "FAIL: session-limit text not recognised as a limit"; fails=$((fails+1)); }
+
+# 9. limit_sleep_secs (the real function, extracted from run-loop.sh): resets_at in the
+#    flag beats the blind LIMIT_SLEEP poll, clamped to >=60s.
+FUTURE="$(python3 -c 'from datetime import datetime,timedelta,timezone; print((datetime.now(timezone.utc)+timedelta(seconds=120)).isoformat(timespec="seconds"))')"
+printf '{"resets_at": "%s"}\n' "$FUTURE" >"$SANDBOX/limit-flag.json"
+SLEEP_OUT="$(bash -c "
+  LIMIT_FLAG='$SANDBOX/limit-flag.json'; LIMIT_SLEEP=1800
+  $(sed -n '/^limit_sleep_secs()/,/^}/p' "$RUN_LOOP")
+  limit_sleep_secs
+")"
+case "$SLEEP_OUT" in
+  6[0-9]|[7-9][0-9]|[12][0-9][0-9]) echo "PASS: limit sleep honours resets_at (${SLEEP_OUT}s)" ;;
+  *) echo "FAIL: limit sleep ignored resets_at (got '$SLEEP_OUT')"; fails=$((fails+1)) ;;
+esac
 
 [ "$fails" -eq 0 ] && echo "ALL PASS" || { echo "$fails FAILURE(S)"; exit 1; }
