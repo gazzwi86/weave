@@ -21,7 +21,7 @@
     {
       "id": "PLAT-EPIC-004",
       "title": "Authentication, RBAC & Agent Identity",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-005",
@@ -177,12 +177,13 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-005",
       "title": "Global navigation, search, and dashboard shell (M1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-002",
         "PLAT-TASK-004"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-005.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-005.md",
+      "retry_count": 2
     },
     {
       "id": "PLAT-TASK-007",
