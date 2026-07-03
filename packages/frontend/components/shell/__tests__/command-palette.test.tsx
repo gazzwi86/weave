@@ -8,23 +8,25 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+function stubSearchFetch(): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          results: [{ iri: "urn:weave:entity:acme", label: "Acme Corp", kind: "Organization" }],
+          total: 1,
+        }),
+        { status: 200 }
+      )
+    )
+  );
+}
+
 describe("CommandPalette", () => {
   beforeEach(() => {
     pushMock.mockClear();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            results: [
-              { iri: "urn:weave:entity:acme", label: "Acme Corp", kind: "Organization" },
-            ],
-            total: 1,
-          }),
-          { status: 200 }
-        )
-      )
-    );
+    stubSearchFetch();
   });
 
   it("opens on Cmd+K, focuses the input, and closes on Escape", async () => {
