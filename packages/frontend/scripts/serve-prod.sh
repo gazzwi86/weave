@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ============================================================================
+# DEV/TEST-ONLY -- NOT A DEPLOY PATH. Real deploy uses Terraform + real
+# Cognito/OIDC (see docs/specs/weave/dev-environment.md); this script only
+# exists so ui_verify.sh can measure a real production build locally.
+# Generates a fresh AUTH_SECRET every run and defaults to a throwaway
+# OIDC client secret -- never point this at a real tenant or real secrets.
+# ============================================================================
+#
 # ui_verify Law #2 fix: dev-mode (`next dev`) performance never represents the
 # shipped app (~0.85 vs 0.99-1.0 built). Serves the PRODUCTION build so
 # `ui_verify.sh --full --target http://localhost:3000` measures the real
@@ -22,6 +30,8 @@ cd "$HERE"
 AUTH_SECRET_DEFAULT="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
 : "${AUTH_SECRET:=$AUTH_SECRET_DEFAULT}"
 export OIDC_ISSUER_URL OIDC_CLIENT_ID OIDC_CLIENT_SECRET BACKEND_API_URL AUTH_TRUST_HOST AUTH_SECRET
+
+echo "WARNING: serve-prod.sh uses ephemeral dev secrets (fresh AUTH_SECRET, dev-secret OIDC client). Test harness only -- not a deploy path." >&2
 
 npm run build
 npm run start
