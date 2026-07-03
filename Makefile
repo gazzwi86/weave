@@ -13,8 +13,10 @@ up:
 down:
 	docker compose down -v
 
+# AC-2/AC-3: mock-oidc stands in for the Cognito hosted UI in dev.
 dev:
 	cd packages/backend && uv run uvicorn weave_backend:app --reload --port 8000 & \
+	cd packages/backend && uv run weave-mock-oidc & \
 	cd packages/frontend && npm run dev
 
 test:
