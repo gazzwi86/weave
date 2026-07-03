@@ -1,26 +1,120 @@
 @import "tailwindcss";
 
+/*
+ * Weave design tokens (docs/standards/design/tokens.md, color.md, typography.md).
+ * Dark is the PRIMARY theme, defined on :root. Light is a SECONDARY theme that
+ * overrides the *same* custom-property names under prefers-color-scheme:
+ * light — components never branch on theme, they only ever read var(--token).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* color: surface & elevation ramp (dark) */
+  --color-bg: #0a0e14;
+  --color-surface: #0e1420;
+  --color-raised: #131a28;
+  --color-overlay: #1a2236;
+  --color-hover: #1e2740;
+  --color-raised-strong: #1b2434;
+
+  /* color: text ramp (dark) */
+  --color-text-default: #e5eaf2;
+  --color-text-muted: #8a95a8;
+  --color-text-subtle: #5c6779;
+
+  /* color: border ramp (dark) */
+  --color-border: #1f2937;
+  --color-border-strong: #2a3550;
+
+  /* color: accent (dark) */
+  --color-accent-primary: #22d3ee;
+  --color-accent-hover: #67e8f9;
+  --color-accent-soft: rgba(34, 211, 238, 0.12);
+
+  /* color: semantic status (dark) */
+  --color-success: #10b981;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.1);
+  --color-info: #7dd3fc;
+
+  /* space (8pt grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  /* radius */
+  --radius-sm: 4px;
+  --radius-base: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* typography (Geist, see typography.md) */
+  --text-body: 15px;
+  --text-body-line: 1.5;
+  --text-label: 12px;
+  --text-label-line: 1.4;
+  --text-caption: 11px;
+  --text-caption-line: 1.4;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* focus ring — always-on accessibility primitive, exempt from reduced-motion */
+  --ring-focus: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent-primary);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text-default);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-bg: #f8fafc;
+    --color-surface: #ffffff;
+    --color-raised: #f1f5f9;
+    --color-overlay: #ffffff;
+    --color-hover: #eef2f7;
+    --color-raised-strong: #e2e8f0;
+
+    --color-text-default: #0f172a;
+    --color-text-muted: #475569;
+    --color-text-subtle: #64748b;
+
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+
+    --color-accent-primary: #0e7490;
+    --color-accent-hover: #0891b2;
+    --color-accent-soft: rgba(14, 116, 144, 0.1);
+  }
+}
+
+/* GPU-friendly motion only; every transition/animation collapses to an
+ * instant, no-op change for users who ask for reduced motion (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-default);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: var(--text-body);
+  line-height: var(--text-body-line);
 }
