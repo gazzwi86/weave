@@ -1,7 +1,7 @@
 .PHONY: dev test lint
 
 dev:
-	cd packages/backend && uv run uvicorn weave_api:app --reload --port 8000 & \
+	cd packages/backend && uv run uvicorn weave_backend:app --reload --port 8000 & \
 	cd packages/frontend && npm run dev
 
 test:

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from weave_api.routers.health import router as health_router
+from weave_backend.routers.health import router as health_router
 
 app = FastAPI(title="Weave Platform API")
 app.include_router(health_router)

@@ -1,5 +1,5 @@
 [project]
-name = "weave-api"
+name = "weave-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-weave-api = "weave_api:main"
+weave-backend = "weave_backend:main"
 
 [build-system]
 requires = ["uv_build>=0.11.3,<0.12.0"]

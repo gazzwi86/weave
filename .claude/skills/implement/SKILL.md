@@ -69,7 +69,7 @@ Ask via AskUserQuestion which project type to scaffold:
 
 - **Python/FastAPI** — backend API service
 - **TypeScript/Next.js** — frontend + API routes
-- **Both (monorepo)** — backend in `packages/api/`, frontend in `packages/web/`
+- **Both (monorepo)** — backend in `packages/backend/`, frontend in `packages/frontend/`, shared in `packages/shared/`, infra in `packages/infra/`
 
 Then proceed per project type:
 
@@ -124,8 +124,8 @@ Then proceed per project type:
 
 ---
 
-**Both (monorepo):** Run Python/FastAPI scaffold in `packages/api/` then TypeScript/Next.js scaffold in
-`packages/web/`. Create a root `package.json` with workspaces and a root `Makefile` with `make dev`,
+**Both (monorepo):** Run Python/FastAPI scaffold in `packages/backend/` then TypeScript/Next.js scaffold in
+`packages/frontend/`. Create a root `package.json` with workspaces and a root `Makefile` with `make dev`,
 `make test`, `make lint` targets covering both packages.
 
 ---
