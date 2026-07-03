@@ -5,6 +5,7 @@ per-workspace triples for the isolation check).
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -12,41 +13,66 @@ import httpx
 
 _TIMEOUT_SECONDS = 5.0
 
+_client: httpx.AsyncClient | None = None
+_client_loop: asyncio.AbstractEventLoop | None = None
+
 
 def oxigraph_url() -> str:
     return os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 
 
-async def run_query(query: str) -> dict[str, Any]:
-    async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-        response = await client.get(
-            f"{oxigraph_url()}/query",
-            params={"query": query},
-            headers={"Accept": "application/sparql-results+json"},
-        )
-        response.raise_for_status()
-        result: dict[str, Any] = response.json()
-        return result
+def _get_client() -> httpx.AsyncClient:
+    # ponytail: same loop-binding gotcha fixed in tenancy/sessions.py's
+    # redis client and db/pool.py's asyncpg pool -- httpx's asyncio
+    # transport is bound to the event loop live when it's created, so a
+    # plain module-level singleton would break the second pytest-asyncio
+    # test to touch it. Recreate whenever the running loop has changed
+    # instead of a fresh client per call (was the fix before this one).
+    global _client, _client_loop
+    current_loop = asyncio.get_event_loop()
+    if _client is None or _client_loop is not current_loop:
+        _client = httpx.AsyncClient(timeout=_TIMEOUT_SECONDS)
+        _client_loop = current_loop
+    return _client
+
+
+async def run_query(query: str, named_graph_iri: str) -> dict[str, Any]:
+    """Run `query` against Oxigraph with the RDF dataset restricted to
+    `named_graph_iri` (PR #11 finding 1: SPARQL 1.1 Protocol
+    default-graph-uri/named-graph-uri params, enforced by Oxigraph against
+    the dataset -- not the query text -- so a GRAPH clause naming any other
+    graph simply matches nothing, however that IRI was spelled).
+    """
+    response = await _get_client().get(
+        f"{oxigraph_url()}/query",
+        params={
+            "query": query,
+            "default-graph-uri": named_graph_iri,
+            "named-graph-uri": named_graph_iri,
+        },
+        headers={"Accept": "application/sparql-results+json"},
+    )
+    response.raise_for_status()
+    result: dict[str, Any] = response.json()
+    return result
 
 
 async def load_graph(named_graph_iri: str, turtle_data: str) -> None:
     """PUT triples into a specific named graph via the Graph Store Protocol."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-        response = await client.put(
-            f"{oxigraph_url()}/store",
-            params={"graph": named_graph_iri},
-            headers={"Content-Type": "text/turtle"},
-            content=turtle_data,
-        )
-        response.raise_for_status()
+    response = await _get_client().put(
+        f"{oxigraph_url()}/store",
+        params={"graph": named_graph_iri},
+        headers={"Content-Type": "text/turtle"},
+        content=turtle_data,
+    )
+    response.raise_for_status()
 
 
 async def clear_graph(named_graph_iri: str) -> None:
     """DELETE all triples in a specific named graph (test cleanup)."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-        response = await client.delete(
-            f"{oxigraph_url()}/store",
-            params={"graph": named_graph_iri},
-        )
-        if response.status_code not in (200, 204, 404):
-            response.raise_for_status()
+    response = await _get_client().delete(
+        f"{oxigraph_url()}/store",
+        params={"graph": named_graph_iri},
+    )
+    if response.status_code not in (200, 204, 404):
+        response.raise_for_status()
