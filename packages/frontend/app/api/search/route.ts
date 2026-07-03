@@ -29,13 +29,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
-  const upstream = await fetch(
-    `${backendUrl}/api/search?q=${encodeURIComponent(parsed.data.q)}`,
-    {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
-      cache: "no-store",
-    }
-  );
+  let upstream: Response;
+  try {
+    upstream = await fetch(
+      `${backendUrl}/api/search?q=${encodeURIComponent(parsed.data.q)}`,
+      {
+        headers: { Authorization: `Bearer ${session.accessToken}` },
+        cache: "no-store",
+      }
+    );
+  } catch {
+    // PR #13 finding (4): backend unreachable -- distinguishable from a
+    // real empty-results response, never silently proxied as one.
+    return NextResponse.json({ error: "upstream_unavailable" }, { status: 502 });
+  }
+
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    // A non-JSON body (e.g. a gateway's HTML error page) can't be forwarded
+    // as-is and must not crash `.json()` below.
+    return NextResponse.json({ error: "upstream_unavailable" }, { status: 502 });
+  }
 
   const body = (await upstream.json()) as unknown;
   return NextResponse.json(body, { status: upstream.status });
