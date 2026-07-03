@@ -1,6 +1,11 @@
 """FastAPI dependency guarding protected routes (e.g. ``/api/whoami``).
-Verifies the bearer access token and populates the tracing ContextVars
-(AC-5) with the real, authenticated tenant_id/principal_iri.
+Verifies the bearer access token, populates the tracing ContextVars (AC-5)
+with the real, authenticated tenant_id/principal_iri, and rejects a
+revoked session (PR #11 finding 3: this used to only be enforced on
+``/workspaces/{id}/switch`` via a separate `require_active_session`
+dependency -- every other route accepted a revoked member's still-live
+token for up to its remaining TTL. The check now lives here so every
+route depending on `get_current_principal` gets it for free.)
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.auth.verify import TokenVerificationError, verify_access_token
 from weave_backend.observability.context import principal_iri_var, tenant_id_var
 from weave_backend.observability.tracing import add_tenant_attributes
+from weave_backend.tenancy.sessions import get_session_version
 
 
 class Principal(BaseModel):
@@ -51,9 +57,14 @@ async def get_current_principal(
     # middleware's post-`call_next` code runs -- so the real, verified
     # values must be set on the span here, while it's still guaranteed open.
     add_tenant_attributes(trace.get_current_span())
-    return Principal(
+    principal = Principal(
         sub=claims["sub"],
         tenant_id=claims["tenant_id"],
         principal_iri=claims["principal_iri"],
         session_version=int(claims.get("session_version", "0")),
     )
+
+    current_session_version = await get_session_version(principal.tenant_id, principal.sub)
+    if current_session_version != principal.session_version:
+        raise HTTPException(status_code=401, detail={"error": "session_revoked"})
+    return principal

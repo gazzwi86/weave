@@ -441,3 +441,42 @@ async def test_get_setting_route_rejects_foreign_tenant_context(client: AsyncCli
     )
 
     assert response.status_code == 403
+
+
+async def test_revoked_session_rejected_on_sparql_route(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #11 finding 3: session revocation was only enforced on
+    `POST /workspaces/{id}/switch` (via `require_active_session`) -- every
+    other authenticated route used plain `get_current_principal`, so a
+    revoked member's still-live access token kept working against
+    `/api/sparql` (and settings/tenancy routes) for up to the token's
+    remaining TTL. Must 401 immediately, same as `/switch` already does.
+    """
+    tenant_id = _unique_tenant("tenant-revoke-sparql")
+    user_sub = "u-revoked-sparql"
+
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="ws", display_name="Revoke-sparql workspace"
+        )
+
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    ok_response = await client.post(
+        "/api/sparql",
+        json={"query": "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }", "workspace_id": workspace.id},
+        headers=headers,
+    )
+    assert ok_response.status_code == 200
+
+    await bump_session_version(tenant_id, user_sub)
+
+    revoked_response = await client.post(
+        "/api/sparql",
+        json={"query": "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }", "workspace_id": workspace.id},
+        headers=headers,
+    )
+    assert revoked_response.status_code == 401
+    assert revoked_response.json()["detail"]["error"] == "session_revoked"

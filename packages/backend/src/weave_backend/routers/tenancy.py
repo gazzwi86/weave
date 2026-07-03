@@ -18,7 +18,6 @@ from weave_backend.schemas.tenancy import (
 )
 from weave_backend.tenancy.invite_gateway import InviteGateway, get_invite_gateway
 from weave_backend.tenancy.members import MemberAlreadyActive, invite_member, revoke_member
-from weave_backend.tenancy.session_guard import require_active_session
 from weave_backend.tenancy.sessions import bump_session_version, set_active_workspace
 from weave_backend.tenancy.workspaces import (
     WorkspaceSlugTaken,
@@ -135,7 +134,7 @@ async def revoke_member_route(
 @router.post("/workspaces/{workspace_id}/switch", response_model=SwitchWorkspaceResponse)
 async def switch_workspace_route(
     workspace_id: str,
-    principal: Annotated[Principal, Depends(require_active_session)],
+    principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> SwitchWorkspaceResponse:
     async with tenant_connection(principal.tenant_id) as conn:
         workspace = await get_workspace(
