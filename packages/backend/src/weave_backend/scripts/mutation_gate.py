@@ -28,6 +28,7 @@ def evaluate(
 
 
 def main(stats_path: str) -> int:
+    """Load a mutmut cicd-stats JSON file and return a CI exit code (0 pass, 1 fail)."""
     stats = json.loads(Path(stats_path).read_text())
     score, passed = evaluate(stats)
     if score is None:
