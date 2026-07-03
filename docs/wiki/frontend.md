@@ -50,4 +50,32 @@ Playwright: redirect → mock-OIDC login → return-to-dashboard round trip; que
 
 Storybook config (`main.ts`, `preview.tsx`) with addon-vitest browser tests.
 
+## components/shell/ (PLAT-TASK-005)
+
+Global app chrome — persistent nav, Cmd+K search, help.
+
+- `nav-items.ts` — `NAV_ITEMS`, the single source for the 7 product areas (nav + any future links)
+- `nav.tsx` — top nav; active area `aria-current="page"`; `prefetch={false}` on not-yet-built routes
+- `command-palette.tsx` — cmdk Cmd+K/Ctrl+K search palette (focus trap, Escape dismiss)
+- `use-entity-search.ts` — debounced tenant-scoped `/api/search` hook (2+ chars)
+- `search-result-item.tsx` — result row → client-nav to `/ce/resource?iri=`
+- `help-launcher.tsx` — `?` icon → radix dialog help panel (no navigation)
+- `app-shell.tsx` — composes nav + palette + help; wired into root layout
+
+## components/dashboard/dashboard-placeholder.tsx
+
+M1 dashboard empty state (headline/body/footer, grid layout, axe-clean, zero CE calls). Real `<h1>`; footer uses `--color-text-muted` (WCAG AA).
+
+## app/api/search/route.ts
+
+Frontend proxy → backend `GET /api/search`.
+
+## app/robots.ts
+
+Next metadata robots route (public via middleware PUBLIC_PATHS).
+
+## scripts/serve-prod.sh
+
+Production build server (`next build && next start`, AUTH_TRUST_HOST) — what ui_verify measures.
+
 Related: [backend](backend.md), [shared](shared.md)
