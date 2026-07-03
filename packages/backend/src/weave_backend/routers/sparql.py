@@ -16,7 +16,7 @@ from weave_backend.rdf.oxigraph_client import run_query
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
     UnscopedQueryError,
-    rewrite_query,
+    validate_query,
 )
 from weave_backend.schemas.sparql import SparqlQueryRequest
 from weave_backend.tenancy.sessions import get_active_workspace
@@ -47,10 +47,10 @@ async def run_sparql_route(
 ) -> dict[str, Any]:
     named_graph_iri = await _resolve_named_graph(principal, body.workspace_id)
     try:
-        scoped_query = rewrite_query(body.query, named_graph_iri)
+        validate_query(body.query)
     except UnscopedQueryError as exc:
         raise HTTPException(status_code=400, detail={"error": "unscoped_query_rejected"}) from exc
     except DisallowedQueryError as exc:
         raise HTTPException(status_code=400, detail={"error": "disallowed_query"}) from exc
 
-    return await run_query(scoped_query)
+    return await run_query(body.query, named_graph_iri)

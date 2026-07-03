@@ -23,7 +23,7 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.rdf.oxigraph_client import clear_graph, load_graph, run_query
-from weave_backend.rdf.query_rewriter import rewrite_query
+from weave_backend.rdf.query_rewriter import validate_query
 from weave_backend.storage.tenant_objects import (
     list_tenant_object_keys,
     put_object,
@@ -93,8 +93,8 @@ async def test_cross_tenant_read_isolation(platform_stack: Path) -> None:
         await load_graph(workspace_b.named_graph_iri, triple_b)
 
         select_query = "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }"
-        query = rewrite_query(select_query, workspace_b.named_graph_iri)
-        result = await run_query(query)
+        validate_query(select_query)
+        result = await run_query(select_query, workspace_b.named_graph_iri)
         bindings = result["results"]["bindings"]
         subjects = {b["s"]["value"] for b in bindings}
         assert subjects == {"urn:tenant-b:s"}
@@ -297,3 +297,47 @@ async def test_settings_write_emits_audit_event(client: AsyncClient, platform_st
     assert len(rows) == 1
     assert rows[0]["event_type"] == "setting.changed"
     assert rows[0]["subject_iri"] == company_iri
+
+
+async def test_sparql_curie_graph_clause_cannot_cross_scope(platform_stack: Path) -> None:
+    """PR #11 finding (1a): a CURIE-form GRAPH clause (`GRAPH ws:xyz`, not
+    `GRAPH <iri>`) survives algebra validation just fine -- rdflib resolves
+    the CURIE before the structural check runs -- but the *old* regex-based
+    rewrite step only matched `GRAPH <iri>`/`GRAPH ?var`, so it silently
+    no-op'd on this form and the attacker's own graph IRI reached Oxigraph
+    unchanged (reviewer reproduced: rewrite output == input byte-for-byte).
+    Proves the fix against a real Oxigraph: the query text still names
+    workspace B's graph via CURIE, but `run_query` scopes the *dataset* to
+    workspace A's graph via the SPARQL 1.1 Protocol params, so the CURIE
+    clause matches nothing.
+    """
+    tenant_a = _unique_tenant("tenant-curie-a")
+    tenant_b = _unique_tenant("tenant-curie-b")
+    async with tenant_connection(tenant_a) as conn:
+        workspace_a = await create_workspace(
+            conn, tenant_id=tenant_a, slug="ws", display_name="A"
+        )
+    async with tenant_connection(tenant_b) as conn:
+        workspace_b = await create_workspace(
+            conn, tenant_id=tenant_b, slug="ws", display_name="B"
+        )
+
+    try:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
+        await load_graph(workspace_a.named_graph_iri, "<urn:curie-a:s> <urn:p> <urn:curie-a:o> .")
+        await load_graph(workspace_b.named_graph_iri, "<urn:curie-b:s> <urn:p> <urn:curie-b:o> .")
+
+        graph_prefix, _, graph_local = workspace_b.named_graph_iri.rpartition(":")
+        curie_query = (
+            f"PREFIX ws: <{graph_prefix}:>\n"
+            f"SELECT * WHERE {{ GRAPH ws:{graph_local} {{ ?s ?p ?o }} }}"
+        )
+        validate_query(curie_query)  # structurally valid -- passes the choke point
+
+        result = await run_query(curie_query, workspace_a.named_graph_iri)
+
+        assert result["results"]["bindings"] == []
+    finally:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
