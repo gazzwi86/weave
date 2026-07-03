@@ -1,5 +1,4 @@
 {
   "name": "weave",
-  "private": true,
-  "workspaces": ["packages/frontend"]
+  "private": true
 }
