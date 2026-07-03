@@ -93,11 +93,11 @@ warn_unused_ignores = true
 disallow_untyped_defs = true
 no_implicit_optional = true
 
-# asyncpg/boto3 ship no py.typed marker / official stubs; there's no
-# maintained stub package worth adding as a dependency for this task's
+# asyncpg/boto3/botocore ship no py.typed marker / official stubs; there's
+# no maintained stub package worth adding as a dependency for this task's
 # scope. Every other project dependency keeps strict checking.
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "boto3.*"]
+module = ["asyncpg.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
