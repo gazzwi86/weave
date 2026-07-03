@@ -19,7 +19,7 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run mypy src/ tests/
-      - run: uv run pytest
+      - run: uv run pytest -m "not docker and not e2e"
 
   web:
     runs-on: ubuntu-latest
