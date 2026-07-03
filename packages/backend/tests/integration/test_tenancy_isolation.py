@@ -270,3 +270,30 @@ async def test_settings_route_cache_invalidated_on_write(
     )
     assert second_get.status_code == 200
     assert second_get.json()["value"] == "light", "stale cached value served after invalidation"
+
+
+async def test_settings_write_emits_audit_event(client: AsyncClient, platform_stack: Path) -> None:
+    """QA finding: `PUT /api/settings/{key}` was the only one of the four
+    mutation routes in this task that never called through the audit
+    seam. Proves a row lands in `audit_events` for the tenant, mirroring
+    the workspace-created/member-invited/member-revoked call sites.
+    """
+    tenant_id = _unique_tenant("tenant-settings-audit")
+    company_iri = f"urn:weave:tenant:{tenant_id}:company"
+    tokens = await issue_token_pair(sub="u-settings-admin", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    put_response = await client.put(
+        "/api/settings/theme",
+        json={"scope_iri": company_iri, "value": "dark"},
+        headers=headers,
+    )
+    assert put_response.status_code == 200
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type, subject_iri FROM audit_events WHERE tenant_id = $1", tenant_id
+        )
+    assert len(rows) == 1
+    assert rows[0]["event_type"] == "setting.changed"
+    assert rows[0]["subject_iri"] == company_iri
