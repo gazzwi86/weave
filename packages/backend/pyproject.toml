@@ -108,4 +108,5 @@ markers = [
   "integration: needs terraform/docker/network; excluded from the default fast run",
   "e2e: static or live end-to-end assertions; excluded from the default fast run",
   "docker: boots the full docker-compose stack (slow, image pulls); local/nightly only",
+  "stack: manages its own full docker-compose lifecycle (incl. ollama); excluded from the CI integration job, which starts only the services it needs",
 ]

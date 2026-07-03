@@ -66,3 +66,30 @@ def test_ci_lint_failure_blocks_merge(repo_root: Path) -> None:
                 assert step.get("continue-on-error") is not True, (
                     f"lint/type-check step in {job_name} must block on failure: {step}"
                 )
+
+
+def test_ci_runs_docker_marked_tenancy_security_suite(repo_root: Path) -> None:
+    """PR #11 finding 5: the docker-marked tenancy security suite
+    (`tests/integration/test_tenancy_isolation.py`) was never run in CI --
+    the `api` job's `-m "not docker and not e2e"` filter explicitly excludes
+    it, and nothing else picked it up. Assert a dedicated `integration` job
+    boots the services those tests need and runs them, but stays clear of
+    `test_local_stack.py` (marked `stack`), which manages its own
+    full-stack lifecycle (incl. ollama) independently of this job.
+    """
+    workflow = _load_workflow(repo_root)
+    jobs = workflow["jobs"]
+
+    assert "integration" in jobs, "CI must run the docker-marked integration test job"
+    job = jobs["integration"]
+    texts = " ".join(_step_texts(job))
+
+    assert "docker compose up" in texts
+    for service in ("postgres", "redis", "oxigraph", "localstack"):
+        assert service in texts, f"integration job must start {service}"
+    assert "ollama" not in texts, "integration job must not need ollama"
+
+    assert "integration and docker and not stack" in texts, (
+        "integration job must run the docker+integration suite, excluding test_local_stack.py"
+    )
+    assert "docker compose down" in texts, "integration job must tear down the stack it started"

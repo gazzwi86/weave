@@ -22,6 +22,11 @@ import pytest
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.docker,
+    # PR #11 finding 5: this test manages its own full docker-compose
+    # lifecycle (all 5 services, including ollama); CI's `integration` job
+    # only starts the services the tenancy security suite needs, so this
+    # is excluded from it via `-m "integration and docker and not stack"`.
+    pytest.mark.stack,
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
 

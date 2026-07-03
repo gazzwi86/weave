@@ -21,6 +21,35 @@ jobs:
       - run: uv run mypy src/ tests/
       - run: uv run pytest -m "not docker and not e2e"
 
+  # PR #11 finding 5: the docker-marked tenancy security suite
+  # (tests/integration/test_tenancy_isolation.py) was never run in CI --
+  # the `api` job above excludes anything `docker`-marked. Starts only the
+  # services those tests need (not ollama, and not the full
+  # test_local_stack.py lifecycle, which is `stack`-marked and excluded).
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - run: docker compose up -d --wait postgres redis oxigraph localstack
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - working-directory: packages/backend
+        run: uv sync
+      - working-directory: packages/backend
+        run: uv run pytest -m "integration and docker and not stack"
+      - if: always()
+        run: docker compose down -v
+
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 10
