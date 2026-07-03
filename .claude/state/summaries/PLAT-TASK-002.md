@@ -132,3 +132,75 @@ Branch: `feature/PLAT-EPIC-000`. Builds on PLAT-TASK-001 (monorepo scaffold, IaC
 - The mock OIDC's `/login` hardcodes `tenant_id="acme-corp"` for every sign-in — if RBAC
   tests need multiple tenants/roles, the mock will need a way to vary that (e.g. an email
   convention or an extra form field), not just a single fixed value.
+
+## QA (PLAT-TASK-002) — PASS
+
+All 7 ACs re-verified against real command output, not the engineer's self-report:
+
+- Backend: `uv run pytest -m "not docker and not e2e" --cov=src` → **50 passed** (was 49;
+  +1 QA edge case), coverage **92%**. Docker-marked tests (`test_dev_stack_healthy`,
+  `test_local_stack`) run for real against live `docker compose up` → both passed.
+  `ruff check .` / `mypy src/ tests/` clean. `bandit -r src/ -ll` → 0 High (2 Medium, both
+  pre-annotated dev-only `B104`).
+- Frontend: `vitest run` → 24/24. `vitest run --project=storybook` (real Chromium) →
+  10/10. `tsc --noEmit` / `eslint . --max-warnings 0` clean. `playwright test` (full
+  webServer stack: frontend+backend+mock-oidc) → 2/2 passing (1 original + 1 new edge
+  case), asserting a real backend-verified `principal_iri`, not just UI render (Law B).
+- AC-4 model-ID grep re-run repo-wide: `claude-fable-5`/`claude-sonnet-5` appear only in
+  `ai/config.py`'s routing table and `test_ai_providers.py`'s mock assertions — confirmed.
+- ADR-002 sanity check: `TenantContextMiddleware` (raw ASGI, not `BaseHTTPMiddleware`),
+  `ContextVar` re-stamping, and the `app.middleware_stack = None` reset all match the
+  documented root cause exactly.
+- Complexity: no function >50 lines in changed backend or frontend files; no new
+  `# noqa`/waiver suppressions added.
+- Git hygiene: 17 commits, conventional, one-AC-per-commit, no `.env`/AWS keys committed.
+
+**Edge cases added (2, committed `test(qa): edge cases for PLAT-TASK-002`,
+commit `606ac63`):**
+1. `test_refresh_rate_limit_returns_429_after_default_limit` (backend) — proves Law 18's
+   rate limiter actually returns 429 through the real HTTP route once exhausted; existing
+   coverage only unit-tested the pure sliding-window function.
+2. `return_to from a query-string path currently drops the query string` (frontend E2E) —
+   locks in `middleware.ts`'s current (lossy) `return_to` behaviour on
+   `/dashboard?tab=graph` so a future change is a deliberate decision, not a silent
+   regression.
+
+**Non-blocking observations for the epic PR (none of these gate this task's ACs):**
+- **Lighthouse** on `/` (homepage): default (mobile-simulated throttling) run scores
+  **performance 98 / a11y 100 / best-practices 100 / SEO 100** — LCP 2.5s trips the
+  performance category under simulated 4G. A `--preset=desktop` run scores **100/100/100/100**.
+  No `lighthouserc.json` exists yet for this package to pin a canonical methodology —
+  recommend the Architect/Engineer commit one (mobile vs. desktop, throttling method)
+  before the next Lighthouse-gated task, otherwise "100 across all four" is ambiguous by
+  construction. Flagging as `affects: [PLAT-TASK-003, PLAT-TASK-004]` in
+  `.claude/state/qa-cross-task-findings.md` since every future page-affecting task hits
+  the same ambiguity.
+- **Design-token gap:** `docs/standards/design/typography.md` defines 9 type-scale tokens
+  (`--text-display`, `--text-h1`..`--text-h4`, `--text-body-lg`, `--text-body-sm`,
+  `--text-overline`, `--text-mono`/`-sm`); `app/globals.css` only implements 3
+  (`--text-body`, `--text-label`, `--text-caption`). The one place a heading is needed
+  (`app/page.tsx`'s `<h1>`) falls back to raw Tailwind (`text-3xl font-semibold`) instead
+  of a token, because the token doesn't exist yet — not caught by AC-6 (scoped to
+  Button/Input/Badge/Card only) but a real gap for the next UI task that adds a heading.
+- `app/layout.tsx` still carries the default `create-next-app` `<title>`/`description`
+  metadata ("Create Next App") — no AC governs it, but it's a real, user-visible miss
+  (browser tab / SEO) for a PO review.
+- Mutation testing (Category 16, scoped to this task's changed backend files): full
+  `mutmut run` → **200 killed / 87 survived / 188 no-tests / 95 segfault** (570 total).
+  Score on killed+survived = **69.7%**, just under the 70% gate — **WARN, not FAIL** per
+  the stated gate rule. Weakest spots: `ai/providers.py` (43 survived — provider `.complete`
+  argument defaults aren't asserted) and `mock_oidc/tokens.py` (26 survived — token
+  signing/claims internals under-asserted beyond the shape already checked). The 95
+  "segfault" entries are all in un-unit-tested CLI entrypoints (`main()`/`uvicorn.run`
+  blocks), not application logic — not a real defect signal.
+- Logout: `signOut` is wired in `auth.ts` but no page/button calls it and no E2E test
+  covers it; no AC in this brief requires it, but Category 10 (Law B) names logout as a
+  required scene for UI-bearing stories — flag for whichever task adds the first
+  authenticated nav chrome.
+- `observability/tracing.py`'s docstring claims an "opt-in docker-compose `observability`
+  profile service" — no such service exists in `docker-compose.yml` (matches deviation #8,
+  which correctly says it wasn't added). Comment is stale/inaccurate; harmless but should
+  be corrected next time that file is touched.
+
+Verdict: **PASS**. All 7 ACs met with real command-output evidence; the observations
+above are recommendations for follow-up tasks, not blockers for this one.
