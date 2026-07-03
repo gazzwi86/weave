@@ -39,7 +39,7 @@ class BedrockProvider:
 
     def __init__(self, client: Any | None = None) -> None:
         if client is None:
-            import boto3  # type: ignore[import-untyped]
+            import boto3
 
             client = boto3.client("bedrock-runtime")
         self._client = client
