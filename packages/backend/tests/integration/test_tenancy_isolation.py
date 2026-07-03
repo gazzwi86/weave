@@ -151,11 +151,19 @@ async def test_member_revocation_invalidates_session(
 ) -> None:
     tenant_id = _unique_tenant("tenant-revoke")
     user_sub = "u-revoked"
+    email = "revoked@example.invalid"
 
     async with tenant_connection(tenant_id) as conn:
         workspace = await create_workspace(
             conn, tenant_id=tenant_id, slug="ws", display_name="Revoke workspace"
         )
+        # QA FAIL remediation (AC-3): /switch now checks workspace role too,
+        # so this test's principal needs a real membership row to reach the
+        # session-revocation behaviour it actually exercises.
+        await invite_member(
+            conn, tenant_id=tenant_id, workspace_id=workspace.id, email=email, role="read"
+        )
+        await activate_member(conn, workspace_id=workspace.id, email=email, user_sub=user_sub)
 
     tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
 
@@ -328,13 +336,9 @@ async def test_sparql_curie_graph_clause_cannot_cross_scope(platform_stack: Path
     tenant_a = _unique_tenant("tenant-curie-a")
     tenant_b = _unique_tenant("tenant-curie-b")
     async with tenant_connection(tenant_a) as conn:
-        workspace_a = await create_workspace(
-            conn, tenant_id=tenant_a, slug="ws", display_name="A"
-        )
+        workspace_a = await create_workspace(conn, tenant_id=tenant_a, slug="ws", display_name="A")
     async with tenant_connection(tenant_b) as conn:
-        workspace_b = await create_workspace(
-            conn, tenant_id=tenant_b, slug="ws", display_name="B"
-        )
+        workspace_b = await create_workspace(conn, tenant_id=tenant_b, slug="ws", display_name="B")
 
     try:
         await clear_graph(workspace_a.named_graph_iri)
@@ -367,9 +371,7 @@ async def test_invite_member_route_rejects_foreign_workspace(client: AsyncClient
     tenant_a = _unique_tenant("tenant-idor-a")
     tenant_b = _unique_tenant("tenant-idor-b")
     async with tenant_connection(tenant_b) as conn:
-        workspace_b = await create_workspace(
-            conn, tenant_id=tenant_b, slug="ws", display_name="B"
-        )
+        workspace_b = await create_workspace(conn, tenant_id=tenant_b, slug="ws", display_name="B")
 
     tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
@@ -396,9 +398,7 @@ async def test_revoke_member_route_rejects_foreign_workspace(client: AsyncClient
     tenant_a = _unique_tenant("tenant-idor-revoke-a")
     tenant_b = _unique_tenant("tenant-idor-revoke-b")
     async with tenant_connection(tenant_b) as conn:
-        workspace_b = await create_workspace(
-            conn, tenant_id=tenant_b, slug="ws", display_name="B"
-        )
+        workspace_b = await create_workspace(conn, tenant_id=tenant_b, slug="ws", display_name="B")
 
     tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
@@ -469,11 +469,17 @@ async def test_revoked_session_rejected_on_sparql_route(
     """
     tenant_id = _unique_tenant("tenant-revoke-sparql")
     user_sub = "u-revoked-sparql"
+    email = "revoked-sparql@example.invalid"
 
     async with tenant_connection(tenant_id) as conn:
         workspace = await create_workspace(
             conn, tenant_id=tenant_id, slug="ws", display_name="Revoke-sparql workspace"
         )
+        # QA FAIL remediation (AC-3): /sparql now checks workspace role too.
+        await invite_member(
+            conn, tenant_id=tenant_id, workspace_id=workspace.id, email=email, role="read"
+        )
+        await activate_member(conn, workspace_id=workspace.id, email=email, user_sub=user_sub)
 
     tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}

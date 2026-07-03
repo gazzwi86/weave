@@ -15,6 +15,7 @@ from weave_backend.rbac import (
     ROLE_RANK,
     InsufficientRole,
     check_role,
+    enforce_workspace_role,
     is_tenant_admin,
     resolve_workspace_role,
 )
@@ -85,3 +86,29 @@ async def test_is_tenant_admin_true_only_with_an_admin_membership_row() -> None:
 
     assert await is_tenant_admin(admin_conn, tenant_id="acme", user_sub="u-admin") is True
     assert await is_tenant_admin(non_admin_conn, tenant_id="acme", user_sub="u-viewer") is False
+
+
+async def test_enforce_workspace_role_rejects_a_non_member() -> None:
+    """QA FAIL (AC-3): settings/sparql routes derive workspace_id from a
+    scope IRI, not a path param, so they can't use the
+    `require_workspace_role` dependency factory directly -- this is the
+    shared check both that factory and those routes call through.
+    """
+    conn = _FakeConnection(row=None)
+
+    with pytest.raises(InsufficientRole):
+        await enforce_workspace_role(
+            conn,
+            tenant_id="acme",
+            workspace_id=_WORKSPACE_ID,
+            user_sub="u-outsider",
+            min_role="read",
+        )
+
+
+async def test_enforce_workspace_role_allows_a_sufficient_role() -> None:
+    conn = _FakeConnection(row={"role": "author"})
+
+    await enforce_workspace_role(
+        conn, tenant_id="acme", workspace_id=_WORKSPACE_ID, user_sub="u-author", min_role="read"
+    )

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.rbac import enforce_workspace_role
 from weave_backend.rdf.oxigraph_client import run_query
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
@@ -26,6 +27,11 @@ router = APIRouter(prefix="/api", tags=["sparql"])
 
 
 async def _resolve_named_graph(principal: Principal, requested_workspace_id: str | None) -> str:
+    """QA FAIL remediation (AC-3): the caller's workspace_id here comes from
+    the request body (or the active-session fallback), never a path param,
+    so it must be checked against workspace_members explicitly rather than
+    via the `require_workspace_role` path-param dependency.
+    """
     workspace_id = requested_workspace_id or await get_active_workspace(
         principal.tenant_id, principal.sub
     )
@@ -35,8 +41,15 @@ async def _resolve_named_graph(principal: Principal, requested_workspace_id: str
         workspace = await get_workspace(
             conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
         )
-    if workspace is None:
-        raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
+        if workspace is None:
+            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
+        await enforce_workspace_role(
+            conn,
+            tenant_id=principal.tenant_id,
+            workspace_id=workspace_id,
+            user_sub=principal.sub,
+            min_role="read",
+        )
     return workspace.named_graph_iri
 
 

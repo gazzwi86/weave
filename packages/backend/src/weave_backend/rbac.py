@@ -49,6 +49,22 @@ async def resolve_workspace_role(
     return str(row["role"]) if row is not None else None
 
 
+async def enforce_workspace_role(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, user_sub: str, min_role: str
+) -> None:
+    """Same check `require_workspace_role` does, for routes whose
+    workspace_id isn't a path param (settings' scope_iri/context, sparql's
+    body/active-session workspace) -- the caller resolves workspace_id from
+    its own scope IRI first, then calls through here. A missing membership
+    row (`role is None`) is rejected the same as an insufficient one, via
+    `check_role`.
+    """
+    role = await resolve_workspace_role(
+        conn, tenant_id=tenant_id, workspace_id=workspace_id, user_sub=user_sub
+    )
+    check_role(role, min_role)
+
+
 async def is_tenant_admin(conn: asyncpg.Connection, *, tenant_id: str, user_sub: str) -> bool:
     row = await conn.fetchrow(
         "SELECT 1 FROM workspace_members"
@@ -79,13 +95,13 @@ def require_workspace_role(
             )
             if workspace is None:
                 raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
-            role = await resolve_workspace_role(
+            await enforce_workspace_role(
                 conn,
                 tenant_id=principal.tenant_id,
                 workspace_id=workspace_id,
                 user_sub=principal.sub,
+                min_role=min_role,
             )
-        check_role(role, min_role)
         return principal
 
     return _dependency
