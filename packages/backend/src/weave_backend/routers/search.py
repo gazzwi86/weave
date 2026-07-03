@@ -17,7 +17,11 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.rbac import enforce_workspace_role
 from weave_backend.rdf.oxigraph_client import run_query
-from weave_backend.rdf.query_rewriter import validate_query
+from weave_backend.rdf.query_rewriter import (
+    DisallowedQueryError,
+    UnscopedQueryError,
+    validate_query,
+)
 from weave_backend.schemas.search import SearchResponse, SearchResult
 from weave_backend.search.sparql_search import MIN_QUERY_LENGTH, build_search_query
 from weave_backend.tenancy.sessions import get_active_workspace
@@ -81,7 +85,14 @@ async def search_route(
         return SearchResponse(results=[], total=0)
 
     query = build_search_query(q)
-    validate_query(query)
+    # PR #13 finding (1): mirrors sparql.py's own try/except -- an
+    # unparseable/disallowed built query is a 400, never an uncaught 500.
+    try:
+        validate_query(query)
+    except UnscopedQueryError as exc:
+        raise HTTPException(status_code=400, detail={"error": "unscoped_query_rejected"}) from exc
+    except DisallowedQueryError as exc:
+        raise HTTPException(status_code=400, detail={"error": "disallowed_query"}) from exc
     raw = await run_query(query, workspace.named_graph_iri)
     results = [
         SearchResult(
