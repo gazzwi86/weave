@@ -88,3 +88,51 @@ task's scope to change.
   just structurally reviewed) and passed; it's excluded from the default
   CI fast lane (`integration` + `docker` markers) so it won't run again
   automatically until a nightly/local job invokes `pytest -m docker`.
+
+## QA pass (PLAT-TASK-001) — PASS
+
+- **Test Results:** Unit 17 passing (was 15 + 2 added), Integration 4 passing
+  (offline terraform plan + CI workflow assertions), E2E 2 passing (OIDC
+  static assertions), `docker`-marked stack test 1 passing (ran for real,
+  images already cached — 12.6s total). Coverage: 90% (`--cov=weave_backend`,
+  threshold 80%). Lint (`ruff`, `mypy`) and `terraform fmt -check -recursive`
+  all clean. `terraform validate`/`init -backend=false` clean for `dev`
+  (the only environment with actual `.tf` files — `staging`/`prod` are
+  documented copy-later placeholders, a YAGNI-justified deviation from the
+  DoD's literal "dev, staging, prod" wording).
+- **Mutation score independently re-run (not just self-reported):** 90.7%
+  (39 killed / 4 survived / 8 no-tests / 51 total) via a fresh `uv run mutmut
+  run` — matches the Engineer's claimed figure exactly.
+- **ADR-001 verified:** AWS's Cognito provider schema genuinely enforces the
+  5m/1h floors cited; the deviation from the brief's 60s is real and correctly
+  reasoned, not a convenience excuse.
+- **Edge cases added by QA (3, all committed, all passing):**
+  - `test_secret_scan_allows_weave_test_prefix` — proves the `.gitleaks.toml`
+    `WEAVE_TEST_` allowlist regex actually allowlists (previously only the
+    rejection path was tested; a typo'd regex would have gone unnoticed).
+  - `test_oidc_deploy_every_aws_step_individually_guarded` — the existing
+    e2e test used `any(...)` across all step guards, which would still pass
+    if only one AWS-touching step (e.g. credentials) kept its
+    `DEPLOY_ROLE_ARN` guard while `terraform apply` lost its own. Now each
+    AWS-touching step is checked individually.
+  - `test_cli_invocation_matches_ci_usage` — runs
+    `python -m weave_backend.scripts.mutation_gate <path>` as a real
+    subprocess (the exact invocation `ci.yml`'s mutation job uses); the
+    `if __name__ == "__main__":` block (lines 41-42) had zero prior coverage
+    since every other test called `main()` directly.
+- **Non-blocking observations (for epic PR description):**
+  - `mutation_gate.main()` has no docstring (module + `evaluate()` do).
+  - `radon` reports `test_oidc_deploy_essential_dev` at cyclomatic complexity
+    17 (grade C, over the 10 threshold); `ruff`'s configured `C901` (also
+    threshold 10) does not flag it — the two tools disagree on how list
+    comprehensions/generator expressions inside a flat assertion sequence
+    are counted. No waiver logged. Recommend the Engineer split it into
+    2-3 smaller test functions next time this file is touched; not blocking
+    since it's straight-line test assertions, not branching business logic.
+  - Progress-summary section headers here (`Decisions / deviations`,
+    `Known limitation`, `Deferred to live verification`) diverge in name
+    from `.claude/spec-templates/progress-summary.md`'s literal
+    `Decisions Made` / `Assumptions Made` headers, though the substance
+    (7 numbered decisions with rationale, ADR reference) is present and
+    exceeds the template's bar. Recommend matching header names next task
+    so tooling that greps for them doesn't have to guess.
