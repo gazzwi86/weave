@@ -162,6 +162,13 @@ RBAC enforcement (PLAT-TASK-004, PLAT-IDENTITY-1).
 
 `principals` table — surrogate `id` UUID PK, `(tenant_id, sub)` unique (ADR-006), FORCE ROW LEVEL SECURITY + tenant policy; agent registry.
 
+## src/weave_backend/search/sparql_search.py
+
+Global entity search (PLAT-TASK-005, AC-3).
+
+- `search_entities(query, named_graph_iri, limit)` — `<2` chars → []; SELECT over rdfs:label + kind with `CONTAINS(LCASE(...))`; `sanitize_search_term` strips `< > " { } ;` before interpolation; runs through the tenant-scoped oxigraph path (validate_query + graph-param pinning); emits a `search.performed` audit event
+- Route `GET /api/search?q=&workspace_id=` (routers/search.py) — gated on workspace `read` role
+
 ## tests/
 
 `tests/unit` (fast, offline), `tests/integration` (markers: `integration`, `docker`), `tests/e2e` (static CI-workflow assertions, e.g. `test_oidc_deploy.py`). Terraform validate/plan tests run offline via a git-ignored local-backend `override.tf`.
