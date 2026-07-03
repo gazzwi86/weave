@@ -46,4 +46,16 @@ describe("DashboardPage", () => {
       "urn:weave:principal:dev-user-1"
     );
   });
+
+  // QA edge case (checklist item 14): the existing AC-5 test only greps for
+  // CE/metrics URL substrings -- it would miss any *other* unexpected
+  // outbound call the page might grow (e.g. an accidental analytics beacon,
+  // a second whoami retry). Assert the network-call count itself: exactly
+  // one fetch, the whoami check, and nothing else.
+  it("issues exactly one outbound fetch call total (the whoami check, no more)", async () => {
+    render(await DashboardPage());
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain("/api/whoami");
+  });
 });

@@ -188,3 +188,58 @@ All above the 80%-line DoD bar and the `vitest.config.ts` global threshold.
 6. AC-3's 300ms response-time budget was not load-tested; the query shape
    (single indexed filter, one named graph) makes it a reasonable design
    inference rather than a measured guarantee.
+
+## QA pass (2026-07-04) — verdict: FAIL
+
+Re-ran everything for real (docker down -v first, backend fast+docker lanes,
+frontend vitest/tsc/eslint, full stack served manually per FRONTEND_ENV,
+`ui_verify.sh --full --target http://localhost:3000/dashboard`, production
+`next build && next start` Lighthouse, adversarial sanitiser probe).
+
+**What holds:** backend fast suite (124) + docker suite (30, incl.
+`test_search_tenancy.py`'s 5 tests) all green; frontend vitest/coverage
+matches the summary's numbers exactly (98.92%/86% aggregate); `tsc`/`eslint`
+clean; the search sanitiser + `validate_query` double-layer genuinely
+neutralises every adversarial payload tried (UNION, SERVICE, INSERT/DROP,
+FROM, cross-graph GRAPH splice — see new
+`test_search_sanitizes_adversarial_injection_payloads` parametrized test,
+5/5 passing); tenant scoping (403 non-member, 404 foreign-tenant)
+independently re-verified; AC-1/5/6 nav+dashboard markup, tokens, and
+zero-CE-call claims all verified true by direct grep/read; ADR-008 is
+honest and well-grounded.
+
+**What fails (blocks Category 17's `ui_verify.sh --full` hard gate, and
+Category 15's Lighthouse-100 bar):**
+- FAIL-1: `auth.spec.ts`'s hardcoded principal-IRI assertion is stale
+  against PLAT-TASK-004's canonical `user:`-prefixed IRI format — genuine,
+  100% reproducible, predates this task but breaks `ui_verify`'s full-suite
+  run for every task from here on.
+- FAIL-2: the "one invocation" rate-limiter mitigation only serializes
+  *within* `global-search.spec.ts`; under Playwright's local defaults
+  (parallel workers) it still collides with `auth.spec.ts`'s logins — this
+  is the actual reason `ui_verify.sh --full` fails (it invokes
+  `npx playwright test` with no `--workers` override). Reproduced 3
+  times, distinct symptoms each time.
+- FAIL-3: dashboard footer (AC-6) pairs `--text-caption` with
+  `--color-text-subtle`, contradicting `typography.md`'s own written rule
+  and failing WCAG 1.4.3 (~3.2:1 contrast, needs 4.5:1) — confirmed by
+  hand-computed contrast, real Lighthouse, and a new red
+  `tests/e2e/accessibility.spec.ts` (`test.fail()`, documents the bug).
+- FAIL-4: nav's links to not-yet-built routes default-prefetch, producing
+  real 404 console errors that drop Lighthouse best-practices below 100.
+- Lighthouse actual scores (production build, `/dashboard`): performance
+  0.99-1.0, accessibility 0.95, best-practices 0.92-0.96, SEO 0.91 — none
+  of the four categories hit the required 100.
+
+Full detail + owners + fix suggestions in
+`.claude/state/qa-cross-task-findings.md` (8 new rows this pass) — none of
+these require implementation changes from QA, only from the Engineer.
+
+**Edge-case tests added this pass** (all committed):
+- Backend: `test_search_sanitizes_adversarial_injection_payloads` (5
+  parametrized adversarial SPARQL-injection-shaped payloads).
+- Frontend: dashboard "issues exactly one outbound fetch call total" (was
+  previously only checked for CE-specific URL substrings).
+- Frontend E2E: `tests/e2e/accessibility.spec.ts` — first real-browser
+  axe-core pass on this app (dependency was installed, unused); documents
+  FAIL-3 via `test.fail()`.
