@@ -20,6 +20,17 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Serving a production build for `ui_verify`
+
+`next dev`'s performance (~0.85 Lighthouse) never represents the shipped app. Serve the
+production build before running the gate:
+
+```bash
+./scripts/serve-prod.sh
+# in another terminal:
+.claude/scripts/ui_verify.sh --full --target http://localhost:3000
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
