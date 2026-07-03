@@ -243,3 +243,114 @@ these require implementation changes from QA, only from the Engineer.
 - Frontend E2E: `tests/e2e/accessibility.spec.ts` — first real-browser
   axe-core pass on this app (dependency was installed, unused); documents
   FAIL-3 via `test.fail()`.
+
+## QA re-pass (2026-07-04) — verdict: FAIL (was FAIL, now different reason)
+
+Engineer fixed FAIL-1 through FAIL-4 (commits `6090b93`, `36c2223`,
+`0787f4d`, `7fba877`), plus a robots.txt/middleware SEO fix (`652ca97`,
+`1a7a2e7`) and a `serve-prod.sh` script so the gate measures the
+production build (`10b1cba`). QA independently verified all 4 fixes by
+`git show` diff (not self-report):
+- FAIL-1: `auth.spec.ts:18` now asserts the `user:`-prefixed IRI. Confirmed.
+- FAIL-2: `playwright.config.ts`'s `workers` is now unconditionally `1`.
+  Confirmed.
+- FAIL-3: footer swapped to `--color-text-muted`. QA independently
+  recomputed relative-luminance contrast: 6.09:1 dark / 7.58:1 light,
+  both clear of the 4.5:1 AA floor. `accessibility.spec.ts` no longer
+  carries `test.fail()` and passed as a real assertion in a green
+  `ui_verify` run. A real `<h1>` was also added to `/dashboard`
+  (`d3a8e3c`, axe `page-has-heading-one`) — QA confirmed AC-5/AC-6
+  markup (placeholder h2 text, footer text, single `/api/whoami` fetch,
+  zero CE calls) is all still intact after this change.
+- FAIL-4: `nav.tsx` links now carry `prefetch={false}`. Confirmed.
+- Security spot-check (explicit ask): `middleware.ts`'s `PUBLIC_PATHS`
+  diff (`1a7a2e7`) adds exactly one path, `/robots.txt` — no other route
+  was un-gated. Clean.
+
+**New FAIL-5 found during this re-validation** (not one of the original
+4, discovered because QA re-ran the load-bearing gate three times
+instead of once): `global-search.spec.ts`'s `loginAndGoToDashboard`
+helper is missing the same "wait for the mock-OIDC heading before the
+second click" guard that `auth.spec.ts` and the newly-fixed
+`accessibility.spec.ts` both have. Result: `ui_verify.sh --full` against
+the identical, unchanged, fully-up production stack gave PASS / FAIL /
+PASS across 3 consecutive runs (~1-in-3 failure rate) — a genuinely
+non-deterministic gate, not an environment blip. Detail + fix in
+`.claude/state/qa-cross-task-findings.md` (FAIL-5 row).
+
+Independently re-verified (Law #9, own command output, not Engineer's
+report):
+- `uv run pytest -q -m "not docker"` → 141 passed, 0 failed.
+- `uv run pytest -q -m "integration and docker and not stack"` → 30
+  passed, 0 failed.
+- `ruff check .` (backend) → all checks passed.
+- `npm run lint` (frontend) → 0 errors (1 pre-existing warning in a
+  generated `coverage/` artifact, not source).
+- `.lighthouse.json` (production build, own run): performance 0.97,
+  accessibility 1.0, best-practices 1.0, SEO 1.0.
+
+**Judgement call on performance 0.97** (explicitly requested): the only
+weighted contributor below 1.0 is LCP at 2.6s (weight 25); every other
+sub-1.0 audit (`legacy-javascript-insight`, `render-blocking-insight`,
+`unused-javascript`, etc.) carries weight 0 in this Lighthouse version.
+No diff in this fix round touches the render-critical path or bundle
+size — `prefetch={false}` (FAIL-4) if anything reduces network load. Read
+as cold/contended-local-hardware variance (build + docker + backend all
+running concurrently on this box), not a code regression. Filed as
+**WARN**, not a blocker — `ui_verify.sh` step C does not itself threshold
+performance (known script limitation, out of this task's scope).
+
+**Ledger updates**: FAIL-1 through FAIL-4 rows marked Resolved; the
+design-token-backfill fallout row marked Resolved (for this task's
+screens only — the broader PLAT-TASK-002 token-taxonomy gap stays open,
+not this row's scope); visual-baseline row left Accepted-pending
+(unrelated to this fix round, no evidence CI has seeded baselines yet);
+new FAIL-5 row added, Fail, owner Engineer.
+
+**Verdict (this sub-pass): FAIL.** One new, real, reproducible defect
+(FAIL-5) blocks Category 17's gate. Everything else in the original FAIL
+report is now closed and independently verified.
+
+## QA final re-pass (2026-07-04) — verdict: PASS
+
+Engineer fixed FAIL-5 (commit `300021d`): added the same
+wait-for-mock-OIDC-heading guard to `global-search.spec.ts`'s
+`loginAndGoToDashboard`, matching `auth.spec.ts`/`accessibility.spec.ts`.
+QA verified the diff directly — correct, minimal, same proven pattern.
+
+A second factor was identified and isolated before re-running: repeatedly
+invoking `ui_verify.sh`/`npx playwright test` against ONE long-lived
+production frontend process exhausts `middleware.ts`'s shared in-memory
+auth rate limiter (5 req/60s, keyed `"unknown"` locally) — each loop's
+logins draw down the same budget, eventually producing "Too Many
+Requests" failures indistinguishable from a real race. This is why the
+prior sub-pass's 3 identical-looking runs gave PASS/FAIL/PASS: part race
+(now fixed), part limiter artifact from looping without a restart. CI is
+unaffected (one fresh process per job).
+
+**Final re-validation, restarting the frontend process between every
+run (own command output, Law #9):**
+
+- `ui_verify.sh --full --target http://localhost:3000` — 3 independent
+  runs, fresh `serve-prod.sh` process each time, docker+backend+mock-oidc
+  held constant across runs (not implicated in the limiter issue): exit 0,
+  exit 0, exit 0.
+- Standalone `npx playwright test` against one additional fresh server:
+  7 passed, 0 failed.
+- Full stack torn down cleanly after (`docker compose down -v` →
+  zero containers remaining, no leaked processes on 3000/8000/9001).
+
+**Ledger updates:**
+
+- FAIL-5 row → Resolved (commit `300021d`).
+- New Warn row added: rate-limiter-exhaustion-from-looping is a QA/CI
+  methodology gotcha, not a code defect — restart the frontend process
+  between repeated local gate runs (CI already does this by construction).
+
+**Verdict: PASS.** All 5 originally-found failures (FAIL-1 through
+FAIL-5) are fixed, independently verified by diff and by re-run — not
+accepted on the Engineer's self-report. Backend (141 + 30 tests), lint
+(backend + frontend), Lighthouse (perf 0.97 WARN/hardware-variance,
+a11y/best-practices/SEO all 1.0), and the Category 17 UI-verify gate
+(3/3 clean, isolated from the rate-limiter artifact) all hold. PLAT-TASK-005
+is done.
