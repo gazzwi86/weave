@@ -12,6 +12,8 @@ import json
 import os
 import shutil
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -33,6 +35,32 @@ _OFFLINE_ENV = {
 
 def _dev_dir(repo_root: Path) -> Path:
     return repo_root / "infra" / "terraform" / "environments" / "dev"
+
+
+@contextmanager
+def _local_backend_override(env_dir: Path) -> Iterator[None]:
+    """Swap the real s3 backend for a local one for this offline plan run.
+
+    `terraform plan` (unlike `validate`) needs a working backend even to run
+    against dummy credentials, so a real `s3` backend block always demands
+    reinitialization against AWS. `override.tf` is Terraform's own mechanism
+    for this and is git-ignored — never committed, never touches real state.
+    """
+    override = env_dir / "override.tf"
+    override.write_text('terraform {\n  backend "local" {}\n}\n')
+    try:
+        init = subprocess.run(
+            ["terraform", "init", "-input=false", "-reconfigure"],
+            cwd=env_dir,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        assert init.returncode == 0, f"{init.stdout}\n{init.stderr}"
+        yield
+    finally:
+        override.unlink(missing_ok=True)
+        (env_dir / "terraform.tfstate").unlink(missing_ok=True)
 
 
 def _plan_module_addresses(env_dir: Path, tmp_path: Path, deploy_prod_stack: bool) -> set[str]:
@@ -74,21 +102,17 @@ def _plan_module_addresses(env_dir: Path, tmp_path: Path, deploy_prod_stack: boo
 
 def test_terraform_plan_dev_completes(repo_root: Path, tmp_path: Path) -> None:
     env_dir = _dev_dir(repo_root)
-    init = subprocess.run(
-        ["terraform", "init", "-backend=false", "-input=false"],
-        cwd=env_dir,
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-    assert init.returncode == 0, f"{init.stdout}\n{init.stderr}"
+    with _local_backend_override(env_dir):
+        off_addresses = _plan_module_addresses(env_dir, tmp_path, deploy_prod_stack=False)
+        assert not any(
+            addr.startswith(f"module.{mod}")
+            for addr in off_addresses
+            for mod in PROD_GATED_MODULES
+        ), f"prod-gated resources present when deploy_prod_stack=false: {off_addresses}"
 
-    off_addresses = _plan_module_addresses(env_dir, tmp_path, deploy_prod_stack=False)
-    assert not any(
-        addr.startswith(f"module.{mod}") for addr in off_addresses for mod in PROD_GATED_MODULES
-    ), f"prod-gated resources present when deploy_prod_stack=false: {off_addresses}"
-
-    on_addresses = _plan_module_addresses(env_dir, tmp_path, deploy_prod_stack=True)
-    assert any(
-        addr.startswith(f"module.{mod}") for addr in on_addresses for mod in PROD_GATED_MODULES
-    ), "expected prod-gated resources when deploy_prod_stack=true"
+        on_addresses = _plan_module_addresses(env_dir, tmp_path, deploy_prod_stack=True)
+        assert any(
+            addr.startswith(f"module.{mod}")
+            for addr in on_addresses
+            for mod in PROD_GATED_MODULES
+        ), "expected prod-gated resources when deploy_prod_stack=true"
