@@ -89,7 +89,32 @@ by `--cov`; they are proven correct by the tests passing, just not coverage-coun
   seeded for this task's role-scoped invite ACs — RBAC can read from the same table,
   no new membership model needed.
 
-## QA (PLAT-TASK-003) — FAIL
+## QA (PLAT-TASK-003) — PASS (re-pass after fix)
+
+Verdict: **PASS**. Original pass below (unchanged, kept for history) found one defect
+(audit gap) and FAILed on it alone. Engineer fixed it in 615b764 (red test) + aabb90b
+(emit call); QA independently re-verified the fix (not taken on the engineer's word):
+
+- Read both diffs (`git show 615b764`, `git show aabb90b`). New test
+  `test_settings_write_emits_audit_event` asserts exactly 1 `audit_events` row with
+  `event_type == "setting.changed"` and `subject_iri == company_iri` after a
+  `PUT /api/settings/theme` write. Fix adds `default_audit_emitter.emit(...)` inside
+  `set_setting_route`, placed inside the `tenant_connection` block after the
+  `LooserOverrideRejected` guard — fires only on the successful (200) path, never on the
+  422 rejection path — mirrors the other three mutation call sites exactly (same
+  `tenant_id`/`event_type`/`actor_iri`/`subject_iri`/`payload` shape).
+- Fast suite: `uv run pytest` → **70 passed, 22 deselected**, 0 failed — no regression
+  (the new test is docker-marked, so it moved from the fast count into the docker count).
+- Docker suite: booted `docker compose up -d` (5 services healthy in ~20s), ran
+  `uv run pytest -m "integration and docker" -v` → **9 passed** (was 8), including the
+  new audit-emission test running for real against the live stack, not mocked.
+- `uv run ruff check .` → all checks passed. `uv run mypy src/ tests/` → no issues in 79
+  source files. No lint/type regression from the fix.
+- Cross-task finding updated: `.claude/state/qa-cross-task-findings.md` PLAT-TASK-003 row
+  marked **Resolved** — TASK-009's hash-chain audit store may now trust this seam's
+  completeness for the settings route.
+
+Original FAIL-pass findings (all still valid, only the audit item changed status):
 
 Verdict: **FAIL** — one implementation defect (audit gap), everything else holds.
 
