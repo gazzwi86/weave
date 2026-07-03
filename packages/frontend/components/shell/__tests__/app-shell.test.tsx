@@ -45,4 +45,18 @@ describe("AppShell", () => {
 
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
   });
+
+  // PR #13 finding (5): app-shell.tsx used to keep its own copy of
+  // PUBLIC_PATHS, already out of sync with middleware.ts's (missing
+  // /robots.txt). Proves both now read the one shared constant.
+  it("hides nav chrome on every shared PUBLIC_PATHS entry, including /robots.txt", () => {
+    pathname = "/robots.txt";
+    render(
+      <AppShell>
+        <p>robots content</p>
+      </AppShell>
+    );
+
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+  });
 });
