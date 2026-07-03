@@ -205,6 +205,20 @@ async def test_member_revoke_route_removes_row_and_is_idempotent(
         await activate_member(
             conn, workspace_id=workspace.id, email="member@acme-corp.example", user_sub=member_sub
         )
+        # PLAT-TASK-004: revoke is now gated on an "admin" workspace role --
+        # this workspace was created via a raw `create_workspace()` call, not
+        # the `POST /tenants/{id}/workspaces` route, so it skips that route's
+        # creator-auto-admin bootstrap. Grant it explicitly.
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email="admin@acme-corp.example",
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email="admin@acme-corp.example", user_sub=admin_sub
+        )
 
     admin_tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {admin_tokens.access_token}"}
