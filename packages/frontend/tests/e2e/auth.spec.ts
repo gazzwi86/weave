@@ -30,3 +30,14 @@ test("return_to from a query-string path currently drops the query string", asyn
 
   await expect(page).toHaveURL(/\/auth\/login\?return_to=%2Fdashboard$/);
 });
+
+// Lighthouse SEO's robots-txt audit needs the file served as plain text to an
+// unauthenticated crawler -- middleware.ts's PUBLIC_PATHS guard was
+// redirecting it to /auth/login (200 HTML, not a valid robots.txt).
+test("robots.txt is served publicly, not redirected to sign-in", async ({ page }) => {
+  const response = await page.goto("/robots.txt");
+
+  expect(response?.status()).toBe(200);
+  expect(page.url()).toMatch(/\/robots\.txt$/);
+  expect(response?.headers()["content-type"]).toContain("text/plain");
+});
