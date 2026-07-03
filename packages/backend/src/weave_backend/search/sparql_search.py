@@ -18,9 +18,11 @@ _RESULT_LIMIT = 20
 # Law 13: untrusted input never reaches the query text unsanitised. Oxigraph's
 # SPARQL 1.1 Protocol has no bind-parameter mechanism, so this is an
 # allowlist strip, not a parameterised query -- it removes exactly the
-# characters that could close the `"..."` string literal (`"`) or open a new
-# clause (`<`/`>` IRI refs, `{`/`}` graph-pattern blocks, `;` chaining).
-_UNSAFE_CHARS = re.compile(r'[<>"{};]')
+# characters that could close the `"..."` string literal (`"`, or `\` escaping
+# it -- PR #13 finding (1): a trailing `\` turns the literal's closing `"`
+# into an escaped quote, so rdflib fails to parse it) or open a new clause
+# (`<`/`>` IRI refs, `{`/`}` graph-pattern blocks, `;` chaining).
+_UNSAFE_CHARS = re.compile(r'[<>"{};\\]')
 
 
 def sanitize_search_term(term: str) -> str:
