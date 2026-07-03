@@ -74,23 +74,3 @@ async def get_workspace(
         named_graph_iri=row["named_graph_iri"],
         created_at=row["created_at"],
     )
-
-
-async def list_workspaces(conn: asyncpg.Connection, *, tenant_id: str) -> list[Workspace]:
-    rows = await conn.fetch(
-        """
-        SELECT id, slug, display_name, named_graph_iri, created_at
-        FROM workspaces WHERE tenant_id = $1 ORDER BY created_at
-        """,
-        tenant_id,
-    )
-    return [
-        Workspace(
-            id=str(row["id"]),
-            slug=row["slug"],
-            display_name=row["display_name"],
-            named_graph_iri=row["named_graph_iri"],
-            created_at=row["created_at"],
-        )
-        for row in rows
-    ]
