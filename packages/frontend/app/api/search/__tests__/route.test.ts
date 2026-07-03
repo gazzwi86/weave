@@ -11,18 +11,18 @@ function makeRequest(query: string): NextRequest {
   return new NextRequest(`http://localhost:3000/api/search?${query}`);
 }
 
+function stubFetch(response: Response): void {
+  vi.stubGlobal("fetch", vi.fn(async () => response));
+}
+
 describe("GET /api/search", () => {
   beforeEach(() => {
     vi.mocked(auth).mockReset();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(JSON.stringify({ results: [], total: 0 }), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          })
-      )
+    stubFetch(
+      new Response(JSON.stringify({ results: [], total: 0 }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
     );
   });
 
@@ -64,15 +64,11 @@ describe("GET /api/search", () => {
   // distinguishable error, not crash or silently proxy garbage.
   it("returns a distinguishable error when upstream returns a non-JSON body", async () => {
     vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response("<html>Bad Gateway</html>", {
-            status: 502,
-            headers: { "content-type": "text/html" },
-          })
-      )
+    stubFetch(
+      new Response("<html>Bad Gateway</html>", {
+        status: 502,
+        headers: { "content-type": "text/html" },
+      })
     );
 
     const response = await GET(makeRequest("q=acme"));
