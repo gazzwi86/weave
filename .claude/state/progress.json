@@ -26,7 +26,7 @@
     {
       "id": "PLAT-EPIC-005",
       "title": "Global Navigation & Search",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-006",
@@ -281,7 +281,7 @@
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003",
@@ -294,7 +294,7 @@
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL\u2192SELECT Query and SPARQL Editor",
+      "title": "NL→SELECT Query and SPARQL Editor",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003"
