@@ -24,16 +24,24 @@ def test_evaluate_fails_below_threshold() -> None:
     assert passed is False
 
 
-def test_evaluate_no_mutants_checked_passes_structurally() -> None:
-    # Nothing was killed or survived (e.g. codebase too small to have coverable
-    # mutants yet) — the gate must not false-fail while there is nothing to grade.
-    score, passed = evaluate({"killed": 0, "survived": 0, "total": 8})
+def test_evaluate_no_mutants_at_all_passes_structurally() -> None:
+    # total == 0: genuinely nothing to mutate yet — nothing to grade.
+    score, passed = evaluate({"killed": 0, "survived": 0, "total": 0})
     assert score is None
     assert passed is True
 
 
+def test_evaluate_interrupted_run_fails() -> None:
+    # Mutants exist (total > 0) but none were killed or survived — the mutmut
+    # run itself was interrupted/timed out, not "nothing to grade". Must fail
+    # loudly instead of silently passing on the same 0/0 shape.
+    score, passed = evaluate({"killed": 0, "survived": 0, "total": 8})
+    assert score is None
+    assert passed is False
+
+
 def test_evaluate_missing_keys_default_to_zero() -> None:
-    # No "killed"/"survived" keys at all behaves like 0/0 -- passes structurally.
+    # No keys at all -> total defaults to 0 -- passes structurally.
     score, passed = evaluate({})
     assert score is None
     assert passed is True
@@ -41,13 +49,13 @@ def test_evaluate_missing_keys_default_to_zero() -> None:
 
 def test_evaluate_at_exact_threshold_passes() -> None:
     # Boundary: score == threshold must still pass (the gate is >=, not >).
-    score, passed = evaluate({"killed": 7, "survived": 3}, threshold=70.0)
+    score, passed = evaluate({"killed": 7, "survived": 3, "total": 10}, threshold=70.0)
     assert score == pytest.approx(70.0)
     assert passed is True
 
 
 def test_evaluate_just_below_threshold_fails() -> None:
-    score, passed = evaluate({"killed": 69, "survived": 31}, threshold=70.0)
+    score, passed = evaluate({"killed": 69, "survived": 31, "total": 100}, threshold=70.0)
     assert score == pytest.approx(69.0)
     assert passed is False
 
@@ -68,9 +76,14 @@ def test_main_returns_one_when_score_below_threshold(tmp_path: Path) -> None:
     assert main(stats_path) == 1
 
 
-def test_main_returns_zero_when_nothing_checked_yet(tmp_path: Path) -> None:
+def test_main_returns_zero_when_nothing_to_mutate_yet(tmp_path: Path) -> None:
     stats_path = _write_stats(tmp_path, {"killed": 0, "survived": 0, "total": 0})
     assert main(stats_path) == 0
+
+
+def test_main_returns_one_when_run_was_interrupted(tmp_path: Path) -> None:
+    stats_path = _write_stats(tmp_path, {"killed": 0, "survived": 0, "total": 8})
+    assert main(stats_path) == 1
 
 
 def test_main_prints_score_and_threshold(
@@ -89,8 +102,18 @@ def test_main_prints_structural_pass_message(
     stats_path = _write_stats(tmp_path, {"killed": 0, "survived": 0, "total": 0})
     main(stats_path)
     out = capsys.readouterr().out
-    assert "no mutants exercised yet" in out
+    assert "no mutants to exercise yet" in out
     assert "passing structurally" in out
+
+
+def test_main_prints_interrupted_failure_message(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    stats_path = _write_stats(tmp_path, {"killed": 0, "survived": 0, "total": 8})
+    main(stats_path)
+    out = capsys.readouterr().out
+    assert "FAIL" in out
+    assert "8 mutants exist" in out
 
 
 def test_cli_invocation_matches_ci_usage(tmp_path: Path) -> None:
