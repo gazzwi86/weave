@@ -7,6 +7,10 @@ import type { Browser, Page } from "@playwright/test";
 async function loginAndGoToDashboard(page: Page): Promise<void> {
   await page.goto("/dashboard");
   await page.getByRole("button", { name: "Sign in with Weave" }).click();
+  // Same wait auth.spec.ts/accessibility.spec.ts use -- without it this
+  // click races the mock OIDC page's own load and lands on the callback
+  // URL before it resolves (FAIL-5: ~1 run in 3 flake).
+  await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
