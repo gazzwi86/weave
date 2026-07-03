@@ -18,7 +18,7 @@ dev:
 	cd packages/frontend && npm run dev
 
 test:
-	cd packages/backend && uv run pytest
+	cd packages/backend && uv run pytest -m "not docker and not e2e"
 	cd packages/frontend && npm test
 
 lint:
