@@ -15,7 +15,9 @@ test("redirects to sign-in and returns to the original path after login", async 
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByTestId("principal-iri")).toHaveText("urn:weave:principal:dev-user-1");
+  await expect(page.getByTestId("principal-iri")).toHaveText(
+    "urn:weave:principal:user:dev-user-1"
+  );
 });
 
 // Edge case (QA): middleware.ts builds `return_to` from `req.nextUrl.pathname`
