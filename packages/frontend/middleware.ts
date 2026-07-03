@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-
-// robots.txt must stay reachable by unauthenticated crawlers -- Lighthouse's
-// SEO audit scores 0 if a crawler gets redirected to the sign-in page instead.
-const PUBLIC_PATHS = new Set(["/", "/auth/login", "/robots.txt"]);
+import { PUBLIC_PATHS } from "@/lib/public-paths";
 
 // Law 18: rate-limit auth-bearing endpoints. Shared across requests to this
 // server instance -- see lib/rate-limit.ts for the single-process caveat.
