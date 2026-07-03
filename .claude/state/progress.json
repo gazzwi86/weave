@@ -164,12 +164,13 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-004",
       "title": "RBAC enforcement and agent identity registry (PLAT-IDENTITY-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-002",
         "PLAT-TASK-003"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-004.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-004.md",
+      "retry_count": 2
     },
     {
       "id": "PLAT-TASK-005",
@@ -279,7 +280,7 @@
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003",
@@ -292,7 +293,7 @@
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL→SELECT Query and SPARQL Editor",
+      "title": "NL\u2192SELECT Query and SPARQL Editor",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003"
