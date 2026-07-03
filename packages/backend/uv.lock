@@ -742,7 +742,7 @@ wheels = [
 ]
 
 [[package]]
-name = "weave-api"
+name = "weave-backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

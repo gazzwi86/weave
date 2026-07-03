@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from weave_api import app
+from weave_backend import app
 
 
 async def test_health_returns_ok_status() -> None:

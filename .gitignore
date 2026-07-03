@@ -24,6 +24,7 @@ out/
 
 # IDE
 .DS_Store
+*.DS_Store
 .idea/
 .vscode/
 *.swp
@@ -37,6 +38,7 @@ pnpm-debug.log*
 
 # Python
 __pycache__/
+*__pycache__
 *.py[cod]
 *.pyo
 .venv/
@@ -62,6 +64,8 @@ test-results/
 prototypes/
 # Weave — local file-history archive (engagement worklogs/findings + superseded specs; not committed)
 .history/
+# Weave — local git worktrees (not committed)
+.worktrees/
 # Weave — OKF knowledge graph (generated on demand by /okf-visualize or /anatomy; not committed)
 docs/viz.html
 docs/specs/weave/viz.html

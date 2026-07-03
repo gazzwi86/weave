@@ -50,7 +50,7 @@ adr_refs: [ADR-001]
 ### Pseudocode
 
 ```text
-# Dashboard route (packages/web/app/(shell)/dashboard/page.tsx)
+# Dashboard route (packages/frontend/app/(shell)/dashboard/page.tsx)
 # M1: pure placeholder Server Component — NO data fetch, NO CE client import.
 def DashboardPage():
   return DashboardGrid(
