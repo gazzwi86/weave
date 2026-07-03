@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.settings import (
@@ -70,6 +71,16 @@ async def set_setting_route(
                 status_code=422,
                 detail={"error": "looser_override_rejected", "tighter_scope": exc.tighter_scope},
             ) from exc
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="setting.changed",
+                actor_iri=principal.principal_iri,
+                subject_iri=body.scope_iri,
+                payload={"key": key, "value": body.value},
+            ),
+        )
 
     await invalidate_tenant(get_redis(), tenant_id=principal.tenant_id)
     return SetSettingResponse(key=key, scope_iri=body.scope_iri, value=body.value)
