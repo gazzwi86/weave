@@ -15,9 +15,11 @@ class _RecordingProvider:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
+        self.last_kwargs: dict[str, object] = {}
 
-    def complete(self, model_id: str, prompt: str, **_kwargs: object) -> str:
+    def complete(self, model_id: str, prompt: str, **kwargs: object) -> str:
         self.calls.append((model_id, prompt))
+        self.last_kwargs = kwargs
         return f"echo:{model_id}"
 
 
@@ -35,3 +37,11 @@ def test_model_routing_tier_mapping(tier: str) -> None:
 def test_route_rejects_unknown_tier() -> None:
     with pytest.raises(ValueError, match="unknown model tier"):
         route("opus", "hello", provider=_RecordingProvider())
+
+
+def test_route_passes_extra_kwargs_through_to_provider() -> None:
+    provider = _RecordingProvider()
+
+    route("sonnet", "hello", provider=provider, max_tokens=16)
+
+    assert provider.last_kwargs == {"max_tokens": 16}
