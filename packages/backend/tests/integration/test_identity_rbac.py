@@ -118,15 +118,24 @@ async def test_agent_sts_auth_mints_iri(client: AsyncClient) -> None:
 
 
 async def test_agent_registry_tenant_scoped(client: AsyncClient) -> None:
-    """AC-7: `GET /api/agents` only ever returns the caller's own tenant's
-    agents -- zero cross-tenant rows, even when asked about a workspace_id
-    that belongs to a different (real) tenant.
+    """AC-7: `GET /api/agents` requires read-role membership in the target
+    workspace (PR #12 review finding 1 -- same AC-3 class as the settings/
+    sparql/switch gap: a tenant member with zero membership rows there could
+    enumerate every agent). Only a member ever sees the list; both a foreign
+    tenant and a same-tenant non-member get 403, never a leaked row.
     """
     tenant_a = _unique_tenant("tenant-a")
     tenant_b = _unique_tenant("tenant-b")
+    lister_email = "lister@example.invalid"
     async with tenant_connection(tenant_a) as conn:
         workspace_a = await create_workspace(
             conn, tenant_id=tenant_a, slug="ws-a", display_name="Workspace A"
+        )
+        await invite_member(
+            conn, tenant_id=tenant_a, workspace_id=workspace_a.id, email=lister_email, role="read"
+        )
+        await activate_member(
+            conn, workspace_id=workspace_a.id, email=lister_email, user_sub="u-a"
         )
 
     mint_response = await client.post(
@@ -137,6 +146,7 @@ async def test_agent_registry_tenant_scoped(client: AsyncClient) -> None:
 
     tokens_a = await issue_token_pair(sub="u-a", tenant_id=tenant_a)
     tokens_b = await issue_token_pair(sub="u-b", tenant_id=tenant_b)
+    tokens_outsider = await issue_token_pair(sub="u-outsider", tenant_id=tenant_a)
 
     own_tenant_response = await client.get(
         f"/api/agents?workspace_id={workspace_a.id}",
@@ -149,8 +159,13 @@ async def test_agent_registry_tenant_scoped(client: AsyncClient) -> None:
         f"/api/agents?workspace_id={workspace_a.id}",
         headers={"Authorization": f"Bearer {tokens_b.access_token}"},
     )
-    assert foreign_tenant_response.status_code == 200
-    assert foreign_tenant_response.json()["agents"] == []
+    assert foreign_tenant_response.status_code == 403
+
+    outsider_response = await client.get(
+        f"/api/agents?workspace_id={workspace_a.id}",
+        headers={"Authorization": f"Bearer {tokens_outsider.access_token}"},
+    )
+    assert outsider_response.status_code == 403
 
 
 async def test_revoked_session_returns_401(client: AsyncClient) -> None:
