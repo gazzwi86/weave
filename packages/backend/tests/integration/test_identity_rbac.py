@@ -249,3 +249,71 @@ async def test_get_principal_route_is_admin_only(client: AsyncClient) -> None:
         headers={"Authorization": f"Bearer {author_tokens.access_token}"},
     )
     assert forbidden.status_code == 403
+
+
+async def test_get_principal_route_never_leaks_cross_tenant(client: AsyncClient) -> None:
+    """QA edge case (AC-6): an admin of tenant A must not be able to look up
+    a *real*, existing principal that belongs to tenant B by guessing its
+    IRI -- the existing brief test only proves a non-existent IRI 404s
+    within one tenant; this proves a genuine cross-tenant row is equally
+    invisible (get_principal's `WHERE tenant_id = $1 AND iri = $2` must
+    never widen to a bare `iri` lookup).
+    """
+    tenant_a = _unique_tenant("tenant-a-lookup")
+    tenant_b = _unique_tenant("tenant-b-lookup")
+    admin_a_sub = "u-admin-a"
+    admin_b_sub = "u-admin-b"  # distinct sub -- a genuinely different IRI
+    _workspace_a, admin_a_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_a, admin_sub=admin_a_sub, slug="ws-a-lookup"
+    )
+    await _create_workspace_via_route(
+        client, tenant_id=tenant_b, admin_sub=admin_b_sub, slug="ws-b-lookup"
+    )
+
+    # tenant B's admin principal genuinely exists (created above) -- tenant
+    # A's admin asks for it by its literal IRI string.
+    cross_tenant = await client.get(
+        f"/api/principals/urn:weave:principal:user:{admin_b_sub}",
+        headers=admin_a_headers,
+    )
+    assert cross_tenant.status_code == 404
+    assert cross_tenant.json()["detail"] == {"error": "principal_not_found"}
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "AC-3 gap (deviation #4 / cross-task ledger 'PLAT-EPIC-003 PR review' "
+        "finding, assigned to this task): settings and workspace-switch routes "
+        "check only tenant identity via get_current_principal, not workspace "
+        "membership or role. A tenant member with zero workspace_members row "
+        "for this workspace can still read/write its settings and switch into "
+        "it. Remove this xfail once settings/switch are gated on "
+        "require_workspace_role (or an equivalent membership check)."
+    ),
+)
+async def test_non_member_can_reach_workspace_settings_and_switch(client: AsyncClient) -> None:
+    """QA edge case documenting the deviation-4 gap: a valid principal of the
+    *same tenant* who has never been invited to this workspace (no
+    workspace_members row at all, not even "read") should be forbidden from
+    reading/writing its settings or switching into it -- AC-3 says "every
+    endpoint checks role". Currently both succeed with 200.
+    """
+    tenant_id = _unique_tenant("tenant-outsider")
+    workspace_id, _admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin", slug="outsider-ws"
+    )
+    outsider_tokens = await issue_token_pair(sub="u-outsider", tenant_id=tenant_id)
+    outsider_headers = {"Authorization": f"Bearer {outsider_tokens.access_token}"}
+
+    switch_response = await client.post(
+        f"/api/workspaces/{workspace_id}/switch", headers=outsider_headers
+    )
+    assert switch_response.status_code == 403, switch_response.text
+
+    settings_response = await client.get(
+        "/api/settings/some-key",
+        params={"context": f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"},
+        headers=outsider_headers,
+    )
+    assert settings_response.status_code == 403, settings_response.text
