@@ -68,3 +68,29 @@ def test_oidc_deploy_essential_dev(repo_root: Path) -> None:
     # Guarded so it no-ops until DEPLOY_ROLE_ARN is bootstrapped by a human (HITL).
     guard_texts = [str(s.get("if", "")) for s in deploy["steps"]] + [str(deploy.get("if", ""))]
     assert any("DEPLOY_ROLE_ARN" in g for g in guard_texts)
+
+
+def test_oidc_deploy_every_aws_step_individually_guarded(repo_root: Path) -> None:
+    """Edge case: `any(...)` above only proves *one* step is guarded.
+
+    That would still pass if e.g. the credentials step kept its guard but the
+    `terraform apply` step lost its own — the money/security-sensitive step is
+    the one that actually must never run un-gated. Assert each AWS-touching
+    step (credentials, init, plan, apply) carries its own guard.
+    """
+    workflow = _load_workflow(repo_root)
+    deploy = workflow["jobs"]["deploy-essential-dev"]
+
+    aws_touching_needles = (
+        "aws-actions/configure-aws-credentials",
+        "terraform init",
+        "terraform plan",
+        "terraform apply",
+    )
+
+    for step in deploy["steps"]:
+        step_text = str(step.get("uses", "")) + " " + str(step.get("run", ""))
+        if any(needle in step_text for needle in aws_touching_needles):
+            assert "DEPLOY_ROLE_ARN" in str(step.get("if", "")), (
+                f"AWS-touching step must carry its own DEPLOY_ROLE_ARN guard: {step}"
+            )
