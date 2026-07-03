@@ -31,6 +31,15 @@ DEFAULT_OTLP_ENDPOINT = "localhost:4317"
 _test_exporter: InMemorySpanExporter | None = None
 
 
+#: Set by `setup_tracing(strict=True)` (test mode) so a missing tenant_id
+#: attribute fails loudly instead of degrading to "unknown". Threaded
+#: through explicitly rather than read from an env var at call time
+#: (cross-task ledger fix) -- a module-level env read made this depend on
+#: process-wide state instead of the one call site that actually knows
+#: whether it's running under test.
+_strict_tenant_attributes = False
+
+
 def add_tenant_attributes(span: Span) -> None:
     """Stamps tenant_id/engine/principal_iri onto a span from the current
     ContextVar values. Called directly (not as a FastAPIInstrumentor
@@ -44,7 +53,7 @@ def add_tenant_attributes(span: Span) -> None:
     """
     tenant_id = tenant_id_var.get()
     if tenant_id is None:
-        if os.environ.get("WEAVE_TESTING") == "1":
+        if _strict_tenant_attributes:
             raise RuntimeError("span missing required tenant_id attribute")
         tenant_id = "unknown"
     span.set_attribute("tenant_id", tenant_id)
@@ -58,7 +67,8 @@ def setup_tracing(app: FastAPI, *, testing: bool = False) -> InMemorySpanExporte
     to `OTEL_EXPORTER_OTLP_ENDPOINT` (default localhost:4317) — point it at a
     collector; none ships in docker-compose yet.
     """
-    global _test_exporter
+    global _test_exporter, _strict_tenant_attributes
+    _strict_tenant_attributes = testing
     if testing and _test_exporter is not None:
         return _test_exporter
 
