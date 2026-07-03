@@ -1,0 +1,12 @@
+# AC-6: secret-scanning config. Extends gitleaks' default ruleset (AWS keys,
+# GitHub tokens, generic high-entropy secrets, etc.) and allowlists only the
+# `WEAVE_TEST_` fixture prefix used by local test scaffolding/fixtures — real
+# credential shapes (e.g. `AKIA...`) are never allowlisted, see
+# packages/backend/tests/unit/test_secret_scan.py for the rejection test.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "WEAVE_TEST_-prefixed fixtures are known-fake, never real credentials"
+regexes = ['''WEAVE_TEST_[A-Za-z0-9_]*''']
