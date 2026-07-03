@@ -140,11 +140,12 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-000",
       "title": "App shell, design system, auth bootstrap, model routing, local dev",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-002.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-002.md",
+      "retry_count": 0
     },
     {
       "id": "PLAT-TASK-003",
