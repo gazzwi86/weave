@@ -6,13 +6,12 @@ collector needed to assert span attributes).
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from fastapi import FastAPI
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import Span
 
@@ -32,7 +31,7 @@ DEFAULT_OTLP_ENDPOINT = "localhost:4317"
 _test_exporter: InMemorySpanExporter | None = None
 
 
-def add_tenant_attributes(span: Span, _scope: dict[str, Any]) -> None:
+def add_tenant_attributes(span: Span) -> None:
     """Stamps tenant_id/engine/principal_iri onto a span from the current
     ContextVar values. Called directly (not as a FastAPIInstrumentor
     ``server_request_hook``, which fires before any request-scoped code has
@@ -56,8 +55,8 @@ def add_tenant_attributes(span: Span, _scope: dict[str, Any]) -> None:
 def setup_tracing(app: FastAPI, *, testing: bool = False) -> InMemorySpanExporter | None:
     """Wire OTel into `app`. In test mode, returns the in-memory exporter so
     tests can assert on finished spans; in real runs, exports via OTLP/gRPC
-    to `OTEL_EXPORTER_OTLP_ENDPOINT` (default localhost:4317, an opt-in
-    docker-compose `observability` profile service — see docker-compose.yml).
+    to `OTEL_EXPORTER_OTLP_ENDPOINT` (default localhost:4317) — point it at a
+    collector; none ships in docker-compose yet.
     """
     global _test_exporter
     if testing and _test_exporter is not None:
@@ -76,7 +75,7 @@ def setup_tracing(app: FastAPI, *, testing: bool = False) -> InMemorySpanExporte
 
         endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", DEFAULT_OTLP_ENDPOINT)
         otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
-        provider.add_span_processor(SimpleSpanProcessor(otlp_exporter))
+        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(app)
     # Starlette caches its compiled middleware stack on first request and

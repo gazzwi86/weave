@@ -45,7 +45,7 @@ class TenantContextMiddleware:
 
         tenant_id_var.set(DEFAULT_TENANT_ID)
         principal_iri_var.set(ANONYMOUS_PRINCIPAL_IRI)
-        add_tenant_attributes(trace.get_current_span(), {})
+        add_tenant_attributes(trace.get_current_span())
         await self.app(scope, receive, send)
 
 

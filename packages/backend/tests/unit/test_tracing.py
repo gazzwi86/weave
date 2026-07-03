@@ -23,7 +23,7 @@ def test_otel_span_missing_tenant_fails(monkeypatch: pytest.MonkeyPatch) -> None
     span = MagicMock()
     try:
         with pytest.raises(RuntimeError, match="tenant_id"):
-            add_tenant_attributes(span, {})
+            add_tenant_attributes(span)
     finally:
         tenant_id_var.reset(token)
 
@@ -34,7 +34,7 @@ def test_add_tenant_attributes_stamps_all_three(monkeypatch: pytest.MonkeyPatch)
     principal_token = principal_iri_var.set("urn:weave:principal:dev-user-1")
     span = MagicMock()
     try:
-        add_tenant_attributes(span, {})
+        add_tenant_attributes(span)
     finally:
         tenant_id_var.reset(tenant_token)
         principal_iri_var.reset(principal_token)

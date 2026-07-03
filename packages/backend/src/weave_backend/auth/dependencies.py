@@ -47,7 +47,7 @@ async def get_current_principal(
     # as soon as the response finishes streaming, which can happen before a
     # middleware's post-`call_next` code runs -- so the real, verified
     # values must be set on the span here, while it's still guaranteed open.
-    add_tenant_attributes(trace.get_current_span(), {})
+    add_tenant_attributes(trace.get_current_span())
     return Principal(
         sub=claims["sub"], tenant_id=claims["tenant_id"], principal_iri=claims["principal_iri"]
     )
