@@ -27,6 +27,7 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.rdf.oxigraph_client import clear_graph, load_graph
+from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.workspaces import create_workspace
 
 pytestmark = [
@@ -53,10 +54,17 @@ async def test_workspace_switch_scopes_query(client: AsyncClient, platform_stack
     tenant_id = f"tenant-switch-{uuid.uuid4().hex[:8]}"
     user_sub = "u-switcher"
 
+    email = "switcher@example.invalid"
     async with tenant_connection(tenant_id) as conn:
         workspace = await create_workspace(
             conn, tenant_id=tenant_id, slug="ws", display_name="Switch workspace"
         )
+        # QA FAIL remediation (AC-3): /switch and /sparql now check workspace
+        # role too, so this test's principal needs a real membership row.
+        await invite_member(
+            conn, tenant_id=tenant_id, workspace_id=workspace.id, email=email, role="read"
+        )
+        await activate_member(conn, workspace_id=workspace.id, email=email, user_sub=user_sub)
 
     await clear_graph(workspace.named_graph_iri)
     await load_graph(workspace.named_graph_iri, "<urn:canary:s> <urn:canary:p> <urn:canary:o> .")

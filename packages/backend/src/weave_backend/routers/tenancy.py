@@ -153,7 +153,9 @@ async def revoke_member_route(
 @router.post("/workspaces/{workspace_id}/switch", response_model=SwitchWorkspaceResponse)
 async def switch_workspace_route(
     workspace_id: str,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    # QA FAIL remediation (AC-3): must be an active member to switch in --
+    # previously any authenticated tenant principal could, membership or not.
+    principal: Annotated[Principal, Depends(require_workspace_role("read"))],
 ) -> SwitchWorkspaceResponse:
     async with tenant_connection(principal.tenant_id) as conn:
         workspace = await get_workspace(
