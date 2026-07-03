@@ -11,16 +11,15 @@ import { expect, test } from "@playwright/test";
 // AA minimum for small text -- also a direct violation of
 // typography.md's own rule that `--text-caption` must use
 // `--color-text-default`/`--color-text-muted`, never `subtle`) was never
-// caught. Marked `test.fail()`, not a plain assertion: this documents a
-// known, real defect (QA failure report FAIL-3) rather than silently
-// failing CI -- remove the `.fail()` annotation once the Engineer fixes the
-// token and this test starts passing for real.
+// caught. FAIL-3 fixed: footer swapped to `--color-text-muted`; this now
+// runs as a normal passing assertion, not `test.fail()`.
 test.describe("dashboard accessibility (axe-core, real browser)", () => {
-  test.fail(true, "FAIL-3: dashboard footer color-contrast violation, see QA report");
-
   test("dashboard has zero axe violations after login", async ({ page }) => {
     await page.goto("/dashboard");
     await page.getByRole("button", { name: "Sign in with Weave" }).click();
+    // Same wait auth.spec.ts/global-search.spec.ts use -- without it the
+    // second click races the mock OIDC page's own load and misses (flaky).
+    await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
 
