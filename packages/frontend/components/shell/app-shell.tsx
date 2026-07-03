@@ -3,14 +3,11 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { PUBLIC_PATHS } from "@/lib/public-paths";
+
 import { CommandPalette } from "./command-palette";
 import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
-
-// Matches middleware.ts's PUBLIC_PATHS -- the anonymous landing and login
-// screens have no signed-in tenant, so there's nothing for the nav/search
-// palette to scope to.
-const PUBLIC_PATHS = new Set(["/", "/auth/login"]);
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
