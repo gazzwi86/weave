@@ -33,6 +33,19 @@ def scope_of(iri: str) -> str:
     return _KIND_TOKEN_TO_SCOPE[parts[-2]]
 
 
+def tenant_of(iri: str) -> str:
+    """Extract the tenant-id segment from a scope IRI.
+
+    PR #11 finding 4: routes accepted any `scope_iri`/`context` without
+    checking it actually belongs to the caller's tenant. Callers use this
+    to compare against `principal.tenant_id` before reading or writing.
+    """
+    parts = iri.split(":")
+    if len(parts) < 5 or parts[:3] != ["urn", "weave", "tenant"]:
+        raise InvalidScopeIri(iri)
+    return parts[3]
+
+
 def ancestor_chain(iri: str) -> list[str]:
     """Tightest-first chain starting at `iri` itself and ending at the
     tenant's company scope.

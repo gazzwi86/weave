@@ -395,3 +395,49 @@ async def test_revoke_member_route_rejects_foreign_workspace(client: AsyncClient
     )
 
     assert response.status_code == 404
+
+
+async def test_set_setting_route_rejects_foreign_tenant_scope_iri(client: AsyncClient) -> None:
+    """PR #11 finding 4: `PUT /api/settings/{key}` never checked the
+    tenant segment of `scope_iri` against `principal.tenant_id` -- tenant A
+    could write into tenant B's settings row (a global `UNIQUE(scope_iri,
+    key)` meant the write raced tenant B's real row). Must 403, not 200.
+    """
+    tenant_a = _unique_tenant("tenant-settings-idor-a")
+    tenant_b = _unique_tenant("tenant-settings-idor-b")
+    foreign_scope_iri = f"urn:weave:tenant:{tenant_b}:company"
+
+    tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.put(
+        "/api/settings/theme",
+        json={"scope_iri": foreign_scope_iri, "value": "dark"},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+
+    async with tenant_connection(tenant_b) as conn:
+        rows = await conn.fetch(
+            "SELECT 1 FROM settings WHERE scope_iri = $1 AND key = 'theme'", foreign_scope_iri
+        )
+    assert rows == [], "no setting row must be written against a foreign tenant scope_iri"
+
+
+async def test_get_setting_route_rejects_foreign_tenant_context(client: AsyncClient) -> None:
+    """PR #11 finding 4: same gap on read -- `context` query param's
+    tenant segment was never checked either.
+    """
+    tenant_a = _unique_tenant("tenant-settings-idor-read-a")
+    tenant_b = _unique_tenant("tenant-settings-idor-read-b")
+    foreign_context_iri = f"urn:weave:tenant:{tenant_b}:company"
+
+    tokens = await issue_token_pair(sub="u-attacker", tenant_id=tenant_a)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.get(
+        "/api/settings/theme", params={"context": foreign_context_iri}, headers=headers
+    )
+
+    assert response.status_code == 403

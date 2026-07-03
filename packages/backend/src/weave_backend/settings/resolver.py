@@ -83,7 +83,8 @@ async def set_setting(
         """
         INSERT INTO settings (tenant_id, scope, scope_rank, scope_iri, key, value)
         VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-        ON CONFLICT (scope_iri, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+        ON CONFLICT (tenant_id, scope_iri, key)
+        DO UPDATE SET value = EXCLUDED.value, updated_at = now()
         """,
         tenant_id,
         scope,
