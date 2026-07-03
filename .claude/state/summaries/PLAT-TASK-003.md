@@ -88,3 +88,82 @@ by `--cov`; they are proven correct by the tests passing, just not coverage-coun
 - Workspace membership rows (`tenancy/members.py`) already carry a `role` column
   seeded for this task's role-scoped invite ACs — RBAC can read from the same table,
   no new membership model needed.
+
+## QA (PLAT-TASK-003) — FAIL
+
+Verdict: **FAIL** — one implementation defect (audit gap), everything else holds.
+
+- Fast suite: `uv run pytest` → 70 passed (was 65; +5 QA edge cases), 0 failed.
+- Docker suite: `uv run pytest -m "integration and docker"` → 8 passed (was 6; +2 QA
+  tests), including the mandatory `test_cross_tenant_read_isolation` (Postgres RLS +
+  Oxigraph named-graph + LocalStack S3 prefix, all three assertions independent) — run
+  for real against a locally booted `docker compose` stack, not taken on the engineer's
+  word.
+- `ruff check .` / `mypy src/ tests/` clean. `bandit -r src/ -ll` → 0 High (2 pre-annotated
+  Medium, same `B104` dev-entrypoint findings as PLAT-TASK-002).
+- Coverage: combined unit+docker lanes (`coverage combine` across two `--cov` runs)
+  for `tenancy/` + `settings/` → **96%** (was 89% before QA's additions), well above the
+  80% DoD bar. The engineer's claimed "reproducible asyncpg+coverage segfault" for the
+  docker lane did **not** reproduce here — ran `pytest --cov=weave_backend -m "integration
+  and docker"` twice, both clean, 6-8 passed both times. Not a blocker either way since
+  coverage clears the bar regardless, but the claim should be softened or reproduced with
+  a captured traceback before citing it again as a hard tooling limitation.
+- Migration: `migrations/0001_tenancy.sql` — `tenant_id` `CHECK (tenant_id <> '')` on all
+  4 tables, `FORCE ROW LEVEL SECURITY` + `tenant_isolation` policy on all 4, non-superuser
+  `weave_app` role created and granted (matches ADR-003 exactly). `platform_stack` fixture
+  wires `run_migrations()` before tests run.
+- SPARQL rewriter (`rdf/query_rewriter.py`): confirmed real rdflib algebra parsing (not
+  string matching) decides scoping; only the *rewrite* step is regex-based. Adversarial
+  probing (new tests): a decoy `GRAPH <...>` hidden in a `#` comment does not leak a
+  foreign graph reference and is safely (harmlessly) rewritten alongside the real clause;
+  a bare `?graph`-named variable with no real GRAPH clause is still rejected as unscoped;
+  SPARQL Update (`INSERT DATA`) is rejected as unparseable; `SERVICE` nested two levels
+  deep (inside a `UNION` inside a `GRAPH`) is still caught by the recursive algebra walk.
+  All 4 new tests pass — no bypass found.
+- Settings: cache invalidation-on-write was previously **untested anywhere**
+  (`settings/cache.py` had 0 test references in the whole suite). Added a real HTTP-level
+  test (`GET`/`PUT /api/settings/{key}`) proving the Redis cache is populated on read and
+  correctly invalidated on write (next `GET` sees the new value, not stale). It passed —
+  the mechanism works, it just had no test proving it before now. Cascade edge case added:
+  resolving from a **project**-scoped context with only a company-level value set falls
+  through project→workspace→company, correctly skipping the unmodelled `domain` level
+  per ADR-004, without error.
+- ADR-004 read against AC-4/AC-5: the domain/project simplification is honestly disclosed
+  for AC-5 (guard only proven company-vs-tighter) — accepted, not a defect. The ADR is
+  less explicit about the AC-4 consequence (domain segment silently skipped in cascade
+  resolution for any workspace/project context) — harmless *today* because nothing in
+  the repo can yet create a domain↔workspace link, but worth naming explicitly in the
+  ADR's Consequences section so it isn't rediscovered as a surprise later.
+- **Audit (FAIL):** `POST /api/tenants/{tid}/workspaces`, `POST .../members`, and
+  `DELETE .../members/{uid}` all correctly call `default_audit_emitter.emit(...)`.
+  `PUT /api/settings/{key}` (`routers/settings.py::set_setting_route`) does **not** —
+  confirmed with a real probe test: a 200-status settings write left zero rows in
+  `audit_events`. This violates the task's own DoD line ("All mutations emit audit
+  events..."). Logged as a cross-task finding (`affects: [PLAT-TASK-009]`) since
+  TASK-009's hash-chain audit store will assume every mutation call site already emits.
+  **This is the sole reason for the FAIL verdict** — a one-line fix (add the emit call
+  mirroring the other three routes), not a design problem.
+- AC traceability: AC-1/AC-2/AC-6/AC-7 all had a real test exercising the literal
+  behaviour before QA; AC-3 and AC-4/AC-5's actual HTTP routes did not (only the
+  underlying business-logic functions were unit-tested) — QA closed the AC-3 (revoke)
+  and AC-4 (cache) HTTP-route gaps directly. AC-1/AC-2's HTTP routes (`POST
+  /api/tenants/{tid}/workspaces`, `POST /api/workspaces/{wid}/members`) are still only
+  exercised at the function level, not over real HTTP — not blocking (thin, simple
+  routers, tech-spec's own minimum test list only required function-level tests here)
+  but worth closing when TASK-004 next touches these routers.
+- PO lens: Law-17 UI gap (workspace-switch page) is correctly deferred and documented,
+  tracked for PLAT-TASK-005, not silently dropped. No YAGNI violations found — no
+  speculative code beyond the ACs.
+- Git hygiene: 11 commits (10 engineer + 1 QA), conventional, roughly one-AC-per-commit,
+  no secrets/`.env` committed.
+- Progress-summary format: this file still doesn't use the spec-template's literal
+  `Decisions Made` / `Assumptions Made` headers (tracked as `PROJ-001` in
+  `.claude/state/qa-project-issues.md`, already escalated to Project severity after
+  recurring in PLAT-TASK-001/002) — third occurrence, deadline missed again. Not
+  repeating as a fresh per-task recommendation per Law #11; flagging that PROJ-001's
+  owner/deadline needs enforcement, not rediscovery.
+
+Edge cases added (7 new tests across 4 categories, all passing, committed as
+`test(qa): edge cases for PLAT-TASK-003`): adversarial-SPARQL x4 (comment-GRAPH, bare
+`?graph`, UPDATE statement, nested SERVICE), cascade project→company skip,
+revoke-via-HTTP + idempotency, settings cache invalidate-on-write.
