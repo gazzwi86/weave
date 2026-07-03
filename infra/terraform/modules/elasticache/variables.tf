@@ -5,7 +5,7 @@ variable "engine" {
 
 variable "engine_version" {
   type    = string
-  default = "7"
+  default = "7.1"
 }
 
 variable "node_type" {

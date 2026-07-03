@@ -1,8 +1,8 @@
-# ponytail: refresh_token_validity=60s is the binding design decision from the
-# task brief, but AWS Cognito's real minimum for refresh tokens may be higher
-# than 60 seconds — this will only be discovered at real `apply` time (never
-# run from this repo per Law F). Flagged for architect/QA confirmation before
-# the first real deploy; see the task's progress summary.
+# Deviation from the task brief's 60s token-validity decision: AWS validates
+# aws_cognito_user_pool_client's duration attributes at plan time (not just
+# apply), and rejects anything below 5m (access/ID) or 1h (refresh) — 60s is
+# not a legal value. Using AWS's own minimums keeps tokens as short-lived as
+# the platform allows. See ADR-001.
 
 resource "aws_cognito_user_pool" "this" {
   name = var.pool_name
@@ -37,7 +37,7 @@ resource "aws_cognito_user_pool_client" "this" {
     refresh_token = "seconds"
   }
 
-  access_token_validity  = var.token_validity_seconds
-  id_token_validity      = var.token_validity_seconds
-  refresh_token_validity = var.token_validity_seconds
+  access_token_validity  = var.access_id_token_validity_seconds
+  id_token_validity      = var.access_id_token_validity_seconds
+  refresh_token_validity = var.refresh_token_validity_seconds
 }

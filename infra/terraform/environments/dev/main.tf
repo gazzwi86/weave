@@ -3,10 +3,11 @@
 # deploy_prod_stack and resolves to zero resources while it's false.
 
 module "cognito" {
-  source                 = "../../modules/cognito"
-  pool_name              = "weave-dev"
-  mfa                    = "OPTIONAL"
-  token_validity_seconds = 60
+  source    = "../../modules/cognito"
+  pool_name = "weave-dev"
+  mfa       = "OPTIONAL"
+  # access/ID + refresh token validity use the module's minimum defaults
+  # (300s / 3600s) — see ADR-001 for why the brief's 60s figure isn't legal.
 }
 
 module "secrets" {
@@ -50,7 +51,7 @@ module "elasticache" {
   count          = var.deploy_prod_stack ? 1 : 0
   source         = "../../modules/elasticache"
   engine         = "redis"
-  engine_version = "7"
+  engine_version = "7.1"
   node_type      = "cache.t4g.micro"
   subnet_ids     = module.vpc[0].private_subnet_ids
 }
