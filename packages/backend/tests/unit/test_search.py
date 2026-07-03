@@ -6,27 +6,42 @@ real-Oxigraph tenant-scoping proof).
 from __future__ import annotations
 
 import contextlib
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import HTTPException
 
+from weave_backend.auth.dependencies import Principal
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
     UnscopedQueryError,
     validate_query,
 )
+from weave_backend.routers.search import search_route
 from weave_backend.search.sparql_search import (
     MIN_QUERY_LENGTH,
     build_search_query,
     sanitize_search_term,
 )
+from weave_backend.tenancy.workspaces import Workspace
 
 
 def test_sanitize_search_term_strips_sparql_injection_characters() -> None:
-    """Law 13: `< > " { } ;` are stripped before the term ever reaches the
+    """Law 13: `< > " { } ; \\` are stripped before the term ever reaches the
     query text -- these are exactly the characters that could close the
-    `"..."` string literal (`"`) or open a new clause (`<>`, `{}`, `;`).
+    `"..."` string literal (`"`, or `\\` escaping it), or open a new clause
+    (`<>`, `{}`, `;`).
     """
-    assert sanitize_search_term('a<b>c"d{e}f;g') == "abcdefg"
+    assert sanitize_search_term('a<b>c"d{e}f;g\\h') == "abcdefgh"
+
+
+def test_sanitize_search_term_strips_trailing_backslash() -> None:
+    """PR #13 finding (1): a term ending in `\\` (e.g. `q=foo\\`) escapes the
+    FILTER string's closing `"`, so rdflib fails to parse the built query --
+    the sanitiser must strip it before it ever reaches the query text.
+    """
+    assert sanitize_search_term("foo\\") == "foo"
 
 
 def test_sanitize_search_term_leaves_ordinary_text_untouched() -> None:
@@ -93,3 +108,31 @@ def test_search_sanitizes_adversarial_injection_payloads(payload: str) -> None:
     assert sanitize_search_term(payload) in query
     with contextlib.suppress(DisallowedQueryError, UnscopedQueryError):
         validate_query(query)  # either accepted (now-inert) or rejected -- both safe
+
+
+@pytest.mark.parametrize("error", [DisallowedQueryError("bad"), UnscopedQueryError("bad")])
+async def test_search_route_returns_400_not_500_on_validate_query_failure(error: Exception) -> None:
+    """PR #13 finding (1): search.py had no try/except at all around
+    `validate_query` -- unlike sparql.py's own route, any built query it
+    rejects (unparseable input, no GRAPH clause, ...) crashed as an
+    uncaught 500. Mocks past authz/DB (already covered by
+    tests/integration/test_search_tenancy.py) to isolate this route's own
+    error handling.
+    """
+    workspace = Workspace(
+        id="ws-1",
+        slug="ws",
+        display_name="Test",
+        named_graph_iri="urn:weave:tenant:t1:ws:ws-1",
+        created_at=datetime.now(UTC),
+    )
+    principal = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
+
+    with (
+        patch("weave_backend.routers.search._authorize_search", AsyncMock(return_value=workspace)),
+        patch("weave_backend.routers.search.validate_query", side_effect=error),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await search_route(principal, q="acme", workspace_id="ws-1")
+
+    assert exc_info.value.status_code == 400
