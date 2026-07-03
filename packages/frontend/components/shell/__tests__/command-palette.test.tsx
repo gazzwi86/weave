@@ -69,4 +69,21 @@ describe("CommandPalette", () => {
       "/ce/resource?iri=urn%3Aweave%3Aentity%3Aacme"
     );
   });
+
+  // PR #13 finding (4): backend-down must read as "Search unavailable", not
+  // a silent "No results." (which looks identical to a real empty search).
+  it("shows a distinguishable message when search fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html>Bad Gateway</html>", { status: 502 }))
+    );
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = await screen.findByRole("combobox");
+
+    fireEvent.change(input, { target: { value: "ac" } });
+
+    await waitFor(() => expect(screen.getByText("Search unavailable.")).toBeInTheDocument());
+    expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+  });
 });
