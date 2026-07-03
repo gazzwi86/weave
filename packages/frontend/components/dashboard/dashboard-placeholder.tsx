@@ -15,7 +15,7 @@ export function DashboardPlaceholder() {
         Once you model your business as a knowledge graph, this space fills with the metrics,
         capabilities, and activity that matter to you.
       </p>
-      <footer className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
+      <footer className="text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
         Constitution Engine — available at M2
       </footer>
     </section>
