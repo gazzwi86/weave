@@ -94,10 +94,10 @@ OTel tracing with tenant attributes (ADR-002: raw ASGI middleware, ContextVar st
 
 Multi-tenant workspaces + membership (PLAT-TASK-003).
 
-- `workspaces.py` — `create_workspace(tid, slug, ...)`: transactional create + named-graph IRI mint (`urn:weave:tenant:{tid}:ws:{wid}`), 409 on dup slug
+- `workspaces.py` — `create_workspace(tid, slug, ...)`: transactional create + named-graph IRI mint (`urn:weave:tenant:{tid}:ws:{wid}`), 409 on dup slug; ownership guards on member routes (404 on foreign workspace)
 - `members.py` — invite (202, pending record w/ role) / revoke (204) flows; duplicate-active 409
 - `invite_gateway.py` — `InviteGateway` Protocol + recording fake (real Cognito adapter = later env-switch)
-- `sessions.py` / `session_guard.py` — Redis session-version per (tenant_id, user_id); bump on revoke; `require_active_session` rejects stale versions (RBAC in PLAT-TASK-004 composes on this)
+- `sessions.py` — Redis session-version per (tenant_id, user_id); bump on revoke; live version check enforced inside `get_current_principal` on EVERY route (RBAC in PLAT-TASK-004 composes on this)
 
 ## src/weave_backend/settings/
 
@@ -109,8 +109,8 @@ Multi-tenant workspaces + membership (PLAT-TASK-003).
 
 ## src/weave_backend/rdf/
 
-- `query_rewriter.py` — SPARQL scope enforcement: rdflib algebra parsing (not string match), SELECT/CONSTRUCT only, unscoped query → 400 `unscoped_query_rejected`, SERVICE federation rejected, GRAPH rewritten to caller's named graph
-- `oxigraph_client.py` — HTTP client for Oxigraph (7878), named-graph reads/writes
+- `query_rewriter.py` — `validate_query`: rdflib algebra validation (SELECT/CONSTRUCT only; SERVICE and FROM/FROM NAMED dataset clauses rejected; unscoped → 400); tenant scope enforced at SPARQL-protocol layer, not by query rewriting
+- `oxigraph_client.py` — pooled lazy httpx client for Oxigraph (7878); `run_query` pins dataset via `default-graph-uri`/`named-graph-uri` params (the actual isolation mechanism)
 
 ## src/weave_backend/audit/emitter.py
 
