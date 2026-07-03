@@ -131,6 +131,37 @@ Tenant-prefixed object storage over LocalStack S3 (S3 Vectors stand-in) — pref
 - `settings.py` — GET/PUT /api/settings/{key} (cascade resolve / audited write)
 - `sparql.py` — scoped SPARQL endpoint through the query rewriter choke point
 
+## src/weave_backend/rbac.py
+
+RBAC enforcement (PLAT-TASK-004, PLAT-IDENTITY-1).
+
+- `ROLE_RANK` — single authoritative `{read:0, author:1, publish:2, admin:3}`
+- `check_role(have, need)` — rank comparison; unknown/missing role → insufficient
+- `require_workspace_role(min)` / `require_tenant_admin` — FastAPI dependencies gating a route on the caller's workspace-membership role
+- `enforce_workspace_role(...)` — shared seam used by both the path-param dependency and the scope-IRI routes (settings/sparql derive the workspace from a scope/context IRI, not a path); rejects non-members (no membership row) with 403
+- `assert_all_routes_guarded(app)` — startup check: every route depends on `get_current_principal` or is explicitly `@public`
+
+## src/weave_backend/auth/agent.py
+
+- Agent STS auth (AC-2): validate STS `GetCallerIdentity` (cached on sha256(token) for remaining TTL), mint agent JWT TTL ≤60s
+
+## src/weave_backend/auth/public.py
+
+- `@public` marker — the audited opt-out from RBAC-by-default (health, refresh, agent-token)
+
+## src/weave_backend/identity/registry.py
+
+- `mint_user_iri(sub)` / `mint_agent_iri(arn)` — canonical principal IRIs (`urn:weave:principal:{user|agent}:...`), idempotent; agent registration emits an audit event
+- Principal lookup + tenant-scoped agent registry queries (AC-6/AC-7)
+
+## src/weave_backend/routers/identity.py
+
+- `GET /api/principals/{iri}` (admin) → principal record | 404; `GET /api/agents?workspace_id` → tenant-scoped; `POST /api/auth/agent-token` → agent JWT
+
+## migrations/0002_identity.sql
+
+`principals` table — surrogate `id` UUID PK, `(tenant_id, sub)` unique (ADR-006), FORCE ROW LEVEL SECURITY + tenant policy; agent registry.
+
 ## tests/
 
 `tests/unit` (fast, offline), `tests/integration` (markers: `integration`, `docker`), `tests/e2e` (static CI-workflow assertions, e.g. `test_oidc_deploy.py`). Terraform validate/plan tests run offline via a git-ignored local-backend `override.tf`.
