@@ -54,10 +54,18 @@
       "Bash(git checkout *)",
       "Bash(git push origin *)"
     ],
-    "ask": [],
+    "ask": [
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/scripts/hooks.py)",
+      "Write(./.claude/scripts/hooks.py)",
+      "Edit(./.claude/scripts/modules/**)",
+      "Write(./.claude/scripts/modules/**)",
+      "Edit(./.claude/rules/**)",
+      "Write(./.claude/rules/**)"
+    ],
     "deny": [
       "Bash(rm -rf *)",
-      "Bash(curl*)",
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(./*.pem)",

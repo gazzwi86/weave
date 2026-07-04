@@ -338,16 +338,20 @@ When `phase-check` returns COMPLETE:
    and the phase gate now clears the rest so no finding lives past the phase it was raised in.
    - **Inputs:** every open finding in `.claude/state/qa-cross-task-findings.md` and
      `.claude/state/qa-project-issues.md`.
-   - **Order & budget:** oldest-first, severity-gated. **Blockers are always fixed.** Warn/Info are
-     fixed within a per-sweep budget, oldest-first; anything deliberately deferred stays logged
-     **with its age** (nothing rots silently — log what was skipped and why).
+   - **Order & budget:** oldest-first, severity-gated. **Blockers are always fixed** — but a Blocker
+     still unfixed after 2 attempts **escalates to HITL and blocks phase approval** (do not loop on
+     it). Warn/Info are fixed within a per-sweep budget, oldest-first; anything deliberately deferred
+     stays logged **with its age** (nothing rots silently — log what was skipped and why).
    - **Risk gate (HITL):** auto-fix low-blast-radius findings (the PR is still reviewed). Anything
      touching **auth, multi-tenancy, migrations/schema, data integrity, or the harness itself**
-     pauses for HITL approval (AskUserQuestion) *before* the fix. **A harness change judged high-risk
-     always requires HITL approval** — never self-modify the harness's safety/gate machinery
-     unreviewed.
-   - **Delivery:** a **dedicated** `chore/phase-{N}-remediation` branch + PR, separate from the
-     feature epics (clean, independently revertable audit trail of self-improvement). Run
+     pauses for HITL approval (AskUserQuestion) *before* the fix. A finding that changes the harness
+     also goes through **advisor consult + HITL** per
+     [`.claude/rules/harness-governance.md`](../../rules/harness-governance.md) — never self-modify
+     the safety/gate machinery unreviewed.
+   - **Delivery:** a **dedicated** `chore/phase-{N}-remediation` PR, separate from the feature epics
+     (clean, independently revertable audit trail). **Base it on the top of the current epic stack**
+     (so it contains the code the findings reference) — it becomes a stacked PR itself and is
+     restacked like any other; if the whole stack has already merged, branch off `main`. Run
      `/code-review` on it. Mark each fixed ledger row RESOLVED with its commit.
    - **Verify:** the remediation PR's CI must go green (Step 3 CI-green gate applies) before phase
      approval.

@@ -20,8 +20,10 @@ by `check_force_push` in `modules/git_safety.py`, not a settings.json glob:
   cannot silently clobber another push.
 - **A bare `git push --force` / `-f` is refused everywhere.** It overwrites unconditionally. Always
   use `--force-with-lease`.
-- **Any force-push at `main` / `master` is refused**, with or without lease. `main` must also carry
-  GitHub branch protection (server-side backstop); the hook is the local first line.
+- **Any force-push at `main` / `master` is refused**, with or without lease — including `+refspec`
+  force syntax and a no-refspec `--force-with-lease` while HEAD is on `main`. **This hook is the
+  SOLE enforcement:** this repo has no server-side branch protection (private repo on a plan without
+  protected branches). If the repo later gains branch protection, the hook stays as defence in depth.
 
 ## Enforcement
 
