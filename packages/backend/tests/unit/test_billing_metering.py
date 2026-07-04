@@ -12,6 +12,7 @@ from weave_backend.billing.metering import (
     RUN_COST_USD,
     RunUsageRecord,
     TokenUsageRecord,
+    _background_tasks,
     build_run_usage_record,
     consumed_key,
     record_run_usage,
@@ -93,3 +94,23 @@ async def test_record_run_usage_increments_redis_by_exactly_one_unit() -> None:
 
     assert list(redis.values.values()) == [1.0]
     assert queue.run_calls == [record]
+
+
+async def test_background_task_holds_strong_ref_until_done() -> None:
+    """PR #18 review finding 2: asyncio only holds a weak ref to a task, so
+    an unreferenced fire-and-forget task can be GC'd before the durable
+    write runs -- `_spawn_background` must keep a strong ref in
+    `_background_tasks` while the task is running, and release it once done.
+    """
+    redis = _redis()
+    queue = _FakeQueue()
+    record = build_run_usage_record(
+        tenant_id=_TENANT, workspace_id=_WORKSPACE, run_id="run-2", status="completed"
+    )
+
+    task = await record_run_usage(redis, record, queue=queue)
+    assert task in _background_tasks
+
+    await task
+
+    assert task not in _background_tasks

@@ -5,13 +5,17 @@ goes through the swappable `MeteringQueue` seam -- SQS is the v-later
 production queue (Law F: no real AWS here), a same-process Aurora insert
 is the dev/M1 implementation. Callers get back the `asyncio.Task` doing the
 durable write: production call sites can ignore it (fire-and-forget,
-non-blocking); tests await it to observe completion deterministically.
+non-blocking); tests await it to observe completion deterministically. Task
+lifetime is safe to discard -- `_spawn_background` keeps a strong ref in a
+module-level set until each task finishes, so an unreferenced task is never
+garbage-collected mid-write (asyncio only holds a weak ref otherwise).
 """
 
 from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Coroutine
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -124,6 +128,23 @@ def consumed_key(tenant_id: str, workspace_id: str, period: str) -> str:
     return f"billing:{tenant_id}:{workspace_id}:{period}:consumed_usd"
 
 
+# PR #18 review finding 2: asyncio only holds a weak ref to a task, so an
+# unreferenced fire-and-forget task (production call sites discard the
+# returned Task) can be GC'd before the durable Aurora insert runs -- a
+# CPython-documented gotcha, unacceptable here since Aurora is billing's
+# source of truth. Keeping a strong ref in this module-level set until the
+# task finishes (discarded via the done callback) fixes it without changing
+# the fire-and-forget call-site semantics -- callers still don't await it.
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+def _spawn_background(coro: Coroutine[object, object, None]) -> asyncio.Task[None]:
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
+
 async def record_token_usage(
     redis: redis_lib.Redis,
     record: TokenUsageRecord,
@@ -133,7 +154,7 @@ async def record_token_usage(
     await redis.incrbyfloat(
         consumed_key(record.tenant_id, record.workspace_id, current_period()), record.cost_usd
     )
-    return asyncio.create_task(queue.put_token_usage(record))
+    return _spawn_background(queue.put_token_usage(record))
 
 
 async def record_run_usage(
@@ -146,4 +167,4 @@ async def record_run_usage(
         consumed_key(record.tenant_id, record.workspace_id, current_period()),
         record.run_cost_usd,
     )
-    return asyncio.create_task(queue.put_run_usage(record))
+    return _spawn_background(queue.put_run_usage(record))
