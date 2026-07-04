@@ -17,6 +17,16 @@ function requireClientSecret(): string {
 
 const OIDC_CLIENT_SECRET = requireClientSecret();
 
+// next-auth signs its session JWT with this. Same dev/prod split as the OIDC
+// client secret above: a fixed throwaway in dev so `npm run dev` works with no
+// env file, hard-required in production. Missing it here previously let the
+// middleware `auth()` wrapper error and fail OPEN onto protected routes.
+function requireAuthSecret(): string {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV !== "production") return "dev-only-insecure-auth-secret";
+  throw new Error("AUTH_SECRET must be set in production");
+}
+
 function tokenEndpointConfig() {
   return {
     tokenUrl: `${OIDC_ISSUER_URL}/token`,
@@ -26,6 +36,7 @@ function tokenEndpointConfig() {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: requireAuthSecret(),
   providers: [
     Cognito({
       clientId: OIDC_CLIENT_ID,
