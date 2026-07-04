@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from weave_backend.audit.signing_key import get_signing_key, reset_cached_key_for_tests
 
@@ -179,3 +180,35 @@ async def test_get_signing_key_concurrent_cold_calls_create_secret_once(
 
     assert first is second
     assert len(fake_client.created) == 1
+
+
+def test_get_signing_key_lock_survives_across_event_loops(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same bug class PLAT-TASK-003 fixed for get_redis/the asyncpg pool:
+    `asyncio.Lock()` only checks its bound loop when actually contended
+    (`acquire()`'s fast, uncontended path skips the check entirely) --
+    so reproducing this requires real contention on each loop, not just a
+    single sequential call. This is exactly what mutmut's cross-test loop
+    reuse hits: a lock that contended once on loop 1 raises "bound to a
+    different event loop" the next time it contends on loop 2. Runs
+    concurrent `get_signing_key()` calls to completion on two freshly
+    created event loops in this one process.
+    """
+    monkeypatch.setattr(
+        "weave_backend.audit.signing_key.boto3.client",
+        lambda *a, **kw: _FakeSecretsClient(existing_hex="44" * 32),
+    )
+
+    async def _contend() -> tuple[Ed25519PrivateKey, Ed25519PrivateKey]:
+        return await asyncio.gather(get_signing_key(), get_signing_key())
+
+    for _ in range(2):
+        reset_cached_key_for_tests()
+        loop = asyncio.new_event_loop()
+        try:
+            first, second = loop.run_until_complete(_contend())
+        finally:
+            loop.close()
+        assert first is second
+        assert first.private_bytes_raw().hex() == "44" * 32

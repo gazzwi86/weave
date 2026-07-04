@@ -22,7 +22,7 @@ SecretsClient = Any
 
 SECRET_ID = "weave/platform/audit-signing-key"  # noqa: S105 -- a Secrets Manager path, not a secret
 
-_cached_key: Ed25519PrivateKey | None = None
+_cached_key: Ed25519PrivateKey | None = None  # gitleaks:allow -- type name, not a secret
 
 
 def _secrets_client() -> SecretsClient:
@@ -66,7 +66,21 @@ def _fetch_or_create_key_bytes_sync() -> bytes:
 #: Closes the cheap, in-process half of the bootstrap race (two concurrent
 #: cold `get_signing_key()` calls in the same process). The cross-instance
 #: race is closed by `_create_and_persist_key_sync`'s re-fetch-on-conflict.
-_cache_lock = asyncio.Lock()
+_cache_lock: asyncio.Lock | None = None
+_cache_lock_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _get_cache_lock() -> asyncio.Lock:
+    # ponytail: asyncio.Lock() binds to whatever event loop is running the
+    # first time it's awaited (same bug class fixed for get_redis in
+    # tenancy/sessions.py and the asyncpg pool in db/pool.py) -- recreate
+    # whenever the running loop has changed instead of caching forever.
+    global _cache_lock, _cache_lock_loop
+    current_loop = asyncio.get_event_loop()
+    if _cache_lock is None or _cache_lock_loop is not current_loop:
+        _cache_lock = asyncio.Lock()
+        _cache_lock_loop = current_loop
+    return _cache_lock
 
 
 async def get_signing_key() -> Ed25519PrivateKey:
@@ -79,7 +93,7 @@ async def get_signing_key() -> Ed25519PrivateKey:
     global _cached_key
     if _cached_key is not None:
         return _cached_key
-    async with _cache_lock:
+    async with _get_cache_lock():
         if _cached_key is None:
             raw = await asyncio.to_thread(_fetch_or_create_key_bytes_sync)
             _cached_key = Ed25519PrivateKey.from_private_bytes(raw)
