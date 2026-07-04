@@ -11,6 +11,7 @@ regardless of RBAC.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -193,7 +194,10 @@ async def simulate_ai_call_route(
     if cap_reached is not None:
         _raise_cap_reached(cap_reached)
 
-    ai_route(body.model_tier, "harness simulated call")
+    # PR #18 review finding 1: ai_route is a blocking SDK call (same class as
+    # dde58ad's STS fix) -- run it off the event loop so one simulated call
+    # doesn't stall every other in-flight request for the provider round trip.
+    await asyncio.to_thread(ai_route, body.model_tier, "harness simulated call")
 
     await record_token_usage(
         redis,
