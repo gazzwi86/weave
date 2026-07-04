@@ -204,3 +204,144 @@ async def test_slack_failure_delivers_inapp(platform_stack: Path) -> None:
     assert row["delivered_channels"] == ["in_app"]
     assert connector.post_message.await_count == 3
     assert error_count == 3
+
+
+# QA edge cases: the two routes below (`mark_read_route`,
+# `update_preferences_route`) had unit coverage against a fake connection
+# (test_notifications_store.py) but were never exercised through the real
+# FastAPI router + Postgres/RLS -- 50% router coverage in the fast lane.
+# These close that gap and add a security-relevant probe (mark-read must not
+# leak/mutate another recipient's notification) no existing test covered.
+
+
+async def test_mark_read_route_is_idempotent_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-6 through the real router: both calls return 200, and the item
+    drops out of the unread listing after the first call.
+    """
+    tenant_id = _unique_tenant("notify-read")
+    user_sub = "u-notify-read"
+    recipient_iri = human_principal_iri(user_sub)
+
+    async with tenant_connection(tenant_id) as conn:
+        notif_id = await dispatch_notification(
+            conn,
+            NotificationEvent(
+                tenant_id=tenant_id,
+                recipient_iri=recipient_iri,
+                event_type="job.completed",
+                payload={"job_id": "j-5"},
+                actor_iri="urn:weave:principal:agent:job-runner",
+            ),
+        )
+
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    first = await client.post(f"/api/notifications/{notif_id}/read", headers=headers)
+    second = await client.post(f"/api/notifications/{notif_id}/read", headers=headers)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == {"id": str(notif_id), "read": True}
+    assert second.json() == {"id": str(notif_id), "read": True}
+
+    listing = await client.get(
+        "/api/notifications", params={"unread": "true"}, headers=headers
+    )
+    assert listing.json()["total"] == 0
+
+
+async def test_mark_read_route_rejects_another_recipients_notification(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Security edge case: recipient B (same tenant) must not be able to mark
+    recipient A's notification as read -- 404, and A's copy stays unread.
+    """
+    tenant_id = _unique_tenant("notify-cross-recipient")
+    recipient_a = human_principal_iri("u-notify-owner")
+
+    async with tenant_connection(tenant_id) as conn:
+        notif_id = await dispatch_notification(
+            conn,
+            NotificationEvent(
+                tenant_id=tenant_id,
+                recipient_iri=recipient_a,
+                event_type="job.completed",
+                payload={"job_id": "j-6"},
+                actor_iri="urn:weave:principal:agent:job-runner",
+            ),
+        )
+
+    tokens_b = await issue_token_pair(sub="u-notify-other", tenant_id=tenant_id)
+    response = await client.post(
+        f"/api/notifications/{notif_id}/read",
+        headers={"Authorization": f"Bearer {tokens_b.access_token}"},
+    )
+    assert response.status_code == 404
+
+    tokens_a = await issue_token_pair(sub="u-notify-owner", tenant_id=tenant_id)
+    listing = await client.get(
+        "/api/notifications",
+        params={"unread": "true"},
+        headers={"Authorization": f"Bearer {tokens_a.access_token}"},
+    )
+    assert listing.json()["total"] == 1
+
+
+async def test_preferences_update_route_rejects_missing_in_app(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-5 through the real router: an `in_app`-less channel list is a 400,
+    not a silently-accepted preference.
+    """
+    tenant_id = _unique_tenant("notify-prefs-reject")
+    tokens = await issue_token_pair(sub="u-notify-prefs", tenant_id=tenant_id)
+
+    response = await client.put(
+        "/api/notifications/preferences",
+        json={"event_type": "job.failed", "channels": ["slack"]},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {"error": "in_app_channel_mandatory"}
+
+
+async def test_preferences_update_route_open_taxonomy_enables_slack_via_dispatch(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """End-to-end contract: a preference saved through the real HTTP route
+    (custom, non-fixed `event_type`) is what `dispatch_notification` reads
+    back to decide Slack delivery -- proves the route and the dispatch
+    pipeline agree on the same preference row, not just the store function
+    in isolation.
+    """
+    tenant_id = _unique_tenant("notify-prefs-e2e")
+    user_sub = "u-notify-prefs-e2e"
+    recipient_iri = human_principal_iri(user_sub)
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+
+    saved = await client.put(
+        "/api/notifications/preferences",
+        json={"event_type": "billing.invoice.overdue", "channels": ["in_app", "slack"]},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert saved.status_code == 200
+    assert saved.json() == {"saved": True}
+
+    connector = _SucceedingConnector()
+    async with tenant_connection(tenant_id) as conn:
+        await dispatch_notification(
+            conn,
+            NotificationEvent(
+                tenant_id=tenant_id,
+                recipient_iri=recipient_iri,
+                event_type="billing.invoice.overdue",
+                payload={"invoice_id": "inv-1"},
+                actor_iri="urn:weave:principal:agent:billing-engine",
+            ),
+            connector=connector,
+        )
+
+    assert len(connector.calls) == 1
