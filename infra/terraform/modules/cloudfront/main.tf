@@ -5,7 +5,10 @@ resource "aws_cloudfront_origin_access_control" "this" {
   signing_protocol                  = "sigv4"
 }
 
-resource "aws_cloudfront_distribution" "this" {
+# minimum_protocol_version can only be set with an ACM cert; dev uses the
+# CloudFront default cert (see viewer_certificate below). Setting a modern min
+# TLS version is a v1 hardening item that lands with the real domain + ACM cert.
+resource "aws_cloudfront_distribution" "this" { # nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
   enabled             = true
   default_root_object = "index.html"
   price_class         = var.price_class
