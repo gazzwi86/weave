@@ -2,10 +2,9 @@
 
 ## Outcome
 
-FAIL (QA-reviewed) — one Blocker-before-deploy finding in `simulate_ai_call_route` (un-gated real AI
-call, caller-controlled `cost_usd`, zero test coverage of the un-mocked path). All 7 ACs otherwise
-verified correct against live infra. See QA section below and
-`.claude/state/qa-cross-task-findings.md` (PLAT-TASK-008 rows) for full detail.
+DONE — QA blocker RESOLVED by commit `3f081dc` (harness router gated to `WEAVE_ENV in (dev, test)`,
+fail-closed, verified independently by QA). All 7 ACs verified correct against live infra. See QA
+section below and `.claude/state/qa-cross-task-findings.md` (PLAT-TASK-008 rows) for full detail.
 
 ## QA Findings (2026-07-04)
 
