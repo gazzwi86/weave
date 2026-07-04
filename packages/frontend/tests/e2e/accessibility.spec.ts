@@ -78,3 +78,51 @@ test.describe("dashboard accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 });
+
+// PLAT-TASK-008: the minimal billing usage dashboard, with the
+// budget-cap-reached error banner visible (its own colour/contrast surface,
+// worth checking on its own rather than only the empty state). Separate
+// describe block from the dashboard one above so neither's callback grows
+// past the max-lines-per-function budget.
+test.describe("billing accessibility (axe-core, real browser)", () => {
+  test("billing usage dashboard has zero axe violations with the cap-reached banner shown", async ({
+    page,
+  }) => {
+    await page.route("**/api/billing/usage**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          period: "2026-07",
+          total_tokens: 100,
+          total_runs: 1,
+          total_cost_usd: 1.0,
+          by_workspace: [
+            { workspace_id: "ws-1", total_tokens: 100, total_runs: 1, total_cost_usd: 1.0 },
+          ],
+          cap_utilisation_pct: 100.0,
+        }),
+      });
+    });
+    await page.route("**/api/billing/simulate-ai-call**", async (route) => {
+      await route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: { error: "budget_cap_reached", effective_cap_usd: 1.0, consumed_usd: 1.0 },
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/billing");
+    await page.getByLabel("Workspace ID").fill("ws-1");
+    await page.getByRole("button", { name: "Simulate AI call" }).click();
+    // Next.js always renders a hidden route-announcer with role="alert" too,
+    // so scope to the one with our text (getByRole("alert") alone is ambiguous).
+    await expect(page.getByRole("alert").filter({ hasText: "Budget cap reached" })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
