@@ -84,3 +84,29 @@ per-task reports.
   grows.
 - **Deadline:** Validate `mutation-strict` on the next main-push; raise the floor as unit-killable
   coverage improves.
+
+## PROJ-006: Second consecutive feature's Playwright E2E fully mocks the network (Law B gap)
+
+- **Title:** Escalated per the Law #11 aggregation rule — the same recommendation ("add a
+  Law-B-compliant real-backend E2E spec") has now appeared in two consecutive per-task QA reports:
+  PLAT-TASK-008 (`billing.spec.ts` / `accessibility.spec.ts` billing case, `page.route()` mocked)
+  and PLAT-TASK-009 (`compliance.spec.ts` / `accessibility.spec.ts` compliance case, also
+  `page.route()` mocked). Both features' underlying logic IS genuinely proven against a live
+  Postgres/Redis/LocalStack stack, but only via the Python docker-integration suite — never through
+  a real browser + real Next.js proxy + real FastAPI + real DB round trip, which is what Law B
+  actually requires ("also asserts backend state changed").
+- **Root cause hypothesis:** no existing Playwright spec in this repo demonstrates the
+  fully-real pattern for a *read-only* dashboard-style page (the closest precedent,
+  `global-search.spec.ts`, drives a real backend but for a write-then-read flow) — so each new
+  read-only view's E2E spec defaults to mocking, since there's no template to copy for "real GET,
+  assert real DB-backed content."
+- **Severity:** Project · **Raised in:** PLAT-TASK-008 QA, PLAT-TASK-009 QA (this pass).
+- **Owner:** Engineer — add ONE reference Playwright spec (recommend: retrofit
+  `compliance.spec.ts`, since `/compliance`'s backend route (`GET /api/audit/compliance`) needs no
+  request body/mutation setup beyond seeding a couple of real audit entries via existing routes) that
+  hits the real proxy → real backend → real Postgres, asserting the rendered numbers match a
+  known-seeded DB state. Once that pattern exists, retrofit `billing.spec.ts` to match, and treat the
+  pair as the template for all future read-only-view E2E specs.
+- **Deadline:** Before the phase-1 gate's security review + mutation-testing pass (this task's own
+  team-lead brief flagged the same gate as imminent) — do not let a third feature ship with this gap
+  before the template exists.
