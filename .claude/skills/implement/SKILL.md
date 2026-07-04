@@ -25,6 +25,17 @@ Orchestrate the PDAC implementation cycle: Architect curates context, Engineer i
      `PHASE-*.md`) to recover the decisions and context from completed and in-flight work.
    - Treat any task still marked `in_progress` as the resume point and re-enter the PDAC loop at
      that task instead of pulling a fresh `backlog` item.
+0b. **Restack-on-merge (stacked-PR hygiene).** Check whether any epic PR merged to `main` since the
+   last loop (`git fetch origin main`; compare against the open epic branches). If a base epic
+   merged, **restack every still-open child onto the new `main`, in stack order**, before pulling
+   the next task — otherwise the children drift and conflict (especially if the base got fixes after
+   they branched):
+   `bash .claude/scripts/restack.sh` (rebases each open `feature/PLAT-EPIC-*` onto its new parent /
+   `main`, resolves, and pushes with `--force-with-lease` — permitted on feature/* per
+   `.claude/rules/git-safety.md`). Then retarget each child PR's base with
+   `gh pr edit {PR} --base main` (or the new parent). **Freeze rule (#4):** once children have
+   branched off an epic, do not add commits to that epic's branch without immediately restacking the
+   children — late base commits are the main source of restack pain.
 1. Run `bash .claude/scripts/progress.sh kanban` to display current state
 2. Run `bash .claude/scripts/progress.sh ready` to get next task whose dependencies are satisfied
 3. Read `docs/specs/weave/engines/<entity>.md` to understand current phase and gates
@@ -152,6 +163,15 @@ Get the next task ID from `bash .claude/scripts/progress.sh ready`. If result is
 
 #### PLAN
 
+0. **CI-green gate (hybrid — catch a red base before stacking more).** If a prior epic in this
+   phase has an open PR (the branch this task's epic stacks on), verify that PR's checks are green
+   before doing any new work:
+   `gh pr checks {PARENT_PR} --watch --fail-fast` (or `gh pr view {PARENT_PR} --json statusCheckRollup`).
+   - **Green** → proceed.
+   - **Red** → remediate first: pull the failing job logs, feed them to the **engineer** on that
+     epic's branch, fix, push, and re-check until green. Only then continue. Stacking onto a red base
+     is what let CI rot silently across an entire stack — this gate is the fix. If the failure is not
+     quickly fixable, stop and report to the human rather than stacking on red.
 1. Read the task brief: the task's `brief` field in `.claude/state/progress.json` gives the exact
    path. Task IDs in progress.json are engine-namespaced (`PLAT-`, `CE-`, `GE-`, `BE-` prefix on the
    brief's local `TASK-NNN`); epic IDs likewise (`PLAT-EPIC-006` vs `CE-EPIC-006` are different
@@ -267,22 +287,38 @@ The Engineer does NOT read spec files other than the task brief. It is self-cont
     a11y) is the actual fix for "screens don't link up" — not merely a larger diff. A **non-zero
     exit BLOCKS the epic PR**: stop and report the failure instead of opening the PR.
 
-15. Open ONE PR for the assembled epic branch:
+15. Open ONE PR for the assembled epic branch, **based on its parent epic branch — not
+    `main`** (stacked PRs, Law D). The base is the branch of the epic this one stacked on; use
+    `main` only for the very first epic in the phase, or when the parent epic has already merged
+    to `main`.
 
     ```
-    gh pr create --title "feat: {EPIC_ID} - {epic title}" \
-      --body "Closes epic {EPIC_ID}. Tasks: {TASK_IDs in this epic}..."
+    # PARENT_BRANCH = feature/{PREV_EPIC_ID} if that epic is still open, else main
+    gh pr create --base "{PARENT_BRANCH}" \
+      --title "feat: {EPIC_ID} - {epic title}" \
+      --body "Closes epic {EPIC_ID}. Stacked on {PARENT_BRANCH}. Tasks: {TASK_IDs}..."
     ```
 
-    (If `gh` not available, tell the user to create the PR manually)
+    Basing each PR on its parent (not `main`) is what makes the diff reviewable (only this epic's
+    changes show) and the merge order correct. When the parent later merges, this PR is **restacked**
+    onto the new `main` (Step 1.0b). (If `gh` is unavailable, tell the user to create the PR manually
+    with that base.)
 
 16. **PR Review Gate**: Run `/code-review` on the PR. Review any issues raised. Address valid feedback with
     discretion. Commit fixes if needed.
-17. Emit the [result block](#output) for the completed epic: `status: ok`, `artifact_path` set to the task brief
+17. **Epic-close remediation (self-improvement, tier 2 — "cheap fixes").** Read
+    `.claude/state/qa-cross-task-findings.md` and `.claude/state/qa-project-issues.md`. Fix every
+    **open, low-risk, cheap** finding whose files this epic touched (oldest-first), committing onto
+    the epic branch so it rides this PR. Skip — but keep logged, with its age — anything that is
+    high-risk (auth, multi-tenancy, migrations/schema, data integrity, or the harness itself → those
+    are HITL-gated and belong to the phase sweep, Step 4) or not cheap. Mark each fixed row RESOLVED
+    with the commit. This keeps findings from ageing; the phase gate (Step 4) is the full backstop.
+18. Emit the [result block](#output) for the completed epic: `status: ok`, `artifact_path` set to the task brief
     path (the task's `brief` field in progress.json), `failure_class: null`.
-18. Check phase status: `bash .claude/scripts/progress.sh phase-check`
-19. If phase INCOMPLETE: loop back to PLAN with next task
-20. If phase COMPLETE: proceed to Step 4
+19. Check phase status: `bash .claude/scripts/progress.sh phase-check`
+20. If phase INCOMPLETE: loop back to PLAN with next task. **The just-opened PR's CI is verified at
+    that next task's PLAN step (Step 3, CI-green gate) — a red base is fixed before more is stacked.**
+21. If phase COMPLETE: proceed to Step 4
 
 ### Step 4: Phase Gate
 
@@ -297,7 +333,26 @@ When `phase-check` returns COMPLETE:
    Report the mutation score. Threshold: >= 70%. If below threshold, identify surviving mutant clusters and
    include them in the phase gate report for human review.
 
-3. **Documentation Generation**: Generate or update project documentation:
+3. **Ledger Remediation Sweep (self-improvement, tier 3 — the full backstop).** The last codified
+   improvement level: task-close *logs* findings, epic-close fixes *cheap* ones (Step 3 CODIFY 17),
+   and the phase gate now clears the rest so no finding lives past the phase it was raised in.
+   - **Inputs:** every open finding in `.claude/state/qa-cross-task-findings.md` and
+     `.claude/state/qa-project-issues.md`.
+   - **Order & budget:** oldest-first, severity-gated. **Blockers are always fixed.** Warn/Info are
+     fixed within a per-sweep budget, oldest-first; anything deliberately deferred stays logged
+     **with its age** (nothing rots silently — log what was skipped and why).
+   - **Risk gate (HITL):** auto-fix low-blast-radius findings (the PR is still reviewed). Anything
+     touching **auth, multi-tenancy, migrations/schema, data integrity, or the harness itself**
+     pauses for HITL approval (AskUserQuestion) *before* the fix. **A harness change judged high-risk
+     always requires HITL approval** — never self-modify the harness's safety/gate machinery
+     unreviewed.
+   - **Delivery:** a **dedicated** `chore/phase-{N}-remediation` branch + PR, separate from the
+     feature epics (clean, independently revertable audit trail of self-improvement). Run
+     `/code-review` on it. Mark each fixed ledger row RESOLVED with its commit.
+   - **Verify:** the remediation PR's CI must go green (Step 3 CI-green gate applies) before phase
+     approval.
+
+4. **Documentation Generation**: Generate or update project documentation:
    - `README.md` — project overview, prerequisites, installation, getting started, available scripts,
      environment variables, tech stack, project structure
    - `docs/api.md` — API endpoint documentation (routes, methods, request/response shapes) derived from
@@ -310,21 +365,21 @@ When `phase-check` returns COMPLETE:
    - Update any existing docs that are now stale
    - Commit: `docs: generate project documentation`
 
-4. Display the phase gate checklist (from `docs/specs/weave/engines/<entity>.md` or the
+5. Display the phase gate checklist (from `docs/specs/weave/engines/<entity>.md` or the
    `.claude/spec-templates/phase-gate.md` template)
 
-5. Run `bash .claude/scripts/progress.sh kanban` to show final state
+6. Run `bash .claude/scripts/progress.sh kanban` to show final state
 
-6. Ask user via AskUserQuestion:
+7. Ask user via AskUserQuestion:
    - **Approve** — phase complete, proceed to next phase
    - **Amend** — specific items need addressing
    - **Reject** — significant rework needed
 
-7. If approved, update phase in `.claude/state/progress.json`
+8. If approved, update phase in `.claude/state/progress.json`
 
-8. **Re-run dependency check** for the next phase (may need additional tools or credentials)
+9. **Re-run dependency check** for the next phase (may need additional tools or credentials)
 
-9. Loop back to Step 3 for next phase's tasks
+10. Loop back to Step 3 for next phase's tasks
 
 ### State Management
 
