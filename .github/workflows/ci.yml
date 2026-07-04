@@ -89,11 +89,16 @@ jobs:
   mutation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Non-blocking on PRs: the >=70% mutation gate is enforced at the phase gate
-    # (implement SKILL.md Step 4.2), not per-PR — relocating enforcement to a
-    # better altitude, not removing it (git-safety.md rule 4). Current score is
-    # 62.1%; the phase gate is where surviving-mutant clusters get triaged.
-    continue-on-error: true
+    # BLOCKING per-PR at a regression floor (MUTATION_SCORE_THRESHOLD), NOT
+    # continue-on-error. mutmut's coverage-based test selection makes the raw
+    # score vary a few points between environments (local ~72% / CI ~62%), so a
+    # per-PR gate pinned at the full 70% quality bar would fail on tool noise.
+    # The floor catches real regressions deterministically; the strict 70% bar is
+    # enforced at the phase gate (implement SKILL.md Step 4.2) where surviving
+    # mutants get triaged with services + human review. Raising this floor toward
+    # 70% is tracked in the QA ledger (PROJ-005).
+    env:
+      MUTATION_SCORE_THRESHOLD: "60"
     defaults:
       run:
         working-directory: packages/backend
@@ -105,14 +110,11 @@ jobs:
       - run: uv sync
       - run: uv run mutmut run || true
       - run: uv run mutmut export-cicd-stats
-      # Enforces the >=70% mutation-score gate; passes structurally if
-      # nothing has been mutated/exercised yet (see mutation_gate.py).
+      # Blocking gate: fails the PR if the score drops below the regression floor.
       - name: Enforce mutation score threshold
         run: |
-          # gate requires mutation score >= 70%. tee the score to the run
-          # summary so the gap is visible without opening logs; pipefail keeps
-          # the honest non-zero exit (job is continue-on-error → non-blocking,
-          # real enforcement is the phase gate).
+          # tee the score to the run summary so it is visible without opening logs;
+          # pipefail preserves the gate's non-zero exit so the job actually fails.
           set -o pipefail
           uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json \
             | tee -a "$GITHUB_STEP_SUMMARY"

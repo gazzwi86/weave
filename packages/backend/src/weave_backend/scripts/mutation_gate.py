@@ -13,6 +13,7 @@ silently.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -32,12 +33,23 @@ def evaluate(
     return score, score >= threshold
 
 
-def main(stats_path: str) -> int:
+def _threshold_from_env() -> float:
+    """Per-PR CI passes a lower regression floor via MUTATION_SCORE_THRESHOLD; the
+    phase gate uses the strict DEFAULT_THRESHOLD (env unset). This lets the per-PR
+    gate block on regressions deterministically despite mutmut's cross-environment
+    score variance, while the full quality bar is enforced at the phase gate."""
+    raw = os.environ.get("MUTATION_SCORE_THRESHOLD")
+    return float(raw) if raw else DEFAULT_THRESHOLD
+
+
+def main(stats_path: str, threshold: float | None = None) -> int:
     """Load a mutmut cicd-stats JSON file and return a CI exit code (0 pass, 1 fail)."""
+    if threshold is None:
+        threshold = _threshold_from_env()
     stats = json.loads(Path(stats_path).read_text())
-    score, passed = evaluate(stats)
+    score, passed = evaluate(stats, threshold)
     if score is not None:
-        print(f"mutation score: {score:.1f}% (threshold {DEFAULT_THRESHOLD:.0f}%)")
+        print(f"mutation score: {score:.1f}% (threshold {threshold:.0f}%)")
     elif passed:
         print("mutation gate: no mutants to exercise yet — passing structurally")
     else:
