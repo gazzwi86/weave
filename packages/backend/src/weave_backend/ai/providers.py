@@ -6,6 +6,7 @@ never invoked in tests — every test passes its own mock `client=`.
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Protocol
 
 
@@ -41,7 +42,16 @@ class BedrockProvider:
         if client is None:
             import boto3
 
-            client = boto3.client("bedrock-runtime")
+            # boto3 raises NoRegionError if no region is resolvable from the
+            # environment/config -- which is exactly the case in CI (and any
+            # bare shell). Fall back to a default so constructing the provider
+            # never needs ambient AWS config; a real deploy sets AWS_REGION.
+            region = (
+                os.environ.get("AWS_REGION")
+                or os.environ.get("AWS_DEFAULT_REGION")
+                or "us-east-1"
+            )
+            client = boto3.client("bedrock-runtime", region_name=region)
         self._client = client
 
     def complete(self, model_id: str, prompt: str, **kwargs: Any) -> str:
