@@ -1,7 +1,11 @@
 name: CI
 
 on:
+  # push runs only on main (post-merge verification); PRs get their own run.
+  # Scoping push to main avoids the double-run where a branch push and its PR
+  # both trigger the full suite.
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -105,8 +109,13 @@ jobs:
       # nothing has been mutated/exercised yet (see mutation_gate.py).
       - name: Enforce mutation score threshold
         run: |
-          # gate requires mutation score >= 70%
-          uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json
+          # gate requires mutation score >= 70%. tee the score to the run
+          # summary so the gap is visible without opening logs; pipefail keeps
+          # the honest non-zero exit (job is continue-on-error → non-blocking,
+          # real enforcement is the phase gate).
+          set -o pipefail
+          uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"
 
   secrets:
     runs-on: ubuntu-latest
@@ -159,7 +168,10 @@ jobs:
   semgrep:
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      # Pinned to a digest like every action in this file; `--config auto` still
+      # pulls the live registry ruleset, so an upstream rule rename can redden a
+      # PR or invalidate a nosemgrep waiver — tracked in the QA ledger.
+      image: semgrep/semgrep:1.168.0@sha256:59fbed6127ea7c5dde3ba6a85142733bb20ea9aaa36120c953904f1539aaf66e
     # Blocking: the 6 initial findings are triaged (inline nosemgrep waivers with
     # justifications — 2 asyncpg false-positives, 4 intended/deferred infra items).
     # A new un-waived finding now fails the build.

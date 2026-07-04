@@ -33,6 +33,7 @@ per-task reports.
 - **Owner:** Human operator — changing repo settings is outside agent autonomy. Fix:
   `gh repo edit --enable-squash-merge=false --enable-merge-commit=true --enable-rebase-merge=true`.
 - **Deadline:** Before the first stacked-epic base is merged (i.e. before merging any of #11–#13).
+- **Status:** ✅ RESOLVED 2026-07-04 — operator updated the repo merge settings.
 
 ## PROJ-003: Advisor-consult trailer check not yet enforced at pre-commit
 
@@ -45,3 +46,25 @@ per-task reports.
   (see `harness-governance.md` scope), require the trailer + an existing `ADV-NNN.md` record. Itself
   a harness change → needs its own advisor consult.
 - **Deadline:** Next harness-focused pass.
+
+## PROJ-004: CI semgrep uses live `--config auto` ruleset (non-deterministic while blocking)
+
+- **Title:** The now-**blocking** semgrep job runs `semgrep scan --config auto`, which pulls the
+  live Semgrep registry ruleset each run. The container image is digest-pinned, but the *rules* are
+  not — an upstream rule addition can redden an unrelated PR, and an upstream rule **rename** can
+  silently invalidate a `nosemgrep` waiver (the 6 waivers are rule-id-scoped).
+- **Severity:** Project · **Raised in:** ADV-002.
+- **Owner:** Engineer (harness) — pin to a versioned policy (`--config p/<ruleset>` or a vendored
+  rule pack) so the blocking gate is reproducible, or accept auto with eyes open and a runbook for
+  triaging upstream rule drift. ci.yml is governance-exempt.
+- **Deadline:** Before heavy reliance on the blocking gate (next CI-focused pass).
+
+## PROJ-005: Backend mutation score 62.1% is below the 70% threshold
+
+- **Title:** `mutation_gate` reports 62.1% vs the ≥70% target. The per-PR CI job is
+  `continue-on-error` (non-blocking); real enforcement is the phase gate. The score is now teed to
+  the run summary, but the gap is real and must be closed by killing surviving-mutant clusters
+  (adding/strengthening tests), not by lowering the threshold.
+- **Severity:** Project · **Raised in:** ADV-002.
+- **Owner:** Engineer/QA — triage surviving mutants in the backend and raise coverage to ≥70%.
+- **Deadline:** Before the platform phase gate (the phase gate blocks on this).
