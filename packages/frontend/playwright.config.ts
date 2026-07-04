@@ -13,6 +13,10 @@ const FRONTEND_ENV = {
   OIDC_CLIENT_ID: "weave-dev",
   OIDC_CLIENT_SECRET,
   BACKEND_API_URL: "http://localhost:8000",
+  // Fresh login per e2e test (~5 /api/auth requests each) shares one
+  // in-memory rate-limit budget (lib/rate-limit.ts) -- raise the ceiling
+  // for this harness-launched server only, prod default is unaffected.
+  AUTH_RATE_LIMIT_MAX: "100",
 };
 
 export default defineConfig({
