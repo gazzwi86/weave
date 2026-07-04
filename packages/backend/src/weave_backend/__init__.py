@@ -6,6 +6,7 @@ from weave_backend.db.pool import close_app_pool
 from weave_backend.observability.middleware import install_tenant_context_middleware
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
+from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
@@ -29,6 +30,7 @@ app = FastAPI(title="Weave Platform API")
 install_tenant_context_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(billing_router)
 app.include_router(tenancy_router)
 app.include_router(settings_router)
 app.include_router(sparql_router)
