@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -87,13 +88,30 @@ def test_main_returns_one_when_run_was_interrupted(tmp_path: Path) -> None:
 
 
 def test_main_prints_score_and_threshold(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Default (no env): the strict phase-gate threshold applies. delenv makes this
+    # deterministic even when the ambient env sets a per-PR floor (e.g. the CI
+    # mutation job that runs this suite as its mutmut baseline).
+    monkeypatch.delenv("MUTATION_SCORE_THRESHOLD", raising=False)
     stats_path = _write_stats(tmp_path, {"killed": 8, "survived": 2, "total": 10})
     main(stats_path)
     out = capsys.readouterr().out
     assert "mutation score: 80.0%" in out
     assert "threshold 70%" in out
+
+
+def test_main_honours_env_threshold_override(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The per-PR CI job lowers the blocking bar to a regression floor via the env;
+    # a score that fails the strict 70 must PASS the lower floor.
+    monkeypatch.setenv("MUTATION_SCORE_THRESHOLD", "60")
+    stats_path = _write_stats(tmp_path, {"killed": 65, "survived": 35, "total": 100})
+    assert main(stats_path) == 0
+    out = capsys.readouterr().out
+    assert "mutation score: 65.0%" in out
+    assert "threshold 60%" in out
 
 
 def test_main_prints_structural_pass_message(
@@ -126,11 +144,15 @@ def test_cli_invocation_matches_ci_usage(tmp_path: Path) -> None:
     would fail here even though every direct `main()` call still passes.
     """
     stats_path = _write_stats(tmp_path, {"killed": 5, "survived": 5, "total": 10})
+    # Cleaned env: strip any ambient per-PR floor so this asserts the strict
+    # default (70) deterministically — 50% must fail regardless of the caller's env.
+    clean_env = {k: v for k, v in os.environ.items() if k != "MUTATION_SCORE_THRESHOLD"}
     result = subprocess.run(
         [sys.executable, "-m", "weave_backend.scripts.mutation_gate", stats_path],
         capture_output=True,
         text=True,
         timeout=30,
+        env=clean_env,
     )
     assert result.returncode == 1, result.stdout + result.stderr
     assert "mutation score: 50.0%" in result.stdout

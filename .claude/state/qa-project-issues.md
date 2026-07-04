@@ -72,7 +72,15 @@ per-task reports.
   despite mutmut's few-point cross-env variance. The **strict ≥70% bar stays at the phase gate**
   (`mutation_gate` default), where services run and surviving mutants are triaged with human review.
 - **Severity:** Project · **Raised in:** ADV-002.
-- **Owner:** Engineer/QA — to lift the per-PR floor toward 70, add a **services-backed** mutation run
-  (Testcontainers/LocalStack + Postgres) so SQL/AWS mutants can be killed, then raise
-  `MUTATION_SCORE_THRESHOLD`. Until then the phase gate is the 70% enforcement point.
-- **Deadline:** Before the platform phase gate (which blocks on the strict ≥70%).
+- **Owner:** Engineer/QA. **Deterministic strict-70 backstop:** the `mutation-strict` CI job
+  (main-push, boots postgres/redis/oxigraph/localstack, mutmut runs the integration suite too,
+  enforces the strict 70% default) was added per ADV-003 so the 70% bar does not rest solely on the
+  model-executed phase gate. **Its first main-push run must be validated** — the mutmut×integration
+  runtime is unverified locally and may need the 30-min timeout tuned or the trigger moved to a
+  nightly `schedule`.
+- **Ratchet rule (ADV-003):** the per-PR `MUTATION_SCORE_THRESHOLD` floor moves **up only**, never
+  down. If a PR reds the floor on suspected tool noise, the fix is evidence (rerun; compare killed
+  lists), never a threshold drop. Revisit the floor upward whenever the unit-killable mutant pool
+  grows.
+- **Deadline:** Validate `mutation-strict` on the next main-push; raise the floor as unit-killable
+  coverage improves.

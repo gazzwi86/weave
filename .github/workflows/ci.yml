@@ -87,16 +87,16 @@ jobs:
           OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
 
   mutation:
+    # Per-PR tier. Runs unit tests only (fast, no services), so its score is
+    # structurally capped ~62% — the surviving mutants are SQL-string and AWS
+    # (boto3) mutations that die only under integration tests with live services.
+    # It is BLOCKING (no continue-on-error) at a regression FLOOR, not the full
+    # 70% bar, which per-PR unit-only can never reach. The strict 70% runs
+    # deterministically in the `mutation-strict` job on main-push (below) and at
+    # the phase gate. Raising the floor toward 70 is tracked as PROJ-005.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # BLOCKING per-PR at a regression floor (MUTATION_SCORE_THRESHOLD), NOT
-    # continue-on-error. mutmut's coverage-based test selection makes the raw
-    # score vary a few points between environments (local ~72% / CI ~62%), so a
-    # per-PR gate pinned at the full 70% quality bar would fail on tool noise.
-    # The floor catches real regressions deterministically; the strict 70% bar is
-    # enforced at the phase gate (implement SKILL.md Step 4.2) where surviving
-    # mutants get triaged with services + human review. Raising this floor toward
-    # 70% is tracked in the QA ledger (PROJ-005).
     env:
       MUTATION_SCORE_THRESHOLD: "60"
     defaults:
@@ -118,6 +118,43 @@ jobs:
           set -o pipefail
           uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json \
             | tee -a "$GITHUB_STEP_SUMMARY"
+
+  mutation-strict:
+    # Deterministic strict tier. Runs post-merge on main (not per-PR: mutating
+    # against live services blows the 10-min PR budget). Boots the same services
+    # as the integration job and lets mutmut exercise the integration suite too,
+    # so the SQL/AWS mutants the per-PR job cannot reach are killed here. No
+    # MUTATION_SCORE_THRESHOLD env → mutation_gate enforces the strict 70% default.
+    # BLOCKING (no continue-on-error). This is the deterministic backstop for the
+    # 70% bar so it does not rest solely on the model-executed phase gate.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Include the integration/docker suite (override pyproject's fast-run marker
+      # filter); still exclude e2e and the self-managed full-stack tests.
+      PYTEST_ADDOPTS: "-m 'not e2e and not stack'"
+    defaults:
+      run:
+        working-directory: packages/backend
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - working-directory: .
+        run: docker compose up -d --wait postgres redis oxigraph localstack
+      - run: uv sync
+      - run: uv run mutmut run || true
+      - run: uv run mutmut export-cicd-stats
+      - name: Enforce strict 70% mutation score
+        run: |
+          set -o pipefail
+          uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        working-directory: .
+        run: docker compose down -v
 
   secrets:
     runs-on: ubuntu-latest
