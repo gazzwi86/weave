@@ -1,8 +1,12 @@
 """AC-6's `security.*` -> PLAT-NOTIFY-1 fan-out. Dispatched synchronously on
 the same connection/transaction as the audit insert (matching
 `billing/gate.py`'s `_notify_workspace_admins` precedent, not a detached
-background task as the brief's pseudocode wording suggests -- see
-ADR-010). Safe because `dispatch_notification` is proven never to raise.
+background task as the brief's pseudocode wording suggests -- see ADR-010).
+`dispatch_notification`'s never-raises guarantee covers only its Slack retry
+leg -- its DB awaits (insert_notification, the re-entrant
+`default_audit_emitter.emit`, get_user_prefs) can still raise. The caller
+(`emitter.HashChainAuditEmitter.emit`) is responsible for guarding this call
+so a notification-side failure never unwinds the audit insert.
 """
 
 from __future__ import annotations

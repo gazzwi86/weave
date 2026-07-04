@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import asyncpg
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from weave_backend.audit.chain import ZERO_HASH
@@ -108,3 +109,28 @@ async def test_emit_non_security_event_does_not_notify() -> None:
         await HashChainAuditEmitter().emit(conn, _event(event_type="workspace.created"))
 
     mock_notify.assert_not_awaited()
+
+
+async def test_emit_survives_notification_dispatch_raising(caplog: Any) -> None:
+    """PR #19 review: `dispatch_notification`'s never-raises guarantee only
+    covers its Slack retry leg -- its DB awaits (insert_notification, the
+    re-entrant `default_audit_emitter.emit`, get_user_prefs) can raise. A
+    raise there must not unwind the caller's business transaction; the audit
+    entry is the primary record.
+    """
+    conn = _FakeConnection(existing_seq_row=None)
+    private_key = Ed25519PrivateKey.generate()
+
+    with (
+        patch("weave_backend.audit.emitter.get_signing_key", return_value=private_key),
+        patch("weave_backend.audit.emitter.cap_diff_summary", new=AsyncMock(return_value=None)),
+        patch(
+            "weave_backend.audit.emitter.notify_tenant_admins_of_security_event",
+            new=AsyncMock(side_effect=asyncpg.PostgresError("connection lost")),
+        ),
+    ):
+        event = _event(event_type="security.permission.escalation")
+        await HashChainAuditEmitter().emit(conn, event)  # must not raise
+
+    assert len(conn.insert_calls()) == 1
+    assert "security notification dispatch failed" in caplog.text

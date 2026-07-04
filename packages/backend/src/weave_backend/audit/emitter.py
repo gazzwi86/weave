@@ -9,6 +9,7 @@ underlying table (`audit_entries`, migration 0005) changed.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
@@ -19,6 +20,8 @@ from weave_backend.audit.chain import ZERO_HASH, PendingEntry, build_entry
 from weave_backend.audit.diff_storage import cap_diff_summary
 from weave_backend.audit.notify import SecurityEventContext, notify_tenant_admins_of_security_event
 from weave_backend.audit.signing_key import get_signing_key
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -100,16 +103,30 @@ class HashChainAuditEmitter:
         )
 
         if event.event_type.startswith("security."):
-            await notify_tenant_admins_of_security_event(
-                conn,
-                SecurityEventContext(
-                    tenant_id=tenant_id,
-                    event_type=event.event_type,
-                    actor_principal_iri=event.actor_iri,
-                    target_iri=event.subject_iri,
-                    audit_seq=seq,
-                ),
-            )
+            # The audit entry is the primary record and is already inserted
+            # above -- a notification-side failure (DB error inside
+            # dispatch_notification's insert_notification/re-entrant emit/
+            # get_user_prefs awaits; only its Slack retry leg is guaranteed
+            # never to raise) must not unwind the caller's business
+            # transaction. Best-effort delivery, logged loudly.
+            try:
+                await notify_tenant_admins_of_security_event(
+                    conn,
+                    SecurityEventContext(
+                        tenant_id=tenant_id,
+                        event_type=event.event_type,
+                        actor_principal_iri=event.actor_iri,
+                        target_iri=event.subject_iri,
+                        audit_seq=seq,
+                    ),
+                )
+            except Exception:
+                log.warning(
+                    "security notification dispatch failed for audit seq=%s tenant=%s",
+                    seq,
+                    tenant_id,
+                    exc_info=True,
+                )
 
 
 default_audit_emitter: AuditEmitter = HashChainAuditEmitter()
