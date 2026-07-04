@@ -5,74 +5,88 @@
 # carry the base's *old* commits, not main's version (worse if the base got fixes
 # after they branched). This rebases each child onto its new parent, in stack
 # order, and pushes with --force-with-lease (permitted on feature/* per
-# .claude/rules/git-safety.md). STOPS on the first conflict for resolution.
+# .claude/rules/git-safety.md). STOPS on the first conflict and prints the exact
+# commands to finish the remaining children.
 #
 # Usage:
-#   restack.sh                       # discover open feature/PLAT-EPIC-* branches, sorted
+#   restack.sh                       # discover OPEN, unmerged feature/PLAT-EPIC-* PRs
 #   restack.sh feature/A feature/B   # explicit stack order, bottom (nearest main) first
 #
-# After a conflict: resolve, `git rebase --continue`, `git push --force-with-lease`,
-# then re-run restack.sh with the REMAINING branches to finish the cascade.
+# Written for macOS stock bash 3.2 — no `declare -A`, no `mapfile`.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 git fetch origin main --quiet
 
+# --- build the ordered branch list -----------------------------------------
+branches=()
 if [ "$#" -gt 0 ]; then
-  branches=("$@")
+  for b in "$@"; do branches+=("$b"); done
 else
-  # Sort by the numeric epic id so the stack order is deterministic.
-  mapfile -t branches < <(
-    git branch --format='%(refname:short)' \
-      | grep -E '^feature/PLAT-EPIC-[0-9]+$' | sort
+  # Open PRs whose head is a feature/PLAT-EPIC-* branch, sorted by epic number,
+  # skipping anything already merged into main.
+  while IFS= read -r br; do
+    [ -n "$br" ] || continue
+    if git merge-base --is-ancestor "$br" origin/main 2>/dev/null; then
+      echo "skip $br (already merged into main)"
+      continue
+    fi
+    branches+=("$br")
+  done < <(
+    gh pr list --state open --json headRefName --jq '.[].headRefName' 2>/dev/null \
+      | grep -E '^feature/PLAT-EPIC-[0-9]+$' | sort -u
   )
 fi
 
 if [ "${#branches[@]}" -eq 0 ]; then
-  echo "restack: no open feature/PLAT-EPIC-* branches found — nothing to do."
+  echo "restack: no open, unmerged feature/PLAT-EPIC-* branches — nothing to do."
   exit 0
 fi
 
-# Capture each branch's current tip BEFORE any rebase: it is the "old base" that
-# --onto uses to select only the child's own commits (dropping the parent's).
-declare -A old_tip
+# --- capture every branch's CURRENT tip up front ---------------------------
+# (parallel indexed array — bash-3.2 safe). These are the "old parent" SHAs that
+# --onto needs, and they survive the rebases so conflict-recovery stays correct.
+oldtips=()
 for br in "${branches[@]}"; do
-  old_tip["$br"]="$(git rev-parse "$br")"
+  oldtips+=("$(git rev-parse "$br")")
 done
 
-base="origin/main"   # the first branch rebases straight onto main
-prev_old=""
+n="${#branches[@]}"
+for ((i = 0; i < n; i++)); do
+  br="${branches[$i]}"
+  if [ "$i" -eq 0 ]; then
+    parent="origin/main"
+  else
+    parent="${branches[$((i - 1))]}"       # the now-rebased previous branch
+    old_parent="${oldtips[$((i - 1))]}"     # its pre-rebase tip
+  fi
 
-# Run the rebase directly (not in a subshell) so its output shows and, on
-# failure, the conflict/rebase-in-progress state is preserved for resolution.
-# `set -e` must not abort us on a rebase conflict — guard with `if`.
-for br in "${branches[@]}"; do
-  echo "== restacking $br onto ${base} =="
+  echo "== restacking $br onto ${parent} =="
   git checkout "$br"
 
   rebase_failed=0
-  if [ -z "$prev_old" ]; then
-    git rebase "$base" || rebase_failed=1
+  if [ "$i" -eq 0 ]; then
+    git rebase "$parent" || rebase_failed=1
   else
-    # Replay only $br's own commits (those after the parent's OLD tip) onto the
-    # parent's NEW tip — the standard restack move.
-    git rebase --onto "$base" "$prev_old" "$br" || rebase_failed=1
+    git rebase --onto "$parent" "$old_parent" "$br" || rebase_failed=1
   fi
 
   if [ "$rebase_failed" -ne 0 ]; then
     {
-      echo "CONFLICT restacking $br onto ${base}."
-      echo "Resolve the conflicts, then:"
-      echo "  git rebase --continue"
-      echo "  git push --force-with-lease"
-      echo "  # then re-run restack.sh with the branches from $br onwards to finish the cascade"
+      echo ""
+      echo "CONFLICT restacking $br onto ${parent}."
+      echo "1. resolve the conflicts, then:  git rebase --continue"
+      echo "2. push it:                       git push --force-with-lease"
+      echo "3. finish the remaining children with these EXACT commands"
+      echo "   (bases/old-tips already computed — do NOT bare re-run restack.sh):"
+      for ((j = i + 1; j < n; j++)); do
+        echo "   git checkout ${branches[$j]} && git rebase --onto ${branches[$((j - 1))]} ${oldtips[$((j - 1))]} ${branches[$j]} && git push --force-with-lease"
+      done
     } >&2
     exit 1
   fi
 
   git push --force-with-lease
-  prev_old="${old_tip[$br]}"
-  base="$br"   # the next child stacks on this now-rebased branch
 done
 
 echo "restack complete: ${branches[*]}"
