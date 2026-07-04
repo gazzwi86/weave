@@ -128,3 +128,42 @@ async def test_enforce_budget_below_warning_threshold_does_not_notify() -> None:
         await enforce_budget(conn, redis, _SCOPE)
 
     notify_mock.assert_not_awaited()
+
+
+async def test_enforce_budget_rejects_when_consumed_has_drifted_past_cap() -> None:
+    """QA edge case: the brief only tests `consumed == cap` (AC-2's literal
+    text); Redis drift (ADR note on `INCRBYFLOAT` mid-write failure) can
+    leave `consumed_usd` *past* the cap, not just at it. `>=` must still
+    reject rather than a stray `==` regression letting drifted usage through.
+    """
+    conn, resolve_mock = _patched(_cap(100.0), admin_subs=["u-admin"])
+    redis = _redis({f"billing:{_TENANT}:{_WORKSPACE}:2026-07:consumed_usd": 150.0})
+
+    with (
+        patch("weave_backend.billing.gate.resolve_setting", resolve_mock),
+        patch("weave_backend.billing.gate.current_period", return_value="2026-07"),
+        patch("weave_backend.billing.gate.dispatch_notification", AsyncMock()),
+        pytest.raises(BudgetCapReached) as exc_info,
+    ):
+        await enforce_budget(conn, redis, _SCOPE)
+
+    assert exc_info.value.consumed_usd == 150.0
+
+
+async def test_enforce_budget_reached_with_zero_admins_still_rejects() -> None:
+    """QA edge case: a workspace with no active admin member (e.g. the sole
+    admin was just revoked) must still reject the call -- the notification
+    fan-out iterating zero rows must not swallow or block the raise.
+    """
+    conn, resolve_mock = _patched(_cap(100.0), admin_subs=[])
+    redis = _redis({f"billing:{_TENANT}:{_WORKSPACE}:2026-07:consumed_usd": 100.0})
+
+    with (
+        patch("weave_backend.billing.gate.resolve_setting", resolve_mock),
+        patch("weave_backend.billing.gate.current_period", return_value="2026-07"),
+        patch("weave_backend.billing.gate.dispatch_notification", AsyncMock()) as notify_mock,
+        pytest.raises(BudgetCapReached),
+    ):
+        await enforce_budget(conn, redis, _SCOPE)
+
+    notify_mock.assert_not_awaited()

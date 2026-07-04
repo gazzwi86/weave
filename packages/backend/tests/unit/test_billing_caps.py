@@ -101,3 +101,19 @@ async def test_set_cap_allowed_when_no_parent_cap_configured_yet() -> None:
     )
 
     assert conn.rows[(_WORKSPACE_IRI, BUDGET_CAP_KEY)]["value"] == json.dumps(75.0)
+
+
+async def test_set_cap_allowed_when_exactly_equal_to_parent() -> None:
+    """QA edge case: the check is `value_usd > parent.value`, so a child cap
+    exactly matching its parent's cap is the boundary and must succeed, not
+    raise `CapExceedsParent` -- only strictly exceeding the parent should.
+    """
+    conn = _FakeConnection(
+        {(_COMPANY_IRI, BUDGET_CAP_KEY): {"scope": "company", "rank": 3, "value": "100.0"}}
+    )
+
+    await set_cap(
+        conn, tenant_id="acme-corp", key=BUDGET_CAP_KEY, scope_iri=_WORKSPACE_IRI, value_usd=100.0
+    )
+
+    assert conn.rows[(_WORKSPACE_IRI, BUDGET_CAP_KEY)]["value"] == json.dumps(100.0)
