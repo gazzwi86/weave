@@ -1,6 +1,12 @@
-"""AC-1/AC-2/AC-5/AC-6: `PUT /api/billing/caps`, `GET /api/billing/usage`,
-and a harness-only `POST /api/billing/simulate-ai-call` (no production
-route wraps `ai/router.py` yet -- see PLAT-TASK-008 progress summary).
+"""AC-1/AC-2/AC-5/AC-6: `PUT /api/billing/caps`, `GET /api/billing/usage`.
+
+`simulate-ai-call`/`simulate-run` (harness-only, no production route wraps
+`ai/router.py` yet) live on a separate `harness_router` in this module --
+QA blocker (PLAT-TASK-008): `simulate-ai-call` calls the real `ai_route()`
+and incurs real billed spend, and RBAC alone (`author` role) is not enough
+authorization for that. `harness_router` is mounted in `weave_backend/__init__.py`
+only when `WEAVE_ENV` is `dev`/`test`, so a production build never exposes it,
+regardless of RBAC.
 """
 
 from __future__ import annotations
@@ -9,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from redis.asyncio import Redis
 
 from weave_backend.ai.router import route as ai_route
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
@@ -35,6 +42,7 @@ from weave_backend.settings.scope import InvalidScopeIri, tenant_of, workspace_o
 from weave_backend.tenancy.sessions import get_redis
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
+harness_router = APIRouter(prefix="/api/billing", tags=["billing-harness"])
 
 
 def _require_own_tenant_scope(principal: Principal, scope_iri: str) -> None:
@@ -132,7 +140,46 @@ async def get_usage_route(
     )
 
 
-@router.post("/simulate-ai-call", status_code=204)
+async def _check_budget_gate(
+    principal: Principal, workspace_id: str
+) -> tuple[Redis, BudgetCapReached | None]:
+    """Shared by both harness routes: runs the RBAC + pre-call budget check
+    on one connection and reports whether the cap was reached, without
+    raising inside the `async with` block -- `enforce_budget`'s cap.reached
+    notification, dispatched on the same connection just before a
+    `BudgetCapReached`, must survive the rejected call, not roll back with
+    an exception raised while the transaction is still open.
+    """
+    redis = get_redis()
+    cap_reached: BudgetCapReached | None = None
+    async with tenant_connection(principal.tenant_id) as conn:
+        await enforce_workspace_role(
+            conn,
+            tenant_id=principal.tenant_id,
+            workspace_id=workspace_id,
+            user_sub=principal.sub,
+            min_role="author",
+        )
+        try:
+            await enforce_budget(conn, redis, BillingScope(principal.tenant_id, workspace_id))
+        except BudgetCapReached as exc:
+            cap_reached = exc
+    return redis, cap_reached
+
+
+def _raise_cap_reached(cap_reached: BudgetCapReached) -> None:
+    raise HTTPException(
+        status_code=429,
+        detail={
+            "error": "budget_cap_reached",
+            "effective_cap_usd": cap_reached.effective_cap_usd,
+            "consumed_usd": cap_reached.consumed_usd,
+            "retry_after": cap_reached.retry_after,
+        },
+    ) from cap_reached
+
+
+@harness_router.post("/simulate-ai-call", status_code=204)
 async def simulate_ai_call_route(
     body: SimulateAiCallRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
@@ -142,38 +189,9 @@ async def simulate_ai_call_route(
     `test_simulate_ai_call_rejects_without_calling_ai_client` patching
     `ai_route` and asserting zero calls on a 429.
     """
-    redis = get_redis()
-    cap_reached: BudgetCapReached | None = None
-    async with tenant_connection(principal.tenant_id) as conn:
-        await enforce_workspace_role(
-            conn,
-            tenant_id=principal.tenant_id,
-            workspace_id=body.workspace_id,
-            user_sub=principal.sub,
-            min_role="author",
-        )
-        try:
-            await enforce_budget(
-                conn, redis, BillingScope(principal.tenant_id, body.workspace_id)
-            )
-        except BudgetCapReached as exc:
-            # Caught (not raised) here so the `async with` block exits
-            # cleanly and commits -- `enforce_budget`'s cap.reached
-            # notification, dispatched on the same connection just before
-            # this exception, must survive the rejected call, not roll back
-            # with it.
-            cap_reached = exc
-
+    redis, cap_reached = await _check_budget_gate(principal, body.workspace_id)
     if cap_reached is not None:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "budget_cap_reached",
-                "effective_cap_usd": cap_reached.effective_cap_usd,
-                "consumed_usd": cap_reached.consumed_usd,
-                "retry_after": cap_reached.retry_after,
-            },
-        ) from cap_reached
+        _raise_cap_reached(cap_reached)
 
     ai_route(body.model_tier, "harness simulated call")
 
@@ -192,7 +210,7 @@ async def simulate_ai_call_route(
     )
 
 
-@router.post("/simulate-run", status_code=204)
+@harness_router.post("/simulate-run", status_code=204)
 async def simulate_run_route(
     workspace_id: str,
     run_id: str,

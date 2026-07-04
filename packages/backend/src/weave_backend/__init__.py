@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 
 from weave_backend.auth.oidc_client import close_oidc_client
@@ -6,6 +8,7 @@ from weave_backend.db.pool import close_app_pool
 from weave_backend.observability.middleware import install_tenant_context_middleware
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
+from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
@@ -31,6 +34,17 @@ install_tenant_context_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(billing_router)
+# QA blocker (PLAT-TASK-008): simulate-ai-call/simulate-run call the real
+# ai_route() and incur real billed spend -- RBAC (author role) alone is not
+# enough authorization for that. Gate at mount time, fail-closed: only "dev"
+# and "test" mount the harness router, so an unset/misconfigured WEAVE_ENV in
+# a real deploy never exposes it (the opposite failure mode of trusting an
+# explicit opt-out). This is a one-time read at process/app-build time to
+# decide static route registration, not a per-request env read inside
+# business logic -- distinct from the WEAVE_TESTING pattern removed from
+# src/ elsewhere in this codebase (see qa-cross-task-findings.md).
+if os.environ.get("WEAVE_ENV") in ("dev", "test"):
+    app.include_router(billing_harness_router)
 app.include_router(tenancy_router)
 app.include_router(settings_router)
 app.include_router(sparql_router)
