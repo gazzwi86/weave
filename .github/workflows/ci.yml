@@ -64,6 +64,11 @@ jobs:
           cache: npm
           cache-dependency-path: packages/frontend/package-lock.json
       - run: npm ci
+      # vitest.config.ts runs a second "storybook" project via
+      # @vitest/browser-playwright (chromium) alongside the jsdom unit project;
+      # `npm test` launches it, so the browser must be installed or the run
+      # dies on "chrome-headless-shell doesn't exist".
+      - run: npx playwright install --with-deps chromium
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
