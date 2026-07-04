@@ -59,12 +59,20 @@ per-task reports.
   triaging upstream rule drift. ci.yml is governance-exempt.
 - **Deadline:** Before heavy reliance on the blocking gate (next CI-focused pass).
 
-## PROJ-005: Backend mutation score 62.1% is below the 70% threshold
+## PROJ-005: Per-PR mutation score is structurally capped ~62% (unit-only run)
 
-- **Title:** `mutation_gate` reports 62.1% vs the ≥70% target. The per-PR CI job is
-  `continue-on-error` (non-blocking); real enforcement is the phase gate. The score is now teed to
-  the run summary, but the gap is real and must be closed by killing surviving-mutant clusters
-  (adding/strengthening tests), not by lowering the threshold.
+- **Title:** The per-PR CI mutation job runs **unit tests only** (no services), which caps the
+  score around 62%. Investigation (2026-07-04) found the surviving-mutant clusters are dominated by
+  **SQL-string mutations** (`rbac`, `tenancy.*`, `settings.resolver` queries) and **AWS-client
+  mutations** (`auth.agent`/`identity.registry` STS, `ai.providers` Bedrock) — mutants that only die
+  under **integration tests with a live DB/AWS**, not unit mocks. So writing more unit tests cannot
+  push the per-PR number to 70%.
+- **Current design (ADV-002 follow-up):** the per-PR mutation job is now **blocking** at a **60%
+  regression floor** (`MUTATION_SCORE_THRESHOLD=60` in ci.yml), catching real drops deterministically
+  despite mutmut's few-point cross-env variance. The **strict ≥70% bar stays at the phase gate**
+  (`mutation_gate` default), where services run and surviving mutants are triaged with human review.
 - **Severity:** Project · **Raised in:** ADV-002.
-- **Owner:** Engineer/QA — triage surviving mutants in the backend and raise coverage to ≥70%.
-- **Deadline:** Before the platform phase gate (the phase gate blocks on this).
+- **Owner:** Engineer/QA — to lift the per-PR floor toward 70, add a **services-backed** mutation run
+  (Testcontainers/LocalStack + Postgres) so SQL/AWS mutants can be killed, then raise
+  `MUTATION_SCORE_THRESHOLD`. Until then the phase gate is the 70% enforcement point.
+- **Deadline:** Before the platform phase gate (which blocks on the strict ≥70%).
