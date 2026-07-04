@@ -2,7 +2,54 @@
 
 ## Outcome
 
-DONE (Engineer self-verification complete, not yet QA-reviewed)
+FAIL (QA-reviewed) — one Blocker-before-deploy finding in `simulate_ai_call_route` (un-gated real AI
+call, caller-controlled `cost_usd`, zero test coverage of the un-mocked path). All 7 ACs otherwise
+verified correct against live infra. See QA section below and
+`.claude/state/qa-cross-task-findings.md` (PLAT-TASK-008 rows) for full detail.
+
+## QA Findings (2026-07-04)
+
+- **FAIL — Blocker-before-deploy**: `POST /api/billing/simulate-ai-call` (`routers/billing.py`) has
+  no environment guard and calls the real `ai_route()` — any author-role workspace member can trigger
+  real, billed AI provider calls while self-reporting an arbitrary low `cost_usd`. Every test in the
+  repo patches `ai_route`, so this path has never run un-mocked. Ledger row added, `affects:
+  [PLAT-TASK-009, first-deploy checklist]`. Must be fixed (env-gated or 404'd in prod) before any
+  real-environment deploy of this router.
+- **Warn**: `GET /api/billing/usage` (no `workspace_id`) inherits the pre-existing `is_tenant_admin`
+  semantic (any-one-workspace-admin sees tenant-wide totals) — technically AC-5-compliant, elevated
+  concern given financial data sensitivity. Ledger row added.
+- **Warn (Law B / Category 10 gap)**: `billing.spec.ts` / billing case in `accessibility.spec.ts`
+  fully mock the network layer via `page.route()` — no Playwright spec proves a real backend
+  side-effect for this feature (the Python docker-integration suite does, just not via a browser).
+  Ledger row added.
+- **AC-6 re-fire-on-every-call-at-threshold** (engineer's own flagged known limitation): confirmed
+  as-described, not re-flagged as a new finding — already tracked for PLAT-TASK-009.
+- **Verified independently (RAN, not trusted)**: AC-1 cascade + `422 cap_exceeds_parent` (incl. new
+  QA boundary test for exact-equal-to-parent, which correctly passes); AC-2 reject-at-exactly-100%
+  and 429 body shape (`effective_cap_usd`/`consumed_usd`/`retry_after`, verbatim field names) + new
+  QA test proving `>=` still rejects on Redis-drifted values past 100%; AC-2 zero-active-admins edge
+  case (new QA test — fan-out over zero rows must not swallow the raise); AC-3 async metering
+  <100ms (HTTP-response→row-found timing, live docker stack); AC-4 flat 1-unit run cost; AC-5 tenant
+  scoping; AC-6 80%/100% notification dispatch; AC-7 workspace-admin scoping. Migration 0004 RLS
+  parity with 0001-0003 confirmed (FORCE ROW LEVEL SECURITY, `tenant_isolation` policy, `weave_app`
+  grants, non-empty `tenant_id` CHECK). Redis key format `billing:{tid}:{wid}:{period}:consumed_usd`
+  confirmed exact. Lighthouse on `/billing` (desktop preset, production build, full stack up,
+  authenticated): 100/100/100/100 — an earlier 96 best-practices reading was a seeding artifact
+  (fresh DB, no workspace yet for the mock-oidc identity → 403 console error), not a code defect,
+  matching PLAT-TASK-007 precedent.
+- **New unit tests added** (commit `fe7fba5`, `test(qa): edge cases for PLAT-TASK-008`):
+  `test_enforce_budget_rejects_when_consumed_has_drifted_past_cap`,
+  `test_enforce_budget_reached_with_zero_admins_still_rejects`,
+  `test_set_cap_allowed_when_exactly_equal_to_parent`, plus a new file `test_billing_period.py`
+  (December→January rollover + same-year + zero-pad month, the only consumer being `retry_after`,
+  previously untested in December).
+- **Coverage/lint/type/security re-verified**: `ruff check` clean, `mypy src/ tests/` clean (124
+  files, +1 for the new QA test file), unit lane 15→21 backend tests passing at 97% coverage on the
+  billing module, docker-integration lane 8/8 passing, frontend vitest 3/3 passing, E2E 1/1 +
+  accessibility 3/3 passing (real-browser axe, zero violations), bandit clean.
+- **Law E note**: `simulate_ai_call_route` runs ~58 lines (over the 50-line function budget) with no
+  logged waiver in `.claude/state/complexity-waivers.md` — folded into the same fix as the Blocker
+  above rather than a separate line item, since the fix will restructure this function anyway.
 
 ## Decisions Made
 
