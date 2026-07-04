@@ -84,7 +84,8 @@ async def test_enforce_budget_rejects_when_consumed_equals_cap() -> None:
     ):
         await enforce_budget(conn, redis, _SCOPE)
 
-    assert exc_info.value.cap_usd == 100.0
+    assert exc_info.value.effective_cap_usd == 100.0
+    assert exc_info.value.consumed_usd == 100.0
     notify_mock.assert_awaited_once()
     assert notify_mock.call_args.args[1].event_type == "billing.cap.reached"
 

@@ -31,10 +31,17 @@ class BillingScope:
 
 
 class BudgetCapReached(Exception):
-    def __init__(self, *, cap_usd: float, retry_after: str) -> None:
-        self.cap_usd = cap_usd
+    """AC-2's 429 body is `{error, effective_cap_usd, consumed_usd, retry_after}`
+    -- field names quoted directly in the brief's AC-2 EARS text, not just
+    the illustrative example, so they're carried verbatim here rather than
+    the shorter names used internally.
+    """
+
+    def __init__(self, *, effective_cap_usd: float, consumed_usd: float, retry_after: str) -> None:
+        self.effective_cap_usd = effective_cap_usd
+        self.consumed_usd = consumed_usd
         self.retry_after = retry_after
-        super().__init__(f"budget cap reached: {cap_usd}")
+        super().__init__(f"budget cap reached: {effective_cap_usd}")
 
 
 async def enforce_budget(
@@ -62,7 +69,11 @@ async def enforce_budget(
 
     if utilisation >= REACHED_THRESHOLD:
         await _notify_workspace_admins(conn, scope, "billing.cap.reached", utilisation)
-        raise BudgetCapReached(cap_usd=cap_usd, retry_after=next_period_start_iso())
+        raise BudgetCapReached(
+            effective_cap_usd=cap_usd,
+            consumed_usd=consumed_usd,
+            retry_after=next_period_start_iso(),
+        )
     if utilisation >= WARNING_THRESHOLD:
         await _notify_workspace_admins(conn, scope, "billing.cap.warning", utilisation)
 

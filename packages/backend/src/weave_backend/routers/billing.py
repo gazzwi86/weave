@@ -169,7 +169,8 @@ async def simulate_ai_call_route(
             status_code=429,
             detail={
                 "error": "budget_cap_reached",
-                "cap_usd": cap_reached.cap_usd,
+                "effective_cap_usd": cap_reached.effective_cap_usd,
+                "consumed_usd": cap_reached.consumed_usd,
                 "retry_after": cap_reached.retry_after,
             },
         ) from cap_reached
