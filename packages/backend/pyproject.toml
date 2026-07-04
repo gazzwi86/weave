@@ -100,6 +100,13 @@ no_implicit_optional = true
 module = ["asyncpg.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
+# mutmut runs the suite against a mutated copy of the tree under mutants/;
+# migrate.py resolves MIGRATIONS_DIR relative to its own file, so without
+# this the mutant run sees an empty migrations dir, applies nothing, and the
+# `weave_app` role never exists (first mutation-strict CI failure).
+[tool.mutmut]
+also_copy = ["migrations/"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q --strict-markers -m 'not integration and not e2e'"

@@ -32,6 +32,15 @@ async def client() -> AsyncIterator[AsyncClient]:
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_refresh_rate_limit() -> None:
+    # The store is a module-level dict shared for the process lifetime, and
+    # mutmut runs the suite more than once in one process (stats pass, then
+    # clean pass) -- without this, the second pass inherits the first pass's
+    # request timestamps and trips the 5-per-60s ceiling with spurious 429s.
+    auth_router._refresh_rate_limit_store.clear()
+
+
 async def test_expired_jwt_triggers_refresh(client: AsyncClient) -> None:
     tokens = await issue_token_pair(sub="dev-user-1", tenant_id="acme-corp")
 
