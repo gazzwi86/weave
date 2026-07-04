@@ -170,6 +170,32 @@ async def test_deliver_slack_with_retry_gives_up_after_max_attempts_no_exception
     assert increment_mock.await_count == 3
 
 
+async def test_deliver_slack_with_retry_swallows_unexpected_connector_exceptions() -> None:
+    """The `SlackConnector` Protocol can't constrain what a real
+    implementation raises (PLAT-CONNECTOR-1, v1.0). An exception type outside
+    the blessed pair must follow the same retry/give-up path -- an escape
+    would unwind the caller's shared transaction and roll back the in-app
+    row AC-1 just guaranteed.
+    """
+    connector = AsyncMock()
+    connector.post_message = AsyncMock(side_effect=RuntimeError("connector bug"))
+    increment_mock = AsyncMock()
+
+    with (
+        patch(
+            "weave_backend.notifications.dispatch.store.increment_connector_error",
+            increment_mock,
+        ),
+        patch("weave_backend.notifications.dispatch.asyncio.sleep", AsyncMock()),
+    ):
+        await deliver_slack_with_retry(
+            AsyncMock(), _event("job.failed"), _NOTIF_ID, connector
+        )
+
+    assert connector.post_message.await_count == 3
+    assert increment_mock.await_count == 3
+
+
 async def test_deliver_slack_with_retry_succeeds_after_a_transient_failure() -> None:
     connector = AsyncMock()
     connector.post_message = AsyncMock(side_effect=[SlackDeliveryError("timeout"), None])

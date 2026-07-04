@@ -23,7 +23,6 @@ from weave_backend.notifications import store
 from weave_backend.notifications.slack_connector import (
     SlackChannelUnavailable,
     SlackConnector,
-    SlackDeliveryError,
     default_slack_connector,
     format_slack_message,
 )
@@ -87,9 +86,12 @@ async def deliver_slack_with_retry(
     """AC-3/AC-4: in-app is already persisted regardless of outcome here.
     `SlackChannelUnavailable` (the M1 stub's permanent state) is not a
     delivery failure -- logged once, no retry, no connector_health hit.
-    A real/mocked connector's `SlackDeliveryError` retries with capped
-    exponential backoff, bumping connector_health each attempt, and gives up
-    gracefully (no exception escapes) after `max_attempts`.
+    Anything else a connector raises (`SlackDeliveryError` or an unexpected
+    type -- the `SlackConnector` Protocol can't constrain what a real
+    implementation throws) is treated as a failed attempt: capped exponential
+    backoff, connector_health bump, graceful give-up after `max_attempts`.
+    No exception escapes -- an escape would unwind the caller's shared
+    transaction and roll back the in-app row AC-1 just guaranteed.
     """
     text = format_slack_message(event.payload)
     for attempt in range(max_attempts):
@@ -100,7 +102,7 @@ async def deliver_slack_with_retry(
         except SlackChannelUnavailable:
             log.info("slack_channel_unavailable", extra={"notif_id": str(notif_id)})
             return
-        except SlackDeliveryError as exc:
+        except Exception as exc:  # deliberately broad -- see docstring: nothing may escape
             await store.increment_connector_error(
                 conn, tenant_id=event.tenant_id, connector="slack"
             )
