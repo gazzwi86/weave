@@ -58,6 +58,14 @@ def tenant_of(iri: str) -> str:
     return parts[3]
 
 
+def company_iri(tenant_id: str) -> str:
+    return f"urn:weave:tenant:{tenant_id}:company"
+
+
+def workspace_iri(tenant_id: str, workspace_id: str) -> str:
+    return f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"
+
+
 def ancestor_chain(iri: str) -> list[str]:
     """Tightest-first chain starting at `iri` itself and ending at the
     tenant's company scope.
