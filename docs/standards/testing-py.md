@@ -139,7 +139,8 @@ SHACL validator (use a real test graph with known shapes).
 |--------|---------|-------------|
 | Line | 80% | `--cov-fail-under=80` in pytest config; CI blocks merge |
 | Branch | 75% | `--cov-branch` flag; CI warns |
-| Mutation | 70% | mutmut run; CI blocks merge if below |
+| Mutation (per-PR) | 60% floor | unit-only run (fast, no services); CI blocks the PR below the floor |
+| Mutation (strict) | 70% | `mutation-strict` on main-push (with services) + the phase gate; CI/gate blocks below 70% |
 
 ## Mutation testing
 

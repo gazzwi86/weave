@@ -47,9 +47,43 @@ def test_ci_pr_gates_pass(repo_root: Path) -> None:
             f"{job_name} job must report within the 10-minute PR-check budget"
         )
 
-    mutation_texts = " ".join(_step_texts(jobs["mutation"]))
-    assert "mutmut" in mutation_texts, "mutation job must actually run mutmut"
-    assert "70" in mutation_texts, "mutation job must enforce the 70% threshold"
+    # Mutation is a two-tier gate. Per-PR: BLOCKING at a regression floor (the
+    # unit-only run is structurally capped below the strict bar). Strict 70%:
+    # enforced deterministically in `mutation-strict` on main-push (with services).
+    from weave_backend.scripts.mutation_gate import DEFAULT_THRESHOLD
+
+    per_pr = jobs["mutation"]
+    per_pr_texts = " ".join(_step_texts(per_pr))
+    assert "mutmut" in per_pr_texts, "mutation job must actually run mutmut"
+    assert "weave_backend.scripts.mutation_gate" in per_pr_texts, (
+        "mutation job must invoke the gate script"
+    )
+    # blocking: no continue-on-error at job level, and the gate step propagates
+    # its exit code (pipefail, no `|| true` swallow).
+    assert per_pr.get("continue-on-error") is not True, (
+        "per-PR mutation gate must be blocking, not continue-on-error"
+    )
+    gate_steps = [s for s in per_pr["steps"] if "mutation_gate" in str(s.get("run", ""))]
+    assert gate_steps, "mutation job must have a gate-enforcement step"
+    gate = gate_steps[0]
+    assert gate.get("continue-on-error") is not True, "gate step must not be continue-on-error"
+    assert "|| true" not in gate["run"], "gate step must propagate its exit code"
+    assert "pipefail" in gate["run"], "gate step's tee pipeline must set pipefail"
+    # per-PR floor is numeric and sits within [60, strict bar]
+    floor = float(per_pr["env"]["MUTATION_SCORE_THRESHOLD"])
+    assert 60.0 <= floor <= DEFAULT_THRESHOLD, f"per-PR floor {floor} outside [60, strict]"
+
+    # strict deterministic tier: runs mutmut with services and NO threshold-lowering
+    # env, so mutation_gate enforces the strict DEFAULT_THRESHOLD (70).
+    assert DEFAULT_THRESHOLD == 70.0, "strict phase-gate/main-push bar must stay 70%"
+    strict = jobs["mutation-strict"]
+    strict_texts = " ".join(_step_texts(strict))
+    assert "mutmut" in strict_texts and "mutation_gate" in strict_texts
+    assert "docker compose up" in strict_texts, "strict mutation job must boot services"
+    assert strict.get("continue-on-error") is not True, "strict mutation job must be blocking"
+    assert "MUTATION_SCORE_THRESHOLD" not in (strict.get("env") or {}), (
+        "strict job must not lower the threshold — it enforces the 70% default"
+    )
 
     secrets_texts = " ".join(_step_texts(jobs["secrets"]))
     assert "gitleaks" in secrets_texts, "secrets job must run gitleaks"
