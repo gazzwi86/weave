@@ -126,3 +126,31 @@ test.describe("billing accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 });
+
+// PLAT-TASK-009: the compliance sub-view, with a populated summary shown
+// (chain status badge + category/actor lists), not the empty state.
+test.describe("compliance accessibility (axe-core, real browser)", () => {
+  test("compliance view has zero axe violations", async ({ page }) => {
+    await page.route("**/api/audit/compliance**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          chain_status: "valid",
+          entries_checked: 42,
+          first_broken_seq: null,
+          by_event_category: { workspace: 12, security: 3 },
+          top_actors: [{ principal_iri: "urn:weave:principal:user:abc123", event_count: 45 }],
+          period: "2026-07",
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/compliance");
+    await expect(page.getByTestId("chain-status")).toContainText("valid");
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
