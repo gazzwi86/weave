@@ -138,6 +138,17 @@
     --color-accent-primary: #0e7490;
     --color-accent-hover: #0891b2;
     --color-accent-soft: rgba(14, 116, 144, 0.1);
+
+    /* color: semantic status (light) -- same hue family as dark, darkened
+     * for AA contrast on the light surface (>=4.5:1 on #ffffff). Was
+     * missing entirely (fell back to the dark hex, ~1.7:1 on white --
+     * axe color-contrast fail found via notification-center's "Mark read"
+     * link, TASK-007). */
+    --color-success: #047857;
+    --color-warn: #b45309;
+    --color-danger: #b91c1c;
+    --color-danger-soft: rgba(185, 28, 28, 0.1);
+    --color-info: #0369a1;
   }
 }
 
