@@ -80,11 +80,20 @@ main
    `gh pr create --base <prev-branch>`.
 3. **Each PR description lists:** scope summary, per-commit diff summary,
    AC checklist, explicit dependencies on prior PRs.
-4. **After merge of PR N to main**, rebase the remaining stack:
-   `git rebase --onto main <prev-base> <current-branch>` (or rely on GitHub's
-   automatic base-branch retargeting).
-5. **Never force-push published stacked branches** without coordinating with
-   any reviewer who has already commented.
+4. **After merge of PR N to main, restack the remaining stack** — rebase each
+   still-open child onto the new `main` in stack order, then retarget its PR base.
+   Run `bash .claude/scripts/restack.sh` (does the `git rebase --onto` cascade +
+   `--force-with-lease` push); the `/implement` loop does this automatically at
+   Step 1.0b. Skipping the restack is what lets children drift and conflict —
+   especially if the base got fixes after they branched.
+5. **Restack with `--force-with-lease`, never a bare `--force`.** Force-with-lease
+   on a `feature/*` branch is explicitly permitted (see `.claude/rules/git-safety.md`)
+   and is safe — it aborts if the remote moved, so it can't clobber a reviewer's or
+   teammate's push. A bare `--force` and any force-push at `main` stay banned.
+6. **Merge stack bases with a merge-commit or rebase-merge — never squash.** A
+   squash rewrites the shared commits the children are built on, so every child
+   then conflicts on the whole base. Merge-commit/rebase-merge preserves those
+   commits, so `git rebase --onto main` cleanly drops the already-merged ones.
 
 ### When NOT to stack
 
