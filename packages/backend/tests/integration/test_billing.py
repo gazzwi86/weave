@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import shutil
+import time
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -65,18 +66,22 @@ async def _create_workspace_via_route(
     return response.json()["id"], headers
 
 
-async def _wait_for_row(tenant_id: str, query: str, *args: object) -> Any:
-    """AC-3: the metering write is queued off the hot path (fire-and-forget
-    task, not awaited by the route) and lands within 100ms -- poll instead
-    of asserting immediately after the HTTP response returns.
+async def _wait_for_row(tenant_id: str, query: str, *args: object) -> tuple[Any, float]:
+    """AC-3/DoD: the metering write is queued off the hot path (fire-and-forget
+    task, not awaited by the route) and must land within a 100ms budget --
+    poll tightly (5ms) from the moment the HTTP response returns and report
+    how long it actually took, so the caller can assert against the budget
+    instead of only checking eventual arrival.
     """
-    for _ in range(50):
+    start = time.perf_counter()
+    deadline = start + 0.5  # generous hard stop so a real regression fails loudly
+    while time.perf_counter() < deadline:
         async with tenant_connection(tenant_id) as conn:
             row = await conn.fetchrow(query, tenant_id, *args)
         if row is not None:
-            return row
-        await asyncio.sleep(0.02)
-    return None
+            return row, (time.perf_counter() - start) * 1000
+        await asyncio.sleep(0.005)
+    return None, (time.perf_counter() - start) * 1000
 
 
 async def _seed_usage(
@@ -212,13 +217,14 @@ async def test_simulate_ai_call_under_cap_calls_ai_client_and_records_usage(
     assert response.status_code == 204
     ai_route_mock.assert_called_once_with("sonnet", "harness simulated call")
 
-    row = await _wait_for_row(
+    row, elapsed_ms = await _wait_for_row(
         tenant_id,
         "SELECT input_tokens, output_tokens, cost_usd FROM billing_usage"
         " WHERE tenant_id = $1 AND workspace_id = $2 AND record_type = 'token_usage'",
         workspace_id,
     )
     assert row is not None
+    assert elapsed_ms < 100, f"AC-3/DoD: metering write took {elapsed_ms:.1f}ms, budget is 100ms"
     assert row["input_tokens"] == 10
     assert row["output_tokens"] == 5
     assert float(row["cost_usd"]) == 0.5
