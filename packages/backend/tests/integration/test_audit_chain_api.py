@@ -244,3 +244,59 @@ async def test_security_event_triggers_notification(client: AsyncClient) -> None
     assert notifications.status_code == 200, notifications.text
     events = [n["event_type"] for n in notifications.json()["notifications"]]
     assert "security.permission.escalation" in events
+
+
+async def test_new_tenant_genesis_is_zero_hash_regardless_of_other_tenants_chain_length(
+    client: AsyncClient,
+) -> None:
+    """QA edge case (AC-2 x AC-5): per-tenant chains are fully independent --
+    tenant A accumulating several entries first must NOT affect tenant B's
+    first-ever entry, which still has to start from the zero-hash genesis.
+    Probed end-to-end through the real route/DB round trip, not the mocked
+    emitter unit tests.
+    """
+    tenant_a = _unique_tenant("tenant-a-genesis")
+    tenant_b = _unique_tenant("tenant-b-genesis")
+    _, headers_a = await _create_workspace_via_route(
+        client, tenant_id=tenant_a, admin_sub="u-admin-a", slug="ws-a"
+    )
+    for i in range(3):
+        response = await client.put(
+            "/api/settings/theme",
+            json={"scope_iri": f"urn:weave:tenant:{tenant_a}:company", "value": f"v{i}"},
+            headers=headers_a,
+        )
+        assert response.status_code == 200, response.text
+
+    _, headers_b = await _create_workspace_via_route(
+        client, tenant_id=tenant_b, admin_sub="u-admin-b", slug="ws-b"
+    )
+
+    entries_b = await client.get("/api/audit", params={"tenant_id": tenant_b}, headers=headers_b)
+    assert entries_b.status_code == 200, entries_b.text
+    body_b = entries_b.json()
+    assert body_b["total"] == 1
+    assert body_b["entries"][0]["seq"] == 1
+    assert body_b["entries"][0]["prev_hash"] == "0" * 64
+
+
+async def test_audit_table_truncate_rejected_for_weave_app(platform_stack: Path) -> None:
+    """QA edge case (AC-3 boundary): the append-only trigger is row-level
+    (`BEFORE UPDATE OR DELETE ... FOR EACH ROW`) and does not fire for
+    `TRUNCATE` (a statement-level operation). `weave_app`'s enforcement here
+    comes entirely from the GRANT layer -- it was never granted TRUNCATE, so
+    the statement must still be rejected even though the trigger can't see it.
+    """
+    tenant_id = _unique_tenant("tenant-truncate")
+    async with tenant_connection(tenant_id) as conn:
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=tenant_id,
+                event_type="workspace.created",
+                actor_iri="urn:weave:principal:tenant-truncate:human:alice",
+                subject_iri="urn:weave:workspace:tenant-truncate:ws-1",
+            ),
+        )
+        with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
+            await conn.execute("TRUNCATE audit_entries")

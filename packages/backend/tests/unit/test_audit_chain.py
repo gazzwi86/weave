@@ -175,6 +175,27 @@ def test_audit_chain_verification_detects_broken_prev_hash_link() -> None:
     assert result.error == "chain_broken"
 
 
+def test_audit_chain_verification_detects_reordered_entries() -> None:
+    """QA edge case (AC-4): each individual entry is untampered and
+    internally self-consistent (its own hash/signature still verify), but
+    the sequence handed to `verify_entries` is reordered (positions 2 and 3
+    swapped). This must be caught as `chain_broken`, not pass silently just
+    because no single entry's hash/signature was touched -- reordering
+    attacks tampering with sequence, not content.
+    """
+    private_key = _key()
+    entries = _build_chain(private_key, 5)
+    reordered = list(entries)
+    reordered[1], reordered[2] = reordered[2], reordered[1]
+
+    result = verify_entries(reordered, private_key.public_key())
+    assert result.valid is False
+    assert result.error == "chain_broken"
+    # The swapped-in entry (seq=3) is checked at list position 2 (0-indexed),
+    # where entry seq=2's prev_hash was expected -- it fails there first.
+    assert result.first_broken_seq == 3
+
+
 def test_audit_chain_verification_detects_invalid_signature() -> None:
     """AC-4: a hash/prev_hash that are internally consistent but signed with
     the wrong key is detected as signature_invalid."""
