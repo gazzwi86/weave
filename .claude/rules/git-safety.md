@@ -8,12 +8,26 @@
   gate.
 - A flag mentioned inside a quoted commit message (e.g. `-m "ban --no-verify"`) is fine; only the
   real flag is blocked.
-- `git push --force` is already denied in `settings.json` permissions; force-push remains forbidden.
+
+## Force-push policy (stacked PRs)
+
+Stacked PRs must be **restacked** (rebased onto their merged base) each time the base epic lands,
+which requires a force-push. A blanket ban made that impossible, so the policy is nuanced — enforced
+by `check_force_push` in `modules/git_safety.py`, not a settings.json glob:
+
+- **`git push --force-with-lease` on a `feature/*` branch is allowed** — this is how a PR is
+  restacked. `--force-with-lease` refuses to overwrite if the remote moved since you fetched, so it
+  cannot silently clobber another push.
+- **A bare `git push --force` / `-f` is refused everywhere.** It overwrites unconditionally. Always
+  use `--force-with-lease`.
+- **Any force-push at `main` / `master` is refused**, with or without lease. `main` must also carry
+  GitHub branch protection (server-side backstop); the hook is the local first line.
 
 ## Enforcement
 
-The `check-git-safety` PreToolUse hook (`modules/git_safety.py`) blocks the flags at the tool
-level (exit 2): `git commit --no-verify` / `-n`, `git push --no-verify`. `git push --force` is
-denied via `settings.json` permissions. Local hooks are commit-fast (secrets + lint) with
+The `check-git-safety` PreToolUse hook (`modules/git_safety.py`) blocks bypasses at the tool level
+(exit 2): `git commit --no-verify` / `-n`, `git push --no-verify` (`check_no_verify`), and the
+force-push rules above (`check_force_push`, regression-tested in
+`.claude/scripts/tests/test_git_safety_force.py`). Local hooks are commit-fast (secrets + lint) with
 Semgrep + manifest/OKF parity at push; the heavy test pyramid runs in CI and per task in the
 engineer/QA loop — so there is never a legitimate reason to skip a gate.
