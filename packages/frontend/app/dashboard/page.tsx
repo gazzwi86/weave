@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
 import { auth } from "@/auth";
@@ -44,6 +46,12 @@ export default async function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      <Link
+        href="/billing"
+        className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] underline"
+      >
+        View billing usage
+      </Link>
       <DashboardPlaceholder />
     </main>
   );
