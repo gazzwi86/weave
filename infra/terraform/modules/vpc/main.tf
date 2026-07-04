@@ -16,7 +16,10 @@ resource "aws_internet_gateway" "this" {
   tags = { Name = "${var.name}-igw" }
 }
 
-resource "aws_subnet" "public" {
+# map_public_ip_on_launch is intentional: this is the *public* subnet, whose
+# purpose is to host internet-facing resources (ALB / NAT) that need public IPs.
+# The paired private subnet below has no public IP addressing.
+resource "aws_subnet" "public" { # nosemgrep: terraform.aws.security.aws-subnet-has-public-ip-address.aws-subnet-has-public-ip-address
   count                   = length(var.public_subnet_cidrs)
   vpc_id                  = aws_vpc.this.id
   cidr_block              = var.public_subnet_cidrs[count.index]

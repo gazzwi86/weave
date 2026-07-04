@@ -1,4 +1,6 @@
-resource "aws_secretsmanager_secret" "this" {
+# Encrypted with the AWS-managed KMS key (Secrets Manager default). A customer
+# CMK is a v1 hardening item; AWS-managed encryption is sufficient for the MVP.
+resource "aws_secretsmanager_secret" "this" { # nosemgrep: terraform.aws.security.aws-secretsmanager-secret-unencrypted.aws-secretsmanager-secret-unencrypted
   name_prefix             = "${var.name_prefix}-"
   recovery_window_in_days = var.small ? 0 : 30
 }

@@ -160,7 +160,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
-    continue-on-error: true # ponytail: no rule tuning done yet, promote to blocking once noise is triaged
+    # Blocking: the 6 initial findings are triaged (inline nosemgrep waivers with
+    # justifications — 2 asyncpg false-positives, 4 intended/deferred infra items).
+    # A new un-waived finding now fails the build.
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - run: semgrep scan --config auto --error

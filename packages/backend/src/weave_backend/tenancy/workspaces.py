@@ -31,7 +31,9 @@ async def create_workspace(
     workspace_id = uuid4()
     named_graph_iri = f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"
     try:
-        row = await conn.fetchrow(
+        # False positive: the SQL is a static literal; every value is bound as a
+        # positional parameter ($1..$5), never interpolated into the query text.
+        row = await conn.fetchrow(  # nosemgrep
             """
             INSERT INTO workspaces (id, tenant_id, slug, display_name, named_graph_iri)
             VALUES ($1, $2, $3, $4, $5)
@@ -57,7 +59,9 @@ async def create_workspace(
 async def get_workspace(
     conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
 ) -> Workspace | None:
-    row = await conn.fetchrow(
+    # False positive: static literal SQL; tenant_id/workspace_id are bound as
+    # positional parameters ($1/$2), never interpolated into the query text.
+    row = await conn.fetchrow(  # nosemgrep
         """
         SELECT id, slug, display_name, named_graph_iri, created_at
         FROM workspaces WHERE tenant_id = $1 AND id = $2
