@@ -8,6 +8,7 @@ import { PUBLIC_PATHS } from "@/lib/public-paths";
 import { CommandPalette } from "./command-palette";
 import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
+import { NotificationCenter } from "./notification-center";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -21,7 +22,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between border-b border-[var(--color-border)] px-[var(--space-4)] py-[var(--space-2)] sticky top-0 z-[var(--z-sticky)] bg-[var(--color-bg)]">
         <Nav />
-        <HelpLauncher />
+        <div className="flex items-center gap-[var(--space-2)]">
+          <NotificationCenter />
+          <HelpLauncher />
+        </div>
       </header>
       <CommandPalette />
       <div className="flex-1">{children}</div>
