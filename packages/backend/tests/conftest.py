@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import time
 from collections.abc import Iterator
@@ -99,4 +100,9 @@ def platform_stack(repo_root: Path) -> Iterator[Path]:
         asyncio.run(run_migrations())
         yield repo_root
     finally:
-        _compose(repo_root, "down", "-v")
+        # mutation-strict CI sets WEAVE_KEEP_STACK=1: mutmut re-runs this
+        # session fixture once per mutant, and a `down -v` per mutant means a
+        # full cold service boot for the next one (~minutes across the run).
+        # The workflow owns teardown there with its own `down -v` step.
+        if os.environ.get("WEAVE_KEEP_STACK") != "1":
+            _compose(repo_root, "down", "-v")

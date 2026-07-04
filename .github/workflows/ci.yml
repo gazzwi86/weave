@@ -129,11 +129,18 @@ jobs:
     # 70% bar so it does not rest solely on the model-executed phase gate.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Post-merge job, not on the PR critical path: sized from a measured local
+    # full run (~10 min on a dev machine) with headroom for slower CI runners.
+    timeout-minutes: 60
     env:
       # Include the integration/docker suite (override pyproject's fast-run marker
       # filter); still exclude e2e and the self-managed full-stack tests.
       PYTEST_ADDOPTS: "-m 'not e2e and not stack'"
+      # platform_stack's session teardown must not `down -v` between mutant
+      # runs -- every docker-covered mutant would pay a cold service boot and
+      # blow the job timeout. This job's final `docker compose down -v` step
+      # owns teardown.
+      WEAVE_KEEP_STACK: "1"
     defaults:
       run:
         working-directory: packages/backend
