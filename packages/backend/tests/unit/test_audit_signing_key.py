@@ -4,6 +4,7 @@ container needed) -- matching `test_auth_agent.py`'s STS-mocking precedent.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
 from typing import Any
 
@@ -100,3 +101,81 @@ async def test_get_signing_key_reraises_unexpected_client_errors(
 
     with pytest.raises(ClientError):
         await get_signing_key()
+
+
+async def test_get_signing_key_refetches_winner_key_when_create_secret_loses_race(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR #19 review: two cold instances can both miss `get_secret_value`
+    (ResourceNotFound) and both call `create_secret` -- the loser must
+    re-fetch the winner's persisted key, never fall back to its own
+    locally-generated one (an unpersisted key can never verify later).
+    """
+    winner_hex = "33" * 32
+
+    class _RacedClient(_FakeSecretsClient):
+        def __init__(self) -> None:
+            super().__init__(existing_hex=None)
+            self.get_calls = 0
+
+        def get_secret_value(self, *, SecretId: str) -> dict[str, Any]:
+            self.get_calls += 1
+            if self.get_calls == 1:
+                raise ClientError(
+                    {"Error": {"Code": "ResourceNotFoundException", "Message": "no such secret"}},
+                    "GetSecretValue",
+                )
+            return {"SecretString": winner_hex}
+
+        def create_secret(self, *, Name: str, SecretString: str) -> None:
+            raise ClientError(
+                {"Error": {"Code": "ResourceExistsException", "Message": "already exists"}},
+                "CreateSecret",
+            )
+
+    fake_client = _RacedClient()
+    monkeypatch.setattr(
+        "weave_backend.audit.signing_key.boto3.client", lambda *a, **kw: fake_client
+    )
+
+    key = await get_signing_key()
+
+    assert key.private_bytes_raw().hex() == winner_hex
+
+
+async def test_get_signing_key_reraises_unexpected_create_secret_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _BrokenCreateClient(_FakeSecretsClient):
+        def __init__(self) -> None:
+            super().__init__(existing_hex=None)
+
+        def create_secret(self, *, Name: str, SecretString: str) -> None:
+            raise ClientError(
+                {"Error": {"Code": "AccessDenied", "Message": "no"}}, "CreateSecret"
+            )
+
+    monkeypatch.setattr(
+        "weave_backend.audit.signing_key.boto3.client", lambda *a, **kw: _BrokenCreateClient()
+    )
+
+    with pytest.raises(ClientError):
+        await get_signing_key()
+
+
+async def test_get_signing_key_concurrent_cold_calls_create_secret_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The in-process asyncio.Lock closes the cheap half of the race:
+    concurrent cold calls within one process must not both call
+    `create_secret`.
+    """
+    fake_client = _FakeSecretsClient(existing_hex=None)
+    monkeypatch.setattr(
+        "weave_backend.audit.signing_key.boto3.client", lambda *a, **kw: fake_client
+    )
+
+    first, second = await asyncio.gather(get_signing_key(), get_signing_key())
+
+    assert first is second
+    assert len(fake_client.created) == 1

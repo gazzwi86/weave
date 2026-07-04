@@ -36,6 +36,22 @@ def _secrets_client() -> SecretsClient:
     )
 
 
+def _create_and_persist_key_sync(client: SecretsClient) -> bytes:
+    private_key = Ed25519PrivateKey.generate()
+    raw = private_key.private_bytes_raw()
+    try:
+        client.create_secret(Name=SECRET_ID, SecretString=raw.hex())
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "ResourceExistsException":
+            raise
+        # Lost the race to another cold instance -- never trust our own
+        # locally-generated key, it was never persisted and can never
+        # verify entries signed with it later. Re-fetch the winner's key.
+        response = client.get_secret_value(SecretId=SECRET_ID)
+        return bytes.fromhex(response["SecretString"])
+    return raw
+
+
 def _fetch_or_create_key_bytes_sync() -> bytes:
     client = _secrets_client()
     try:
@@ -43,11 +59,14 @@ def _fetch_or_create_key_bytes_sync() -> bytes:
     except ClientError as exc:
         if exc.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
             raise
-        private_key = Ed25519PrivateKey.generate()
-        raw = private_key.private_bytes_raw()
-        client.create_secret(Name=SECRET_ID, SecretString=raw.hex())
-        return raw
+        return _create_and_persist_key_sync(client)
     return bytes.fromhex(response["SecretString"])
+
+
+#: Closes the cheap, in-process half of the bootstrap race (two concurrent
+#: cold `get_signing_key()` calls in the same process). The cross-instance
+#: race is closed by `_create_and_persist_key_sync`'s re-fetch-on-conflict.
+_cache_lock = asyncio.Lock()
 
 
 async def get_signing_key() -> Ed25519PrivateKey:
@@ -58,9 +77,12 @@ async def get_signing_key() -> Ed25519PrivateKey:
     every audited mutation.
     """
     global _cached_key
-    if _cached_key is None:
-        raw = await asyncio.to_thread(_fetch_or_create_key_bytes_sync)
-        _cached_key = Ed25519PrivateKey.from_private_bytes(raw)
+    if _cached_key is not None:
+        return _cached_key
+    async with _cache_lock:
+        if _cached_key is None:
+            raw = await asyncio.to_thread(_fetch_or_create_key_bytes_sync)
+            _cached_key = Ed25519PrivateKey.from_private_bytes(raw)
     return _cached_key
 
 
