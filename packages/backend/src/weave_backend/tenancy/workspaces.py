@@ -33,7 +33,8 @@ async def create_workspace(
     try:
         # False positive: the SQL is a static literal; every value is bound as a
         # positional parameter ($1..$5), never interpolated into the query text.
-        row = await conn.fetchrow(  # nosemgrep
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+        row = await conn.fetchrow(
             """
             INSERT INTO workspaces (id, tenant_id, slug, display_name, named_graph_iri)
             VALUES ($1, $2, $3, $4, $5)
@@ -61,7 +62,8 @@ async def get_workspace(
 ) -> Workspace | None:
     # False positive: static literal SQL; tenant_id/workspace_id are bound as
     # positional parameters ($1/$2), never interpolated into the query text.
-    row = await conn.fetchrow(  # nosemgrep
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    row = await conn.fetchrow(
         """
         SELECT id, slug, display_name, named_graph_iri, created_at
         FROM workspaces WHERE tenant_id = $1 AND id = $2
