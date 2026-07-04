@@ -31,6 +31,56 @@ _FIX = (
     "If a hook is wrong, fix the hook — do not skip it. See .claude/rules/git-safety.md."
 )
 
+# --- force-push policy (supports restacking stacked PRs) --------------------
+# Stacked PRs need a rebase + force-push each time their base merges. A blanket
+# `git push --force*` ban (the old settings.json deny) made that impossible, so
+# the policy is relocated here with nuance: `--force-with-lease` on a feature
+# branch is allowed; a bare `--force`/`-f` is refused everywhere (it clobbers
+# the remote unconditionally); any force aimed at main/master is refused (and is
+# also blocked server-side by branch protection — this is just the first line).
+_PUSH_RE = re.compile(r"\bgit\s+push\b")
+_FORCE_WITH_LEASE_RE = re.compile(r"--force-with-lease\b")
+_BARE_FORCE_RE = re.compile(r"--force\b(?!-with-lease)")
+_SHORT_FORCE_RE = re.compile(r"(?<![-\w])-[A-Za-z]*f[A-Za-z]*\b")
+_PROTECTED_REF_RE = re.compile(r"\b(?:main|master)\b")
+
+_FORCE_BARE_FIX = (
+    "git-safety: refusing `git push --force` / `-f`. A bare force overwrites the remote "
+    "unconditionally and can clobber another push. Use `--force-with-lease`, which aborts if the "
+    "remote moved since you fetched. See .claude/rules/git-safety.md."
+)
+_FORCE_PROTECTED_FIX = (
+    "git-safety: refusing to force-push main/master. Force-push is permitted only on feature/* "
+    "branches (e.g. restacking a stacked PR onto a merged base). See .claude/rules/git-safety.md."
+)
+
+
+def check_force_push(payload: dict) -> None:
+    """PreToolUse:Bash — allow `--force-with-lease` on feature branches (needed to restack
+    stacked PRs after their base merges) while still refusing a bare `--force`/`-f` anywhere
+    and any force-push targeting main/master."""
+    if (payload.get("tool_name") or "") != "Bash":
+        return
+    cmd = (payload.get("tool_input") or {}).get("command") or ""
+    if "push" not in cmd:
+        return
+
+    scan = _HEREDOC_RE.sub("", cmd)
+    scan = _QUOTED_RE.sub("", scan)
+    if not _PUSH_RE.search(scan):
+        return
+
+    has_lease = bool(_FORCE_WITH_LEASE_RE.search(scan))
+    has_bare = bool(_BARE_FORCE_RE.search(scan) or _SHORT_FORCE_RE.search(scan))
+    if not (has_lease or has_bare):
+        return  # ordinary push — nothing to gate
+
+    if has_bare:
+        block(_FORCE_BARE_FIX)
+    if _PROTECTED_REF_RE.search(scan):
+        block(_FORCE_PROTECTED_FIX)
+    # otherwise: --force-with-lease to a non-protected ref → permitted
+
 
 def check_no_verify(payload: dict) -> None:
     """PreToolUse:Bash — block any git command that skips hook verification."""

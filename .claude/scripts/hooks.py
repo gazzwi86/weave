@@ -31,7 +31,7 @@ PRE_TOOL_USE_CHECKS = {
     "check-no-secrets":     [secrets.check_no_secrets],
     "check-uv-over-pip":   [python_tooling.check_uv_over_pip],
     "check-install-safety": [install_safety.check_install_safety],
-    "check-git-safety":     [git_safety.check_no_verify],
+    "check-git-safety":     [git_safety.check_no_verify, git_safety.check_force_push],
 }
 
 POST_TOOL_USE_CHECKS = {

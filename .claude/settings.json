@@ -57,7 +57,6 @@
     "ask": [],
     "deny": [
       "Bash(rm -rf *)",
-      "Bash(git push --force*)",
       "Bash(curl*)",
       "Read(./.env)",
       "Read(./.env.*)",
