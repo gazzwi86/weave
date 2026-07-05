@@ -32,4 +32,7 @@ export interface CytoscapeElementData {
 
 export interface CytoscapeElement {
   data: CytoscapeElementData;
+  /** TASK-004 AC-3/AC-5: a restored saved position, merged in before initial
+   * load -- Cytoscape's native sibling-to-`data` position slot. */
+  position?: { x: number; y: number };
 }
