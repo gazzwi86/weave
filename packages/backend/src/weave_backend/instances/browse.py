@@ -36,7 +36,8 @@ def build_browse_query(*, kind: str | None, keyword: str | None, offset: int) ->
     """
     clauses = ["?iri a ?kind_iri .", f"?iri {_LABEL_PREDICATE} ?label ."]
     if kind:
-        clauses.append(f"FILTER(?kind_iri = <{WEAVE[kind]}>)")
+        safe_kind = sanitize_search_term(kind)
+        clauses.append(f"FILTER(?kind_iri = <{WEAVE[safe_kind]}>)")
     if keyword:
         safe_keyword = sanitize_search_term(keyword)
         clauses.append("?iri ?value_predicate ?value . FILTER(isLiteral(?value))")

@@ -61,6 +61,16 @@ def test_build_browse_query_sanitizes_unsafe_keyword_characters() -> None:
     assert ";" not in contains_clause
 
 
+def test_build_browse_query_sanitizes_unsafe_kind_characters() -> None:
+    """Law 13: `kind` must be sanitised the same way `keyword` is before it
+    goes into the query -- a crafted value must not break out of the `<...>`
+    IRI ref it's embedded in and inject query text.
+    """
+    query = build_browse_query(kind="Process>}{DROP", keyword=None, offset=0)
+    assert "https://weave.io/ontology/ProcessDROP>" in query
+    assert "}{DROP" not in query
+
+
 def test_paginate_returns_no_next_page_when_under_page_size() -> None:
     rows = [{"iri": {"value": f"n{i}"}} for i in range(10)]
     page, next_cursor = paginate(rows, offset=0)
