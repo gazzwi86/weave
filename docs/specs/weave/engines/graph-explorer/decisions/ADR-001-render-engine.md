@@ -34,34 +34,43 @@ verdict is **no-go**, but this is a prepared recommendation only. **Sign-off is
 Architect/human-level (AC-2/AC-3) — `confirmed_by: none` until then, per governance: an Engineer
 never self-signs a spike verdict.** Build phase: **M1**.
 
-## TASK-001 benchmark evidence (2026-07-05)
+## TASK-001 benchmark evidence (2026-07-05, updated with real prototype params)
 
 Full report, raw data, and harness: `packages/frontend/benchmarks/ge-oq01-spike/` (report.md +
-raw-results*.json). Summary:
+raw-results*.json). Summary (real prototype-tuned fcose params — see provenance note below):
 
 | Size | Reps completed | p95 load time | Target |
 |---|---|---|---|
-| 1,000 nodes | 5/5 | 19,222.8 ms | ≤ 3,000 ms |
-| 5,000 nodes | 1/5 (capped — see report) | 751,211.4 ms (~12.5 min) | n/a (interpolated gate) |
-| 10,000 nodes | 0/5 (did not converge, killed at >42 min) | — | ≤ 8,000 ms |
+| 1,000 nodes | 5/5 | 5,261.1 ms | ≤ 3,000 ms |
+| 5,000 nodes | 1/5 (capped — see report) | 136,403.7 ms (~2.3 min) | n/a (interpolated gate) |
+| 10,000 nodes | 1/5 (capped at 10-min kill-cap, converged at ~8.4 min) | 506,795.7 ms | ≤ 8,000 ms |
 
-Drag fps @ 1k: p95 (ascending, per brief's literal formula) = 222.2 fps — but see the report's
+Drag fps @ 1k: p95 (ascending, per brief's literal formula) = 270.3 fps — but see the report's
 "drag fps caveat"; this benchmark never reached the point where drag was the binding constraint.
 
-**Two disclosed deviations from the literal protocol, both explained in full in report.md:**
-1. **fcose params are not the prototype-tuned set** — `prototype-findings.md` does not exist in
-   this repo. Used `cytoscape-fcose`'s own published library defaults instead, verbatim, with full
-   provenance in `fcose-params.mjs`. See `.claude/state/escalations/TASK-001-blocker.md`.
-2. **Reps capped at 5k (1/5) and 10k (0/5)**, not the full 5 — 1k already measured ~19s p95 (6x
-   over its own 3s target); 5k's first rep took ~12.5 minutes; a 10k rep ran >42 minutes at steady
-   100% CPU without converging. The gap is 2-4 orders of magnitude at every tier already measured;
-   the remaining reps would cost hours for no decision-relevant new information.
+**Params were updated mid-task:** the escalation below (fcose params not the prototype-tuned set)
+was resolved by the coordinator, who read
+`prototypes/weave-prototype/frontend/src/lib/cytoscape.ts` lines 106-114 under coordinator
+authority (the Engineer did not, per Law 12) and returned the exact values, now in
+`fcose-params.mjs`. The real params converge 5.9x-13.5x faster than the library defaults used in
+the first pass (preserved in git history, commit `2e0c160`, and in `raw-results.json`'s
+`previousRunWithLibraryDefaultParams`) — material, but the residual gap to target is still 1-2
+orders of magnitude (10k: ~63x over its 8s budget), not tunable-margin territory.
 
-**Engineer recommendation: no-go.** Cytoscape.js + fcose at library-default params misses target by
-100-300x+ at every tier tested, not by a tunable margin. Recommend the Architect proceed to name
-the OQ-05 WebGL renderer (sigma.js or G6) per the "Decision" section below, and treat TASK-002 AC-7
-as suspended until that renderer decision is signed. Full rationale, caveats, and the (unlikely but
-disclosed) condition that would change this recommendation: `report.md`.
+**Two disclosed deviations from the literal protocol, both explained in full in report.md:**
+1. **fcose params provenance chain** — `prototype-findings.md` does not exist in this repo; real
+   params recovered by the coordinator (not the Engineer, per Law 12), cited to file+line above.
+   See `.claude/state/escalations/TASK-001-blocker.md`.
+2. **Reps capped at 5k (1/5) and 10k (1/5, kill-capped)**, not the full 5 — even with the real
+   params, 1k is already ~1.8x over its 3s target and 10k is ~63x over its 8s target; the gap is
+   large enough that 4 more reps at each tier (≈50+ minutes) would not add decision-relevant
+   information.
+
+**Engineer recommendation: no-go**, unchanged from the first pass but on a narrower margin now
+that real params are in. Recommend the Architect proceed to name the OQ-05 WebGL renderer (sigma.js
+or G6) per the "Decision" section below, and treat TASK-002 AC-7 as suspended until that renderer
+decision is signed. Full rationale, caveats, and the (unlikely but disclosed) condition that would
+change this recommendation: `report.md`.
 
 ## Context
 
