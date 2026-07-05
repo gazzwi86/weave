@@ -45,10 +45,13 @@ async def create_project_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[httpx.AsyncClient, Depends(get_ce_client)],
 ) -> CreateProjectResponse:
-    if not body.name.strip():
+    slug = slugify(body.name)
+    if not body.name.strip() or not slug:
+        # A name that is non-empty/non-whitespace can still slugify to ""
+        # (e.g. emoji/punctuation-only) -- same AC-6 422, caught before any
+        # DB touch so it never reaches the `projects` table's CHECK(slug <> '').
         raise HTTPException(status_code=422, detail={"error": "validation_error", "field": "name"})
 
-    slug = slugify(body.name)
     async with tenant_connection(principal.tenant_id) as conn:
         existing_iri = await find_existing_project_iri(
             conn, tenant_id=principal.tenant_id, slug=slug
