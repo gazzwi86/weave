@@ -25,6 +25,8 @@ from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.instances import router as instances_router
+from weave_backend.routers.layout import LayoutApiError, layout_api_error_handler
+from weave_backend.routers.layout import router as layout_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
@@ -76,6 +78,7 @@ app.include_router(ontology_router)
 app.include_router(identity_router)
 app.include_router(instances_router)
 app.include_router(search_router)
+app.include_router(layout_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
@@ -92,6 +95,11 @@ app.include_router(request_governance_router)
 # overwrites, it does not chain -- hence the in-handler delegation.
 app.add_exception_handler(RequestValidationError, tasks_validation_error_handler)
 app.add_exception_handler(UnauthorisedError, unauthorised_exception_handler)
+
+# TASK-004: narrow, this-router-only flat-error-body mechanism (see
+# routers/layout.py's module docstring) -- does not affect any other
+# router's existing (nested-under-`detail`) HTTPException behaviour.
+app.add_exception_handler(LayoutApiError, layout_api_error_handler)
 
 assert_all_routes_guarded(app)
 
