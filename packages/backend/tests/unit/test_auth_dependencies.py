@@ -24,11 +24,18 @@ def test_bearer_token_extracts_token_after_prefix() -> None:
 
 
 def test_bearer_token_rejects_missing_header() -> None:
+    """AC-003-07: no-JWT-at-all rejects with the shared `{"error":
+    "unauthorised"}` shape plus a `WWW-Authenticate: Bearer` challenge
+    header -- every route depending on `get_current_principal` gets this
+    for free, including the new CE-READ-1/CE-WRITE-1 routes.
+    """
     request = _request_with_header(None)
 
     with pytest.raises(HTTPException) as exc_info:
         _bearer_token(request)
     assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == {"error": "unauthorised"}  # type: ignore[comparison-overlap]
+    assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
 
 
 def test_bearer_token_rejects_non_bearer_scheme() -> None:
@@ -37,3 +44,5 @@ def test_bearer_token_rejects_non_bearer_scheme() -> None:
     with pytest.raises(HTTPException) as exc_info:
         _bearer_token(request)
     assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == {"error": "unauthorised"}  # type: ignore[comparison-overlap]
+    assert exc_info.value.headers == {"WWW-Authenticate": "Bearer"}
