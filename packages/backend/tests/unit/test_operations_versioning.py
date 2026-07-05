@@ -120,3 +120,35 @@ async def test_publish_version_missing_row_raises_version_not_found(
         await versioning.publish_version(
             conn, tenant_id="t1", workspace_id="w1", version_iri="v1"
         )
+
+
+async def test_list_versions_defaults_to_including_drafts() -> None:
+    """AC-003-03: the SQL default is permissive -- the router, not this
+    function, decides who is allowed to see drafts (via `include_drafts`,
+    computed from the caller's real RBAC role).
+    """
+    conn = AsyncMock()
+    conn.fetch.return_value = []
+    conn.fetchrow.return_value = {"total": 0}
+
+    page = versioning.Page(number=1, size=50)
+    await versioning.list_versions(conn, tenant_id="t1", workspace_id="w1", page=page)
+
+    fetch_query = conn.fetch.call_args.args[0]
+    assert "status !=" not in fetch_query
+
+
+async def test_list_versions_excludes_drafts_when_include_drafts_is_false() -> None:
+    conn = AsyncMock()
+    conn.fetch.return_value = []
+    conn.fetchrow.return_value = {"total": 0}
+
+    page = versioning.Page(number=1, size=50)
+    await versioning.list_versions(
+        conn, tenant_id="t1", workspace_id="w1", page=page, include_drafts=False
+    )
+
+    fetch_query = conn.fetch.call_args.args[0]
+    count_query = conn.fetchrow.call_args.args[0]
+    assert "status != 'draft'" in fetch_query
+    assert "status != 'draft'" in count_query

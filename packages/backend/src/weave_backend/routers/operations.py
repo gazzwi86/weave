@@ -16,10 +16,12 @@ from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import outbox
+from weave_backend.operations.guards import SpikeWriteBackForbidden, assert_not_spike_write_back
 from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
     InvalidTargetError,
+    PublishedTargetError,
     apply_operations_request,
 )
 from weave_backend.rbac import InsufficientRole, enforce_workspace_role
@@ -97,6 +99,16 @@ async def _reject_foreign_target(
 async def _run_apply(
     conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, body: ApplyRequest
 ) -> _ApplyOutcome:
+    # XT-002 / ADR-003: cheapest check first -- a spike run never gets to
+    # write back, regardless of role or target, so reject before any DB
+    # round trip.
+    try:
+        assert_not_spike_write_back(body.run_mode)
+    except SpikeWriteBackForbidden as exc:
+        raise HTTPException(
+            status_code=403, detail={"error": "spike_write_back_forbidden"}
+        ) from exc
+
     workspace = await get_workspace(
         conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
     )
@@ -127,6 +139,13 @@ async def _run_apply(
         raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
     except ForeignTargetError:
         return await _reject_foreign_target(conn, principal=principal, target=body.target)
+    except PublishedTargetError as exc:
+        # AC-003-13: the target names a real, already-published version --
+        # published versions are immutable, so this is a conflict, not a
+        # forgery (that's ForeignTargetError) or a bad request.
+        raise HTTPException(
+            status_code=409, detail={"error": "target_version_published"}
+        ) from exc
     except TimeoutError as exc:
         # Another caller holds this idempotency key's lock and never
         # finished (e.g. its process crashed) -- a clean 409 beats an

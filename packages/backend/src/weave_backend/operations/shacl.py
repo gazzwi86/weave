@@ -36,6 +36,15 @@ def _load_shapes_graph() -> Graph:
     return _shapes_graph_cache
 
 
+def shapes_graph() -> Graph:
+    """Public accessor for the cached framework shapes graph -- lets other
+    modules (e.g. `ontology/catalogue.py`'s CE-READ-1 kind/relationship
+    introspection) share the same lazily-loaded cache instead of re-parsing
+    `framework.shacl.ttl` themselves.
+    """
+    return _load_shapes_graph()
+
+
 def reset_shapes_cache_for_tests() -> None:
     """Test-only hook: forces the next `validate_graph` call to reload the
     shapes file from disk, so shape-file edits are picked up between tests.

@@ -59,3 +59,51 @@ class VersionsQueryParams(BaseModel):
     workspace_id: str | None = None
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=50, ge=1, le=200)
+
+
+class PropertyShapeModel(BaseModel):
+    """AC-003-01: one SHACL `sh:property` shape, introspected live from the
+    shapes graph -- see `ontology/catalogue.py`.
+    """
+
+    path: str
+    name: str
+    is_relationship: bool
+    min_count: int | None
+    max_count: int | None
+    severity: str
+
+
+class KindEntry(BaseModel):
+    iri: str
+    label: str
+    properties: list[PropertyShapeModel]
+
+
+class OntologyTypesResponse(BaseModel):
+    kinds: list[KindEntry]
+    relationships: list[PropertyShapeModel]
+
+
+class OutgoingEdgeModel(BaseModel):
+    predicate: str
+    target: str
+
+
+class IncomingEdgeModel(BaseModel):
+    predicate: str
+    source: str
+
+
+class ResourceResponse(BaseModel):
+    """AC-003-02: a single resource's triples + edges, resolved inside one
+    version's named graph -- see `ontology/resource.py`.
+    """
+
+    iri: str
+    kind: str | None
+    label: str
+    version_iri: str
+    triples: list[TripleModel]
+    outgoing: list[OutgoingEdgeModel]
+    incoming: list[IncomingEdgeModel]
