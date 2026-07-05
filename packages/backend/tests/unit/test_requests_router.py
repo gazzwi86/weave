@@ -122,6 +122,22 @@ async def test_get_request_route_404_when_missing() -> None:
     assert exc_info.value.detail == {"error": "not_found"}  # type: ignore[comparison-overlap]
 
 
+def test_create_request_body_rejects_malformed_run_mode_type() -> None:
+    """QA edge case: a malformed intake body (e.g. a client bug sending
+    ``run_mode`` as a JSON array/number instead of a string) must fail
+    Pydantic's own field-type validation at the trust boundary -- before
+    ever reaching this router's hand-rolled allowed-set check.
+    """
+    from pydantic import ValidationError
+
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    with pytest.raises(ValidationError):
+        CreateRequestBody.model_validate(
+            {"prompt": "build a widget", "run_mode": ["not", "a", "string"]}
+        )
+
+
 async def test_get_request_route_returns_record() -> None:
     record = RequestRecord(
         request_id="r1",

@@ -8,10 +8,12 @@ asyncpg).
 from __future__ import annotations
 
 import json
-from typing import Any
+from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 import pytest
 
+from weave_backend.requests import store as store_module
 from weave_backend.requests.store import (
     RequestRecord,
     create_request_record,
@@ -128,3 +130,49 @@ async def test_subscribe_events_stops_at_done_even_with_trailing_entries(
     events = [event async for event in subscribe_events(redis_client, "r1")]  # type: ignore[arg-type]
 
     assert events == [{"done": True}]
+
+
+async def test_subscribe_events_stops_cleanly_when_consumer_disconnects_mid_stream(
+    redis_client: _FakeRedis,
+) -> None:
+    """QA edge case: a client that walks away mid-stream (closed tab, dropped
+    connection) must not leave the generator in a broken state or raise --
+    ``GET .../stream``'s ``StreamingResponse`` calls ``aclose()`` on the
+    async generator as soon as the HTTP connection drops, before a `done`
+    event is ever seen.
+    """
+    await publish_event(redis_client, "r1", {"section": "brief", "content": "x", "done": False})  # type: ignore[arg-type]
+    await publish_event(redis_client, "r1", {"section": "prd", "content": "y", "done": False})  # type: ignore[arg-type]
+
+    # subscribe_events is annotated `AsyncIterator` (the abstract read
+    # surface callers need) but is actually implemented as an async
+    # generator -- `.aclose()` is a real runtime method the production
+    # StreamingResponse also relies on when a client disconnects.
+    gen = cast(
+        "AsyncGenerator[dict[str, Any], None]",
+        subscribe_events(redis_client, "r1"),  # type: ignore[arg-type]
+    )
+    first = await gen.__anext__()
+    assert first["section"] == "brief"
+
+    await gen.aclose()  # simulate the client disconnecting after one event
+
+    with pytest.raises(StopAsyncIteration):
+        await gen.__anext__()
+
+
+async def test_subscribe_events_gives_up_after_deadline_when_no_more_events_arrive(
+    redis_client: _FakeRedis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA edge case: the events list expires (TTL) -- or the drafting
+    pipeline died -- before a `done: true` event is ever published. The
+    poll loop's safety valve (`_MAX_WAIT_SECONDS`) must still return instead
+    of polling forever.
+    """
+    monkeypatch.setattr(store_module, "_MAX_WAIT_SECONDS", 0.05)
+    monkeypatch.setattr(store_module, "_POLL_INTERVAL_SECONDS", 0.01)
+    await publish_event(redis_client, "r1", {"section": "brief", "content": "x", "done": False})  # type: ignore[arg-type]
+
+    events = [event async for event in subscribe_events(redis_client, "r1")]  # type: ignore[arg-type]
+
+    assert events == [{"section": "brief", "content": "x", "done": False}]
