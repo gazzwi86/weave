@@ -58,6 +58,9 @@ def test_mixed_violation_and_warning_in_same_graph_both_surface() -> None:
 def test_conforming_graph_has_no_violations() -> None:
     graph = Graph()
     graph.add((EX.actor1, RDF.type, WEAVE.Actor))
+    # TASK-004 AC-004-05: ActorShape now requires a label too, same as
+    # every other BPMO kind -- a real add_node always sets one.
+    graph.add((EX.actor1, WEAVE.label, Literal("Billing Team", datatype=XSD.string)))
     graph.add((EX.proc1, RDF.type, WEAVE.Process))
     graph.add((EX.proc1, WEAVE.label, Literal("Invoicing", datatype=XSD.string)))
     graph.add((EX.proc1, WEAVE.performedBy, EX.actor1))

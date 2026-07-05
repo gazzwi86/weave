@@ -1,9 +1,12 @@
 # CE-TASK-001: core subset of the framework SHACL shapes, ported from the
 # `docs/standards/patterns/semantic-web/shacl-shape.md` pattern (ProcessShape)
 # plus two more BPMO kinds (Activity, Goal) to exercise all three SHACL
-# severities. The full 13-kind BPMO ships in CE-TASK-004 -- this subset only
-# needs to make the validation *pipeline* (this task's actual scope)
-# demonstrably real. Lives in `urn:weave:g:framework` (loaded at startup).
+# severities. TASK-004 AC-004-05 adds the remaining 10 BPMO kinds as
+# minimal label-only shapes -- CE-READ-1 (`GET /api/ontology/types`, via
+# `ontology/catalogue.py::list_kinds`) introspects this file live, so every
+# one of the 13 BPMO kinds (`authoring/bpmo.py::BPMO_KINDS`) needs a shape
+# here to appear as a guided-form option. Lives in `urn:weave:g:framework`
+# (loaded at startup).
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix weave: <https://weave.io/ontology/> .
@@ -66,4 +69,152 @@ weave:GoalShape
         sh:minCount 1 ;
         sh:severity sh:Info ;
         sh:message "Consider linking a BusinessCapability that servesGoal this Goal."@en ;
+    ] .
+
+# TASK-004 AC-004-05: remaining 11 BPMO kinds, label-only shapes -- same
+# pattern as ProcessShape/ActivityShape/GoalShape's label property. No
+# second (relationship/warning/info) property is added for these: nothing
+# in this task's scope needs one, and a speculative one would be an
+# untested, unenforced guess at each kind's real shape.
+weave:EventShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Event ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Event must have exactly one string label."@en ;
+    ] .
+
+weave:DataAssetShape
+    a sh:NodeShape ;
+    sh:targetClass weave:DataAsset ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every DataAsset must have exactly one string label."@en ;
+    ] .
+
+weave:FieldShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Field ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Field must have exactly one string label."@en ;
+    ] .
+
+weave:SystemShape
+    a sh:NodeShape ;
+    sh:targetClass weave:System ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every System must have exactly one string label."@en ;
+    ] .
+
+weave:ServiceShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Service ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Service must have exactly one string label."@en ;
+    ] .
+
+weave:BusinessCapabilityShape
+    a sh:NodeShape ;
+    sh:targetClass weave:BusinessCapability ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every BusinessCapability must have exactly one string label."@en ;
+    ] .
+
+weave:BusinessDomainShape
+    a sh:NodeShape ;
+    sh:targetClass weave:BusinessDomain ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every BusinessDomain must have exactly one string label."@en ;
+    ] .
+
+weave:PolicyShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Policy ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Policy must have exactly one string label."@en ;
+    ] .
+
+weave:ActorShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Actor ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Actor must have exactly one string label."@en ;
+    ] .
+
+weave:ConceptShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Concept ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Concept must have exactly one string label."@en ;
+    ] .
+
+weave:ClassShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Class ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Class must have exactly one string label."@en ;
     ] .
