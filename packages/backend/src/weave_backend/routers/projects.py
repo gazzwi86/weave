@@ -4,10 +4,13 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
@@ -37,6 +40,31 @@ def _project_exists_response(existing_iri: str) -> HTTPException:
     return HTTPException(
         status_code=409, detail={"error": "project_exists", "existing_iri": existing_iri}
     )
+
+
+async def projects_validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Normalises `/api/projects`' 422 body to AC-6's `{"error":
+    "validation_error", "field": <name>}` shape. Without this, a request
+    that fails Pydantic validation before the route body runs (e.g. `name`
+    over `max_length`) gets FastAPI's default `{"detail": [...]}` list --
+    a different shape than this router's own hand-raised 422s. Scoped to
+    this router's path prefix only; every other endpoint keeps the default.
+
+    `exc` is typed `Exception` (not `RequestValidationError`) to match
+    Starlette's `add_exception_handler` signature exactly -- it is always
+    a `RequestValidationError` in practice, since that's the only type this
+    handler is registered for (see `weave_backend/__init__.py`).
+    """
+    validation_exc = cast("RequestValidationError", exc)
+    if not request.url.path.startswith(router.prefix):
+        return await request_validation_exception_handler(request, validation_exc)
+    errors = validation_exc.errors()
+    field = str(errors[0]["loc"][-1]) if errors else "unknown"
+    # Wrapped under "detail" to match the body shape of every HTTPException
+    # this router raises directly (Starlette always nests HTTPException's
+    # `detail` under that key) -- so a client sees one consistent envelope.
+    detail = {"error": "validation_error", "field": field}
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 
 @router.post("", status_code=201, response_model=CreateProjectResponse)
