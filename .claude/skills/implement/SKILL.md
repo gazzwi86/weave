@@ -385,6 +385,47 @@ When `phase-check` returns COMPLETE:
 
 10. Loop back to Step 3 for next phase's tasks
 
+### Parallel epic lanes (Advisor-Consult: ADV-004)
+
+When the current phase's ready-set contains more than one unblocked task from **different epics**,
+the coordinator MAY run those epics as concurrent lanes. Governed by ADV-004; every rule below is
+load-bearing:
+
+- **Scope: current phase only.** Lanes draw exclusively from the current phase's ready-set. Work
+  in a later engine/phase requires explicit per-instance human opt-in (an AskUserQuestion answer
+  or an explicit user instruction recorded in the session). Every engine phase gate still fires,
+  in order — nothing merges past an unapproved gate.
+- **Cap:** at most 3 concurrent lanes. The /goal budget is per-lane (60 turns) with a global
+  3 x 60 cap across lanes.
+- **Isolation:** each concurrent epic gets its own git worktree + `feature/{EPIC_ID}` branch.
+  Within-epic tasks remain strictly sequential on that branch (unchanged). The coordinator's
+  primary checkout hosts at most one lane.
+- **State discipline:** `.claude/state/**` is read, written, and committed ONLY by the coordinator
+  from its primary checkout (state commits ride the coordinator's current branch, as today). Lane
+  subagents NEVER run `progress.sh update` and NEVER commit `.claude/state/**` onto lane branches.
+  The coordinator writes `summaries/{TASK_ID}.md` from lane-reported content.
+- **Sibling PRs (bounded Law D exception):** the default remains chain-stacking. Two epics may
+  open sibling PRs off the same parent ONLY when the dependency graph has no path between them;
+  record that condition in each PR body. Merge siblings one at a time, restacking between merges.
+  While siblings are open, invoke `restack.sh` with explicit branch arguments matching the real
+  topology (siblings rebase onto main/parent, never onto each other) — bare no-args discovery
+  mode assumes a linear chain and MUST NOT be used with siblings open.
+- **Docker/port isolation:** each docker-using lane needs its own `COMPOSE_PROJECT_NAME` and
+  port block (covering compose services AND ui_verify/dev-server ports). **Interim rule:** until
+  the compose port-parameterization PR (`chore/parallel-lane-compose-isolation`) merges, at most
+  ONE lane may use the shared docker stack at a time.
+- **Migration numbers:** pre-assigned per lane by the coordinator before delegation; gaps left by
+  an aborted lane are permanent — never renumber.
+- **Ledger assignment:** the coordinator assigns each open QA-ledger finding to at most one lane;
+  a lane's epic-close remediation (CODIFY step 17) touches only findings assigned to it.
+- **Resume (extends Step 1.0):** with multiple `in_progress` tasks, each is its own lane resume
+  point — resume a crashed lane in its EXISTING worktree (do not recreate). Remove the worktree
+  and `git worktree prune` after the epic's PR merges.
+- **Escalations serialized:** a lane blocked on HITL pauses only itself, but no NEW lane starts
+  while any escalation is pending. The coordinator presents escalations one at a time.
+- **Lane log:** the coordinator keeps the lane assignment table (epic / worktree path / port
+  block / docker slot / migration numbers) in the session scratchpad — never in committed state.
+
 ### State Management
 
 - Progress tracking via `bash .claude/scripts/progress.sh` (kanban, ready, update, phase-check)
