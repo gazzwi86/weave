@@ -374,6 +374,66 @@ async def test_sign_off_pending_approvals_when_not_all_approved_unit() -> None:
     assert result.remaining == ["urn:weave:principal:user:u-3"]
 
 
+async def test_sign_off_approves_with_no_extracted_entities_zero_required() -> None:
+    """QA edge case: when the draft mentions no `urn:weave:...` entity IRI at
+    all, `extract_entity_iris` returns `[]`, so `resolve_required_stakeholders`
+    short-circuits to `[]` (ce_read.py's own empty-input guard, never even
+    reaching CE-READ-1) and the approval is accepted immediately -- there is
+    no "required stakeholder" to wait for. This is current, documented
+    (ADR-002) behaviour, not the SPARQL-direction bug already fixed
+    (`hasAuthority` returning `[]` for entities that DO have an authority
+    triple) -- this test pins the distinction so a future change to either
+    code path is a deliberate decision, not an accidental regression.
+    """
+    body = SignOffBody(action="approve")
+    record = _record(draft_content={"brief": "no entity IRIs mentioned here"})
+
+    with (
+        patch(
+            "weave_backend.routers.requests.store.get_request_record",
+            AsyncMock(return_value=record),
+        ),
+        patch(
+            "weave_backend.routers.requests.store.update_request_record", AsyncMock()
+        ) as update_mock,
+        patch(
+            "weave_backend.routers.request_governance.tenant_connection", _fake_tenant_connection
+        ),
+        patch(
+            "weave_backend.routers.request_governance.resolve_cost_cap",
+            AsyncMock(return_value=(25.0, "company")),
+        ),
+        patch("weave_backend.routers.request_governance.record_sign_off", AsyncMock()),
+        patch(
+            "weave_backend.routers.request_governance.get_approved_stakeholder_iris",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "weave_backend.routers.request_governance.find_existing_project_iri",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "weave_backend.routers.request_governance.get_pinned_latest_version",
+            AsyncMock(return_value="urn:weave:version:v1"),
+        ),
+        patch(
+            "weave_backend.routers.request_governance.create_project",
+            AsyncMock(
+                return_value=Project(
+                    project_iri="urn:weave:project:t1:no-entity-request",
+                    name="no entity request",
+                    pinned_graph_version_iri="urn:weave:version:v1",
+                    created_at="2026-07-01T00:00:00Z",  # type: ignore[arg-type]
+                )
+            ),
+        ),
+    ):
+        result = await submit_sign_off_route("r1", body, _OTHER_PRINCIPAL, httpx.AsyncClient())
+
+    assert result.status == "approved"
+    update_mock.assert_awaited_once()
+
+
 def test_project_exists_reuses_deterministic_iri() -> None:
     """ponytail: one runnable check on `ProjectExists`'s deterministic-IRI
     contract this module leans on in `_auto_create_project`.

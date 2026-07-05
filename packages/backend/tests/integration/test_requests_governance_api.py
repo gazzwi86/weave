@@ -25,6 +25,7 @@ from httpx import ASGITransport, AsyncClient
 
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
+from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
@@ -232,5 +233,52 @@ async def test_sign_off_pending_approvals_when_not_all_approved(
         )
         assert second_response.status_code == 200
         assert second_response.json() == first_body
+    finally:
+        await clear_graph(named_graph)
+
+
+async def test_request_sign_offs_rls_tenant_b_cannot_read_tenant_a(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case (migration 0011): `request_sign_offs` carries the same
+    `FORCE ROW LEVEL SECURITY` + `tenant_isolation` policy shape as
+    `projects` (0009) -- proven the same way as
+    `test_projects_api.py::test_project_rls_tenant_b_cannot_read_tenant_a`:
+    a raw, unfiltered `SELECT` scoped only by tenant B's `app.tenant_id`
+    session setting must never see tenant A's sign-off row.
+    """
+    tenant_a = _unique_tenant("tenant-signoff-rls-a")
+    tenant_b = _unique_tenant("tenant-signoff-rls-b")
+    entity_iri = f"urn:weave:entity:svc-{uuid.uuid4().hex[:8]}"
+    stakeholder_iri = human_principal_iri("u-2")
+    named_graph = f"urn:weave:test-graph:{uuid.uuid4().hex[:8]}"
+
+    await load_graph(
+        named_graph, f"<{stakeholder_iri}> <urn:weave:bpmo:hasAuthority> <{entity_iri}> .\n"
+    )
+    try:
+        request_id = await _create_and_complete_draft(
+            client, tenant_id=tenant_a, entity_iri=entity_iri
+        )
+        approver_tokens = await issue_token_pair(sub="u-2", tenant_id=tenant_a)
+        approver_headers = {"Authorization": f"Bearer {approver_tokens.access_token}"}
+
+        response = await client.post(
+            f"/api/requests/{request_id}/sign-off",
+            json={"action": "approve"},
+            headers=approver_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "approved"
+
+        async with tenant_connection(tenant_a) as conn:
+            own_rows = await conn.fetch(
+                "SELECT stakeholder_iri FROM request_sign_offs WHERE request_id = $1", request_id
+            )
+        assert len(own_rows) == 1
+
+        async with tenant_connection(tenant_b) as conn:
+            cross_tenant_rows = await conn.fetch("SELECT stakeholder_iri FROM request_sign_offs")
+        assert cross_tenant_rows == []
     finally:
         await clear_graph(named_graph)
