@@ -96,7 +96,7 @@
     {
       "id": "BE-EPIC-005",
       "title": "BE-EPIC-005",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-EPIC-001",
@@ -388,7 +388,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-005",
       "title": "Task-Brief Schema & Architect Agent Generation (FR-018)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-002.md"
     },
@@ -397,7 +397,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-001",
       "title": "Request Studio: Intake Form & AI Spec Drafting (E1-S1)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-003.md"
     },

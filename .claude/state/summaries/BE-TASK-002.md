@@ -2,7 +2,20 @@
 
 **Epic:** BE-EPIC-005 · **Branch:** `feature/BE-EPIC-005` · **Status:** implemented, QA in progress
 **Commits:** `02a93c6` test · `ffc66b1` feat
-**Coverage:** 90% on new modules · **Tests:** 22 (17 unit + 5 docker integration)
+**Coverage:** 91% on new modules · **Tests:** 22 + QA edge cases (`20add4c`) · **Status:** QA PASS (1 retry)
+**Fix commit:** `eb260c4` (AC-6 audit emit on routing-miss + AC-1 XL complexity)
+
+## QA outcome (retry 1/3, logic)
+
+4/6 ACs passed first pass; RLS tenant-isolation proven real against a live Postgres container; both
+deviations (TEXT PK, `ai.router.route()`) judged sound and tenancy-preserving. **2 blocking gaps fixed
+in `eb260c4`:** (1) AC-6 — the `ModelRoutingMiss` handler halted but never emitted the required
+PLAT-AUDIT-1 event (observability hole); now emits, matching the success path. (2) AC-1 —
+`CostEstimate.complexity` Literal dropped `"XL"` (pseudocode lists 4); added. Both QA proof tests
+(`20add4c`) green; fast lane 262 passed, ruff/mypy clean. **Forward-looking XT-003 logged:**
+CE-READ-1 grounding forwards no tenant/auth context (cross-tenant risk once CE-READ-1 ships).
+**Minor WARN:** this summary lacks an explicit "Assumptions Made" header (content covered under
+Decisions); `schema_version: str` not `Literal["1.0"]` (no AC requires it).
 
 > Authored by the coordinator from the lane's completion receipt. Under ADV-004 parallel-lane
 > discipline, lane subagents never write `.claude/state/**`; the coordinator owns state, so this

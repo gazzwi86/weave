@@ -4,7 +4,8 @@
 **Commits:** `3c0b45e` test (RED) · `0bdf606` feat (GREEN) · `279ca01` docs (ADR-001)
 **Coverage:** 97% pipeline/store (independently re-measured), router/schemas 87/100% (corroborated)
 **Tests:** 265 non-docker + 3 docker green + QA edge cases `97907bb` · **Migration:** none needed
-**Status:** QA FAIL → fix in progress (AC-5 shared-auth 401 contract, retry 1/3)
+**Status:** QA PASS (2 retries) — AC-5 shared-auth 401 contract fixed · epic needs BE-004 for PR
+**Fix commits:** `0064eea` (header + generic-token → unauthorised) · `9961c85` (top-level body via handler)
 
 > Coordinator-authored from the lane receipt (ADV-004: lanes never write `.claude/state/**`).
 

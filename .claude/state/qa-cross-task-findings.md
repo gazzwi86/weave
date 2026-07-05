@@ -10,7 +10,11 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 
 ## XT-001 — 401 auth-error contract mismatch (shared dependency)
 
-- **Severity:** Major · **Status:** IN-PROGRESS (fix dispatched on `feature/BE-EPIC-001`)
+- **Severity:** Major · **Status:** RESOLVED on `feature/BE-EPIC-001` (`0064eea` + `9961c85`) — lands on
+  main when BE-EPIC-001 merges, retroactively closing BE-TASK-001's AC-3. Fix: custom `UnauthorisedError`
+  + `unauthorised_exception_handler` (JSONResponse) → top-level `{"error":"unauthorised"}` +
+  `Www-Authenticate: Bearer`; `token_ttl_exceeded`/`session_revoked` left on their own contracts. Full
+  backend suite green, no other router regressed.
 - **Affects:** BE-TASK-001 (AC-3), BE-TASK-003 (AC-5) — same literal AC wording, same shared code.
 - **Found by:** BE-TASK-003 QA (live in-process app verification, not test-suite self-report).
 - **Symptom:** unauthenticated request returns `{"detail": "missing bearer token"}` with no
