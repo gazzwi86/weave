@@ -23,6 +23,7 @@ import time
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 import jwt
 import pytest
@@ -35,8 +36,12 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.keys import KEY_ID, PRIVATE_KEY
 from weave_backend.mock_oidc.tokens import ISSUER, issue_token_pair
+from weave_backend.operations import pipeline
+from weave_backend.operations.idempotency import release_lock, try_acquire_lock
+from weave_backend.operations.provenance import prov_graph_iri
 from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
 from weave_backend.tenancy.members import activate_member, invite_member
+from weave_backend.tenancy.sessions import get_redis
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
 
 WEAVE = Namespace("https://weave.io/ontology/")
@@ -134,17 +139,21 @@ async def test_valid_mutation_commits_new_version_and_reflects_in_the_graph(
 
         async with tenant_connection(tenant_id) as conn:
             rows = await conn.fetch(
-                "SELECT event_type, target_iri, diff_summary FROM audit_entries"
+                "SELECT event_type, engine, target_iri, diff_summary FROM audit_entries"
                 " WHERE tenant_id = $1",
                 tenant_id,
             )
         assert len(rows) == 1
         assert rows[0]["event_type"] == "operations.applied"
+        # PR #20 finding 3: every CE-emitted audit entry must be attributed
+        # to the emitting engine, not the "platform" default.
+        assert rows[0]["engine"] == "constitution"
         assert rows[0]["target_iri"] == body["version_iri"]
         diff_summary = json.loads(rows[0]["diff_summary"])
         assert diff_summary["target_graph_iri"] == workspace.named_graph_iri
         assert diff_summary["activity_iri"] == body["activity_iri"]
         assert diff_summary["applied_count"] == 3
+        assert diff_summary["claimed_actor_iri"] == "urn:weave:principal:test-actor"
     finally:
         await clear_graph(workspace.named_graph_iri)
 
@@ -339,7 +348,11 @@ async def test_read_only_role_gets_403_not_write_access(
         rows = await conn.fetch(
             "SELECT event_type FROM audit_entries WHERE tenant_id = $1", tenant_id
         )
-    assert rows[0]["event_type"] == "security.rbac.denied"
+    # PR #20 finding 4: a routine RBAC denial isn't `security.*` -- that
+    # prefix fans out an admin alert for every hit, which a read-only
+    # member hitting a write route doesn't warrant. The audit entry itself
+    # is still mandatory.
+    assert rows[0]["event_type"] == "access.rbac.denied"
 
 
 async def test_forged_cross_tenant_target_is_rejected(
@@ -416,3 +429,122 @@ async def test_malformed_target_string_still_returns_400_no_audit(
             "SELECT event_type FROM audit_entries WHERE tenant_id = $1", tenant_id
         )
     assert rows == []
+
+
+async def test_recorded_actor_is_the_authenticated_principal_even_when_body_names_someone_else(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #20 finding 1: `actor` in the request body is client-supplied and
+    must never be trusted as the audit/PROV actor -- only the JWT-
+    authenticated principal is. Post with a spoofed `actor` and confirm both
+    the audit entry and the PROV activity record the real principal, with
+    the spoofed value kept only as secondary context in the audit payload.
+    """
+    tenant_id = _unique_tenant("ops-spoof")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+    real_principal = "urn:weave:principal:user:u-author"
+    spoofed_actor = "urn:weave:principal:user:someone-else-entirely"
+
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": spoofed_actor},
+            headers=headers,
+        )
+        assert response.status_code == 201
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT actor_principal_iri, diff_summary FROM audit_entries"
+                " WHERE tenant_id = $1 AND event_type = 'operations.applied'",
+                tenant_id,
+            )
+        assert rows[0]["actor_principal_iri"] == real_principal
+        diff_summary = json.loads(rows[0]["diff_summary"])
+        assert diff_summary["claimed_actor_iri"] == spoofed_actor
+
+        prov_turtle = await fetch_graph_turtle(prov_graph_iri(workspace.named_graph_iri))
+        assert real_principal in prov_turtle
+        assert spoofed_actor not in prov_turtle
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_idempotent_replay_of_a_violating_batch_returns_422_both_times(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #20 finding 2a: a violating batch's outcome must be cached too --
+    the second POST with the same idempotency key replays the same 422, not
+    a 500 (previously only `ApplyResponse` outcomes were cached, so a
+    replayed violation had nothing valid to reconstruct).
+    """
+    tenant_id = _unique_tenant("ops-idem-422")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+    idempotency_key = f"idem-422-{uuid.uuid4().hex}"
+    payload = {
+        "operations": [{"op": "add_node", "ref": "p1", "kind": "Process", "label": "Invoicing"}],
+        "actor": "urn:weave:principal:test-actor",
+        "idempotency_key": idempotency_key,
+    }
+
+    first = await client.post("/api/operations/apply", json=payload, headers=headers)
+    second = await client.post("/api/operations/apply", json=payload, headers=headers)
+
+    assert first.status_code == 422
+    assert second.status_code == 422
+    assert first.json() == second.json()
+
+
+async def test_slow_concurrent_holder_returns_409_not_500(
+    client: AsyncClient, platform_stack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PR #20 finding 2b: a caller racing an idempotency key whose lock is
+    held but never released (e.g. the first caller's process crashed) must
+    see a 409, not a raw 500 from an unhandled `TimeoutError`. Poll window
+    shrunk here for a fast test -- production aligns it to the lock TTL
+    (`pipeline.py` module docstring).
+    """
+    monkeypatch.setattr(pipeline, "_POLL_ATTEMPTS", 3)
+    monkeypatch.setattr(pipeline, "_POLL_INTERVAL_SECONDS", 0.01)
+
+    tenant_id = _unique_tenant("ops-stuck-lock")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+    idempotency_key = f"stuck-{uuid.uuid4().hex}"
+
+    # `redis.Redis` doesn't structurally match the `RedisLike` Protocol under
+    # mypy (same reason `pipeline.py` types this `Any`); it's the real client
+    # at runtime, which is what matters here.
+    redis_client: Any = get_redis()
+    assert await try_acquire_lock(redis_client, tenant_id, idempotency_key)
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={
+                "operations": _valid_operations(),
+                "actor": "urn:weave:principal:test-actor",
+                "idempotency_key": idempotency_key,
+            },
+            headers=headers,
+        )
+        assert response.status_code == 409
+        assert response.json()["detail"]["error"] == "concurrent_apply_in_progress"
+    finally:
+        await release_lock(redis_client, tenant_id, idempotency_key)

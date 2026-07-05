@@ -1,9 +1,12 @@
 """CE-TASK-001 unit tests: rollback/atomicity guarantee (AC-001-10).
 
 Mocks the Oxigraph HTTP boundary directly (no docker) -- proves a failure
-at each stage of clone->apply->validate->commit either never touches the
-working graph, or fails *before* the working-graph PUT (which
-`pipeline._commit` always issues last).
+at any failable step (version-graph snapshot, PROV activity, audit entry)
+either never touches the working graph, or fails *before* the
+working-graph promotion PUT, which `pipeline._apply_uncached` always
+issues last, after `_commit` has run everything failable (PR #20 finding:
+audit-emit/write_activity used to run *after* promotion, risking store/
+registry divergence on failure).
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from weave_backend.schemas.operations import (
 )
 
 WORKING_GRAPH = "urn:weave:tenant:t1:ws:w1"
+AUTHENTICATED_PRINCIPAL = "urn:weave:principal:user:u-real"
 CANARY_TURTLE = (
     '<https://weave.io/instances/pre-existing> <https://weave.io/ontology/label> "untouched" .'
 )
@@ -31,7 +35,11 @@ CANARY_TURTLE = (
 @pytest.fixture
 def ctx() -> pipeline.ApplyContext:
     return pipeline.ApplyContext(
-        tenant_id="t1", workspace_id="w1", named_graph_iri=WORKING_GRAPH, conn=AsyncMock()
+        tenant_id="t1",
+        workspace_id="w1",
+        named_graph_iri=WORKING_GRAPH,
+        conn=AsyncMock(),
+        principal_iri=AUTHENTICATED_PRINCIPAL,
     )
 
 
@@ -156,6 +164,10 @@ async def test_failure_promoting_working_graph_leaves_it_at_pre_request_state(
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
     )
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
+    )
+    monkeypatch.setattr(pipeline, "default_audit_emitter", AsyncMock())
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
 
     with pytest.raises(ConnectionError):
@@ -166,3 +178,89 @@ async def test_failure_promoting_working_graph_leaves_it_at_pre_request_state(
     second_target = load_graph_spy.call_args_list[1].args[0]
     assert first_target != WORKING_GRAPH
     assert second_target == WORKING_GRAPH
+
+
+async def test_failure_writing_prov_activity_leaves_working_graph_unpromoted(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """PR #20 finding 7: `write_activity` used to run *after* the
+    working-graph promotion PUT -- a failure here would have left the
+    mutation live in the working graph with no PROV record and no way to
+    roll it back. It must now run, and fail, before promotion is ever
+    attempted."""
+    load_graph_spy = AsyncMock()
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
+    )
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(side_effect=ConnectionError("oxigraph unreachable"))
+    )
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    with pytest.raises(ConnectionError):
+        await pipeline.apply_operations_request(ctx, _valid_request(), redis_client=None)
+
+    # Only the version-graph snapshot PUT happened; promotion never ran.
+    load_graph_spy.assert_called_once()
+    assert load_graph_spy.call_args.args[0] != WORKING_GRAPH
+
+
+async def test_failure_emitting_audit_entry_leaves_working_graph_unpromoted(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """PR #20 finding 7: same divergence risk for the audit-emit call --
+    it must also run, and fail, before promotion."""
+    load_graph_spy = AsyncMock()
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
+    )
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
+    )
+    audit_emitter = AsyncMock()
+    audit_emitter.emit.side_effect = ConnectionError("audit store unreachable")
+    monkeypatch.setattr(pipeline, "default_audit_emitter", audit_emitter)
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    with pytest.raises(ConnectionError):
+        await pipeline.apply_operations_request(ctx, _valid_request(), redis_client=None)
+
+    load_graph_spy.assert_called_once()
+    assert load_graph_spy.call_args.args[0] != WORKING_GRAPH
+
+
+async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """PR #20 finding 1 (spoofable attribution): `ApplyRequest.actor` is a
+    client-supplied body field -- a caller could name anyone as `actor`.
+    PROV attribution and the audit entry must record the JWT-authenticated
+    principal (`ctx.principal_iri`) instead; the claimed actor is only kept
+    as secondary context in the audit payload.
+    """
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
+    )
+    write_activity_spy = AsyncMock(return_value="urn:weave:instances:activity-1")
+    monkeypatch.setattr(pipeline, "write_activity", write_activity_spy)
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    audit_emitter = AsyncMock()
+    monkeypatch.setattr(pipeline, "default_audit_emitter", audit_emitter)
+
+    request = ApplyRequest(
+        operations=[AddNodeOp(op="add_node", ref="a1", kind="Actor", label="Billing Team")],
+        actor="urn:weave:principal:spoofed-someone-else",
+    )
+
+    await pipeline.apply_operations_request(ctx, request, redis_client=None)
+
+    assert write_activity_spy.call_args.kwargs["actor_iri"] == AUTHENTICATED_PRINCIPAL
+    emitted_event = audit_emitter.emit.call_args.args[1]
+    assert emitted_event.actor_iri == AUTHENTICATED_PRINCIPAL
+    assert emitted_event.payload["claimed_actor_iri"] == "urn:weave:principal:spoofed-someone-else"

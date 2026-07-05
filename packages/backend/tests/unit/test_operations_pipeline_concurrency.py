@@ -18,7 +18,13 @@ import pytest
 
 from weave_backend.operations import metrics as ops_metrics
 from weave_backend.operations import pipeline
-from weave_backend.schemas.operations import AddNodeOp, ApplyRequest, ApplyResponse
+from weave_backend.operations.idempotency import try_acquire_lock
+from weave_backend.schemas.operations import (
+    AddNodeOp,
+    ApplyRequest,
+    ApplyResponse,
+    ViolationsResponse,
+)
 
 WORKING_GRAPH = "urn:weave:tenant:t1:ws:w1"
 
@@ -55,7 +61,11 @@ class FakeRedis:
 @pytest.fixture
 def ctx() -> pipeline.ApplyContext:
     return pipeline.ApplyContext(
-        tenant_id="t1", workspace_id="w1", named_graph_iri=WORKING_GRAPH, conn=AsyncMock()
+        tenant_id="t1",
+        workspace_id="w1",
+        named_graph_iri=WORKING_GRAPH,
+        conn=AsyncMock(),
+        principal_iri="urn:weave:principal:user:u-real",
     )
 
 
@@ -95,3 +105,52 @@ async def test_concurrent_replays_apply_the_mutation_exactly_once(
     assert isinstance(first, ApplyResponse)
     assert isinstance(second, ApplyResponse)
     assert first == second
+
+
+async def test_concurrent_replays_of_a_violating_batch_return_422_not_500(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """PR #20 finding 2a: only `ApplyResponse` outcomes were cached, so a
+    concurrent replay of a *violating* batch had nothing valid to replay --
+    the losing caller would poll, find a cache entry it couldn't
+    reconstruct as `ApplyResponse`, and 500. Violations must be cached too,
+    and reconstructed as `ViolationsResponse` on replay.
+    """
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    redis_client = FakeRedis()
+    request = ApplyRequest(
+        # Process with no `performedBy` -- trips a Violation, no commit.
+        operations=[AddNodeOp(op="add_node", ref="p1", kind="Process", label="Invoicing")],
+        actor="urn:weave:principal:test",
+        idempotency_key="concurrent-violation-key",
+    )
+
+    first, second = await asyncio.gather(
+        pipeline.apply_operations_request(ctx, request, redis_client),
+        pipeline.apply_operations_request(ctx, request, redis_client),
+    )
+
+    assert isinstance(first, ViolationsResponse)
+    assert isinstance(second, ViolationsResponse)
+
+
+async def test_slow_concurrent_holder_raises_timeout_not_a_malformed_response(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """PR #20 finding 2b: if the first caller's lock is held but it never
+    stores a response (e.g. its process crashed), the second caller must see
+    a clean `TimeoutError` -- the router maps this to 409, not a raw 500.
+    Poll window is aligned to the lock TTL (module docstring); shrink both
+    here for a fast test.
+    """
+    monkeypatch.setattr(pipeline, "_POLL_ATTEMPTS", 3)
+    monkeypatch.setattr(pipeline, "_POLL_INTERVAL_SECONDS", 0.01)
+
+    redis_client = FakeRedis()
+    key = "stuck-lock-key"
+    assert await try_acquire_lock(redis_client, ctx.tenant_id, key)
+
+    with pytest.raises(TimeoutError):
+        await pipeline.apply_operations_request(ctx, _request(key), redis_client)
