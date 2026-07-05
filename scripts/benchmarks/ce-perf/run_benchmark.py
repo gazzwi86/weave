@@ -182,7 +182,21 @@ def _write_batch(batch_idx: int) -> list[dict[str, Any]]:
     return ops
 
 
-async def _bootstrap_workspace(client: AsyncClient, label: str) -> tuple[Any, dict[str, str]]:
+async def _mint_headers(tenant_id: str) -> dict[str, str]:
+    """Mint a fresh bearer token for the bench principal.
+
+    ponytail: mock OIDC access tokens expire after ACCESS_TOKEN_TTL_SECONDS
+    (300s, mirrors real Cognito's minimum per ADR-001). Large corpus sizes
+    push seeding + the write/read loops past that -- so this is called
+    again before each slow phase rather than reusing one token for the
+    whole run. Workspace-switch state lives in the session store keyed by
+    (tenant_id, sub), not in the JWT, so a fresh token needs no re-switch.
+    """
+    tokens = await issue_token_pair(sub="u-bench", tenant_id=tenant_id)
+    return {"Authorization": f"Bearer {tokens.access_token}"}
+
+
+async def _bootstrap_workspace(client: AsyncClient, label: str) -> tuple[Any, str]:
     tenant_id = f"{label}-{uuid.uuid4().hex[:8]}"
     email = "bench@example.invalid"
     async with tenant_connection(tenant_id) as conn:
@@ -193,11 +207,10 @@ async def _bootstrap_workspace(client: AsyncClient, label: str) -> tuple[Any, di
             conn, tenant_id=tenant_id, workspace_id=workspace.id, email=email, role="admin"
         )
         await activate_member(conn, workspace_id=workspace.id, email=email, user_sub="u-bench")
-    tokens = await issue_token_pair(sub="u-bench", tenant_id=tenant_id)
-    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+    headers = await _mint_headers(tenant_id)
     switch = await client.post(f"/api/workspaces/{workspace.id}/switch", headers=headers)
     switch.raise_for_status()
-    return workspace, headers
+    return workspace, tenant_id
 
 
 async def _run_write_bench(client: AsyncClient, headers: dict[str, str]) -> tuple[list[float], str]:
@@ -260,11 +273,16 @@ async def _publish(client: AsyncClient, headers: dict[str, str], version_iri: st
 
 
 async def _benchmark_corpus_size(client: AsyncClient, corpus_size: int) -> dict[str, Any]:
-    workspace, headers = await _bootstrap_workspace(client, f"ceperf-{corpus_size}")
+    workspace, tenant_id = await _bootstrap_workspace(client, f"ceperf-{corpus_size}")
     await load_graph(workspace.named_graph_iri, _seed_turtle(corpus_size))
 
+    # Re-mint before each slow phase -- seeding/writing/reading a large
+    # corpus can each individually approach the 300s mock-token TTL.
+    headers = await _mint_headers(tenant_id)
     write_samples, version_iri = await _run_write_bench(client, headers)
+    headers = await _mint_headers(tenant_id)
     await _publish(client, headers, version_iri)
+    headers = await _mint_headers(tenant_id)
     read_samples = await _run_read_bench(
         client, headers, version_iri, resource_iri="https://weave.io/instances/bench-actor-0"
     )
