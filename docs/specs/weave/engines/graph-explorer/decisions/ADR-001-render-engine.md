@@ -3,7 +3,7 @@ type: Decision
 title: "ADR-001: Graph Explorer render engine — Cytoscape.js + fcose (default, spike-gated)"
 description: "Engine-local decision for the Explorer force-canvas renderer. Defaults to Cytoscape.js + fcose (prototype-proven), pending the TASK-001 10k-node benchmark; names sigma.js/G6 (WebGL) as the contingency and estimates the renderer-swap rework delta on TASK-002..005 (council ENG-3). Disambiguates GE-local OQ-01/OQ-05 from program OQ-01."
 tags: [decision, adr, graph-explorer, rendering, cytoscape, webgl, spike, m1]
-status: Proposed
+status: pending-approval
 timestamp: 2026-07-01T00:00:00Z
 resource: docs/specs/weave/engines/graph-explorer/decisions/ADR-001-render-engine.md
 source: hand-authored
@@ -29,9 +29,39 @@ rework-delta estimate).
 
 ## Status
 
-**Proposed** — default stands pending empirical sign-off. TASK-001 STEP 4 flips this to:
-`Accepted` (renderer: cytoscape+fcose) on a **go**, or `Superseded` by a renderer-swap ADR
-naming sigma.js/G6 on a **no-go**. Build phase: **M1**.
+**pending-approval** — TASK-001 benchmark evidence is in (see below); the Engineer-recommended
+verdict is **no-go**, but this is a prepared recommendation only. **Sign-off is
+Architect/human-level (AC-2/AC-3) — `confirmed_by: none` until then, per governance: an Engineer
+never self-signs a spike verdict.** Build phase: **M1**.
+
+## TASK-001 benchmark evidence (2026-07-05)
+
+Full report, raw data, and harness: `packages/frontend/benchmarks/ge-oq01-spike/` (report.md +
+raw-results*.json). Summary:
+
+| Size | Reps completed | p95 load time | Target |
+|---|---|---|---|
+| 1,000 nodes | 5/5 | 19,222.8 ms | ≤ 3,000 ms |
+| 5,000 nodes | 1/5 (capped — see report) | 751,211.4 ms (~12.5 min) | n/a (interpolated gate) |
+| 10,000 nodes | 0/5 (did not converge, killed at >42 min) | — | ≤ 8,000 ms |
+
+Drag fps @ 1k: p95 (ascending, per brief's literal formula) = 222.2 fps — but see the report's
+"drag fps caveat"; this benchmark never reached the point where drag was the binding constraint.
+
+**Two disclosed deviations from the literal protocol, both explained in full in report.md:**
+1. **fcose params are not the prototype-tuned set** — `prototype-findings.md` does not exist in
+   this repo. Used `cytoscape-fcose`'s own published library defaults instead, verbatim, with full
+   provenance in `fcose-params.mjs`. See `.claude/state/escalations/TASK-001-blocker.md`.
+2. **Reps capped at 5k (1/5) and 10k (0/5)**, not the full 5 — 1k already measured ~19s p95 (6x
+   over its own 3s target); 5k's first rep took ~12.5 minutes; a 10k rep ran >42 minutes at steady
+   100% CPU without converging. The gap is 2-4 orders of magnitude at every tier already measured;
+   the remaining reps would cost hours for no decision-relevant new information.
+
+**Engineer recommendation: no-go.** Cytoscape.js + fcose at library-default params misses target by
+100-300x+ at every tier tested, not by a tunable margin. Recommend the Architect proceed to name
+the OQ-05 WebGL renderer (sigma.js or G6) per the "Decision" section below, and treat TASK-002 AC-7
+as suspended until that renderer decision is signed. Full rationale, caveats, and the (unlikely but
+disclosed) condition that would change this recommendation: `report.md`.
 
 ## Context
 
