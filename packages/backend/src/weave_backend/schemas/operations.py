@@ -60,6 +60,9 @@ class ApplyRequest(BaseModel):
     actor: str = Field(min_length=1)
     target: str = "draft"
     idempotency_key: str | None = None
+    #: XT-002: a Build Engine "spike" run may never write back to a
+    #: protected branch/graph -- see ADR-003. Any other value is a no-op.
+    run_mode: str = "normal"
 
 
 class ViolationDetail(BaseModel):
