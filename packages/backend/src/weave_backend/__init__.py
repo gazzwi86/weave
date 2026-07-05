@@ -12,6 +12,7 @@ from weave_backend.observability.middleware import (
     install_tenant_context_middleware,
 )
 from weave_backend.projects.ce_version_client import close_ce_client
+from weave_backend.requests.store import close_redis_client
 from weave_backend.routers.audit import router as audit_router
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
@@ -26,6 +27,7 @@ from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.query import router as query_router
+from weave_backend.routers.requests import router as requests_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
 from weave_backend.routers.sparql import router as sparql_router
@@ -75,6 +77,7 @@ app.include_router(briefs_router)
 app.include_router(specs_router)
 app.include_router(tasks_router)
 app.include_router(query_router)
+app.include_router(requests_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one
@@ -91,6 +94,7 @@ async def _close_db_pool() -> None:
     await close_oidc_client()
     await close_ce_client()
     await close_ce_read_client()
+    await close_redis_client()
 
 
 def main() -> None:
