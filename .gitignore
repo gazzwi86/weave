@@ -87,3 +87,5 @@ prototypes/
 docs/viz.html
 docs/specs/weave/viz.html
 .thinking.md
+# Weave — CE-TASK-008 perf-benchmark JSON output (CI artefact, not repo content)
+scripts/benchmarks/ce-perf/reports/*.json
