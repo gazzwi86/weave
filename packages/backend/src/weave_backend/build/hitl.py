@@ -59,13 +59,13 @@ class HitlResponseContext:
 async def default_audit_health_check() -> bool:
     """Lightweight reachability probe (task brief: "GET /api/audit/health,
     200ms timeout"). `PLAT-AUDIT-1` lives in-process in this codebase (no
-    separate HTTP service to call -- see ADR-001), so "reachable" means the
+    separate HTTP service to call -- see ADR-002), so "reachable" means the
     audit table's own connection pool answers: a `SELECT 1` on a freshly
     acquired pool connection under an explicit timeout, standing in for
     the brief's HTTP health probe.
     """
-    pool = await get_app_pool()
     try:
+        pool = await get_app_pool()
         async with pool.acquire() as conn:
             await asyncio.wait_for(conn.execute("SELECT 1"), timeout=0.2)
     except (OSError, asyncpg.PostgresError, TimeoutError):

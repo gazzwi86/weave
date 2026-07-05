@@ -235,21 +235,6 @@ async def test_hitl_halted_task_can_still_be_replanned() -> None:
     assert task.blocked_reason is None
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "QA FINDING (BE-TASK-005, AC-5): `default_audit_health_check`'s "
-        "`pool = await get_app_pool()` (hitl.py:67) sits OUTSIDE the "
-        "try/except (hitl.py:68-72). When the pool itself cannot be "
-        "created (audit DB fully down, no cached pool yet -- arguably the "
-        "*most* likely real trigger of an 'audit service unreachable' "
-        "outage) the OSError/TimeoutError propagates uncaught instead of "
-        "being treated as 'unreachable': no HitlGateClosedError, no "
-        "audit_outage notify, gate does not cleanly fail closed. Fix: move "
-        "the `get_app_pool()` call inside the try block. Remove this "
-        "xfail once fixed -- it will XPASS and fail the suite as a signal."
-    ),
-)
 async def test_default_audit_health_check_fails_closed_on_pool_error() -> None:
     """Edge case: exercise the *real* `default_audit_health_check` (the
     function actually wired as `fire_hitl_gate`'s default, not the AsyncMock

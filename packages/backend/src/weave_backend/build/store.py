@@ -1,4 +1,4 @@
-"""In-memory, process-local spec/task store (ADR-001, build-engine
+"""In-memory, process-local spec/task store (ADR-002, build-engine
 decisions). M1 has no `specs`/`tasks` Aurora tables yet -- the task brief
 explicitly says a migration should not be needed, and every specified unit
 test scenario is DB-free by design. Keyed by `(tenant_id, id)` so a
