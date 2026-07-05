@@ -3,9 +3,13 @@ and zero live AWS calls.
 
 Marked both `integration` and `docker`: CI's default fast lane excludes both;
 a nightly/local job can run `pytest -m docker` to exercise this for real. It
-pulls real images (localstack, ollama, postgres, redis, oxigraph) so it can
-take minutes on a cold cache — that cost is intentional and documented, not a
+pulls real images (localstack, postgres, redis, oxigraph) so it can take
+minutes on a cold cache — that cost is intentional and documented, not a
 flake to chase.
+
+Ollama is deliberately NOT part of this default-stack check (ADR-011): it is
+opt-in behind the `ollama` compose profile and runs natively on the host for
+dev, so `docker compose up` does not start it.
 """
 
 from __future__ import annotations
@@ -24,9 +28,10 @@ pytestmark = [
     pytest.mark.integration,
     pytest.mark.docker,
     # PR #11 finding 5: this test manages its own full docker-compose
-    # lifecycle (all 5 services, including ollama); CI's `integration` job
-    # only starts the services the tenancy security suite needs, so this
-    # is excluded from it via `-m "integration and docker and not stack"`.
+    # lifecycle (the default-profile services; ollama is opt-in per ADR-011
+    # and excluded); CI's `integration` job only starts the services the
+    # tenancy security suite needs, so this is excluded from it via
+    # `-m "integration and docker and not stack"`.
     pytest.mark.stack,
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
@@ -36,7 +41,7 @@ pytestmark = [
 # (verified via `docker inspect` + `docker run --entrypoint sh`). Readiness
 # *and* seeding are confirmed together via _oxigraph_seeded() below — the
 # ASK query only returns true once the oxigraph-seed loader has run.
-SERVICES = ("postgres", "localstack", "redis", "ollama")
+SERVICES = ("postgres", "localstack", "redis")
 BOOT_TIMEOUT_SECONDS = 240
 POLL_INTERVAL_SECONDS = 5
 
@@ -103,7 +108,7 @@ def test_local_stack_boots(running_stack: Path) -> None:
     while time.monotonic() < deadline and not _ready():
         time.sleep(POLL_INTERVAL_SECONDS)
 
-    assert _ready(), "not all 5 local-first services became healthy (and seeded) in time"
+    assert _ready(), "not all default-stack services became healthy (and seeded) in time"
 
     # Seed data present: postgres seed table populated by docker-entrypoint-initdb.d.
     pg_check = subprocess.run(

@@ -42,8 +42,18 @@ services:
       - "${WEAVE_LOCALSTACK_PORT:-4566}:4566"
     # localstack ships its own HEALTHCHECK; no override needed.
 
+  # Ollama is opt-in, NOT started by `make up` (see ADR-011). On macOS the
+  # default is native host Ollama (`brew install ollama` / the .app): Docker
+  # Desktop's Linux VM has no Apple-Silicon Metal GPU passthrough, so an
+  # in-container Ollama is CPU-only and far too slow for real inference. Native
+  # host Ollama uses Metal and is the dev default; the harness stop-hook already
+  # targets http://localhost:11434 (modules/stop.py). This container exists only
+  # as a Linux/CI convenience where no native Ollama is present — start it with
+  # `docker compose --profile ollama up`; from other containers reach the native
+  # host daemon at host.docker.internal:11434.
   ollama:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     ports:
       - "${WEAVE_OLLAMA_PORT:-11434}:11434"
     healthcheck:
