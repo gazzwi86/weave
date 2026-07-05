@@ -13,6 +13,7 @@ from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.ontology import catalogue
+from weave_backend.ontology import resource as resource_lookup
 from weave_backend.operations import diff as diff_ops
 from weave_backend.operations import versioning
 from weave_backend.rbac import (
@@ -23,11 +24,14 @@ from weave_backend.rbac import (
 )
 from weave_backend.schemas.ontology import (
     DiffResponse,
+    IncomingEdgeModel,
     KindEntry,
     ModificationModel,
     OntologyTypesResponse,
+    OutgoingEdgeModel,
     PropertyShapeModel,
     PublishResponse,
+    ResourceResponse,
     TripleModel,
     VersionEntry,
     VersionsResponse,
@@ -307,6 +311,51 @@ async def _resolve_known_version(
     if denied is not None:
         return denied
     return known
+
+
+@router.get("/resource/{iri:path}", response_model=ResourceResponse)
+async def ontology_resource_route(
+    iri: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    version: str = "latest",
+    workspace_id: str | None = Query(default=None),
+) -> ResourceResponse:
+    """AC-003-02: `iri` is the rest of the path (`{iri:path}`), URL-decoded
+    by Starlette's path converter -- IRIs contain `/`, a plain `{iri}`
+    segment would truncate at the first one. AC-003-09: an unknown
+    `?version=` 404s via `_resolve_known_version`. Foreign-tenant IRIs 404
+    too (never 403) -- `resource_lookup.lookup_resource` only ever sees the
+    resolved version's own graph, so a resource that belongs to someone
+    else's graph simply has no triples here.
+    """
+    resolved_workspace_id = await _resolve_workspace_id(principal, workspace_id)
+    async with tenant_connection(principal.tenant_id) as conn:
+        known = await _resolve_known_version(
+            conn, principal=principal, workspace_id=resolved_workspace_id, version=version
+        )
+    if isinstance(known, HTTPException):
+        raise known
+
+    resource = await resource_lookup.lookup_resource(known.version_iri, iri)
+    if resource is None:
+        raise HTTPException(status_code=404, detail={"error": "resource_not_found"})
+
+    return ResourceResponse(
+        iri=resource.iri,
+        kind=resource.kind,
+        label=resource.label,
+        version_iri=known.version_iri,
+        triples=[
+            TripleModel(subject=t.subject, predicate=t.predicate, object=t.object)
+            for t in resource.triples
+        ],
+        outgoing=[
+            OutgoingEdgeModel(predicate=e.predicate, target=e.other) for e in resource.outgoing
+        ],
+        incoming=[
+            IncomingEdgeModel(predicate=e.predicate, source=e.other) for e in resource.incoming
+        ],
+    )
 
 
 async def _resolve_diff_pair(
