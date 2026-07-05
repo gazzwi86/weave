@@ -25,6 +25,18 @@ WEAVE = Namespace("https://weave.io/ontology/")
 INSTANCES = Namespace("https://weave.io/instances/")
 
 
+def _expand(name: str) -> URIRef:
+    """`kind`/`predicate`/property-key values are short BPMO-scoped names by
+    default and stay under the `weave:` namespace (unchanged behaviour). A
+    value that is already an absolute IRI -- OWL/RDFS vocabulary needed for
+    restriction/disjointness authoring, TASK-004 AC-004-06/-07 -- passes
+    through untouched instead of being double-prefixed.
+    """
+    if "://" in name:
+        return URIRef(name)
+    return WEAVE[name]
+
+
 @dataclass
 class ApplyResult:
     ref_map: dict[str, str] = field(default_factory=dict)
@@ -43,7 +55,7 @@ def _to_literal(value: Any) -> Any:
 
 def _find_existing_by_label_kind(graph: Graph, kind: str, label: str) -> URIRef | None:
     """AC-001-05: case-insensitive label+kind match reuses the existing node."""
-    kind_class = WEAVE[kind]
+    kind_class = _expand(kind)
     target = label.casefold()
     for subject in graph.subjects(RDF.type, kind_class):
         existing_label = graph.value(subject, WEAVE.label)
@@ -58,10 +70,10 @@ def _apply_add_node(graph: Graph, op: AddNodeOp, ref_map: dict[str, str]) -> Non
         ref_map[op.ref] = str(existing)
         return
     subject = INSTANCES[f"{op.kind.lower()}-{uuid4().hex}"]
-    graph.add((subject, RDF.type, WEAVE[op.kind]))
+    graph.add((subject, RDF.type, _expand(op.kind)))
     graph.add((subject, WEAVE.label, _to_literal(op.label)))
     for key, value in op.properties.items():
-        graph.add((subject, WEAVE[key], _to_literal(value)))
+        graph.add((subject, _expand(key), _to_literal(value)))
     ref_map[op.ref] = str(subject)
 
 
@@ -72,7 +84,7 @@ def _resolve_ref(ref_map: dict[str, str], value: str) -> URIRef:
 def _apply_add_edge(graph: Graph, op: AddEdgeOp, ref_map: dict[str, str]) -> None:
     subject = _resolve_ref(ref_map, op.subject_ref)
     obj = _resolve_ref(ref_map, op.object_ref)
-    graph.add((subject, WEAVE[op.predicate], obj))
+    graph.add((subject, _expand(op.predicate), obj))
 
 
 def _apply_update_node(graph: Graph, op: UpdateNodeOp) -> None:
@@ -82,7 +94,7 @@ def _apply_update_node(graph: Graph, op: UpdateNodeOp) -> None:
     """
     subject = URIRef(op.iri)
     for key, value in op.properties.items():
-        predicate = WEAVE[key]
+        predicate = _expand(key)
         graph.remove((subject, predicate, None))
         graph.add((subject, predicate, _to_literal(value)))
 
@@ -94,7 +106,7 @@ def _apply_delete_node(graph: Graph, op: DeleteNodeOp) -> None:
 
 
 def _apply_delete_edge(graph: Graph, op: DeleteEdgeOp) -> None:
-    graph.remove((URIRef(op.subject), WEAVE[op.predicate], URIRef(op.object)))
+    graph.remove((URIRef(op.subject), _expand(op.predicate), URIRef(op.object)))
 
 
 def apply_operations(graph: Graph, operations: list[Op]) -> ApplyResult:

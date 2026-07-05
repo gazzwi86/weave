@@ -229,6 +229,7 @@ async def _apply_uncached(
         applied_count=apply_result.applied_count,
         version_iri=version_iri,
         advisories=advisories,
+        ref_map=apply_result.ref_map,
     )
 
 
