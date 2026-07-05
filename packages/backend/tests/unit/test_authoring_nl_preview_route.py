@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from weave_backend.auth.dependencies import Principal
 from weave_backend.routers import authoring
 from weave_backend.schemas.authoring import NlAuthoringRequest
-from weave_backend.schemas.operations import AddNodeOp, ApplyRequest
+from weave_backend.schemas.operations import AddNodeOp, ApplyRequest, ApplyResponse
 
 PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
 
@@ -37,20 +37,21 @@ async def test_preview_true_returns_operations_without_dispatching() -> None:
     dispatch.assert_not_called()
     assert isinstance(response, JSONResponse)
     assert response.status_code == 200
-    payload = response.body.decode()
+    payload = bytes(response.body).decode()
     assert '"op":"add_node"' in payload
     assert '"kind":"Process"' in payload
 
 
 async def test_preview_false_dispatches_as_before() -> None:
     body = NlAuthoringRequest(text="Add a Process called Customer Onboarding", preview=False)
+    dispatched = ApplyResponse(activity_iri="urn:a", applied_count=1, version_iri="urn:v")
 
     with (
         patch.object(authoring, "parse_operations", return_value=_PARSED),
         patch.object(authoring, "_dispatch", new_callable=AsyncMock) as dispatch,
     ):
-        dispatch.return_value = "dispatched-result"
+        dispatch.return_value = dispatched
         response = await authoring.nl_authoring_route(body, PRINCIPAL)
 
     dispatch.assert_awaited_once_with(PRINCIPAL, _PARSED.operations)
-    assert response == "dispatched-result"
+    assert response == dispatched
