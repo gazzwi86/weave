@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 
 from weave_backend.operations.graph_ops import apply_operations
@@ -133,3 +134,62 @@ def test_delete_edge_removes_only_the_named_triple() -> None:
 
     assert (subject, WEAVE.performedBy, actor) not in graph
     assert (subject, RDF.type, WEAVE.Process) in graph
+
+
+def test_delete_node_of_nonexistent_iri_is_a_no_op_not_an_error() -> None:
+    """QA edge case: a `delete_node` naming an IRI with zero triples must
+    succeed (idempotent delete), not raise -- `graph.remove` on a pattern
+    that matches nothing is a no-op in rdflib, and the batch should still
+    report the op as applied.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph, [DeleteNodeOp(op="delete_node", iri="https://weave.io/instances/ghost")]
+    )
+
+    assert result.applied_count == 1
+    assert len(graph) == 0
+
+
+def test_add_edge_with_a_ref_never_created_in_the_batch_is_not_silently_dropped() -> None:
+    """QA edge case (adversarial): `subject_ref`/`object_ref` that were never
+    minted by an `add_node` in the same batch are NOT resolved through
+    `ref_map` and NOT rejected -- `_resolve_ref` falls back to treating the
+    raw string as an already-existing IRI. A caller's typo in a `ref` name
+    therefore produces a dangling edge (a non-IRI-shaped URIRef) instead of
+    a loud failure. This documents the current (permissive) behaviour so a
+    future change to validate/reject unresolved refs has a test to update
+    deliberately, rather than an untested silent gap.
+    """
+    graph = Graph()
+
+    apply_operations(
+        graph,
+        [
+            AddEdgeOp(
+                op="add_edge",
+                subject_ref="typo-ref-never-defined",
+                predicate="performedBy",
+                object_ref="also-never-defined",
+            )
+        ],
+    )
+
+    # No error was raised, and the caller's unresolved ref strings were used
+    # verbatim as the edge endpoints -- a dangling, non-namespaced edge.
+    dangling = (
+        URIRef("typo-ref-never-defined"),
+        WEAVE.performedBy,
+        URIRef("also-never-defined"),
+    )
+    assert dangling in graph
+
+
+def test_add_node_with_empty_kind_or_label_is_rejected_at_the_schema_boundary() -> None:
+    """QA edge case: empty `kind`/`label` never reach `apply_operations` --
+    `Field(min_length=1)` on `AddNodeOp` rejects them before the pipeline
+    ever sees the request (defence-in-depth: schema validation, not just
+    graph-op logic, guards against a blank kind/label node)."""
+    with pytest.raises(ValueError):
+        AddNodeOp(op="add_node", ref="n1", kind="", label="Invoicing")

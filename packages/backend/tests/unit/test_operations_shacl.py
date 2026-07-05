@@ -31,6 +31,30 @@ def test_missing_required_label_is_a_violation() -> None:
     assert any(str(EX.proc1) == v.focus_node for v in violations)
 
 
+def test_mixed_violation_and_warning_in_same_graph_both_surface() -> None:
+    """QA edge case (adversarial): a batch that trips a `sh:Violation` on one
+    node AND a `sh:Warning` on an unrelated node must still report both --
+    the Violation's presence does not suppress or short-circuit the
+    Warning's evaluation. `pipeline._apply_uncached` is what decides a
+    422 given the combined list; this test proves `validate_graph` itself
+    hands back the full, uncollapsed set."""
+    graph = Graph()
+    # Process with no `performedBy` -- trips a Violation.
+    graph.add((EX.proc1, RDF.type, WEAVE.Process))
+    graph.add((EX.proc1, WEAVE.label, Literal("Invoicing", datatype=XSD.string)))
+    # Activity with a label but no description -- trips a Warning only.
+    graph.add((EX.act1, RDF.type, WEAVE.Activity))
+    graph.add((EX.act1, WEAVE.label, Literal("Send invoice", datatype=XSD.string)))
+
+    results = validate_graph(graph)
+
+    severities = {r.severity for r in results}
+    assert "Violation" in severities
+    assert "Warning" in severities
+    violations = [r for r in results if r.severity == "Violation"]
+    assert any(str(EX.proc1) == v.focus_node for v in violations)
+
+
 def test_conforming_graph_has_no_violations() -> None:
     graph = Graph()
     graph.add((EX.actor1, RDF.type, WEAVE.Actor))

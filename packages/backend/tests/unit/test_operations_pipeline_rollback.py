@@ -14,7 +14,12 @@ import pytest
 
 from weave_backend.operations import metrics as ops_metrics
 from weave_backend.operations import pipeline
-from weave_backend.schemas.operations import AddEdgeOp, AddNodeOp, ApplyRequest, ViolationsResponse
+from weave_backend.schemas.operations import (
+    AddEdgeOp,
+    AddNodeOp,
+    ApplyRequest,
+    ViolationsResponse,
+)
 
 WORKING_GRAPH = "urn:weave:tenant:t1:ws:w1"
 CANARY_TURTLE = (
@@ -47,6 +52,34 @@ def _valid_request() -> ApplyRequest:
         ],
         actor="urn:weave:principal:test",
     )
+
+
+async def test_mixed_violation_and_warning_batch_still_blocks_commit(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """QA edge case: a batch that would ALSO trip an advisory Warning must
+    still 422 (discard the scratch graph) if it trips even one Violation --
+    the presence of a Warning must never demote a Violation to "advisory
+    only, commit anyway" (AC-001-02 wins over AC-001-03 when both fire)."""
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    load_graph_spy = AsyncMock()
+    monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    request = ApplyRequest(
+        operations=[
+            # Process with no `performedBy` -- Violation.
+            AddNodeOp(op="add_node", ref="p1", kind="Process", label="Invoicing"),
+            # Activity with no description -- Warning only.
+            AddNodeOp(op="add_node", ref="a1", kind="Activity", label="Send invoice"),
+        ],
+        actor="urn:weave:principal:test",
+    )
+
+    result = await pipeline.apply_operations_request(ctx, request, redis_client=None)
+
+    assert isinstance(result, ViolationsResponse)
+    load_graph_spy.assert_not_called()
 
 
 async def test_shacl_violation_never_writes_to_oxigraph(
