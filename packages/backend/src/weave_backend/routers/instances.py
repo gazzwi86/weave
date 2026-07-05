@@ -89,18 +89,23 @@ async def _load_active_workspace(
 
 
 async def _dispatch(
-    principal: Principal, workspace_id: str, conn: asyncpg.Connection, ops: list[Op]
+    principal: Principal, workspace_id: str, ops: list[Op]
 ) -> ApplyResponse | ViolationsResponse | HTTPException:
-    """Same shape as `routers.authoring._dispatch`: one `ApplyRequest`
-    through CE-WRITE-1's real entry point, outbox flushed on success. `ops`
-    is a list, not a single op -- AC-005-01: a kind with a hard relationship
-    requirement (e.g. ProcessShape's `performedBy`) can only pass SHACL
-    re-validation if its `add_node` and the linking `add_edge` land in the
-    same batch (SHACL validates the whole graph per batch, never
-    per-op) -- see `AddInstanceRequest.relationships`.
+    """Same shape as `routers.authoring._dispatch`: opens its own connection
+    for the `ApplyRequest` and lets that `async with` block close (commit)
+    *before* flushing the audit outbox on a separate connection -- flushing
+    while the write's own transaction is still open is a silent no-op (the
+    audit row isn't visible yet on another connection) and risks a
+    nested-connection deadlock. `ops` is a list, not a single op --
+    AC-005-01: a kind with a hard relationship requirement (e.g.
+    ProcessShape's `performedBy`) can only pass SHACL re-validation if its
+    `add_node` and the linking `add_edge` land in the same batch (SHACL
+    validates the whole graph per batch, never per-op) -- see
+    `AddInstanceRequest.relationships`.
     """
     body = ApplyRequest(operations=ops, actor=principal.principal_iri)
-    outcome = await _run_apply(conn, principal=principal, workspace_id=workspace_id, body=body)
+    async with tenant_connection(principal.tenant_id) as conn:
+        outcome = await _run_apply(conn, principal=principal, workspace_id=workspace_id, body=body)
     if isinstance(outcome, ApplyResponse):
         try:
             async with tenant_connection(principal.tenant_id) as flush_conn:
@@ -159,7 +164,8 @@ async def add_instance_route(
             AddEdgeOp(op="add_edge", subject_ref="n1", predicate=predicate, object_ref=target_iri)
             for predicate, target_iri in body.relationships.items()
         )
-        outcome = await _dispatch(principal, workspace_id, conn, ops)
+
+    outcome = await _dispatch(principal, workspace_id, ops)
 
     if isinstance(outcome, HTTPException):
         raise outcome
@@ -188,8 +194,9 @@ async def update_instance_route(
     """
     async with tenant_connection(principal.tenant_id) as conn:
         _workspace, workspace_id = await _load_active_workspace(conn, principal)
-        op = UpdateNodeOp(op="update_node", iri=iri, properties=body.properties)
-        outcome = await _dispatch(principal, workspace_id, conn, [op])
+
+    op = UpdateNodeOp(op="update_node", iri=iri, properties=body.properties)
+    outcome = await _dispatch(principal, workspace_id, [op])
 
     if isinstance(outcome, HTTPException):
         raise outcome
@@ -260,8 +267,8 @@ async def delete_instance_route(
         if not confirm:
             return await _delete_preview(conn, principal, workspace, workspace_id, iri)
 
-        op = DeleteNodeOp(op="delete_node", iri=iri)
-        outcome = await _dispatch(principal, workspace_id, conn, [op])
+    op = DeleteNodeOp(op="delete_node", iri=iri)
+    outcome = await _dispatch(principal, workspace_id, [op])
 
     if isinstance(outcome, HTTPException):
         raise outcome
