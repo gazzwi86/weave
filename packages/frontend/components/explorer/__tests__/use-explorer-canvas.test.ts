@@ -25,6 +25,8 @@ function fakeCy() {
   };
 }
 
+const noSavedPositions = vi.fn(async () => []);
+
 describe("useExplorerCanvas", () => {
   it("starts loading, then loads the palette+graph and constructs the canvas (AC-1)", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
@@ -32,7 +34,7 @@ describe("useExplorerCanvas", () => {
     const createCy = vi.fn(fakeCy);
 
     const { result } = renderHook(() =>
-      useExplorerCanvas({ fetchPalette, fetchGraph, createCy })
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
     );
 
     expect(result.current.loadState).toBe("loading");
@@ -56,7 +58,7 @@ describe("useExplorerCanvas", () => {
     const createCy = vi.fn(fakeCy);
 
     const { result } = renderHook(() =>
-      useExplorerCanvas({ fetchPalette, fetchGraph, createCy })
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
     );
 
     await waitFor(() => expect(result.current.loadState).toBe("error"));
@@ -75,7 +77,7 @@ describe("useExplorerCanvas", () => {
     const createCy = vi.fn(fakeCy);
 
     const { result } = renderHook(() =>
-      useExplorerCanvas({ fetchPalette, fetchGraph, createCy })
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
     );
 
     await waitFor(() => expect(result.current.loadState).toBe("ready"));
@@ -94,7 +96,7 @@ describe("useExplorerCanvas", () => {
     const createCy = vi.fn(fakeCy);
 
     const { result } = renderHook(() =>
-      useExplorerCanvas({ fetchPalette, fetchGraph, createCy })
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
     );
 
     await waitFor(() => expect(result.current.loadState).toBe("error"));
@@ -103,5 +105,43 @@ describe("useExplorerCanvas", () => {
 
     await waitFor(() => expect(result.current.loadState).toBe("ready"));
     expect(createCy).toHaveBeenCalledTimes(1);
+  });
+
+  // TASK-004 AC-3/AC-5: a saved position merges onto its matching element
+  // before the initial load, and fcose must not re-randomize it away.
+  it("restores saved positions onto matching elements and disables fcose randomize", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(fakeCy);
+    const fetchLayoutPositions = vi.fn(async () => [
+      { node_iri: "n1", position_x: 10, position_y: 20, locked: false },
+    ]);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.json).toHaveBeenCalledWith({
+      elements: [{ data: ELEMENTS[0]?.data, position: { x: 10, y: 20 } }],
+    });
+    expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", randomize: false }));
+  });
+
+  it("loads with fcose's default randomize when there are no saved positions", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(fakeCy);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", randomize: true }));
   });
 });
