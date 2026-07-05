@@ -8,6 +8,7 @@ suite instead.
 from __future__ import annotations
 
 from rdflib import Graph
+
 from weave_backend.operations.diff import diff_graphs
 
 WEAVE = "https://weave.io/ontology/"
