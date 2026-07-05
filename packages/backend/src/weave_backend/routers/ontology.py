@@ -12,12 +12,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.ontology import catalogue
 from weave_backend.operations import diff as diff_ops
 from weave_backend.operations import versioning
 from weave_backend.rbac import InsufficientRole, enforce_workspace_role
 from weave_backend.schemas.ontology import (
     DiffResponse,
+    KindEntry,
     ModificationModel,
+    OntologyTypesResponse,
+    PropertyShapeModel,
     PublishResponse,
     TripleModel,
     VersionEntry,
@@ -27,6 +31,42 @@ from weave_backend.tenancy.sessions import get_active_workspace
 from weave_backend.tenancy.workspaces import Workspace, get_workspace
 
 router = APIRouter(prefix="/api/ontology", tags=["ontology"])
+
+
+def _property_shape_model(prop: catalogue.PropertyShape) -> PropertyShapeModel:
+    return PropertyShapeModel(
+        path=prop.path,
+        name=prop.name,
+        is_relationship=prop.is_relationship,
+        min_count=prop.min_count,
+        max_count=prop.max_count,
+        severity=prop.severity,
+    )
+
+
+@router.get("/types", response_model=OntologyTypesResponse)
+async def ontology_types_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> OntologyTypesResponse:
+    """CE-READ-1 AC-003-01: the full BPMO kind/relationship catalogue,
+    introspected live from the SHACL shapes graph. Requires auth (AC-003-07)
+    but no workspace/tenant scoping -- the framework catalogue is shared
+    across every tenant, it is not tenant data.
+    """
+    del principal  # auth-only: presence of a valid principal is the gate
+    kinds = catalogue.list_kinds()
+    relationships = catalogue.list_relationships(kinds)
+    return OntologyTypesResponse(
+        kinds=[
+            KindEntry(
+                iri=k.iri,
+                label=k.label,
+                properties=[_property_shape_model(p) for p in k.properties],
+            )
+            for k in kinds
+        ],
+        relationships=[_property_shape_model(p) for p in relationships],
+    )
 
 
 async def _resolve_workspace_id(principal: Principal, requested: str | None) -> str:
