@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.operations import outbox
 from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
@@ -111,6 +112,10 @@ async def _run_apply(
         named_graph_iri=workspace.named_graph_iri,
         conn=conn,
         principal_iri=principal.principal_iri,
+        # Principal.principal_type is a plain str (JWT claim) -- narrow to
+        # the PROV-O actor-type literal, defaulting anything unrecognised to
+        # "human" rather than trusting an arbitrary claim value.
+        principal_type="agent" if principal.principal_type == "agent" else "human",
     )
     try:
         return await apply_operations_request(ctx, body, get_redis())
@@ -148,6 +153,15 @@ async def apply_operations_route(
         outcome = await _run_apply(
             conn, principal=principal, workspace_id=workspace_id, body=body
         )
+
+    if isinstance(outcome, ApplyResponse):
+        # Real hash-chain delivery of the outbox row enqueued inside the
+        # mutation's own transaction (ADR-002) -- a fresh connection/
+        # transaction, deliberately separate from the one that just
+        # committed, so a slow/unavailable audit sink can never roll back
+        # the mutation (AC-002-04).
+        async with tenant_connection(principal.tenant_id) as flush_conn:
+            await outbox.flush_pending(flush_conn, principal.tenant_id)
 
     if isinstance(outcome, HTTPException):
         raise outcome
