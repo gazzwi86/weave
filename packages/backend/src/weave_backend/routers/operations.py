@@ -7,22 +7,111 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations.pipeline import (
     ApplyContext,
+    ForeignTargetError,
     InvalidTargetError,
     apply_operations_request,
 )
-from weave_backend.rbac import enforce_workspace_role
+from weave_backend.rbac import InsufficientRole, enforce_workspace_role
 from weave_backend.schemas.operations import ApplyRequest, ApplyResponse, ViolationsResponse
 from weave_backend.tenancy.sessions import get_active_workspace, get_redis
-from weave_backend.tenancy.workspaces import get_workspace
+from weave_backend.tenancy.workspaces import Workspace, get_workspace
 
 router = APIRouter(prefix="/api", tags=["operations"])
+
+#: Either a successful/violating pipeline outcome, or a denial that must
+#: still be raised as an HTTPException -- but only *after* the caller's
+#: `async with tenant_connection(...)` block has closed (committed), so the
+#: audit entry written alongside the denial survives it (same pattern as
+#: `billing.py::_check_budget_gate`/`_raise_cap_reached`: an exception raised
+#: while the transaction is still open would roll the audit insert back too).
+_ApplyOutcome = ApplyResponse | ViolationsResponse | HTTPException
+
+
+async def _enforce_write_access(
+    conn: asyncpg.Connection, *, principal: Principal, workspace: Workspace, workspace_id: str
+) -> HTTPException | None:
+    """AC-001-08 (403): returns the denial (never raises) so the caller can
+    commit the audit entry written here before the request actually fails.
+    """
+    try:
+        await enforce_workspace_role(
+            conn,
+            tenant_id=principal.tenant_id,
+            workspace_id=workspace_id,
+            user_sub=principal.sub,
+            min_role="author",
+        )
+    except InsufficientRole as exc:
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="security.rbac.denied",
+                actor_iri=principal.principal_iri,
+                subject_iri=workspace.named_graph_iri,
+                payload={"required_role": "author"},
+            ),
+        )
+        return exc
+    return None
+
+
+async def _reject_foreign_target(
+    conn: asyncpg.Connection, *, principal: Principal, target: str
+) -> HTTPException:
+    """ADR-001-tenant-isolation: a payload naming another tenant's/
+    workspace's graph is a 403 + audit, never a 400.
+    """
+    await default_audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=principal.tenant_id,
+            event_type="security.cross_tenant.rejected",
+            actor_iri=principal.principal_iri,
+            subject_iri=target,
+            payload={},
+        ),
+    )
+    return HTTPException(status_code=403, detail={"error": "cross_tenant_target"})
+
+
+async def _run_apply(
+    conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, body: ApplyRequest
+) -> _ApplyOutcome:
+    workspace = await get_workspace(
+        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+    )
+    if workspace is None:
+        raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
+
+    denied = await _enforce_write_access(
+        conn, principal=principal, workspace=workspace, workspace_id=workspace_id
+    )
+    if denied is not None:
+        return denied
+
+    ctx = ApplyContext(
+        tenant_id=principal.tenant_id,
+        workspace_id=workspace_id,
+        named_graph_iri=workspace.named_graph_iri,
+        conn=conn,
+    )
+    try:
+        return await apply_operations_request(ctx, body, get_redis())
+    except InvalidTargetError as exc:
+        # Malformed target -- not a forgery attempt, just a bad request.
+        raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
+    except ForeignTargetError:
+        return await _reject_foreign_target(conn, principal=principal, target=body.target)
 
 
 @router.post(
@@ -42,37 +131,15 @@ async def apply_operations_route(
         raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
 
     async with tenant_connection(principal.tenant_id) as conn:
-        workspace = await get_workspace(
-            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        outcome = await _run_apply(
+            conn, principal=principal, workspace_id=workspace_id, body=body
         )
-        if workspace is None:
-            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
-        # AC-001-08 (403): raises `InsufficientRole` (an `HTTPException`) if
-        # the caller's role in their own workspace is below "author".
-        await enforce_workspace_role(
-            conn,
-            tenant_id=principal.tenant_id,
-            workspace_id=workspace_id,
-            user_sub=principal.sub,
-            min_role="author",
-        )
-        ctx = ApplyContext(
-            tenant_id=principal.tenant_id,
-            workspace_id=workspace_id,
-            named_graph_iri=workspace.named_graph_iri,
-            conn=conn,
-        )
-        try:
-            result = await apply_operations_request(ctx, body, get_redis())
-        except InvalidTargetError as exc:
-            # AC-001-09: `target` named a graph outside the caller's own
-            # workspace -- structurally can't belong to another tenant's
-            # graph either, since `named_graph_iri` already embeds tenant_id.
-            raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
 
-    if isinstance(result, ViolationsResponse):
+    if isinstance(outcome, HTTPException):
+        raise outcome
+    if isinstance(outcome, ViolationsResponse):
         # CE-WRITE-1 contract: `422 { violations: [...] }` at the top level --
         # not wrapped in FastAPI's default `{"detail": ...}` envelope, so
         # `HTTPException` (which always wraps) isn't used here.
-        return JSONResponse(status_code=422, content=result.model_dump())
-    return result
+        return JSONResponse(status_code=422, content=outcome.model_dump())
+    return outcome

@@ -14,12 +14,14 @@ or it's the one that failed and never completed.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from typing import Any
 
 import asyncpg
 from rdflib import Graph
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.operations import metrics
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
@@ -42,10 +44,24 @@ from weave_backend.schemas.operations import (
 _POLL_ATTEMPTS = 200
 _POLL_INTERVAL_SECONDS = 0.05
 
+#: Shape of a real (if foreign) version_iri, per `versioning.mint_version`:
+#: `urn:weave:tenant:{tenant_id}:ws:{workspace_id}:v{semver}`. Used only to
+#: distinguish a forged cross-tenant/cross-workspace target (well-formed,
+#: 403 + audit -- ADR-001-tenant-isolation) from a genuinely malformed one
+#: (400, no audit).
+_VERSION_IRI_RE = re.compile(r"^urn:weave:tenant:[^:]+:ws:[^:]+:v\d+\.\d+\.\d+$")
+
 
 class InvalidTargetError(Exception):
-    """`target` names a graph outside the caller's own resolved workspace
-    (AC-001-09: a forged/foreign version_iri must never be accepted).
+    """`target` isn't a recognisable graph reference at all -- malformed,
+    not a forgery attempt. 400, no audit.
+    """
+
+
+class ForeignTargetError(Exception):
+    """`target` is a well-formed version IRI naming a graph outside the
+    caller's own workspace (AC-001-09). ADR-001-tenant-isolation: "a payload
+    naming another tenant's graph is a 403 + audit", never a 400.
     """
 
 
@@ -62,6 +78,8 @@ def resolve_source_graph_iri(named_graph_iri: str, target: str) -> str:
         return named_graph_iri
     if target.startswith(f"{named_graph_iri}:v"):
         return target
+    if _VERSION_IRI_RE.match(target):
+        raise ForeignTargetError(target)
     raise InvalidTargetError(target)
 
 
@@ -113,6 +131,20 @@ async def _apply_uncached(
         named_graph_iri=ctx.named_graph_iri, actor_iri=request.actor
     )
     await metrics.emit_mutation_outcome_metric("success")
+    await default_audit_emitter.emit(
+        ctx.conn,
+        AuditEvent(
+            tenant_id=ctx.tenant_id,
+            event_type="operations.applied",
+            actor_iri=request.actor,
+            subject_iri=version_iri,
+            payload={
+                "target_graph_iri": ctx.named_graph_iri,
+                "activity_iri": activity_iri,
+                "applied_count": apply_result.applied_count,
+            },
+        ),
+    )
     advisories = [_to_violation_detail(r) for r in shacl_results if r.severity != "Violation"]
     return ApplyResponse(
         activity_iri=activity_iri,
