@@ -31,6 +31,12 @@ declare global {
      * spec can wait for real settle instead of polling the DOM and risking
      * a false-stable read mid-animation. Dev-only, never in production. */
     __explorerLayoutSettled?: boolean;
+    /** Playwright-only introspection hook (AC-8 perf spec) -- wall-clock ms
+     * from the start of a load() pass to fcose's "layoutstop" (first
+     * interactive render complete), measured in-browser via
+     * performance.now() so IPC round-trips don't skew the reading.
+     * Dev-only, never in production. */
+    __explorerRenderDurationMs?: number;
   }
 }
 
@@ -93,6 +99,34 @@ function wireCanvas(cy: CyLike, config: ExplorerConfig, onViewportChange: (indic
   return registerKeyBindings(cy);
 }
 
+/** Playwright-only introspection hooks (dev builds only) -- reset at the
+ * start of every load() pass so a retry/reload doesn't leak stale readings
+ * from a previous attempt. */
+function resetDevIntrospection(): void {
+  if (process.env.NODE_ENV === "production") return;
+  window.__explorerLayoutSettled = false;
+  delete window.__explorerRenderDurationMs;
+  delete window.__explorerElements;
+}
+
+/** Exposes the freshly-loaded elements and wires the AC-8 perf-mark
+ * (load() start -> genuine fcose "layoutstop") for E2E specs. Dev builds
+ * only -- never attached in production. */
+function exposeDevIntrospection(cy: CyLike, elements: CytoscapeElement[], loadStartedAt: number): void {
+  if (process.env.NODE_ENV === "production") return;
+  window.__explorerElements = elements;
+  cy.on("layoutstop", () => {
+    window.__explorerRenderDurationMs = performance.now() - loadStartedAt;
+  });
+}
+
+function clearDevIntrospection(): void {
+  if (process.env.NODE_ENV === "production") return;
+  delete window.__explorerElements;
+  delete window.__explorerLayoutSettled;
+  delete window.__explorerRenderDurationMs;
+}
+
 export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): ExplorerCanvasState {
   const config = options.config ?? DEFAULT_EXPLORER_CONFIG;
   const fetchPalette = options.fetchPalette ?? defaultFetchPalette;
@@ -113,7 +147,8 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
     async function load(): Promise<void> {
       setLoadState("loading");
       setErrorMessage(null);
-      if (process.env.NODE_ENV !== "production") window.__explorerLayoutSettled = false;
+      const loadStartedAt = performance.now();
+      resetDevIntrospection();
       try {
         const [palette, elements] = await Promise.all([fetchPalette(), fetchGraph(config.ceTimeoutMs)]);
         if (cancelled) return;
@@ -126,7 +161,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
         adapter.setLayout("fcose", config.fcoseParams);
         unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
         cyRef.current = cy;
-        if (process.env.NODE_ENV !== "production") window.__explorerElements = elements;
+        exposeDevIntrospection(cy, elements, loadStartedAt);
         setLoadState("ready");
       } catch (err) {
         if (cancelled) return;
@@ -141,10 +176,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       unregisterRef.current?.();
       cyRef.current?.destroy();
       cyRef.current = null;
-      if (process.env.NODE_ENV !== "production") {
-        delete window.__explorerElements;
-        delete window.__explorerLayoutSettled;
-      }
+      clearDevIntrospection();
     };
   }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
 
