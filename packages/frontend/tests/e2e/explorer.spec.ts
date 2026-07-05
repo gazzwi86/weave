@@ -17,8 +17,19 @@ async function loginAndGoToExplorer(page: Page): Promise<void> {
 // can still land on a mid-animation plateau and false-positive. Wait for
 // the real `layoutstop` event (exposed via the dev-only window hook)
 // instead of guessing from snapshots.
+async function waitOneAnimationFrame(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+}
+
 async function waitForLayoutSettled(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+  // The "layoutstop"-triggered "viewport" event's minimap update is
+  // rAF-throttled (raf-throttle.ts) -- it can still be one animation frame
+  // away from painting when the flag above flips. Flush two frames so the
+  // minimap's DOM style attribute reflects the final steady state before
+  // the "before" snapshot is taken (residual sub-pixel flake otherwise).
+  await waitOneAnimationFrame(page);
+  await waitOneAnimationFrame(page);
 }
 
 const NODE_KINDS = { kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] };
