@@ -203,18 +203,6 @@ async def test_create_project_persists_source_control_config(
 # --- QA edge cases (BE-TASK-001) -------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "QA finding (BE-TASK-001): slugify() strips an emoji/punctuation-only "
-        "name down to '', which passes the router's `not body.name.strip()` "
-        "AC-6 gate but fails the projects table's CHECK(slug <> ''). The "
-        "UniqueViolationError handler in projects/model.py does not catch "
-        "CheckViolationError, so this reaches the client as an unhandled 500 "
-        "instead of AC-6's 422. Remove this xfail once the engineer adds an "
-        "empty-slug guard (e.g. reject when `slugify(name) == ''`)."
-    ),
-)
 async def test_create_project_emoji_only_name_returns_422_not_500(
     client: AsyncClient, platform_stack: Path
 ) -> None:
