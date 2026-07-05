@@ -1,4 +1,4 @@
-"""Law 13: request/response schemas for CE-VERSION-1 / CE-DIFF-1
+"""Request/response schemas for CE-VERSION-1 / CE-DIFF-1
 (`routers/ontology.py`).
 """
 
