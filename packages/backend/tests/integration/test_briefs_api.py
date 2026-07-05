@@ -211,3 +211,42 @@ async def test_create_brief_returns_503_when_ce_read_unavailable(
 
     assert response.status_code == 503
     assert response.json()["detail"] == {"error": "ce_read_unavailable"}
+
+
+async def test_create_brief_retry_is_idempotent_not_duplicated(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case: Implementation Hints call out that ``task_id`` is a
+    deterministic UUID5 of ``(project_iri, task_description)`` specifically
+    so a retried request upserts instead of duplicating. Prove it against
+    the real store, not just at the ``generate_task_id`` unit level.
+    """
+    tenant_id = f"tenant-brief-{uuid.uuid4().hex[:8]}"
+    project_iri = _unique_project_iri("proj")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    with patch(
+        "weave_backend.routers.briefs.draft_brief_document",
+        return_value=_raw_brief("Do the thing", project_iri),
+    ):
+        first = await client.post(
+            f"/api/projects/{project_iri}/briefs",
+            json={"task_description": "Do the thing"},
+            headers=headers,
+        )
+        second = await client.post(
+            f"/api/projects/{project_iri}/briefs",
+            json={"task_description": "Do the thing"},
+            headers=headers,
+        )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["task_id"] == second.json()["task_id"]
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT task_id FROM task_briefs WHERE task_id = $1", first.json()["task_id"]
+        )
+    assert len(rows) == 1

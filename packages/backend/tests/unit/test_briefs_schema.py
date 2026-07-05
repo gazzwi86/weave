@@ -6,6 +6,7 @@ EARS wording on every AC, at least one AC, and every AC id covered by
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -87,3 +88,20 @@ def test_dep_chain_and_cost_estimate_are_typed_submodels() -> None:
     assert isinstance(brief.dep_chain, DepChain)
     assert isinstance(brief.cost_estimate, CostEstimate)
     assert brief.cost_estimate.complexity == "S"
+
+
+def test_cost_estimate_accepts_xl_complexity() -> None:
+    """QA edge case: the task brief's own pseudocode specifies
+    ``Literal["S", "M", "L", "XL"]`` for ``CostEstimate.complexity``, but
+    the shipped schema only allows ``Literal["S", "M", "L"]`` -- an XL-rated
+    brief (the brief's own cost-estimate table uses "L" for this very task,
+    but the schema must still accept the full spec'd range) is incorrectly
+    rejected. Currently RED -- see QA report BE-TASK-002.
+    """
+    kwargs = _valid_brief_kwargs()
+    cost_estimate = cast(dict[str, object], kwargs["cost_estimate"])
+    cost_estimate["complexity"] = "XL"
+
+    brief = TaskBrief.model_validate(kwargs)
+
+    assert brief.cost_estimate.complexity == "XL"  # type: ignore[comparison-overlap]

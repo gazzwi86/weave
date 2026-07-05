@@ -20,6 +20,7 @@ from httpx import ASGITransport, AsyncClient
 
 from weave_backend import app
 from weave_backend.auth.dependencies import Principal
+from weave_backend.briefs.architect import ModelRoutingMiss
 from weave_backend.briefs.ce_read_client import CeReadUnavailable
 from weave_backend.briefs.store import StoredBrief
 from weave_backend.routers.briefs import create_brief_route, get_brief_route
@@ -59,6 +60,35 @@ async def test_architect_503_when_ce_read_unavailable() -> None:
 
     assert exc_info.value.status_code == 503
     assert exc_info.value.detail == {"error": "ce_read_unavailable"}  # type: ignore[comparison-overlap]
+
+
+async def test_create_brief_route_emits_audit_event_on_model_routing_miss() -> None:
+    """QA edge case (AC-6): "a routing miss MUST halt the agent and emit a
+    PLAT-AUDIT-1 event" -- the halt (500 ``model_routing_miss``) is
+    implemented, but no audit event is emitted on this path. This is the
+    same ``default_audit_emitter.emit`` seam the success path already uses
+    (see ``test_create_brief_route_returns_201_and_emits_audit_event``);
+    a routing-miss halt is exactly the kind of security-relevant event
+    PLAT-AUDIT-1 exists to record. Currently RED -- see QA report BE-TASK-002.
+    """
+    body = CreateBriefRequest(task_description="Do the thing")
+
+    with (
+        patch("weave_backend.routers.briefs.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.briefs.get_bpmo_context", AsyncMock(return_value={})),
+        patch(
+            "weave_backend.routers.briefs.draft_brief_document",
+            side_effect=ModelRoutingMiss("fable"),
+        ),
+        patch(
+            "weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()
+        ) as mock_emit,
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await create_brief_route(_PROJECT_IRI, body, _PRINCIPAL, httpx.AsyncClient())
+
+    assert exc_info.value.status_code == 500
+    mock_emit.assert_awaited_once()
 
 
 async def test_architect_rejects_brief_missing_ears_acs() -> None:
