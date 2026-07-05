@@ -298,6 +298,13 @@ describe("useCeChat", () => {
     });
 
     expect(result.current.messages.at(-1)?.text).toContain("owner (max 1)");
+
+    // AC-006-14 literal phrasing must route the same way.
+    await act(async () => {
+      await result.current.sendMessage("What are the consequences?");
+    });
+
+    expect(result.current.messages.at(-1)?.text).toContain("owner (max 1)");
   });
 
   // AC-006-05: conversation history survives a page reload.

@@ -56,7 +56,9 @@ function routeCommand(
 ): Promise<void> | void {
   if (/^undo\b/i.test(text)) return actions.handleUndo();
   if (/^why\??$/i.test(text)) return actions.handleWhy();
-  if (/^(consequences|what happens)\??$/i.test(text)) return actions.handleConsequences();
+  if (/^(consequences|what happens|what are the consequences)\??$/i.test(text)) {
+    return actions.handleConsequences();
+  }
   return actions.handleParse(text);
 }
 
