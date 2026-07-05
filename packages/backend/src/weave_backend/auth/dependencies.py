@@ -36,10 +36,21 @@ class Principal(BaseModel):
     principal_type: str = "human"
 
 
+def _unauthorised() -> HTTPException:
+    """AC-003-07: the shared shape for "no credential at all" -- every route
+    depending on `get_current_principal` gets this for free.
+    """
+    return HTTPException(
+        status_code=401,
+        detail={"error": "unauthorised"},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def _bearer_token(request: Request) -> str:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="missing bearer token")
+        raise _unauthorised()
     return auth_header.removeprefix("Bearer ")
 
 
