@@ -244,6 +244,46 @@ async def test_audit_outbox_immutability_trigger_permits_only_delivered_at_flip(
     assert delivered["delivered_at"] is not None
 
 
+async def test_flush_pending_concurrent_calls_deliver_exactly_once(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #23 finding #3: two concurrent `flush_pending` calls for the same
+    tenant (each mutation's post-commit flush triggers one) must not both
+    deliver the same pending row into the hash chain. `SELECT ... FOR UPDATE
+    SKIP LOCKED` plus the conditional claim
+    (`UPDATE ... WHERE delivered_at IS NULL RETURNING id`) make this safe
+    against real concurrent Postgres transactions -- `test_operations_outbox.py`
+    proves the same claim logic against a fake connection; this proves it
+    against the real row-locking behaviour it depends on.
+    """
+    tenant_id = _unique_tenant("ont-outbox-race")
+    event = AuditEvent(
+        tenant_id=tenant_id,
+        event_type="test.outbox.race",
+        actor_iri="urn:weave:principal:test-actor",
+        subject_iri="urn:weave:test:subject",
+        engine="constitution",
+        payload={"n": 1},
+    )
+    async with tenant_connection(tenant_id) as conn:
+        await outbox.enqueue(conn, event)
+
+    async def _flush() -> int:
+        async with tenant_connection(tenant_id) as conn:
+            return await outbox.flush_pending(conn, tenant_id)
+
+    results = await asyncio.gather(_flush(), _flush())
+
+    assert sum(results) == 1  # exactly one of the two flushes delivered it
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type FROM audit_entries WHERE tenant_id = $1 AND event_type = $2",
+            tenant_id,
+            "test.outbox.race",
+        )
+    assert len(rows) == 1
+
+
 @pytest.mark.e2e
 async def test_publish_then_appears_in_version_list_as_published(
     client: AsyncClient, platform_stack: Path

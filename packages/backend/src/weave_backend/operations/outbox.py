@@ -9,6 +9,14 @@ afterwards, in `flush_pending`, called from a connection/transaction
 separate from the mutation's own. A per-row savepoint isolates one row's
 emit failure from the rest of the flush: nothing is ever dropped, and a
 failing row never blocks -- or gets blocked by -- its neighbours.
+
+Two concurrent flushes for the same tenant (each mutation triggers one) must
+never both deliver the same row: `SELECT ... FOR UPDATE SKIP LOCKED` keeps a
+second flush from even selecting a row a first flush already holds, and the
+conditional claim (`UPDATE ... WHERE delivered_at IS NULL RETURNING id`)
+before emitting is the belt-and-braces layer that stops a double-emit even
+if a row is somehow fetched twice -- only a successful claim proceeds to
+emit, and the per-row savepoint rolls the claim back too if the emit fails.
 """
 
 from __future__ import annotations
@@ -47,7 +55,8 @@ async def flush_pending(
     """
     rows = await conn.fetch(
         "SELECT id, event_type, actor_iri, subject_iri, engine, payload "
-        "FROM audit_outbox WHERE tenant_id = $1 AND delivered_at IS NULL ORDER BY created_at",
+        "FROM audit_outbox WHERE tenant_id = $1 AND delivered_at IS NULL "
+        "ORDER BY created_at FOR UPDATE SKIP LOCKED",
         tenant_id,
     )
     delivered = 0
@@ -62,13 +71,18 @@ async def flush_pending(
         )
         try:
             async with conn.transaction():  # per-row savepoint
-                await emitter.emit(conn, event)
-                await conn.execute(
-                    "UPDATE audit_outbox SET delivered_at = now() WHERE id = $1", row["id"]
+                claimed = await conn.fetchrow(
+                    "UPDATE audit_outbox SET delivered_at = now() "
+                    "WHERE id = $1 AND delivered_at IS NULL RETURNING id",
+                    row["id"],
                 )
+                if claimed is None:
+                    continue  # a concurrent flush already delivered this row
+                await emitter.emit(conn, event)
         except Exception:
             # AC-002-04: sink failure must never propagate (mutation already
-            # committed) or drop the event (it stays pending for next flush).
+            # committed) or drop the event (savepoint rolls the claim back
+            # too, so it stays pending for next flush).
             log.warning("audit outbox delivery failed, will retry: id=%s", row["id"], exc_info=True)
             continue
         delivered += 1

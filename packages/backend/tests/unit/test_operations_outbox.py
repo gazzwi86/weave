@@ -24,10 +24,23 @@ from weave_backend.operations import outbox
 
 
 class _NullTransaction:
+    """Simulates Postgres SAVEPOINT semantics: a snapshot taken on entry is
+    restored if the block raises, so a claim (the conditional UPDATE) taken
+    inside the block is undone along with everything else when a later
+    step -- the emit -- fails.
+    """
+
+    def __init__(self, conn: FakeConn) -> None:
+        self._conn = conn
+        self._snapshot: list[_Row] = []
+
     async def __aenter__(self) -> _NullTransaction:
+        self._snapshot = list(self._conn.rows)
         return self
 
-    async def __aexit__(self, *exc_info: object) -> None:
+    async def __aexit__(self, exc_type: type[BaseException] | None, *exc_info: object) -> None:
+        if exc_type is not None:
+            self._conn.rows = self._snapshot
         return None
 
 
@@ -52,7 +65,7 @@ class FakeConn:
     executed: list[tuple[str, tuple[Any, ...]]] = field(default_factory=list)
 
     def transaction(self) -> _NullTransaction:
-        return _NullTransaction()
+        return _NullTransaction(self)
 
     async def execute(self, query: str, *args: Any) -> None:
         self.executed.append((query, args))
@@ -68,14 +81,23 @@ class FakeConn:
                     payload=payload,
                 )
             )
-        elif query.strip().startswith("UPDATE audit_outbox"):
-            (row_id,) = args
-            for row in self.rows:
-                if row.id == row_id:
-                    self.rows.remove(row)  # delivered -- simulate delivered_at being set
 
     async def fetch(self, query: str, tenant_id: str) -> list[_Row]:
         return list(self.rows)
+
+    async def fetchrow(self, query: str, *args: Any) -> _Row | None:
+        """Simulates the conditional claim
+        `UPDATE ... WHERE delivered_at IS NULL RETURNING id` -- pops the row
+        (simulating `delivered_at` being set) and returns it, or `None` if
+        it's no longer pending (already claimed by a concurrent flush).
+        """
+        self.executed.append((query, args))
+        (row_id,) = args
+        for row in self.rows:
+            if row.id == row_id:
+                self.rows.remove(row)
+                return row
+        return None
 
 
 def _event(event_type: str = "operations.applied") -> AuditEvent:
@@ -137,3 +159,28 @@ async def test_flush_pending_does_not_let_one_failure_block_the_rest() -> None:
 
     assert delivered == 1
     assert len(conn.rows) == 1  # the failed one is still queued for next flush
+
+
+async def test_flush_pending_skips_a_row_already_claimed_by_a_concurrent_flush() -> None:
+    """PR #23 finding #3: `SELECT ... FOR UPDATE SKIP LOCKED` means two
+    concurrent flushes never select the same row in the first place, but the
+    conditional claim (`UPDATE ... WHERE delivered_at IS NULL RETURNING id`)
+    is the belt-and-braces layer that stops a double-emit even if a row is
+    somehow fetched twice -- simulated here via a stale fetch result for a
+    row a concurrent flush already claimed (and thus already removed).
+    """
+    conn = FakeConn()
+    await outbox.enqueue(conn, _event())
+    stale_row = conn.rows[0]
+    conn.rows.clear()  # a concurrent flush already claimed + delivered it
+    emitter = AsyncMock()
+
+    async def _fake_fetch(query: str, tenant_id: str) -> list[_Row]:
+        return [stale_row]
+
+    conn.fetch = _fake_fetch  # type: ignore[method-assign]
+
+    delivered = await outbox.flush_pending(conn, "t1", emitter=emitter)
+
+    assert delivered == 0
+    emitter.emit.assert_not_called()  # claim failed -- never re-emitted
