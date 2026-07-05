@@ -1,0 +1,17 @@
+{
+  "name": "ge-oq01-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "THROWAWAY spike harness for TASK-001 (GE-EPIC-001). Not shipped, not linked from production frontend. Delete after ADR-001 sign-off if no re-run is needed.",
+  "scripts": {
+    "fixtures": "node fixtures/generate.mjs",
+    "bench:load": "node bench-load.mjs",
+    "bench:drag": "node bench-drag.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "cytoscape": "^3.30.4",
+    "cytoscape-fcose": "^2.2.0"
+  }
+}
