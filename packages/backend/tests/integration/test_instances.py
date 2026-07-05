@@ -441,6 +441,82 @@ async def test_e2e_edit_description_is_committed(client: AsyncClient) -> None:
         await clear_graph(workspace.named_graph_iri)
 
 
+async def test_workspace_authz_attacker_cannot_touch_foreign_workspace_instance(
+    client: AsyncClient,
+) -> None:
+    """QA edge case (PROJ-009 IDOR class, CE-TASK-005 CRITICAL flag): a
+    tenant member of workspace A, who is NOT a member of workspace B (same
+    tenant), must not be able to read, edit, or delete an instance that
+    lives in workspace B -- via browse, PATCH, or DELETE -- by referencing
+    its IRI directly. `/api/instances` never accepts a client-suppliable
+    `workspace_id` (unlike search.py/sparql.py's pre-fix shape); this test
+    proves that holds end-to-end, not just by code inspection.
+    """
+    tenant_id = _unique_tenant("authz-idor")
+
+    workspace_b = await _make_workspace(tenant_id, label="workspace-b")
+    await _add_member(tenant_id, workspace_b.id, user_sub="u-owner", role="author")
+    owner_headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-owner", workspace_id=workspace_b.id
+    )
+    secret = await client.post(
+        "/api/instances",
+        json={"kind": "Concept", "label": "Secret", "properties": {"colour": "blue"}},
+        headers=owner_headers,
+    )
+    assert secret.status_code == 201
+    secret_iri = secret.json()["iri"]
+
+    workspace_a = await _make_workspace(tenant_id, label="workspace-a")
+    await _add_member(tenant_id, workspace_a.id, user_sub="u-attacker", role="author")
+    attacker_headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-attacker", workspace_id=workspace_a.id
+    )
+
+    try:
+        # 1. Attacker cannot even pivot their session into workspace B.
+        forged_switch = await client.post(
+            f"/api/workspaces/{workspace_b.id}/switch", headers=attacker_headers
+        )
+        assert forged_switch.status_code == 403
+
+        # 2. Browse (active workspace = A) must not surface workspace B's data.
+        browse = await client.get(
+            "/api/instances", params={"q": "Secret"}, headers=attacker_headers
+        )
+        assert browse.status_code == 200
+        assert browse.json()["results"] == []
+
+        # 3. PATCH by IRI must not mutate workspace B's actual node.
+        patch = await client.patch(
+            f"/api/instances/{secret_iri}",
+            json={"properties": {"colour": "red"}},
+            headers=attacker_headers,
+        )
+        assert patch.status_code in (200, 404, 422)
+
+        # 4. DELETE (confirmed) by IRI must not remove workspace B's actual node.
+        delete = await client.delete(
+            f"/api/instances/{secret_iri}", params={"confirm": "true"}, headers=attacker_headers
+        )
+        assert delete.status_code in (200, 404, 422)
+
+        # 5. Zero cross-workspace effect: workspace B's owner still sees the
+        # original, untouched node -- proof neither call above actually
+        # reached workspace B's graph.
+        still_there = await client.get(
+            f"/api/ontology/resource/{secret_iri}",
+            params={"version": secret.json()["version_iri"]},
+            headers=owner_headers,
+        )
+        assert still_there.status_code == 200
+        triples = {t["predicate"]: t["object"] for t in still_there.json()["triples"]}
+        assert triples["https://weave.io/ontology/colour"] == "blue"
+    finally:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
+
+
 async def test_e2e_delete_blocked_by_shacl_required_relation(client: AsyncClient) -> None:
     """E2E row 3 (delete blocked) -- API-level stand-in, see module
     docstring.
