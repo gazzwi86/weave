@@ -45,6 +45,23 @@ describe("registerKeyBindings", () => {
     unregister();
   });
 
+  // QA edge case: the shortcut is Cmd/Ctrl+0, not bare "0" -- a plain digit
+  // keypress (e.g. typing into a canvas-focused search chip) must not fit.
+  it("does NOT call fit on a plain '0' keypress without Cmd/Ctrl, even when the canvas holds focus", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.tabIndex = -1;
+    container.focus();
+
+    const fit = vi.fn();
+    const unregister = registerKeyBindings({ container: () => container, fit });
+
+    fireKeydown(document, { key: "0" });
+
+    expect(fit).not.toHaveBeenCalled();
+    unregister();
+  });
+
   it("removes its keydown listener once unregistered", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
