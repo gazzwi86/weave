@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.authoring.bpmo import InvalidBpmoKindError
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import outbox
 from weave_backend.operations.guards import SpikeWriteBackForbidden, assert_not_spike_write_back
@@ -134,6 +135,11 @@ async def _run_apply(
     )
     try:
         return await apply_operations_request(ctx, body, get_redis())
+    except InvalidBpmoKindError as exc:
+        # TASK-004 AC-004-02: an add_node named a kind outside the 13 BPMO
+        # kinds -- a bad request, not a SHACL violation (this is a
+        # platform-level taxonomy guard, checked before SHACL runs).
+        raise HTTPException(status_code=400, detail={"error": "invalid_bpmo_kind"}) from exc
     except InvalidTargetError as exc:
         # Malformed target -- not a forgery attempt, just a bad request.
         raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
