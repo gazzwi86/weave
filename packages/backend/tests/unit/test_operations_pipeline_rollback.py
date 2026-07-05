@@ -72,6 +72,7 @@ async def test_warning_only_batch_commits_with_advisories_populated(
         pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
     )
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    monkeypatch.setattr(pipeline, "default_audit_emitter", AsyncMock())
 
     request = ApplyRequest(
         # Activity with a label but no description -- Warning only, no Violation.

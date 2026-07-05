@@ -17,6 +17,7 @@ with a browser-driven Playwright spec once TASK-006 ships the authoring UI.
 
 from __future__ import annotations
 
+import json
 import shutil
 import time
 import uuid
@@ -130,6 +131,20 @@ async def test_valid_mutation_commits_new_version_and_reflects_in_the_graph(
         turtle = await fetch_graph_turtle(workspace.named_graph_iri)
         assert "Invoicing" in turtle
         assert "performedBy" in turtle
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT event_type, target_iri, diff_summary FROM audit_entries"
+                " WHERE tenant_id = $1",
+                tenant_id,
+            )
+        assert len(rows) == 1
+        assert rows[0]["event_type"] == "operations.applied"
+        assert rows[0]["target_iri"] == body["version_iri"]
+        diff_summary = json.loads(rows[0]["diff_summary"])
+        assert diff_summary["target_graph_iri"] == workspace.named_graph_iri
+        assert diff_summary["activity_iri"] == body["activity_iri"]
+        assert diff_summary["applied_count"] == 3
     finally:
         await clear_graph(workspace.named_graph_iri)
 
@@ -251,6 +266,16 @@ async def test_idempotent_replay_returns_original_response_without_reapplying(
         assert first.status_code == 201
         assert second.status_code == 201
         assert first.json() == second.json()
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT event_type FROM audit_entries WHERE tenant_id = $1", tenant_id
+            )
+        # Fix 1 (idempotent replay): the cached-response replay must not
+        # re-run `_apply_uncached`, so exactly one `operations.applied` entry
+        # exists even though the client posted twice.
+        applied = [r for r in rows if r["event_type"] == "operations.applied"]
+        assert len(applied) == 1
     finally:
         await clear_graph(workspace.named_graph_iri)
 
@@ -310,12 +335,19 @@ async def test_read_only_role_gets_403_not_write_access(
 
     assert response.status_code == 403
 
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type FROM audit_entries WHERE tenant_id = $1", tenant_id
+        )
+    assert rows[0]["event_type"] == "security.rbac.denied"
+
 
 async def test_forged_cross_tenant_target_is_rejected(
     client: AsyncClient, platform_stack: Path
 ) -> None:
-    """AC-001-09: a caller can never write to another tenant's graph, even
-    by naming its version IRI directly in `target`.
+    """AC-001-09 / ADR-001-tenant-isolation: a well-formed version IRI naming
+    another tenant's graph is a 403 + audit, never a 400 -- a 400 would look
+    like an accident (client typo); this is a forgery attempt.
     """
     tenant_a = _unique_tenant("ops-tenant-a")
     tenant_b = _unique_tenant("ops-tenant-b")
@@ -339,5 +371,48 @@ async def test_forged_cross_tenant_target_is_rejected(
         headers=headers,
     )
 
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "cross_tenant_target"
+
+    async with tenant_connection(tenant_a) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type, target_iri FROM audit_entries WHERE tenant_id = $1", tenant_a
+        )
+    assert rows[0]["event_type"] == "security.cross_tenant.rejected"
+    assert rows[0]["target_iri"] == forged_target
+
+
+async def test_malformed_target_string_still_returns_400_no_audit(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Fix 2 boundary: a target that isn't even a recognisable version IRI
+    shape (not a forged foreign graph, just garbage) stays a plain 400 with
+    no audit entry -- distinguishing "malformed" from "forged" is the point.
+    """
+    tenant_id = _unique_tenant("ops-malformed")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+
+    response = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": _valid_operations(),
+            "actor": "urn:weave:principal:test-actor",
+            "target": "not-a-recognisable-target",
+        },
+        headers=headers,
+    )
+
     assert response.status_code == 400
     assert response.json()["detail"]["error"] == "invalid_target"
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type FROM audit_entries WHERE tenant_id = $1", tenant_id
+        )
+    assert rows == []
