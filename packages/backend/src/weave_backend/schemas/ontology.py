@@ -83,3 +83,27 @@ class KindEntry(BaseModel):
 class OntologyTypesResponse(BaseModel):
     kinds: list[KindEntry]
     relationships: list[PropertyShapeModel]
+
+
+class OutgoingEdgeModel(BaseModel):
+    predicate: str
+    target: str
+
+
+class IncomingEdgeModel(BaseModel):
+    predicate: str
+    source: str
+
+
+class ResourceResponse(BaseModel):
+    """AC-003-02: a single resource's triples + edges, resolved inside one
+    version's named graph -- see `ontology/resource.py`.
+    """
+
+    iri: str
+    kind: str | None
+    label: str
+    version_iri: str
+    triples: list[TripleModel]
+    outgoing: list[OutgoingEdgeModel]
+    incoming: list[IncomingEdgeModel]
