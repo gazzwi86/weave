@@ -21,7 +21,6 @@ from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
-from weave_backend.routers.projects import projects_validation_error_handler
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
