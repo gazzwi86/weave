@@ -34,6 +34,7 @@ from rdflib import RDF, Graph, Namespace
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import agent_sub
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.keys import KEY_ID, PRIVATE_KEY
 from weave_backend.mock_oidc.tokens import ISSUER, issue_token_pair
@@ -44,6 +45,10 @@ from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
 from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.sessions import get_redis
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
+
+#: PLAT-TASK-004's LocalStack STS emulator resolves every session token to
+#: this fixed root identity (verified empirically, see test_identity_rbac.py).
+_ROOT_ARN = "arn:aws:iam::000000000000:root"
 
 WEAVE = Namespace("https://weave.io/ontology/")
 
@@ -624,3 +629,46 @@ async def test_spike_run_mode_write_back_is_rejected(
 
     assert response.status_code == 403
     assert response.json()["detail"]["error"] == "spike_write_back_forbidden"
+
+
+async def test_agent_jwt_with_author_role_can_write_via_apply(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-003-12: a service-account (agent) JWT from another Weave engine is
+    accepted on CE-WRITE-1 the same way a human author's JWT is -- RBAC
+    never branches on `principal_type` (see `rbac.py`'s own docstring), it
+    only ever checks the caller's `workspace_members` role. The agent is
+    granted that role the same way a human is: an admin adds its
+    deterministic sub (`agent_sub`) as an author-role member.
+    """
+    tenant_id = _unique_tenant("ops-agent")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    agent_principal_sub = agent_sub(_ROOT_ARN)
+    await _add_member(
+        tenant_id,
+        workspace.id,
+        user_sub=agent_principal_sub,
+        role="author",
+        email="agent@example.invalid",
+    )
+
+    token_response = await client.post(
+        "/api/auth/agent-token",
+        json={"sts_token": "any-session-token", "workspace_id": workspace.id},
+    )
+    assert token_response.status_code == 200, token_response.text
+    headers = {"Authorization": f"Bearer {token_response.json()['agent_token']}"}
+    switch_response = await client.post(
+        f"/api/workspaces/{workspace.id}/switch", headers=headers
+    )
+    assert switch_response.status_code == 200
+
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        assert response.status_code == 201, response.text
+    finally:
+        await clear_graph(workspace.named_graph_iri)
