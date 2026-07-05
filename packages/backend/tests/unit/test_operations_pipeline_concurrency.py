@@ -89,7 +89,7 @@ async def test_concurrent_replays_apply_the_mutation_exactly_once(
         pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
     )
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
-    monkeypatch.setattr(pipeline, "default_audit_emitter", AsyncMock())
+    monkeypatch.setattr(pipeline, "enqueue", AsyncMock())
     apply_uncached_spy = AsyncMock(wraps=pipeline._apply_uncached)
     monkeypatch.setattr(pipeline, "_apply_uncached", apply_uncached_spy)
 

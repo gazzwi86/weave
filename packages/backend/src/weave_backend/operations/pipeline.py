@@ -24,7 +24,7 @@ from typing import Any
 import asyncpg
 from rdflib import Graph
 
-from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
+from weave_backend.audit.emitter import AuditEvent
 from weave_backend.operations import metrics
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
@@ -34,7 +34,8 @@ from weave_backend.operations.idempotency import (
     store_response,
     try_acquire_lock,
 )
-from weave_backend.operations.provenance import write_activity
+from weave_backend.operations.outbox import enqueue
+from weave_backend.operations.provenance import ActorType, write_activity
 from weave_backend.operations.shacl import validate_graph
 from weave_backend.operations.versioning import mint_version
 from weave_backend.rdf.oxigraph_client import fetch_graph_turtle, load_graph
@@ -87,6 +88,10 @@ class ApplyContext:
     #: body field) -- the only trustworthy actor for PROV attribution and the
     #: audit trail (PR #20 finding: spoofable attribution).
     principal_iri: str
+    #: "human" for every mutation today (no LLM-agent-initiated flow until
+    #: TASK-004/006) -- carried on the context so `write_activity` can model
+    #: the PROV-O actor type correctly once that flow exists (ADR-002).
+    principal_type: ActorType = "human"
 
 
 def resolve_source_graph_iri(named_graph_iri: str, target: str) -> str:
@@ -108,11 +113,21 @@ async def _fetch_scratch_graph(source_graph_iri: str) -> Graph:
 
 
 async def _commit(
-    ctx: ApplyContext, scratch: Graph, *, claimed_actor_iri: str, applied_count: int
+    ctx: ApplyContext,
+    scratch: Graph,
+    *,
+    source_graph_iri: str,
+    claimed_actor_iri: str,
+    applied_count: int,
 ) -> tuple[str, str, str]:
     """Mints the version row, the version-graph snapshot, the PROV activity,
-    and the audit entry -- everything failable, all before the caller
+    and the audit outbox entry -- everything failable, all before the caller
     promotes the working graph (AC-001-10, see module docstring).
+
+    The audit write is a same-transaction `enqueue` (a cheap outbox insert),
+    not the real hash-chain emit -- see `operations/outbox.py`'s docstring
+    and ADR-002. AC-002-04: real delivery happens later, out of this
+    transaction, so a down audit sink can never roll back the mutation.
 
     Returns `(version_iri, activity_iri, turtle)`; the caller does the final
     `load_graph(ctx.named_graph_iri, turtle)` promotion itself, deliberately
@@ -126,13 +141,18 @@ async def _commit(
         tenant_id=ctx.tenant_id,
         workspace_id=ctx.workspace_id,
         named_graph_iri=ctx.named_graph_iri,
+        actor_iri=ctx.principal_iri,
     )
     turtle = scratch.serialize(format="turtle")
     await load_graph(version_iri, turtle)
     activity_iri = await write_activity(
-        named_graph_iri=ctx.named_graph_iri, actor_iri=ctx.principal_iri
+        named_graph_iri=ctx.named_graph_iri,
+        actor_iri=ctx.principal_iri,
+        actor_type=ctx.principal_type,
+        generated_iri=version_iri,
+        used_iri=source_graph_iri,
     )
-    await default_audit_emitter.emit(
+    await enqueue(
         ctx.conn,
         AuditEvent(
             tenant_id=ctx.tenant_id,
@@ -178,7 +198,11 @@ async def _apply_uncached(
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
     version_iri, activity_iri, turtle = await _commit(
-        ctx, scratch, claimed_actor_iri=request.actor, applied_count=apply_result.applied_count
+        ctx,
+        scratch,
+        source_graph_iri=source_graph_iri,
+        claimed_actor_iri=request.actor,
+        applied_count=apply_result.applied_count,
     )
     await metrics.emit_mutation_outcome_metric("success")
     # Last, irreversible step -- everything failable already happened and
