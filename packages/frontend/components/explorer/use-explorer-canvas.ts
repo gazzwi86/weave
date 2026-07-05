@@ -9,6 +9,11 @@ import { DEFAULT_EXPLORER_CONFIG, type ExplorerConfig } from "@/lib/explorer/con
 import { createCytoscapeInstance } from "@/lib/explorer/create-cytoscape";
 import { fetchGraph as defaultFetchGraph, fetchPalette as defaultFetchPalette } from "@/lib/explorer/fetch-graph";
 import { registerKeyBindings } from "@/lib/explorer/key-bindings";
+import {
+  applySavedPositions,
+  fetchLayoutPositions as defaultFetchLayoutPositions,
+  type SavedLayoutPosition,
+} from "@/lib/explorer/layout-client";
 import { computeViewportIndicator, type ViewportIndicator } from "@/lib/explorer/minimap-geometry";
 import { rafThrottle } from "@/lib/explorer/raf-throttle";
 import { createRendererAdapter, type AdaptableCy, type RendererAdapter } from "@/lib/explorer/renderer-adapter";
@@ -78,6 +83,8 @@ export interface UseExplorerCanvasOptions {
   fetchPalette?: () => Promise<NodeKind[]>;
   fetchGraph?: (timeoutMs: number) => Promise<CytoscapeElement[]>;
   createCy?: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
+  /** TASK-004 AC-3/AC-5: test seam -- defaults to the real proxy fetch. */
+  fetchLayoutPositions?: (graphId: string) => Promise<SavedLayoutPosition[]>;
 }
 
 export interface ExplorerCanvasState {
@@ -164,6 +171,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const fetchPalette = options.fetchPalette ?? defaultFetchPalette;
   const fetchGraph = options.fetchGraph ?? defaultFetchGraph;
   const createCy = options.createCy ?? createCytoscapeInstance;
+  const fetchLayoutPositions = options.fetchLayoutPositions ?? defaultFetchLayoutPositions;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<CyLike | null>(null);
@@ -183,7 +191,11 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       const loadStartedAt = performance.now();
       resetDevIntrospection();
       try {
-        const [palette, elements] = await Promise.all([fetchPalette(), fetchGraph(config.ceTimeoutMs)]);
+        const [palette, elements, savedPositions] = await Promise.all([
+          fetchPalette(),
+          fetchGraph(config.ceTimeoutMs),
+          fetchLayoutPositions(config.layoutGraphId),
+        ]);
         if (cancelled) return;
         const cy = createCy(containerRef.current, buildStylesheet(palette));
         // ADR-001: element loading and layout run through the renderer
@@ -193,8 +205,10 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
         // subset) to AdaptableCy (the fuller seam TASK-003 needs) -- both
         // describe the same real cytoscape.Core instance at runtime.
         const canvasAdapter = createRendererAdapter(cy as unknown as AdaptableCy);
-        canvasAdapter.load(elements);
-        canvasAdapter.setLayout("fcose", config.fcoseParams);
+        const positionedElements = applySavedPositions(elements, savedPositions);
+        canvasAdapter.load(positionedElements);
+        // TASK-004 AC-3/AC-5: a restored layout must not be re-randomized.
+        canvasAdapter.setLayout("fcose", { ...config.fcoseParams, randomize: savedPositions.length === 0 });
         unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
         cyRef.current = cy;
         exposeDevIntrospection(cy, elements, loadStartedAt);
@@ -216,7 +230,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       setAdapter(null);
       clearDevIntrospection();
     };
-  }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
+  }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, createCy, retryToken]);
 
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 
