@@ -594,3 +594,33 @@ async def test_slow_concurrent_holder_returns_409_not_500(
         assert response.json()["detail"]["error"] == "concurrent_apply_in_progress"
     finally:
         await release_lock(redis_client, tenant_id, idempotency_key)
+
+
+async def test_spike_run_mode_write_back_is_rejected(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """XT-002 / ADR-003: a Build Engine run tagged `run_mode: "spike"` may
+    never write back to CE-WRITE-1, even with a valid, well-formed payload
+    and a real author-role JWT.
+    """
+    tenant_id = _unique_tenant("ops-spike")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+
+    response = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": _valid_operations(),
+            "actor": "urn:weave:principal:test-actor",
+            "run_mode": "spike",
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "spike_write_back_forbidden"
