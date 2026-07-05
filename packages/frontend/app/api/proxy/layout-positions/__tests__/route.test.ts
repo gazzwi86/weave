@@ -8,6 +8,9 @@ import { DELETE, GET, POST } from "../route";
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 
 const BASE_URL = "http://localhost:3000/api/proxy/layout-positions";
+const GRAPH_ID_QUERY = "graph_id=g1";
+const ACCESS_TOKEN = "token-abc";
+const NO_SESSION_CASE = "returns 401 when there is no session";
 
 function makeGetRequest(query: string): NextRequest {
   return new NextRequest(`${BASE_URL}?${query}`);
@@ -34,17 +37,17 @@ describe("GET /api/proxy/layout-positions", () => {
     stubFetch(jsonResponse({ positions: [] }));
   });
 
-  it("returns 401 when there is no session", async () => {
+  it(NO_SESSION_CASE, async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
-    const response = await GET(makeGetRequest("graph_id=g1"));
+    const response = await GET(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(response.status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("returns 422 when graph_id is missing (Law 13)", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
 
     const response = await GET(makeGetRequest(""));
 
@@ -53,20 +56,20 @@ describe("GET /api/proxy/layout-positions", () => {
   });
 
   it("forwards graph_id to the backend with a bearer token and proxies the response", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
 
-    const response = await GET(makeGetRequest("graph_id=g1"));
+    const response = await GET(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/layout/positions?graph_id=g1"),
-      expect.objectContaining({ headers: { Authorization: "Bearer token-abc" } })
+      expect.objectContaining({ headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } })
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ positions: [] });
   });
 
   it("returns a distinguishable error when the backend is unreachable", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -74,17 +77,17 @@ describe("GET /api/proxy/layout-positions", () => {
       })
     );
 
-    const response = await GET(makeGetRequest("graph_id=g1"));
+    const response = await GET(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "store_unavailable" });
   });
 
   it("returns a distinguishable error when upstream returns a non-JSON body", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
     stubFetch(new Response("<html>Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } }));
 
-    const response = await GET(makeGetRequest("graph_id=g1"));
+    const response = await GET(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "store_unavailable" });
@@ -97,7 +100,7 @@ describe("POST /api/proxy/layout-positions", () => {
     stubFetch(new Response(null, { status: 204 }));
   });
 
-  it("returns 401 when there is no session", async () => {
+  it(NO_SESSION_CASE, async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
     const response = await POST(
@@ -109,7 +112,7 @@ describe("POST /api/proxy/layout-positions", () => {
   });
 
   it("returns 422 for an invalid body (Law 13)", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
 
     const response = await POST(makePostRequest({ graph_id: "g1" }));
 
@@ -118,7 +121,7 @@ describe("POST /api/proxy/layout-positions", () => {
   });
 
   it("forwards a valid body to the backend and proxies a 204", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
     const body = { graph_id: "g1", node_iri: "urn:weave:x:1", position_x: 1, position_y: 2 };
 
     const response = await POST(makePostRequest(body));
@@ -127,7 +130,7 @@ describe("POST /api/proxy/layout-positions", () => {
       expect.stringContaining("/api/layout/positions"),
       expect.objectContaining({
         method: "POST",
-        headers: { Authorization: "Bearer token-abc", "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
     );
@@ -141,23 +144,23 @@ describe("DELETE /api/proxy/layout-positions", () => {
     stubFetch(new Response(null, { status: 204 }));
   });
 
-  it("returns 401 when there is no session", async () => {
+  it(NO_SESSION_CASE, async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
-    const response = await DELETE(makeGetRequest("graph_id=g1"));
+    const response = await DELETE(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(response.status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("forwards graph_id and proxies a 204", async () => {
-    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    vi.mocked(auth).mockResolvedValue({ accessToken: ACCESS_TOKEN } as never);
 
-    const response = await DELETE(makeGetRequest("graph_id=g1"));
+    const response = await DELETE(makeGetRequest(GRAPH_ID_QUERY));
 
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/layout/positions?graph_id=g1"),
-      expect.objectContaining({ method: "DELETE", headers: { Authorization: "Bearer token-abc" } })
+      expect.objectContaining({ method: "DELETE", headers: { Authorization: `Bearer ${ACCESS_TOKEN}` } })
     );
     expect(response.status).toBe(204);
   });
