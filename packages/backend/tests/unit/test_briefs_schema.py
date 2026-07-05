@@ -104,4 +104,4 @@ def test_cost_estimate_accepts_xl_complexity() -> None:
 
     brief = TaskBrief.model_validate(kwargs)
 
-    assert brief.cost_estimate.complexity == "XL"  # type: ignore[comparison-overlap]
+    assert brief.cost_estimate.complexity == "XL"

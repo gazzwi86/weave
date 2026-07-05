@@ -58,6 +58,20 @@ async def create_brief_route(
                 body.task_description, bpmo_context, body.dep_summaries
             )
         except ModelRoutingMiss as exc:
+            # AC-6: a routing miss halts the agent AND is itself a
+            # security-relevant event -- audited the same way the
+            # success path below is, no secrets/token in the payload.
+            await default_audit_emitter.emit(
+                conn,
+                AuditEvent(
+                    tenant_id=principal.tenant_id,
+                    event_type="model_routing_miss",
+                    actor_iri=principal.principal_iri,
+                    subject_iri=project_iri,
+                    payload={"tier": exc.tier},
+                    engine="build",
+                ),
+            )
             raise HTTPException(
                 status_code=500, detail={"error": "model_routing_miss"}
             ) from exc

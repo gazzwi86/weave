@@ -42,7 +42,7 @@ class DepChain(BaseModel):
 
 
 class CostEstimate(BaseModel):
-    complexity: Literal["S", "M", "L"]
+    complexity: Literal["S", "M", "L", "XL"]
     estimated_tokens_input_k: float
     estimated_tokens_output_k: float
     estimated_cost_usd: float
