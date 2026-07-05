@@ -1,3 +1,5 @@
+/** AC-5: scale the current viewport's graph-space extent into minimap pixel
+ * coordinates, so the minimap can draw a rectangle tracking what's visible. */
 export interface BoundingBox {
   x1: number;
   y1: number;
@@ -12,11 +14,19 @@ export interface ViewportIndicator {
   height: number;
 }
 
-// ponytail: stub -- red before green (TDD step 1).
 export function computeViewportIndicator(
-  _graphBBox: BoundingBox,
-  _viewportBBox: BoundingBox,
-  _minimapSize: { width: number; height: number },
+  graphBBox: BoundingBox,
+  viewportBBox: BoundingBox,
+  minimapSize: { width: number; height: number },
 ): ViewportIndicator {
-  throw new Error("not implemented");
+  const graphWidth = graphBBox.x2 - graphBBox.x1 || 1;
+  const graphHeight = graphBBox.y2 - graphBBox.y1 || 1;
+  const scaleX = minimapSize.width / graphWidth;
+  const scaleY = minimapSize.height / graphHeight;
+  return {
+    left: (viewportBBox.x1 - graphBBox.x1) * scaleX,
+    top: (viewportBBox.y1 - graphBBox.y1) * scaleY,
+    width: (viewportBBox.x2 - viewportBBox.x1) * scaleX,
+    height: (viewportBBox.y2 - viewportBBox.y1) * scaleY,
+  };
 }
