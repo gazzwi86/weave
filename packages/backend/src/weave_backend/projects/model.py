@@ -62,12 +62,21 @@ def slugify(name: str) -> str:
 
 
 def build_project_iri(tenant_id: str, slug: str) -> str:
+    """Deterministic project IRI (AC-1): ``urn:weave:project:{tenant_id}:{slug}``.
+
+    Same ``(tenant_id, slug)`` always yields the same IRI, so a racing
+    duplicate insert can report back the exact IRI it collided with (AC-5)
+    without a re-query.
+    """
     return f"urn:weave:project:{tenant_id}:{slug}"
 
 
 async def find_existing_project_iri(
     conn: asyncpg.Connection, *, tenant_id: str, slug: str
 ) -> str | None:
+    """Pre-check for AC-5's 409: the existing ``project_iri`` for this
+    ``(tenant_id, slug)`` pair, or ``None`` if no such project exists yet.
+    """
     # False positive: static literal SQL; tenant_id/slug are bound as
     # positional parameters ($1/$2), never interpolated into the query text.
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
@@ -80,6 +89,12 @@ async def find_existing_project_iri(
 
 
 async def create_project(conn: asyncpg.Connection, fields: NewProject) -> Project:
+    """Insert a new project row and return it (AC-1).
+
+    Raises `ProjectExists` if a concurrent request already won the
+    ``(tenant_id, slug)`` unique constraint between the caller's own
+    `find_existing_project_iri` pre-check and this insert (AC-5).
+    """
     project_iri = build_project_iri(fields.tenant_id, fields.slug)
     try:
         # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
@@ -119,6 +134,11 @@ async def create_project(conn: asyncpg.Connection, fields: NewProject) -> Projec
 async def get_project(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
 ) -> Project | None:
+    """Fetch a project by IRI, scoped to `tenant_id` (AC-4 -- RLS also
+    enforces this at the DB level; the explicit filter here is
+    defence-in-depth, not the sole guard). Returns `None` if not found or
+    owned by a different tenant, so the router can turn that into a 404.
+    """
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         "SELECT project_iri, name, pinned_graph_version_iri, created_at"
