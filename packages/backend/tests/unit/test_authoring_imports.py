@@ -23,11 +23,12 @@ inst:unrecognised a weave:NotABpmoKind ;
 """
 
 
-def test_plan_import_groups_add_node_ops_by_bpmo_kind() -> None:
+def test_plan_import_builds_add_node_ops_for_recognised_bpmo_kinds() -> None:
     plan = plan_import(TURTLE, existing_class_iris=set())
 
-    assert set(plan.ops_by_kind) == {"Process", "Activity"}
-    process_ops = [op for op in plan.ops_by_kind["Process"] if isinstance(op, AddNodeOp)]
+    node_ops = [op for op in plan.operations if isinstance(op, AddNodeOp)]
+    assert {op.kind for op in node_ops} == {"Process", "Activity"}
+    process_ops = [op for op in node_ops if op.kind == "Process"]
     assert len(process_ops) == 1
     assert process_ops[0].label == "Customer Onboarding"
 
@@ -41,7 +42,7 @@ def test_plan_import_flags_kinds_outside_bpmo_enumeration() -> None:
 def test_plan_import_translates_object_property_to_add_edge() -> None:
     plan = plan_import(TURTLE, existing_class_iris=set())
 
-    edge_ops = [op for op in plan.ops_by_kind["Process"] if isinstance(op, AddEdgeOp)]
+    edge_ops = [op for op in plan.operations if isinstance(op, AddEdgeOp)]
     assert len(edge_ops) == 1
     assert edge_ops[0].predicate == "https://weave.io/ontology/hasActivity"
 
@@ -54,7 +55,9 @@ def test_plan_import_flags_collision_and_excludes_it_from_new_nodes() -> None:
     assert plan.collision_iris == ["https://weave.io/instances/onboarding"]
     assert plan.needs_collision_decision is True
     process_labels = [
-        op.label for op in plan.ops_by_kind.get("Process", []) if isinstance(op, AddNodeOp)
+        op.label
+        for op in plan.operations
+        if isinstance(op, AddNodeOp) and op.kind == "Process"
     ]
     assert "Customer Onboarding" not in process_labels
 

@@ -1,14 +1,16 @@
 """TASK-004 AC-004-10/-11/-12/-13: Turtle/OWL import -> CE-WRITE-1 op-batch
 planning.
 
-Implementation hint: batch per BPMO-kind group, not per triple, to stay
-within idempotency-key scope -- `ImportPlan.ops_by_kind` is exactly that
-grouping; a caller dispatches one `ApplyRequest` per kind. Collisions are
-never silently resolved (AC-004-11): they're listed on the plan and the
-caller must supply a decision (`skip` leaves them out entirely; `overwrite`
-uses `collision_updates()`, which is `update_node` -- never a fresh
-`add_node` -- so the existing resource's other triples survive, matching
-AC-004-13's partial-update guarantee).
+One `ApplyRequest` for the whole import (not per triple, not per kind):
+SHACL validates the entire graph on every commit, so a Process committed
+before its `performedBy` Actor/edge exist would always violate ProcessShape
+-- there's no valid intermediate state to split across separate requests
+when kinds reference each other. Collisions are never silently resolved
+(AC-004-11): they're listed on the plan and the caller must supply a
+decision (`skip` leaves them out entirely; `overwrite` uses
+`collision_updates()`, which is `update_node` -- never a fresh `add_node`
+-- so the existing resource's other triples survive, matching AC-004-13's
+partial-update guarantee).
 """
 
 from __future__ import annotations
@@ -39,12 +41,12 @@ def _label_of(graph: Graph, subject: URIRef) -> str | None:
 
 @dataclass
 class ImportPlan:
-    """One BPMO-kind-group op batch per recognised kind, plus the
+    """A single op batch (nodes then edges, in one `ApplyRequest`) plus the
     modeller-facing report: unknown kinds are warned (not rejected,
     AC-004-10), collisions are listed for HITL resolution (AC-004-11).
     """
 
-    ops_by_kind: dict[str, list[Op]] = field(default_factory=dict)
+    operations: list[Op] = field(default_factory=list)
     unknown_kinds: set[str] = field(default_factory=set)
     collision_iris: list[str] = field(default_factory=list)
     _collision_labels: dict[str, str] = field(default_factory=dict, repr=False)
@@ -67,8 +69,8 @@ class ImportPlan:
 def plan_import(turtle_data: str, existing_class_iris: set[str]) -> ImportPlan:
     """Parses `turtle_data` and builds an `ImportPlan` against the tenant's
     `existing_class_iris` (from CE-READ-1). Never calls CE-WRITE-1 itself --
-    callers dispatch `plan.ops_by_kind` (and, if resolved, `collision_updates()`)
-    as separate `ApplyRequest`s per kind.
+    the caller dispatches `plan.operations` (and, if resolved,
+    `collision_updates()`) as `ApplyRequest`s.
     """
     graph = Graph()
     graph.parse(data=turtle_data, format="turtle")
@@ -97,7 +99,7 @@ def plan_import(turtle_data: str, existing_class_iris: set[str]) -> ImportPlan:
 
         ref = f"import-{len(ref_by_subject)}"
         ref_by_subject[subject_iri] = ref
-        plan.ops_by_kind.setdefault(kind, []).append(
+        plan.operations.append(
             AddNodeOp(
                 op="add_node",
                 ref=ref,
@@ -106,16 +108,15 @@ def plan_import(turtle_data: str, existing_class_iris: set[str]) -> ImportPlan:
             )
         )
 
-    for subject, rdf_type in typed_subjects:
+    for subject, _rdf_type in typed_subjects:
         subject_iri = str(subject)
         if subject_iri not in ref_by_subject:
             continue
-        kind = _local_kind(rdf_type)
         for predicate, obj in graph.predicate_objects(subject):
             if str(predicate) in _SKIPPED_PREDICATES or not isinstance(obj, URIRef):
                 continue
             object_ref = ref_by_subject.get(str(obj), str(obj))
-            plan.ops_by_kind[kind].append(
+            plan.operations.append(
                 AddEdgeOp(
                     op="add_edge",
                     subject_ref=ref_by_subject[subject_iri],
