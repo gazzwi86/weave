@@ -7,7 +7,10 @@ from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.briefs.ce_read_client import close_ce_read_client
 from weave_backend.db.pool import close_app_pool
-from weave_backend.observability.middleware import install_tenant_context_middleware
+from weave_backend.observability.middleware import (
+    install_ce_contract_headers_middleware,
+    install_tenant_context_middleware,
+)
 from weave_backend.projects.ce_version_client import close_ce_client
 from weave_backend.routers.audit import router as audit_router
 from weave_backend.routers.auth import refresh
@@ -40,6 +43,7 @@ public(refresh)
 
 app = FastAPI(title="Weave Platform API")
 install_tenant_context_middleware(app)
+install_ce_contract_headers_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(billing_router)
