@@ -14,3 +14,6 @@
 | 8 | Telegraphic prose in Brief/§2 (WARN) | Rewritten readable, facts preserved |
 
 Cross-engine timing: PASS. OQ-09 predicate-closure hand-off (CE→GE) added to M1 roadmap DoR; gates TASK-005 AC-6/7.
+
+**2026-07-05 mtime-check:** specs touched after this review only by 99d623a (harness dedupe) — 7
+reference-only lines (arch-skill renames/path fixes). No semantic change; verdict stands. Marker refreshed.
