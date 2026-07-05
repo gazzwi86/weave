@@ -297,7 +297,7 @@ async def test_settings_route_cache_invalidated_on_write(
 async def test_settings_write_emits_audit_event(client: AsyncClient, platform_stack: Path) -> None:
     """QA finding: `PUT /api/settings/{key}` was the only one of the four
     mutation routes in this task that never called through the audit
-    seam. Proves a row lands in `audit_events` for the tenant, mirroring
+    seam. Proves a row lands in `audit_entries` for the tenant, mirroring
     the workspace-created/member-invited/member-revoked call sites.
     """
     tenant_id = _unique_tenant("tenant-settings-audit")
@@ -314,11 +314,11 @@ async def test_settings_write_emits_audit_event(client: AsyncClient, platform_st
 
     async with tenant_connection(tenant_id) as conn:
         rows = await conn.fetch(
-            "SELECT event_type, subject_iri FROM audit_events WHERE tenant_id = $1", tenant_id
+            "SELECT event_type, target_iri FROM audit_entries WHERE tenant_id = $1", tenant_id
         )
     assert len(rows) == 1
     assert rows[0]["event_type"] == "setting.changed"
-    assert rows[0]["subject_iri"] == company_iri
+    assert rows[0]["target_iri"] == company_iri
 
 
 async def test_sparql_curie_graph_clause_cannot_cross_scope(platform_stack: Path) -> None:

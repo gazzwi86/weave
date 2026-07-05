@@ -106,7 +106,7 @@ async def test_agent_sts_auth_mints_iri(client: AsyncClient) -> None:
             expected_iri,
         )
         audit_row = await conn.fetchrow(
-            "SELECT event_type, subject_iri FROM audit_events"
+            "SELECT event_type, target_iri FROM audit_entries"
             " WHERE tenant_id = $1 AND event_type = 'agent.registered'",
             tenant_id,
         )
@@ -114,7 +114,7 @@ async def test_agent_sts_auth_mints_iri(client: AsyncClient) -> None:
     assert principal_row["type"] == "agent"
     assert str(principal_row["workspace_id"]) == workspace.id
     assert audit_row is not None
-    assert audit_row["subject_iri"] == expected_iri
+    assert audit_row["target_iri"] == expected_iri
 
 
 async def test_agent_registry_tenant_scoped(client: AsyncClient) -> None:

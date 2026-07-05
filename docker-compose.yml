@@ -35,8 +35,9 @@ services:
     image: localstack/localstack:3.8
     environment:
       # sts: PLAT-TASK-004 agent identity (STS GetCallerIdentity), Law F --
-      # never real AWS STS.
-      SERVICES: s3,sqs,sns,sts,iam
+      # never real AWS STS. secretsmanager: PLAT-TASK-009 audit signing key
+      # custody (weave/platform/audit-signing-key), also LocalStack-only.
+      SERVICES: s3,sqs,sns,sts,iam,secretsmanager
     ports:
       - "4566:4566"
     # localstack ships its own HEALTHCHECK; no override needed.

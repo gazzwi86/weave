@@ -1,6 +1,6 @@
 {
   "project": "weave",
-  "phase": "weave-platform/phase-1",
+  "phase": "constitution-engine/phase-1",
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
@@ -36,12 +36,12 @@
     {
       "id": "PLAT-EPIC-008",
       "title": "Billing, Metering & Budgets (PLAT-BILLING-1)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-EPIC-009",
       "title": "Immutable Audit (PLAT-AUDIT-1)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-EPIC-006",
@@ -202,24 +202,26 @@
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-008",
       "title": "Billing, metering, and pre-call budget enforcement (PLAT-BILLING-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-003",
         "PLAT-TASK-007"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-008.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-008.md",
+      "retry_count": 1
     },
     {
       "id": "PLAT-TASK-009",
       "engine": "weave-platform",
       "epic": "PLAT-EPIC-009",
       "title": "Immutable hash-chained audit trail (PLAT-AUDIT-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-TASK-004",
         "PLAT-TASK-007"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-009.md"
+      "brief": "docs/specs/weave/engines/weave-platform/m1/tasks/TASK-009.md",
+      "retry_count": 0
     },
     {
       "id": "CE-TASK-001",

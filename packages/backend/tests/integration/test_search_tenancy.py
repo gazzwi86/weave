@@ -211,10 +211,10 @@ async def test_search_emits_audit_event(client: AsyncClient, platform_stack: Pat
 
         async with tenant_connection(tenant_id) as conn:
             rows = await conn.fetch(
-                "SELECT event_type, subject_iri FROM audit_events WHERE tenant_id = $1", tenant_id
+                "SELECT event_type, target_iri FROM audit_entries WHERE tenant_id = $1", tenant_id
             )
         assert len(rows) == 1
         assert rows[0]["event_type"] == "search.performed"
-        assert rows[0]["subject_iri"] == workspace.named_graph_iri
+        assert rows[0]["target_iri"] == workspace.named_graph_iri
     finally:
         await clear_graph(workspace.named_graph_iri)

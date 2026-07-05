@@ -6,6 +6,7 @@ from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.db.pool import close_app_pool
 from weave_backend.observability.middleware import install_tenant_context_middleware
+from weave_backend.routers.audit import router as audit_router
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
@@ -51,6 +52,7 @@ app.include_router(sparql_router)
 app.include_router(identity_router)
 app.include_router(search_router)
 app.include_router(notifications_router)
+app.include_router(audit_router)
 
 assert_all_routes_guarded(app)
 
