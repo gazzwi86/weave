@@ -58,3 +58,34 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Action:** when CE-READ-1 ships, forward tenant/auth context on the grounding call and add a caller-owns-
   `project_iri` check + a cross-tenant-denied test.
 - **Classification:** deferred / cross-task (potential tenancy hole once dependency exists).
+
+---
+
+## XT-004 — ui_verify Lighthouse can't reach auth-gated routes (harness gap)
+
+- **Severity:** Major · **Status:** OPEN (harness change — needs advisor consult + HITL per governance)
+- **Affects:** every auth-gated UI route in every epic (surfaced by GE-TASK-002 on `/explorer`).
+- **Found by:** GE-TASK-002 QA (read `.lighthouse.json` directly — `finalUrl` was
+  `/auth/login?return_to=%2Fexplorer`, not `/explorer`).
+- **Symptom:** `ui_verify.sh`'s Lighthouse step has no scripted login, so for any auth-gated route it
+  measures the sign-in redirect page, not the real target — Lighthouse-100 conformance on authenticated
+  screens is silently UNVERIFIED (it also runs against `next dev`, unoptimised, not a prod build).
+- **Action:** `ui_verify.sh` needs a scripted login (mock-OIDC token injection) before the Lighthouse
+  pass on auth-gated routes. This is a **harness change** (`.claude/scripts/**`) → advisor consult +
+  HITL required; do NOT let a lane fix it inline. Until then, Lighthouse PASS on any auth-gated screen
+  is not trustworthy — the functional Playwright + axe layers still hold.
+- **Classification:** dependency / harness.
+
+---
+
+## XT-005 — Explorer kind→shape pairing deferred (WCAG 1.4.1)
+
+- **Severity:** Minor (deferred) · **Status:** OPEN (brief-sanctioned deferral)
+- **Affects:** GE-TASK-002 (single ellipse in M1), GE-TASK-003/004/005 (richer node rendering).
+- **Found by:** GE-TASK-002 QA.
+- **Symptom:** node meaning is conveyed by colour only (single ellipse shape), so WCAG 1.4.1 ("meaning
+  never colour-only") is not met. Explicitly deferred by the brief's Design Decision table (OQ-08:
+  single ellipse in M1) — NOT a TASK-002 defect.
+- **Action:** whichever GE task introduces kind→shape/icon pairing must close WCAG 1.4.1. Tracked, not
+  fixed in M1.
+- **Classification:** deferred / cross-task.

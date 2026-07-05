@@ -2,7 +2,22 @@
 
 **Epic:** GE-EPIC-001 · **Branch:** `feature/GE-EPIC-001-task-002` · **Status:** implemented, QA pending
 **Commits:** 15 (last: `9227358` fix E2E canvas-height bug · `8bf8bb8` brief-mandated Playwright specs)
-**Coverage:** 96% lines changed code · **Tests:** vitest 122/122 + Playwright 2/2 green · tsc/eslint clean
+**Coverage:** 94% lines changed code · **Tests:** vitest 126/126 + Playwright 15/15 · tsc/eslint clean
+**Status:** QA FAIL → fixing (4 blockers, retry 1/3) · QA edge cases `75ef31e`
+
+## QA outcome (retry 1/3)
+
+8/9 ACs passed with real tests; Law-B E2E confirmed genuine real-browser (mocks only the CE-READ-1
+network boundary, like PROJ-006). **4 blockers dispatched to fix:** (1) hard-coded `#9CA3AF` in
+build-stylesheet.ts:7 → must use `var(--color-kind-fallback)`; (2) `renderer-adapter.ts` unused —
+use-explorer-canvas bypasses the ADR-001-mandated adapter → wire it in; (3) **AC-8 perf** — no
+`canvas-load.spec.ts` exists, and the TASK-001 spike showed 5261ms p95 @1k vs 3000ms target (1.8× over,
+on a bespoke harness) → engineer writing a real first-party perf test + node cap, **with a stop-and-
+escalate path if the real component misses** (→ PO/architect M1-target rescope); (4) no axe-core spec
+for `/explorer`. Plus a flaky fcose-animation snapshot to de-flake.
+
+**Cross-task logged:** XT-004 (ui_verify Lighthouse measures the login redirect, not auth-gated routes —
+harness gap), XT-005 (WCAG 1.4.1 kind→shape deferred per OQ-08).
 
 > Coordinator-authored from the lane receipt (ADV-004: lanes never write `.claude/state/**`).
 
