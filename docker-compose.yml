@@ -37,7 +37,8 @@ services:
       # sts: PLAT-TASK-004 agent identity (STS GetCallerIdentity), Law F --
       # never real AWS STS. secretsmanager: PLAT-TASK-009 audit signing key
       # custody (weave/platform/audit-signing-key), also LocalStack-only.
-      SERVICES: s3,sqs,sns,sts,iam,secretsmanager
+      # cloudwatch: CE-TASK-001 mutation-outcome metric (operations/metrics.py).
+      SERVICES: s3,sqs,sns,sts,iam,secretsmanager,cloudwatch
     ports:
       - "${WEAVE_LOCALSTACK_PORT:-4566}:4566"
     # localstack ships its own HEALTHCHECK; no override needed.
