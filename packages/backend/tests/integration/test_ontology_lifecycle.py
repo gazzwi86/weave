@@ -497,6 +497,113 @@ async def test_latest_resolves_to_newest_published_with_a_newer_draft_present(
         await clear_graph(workspace.named_graph_iri)
 
 
+async def test_diff_across_workspaces_same_tenant_denies_and_audits(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #23 finding #1 (IDOR): a reader who belongs only to workspace A must
+    not be able to diff workspace B's version just because they hold its
+    version_iri -- `_resolve_known_version` must authorize against each
+    version's REAL owning workspace, never the caller's active/query one
+    (RLS is tenant-scoped only, so this is an application-layer check).
+    Finding #5: the resulting denial must still write an `access.rbac.denied`
+    PLAT-AUDIT-1 entry (no other tenant activity, so it's the only row).
+    """
+    tenant_id = _unique_tenant("ont-cross-ws")
+    workspace_a = await _make_workspace(tenant_id, label="ont-a")
+    workspace_b = await _make_workspace(tenant_id, label="ont-b")
+    await _add_member(
+        tenant_id,
+        workspace_a.id,
+        user_sub="u-author",
+        role="author",
+        email="author@example.invalid",
+    )
+    await _add_member(
+        tenant_id, workspace_a.id, user_sub="u-reader", role="read", email="reader@example.invalid"
+    )
+    await _add_member(
+        tenant_id, workspace_b.id, user_sub="u-owner", role="admin", email="owner@example.invalid"
+    )
+    author_headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace_a.id
+    )
+    owner_headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-owner", workspace_id=workspace_b.id
+    )
+    reader_headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-reader", workspace_id=workspace_a.id
+    )
+
+    try:
+        apply_a = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=author_headers,
+        )
+        version_a = apply_a.json()["version_iri"]
+
+        apply_b = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=owner_headers,
+        )
+        version_b = apply_b.json()["version_iri"]
+
+        response = await client.get(
+            "/api/ontology/diff",
+            params={"from": version_a, "to": version_b},
+            headers=reader_headers,
+        )
+        assert response.status_code == 403
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT event_type, target_iri FROM audit_entries"
+                " WHERE tenant_id = $1 AND event_type = 'access.rbac.denied'",
+                tenant_id,
+            )
+        assert len(rows) == 1
+        assert rows[0]["target_iri"] == workspace_b.named_graph_iri
+    finally:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
+
+
+async def test_publish_success_writes_an_audit_entry(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #23 finding #5: publish was audit-silent on success -- every other
+    mutating route emits a PLAT-AUDIT-1 entry.
+    """
+    _tenant_id, workspace, headers = await _setup_member(
+        client, label="ont-publish-audit", role="admin"
+    )
+
+    try:
+        apply_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        version_iri = apply_response.json()["version_iri"]
+
+        publish_response = await client.post(
+            f"/api/ontology/versions/{version_iri}/publish", headers=headers
+        )
+        assert publish_response.status_code == 200
+
+        async with tenant_connection(_tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT target_iri FROM audit_entries"
+                " WHERE tenant_id = $1 AND event_type = 'ontology.version.published'",
+                _tenant_id,
+            )
+        assert len(rows) == 1
+        assert rows[0]["target_iri"] == version_iri
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
 async def test_outbox_flush_isolates_a_mid_batch_failure_across_real_rows(
     client: AsyncClient, platform_stack: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

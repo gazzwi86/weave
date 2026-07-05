@@ -9,11 +9,12 @@ from typing import Annotated
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import diff as diff_ops
 from weave_backend.operations import versioning
-from weave_backend.rbac import enforce_workspace_role
+from weave_backend.rbac import InsufficientRole, enforce_workspace_role
 from weave_backend.schemas.ontology import (
     DiffResponse,
     ModificationModel,
@@ -23,7 +24,7 @@ from weave_backend.schemas.ontology import (
     VersionsResponse,
 )
 from weave_backend.tenancy.sessions import get_active_workspace
-from weave_backend.tenancy.workspaces import get_workspace
+from weave_backend.tenancy.workspaces import Workspace, get_workspace
 
 router = APIRouter(prefix="/api/ontology", tags=["ontology"])
 
@@ -35,41 +36,79 @@ async def _resolve_workspace_id(principal: Principal, requested: str | None) -> 
     return workspace_id
 
 
-async def _authorize_read(
-    conn: asyncpg.Connection, *, principal: Principal, workspace_id: str
-) -> None:
-    """Shared 404-before-403 IDOR-safe check for both read routes below."""
-    workspace = await get_workspace(conn, tenant_id=principal.tenant_id, workspace_id=workspace_id)
+async def _load_workspace_or_404(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> Workspace:
+    workspace = await get_workspace(conn, tenant_id=tenant_id, workspace_id=workspace_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
-    await enforce_workspace_role(
-        conn,
-        tenant_id=principal.tenant_id,
-        workspace_id=workspace_id,
-        user_sub=principal.sub,
-        min_role="read",
+    return workspace
+
+
+async def _authorize_workspace_role(
+    conn: asyncpg.Connection, *, principal: Principal, workspace: Workspace, min_role: str
+) -> HTTPException | None:
+    """404-before-403 IDOR-safe role check, always against `workspace`'s REAL
+    id (PR #23 finding #1 -- never a caller-supplied workspace_id a version
+    hasn't been independently confirmed to belong to). Returns the denial
+    rather than raising, so the caller can commit an `access.rbac.denied`
+    audit entry before the request actually fails -- same deferred-raise
+    pattern as `routers/operations.py::_enforce_write_access`.
+    """
+    try:
+        await enforce_workspace_role(
+            conn,
+            tenant_id=principal.tenant_id,
+            workspace_id=workspace.id,
+            user_sub=principal.sub,
+            min_role=min_role,
+        )
+    except InsufficientRole as exc:
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="access.rbac.denied",
+                actor_iri=principal.principal_iri,
+                subject_iri=workspace.named_graph_iri,
+                engine="constitution",
+                payload={"required_role": min_role},
+            ),
+        )
+        return exc
+    return None
+
+
+async def _authorize_read(
+    conn: asyncpg.Connection, *, principal: Principal, workspace: Workspace
+) -> HTTPException | None:
+    return await _authorize_workspace_role(
+        conn, principal=principal, workspace=workspace, min_role="read"
     )
 
 
-@router.get("/versions", response_model=VersionsResponse)
-async def list_versions_route(
-    principal: Annotated[Principal, Depends(get_current_principal)],
-    workspace_id: str | None = Query(default=None),
-    page: int = Query(default=1, ge=1),
-    per_page: int = Query(default=50, ge=1, le=200),
-) -> VersionsResponse:
-    resolved_workspace_id = await _resolve_workspace_id(principal, workspace_id)
+async def _list_versions_outcome(
+    conn: asyncpg.Connection,
+    *,
+    principal: Principal,
+    workspace_id: str,
+    page: int,
+    per_page: int,
+) -> VersionsResponse | HTTPException:
+    workspace = await _load_workspace_or_404(
+        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+    )
+    denied = await _authorize_read(conn, principal=principal, workspace=workspace)
+    if denied is not None:
+        return denied
 
-    async with tenant_connection(principal.tenant_id) as conn:
-        await _authorize_read(conn, principal=principal, workspace_id=resolved_workspace_id)
-        page_result = await versioning.list_versions(
-            conn,
-            tenant_id=principal.tenant_id,
-            workspace_id=resolved_workspace_id,
-            page=page,
-            per_page=per_page,
-        )
-
+    page_result = await versioning.list_versions(
+        conn,
+        tenant_id=principal.tenant_id,
+        workspace_id=workspace_id,
+        page=page,
+        per_page=per_page,
+    )
     return VersionsResponse(
         versions=[
             VersionEntry(
@@ -88,44 +127,78 @@ async def list_versions_route(
     )
 
 
-@router.post("/versions/{version_iri}/publish", response_model=PublishResponse)
-async def publish_version_route(
-    version_iri: str,
+@router.get("/versions", response_model=VersionsResponse)
+async def list_versions_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
-) -> PublishResponse:
-    async with tenant_connection(principal.tenant_id) as conn:
-        # version_iri is a path param, not a `workspace_id`-scoped route --
-        # discover its workspace first (404 if the row doesn't exist at all)
-        # so `enforce_workspace_role` has something to check against.
-        existing = await versioning.get_version(
-            conn, tenant_id=principal.tenant_id, version_iri=version_iri
-        )
-        if existing is None:
-            raise HTTPException(status_code=404, detail={"error": "version_not_found"})
+    workspace_id: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=200),
+) -> VersionsResponse:
+    resolved_workspace_id = await _resolve_workspace_id(principal, workspace_id)
 
-        await enforce_workspace_role(
+    async with tenant_connection(principal.tenant_id) as conn:
+        outcome = await _list_versions_outcome(
+            conn,
+            principal=principal,
+            workspace_id=resolved_workspace_id,
+            page=page,
+            per_page=per_page,
+        )
+
+    if isinstance(outcome, HTTPException):
+        raise outcome
+    return outcome
+
+
+async def _publish_version_outcome(
+    conn: asyncpg.Connection, *, principal: Principal, version_iri: str
+) -> PublishResponse | HTTPException:
+    # version_iri is a path param, not a `workspace_id`-scoped route --
+    # discover its real workspace first (404 if the row doesn't exist at
+    # all) so authorization has a real workspace to check against.
+    existing = await versioning.get_version(
+        conn, tenant_id=principal.tenant_id, version_iri=version_iri
+    )
+    if existing is None:
+        raise HTTPException(status_code=404, detail={"error": "version_not_found"})
+
+    workspace = await _load_workspace_or_404(
+        conn, tenant_id=principal.tenant_id, workspace_id=existing.workspace_id
+    )
+    denied = await _authorize_workspace_role(
+        conn, principal=principal, workspace=workspace, min_role="publish"
+    )
+    if denied is not None:
+        return denied
+
+    try:
+        published = await versioning.publish_version(
             conn,
             tenant_id=principal.tenant_id,
             workspace_id=existing.workspace_id,
-            user_sub=principal.sub,
-            min_role="publish",
+            version_iri=version_iri,
         )
+    except versioning.VersionNotFound as exc:
+        raise HTTPException(status_code=404, detail={"error": "version_not_found"}) from exc
+    except versioning.VersionAlreadyPublished as exc:
+        # AC-002-09's exact wording.
+        raise HTTPException(
+            status_code=405, detail={"message": "version is published and immutable"}
+        ) from exc
 
-        try:
-            published = await versioning.publish_version(
-                conn,
-                tenant_id=principal.tenant_id,
-                workspace_id=existing.workspace_id,
-                version_iri=version_iri,
-            )
-        except versioning.VersionNotFound as exc:
-            raise HTTPException(status_code=404, detail={"error": "version_not_found"}) from exc
-        except versioning.VersionAlreadyPublished as exc:
-            # AC-002-09's exact wording.
-            raise HTTPException(
-                status_code=405, detail={"message": "version is published and immutable"}
-            ) from exc
-
+    # PR #23 finding #5: the ontology routes were audit-silent on success --
+    # every other mutating route emits a PLAT-AUDIT-1 entry.
+    await default_audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=principal.tenant_id,
+            event_type="ontology.version.published",
+            actor_iri=principal.principal_iri,
+            subject_iri=version_iri,
+            engine="constitution",
+            payload={"semver": published.semver},
+        ),
+    )
     return PublishResponse(
         version_iri=published.version_iri,
         status=published.status,
@@ -133,11 +206,31 @@ async def publish_version_route(
     )
 
 
+@router.post("/versions/{version_iri}/publish", response_model=PublishResponse)
+async def publish_version_route(
+    version_iri: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> PublishResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        outcome = await _publish_version_outcome(
+            conn, principal=principal, version_iri=version_iri
+        )
+
+    if isinstance(outcome, HTTPException):
+        raise outcome
+    return outcome
+
+
 async def _resolve_known_version(
     conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, version: str
-) -> str:
-    """AC-002-08: resolves the `latest` alias; AC-002-14: 404s if the
-    resolved (or literal) version_iri isn't a real `graph_versions` row.
+) -> versioning.GraphVersion | HTTPException:
+    """AC-002-08: resolves the `latest` alias (scoped to `workspace_id`);
+    AC-002-14: 404s if the resolved (or literal) version_iri isn't a real
+    `graph_versions` row. Returns the full version row, not just its IRI --
+    PR #23 finding #1: an explicit version_iri may belong to a different
+    workspace in the same tenant than `workspace_id`, and it's that REAL
+    workspace the read must be authorized against, never the caller-supplied
+    one.
     """
     try:
         version_iri = await versioning.resolve_version(
@@ -154,7 +247,30 @@ async def _resolve_known_version(
     )
     if known is None:
         raise HTTPException(status_code=404, detail={"error": "version_not_found"})
-    return version_iri
+
+    workspace = await _load_workspace_or_404(
+        conn, tenant_id=principal.tenant_id, workspace_id=known.workspace_id
+    )
+    denied = await _authorize_read(conn, principal=principal, workspace=workspace)
+    if denied is not None:
+        return denied
+    return known
+
+
+async def _resolve_diff_pair(
+    conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, from_: str, to: str
+) -> tuple[versioning.GraphVersion, versioning.GraphVersion] | HTTPException:
+    from_version = await _resolve_known_version(
+        conn, principal=principal, workspace_id=workspace_id, version=from_
+    )
+    if isinstance(from_version, HTTPException):
+        return from_version
+    to_version = await _resolve_known_version(
+        conn, principal=principal, workspace_id=workspace_id, version=to
+    )
+    if isinstance(to_version, HTTPException):
+        return to_version
+    return from_version, to_version
 
 
 @router.get("/diff", response_model=DiffResponse)
@@ -167,15 +283,19 @@ async def diff_route(
     resolved_workspace_id = await _resolve_workspace_id(principal, workspace_id)
 
     async with tenant_connection(principal.tenant_id) as conn:
-        await _authorize_read(conn, principal=principal, workspace_id=resolved_workspace_id)
-        from_iri = await _resolve_known_version(
-            conn, principal=principal, workspace_id=resolved_workspace_id, version=from_
-        )
-        to_iri = await _resolve_known_version(
-            conn, principal=principal, workspace_id=resolved_workspace_id, version=to
+        pair = await _resolve_diff_pair(
+            conn,
+            principal=principal,
+            workspace_id=resolved_workspace_id,
+            from_=from_,
+            to=to,
         )
 
-    result = await diff_ops.compute_diff(from_iri, to_iri)
+    if isinstance(pair, HTTPException):
+        raise pair
+    from_version, to_version = pair
+
+    result = await diff_ops.compute_diff(from_version.version_iri, to_version.version_iri)
     return DiffResponse(
         added=[
             TripleModel(subject=t.subject, predicate=t.predicate, object=t.object)

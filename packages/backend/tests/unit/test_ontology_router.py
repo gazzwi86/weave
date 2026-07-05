@@ -17,7 +17,9 @@ from fastapi import HTTPException
 from weave_backend.auth.dependencies import Principal
 from weave_backend.operations import diff, versioning
 from weave_backend.operations.diff import DiffResult, Modification, Triple
+from weave_backend.rbac import InsufficientRole
 from weave_backend.routers import ontology
+from weave_backend.tenancy.workspaces import Workspace
 
 PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
 
@@ -32,6 +34,16 @@ async def _fake_tenant_connection(_tenant_id: str) -> AsyncIterator[object]:
     connection object's identity never matters.
     """
     yield object()
+
+
+def _workspace(*, workspace_id: str = "ws-1") -> Workspace:
+    return Workspace(
+        id=workspace_id,
+        slug=workspace_id,
+        display_name=workspace_id,
+        named_graph_iri=f"urn:weave:tenant:t1:ws:{workspace_id}",
+        created_at=datetime.now(UTC),
+    )
 
 
 def _version(
@@ -56,7 +68,8 @@ async def test_list_versions_route_returns_paginated_newest_first_history() -> N
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
-        patch.object(ontology, "_authorize_read", AsyncMock()),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
         patch.object(versioning, "list_versions", AsyncMock(return_value=page_result)),
     ):
         result = await ontology.list_versions_route(
@@ -66,6 +79,31 @@ async def test_list_versions_route_returns_paginated_newest_first_history() -> N
     assert result.total == 2
     assert [v.version_iri for v in result.versions] == [V2, V1]
     assert result.versions[0].status == "published"
+
+
+async def test_authorize_workspace_role_denies_and_audits_insufficient_role() -> None:
+    """Pure-logic proof of the deferred-raise pattern: `_authorize_workspace_role`
+    must emit `access.rbac.denied` BEFORE returning the denial (never raises
+    it directly), so the caller can commit the audit insert while still
+    inside its transaction.
+    """
+    emitter = AsyncMock()
+    with (
+        patch.object(
+            ontology, "enforce_workspace_role", AsyncMock(side_effect=InsufficientRole("read"))
+        ),
+        patch.object(ontology, "default_audit_emitter", emitter),
+    ):
+        denied = await ontology._authorize_workspace_role(
+            object(), principal=PRINCIPAL, workspace=_workspace(), min_role="read"
+        )
+
+    assert isinstance(denied, HTTPException)
+    assert denied.status_code == 403
+    emitter.emit.assert_awaited_once()
+    audited_event = emitter.emit.await_args.args[1]
+    assert audited_event.event_type == "access.rbac.denied"
+    assert audited_event.payload == {"required_role": "read"}
 
 
 async def test_publish_route_404s_when_version_does_not_exist() -> None:
@@ -83,6 +121,7 @@ async def test_publish_route_maps_already_published_to_405_with_ac_002_09_messag
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(versioning, "get_version", AsyncMock(return_value=_version(version_iri=V1))),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
         patch.object(ontology, "enforce_workspace_role", AsyncMock()),
         patch.object(
             versioning,
@@ -104,8 +143,10 @@ async def test_publish_route_returns_published_version_on_success() -> None:
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(versioning, "get_version", AsyncMock(return_value=_version(version_iri=V1))),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
         patch.object(ontology, "enforce_workspace_role", AsyncMock()),
         patch.object(versioning, "publish_version", AsyncMock(return_value=published)),
+        patch.object(ontology, "default_audit_emitter", AsyncMock()),
     ):
         result = await ontology.publish_version_route(V1, PRINCIPAL)
 
@@ -113,11 +154,36 @@ async def test_publish_route_returns_published_version_on_success() -> None:
     assert result.status == "published"
 
 
+async def test_publish_route_denies_and_audits_insufficient_role() -> None:
+    """PR #23 finding #5: a denied publish must still write an
+    `access.rbac.denied` PLAT-AUDIT-1 entry before the 403 propagates.
+    """
+    emitter = AsyncMock()
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(versioning, "get_version", AsyncMock(return_value=_version(version_iri=V1))),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(
+            ontology, "enforce_workspace_role", AsyncMock(side_effect=InsufficientRole("publish"))
+        ),
+        patch.object(ontology, "default_audit_emitter", emitter),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await ontology.publish_version_route(V1, PRINCIPAL)
+
+    assert exc_info.value.status_code == 403
+    emitter.emit.assert_awaited_once()
+    audited_event = emitter.emit.await_args.args[1]
+    assert audited_event.event_type == "access.rbac.denied"
+    assert audited_event.subject_iri == _workspace().named_graph_iri
+
+
 async def test_diff_route_404s_when_from_version_is_unknown() -> None:
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
-        patch.object(ontology, "_authorize_read", AsyncMock()),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
         patch.object(
             versioning, "resolve_version", AsyncMock(side_effect=lambda *a, **kw: kw["version"])
         ),
@@ -133,7 +199,8 @@ async def test_diff_route_404s_when_latest_resolves_to_no_published_version() ->
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
-        patch.object(ontology, "_authorize_read", AsyncMock()),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
         patch.object(
             versioning,
             "resolve_version",
@@ -155,7 +222,8 @@ async def test_diff_route_returns_computed_diff_for_known_versions() -> None:
     with (
         patch.object(ontology, "tenant_connection", _fake_tenant_connection),
         patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
-        patch.object(ontology, "_authorize_read", AsyncMock()),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
         patch.object(
             versioning, "resolve_version", AsyncMock(side_effect=lambda *a, **kw: kw["version"])
         ),
@@ -168,3 +236,43 @@ async def test_diff_route_returns_computed_diff_for_known_versions() -> None:
     assert result.removed == []
     assert result.modified[0].before == "a"
     assert result.modified[0].after == "b"
+
+
+async def test_diff_route_authorizes_against_each_versions_real_workspace() -> None:
+    """PR #23 finding #1 (IDOR): an explicit version_iri may belong to a
+    DIFFERENT workspace than the caller's active/query one -- the read must
+    be authorized against that version's REAL `workspace_id`, not the
+    caller-supplied one.
+    """
+    known_versions = {
+        V1: _version(version_iri=V1, workspace_id="ws-owner"),
+        V2: _version(version_iri=V2, workspace_id="ws-other"),
+    }
+    diff_result = DiffResult(added=[], removed=[], modified=[])
+    authorize_read = AsyncMock(return_value=None)
+
+    async def _fake_get_workspace(_conn: object, *, tenant_id: str, workspace_id: str) -> object:
+        return _workspace(workspace_id=workspace_id)
+
+    async def _fake_get_version(
+        _conn: object, *, tenant_id: str, version_iri: str
+    ) -> versioning.GraphVersion:
+        return known_versions[version_iri]
+
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-caller")),
+        patch.object(ontology, "get_workspace", _fake_get_workspace),
+        patch.object(ontology, "_authorize_read", authorize_read),
+        patch.object(
+            versioning, "resolve_version", AsyncMock(side_effect=lambda *a, **kw: kw["version"])
+        ),
+        patch.object(versioning, "get_version", _fake_get_version),
+        patch.object(diff, "compute_diff", AsyncMock(return_value=diff_result)),
+    ):
+        await ontology.diff_route(PRINCIPAL, from_=V1, to=V2, workspace_id=None)
+
+    authorized_workspace_ids = [
+        call.kwargs["workspace"].id for call in authorize_read.await_args_list
+    ]
+    assert authorized_workspace_ids == ["ws-owner", "ws-other"]
