@@ -18,6 +18,16 @@ export type LoadState = "loading" | "ready" | "error";
 
 const MINIMAP_SIZE = { width: 160, height: 100 };
 
+declare global {
+  interface Window {
+    /** Playwright-only introspection hook (AC-4 E2E spec) -- Cytoscape
+     * renders labels to <canvas>, so there's no DOM text to assert on;
+     * exposes the already-fetched elements instead of the renderer itself.
+     * Dev-only, never attached in a production build. */
+    __explorerElements?: CytoscapeElement[];
+  }
+}
+
 /** Structural subset of `cytoscape.Core` this hook actually calls --
  * satisfied by both the real instance (create-cytoscape.ts) and a fake in
  * tests, so tests never import the real renderer (ADR-001 seam). */
@@ -101,6 +111,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
         cy.layout({ name: "fcose", ...config.fcoseParams }).run();
         unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
         cyRef.current = cy;
+        if (process.env.NODE_ENV !== "production") window.__explorerElements = elements;
         setLoadState("ready");
       } catch (err) {
         if (cancelled) return;
@@ -115,6 +126,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       unregisterRef.current?.();
       cyRef.current?.destroy();
       cyRef.current = null;
+      if (process.env.NODE_ENV !== "production") delete window.__explorerElements;
     };
   }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
 
