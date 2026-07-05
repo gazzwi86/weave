@@ -5,7 +5,7 @@ import { ExplorerCanvasLoader } from "@/components/explorer/explorer-canvas-load
  * redirected to /auth/login before this ever renders. */
 export default function ExplorerPage() {
   return (
-    <main className="flex min-h-screen flex-col">
+    <main className="flex h-screen flex-col overflow-hidden">
       <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] p-[var(--space-6)]">
         Graph Explorer
       </h1>
