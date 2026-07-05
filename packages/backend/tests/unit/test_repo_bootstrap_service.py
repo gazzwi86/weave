@@ -218,3 +218,88 @@ async def test_ensure_project_repo_response_and_logs_never_include_the_token(
 
     assert _FAKE_TOKEN not in str(body)
     assert all(_FAKE_TOKEN not in record.getMessage() for record in caplog.records)
+
+
+# --- QA edge cases (BE-TASK-010) -------------------------------------------
+
+
+async def test_ensure_project_repo_partial_row_with_only_provider_set_is_not_treated_as_bootstrapped() -> (  # noqa: E501
+    None
+):
+    """AC-3's reuse check is "all three of provider/url/branch set", not
+    "provider set" alone -- a row that only has `repo_provider` populated
+    (e.g. a half-written manual fixup, or a future migration bug) must still
+    go through `create_repo`, not be reported as already-bootstrapped with a
+    `None` in the response body.
+    """
+    conn = _FakeConnection(
+        fetchrow_result=_project_row(
+            repo_provider="github", repo_url=None, repo_default_branch=None
+        )
+    )
+    fake_driver = _FakeDriver()
+    deps, emitted = _deps(driver=fake_driver)
+
+    status_code, _body = await ensure_project_repo(
+        conn, project_iri="urn:weave:project:t1:acme", tenant_id="t1", deps=deps
+    )
+
+    assert status_code == 201
+    assert fake_driver.create_repo_called is True
+    assert len(emitted) == 1
+
+
+async def test_ensure_project_repo_auth_error_from_write_initial_commit_is_not_translated() -> (
+    None
+):
+    """Documents a real gap against AC-4: `create_repo`'s `AuthError` is
+    caught and turned into the named `repo_auth_invalid` `RepoBootstrapError`
+    (service.py's `except AuthError` around the `create_repo` call only), but
+    an `AuthError` raised by the *second* driver call, `write_initial_commit`
+    (e.g. a token that is valid for repo creation but rejected once the
+    write-scope endpoint is hit), is not caught anywhere in
+    `ensure_project_repo` and propagates as a raw `AuthError` instead of the
+    fail-closed, named `RepoBootstrapError(reason="repo_auth_invalid")` AC-4
+    requires. This test currently fails -- see QA report for BE-TASK-010.
+    """
+
+    class _WriteAuthErrorDriver(_FakeDriver):
+        async def write_initial_commit(
+            self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+        ) -> None:
+            raise AuthError("token rejected on write-scope endpoint")
+
+    conn = _FakeConnection(fetchrow_result=_project_row())
+    deps, _ = _deps(driver=_WriteAuthErrorDriver())
+
+    with pytest.raises(RepoBootstrapError) as exc_info:
+        await ensure_project_repo(
+            conn, project_iri="urn:weave:project:t1:acme", tenant_id="t1", deps=deps
+        )
+    assert exc_info.value.reason == "repo_auth_invalid"
+
+
+async def test_ensure_project_repo_write_failure_leaves_no_partial_db_state() -> None:
+    """When `write_initial_commit` fails for any reason after `create_repo`
+    already created the external repo, `set_project_repo` must never run --
+    no half-written `repo_provider`-without-`repo_url` row. (The provider-side
+    duplicate-repo risk this failure mode creates on a retry is a separate,
+    already-flagged finding -- this test only pins the DB-write half.)
+    """
+
+    class _WriteFailsDriver(_FakeDriver):
+        async def write_initial_commit(
+            self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+        ) -> None:
+            raise RuntimeError("simulated network failure writing initial commit")
+
+    conn = _FakeConnection(fetchrow_result=_project_row())
+    deps, emitted = _deps(driver=_WriteFailsDriver())
+
+    with pytest.raises(RuntimeError):
+        await ensure_project_repo(
+            conn, project_iri="urn:weave:project:t1:acme", tenant_id="t1", deps=deps
+        )
+
+    assert conn.executed == []
+    assert emitted == []

@@ -78,6 +78,31 @@ async def test_github_driver_create_repo_raises_auth_error_on_401() -> None:
         await driver.create_repo(name="weave-acme-corp", private=True, token="bad")
 
 
+async def test_github_driver_create_repo_name_collision_raises_http_status_error_not_auth_error() -> (  # noqa: E501
+    None
+):
+    """QA edge case: GitHub returns 422 (not 401/403) when the repo name
+    already exists on the account -- the exact retry-after-partial-failure
+    scenario (`create_repo` succeeded once, a crash before persistence means
+    a re-run tries the same deterministic `weave-<slug>` name again). Today
+    this is *not* mapped to `AuthError`/`repo_auth_invalid` -- it raises the
+    generic `httpx.HTTPStatusError`, so `ensure_project_repo` has no named,
+    fail-closed error for this case (AC-4 only names
+    `repo_provider_unconfigured`/`repo_auth_invalid`). This test pins today's
+    actual behaviour so a silent regression (e.g. accidentally swallowing the
+    error) would be caught -- see QA report for BE-TASK-010 for the
+    product-level gap this documents.
+    """
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"message": "name already exists on this account"})
+
+    driver = GitHubDriver(client=_mock_client(httpx.MockTransport(handler)))
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await driver.create_repo(name="weave-acme-corp", private=True, token=_FAKE_GH)
+
+
 async def test_github_driver_write_initial_commit_issues_blob_tree_commit_ref_calls() -> None:
     calls: list[str] = []
 
