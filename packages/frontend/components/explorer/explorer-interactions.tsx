@@ -9,11 +9,14 @@ import { useSearchOverlay } from "./use-search-overlay";
 export interface ExplorerInteractionsProps {
   adapter: RendererAdapter;
   config: ExplorerConfig;
+  /** TASK-004 AC-1/AC-2/AC-4: the graph saved positions persist against. */
+  graphId: string;
 }
 
 /** AC-1..AC-8: composes the node-spotlight side panel and the search
  * overlay onto the ADR-001 renderer-adapter seam. A search-result click
- * hands off to the same node-spotlight flow as a direct canvas click. */
+ * hands off to the same node-spotlight flow as a direct canvas click.
+ * TASK-004: also wires drag-persist-with-retry-toast + reset-layout. */
 export function ExplorerInteractions({ adapter, config }: ExplorerInteractionsProps) {
   const { panel, openNode, close, retry } = useNodeSpotlight({ adapter, config });
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });

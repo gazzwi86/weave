@@ -34,7 +34,7 @@ export function ExplorerCanvas({ options }: ExplorerCanvasProps) {
        * inset-based size (inset only offsets absolute/fixed/sticky boxes). */}
       <div ref={containerRef} data-testid="explorer-canvas" className="h-full w-full" />
       <MiniMap indicator={minimapIndicator} />
-      {adapter && <ExplorerInteractions adapter={adapter} config={config} />}
+      {adapter && <ExplorerInteractions adapter={adapter} config={config} graphId={config.layoutGraphId} />}
     </div>
   );
 }
