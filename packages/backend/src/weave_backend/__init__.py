@@ -28,6 +28,7 @@ from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.query import router as query_router
+from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
@@ -79,6 +80,7 @@ app.include_router(specs_router)
 app.include_router(tasks_router)
 app.include_router(query_router)
 app.include_router(requests_router)
+app.include_router(request_governance_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one

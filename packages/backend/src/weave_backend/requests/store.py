@@ -85,6 +85,14 @@ class RequestRecord:
     graph_context: str = "unavailable"
     draft_content: dict[str, str] | None = None
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    #: BE-TASK-004 (Request Studio governance): the free-text ask a project
+    #: name is derived from, the submitter's IRI (no-self-approval check),
+    #: blast-radius computation status, and the auto-created project once
+    #: sign-off completes.
+    prompt: str = ""
+    created_by_iri: str = ""
+    blast_radius_status: str = "not_computed"
+    project_iri: str = ""
 
 
 async def create_request_record(client: redis.Redis, record: RequestRecord) -> None:
@@ -102,6 +110,10 @@ async def create_request_record(client: redis.Redis, record: RequestRecord) -> N
             "graph_context": record.graph_context,
             "draft_content": json.dumps(record.draft_content) if record.draft_content else "",
             "created_at": record.created_at,
+            "prompt": record.prompt,
+            "created_by_iri": record.created_by_iri,
+            "blast_radius_status": record.blast_radius_status,
+            "project_iri": record.project_iri,
         },
     )
     await client.expire(key, REQUEST_TTL_SECONDS)
@@ -132,6 +144,10 @@ async def get_request_record(
         graph_context=str(raw.get("graph_context", "unavailable")),
         draft_content=json.loads(draft_raw) if draft_raw else None,
         created_at=str(raw["created_at"]),
+        prompt=str(raw.get("prompt", "")),
+        created_by_iri=str(raw.get("created_by_iri", "")),
+        blast_radius_status=str(raw.get("blast_radius_status", "not_computed")),
+        project_iri=str(raw.get("project_iri", "")),
     )
 
 

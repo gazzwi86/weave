@@ -85,6 +85,8 @@ async def create_request_route(
             tenant_id=principal.tenant_id,
             run_mode=body.run_mode,
             status="drafting",
+            prompt=body.prompt,
+            created_by_iri=principal.principal_iri,
         ),
     )
     background_tasks.add_task(
@@ -103,15 +105,25 @@ async def create_request_route(
     )
 
 
+async def _get_record_or_404(request_id: str, tenant_id: str) -> RequestRecord:
+    redis_client = await store.get_redis_client()
+    record = await store.get_request_record(redis_client, request_id, tenant_id=tenant_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return record
+
+
+async def _update_record(request_id: str, **fields: object) -> None:
+    redis_client = await store.get_redis_client()
+    await store.update_request_record(redis_client, request_id, **fields)
+
+
 @router.get("/{request_id}", response_model=RequestStatusResponse)
 async def get_request_route(
     request_id: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> RequestStatusResponse:
-    redis_client = await store.get_redis_client()
-    record = await store.get_request_record(redis_client, request_id, tenant_id=principal.tenant_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    record = await _get_record_or_404(request_id, principal.tenant_id)
     return RequestStatusResponse(
         request_id=record.request_id,
         status=record.status,
