@@ -80,7 +80,7 @@ async def test_warning_only_batch_commits_with_advisories_populated(
         pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
     )
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
-    monkeypatch.setattr(pipeline, "default_audit_emitter", AsyncMock())
+    monkeypatch.setattr(pipeline, "enqueue", AsyncMock())
 
     request = ApplyRequest(
         # Activity with a label but no description -- Warning only, no Violation.
@@ -167,7 +167,7 @@ async def test_failure_promoting_working_graph_leaves_it_at_pre_request_state(
     monkeypatch.setattr(
         pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
     )
-    monkeypatch.setattr(pipeline, "default_audit_emitter", AsyncMock())
+    monkeypatch.setattr(pipeline, "enqueue", AsyncMock())
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
 
     with pytest.raises(ConnectionError):
@@ -207,11 +207,12 @@ async def test_failure_writing_prov_activity_leaves_working_graph_unpromoted(
     assert load_graph_spy.call_args.args[0] != WORKING_GRAPH
 
 
-async def test_failure_emitting_audit_entry_leaves_working_graph_unpromoted(
+async def test_failure_enqueueing_audit_event_leaves_working_graph_unpromoted(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
-    """PR #20 finding 7: same divergence risk for the audit-emit call --
-    it must also run, and fail, before promotion."""
+    """CE-TASK-002 (ADR-002): the success path's audit write is now a cheap,
+    same-transaction outbox insert, not the real hash-chain emit -- but it
+    must still run, and fail, before promotion (AC-001-10 unchanged)."""
     load_graph_spy = AsyncMock()
     monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
@@ -221,9 +222,9 @@ async def test_failure_emitting_audit_entry_leaves_working_graph_unpromoted(
     monkeypatch.setattr(
         pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
     )
-    audit_emitter = AsyncMock()
-    audit_emitter.emit.side_effect = ConnectionError("audit store unreachable")
-    monkeypatch.setattr(pipeline, "default_audit_emitter", audit_emitter)
+    monkeypatch.setattr(
+        pipeline, "enqueue", AsyncMock(side_effect=ConnectionError("outbox insert failed"))
+    )
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
 
     with pytest.raises(ConnectionError):
@@ -250,8 +251,8 @@ async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one
     write_activity_spy = AsyncMock(return_value="urn:weave:instances:activity-1")
     monkeypatch.setattr(pipeline, "write_activity", write_activity_spy)
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
-    audit_emitter = AsyncMock()
-    monkeypatch.setattr(pipeline, "default_audit_emitter", audit_emitter)
+    enqueue_spy = AsyncMock()
+    monkeypatch.setattr(pipeline, "enqueue", enqueue_spy)
 
     request = ApplyRequest(
         operations=[AddNodeOp(op="add_node", ref="a1", kind="Actor", label="Billing Team")],
@@ -261,6 +262,6 @@ async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one
     await pipeline.apply_operations_request(ctx, request, redis_client=None)
 
     assert write_activity_spy.call_args.kwargs["actor_iri"] == AUTHENTICATED_PRINCIPAL
-    emitted_event = audit_emitter.emit.call_args.args[1]
+    emitted_event = enqueue_spy.call_args.args[1]
     assert emitted_event.actor_iri == AUTHENTICATED_PRINCIPAL
     assert emitted_event.payload["claimed_actor_iri"] == "urn:weave:principal:spoofed-someone-else"
