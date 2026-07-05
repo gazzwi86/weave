@@ -17,8 +17,17 @@ export function ExplorerCanvas({ options }: ExplorerCanvasProps) {
   }
 
   return (
-    <div className="relative min-h-screen">
-      <div ref={containerRef} data-testid="explorer-canvas" className="absolute inset-0" />
+    // min-h-0 lets this flex child shrink to the parent's definite height
+    // (app/explorer/page.tsx's h-screen flex column) instead of growing to
+    // fit content -- without it a flex item defaults to its content's min
+    // size, so the 0-height canvas below would blow the layout out instead
+    // of filling it (classic flex "min-height: auto" trap).
+    <div className="relative min-h-0 flex-1">
+      {/* ponytail: explicit h-full/w-full, not absolute+inset-0 -- Cytoscape's
+       * real constructor force-sets the container's inline `position` to
+       * "relative" (cytoscape.js core/index.js), which would null out an
+       * inset-based size (inset only offsets absolute/fixed/sticky boxes). */}
+      <div ref={containerRef} data-testid="explorer-canvas" className="h-full w-full" />
       <MiniMap indicator={minimapIndicator} />
     </div>
   );
