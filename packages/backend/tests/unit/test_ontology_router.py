@@ -15,6 +15,7 @@ import pytest
 from fastapi import HTTPException
 
 from weave_backend.auth.dependencies import Principal
+from weave_backend.ontology import resource as resource_lookup
 from weave_backend.operations import diff, versioning
 from weave_backend.operations.diff import DiffResult, Modification, Triple
 from weave_backend.rbac import InsufficientRole
@@ -329,3 +330,90 @@ async def test_ontology_types_route_returns_catalogue_kinds_and_relationships() 
     relationship_paths = {r.path for r in response.relationships}
     assert "https://weave.io/ontology/performedBy" in relationship_paths
     assert "https://weave.io/ontology/label" not in relationship_paths
+
+
+RESOURCE_IRI = "https://weave.io/tenant/t1/ws/ws-1/process/onboard-customer"
+
+
+async def test_resource_route_returns_resource_when_found() -> None:
+    """AC-003-02: happy path -- version resolves, the lookup finds triples,
+    the router maps `ontology/resource.py`'s dataclasses onto the response
+    schema unchanged.
+    """
+    found = resource_lookup.Resource(
+        iri=RESOURCE_IRI,
+        kind="Process",
+        label="Onboard customer",
+        triples=[resource_lookup.Triple(subject=RESOURCE_IRI, predicate="p", object="o")],
+        outgoing=[resource_lookup.Edge(predicate="p", other="o")],
+        incoming=[],
+    )
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(
+            versioning, "resolve_version", AsyncMock(side_effect=lambda *a, **kw: kw["version"])
+        ),
+        patch.object(versioning, "get_version", AsyncMock(return_value=_version(version_iri=V1))),
+        patch.object(resource_lookup, "lookup_resource", AsyncMock(return_value=found)),
+    ):
+        result = await ontology.ontology_resource_route(
+            RESOURCE_IRI, PRINCIPAL, version="latest", workspace_id=None
+        )
+
+    assert result.iri == RESOURCE_IRI
+    assert result.kind == "Process"
+    assert result.version_iri == V1
+    assert result.outgoing[0].target == "o"
+
+
+async def test_resource_route_404s_when_lookup_finds_no_triples() -> None:
+    """AC-003-02 + implementation hint: no triples at all (including a
+    foreign-tenant IRI) is a 404, never a 403.
+    """
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(
+            versioning, "resolve_version", AsyncMock(side_effect=lambda *a, **kw: kw["version"])
+        ),
+        patch.object(versioning, "get_version", AsyncMock(return_value=_version(version_iri=V1))),
+        patch.object(resource_lookup, "lookup_resource", AsyncMock(return_value=None)),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await ontology.ontology_resource_route(
+            "https://weave.io/tenant/other/ws/x/process/ghost",
+            PRINCIPAL,
+            version="latest",
+            workspace_id=None,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == {"error": "resource_not_found"}  # type: ignore[comparison-overlap]
+
+
+async def test_resource_route_404s_when_version_is_unknown() -> None:
+    """AC-003-09: `?version=` naming a nonexistent version 404s before the
+    resource lookup ever runs.
+    """
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(
+            versioning,
+            "resolve_version",
+            AsyncMock(side_effect=versioning.VersionNotFound("v-ghost")),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await ontology.ontology_resource_route(
+            RESOURCE_IRI, PRINCIPAL, version="v-ghost", workspace_id=None
+        )
+
+    assert exc_info.value.status_code == 404
