@@ -106,7 +106,7 @@
     {
       "id": "BE-EPIC-006",
       "title": "BE-EPIC-006",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-EPIC-011",
@@ -418,7 +418,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-006",
       "title": "Spec Lifecycle & Run Modes (E6-S1 to E6-S4)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-005.md"
     },
@@ -479,7 +479,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-011",
       "title": "Repo Bootstrap: External Project Repository (E11-S7, FR-061)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-TASK-001"
       ],

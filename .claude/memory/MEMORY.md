@@ -7,3 +7,4 @@
 - [Harness redesign in progress](project_harness-redesign.md) — TASK ZERO done; /goal confirmed; skills being created via Workflow (expires 2026-07-14)
 - [Naming convention — no codenames](decision_naming-convention.md) — descriptive human-intelligible names only; drop BluShift→Weave, Polaris→self-improvement engine
 - [AWS access via named profile gazzwi86](reference_aws_profile.md) — AWS_PROFILE=gazzwi86 (pre-authed); never hunt AWS key/secret env vars
+- [QA preflight vs parallel lanes](process_qa-preflight-vs-parallel-lanes.md) — QA agent needs the task summary to exist before it validates; ADV-004 lanes can't write state, so coordinator pre-writes the summary from the lane receipt before launching QA
