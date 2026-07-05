@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 
 from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
+from weave_backend.briefs.ce_read_client import close_ce_read_client
 from weave_backend.db.pool import close_app_pool
 from weave_backend.observability.middleware import install_tenant_context_middleware
 from weave_backend.projects.ce_version_client import close_ce_client
@@ -13,6 +14,7 @@ from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
+from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
@@ -58,6 +60,7 @@ app.include_router(search_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
+app.include_router(briefs_router)
 app.add_exception_handler(RequestValidationError, projects_validation_error_handler)
 
 assert_all_routes_guarded(app)
@@ -68,6 +71,7 @@ async def _close_db_pool() -> None:
     await close_app_pool()
     await close_oidc_client()
     await close_ce_client()
+    await close_ce_read_client()
 
 
 def main() -> None:
