@@ -89,6 +89,12 @@ describe("fetchGraph", () => {
     await expect(fetchGraph(10_000)).rejects.toBeInstanceOf(CeReadError);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+});
+
+describe("fetchGraph -- timeout and isolation", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
 
   it("throws CeReadError when the timeout deadline is exceeded before has_more_pages resolves", async () => {
     const fetchMock = vi.fn(async () =>
