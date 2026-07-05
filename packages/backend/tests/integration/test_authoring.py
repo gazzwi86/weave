@@ -115,9 +115,7 @@ async def test_nl_happy_path_creates_class_and_confirms_iri(
     )
 
     try:
-        with patch(
-            "weave_backend.routers.authoring.parse_operations", return_value=fake_request
-        ):
+        with patch("weave_backend.routers.authoring.parse_operations", return_value=fake_request):
             response = await client.post(
                 "/api/ontology/authoring/nl",
                 json={"text": "Add a Process called Customer Onboarding"},
@@ -147,9 +145,7 @@ async def test_nl_shacl_violation_returns_422_and_does_not_commit(
     )
 
     try:
-        with patch(
-            "weave_backend.routers.authoring.parse_operations", return_value=fake_request
-        ):
+        with patch("weave_backend.routers.authoring.parse_operations", return_value=fake_request):
             response = await client.post(
                 "/api/ontology/authoring/nl",
                 json={"text": "Add a Process called Orphan Process"},
@@ -377,5 +373,45 @@ async def test_import_collision_requires_decision_then_skip_and_overwrite(
             headers=headers,
         )
         assert overwrite_response.status_code == 201
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_bpmo_guard_cannot_be_bypassed_via_raw_operations_apply(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-004-02 edge case: the BPMO guard (`authoring/bpmo.py::validate_kind`)
+    is only wired into the NL-parser and the import planner -- the raw
+    CE-WRITE-1 entry point (`POST /api/operations/apply`, pre-existing from
+    CE-TASK-001/-003 and reused verbatim by every authoring surface via
+    `_run_apply`) never calls it. AC-004-02 says "no kind outside the 13
+    BPMO kinds is accepted" without scoping that to the NL path -- so a
+    caller hitting CE-WRITE-1 directly with an out-of-taxonomy `kind` must
+    also be rejected. Today it is not: this add_node commits successfully.
+    This test asserts the *required* (spec) behaviour, so it currently
+    fails -- see the QA failure report for TASK-004.
+    """
+    _, workspace, headers = await _authored_workspace(client, "bpmo-bypass")
+
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={
+                "operations": [
+                    {
+                        "op": "add_node",
+                        "ref": "n1",
+                        "kind": "NotABpmoKind",
+                        "label": "Should Be Rejected",
+                    }
+                ],
+                "actor": "urn:weave:principal:test-actor",
+            },
+            headers=headers,
+        )
+
+        assert response.status_code in (400, 422), (
+            f"raw CE-WRITE-1 accepted a non-BPMO kind (got {response.status_code}): {response.text}"
+        )
     finally:
         await clear_graph(workspace.named_graph_iri)
