@@ -51,13 +51,18 @@ async def _enforce_write_access(
             min_role="author",
         )
     except InsufficientRole as exc:
+        # Not `security.*`: that prefix fans out an admin notification (Slack
+        # forced) for every hit, and a read-only member hitting a write route
+        # is routine, not an escalation-grade event. The audit ENTRY is still
+        # mandatory (rbac-multi-tenancy.md) -- just not the alert.
         await default_audit_emitter.emit(
             conn,
             AuditEvent(
                 tenant_id=principal.tenant_id,
-                event_type="security.rbac.denied",
+                event_type="access.rbac.denied",
                 actor_iri=principal.principal_iri,
                 subject_iri=workspace.named_graph_iri,
+                engine="constitution",
                 payload={"required_role": "author"},
             ),
         )
@@ -78,6 +83,7 @@ async def _reject_foreign_target(
             event_type="security.cross_tenant.rejected",
             actor_iri=principal.principal_iri,
             subject_iri=target,
+            engine="constitution",
             payload={},
         ),
     )
@@ -104,6 +110,7 @@ async def _run_apply(
         workspace_id=workspace_id,
         named_graph_iri=workspace.named_graph_iri,
         conn=conn,
+        principal_iri=principal.principal_iri,
     )
     try:
         return await apply_operations_request(ctx, body, get_redis())
@@ -112,6 +119,13 @@ async def _run_apply(
         raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
     except ForeignTargetError:
         return await _reject_foreign_target(conn, principal=principal, target=body.target)
+    except TimeoutError as exc:
+        # Another caller holds this idempotency key's lock and never
+        # finished (e.g. its process crashed) -- a clean 409 beats an
+        # unhandled TimeoutError surfacing as a 500.
+        raise HTTPException(
+            status_code=409, detail={"error": "concurrent_apply_in_progress"}
+        ) from exc
 
 
 @router.post(

@@ -5,10 +5,13 @@ module is ever called. From here: idempotency check -> clone working graph
 -> apply ops -> SHACL validate -> violation? discard+422 : commit new
 version + promote working graph.
 
-AC-001-10 (rollback): `_commit` always writes the version snapshot graph
-*before* promoting the working graph, so any failure leaves the working
-graph exactly as it was pre-request -- either the promote step never ran,
-or it's the one that failed and never completed.
+AC-001-10 (rollback): every failable step -- the version-row insert, the
+version-graph snapshot PUT, the PROV activity, the audit entry -- happens
+in `_commit`, *before* the working-graph promotion in `_apply_uncached`.
+Promotion is the last, irreversible step: if anything above it fails, the
+Postgres transaction (version row + audit entry) rolls back and promotion
+never ran, so the working graph is untouched; if promotion itself fails,
+it raises inside the same transaction and everything rolls back with it.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.operations import metrics
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
+    LOCK_TTL_SECONDS,
     get_cached_response,
     release_lock,
     store_response,
@@ -41,8 +45,16 @@ from weave_backend.schemas.operations import (
     ViolationsResponse,
 )
 
-_POLL_ATTEMPTS = 200
 _POLL_INTERVAL_SECONDS = 0.05
+#: Poll no longer than the lock itself can live -- past this, the first
+#: caller's process is presumed dead, not just slow.
+_POLL_ATTEMPTS = int(LOCK_TTL_SECONDS / _POLL_INTERVAL_SECONDS)
+
+#: Cache-entry discriminator (Fix 2): idempotent replay must return the
+#: *same* outcome, 422 included -- not just re-wrap whatever's cached as a
+#: 201.
+_CACHE_KIND_APPLY = "apply"
+_CACHE_KIND_VIOLATIONS = "violations"
 
 #: Shape of a real (if foreign) version_iri, per `versioning.mint_version`:
 #: `urn:weave:tenant:{tenant_id}:ws:{workspace_id}:v{semver}`. Used only to
@@ -71,6 +83,10 @@ class ApplyContext:
     workspace_id: str
     named_graph_iri: str
     conn: asyncpg.Connection
+    #: JWT-authenticated principal (never the client-supplied `request.actor`
+    #: body field) -- the only trustworthy actor for PROV attribution and the
+    #: audit trail (PR #20 finding: spoofable attribution).
+    principal_iri: str
 
 
 def resolve_source_graph_iri(named_graph_iri: str, target: str) -> str:
@@ -91,7 +107,20 @@ async def _fetch_scratch_graph(source_graph_iri: str) -> Graph:
     return graph
 
 
-async def _commit(ctx: ApplyContext, scratch: Graph) -> str:
+async def _commit(
+    ctx: ApplyContext, scratch: Graph, *, claimed_actor_iri: str, applied_count: int
+) -> tuple[str, str, str]:
+    """Mints the version row, the version-graph snapshot, the PROV activity,
+    and the audit entry -- everything failable, all before the caller
+    promotes the working graph (AC-001-10, see module docstring).
+
+    Returns `(version_iri, activity_iri, turtle)`; the caller does the final
+    `load_graph(ctx.named_graph_iri, turtle)` promotion itself, deliberately
+    last. Note: the version-graph PUT below runs before the Postgres
+    transaction commits -- if promotion never happens, that PUT is an
+    orphan (no `graph_versions` row survives to reference it), invisible to
+    the registry. Acceptable residue, not a divergence.
+    """
     version_iri, _semver = await mint_version(
         ctx.conn,
         tenant_id=ctx.tenant_id,
@@ -100,8 +129,30 @@ async def _commit(ctx: ApplyContext, scratch: Graph) -> str:
     )
     turtle = scratch.serialize(format="turtle")
     await load_graph(version_iri, turtle)
-    await load_graph(ctx.named_graph_iri, turtle)
-    return version_iri
+    activity_iri = await write_activity(
+        named_graph_iri=ctx.named_graph_iri, actor_iri=ctx.principal_iri
+    )
+    await default_audit_emitter.emit(
+        ctx.conn,
+        AuditEvent(
+            tenant_id=ctx.tenant_id,
+            event_type="operations.applied",
+            actor_iri=ctx.principal_iri,
+            subject_iri=version_iri,
+            engine="constitution",
+            payload={
+                "target_graph_iri": ctx.named_graph_iri,
+                "activity_iri": activity_iri,
+                "applied_count": applied_count,
+                #: Client-claimed actor (ApplyRequest.actor) -- descriptive
+                #: only, never trusted for attribution. Kept here so a
+                #: mismatch with `actor_principal_iri` above is visible in
+                #: the audit trail rather than silently dropped.
+                "claimed_actor_iri": claimed_actor_iri,
+            },
+        ),
+    )
+    return version_iri, activity_iri, turtle
 
 
 def _to_violation_detail(result: Any) -> ViolationDetail:
@@ -126,25 +177,13 @@ async def _apply_uncached(
         await metrics.emit_mutation_outcome_metric("violation")
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
-    version_iri = await _commit(ctx, scratch)
-    activity_iri = await write_activity(
-        named_graph_iri=ctx.named_graph_iri, actor_iri=request.actor
+    version_iri, activity_iri, turtle = await _commit(
+        ctx, scratch, claimed_actor_iri=request.actor, applied_count=apply_result.applied_count
     )
     await metrics.emit_mutation_outcome_metric("success")
-    await default_audit_emitter.emit(
-        ctx.conn,
-        AuditEvent(
-            tenant_id=ctx.tenant_id,
-            event_type="operations.applied",
-            actor_iri=request.actor,
-            subject_iri=version_iri,
-            payload={
-                "target_graph_iri": ctx.named_graph_iri,
-                "activity_iri": activity_iri,
-                "applied_count": apply_result.applied_count,
-            },
-        ),
-    )
+    # Last, irreversible step -- everything failable already happened and
+    # committed (or would roll back) above; see module docstring.
+    await load_graph(ctx.named_graph_iri, turtle)
     advisories = [_to_violation_detail(r) for r in shacl_results if r.severity != "Violation"]
     return ApplyResponse(
         activity_iri=activity_iri,
@@ -154,18 +193,31 @@ async def _apply_uncached(
     )
 
 
+def _to_cache_entry(result: ApplyResponse | ViolationsResponse) -> dict[str, Any]:
+    kind = _CACHE_KIND_APPLY if isinstance(result, ApplyResponse) else _CACHE_KIND_VIOLATIONS
+    return {"kind": kind, "body": result.model_dump()}
+
+
+def _from_cache_entry(cached: dict[str, Any]) -> ApplyResponse | ViolationsResponse:
+    if cached["kind"] == _CACHE_KIND_VIOLATIONS:
+        return ViolationsResponse(**cached["body"])
+    return ApplyResponse(**cached["body"])
+
+
 async def _apply_and_cache(
     ctx: ApplyContext, request: ApplyRequest, redis_client: Any
 ) -> ApplyResponse | ViolationsResponse:
     result = await _apply_uncached(ctx, request)
-    if isinstance(result, ApplyResponse) and request.idempotency_key:
+    if request.idempotency_key:
         await store_response(
-            redis_client, ctx.tenant_id, request.idempotency_key, result.model_dump()
+            redis_client, ctx.tenant_id, request.idempotency_key, _to_cache_entry(result)
         )
     return result
 
 
-async def _await_concurrent_caller(ctx: ApplyContext, redis_client: Any, key: str) -> ApplyResponse:
+async def _await_concurrent_caller(
+    ctx: ApplyContext, redis_client: Any, key: str
+) -> ApplyResponse | ViolationsResponse:
     """Another caller holds the idempotency lock for this key -- wait for it
     to finish and return its cached result rather than re-running the
     pipeline (AC-001-04, concurrent duplicate submissions).
@@ -174,7 +226,9 @@ async def _await_concurrent_caller(ctx: ApplyContext, redis_client: Any, key: st
         await asyncio.sleep(_POLL_INTERVAL_SECONDS)
         cached = await get_cached_response(redis_client, ctx.tenant_id, key)
         if cached is not None:
-            return ApplyResponse(**cached)
+            return _from_cache_entry(cached)
+    # The first caller's process is presumed dead (poll window == lock TTL,
+    # see module docstring) -- the router maps this to a 409, not a 500.
     raise TimeoutError(f"idempotency lock for {key} was never released")
 
 
@@ -186,7 +240,7 @@ async def apply_operations_request(
 
     cached = await get_cached_response(redis_client, ctx.tenant_id, request.idempotency_key)
     if cached is not None:
-        return ApplyResponse(**cached)
+        return _from_cache_entry(cached)
 
     if not await try_acquire_lock(redis_client, ctx.tenant_id, request.idempotency_key):
         return await _await_concurrent_caller(ctx, redis_client, request.idempotency_key)
