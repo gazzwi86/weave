@@ -95,7 +95,7 @@ async def mint_version(
     version_iri = f"{named_graph_iri}:v{semver}"
 
     # False positive: SQL is a static literal; all values are bound positional
-    # parameters ($1..$4), never interpolated into query text.
+    # parameters ($1..$5), never interpolated into query text.
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     await conn.execute(
         "INSERT INTO graph_versions (tenant_id, workspace_id, semver, version_iri, actor_iri) "
