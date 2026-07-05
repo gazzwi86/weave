@@ -10,6 +10,11 @@ out/
 .next/
 .nuxt/
 .output/
+# ...except the Build Engine's own `weave_backend.build` package (a real
+# Python package, not a build artefact -- the bare `build/` pattern above
+# would otherwise silently swallow it).
+!packages/backend/src/weave_backend/build/
+!packages/backend/src/weave_backend/build/**
 
 # Environment
 .env
