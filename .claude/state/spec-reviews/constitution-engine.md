@@ -15,3 +15,7 @@
 | 9 | architecture.md + testing-strategy.md missing (CRITICAL) | Both produced 2026-07-02 (C4 L1-L3, named-graph topology, SHACL/PROV pipeline; full pyramid + pyoxigraph/LocalStack fakes) |
 
 Cross-engine timing: PASS — no M1 item consumes a later-milestone contract.
+
+**2026-07-05 mtime-check:** specs touched after this review by 99d623a (harness dedupe) — 4 lines,
+reference-only (arch-skill renames + `packages/web`→`packages/frontend` path fix). No semantic
+change; review verdict stands. Marker refreshed to clear the mtime trigger.
