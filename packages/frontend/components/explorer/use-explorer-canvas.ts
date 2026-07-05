@@ -1,13 +1,22 @@
 "use client";
 
-import type { RefObject } from "react";
-
-import type { ExplorerConfig } from "@/lib/explorer/config";
-import type { ViewportIndicator } from "@/lib/explorer/minimap-geometry";
-import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type cytoscape from "cytoscape";
 
+import { buildStylesheet } from "@/lib/explorer/build-stylesheet";
+import { CeReadError } from "@/lib/explorer/ce-read-error";
+import { DEFAULT_EXPLORER_CONFIG, type ExplorerConfig } from "@/lib/explorer/config";
+import { createCytoscapeInstance } from "@/lib/explorer/create-cytoscape";
+import { fetchGraph as defaultFetchGraph, fetchPalette as defaultFetchPalette } from "@/lib/explorer/fetch-graph";
+import { registerKeyBindings } from "@/lib/explorer/key-bindings";
+import { computeViewportIndicator, type ViewportIndicator } from "@/lib/explorer/minimap-geometry";
+import { rafThrottle } from "@/lib/explorer/raf-throttle";
+import { applySemanticZoom } from "@/lib/explorer/semantic-zoom";
+import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
+
 export type LoadState = "loading" | "ready" | "error";
+
+const MINIMAP_SIZE = { width: 160, height: 100 };
 
 /** Structural subset of `cytoscape.Core` this hook actually calls --
  * satisfied by both the real instance (create-cytoscape.ts) and a fake in
@@ -15,7 +24,7 @@ export type LoadState = "loading" | "ready" | "error";
 export interface CyLike {
   container(): HTMLElement | null;
   json(spec: { elements: CytoscapeElement[] }): void;
-  layout(options: Record<string, unknown>): { run(): void };
+  layout(options: { name: string } & Record<string, unknown>): { run(): void };
   zoom(): number;
   extent(): { x1: number; y1: number; x2: number; y2: number };
   elements(): { boundingBox(): { x1: number; y1: number; x2: number; y2: number } };
@@ -45,7 +54,71 @@ export interface ExplorerCanvasState {
   retry: () => void;
 }
 
-// ponytail: stub -- red before green (TDD step 1).
-export function useExplorerCanvas(_options?: UseExplorerCanvasOptions): ExplorerCanvasState {
-  throw new Error("not implemented");
+function errorMessageFor(err: unknown): string {
+  return err instanceof CeReadError ? err.message : "Unable to load the graph.";
+}
+
+/** AC-1/AC-5/AC-6/AC-7: wires semantic zoom, focus-scoped key bindings, and
+ * rAF-throttled mini-map tracking onto a freshly-constructed canvas. Returns
+ * the key-binding cleanup so the caller can unregister it on unmount. */
+function wireCanvas(cy: CyLike, config: ExplorerConfig, onViewportChange: (indicator: ViewportIndicator) => void) {
+  const thresholds = { nodeLabelThreshold: config.nodeLabelThreshold, edgeLabelThreshold: config.edgeLabelThreshold };
+  cy.on("zoom", () => applySemanticZoom(cy, thresholds));
+
+  const updateMinimap = rafThrottle(() => {
+    onViewportChange(computeViewportIndicator(cy.elements().boundingBox(), cy.extent(), MINIMAP_SIZE));
+  });
+  cy.on("viewport", updateMinimap);
+  updateMinimap();
+
+  return registerKeyBindings(cy);
+}
+
+export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): ExplorerCanvasState {
+  const config = options.config ?? DEFAULT_EXPLORER_CONFIG;
+  const fetchPalette = options.fetchPalette ?? defaultFetchPalette;
+  const fetchGraph = options.fetchGraph ?? defaultFetchGraph;
+  const createCy = options.createCy ?? createCytoscapeInstance;
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cyRef = useRef<CyLike | null>(null);
+  const unregisterRef = useRef<(() => void) | null>(null);
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [minimapIndicator, setMinimapIndicator] = useState<ViewportIndicator | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load(): Promise<void> {
+      setLoadState("loading");
+      setErrorMessage(null);
+      try {
+        const [palette, elements] = await Promise.all([fetchPalette(), fetchGraph(config.ceTimeoutMs)]);
+        if (cancelled) return;
+        const cy = createCy(containerRef.current, elements, buildStylesheet(palette));
+        cy.layout({ name: "fcose", ...config.fcoseParams }).run();
+        unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
+        cyRef.current = cy;
+        setLoadState("ready");
+      } catch (err) {
+        if (cancelled) return;
+        setErrorMessage(errorMessageFor(err));
+        setLoadState("error");
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+      unregisterRef.current?.();
+      cyRef.current?.destroy();
+      cyRef.current = null;
+    };
+  }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
+
+  const retry = useCallback(() => setRetryToken((token) => token + 1), []);
+
+  return { loadState, errorMessage, minimapIndicator, containerRef, retry };
 }

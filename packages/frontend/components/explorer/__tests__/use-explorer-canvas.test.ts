@@ -6,6 +6,7 @@ import { useExplorerCanvas } from "../use-explorer-canvas";
 
 const PALETTE = [{ id: "Process", label: "Process", colour: "#3B82F6" }];
 const ELEMENTS = [{ data: { id: "n1", label: "Customer Onboarding", bpmo_kind: "Process" } }];
+const CE_ERROR_MESSAGE = "CE error 503";
 
 function fakeCy() {
   return {
@@ -37,13 +38,13 @@ describe("useExplorerCanvas", () => {
     await waitFor(() => expect(result.current.loadState).toBe("ready"));
 
     expect(createCy).toHaveBeenCalledTimes(1);
-    expect(createCy).toHaveBeenCalledWith(expect.anything(), ELEMENTS, expect.anything());
+    expect(createCy).toHaveBeenCalledWith(null, ELEMENTS, expect.anything());
   });
 
   it("shows the CE error message and never constructs the canvas on failure (AC-2)", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi.fn(async () => {
-      throw new CeReadError("CE error 503");
+      throw new CeReadError(CE_ERROR_MESSAGE);
     });
     const createCy = vi.fn(fakeCy);
 
@@ -53,7 +54,7 @@ describe("useExplorerCanvas", () => {
 
     await waitFor(() => expect(result.current.loadState).toBe("error"));
 
-    expect(result.current.errorMessage).toBe("CE error 503");
+    expect(result.current.errorMessage).toBe(CE_ERROR_MESSAGE);
     expect(createCy).not.toHaveBeenCalled();
   });
 
@@ -61,7 +62,7 @@ describe("useExplorerCanvas", () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi
       .fn()
-      .mockRejectedValueOnce(new CeReadError("CE error 503"))
+      .mockRejectedValueOnce(new CeReadError(CE_ERROR_MESSAGE))
       .mockResolvedValueOnce(ELEMENTS);
     const createCy = vi.fn(fakeCy);
 
