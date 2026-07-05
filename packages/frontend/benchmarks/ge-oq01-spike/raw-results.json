@@ -1,26 +1,35 @@
 {
-  "note": "Assembled by hand from console output of bench-load.mjs (1k: 5/5 reps; 5k: 1/5 reps -- run deliberately stopped early, see report.md) and bench-drag.mjs (1k drag fps). The 10k tier never produced a completed rep -- observed >42 min wall-clock, killed without convergence (see report.md 'What we could not measure').",
+  "note": "Assembled summary. Superseded by the real prototype-tuned fcose params (see fcose-params.mjs provenance -- coordinator-recovered from prototypes/weave-prototype/frontend/src/lib/cytoscape.ts:106-114). Full raw arrays in raw-results-load.json (1k/5k/10k load+memory) and raw-results-drag.json (drag fps samples). The earlier library-default-params run (1k: 5/5 reps p95=19222.8ms; 5k: 1/5 reps 751211.4ms; 10k: 0/5, killed >42min no convergence) is preserved in git history (commit 2e0c160) and summarized below for comparison -- not repeated as live data here.",
   "hardware": "Apple Silicon dev box (see report.md for reference-hardware-profile disclosure)",
-  "fcoseParamsSource": "cytoscape-fcose package defaults, see fcose-params.mjs provenance comment",
+  "fcoseParamsSource": "Real prototype params (prototypes/weave-prototype/frontend/src/lib/cytoscape.ts:106-114), recovered by coordinator per TASK-001-blocker.md resolution -- not independently verified against source by the Engineer (Law 12)",
   "1000": {
     "reps": 5,
-    "loadMs": [14020.2, 19222.8, 12937.2, 11616.1, 12904.0],
-    "memMB": [64.46, 144.05, 66.72, 69.81, 72.55],
-    "p95LoadMs": 19222.8,
-    "p95MemMB": 144.05
+    "loadMs": [5196.2, 5160.4, 5261.1, 5061.8, 5126.6],
+    "memMB": [78.16, 88.02, 104.73, 126.74, 113.07],
+    "p95LoadMs": 5261.1,
+    "p95MemMB": 126.74
   },
   "5000": {
     "reps": 1,
-    "loadMs": [751211.4],
-    "memMB": [208.42],
-    "note": "Single rep only, ~12.5 minutes wall clock. Additional reps stopped deliberately -- see report.md."
+    "loadMs": [136403.7],
+    "memMB": [237.3],
+    "note": "Single rep only (~2.3 min wall clock) -- see report.md 'Why reps were capped'."
   },
   "10000": {
-    "reps": 0,
-    "note": "No completed rep. Observed >42 minutes of continuous 100% CPU (verified via `ps` on the chrome-headless-shell renderer process, not stalled/deadlocked -- steadily consuming CPU) before the probe was deliberately killed. See report.md 'What we could not measure'."
+    "reps": 1,
+    "loadMs": [506795.7],
+    "memMB": [943.17],
+    "note": "Single rep under a 10-minute kill-cap (converged at ~8.4 min, well inside the cap) -- unlike the library-default params, which never converged in 42+ minutes. See report.md."
   },
   "drag1000": {
-    "note": "See raw-results-drag.json for full 296-sample array. p95 computed per the task brief's literal pseudocode (ascending sort, ceil(0.95n)-1 index) -- see report.md for why this reads misleadingly high given the sample distribution's bimodal jitter.",
-    "p95FpsAscendingConvention": 222.22222222222223
+    "note": "See raw-results-drag.json for the full sample array. p95 computed per the task brief's literal pseudocode (ascending sort, ceil(0.95n)-1 index) -- see report.md for the headless-Chromium-vsync and ascending-convention caveats.",
+    "p95FpsAscendingConvention": 270.27
+  },
+  "previousRunWithLibraryDefaultParams": {
+    "note": "For comparison only -- see git history commit 2e0c160 for full raw data of this superseded run.",
+    "1000": { "reps": 5, "p95LoadMs": 19222.8, "p95MemMB": 144.05 },
+    "5000": { "reps": 1, "loadMs": 751211.4, "memMB": 208.42 },
+    "10000": { "reps": 0, "note": "killed after >42 min, no convergence" },
+    "drag1000": { "p95FpsAscendingConvention": 222.22222222222223 }
   }
 }
