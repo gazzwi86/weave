@@ -1,11 +1,13 @@
 import os
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
 from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.db.pool import close_app_pool
 from weave_backend.observability.middleware import install_tenant_context_middleware
+from weave_backend.projects.ce_version_client import close_ce_client
 from weave_backend.routers.audit import router as audit_router
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
@@ -15,6 +17,8 @@ from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.notifications import router as notifications_router
+from weave_backend.routers.projects import projects_validation_error_handler
+from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
 from weave_backend.routers.sparql import router as sparql_router
@@ -53,6 +57,8 @@ app.include_router(identity_router)
 app.include_router(search_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
+app.include_router(projects_router)
+app.add_exception_handler(RequestValidationError, projects_validation_error_handler)
 
 assert_all_routes_guarded(app)
 
@@ -61,6 +67,7 @@ assert_all_routes_guarded(app)
 async def _close_db_pool() -> None:
     await close_app_pool()
     await close_oidc_client()
+    await close_ce_client()
 
 
 def main() -> None:
