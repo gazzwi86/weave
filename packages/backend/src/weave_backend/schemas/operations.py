@@ -77,6 +77,10 @@ class ApplyResponse(BaseModel):
     applied_count: int
     version_iri: str
     advisories: list[ViolationDetail] = Field(default_factory=list)
+    #: TASK-004 AC-004-01/-04: the real, minted IRI for every `ref` in the
+    #: request's `add_node` ops -- lets a caller (NL authoring, import)
+    #: confirm the actual created IRI without a follow-up read.
+    ref_map: dict[str, str] = Field(default_factory=dict)
 
 
 class ViolationsResponse(BaseModel):
