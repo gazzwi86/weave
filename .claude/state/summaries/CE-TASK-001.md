@@ -69,6 +69,19 @@ QA edge cases: 6883727→0e98edd, 7bee6d0→d6491de (rebased). Retry: 74242ce, 6
 - ruff/mypy/bandit clean. Law E: max fn 44 lines, all files <300.
 - QA FAIL round 1 (audit contract ×2 + ADR cross-ref), classified `logic`, retry 1 → all 3 re-validated PASS.
 
+## PR #20 review-gate fixes (post-QA, commits 183e257/20ca5ba/90fd3bd)
+
+7 findings fixed in-branch: (1) audit/PROV attribution now the JWT principal (`ApplyContext.principal_iri`),
+client `actor` kept only as `claimed_actor_iri` in the audit payload; (2) 422 outcomes idempotency-cached
+(`{kind, body}` tagging), concurrent-duplicate timeout → 409 `concurrent_apply_in_progress` (was unhandled
+500), poll window derived from `LOCK_TTL_SECONDS`; (3) `engine="constitution"` on all 3 AuditEvent sites;
+(4) routine RBAC 403 renamed `security.rbac.denied`→`access.rbac.denied` (no all-admin Slack fan-out;
+`security.cross_tenant.rejected` unchanged); (5) shacl.py docstrings now truthful (lazy first-use cache,
+framework-only, restart-to-refresh until shape authoring); (6) fake "Law 13" citation dropped (repo-wide
+sweep of the pre-existing copies ledgered); (7) `_commit` reordered — version row + PROV + audit before the
+working-graph promotion PUT, so promotion is the single last irreversible step (AC-001-10 holds on any
+pre-promotion failure). Sub-threshold ledger rows: idempotency-poll pool-hold (Architect v1.0), Law-13 sweep.
+
 ## ADRs Created
 
 - `docs/specs/weave/engines/constitution-engine/decisions/ADR-001.md` — workspace-granular graph scheme;
