@@ -53,8 +53,14 @@ def _to_literal(value: Any) -> Any:
     return Literal(value)
 
 
-def _find_existing_by_label_kind(graph: Graph, kind: str, label: str) -> URIRef | None:
-    """AC-001-05: case-insensitive label+kind match reuses the existing node."""
+def find_existing_by_label_kind(graph: Graph, kind: str, label: str) -> URIRef | None:
+    """AC-001-05: case-insensitive label+kind match reuses the existing node.
+
+    Public (CE-TASK-005 AC-005-04): the instances router calls this same
+    lookup itself, *before* dispatching to CE-WRITE-1, so it can offer a
+    "this already exists, edit instead?" HITL response rather than silently
+    landing in the auto-merge branch below.
+    """
     kind_class = _expand(kind)
     target = label.casefold()
     for subject in graph.subjects(RDF.type, kind_class):
@@ -65,7 +71,7 @@ def _find_existing_by_label_kind(graph: Graph, kind: str, label: str) -> URIRef 
 
 
 def _apply_add_node(graph: Graph, op: AddNodeOp, ref_map: dict[str, str]) -> None:
-    existing = _find_existing_by_label_kind(graph, op.kind, op.label)
+    existing = find_existing_by_label_kind(graph, op.kind, op.label)
     if existing is not None:
         ref_map[op.ref] = str(existing)
         return
