@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from weave_backend.auth.dependencies import UnauthorisedError, unauthorised_exception_handler
 from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.briefs.ce_read_client import close_ce_read_client
@@ -84,6 +85,7 @@ app.include_router(requests_router)
 # handler can be registered per exception class -- add_exception_handler
 # overwrites, it does not chain -- hence the in-handler delegation.
 app.add_exception_handler(RequestValidationError, tasks_validation_error_handler)
+app.add_exception_handler(UnauthorisedError, unauthorised_exception_handler)
 
 assert_all_routes_guarded(app)
 

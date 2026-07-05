@@ -137,7 +137,7 @@ async def test_create_request_returns_401_without_jwt(client: AsyncClient) -> No
         "/api/requests", json={"prompt": "build a widget", "run_mode": "draft_spec_only"}
     )
     assert response.status_code == 401
-    assert response.json() == {"detail": {"error": "unauthorised"}}
+    assert response.json() == {"error": "unauthorised"}
     assert response.headers["www-authenticate"] == "Bearer"
 
 
