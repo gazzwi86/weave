@@ -11,6 +11,8 @@ history UI ships.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import shutil
 import uuid
 from collections.abc import AsyncIterator
@@ -329,5 +331,222 @@ async def test_diff_with_unknown_version_returns_404(
             "/api/ontology/diff", params={"from": from_iri, "to": unknown_to}, headers=headers
         )
         assert response.status_code == 404
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_concurrent_double_publish_exactly_one_succeeds(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case (CE-TASK-002 review): two callers racing to publish the
+    same draft must not both win -- `publish_version`'s `UPDATE ... WHERE
+    status = 'draft'` compare-and-swap (no advisory lock, per ADR-002) is
+    the only thing preventing a double-publish race. Fired concurrently
+    against the real stack, not just asserted at the query-string level.
+    """
+    _tenant_id, workspace, headers = await _setup_member(
+        client, label="ont-race-publish", role="admin"
+    )
+
+    try:
+        apply_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        version_iri = apply_response.json()["version_iri"]
+
+        results = await asyncio.gather(
+            client.post(f"/api/ontology/versions/{version_iri}/publish", headers=headers),
+            client.post(f"/api/ontology/versions/{version_iri}/publish", headers=headers),
+        )
+        statuses = sorted(r.status_code for r in results)
+        assert statuses == [200, 405]
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_publish_version_from_another_tenant_returns_404_not_403(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case: a version_iri that is real, but belongs to a different
+    tenant, must 404 (tenant-scoped `get_version` lookup) rather than leak
+    a 403 that would confirm the IRI's existence to an unrelated tenant.
+    """
+    _tenant_a, workspace_a, headers_a = await _setup_member(
+        client, label="ont-tenant-a", role="admin"
+    )
+    _tenant_b, workspace_b, headers_b = await _setup_member(
+        client, label="ont-tenant-b", role="admin"
+    )
+
+    try:
+        apply_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers_a,
+        )
+        tenant_a_version_iri = apply_response.json()["version_iri"]
+
+        cross_tenant_response = await client.post(
+            f"/api/ontology/versions/{tenant_a_version_iri}/publish", headers=headers_b
+        )
+        assert cross_tenant_response.status_code == 404
+    finally:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
+
+
+async def test_diff_across_tenants_returns_404(client: AsyncClient, platform_stack: Path) -> None:
+    """QA edge case: diffing against a version_iri that belongs to a
+    different tenant must 404, same tenant-isolation guarantee as publish.
+    """
+    _tenant_a, workspace_a, headers_a = await _setup_member(
+        client, label="ont-diff-tenant-a", role="admin"
+    )
+    _tenant_b, workspace_b, headers_b = await _setup_member(
+        client, label="ont-diff-tenant-b", role="admin"
+    )
+
+    try:
+        apply_a = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers_a,
+        )
+        tenant_a_version_iri = apply_a.json()["version_iri"]
+
+        apply_b = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers_b,
+        )
+        tenant_b_version_iri = apply_b.json()["version_iri"]
+
+        response = await client.get(
+            "/api/ontology/diff",
+            params={"from": tenant_a_version_iri, "to": tenant_b_version_iri},
+            headers=headers_b,
+        )
+        assert response.status_code == 404
+    finally:
+        await clear_graph(workspace_a.named_graph_iri)
+        await clear_graph(workspace_b.named_graph_iri)
+
+
+async def test_latest_resolves_to_newest_published_with_a_newer_draft_present(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-002-08, real DB: with two published versions and a third, newer,
+    still-draft version present, `?to=latest` must resolve to the newest
+    *published* row (the second one), never the newer unpublished draft.
+    """
+    _tenant_id, workspace, headers = await _setup_member(
+        client, label="ont-latest-vs-draft", role="admin"
+    )
+
+    try:
+        first = await client.post(
+            "/api/operations/apply",
+            json={
+                "operations": [
+                    {"op": "add_node", "ref": "a1", "kind": "Actor", "label": "Billing Team"}
+                ],
+                "actor": "urn:weave:principal:test-actor",
+            },
+            headers=headers,
+        )
+        v1 = first.json()["version_iri"]
+        publish_v1 = await client.post(f"/api/ontology/versions/{v1}/publish", headers=headers)
+        assert publish_v1.status_code == 200
+
+        second = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        v2 = second.json()["version_iri"]
+        publish_v2 = await client.post(f"/api/ontology/versions/{v2}/publish", headers=headers)
+        assert publish_v2.status_code == 200
+
+        third = await client.post(
+            "/api/operations/apply",
+            json={
+                "operations": [
+                    {"op": "add_node", "ref": "a2", "kind": "Actor", "label": "Draft-only actor"}
+                ],
+                "actor": "urn:weave:principal:test-actor",
+            },
+            headers=headers,
+        )
+        v3_draft = third.json()["version_iri"]
+        assert v3_draft != v2  # a real, newer, still-draft version exists
+
+        diff_response = await client.get(
+            "/api/ontology/diff", params={"from": v1, "to": "latest"}, headers=headers
+        )
+        assert diff_response.status_code == 200
+
+        list_response = await client.get(
+            "/api/ontology/versions", params={"workspace_id": workspace.id}, headers=headers
+        )
+        versions_by_iri = {v["version_iri"]: v["status"] for v in list_response.json()["versions"]}
+        assert versions_by_iri[v3_draft] == "draft"
+        assert versions_by_iri[v2] == "published"
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_outbox_flush_isolates_a_mid_batch_failure_across_real_rows(
+    client: AsyncClient, platform_stack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """QA edge case: three real `audit_outbox` rows pending, the middle
+    emit fails -- per-row savepoint isolation (real Postgres, not the
+    unit-lane `FakeConn`) must mean the first and third still deliver and
+    only the second stays pending, with no crash/rollback of the batch.
+
+    Enqueues directly (bypassing the apply route, which auto-flushes on
+    every request and would otherwise retry the failed row on its own next
+    call before this test gets to assert the mid-batch state).
+    """
+    tenant_id, workspace, _headers = await _setup_member(client, label="ont-outbox-batch")
+    real_emit = HashChainAuditEmitter.emit
+    calls = 0
+
+    async def _flaky_emit(conn: object, event: AuditEvent) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("simulated mid-batch sink outage")
+        await real_emit(default_audit_emitter, conn, event)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(default_audit_emitter, "emit", _flaky_emit)
+
+    try:
+        async with tenant_connection(tenant_id) as conn:
+            for i in range(3):
+                await outbox.enqueue(
+                    conn,
+                    AuditEvent(
+                        tenant_id=tenant_id,
+                        event_type="operations.applied",
+                        actor_iri="urn:weave:principal:test-actor",
+                        subject_iri=f"urn:weave:tenant:{tenant_id}:ws:x:v0.0.{i}",
+                        engine="constitution",
+                        payload={"n": i},
+                    ),
+                )
+
+        async with tenant_connection(tenant_id) as conn:
+            delivered = await outbox.flush_pending(conn, tenant_id)
+        assert delivered == 2  # exactly the failing row stays behind, siblings unaffected
+
+        async with tenant_connection(tenant_id) as conn:
+            pending_after = await conn.fetch(
+                "SELECT payload FROM audit_outbox WHERE tenant_id = $1 AND delivered_at IS NULL",
+                tenant_id,
+            )
+        assert len(pending_after) == 1
+        assert json.loads(pending_after[0]["payload"]) == {"n": 1}  # the 2nd enqueued, 0-indexed
     finally:
         await clear_graph(workspace.named_graph_iri)
