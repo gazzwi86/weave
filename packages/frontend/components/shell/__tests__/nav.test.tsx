@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Nav } from "../nav";
 
+// CE-TASK-007 shipped the real Constitution Engine route at "/ce/query"
+// (nav-items.ts), replacing the placeholder "/ce" -- match a real subroute.
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/ce/resource",
+  usePathname: () => "/ce/query/history",
 }));
 
 describe("Nav", () => {

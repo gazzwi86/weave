@@ -9,7 +9,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: "Platform", href: "/dashboard" },
-  { label: "Constitution Engine", href: "/ce" },
+  { label: "Constitution Engine", href: "/ce/query" },
   { label: "Build Engine", href: "/build" },
   { label: "Events & Actions", href: "/events" },
   { label: "Graph Explorer", href: "/explorer" },
