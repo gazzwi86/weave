@@ -2,6 +2,15 @@
 // the load-time reps were capped after 1k/5k already showed an unambiguous
 // no-go). Drag fps is a rendering-loop question, independent of how long the
 // prior fcose layout took to converge.
+//
+// ponytail: headless Chromium has no real display / no vsync, so
+// requestAnimationFrame is not compositor-paced the way it is in a real
+// browser window -- this is why the raw sample array below is bimodal (many
+// plausible ~110-145 fps readings alongside implausible ~9,999 fps spikes,
+// almost certainly rAF-coalescing artifacts after a scheduling gap, not real
+// frame cost). Treat the drag-fps number as directional, not a substitute for
+// a real-browser reading -- see report.md "drag fps caveat" for the full
+// disclosure alongside the reference-hardware substitution.
 import { chromium } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

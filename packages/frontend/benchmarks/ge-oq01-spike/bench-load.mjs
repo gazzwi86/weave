@@ -4,17 +4,14 @@
 // a 10k rep alone can run 40+ minutes, see report.md, which doesn't fit a
 // single sane test-timeout alongside fast 1k/5k reps).
 //
-// ponytail: 10k is NOT looped here. A manual probe (see report.md "What we
-// could not measure") ran a single 10k rep for 42 minutes at 100% CPU
-// without reaching layoutstop -- three orders of magnitude past the 8s
-// budget already established by 1k/5k below. Re-running it 5x would cost
-// hours for no additional decision-relevant signal. Bump FIXTURE_SIZES/
-// REPS below and re-run if the Architect wants a completed 10k number
-// regardless (budget ~1 rep per 40+ min observed).
+// ponytail: 5k is capped at REPS[5000]=1 (its single rep already took ~2 min
+// with the real prototype params -- see report.md "Why reps were capped").
+// Raise REPS[5000] to 5 and re-run if the full dataset is wanted regardless.
 //
-// ponytail: 5k is capped at REPS_5000=1 for the same reason (its single rep
-// already took ~12.5 minutes -- see report.md "Why reps were capped"). Raise
-// REPS_5000 to 5 and re-run if the full dataset is wanted regardless.
+// ponytail: 10k gets exactly 1 rep under a 10-minute kill-cap (Promise.race
+// below) rather than the full 5 reps -- the 5k tier improved 5.9x with the
+// real params but is still ~25x over an interpolated target, so one capped
+// 10k data point is worth having but 5 uncapped reps is not (see report.md).
 import { chromium } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,37 +30,55 @@ function p95(values) {
 }
 
 const browser = await chromium.launch({ args: ["--enable-precise-memory-info"] });
-const page = await browser.newPage();
+let page = await browser.newPage();
 const results = {};
 
-const REPS = { 1000: 5, 5000: 1 };
+const REPS = { 1000: 5, 5000: 1, 10000: 1 };
+const KILL_CAP_MS = { 10000: 10 * 60 * 1000 };
 
-for (const size of [1000, 5000]) {
+async function runRep(size, fixture) {
+  const evalPromise = page.evaluate(
+    async ({ elements, params, style: s }) => {
+      const container = document.getElementById("cy");
+      const start = performance.now();
+      const cy = window.__cytoscape({ container, elements, style: s });
+      await new Promise((resolve) => {
+        const layout = cy.layout(params);
+        layout.one("layoutstop", () => resolve());
+        layout.run();
+      });
+      const end = performance.now();
+      const memMB = performance.memory ? performance.memory.usedJSHeapSize / 1_000_000 : null;
+      cy.destroy();
+      return { loadMs: end - start, memMB };
+    },
+    { elements: fixture.elements, params: FCOSE_PARAMS, style },
+  );
+  const capMs = KILL_CAP_MS[size];
+  if (!capMs) return evalPromise;
+  return Promise.race([
+    evalPromise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`kill-cap ${capMs}ms exceeded`)), capMs)),
+  ]);
+}
+
+for (const size of [1000, 5000, 10000]) {
   const reps = REPS[size];
   const fixture = JSON.parse(readFileSync(join(here, "fixtures", `${size}.json`), "utf-8"));
   results[size] = { loadMs: [], memMB: [] };
   for (let run = 0; run < reps; run++) {
     await page.goto(`file://${join(here, "harness.html")}`);
-    const sample = await page.evaluate(
-      async ({ elements, params, style: s }) => {
-        const container = document.getElementById("cy");
-        const start = performance.now();
-        const cy = window.__cytoscape({ container, elements, style: s });
-        await new Promise((resolve) => {
-          const layout = cy.layout(params);
-          layout.one("layoutstop", () => resolve());
-          layout.run();
-        });
-        const end = performance.now();
-        const memMB = performance.memory ? performance.memory.usedJSHeapSize / 1_000_000 : null;
-        cy.destroy();
-        return { loadMs: end - start, memMB };
-      },
-      { elements: fixture.elements, params: FCOSE_PARAMS, style },
-    );
-    results[size].loadMs.push(sample.loadMs);
-    if (sample.memMB !== null) results[size].memMB.push(sample.memMB);
-    console.log(`[${size}] rep ${run + 1}/${reps}: loadMs=${sample.loadMs.toFixed(1)} memMB=${sample.memMB?.toFixed(2)}`);
+    try {
+      const sample = await runRep(size, fixture);
+      results[size].loadMs.push(sample.loadMs);
+      if (sample.memMB !== null) results[size].memMB.push(sample.memMB);
+      console.log(`[${size}] rep ${run + 1}/${reps}: loadMs=${sample.loadMs.toFixed(1)} memMB=${sample.memMB?.toFixed(2)}`);
+    } catch (err) {
+      results[size].killed = err.message;
+      console.log(`[${size}] rep ${run + 1}/${reps}: KILLED (${err.message}) -- no layoutstop within cap`);
+      await page.close();
+      page = await browser.newPage();
+    }
   }
 }
 
@@ -127,6 +142,6 @@ const summary = {
   dragP95Fps: p95(fpsSamples),
 };
 
-writeFileSync(join(here, "raw-results-1k-5k.json"), JSON.stringify({ results, fpsSamples, summary }, null, 2));
+writeFileSync(join(here, "raw-results-load.json"), JSON.stringify({ results, fpsSamples, summary }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
 await browser.close();
