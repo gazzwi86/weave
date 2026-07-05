@@ -1,4 +1,15 @@
-// ponytail: stub -- red before green (TDD step 1).
-export default function ExplorerPage(): never {
-  throw new Error("not implemented");
+import { ExplorerCanvasLoader } from "@/components/explorer/explorer-canvas-loader";
+
+/** FR-001..FR-005: Graph Explorer's whole-company force canvas. Protected by
+ * middleware.ts (not in PUBLIC_PATHS) -- unauthenticated viewers are
+ * redirected to /auth/login before this ever renders. */
+export default function ExplorerPage() {
+  return (
+    <main className="flex min-h-screen flex-col">
+      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] p-[var(--space-6)]">
+        Graph Explorer
+      </h1>
+      <ExplorerCanvasLoader />
+    </main>
+  );
 }
