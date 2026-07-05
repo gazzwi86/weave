@@ -13,9 +13,11 @@ lane engineer's report per ADV-004; design rationale detail in ADR-002.)*
   produced it. Proven under a simulated sink outage in a docker-lane test. No dead-letter queue —
   a permanently-broken row retries forever (accepted for M1 volume, flagged below). Denial-path
   audit events remain synchronous (no graph commit to protect). Full rationale: ADR-002.
-- **PROV-O actor typing (AC-002-01/-05):** human actors → `prov:Person`; agent actors →
-  `prov:SoftwareAgent` + `prov:wasStartedBy` (the approving human). Activity written only after
-  SHACL passes. Canonical PLAT-IDENTITY-1 principal IRIs throughout.
+- **PROV-O actor typing (AC-002-01/-05), as actually shipped:** human actors → `prov:Person` +
+  self-referential `prov:wasStartedBy`; agent actors → `prov:SoftwareAgent` with NO `wasStartedBy`.
+  (QA judged this backwards vs AC-002-01's intent — distinct approving human on agent activities —
+  dormant until agent flows; see QA findings below and ADR-002's corrected §2.) Activity written
+  only after SHACL passes. Canonical PLAT-IDENTITY-1 principal IRIs throughout.
 - **Draft→published lifecycle (AC-002-06..-09):** `GET /api/ontology/versions` +
   `POST /api/ontology/versions/{iri}/publish` (first real caller of RBAC's "publish" tier).
   The graph_versions append-only trigger is relaxed to permit exactly ONE UPDATE (draft→published);

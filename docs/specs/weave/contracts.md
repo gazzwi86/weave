@@ -114,9 +114,11 @@ depend on. CE owns and publishes ALL of the following.
 
 ### CE-DIFF-1 — Version diff
 - `GET /api/ontology/diff?from=<version_iri>&to=<version_iri>`
-  → `{ added: [Triple], removed: [Triple], modified: [{ before: Triple, after: Triple }] }`
-  where `Triple = { subject, predicate, object }` — a flat RDF triple set that **includes edge
-  modifications** (the prototype's client diff did not; this is server-side).
+  → `{ added: [Triple], removed: [Triple], modified: [Modification] }`
+  where `Triple = { subject, predicate, object }` and
+  `Modification = { subject, predicate, before, after }` (`before`/`after` are the old and new
+  **object values** for that subject+predicate — not nested Triples) — a flat RDF triple set that
+  **includes edge modifications** (the prototype's client diff did not; this is server-side).
 - *Amended 2026-07-05 (human-approved):* the original `Node|Edge` / `{ref, kind, before, after}`
   shape presupposed a node/edge distinction that has no first-class existence at the RDF triple
   level. Consumers derive any node/edge grouping client-side; if a server-side grouped projection
