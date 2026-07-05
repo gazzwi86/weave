@@ -20,6 +20,7 @@ from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
     InvalidTargetError,
+    PublishedTargetError,
     apply_operations_request,
 )
 from weave_backend.rbac import InsufficientRole, enforce_workspace_role
@@ -127,6 +128,13 @@ async def _run_apply(
         raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
     except ForeignTargetError:
         return await _reject_foreign_target(conn, principal=principal, target=body.target)
+    except PublishedTargetError as exc:
+        # AC-003-13: the target names a real, already-published version --
+        # published versions are immutable, so this is a conflict, not a
+        # forgery (that's ForeignTargetError) or a bad request.
+        raise HTTPException(
+            status_code=409, detail={"error": "target_version_published"}
+        ) from exc
     except TimeoutError as exc:
         # Another caller holds this idempotency key's lock and never
         # finished (e.g. its process crashed) -- a clean 409 beats an

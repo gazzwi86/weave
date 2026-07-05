@@ -37,7 +37,7 @@ from weave_backend.operations.idempotency import (
 from weave_backend.operations.outbox import enqueue
 from weave_backend.operations.provenance import ActorType, write_activity
 from weave_backend.operations.shacl import validate_graph
-from weave_backend.operations.versioning import mint_version
+from weave_backend.operations.versioning import get_version, mint_version
 from weave_backend.rdf.oxigraph_client import fetch_graph_turtle, load_graph
 from weave_backend.schemas.operations import (
     ApplyRequest,
@@ -75,6 +75,15 @@ class ForeignTargetError(Exception):
     """`target` is a well-formed version IRI naming a graph outside the
     caller's own workspace (AC-001-09). ADR-001-tenant-isolation: "a payload
     naming another tenant's graph is a 403 + audit", never a 400.
+    """
+
+
+class PublishedTargetError(Exception):
+    """AC-003-13: `target` names a real version_iri in the caller's own
+    workspace, but that version is already published -- published versions
+    are immutable snapshots (AC-002-09's same rule, enforced here for the
+    mutation side too), so applying against one is rejected rather than
+    silently re-derived from it.
     """
 
 
@@ -188,6 +197,12 @@ async def _apply_uncached(
     ctx: ApplyContext, request: ApplyRequest
 ) -> ApplyResponse | ViolationsResponse:
     source_graph_iri = resolve_source_graph_iri(ctx.named_graph_iri, request.target)
+    if request.target != "draft":
+        target_version = await get_version(
+            ctx.conn, tenant_id=ctx.tenant_id, version_iri=request.target
+        )
+        if target_version is not None and target_version.status == "published":
+            raise PublishedTargetError(request.target)
     scratch = await _fetch_scratch_graph(source_graph_iri)
     apply_result = apply_operations(scratch, request.operations)
     shacl_results = validate_graph(scratch)
