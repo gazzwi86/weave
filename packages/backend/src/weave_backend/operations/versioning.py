@@ -24,6 +24,9 @@ async def mint_version(
     """Returns `(version_iri, semver)` for the next version of the given
     workspace's working graph, recording it in `graph_versions`.
     """
+    # False positive: SQL is a static literal; the f-string builds the advisory-lock
+    # key bound as positional parameter $1, never interpolated into query text.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     await conn.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"{tenant_id}:{workspace_id}")
 
     row = await conn.fetchrow(
@@ -35,6 +38,9 @@ async def mint_version(
     semver = _INITIAL_SEMVER if row is None else _bump_patch(str(row["semver"]))
     version_iri = f"{named_graph_iri}:v{semver}"
 
+    # False positive: SQL is a static literal; all values are bound positional
+    # parameters ($1..$4), never interpolated into query text.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     await conn.execute(
         "INSERT INTO graph_versions (tenant_id, workspace_id, semver, version_iri) "
         "VALUES ($1, $2, $3, $4)",
