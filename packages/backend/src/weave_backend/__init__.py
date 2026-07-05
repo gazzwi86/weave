@@ -22,6 +22,7 @@ from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
+from weave_backend.routers.instances import router as instances_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
@@ -69,6 +70,7 @@ app.include_router(sparql_router)
 app.include_router(operations_router)
 app.include_router(ontology_router)
 app.include_router(identity_router)
+app.include_router(instances_router)
 app.include_router(search_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
