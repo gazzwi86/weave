@@ -11,6 +11,16 @@ async function loginAndGoToExplorer(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/explorer$/);
 }
 
+// QA WARN fix: fcose's entrance-animation layout calls fit() once it
+// finishes (~600ms), which pans/zooms the canvas and fires a *genuine*
+// late "viewport" change -- a DOM-polling "stable for two reads" heuristic
+// can still land on a mid-animation plateau and false-positive. Wait for
+// the real `layoutstop` event (exposed via the dev-only window hook)
+// instead of guessing from snapshots.
+async function waitForLayoutSettled(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+}
+
 const NODE_KINDS = { kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] };
 
 const SPARQL_PAGE = {
@@ -81,6 +91,10 @@ test("does not capture global Cmd+0 when a text input outside the canvas has key
   });
   await outsideInput.focus();
 
+  // Wait for fcose's entrance-animation layout to settle before snapshotting
+  // "before" -- otherwise the layout's own ongoing motion (unrelated to the
+  // Cmd+0 scoping under test) can still drift the indicator mid-snapshot.
+  await waitForLayoutSettled(page);
   const before = await page.getByTestId("explorer-minimap-viewport").getAttribute("style");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+0" : "Control+0");
   const after = await page.getByTestId("explorer-minimap-viewport").getAttribute("style");
