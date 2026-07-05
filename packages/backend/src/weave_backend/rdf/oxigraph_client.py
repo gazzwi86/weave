@@ -69,6 +69,38 @@ async def load_graph(named_graph_iri: str, turtle_data: str) -> None:
     response.raise_for_status()
 
 
+async def fetch_graph_turtle(named_graph_iri: str) -> str:
+    """GET a graph's full Turtle content (Graph Store Protocol). A graph
+    that has never been written returns 404 -- treated as empty, not an
+    error, since "clone the working graph" must work on a brand-new
+    workspace.
+    """
+    response = await _get_client().get(
+        f"{oxigraph_url()}/store",
+        params={"graph": named_graph_iri},
+        headers={"Accept": "text/turtle"},
+    )
+    if response.status_code == 404:
+        return ""
+    response.raise_for_status()
+    return response.text
+
+
+async def append_graph(named_graph_iri: str, turtle_data: str) -> None:
+    """POST merges triples into a graph (Graph Store Protocol semantics --
+    unlike `load_graph`'s PUT, which replaces the whole graph). Used only
+    for append-only writes (the PROV-O activity log), never for the
+    working graph itself.
+    """
+    response = await _get_client().post(
+        f"{oxigraph_url()}/store",
+        params={"graph": named_graph_iri},
+        headers={"Content-Type": "text/turtle"},
+        content=turtle_data,
+    )
+    response.raise_for_status()
+
+
 async def clear_graph(named_graph_iri: str) -> None:
     """DELETE all triples in a specific named graph (test cleanup)."""
     response = await _get_client().delete(

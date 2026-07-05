@@ -19,6 +19,7 @@ dependencies = [
     "opentelemetry-sdk>=1.43.0",
     "pydantic>=2.13.4",
     "pyjwt[crypto]>=2.13.0",
+    "pyshacl>=0.31.0",
     "python-multipart>=0.0.20",
     "rdflib>=7.6.0",
     "redis>=5",

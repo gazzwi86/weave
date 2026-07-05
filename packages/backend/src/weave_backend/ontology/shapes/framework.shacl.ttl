@@ -1,0 +1,69 @@
+# CE-TASK-001: core subset of the framework SHACL shapes, ported from the
+# `docs/standards/patterns/semantic-web/shacl-shape.md` pattern (ProcessShape)
+# plus two more BPMO kinds (Activity, Goal) to exercise all three SHACL
+# severities. The full 13-kind BPMO ships in CE-TASK-004 -- this subset only
+# needs to make the validation *pipeline* (this task's actual scope)
+# demonstrably real. Lives in `urn:weave:g:framework` (loaded at startup).
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix weave: <https://weave.io/ontology/> .
+
+weave:ProcessShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Process ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Process must have exactly one string label."@en ;
+    ] ;
+    sh:property [
+        sh:path weave:performedBy ;
+        sh:name "Performed by" ;
+        sh:class weave:Actor ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "A Process must be performed by at least one Actor."@en ;
+    ] .
+
+weave:ActivityShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Activity ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Activity must have a string label."@en ;
+    ] ;
+    sh:property [
+        sh:path weave:description ;
+        sh:name "Description" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "An Activity should carry a description."@en ;
+    ] .
+
+weave:GoalShape
+    a sh:NodeShape ;
+    sh:targetClass weave:Goal ;
+    sh:property [
+        sh:path weave:label ;
+        sh:name "Label" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Goal must have a string label."@en ;
+    ] ;
+    sh:property [
+        sh:path weave:servesGoal ;
+        sh:name "Served by capability" ;
+        sh:minCount 1 ;
+        sh:severity sh:Info ;
+        sh:message "Consider linking a BusinessCapability that servesGoal this Goal."@en ;
+    ] .
