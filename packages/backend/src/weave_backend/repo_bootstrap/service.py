@@ -120,13 +120,15 @@ async def ensure_project_repo(
     token = await _resolve_token(row, deps)
 
     driver = deps.driver_for(provider)
+    boilerplate = render_project_harness(project_name=row.name, provider=provider)
     try:
         repo = await driver.create_repo(name=_repo_name(row.name), private=True, token=token)
+        await driver.write_initial_commit(repo, boilerplate=boilerplate, token=token)
     except AuthError as exc:
+        # A token can pass repo-creation scope but be rejected on the
+        # contents-write scope (fine-grained PATs) -- AC-4 fails closed on
+        # either call, not just the first.
         raise RepoBootstrapError("repo_auth_invalid") from exc
-
-    boilerplate = render_project_harness(project_name=row.name, provider=provider)
-    await driver.write_initial_commit(repo, boilerplate=boilerplate, token=token)
 
     await set_project_repo(
         conn, tenant_id=tenant_id, project_iri=project_iri, provider=provider, repo=repo
