@@ -1,0 +1,26 @@
+{
+  "note": "Assembled by hand from console output of bench-load.mjs (1k: 5/5 reps; 5k: 1/5 reps -- run deliberately stopped early, see report.md) and bench-drag.mjs (1k drag fps). The 10k tier never produced a completed rep -- observed >42 min wall-clock, killed without convergence (see report.md 'What we could not measure').",
+  "hardware": "Apple Silicon dev box (see report.md for reference-hardware-profile disclosure)",
+  "fcoseParamsSource": "cytoscape-fcose package defaults, see fcose-params.mjs provenance comment",
+  "1000": {
+    "reps": 5,
+    "loadMs": [14020.2, 19222.8, 12937.2, 11616.1, 12904.0],
+    "memMB": [64.46, 144.05, 66.72, 69.81, 72.55],
+    "p95LoadMs": 19222.8,
+    "p95MemMB": 144.05
+  },
+  "5000": {
+    "reps": 1,
+    "loadMs": [751211.4],
+    "memMB": [208.42],
+    "note": "Single rep only, ~12.5 minutes wall clock. Additional reps stopped deliberately -- see report.md."
+  },
+  "10000": {
+    "reps": 0,
+    "note": "No completed rep. Observed >42 minutes of continuous 100% CPU (verified via `ps` on the chrome-headless-shell renderer process, not stalled/deadlocked -- steadily consuming CPU) before the probe was deliberately killed. See report.md 'What we could not measure'."
+  },
+  "drag1000": {
+    "note": "See raw-results-drag.json for full 296-sample array. p95 computed per the task brief's literal pseudocode (ascending sort, ceil(0.95n)-1 index) -- see report.md for why this reads misleadingly high given the sample distribution's bimodal jitter.",
+    "p95FpsAscendingConvention": 222.22222222222223
+  }
+}

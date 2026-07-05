@@ -1,0 +1,4 @@
+# Generated fixtures (regenerate with `npm run fixtures`) -- keep the harness
+# repo footprint small; the generator (fixtures/generate.mjs) is the source of
+# truth, not its 5.7MB of derived JSON output.
+fixtures/*.json
