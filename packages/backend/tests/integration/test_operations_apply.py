@@ -672,3 +672,47 @@ async def test_agent_jwt_with_author_role_can_write_via_apply(
         assert response.status_code == 201, response.text
     finally:
         await clear_graph(workspace.named_graph_iri)
+
+
+async def test_agent_jwt_without_write_scope_gets_403_not_write_access(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case (AC-003-12 negative path): the happy-path test above only
+    proves an agent JWT *with* an author-role membership can write. AC-003-12
+    is conditional ("...if the service account has write scope") -- an agent
+    JWT that only has `read`-role membership (the service-account equivalent
+    of a read-only human) must still be rejected, the same way
+    `test_read_only_role_gets_403_not_write_access` proves for a human. RBAC
+    never branches on `principal_type` (see `rbac.py`), so this exercises the
+    same `enforce_workspace_role` check via the agent-token path specifically.
+    """
+    tenant_id = _unique_tenant("ops-agent-ro")
+    workspace = await _make_workspace(tenant_id, label="ops")
+    agent_principal_sub = agent_sub(_ROOT_ARN)
+    await _add_member(
+        tenant_id,
+        workspace.id,
+        user_sub=agent_principal_sub,
+        role="read",
+        email="agent-ro@example.invalid",
+    )
+
+    token_response = await client.post(
+        "/api/auth/agent-token",
+        json={"sts_token": "any-session-token", "workspace_id": workspace.id},
+    )
+    assert token_response.status_code == 200, token_response.text
+    headers = {"Authorization": f"Bearer {token_response.json()['agent_token']}"}
+    switch_response = await client.post(
+        f"/api/workspaces/{workspace.id}/switch", headers=headers
+    )
+    assert switch_response.status_code == 200
+
+    response = await client.post(
+        "/api/operations/apply",
+        json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "forbidden"
