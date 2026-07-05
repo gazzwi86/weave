@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from rdflib import Graph, URIRef
-from rdflib.namespace import RDF, RDFS
+from rdflib.namespace import RDF
 
 from weave_backend.rdf.oxigraph_client import fetch_graph_turtle
 
@@ -52,7 +52,10 @@ def _outgoing_triples(
         triples.append(Triple(subject=str(s), predicate=str(p), object=str(o)))
         if p == RDF.type:
             kind = _local_name(str(o))
-        elif p == RDFS.label:
+        elif _local_name(str(p)) == "label":
+            # Matches both `weave:label` (what `graph_ops.py` actually
+            # writes for instance data) and `rdfs:label`, without hard-
+            # coding either namespace.
             label = str(o)
         elif isinstance(o, URIRef):
             edges.append(Edge(predicate=str(p), other=str(o)))
