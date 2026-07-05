@@ -45,11 +45,20 @@ fake. Everything else runs locally in Docker.
 | Relational | **PostgreSQL** (Docker) via SQLAlchemy async | Aurora PostgreSQL Serverless v2 |
 | Object store / queues / topics | **LocalStack** (S3, SQS, SNS) | S3 / SQS / SNS |
 | Cache | **Redis** (Docker) | ElastiCache |
-| Small AI models | **Ollama** (quantized Qwen / Gemma / DeepSeek) | Bedrock (small models) or Ollama-on-ECS |
+| Small AI models | **Ollama** (quantized Qwen / Gemma / DeepSeek), run **natively on the host**, not in Docker — see note below (ADR-011) | Bedrock (small models) or Ollama-on-ECS |
 | Secrets (inner loop) | LocalStack Secrets Manager or `.env`-free local vault | AWS Secrets Manager |
 
 Parity is preserved by standards: SPARQL 1.1 (Oxigraph↔Neptune), SQLAlchemy (Postgres↔Aurora),
 OIDC (Cognito everywhere), the AWS SDK (LocalStack↔AWS).
+
+> **Ollama runs natively on the host, not in Docker (ADR-011).** Docker Desktop on macOS has no
+> Apple-Silicon Metal GPU passthrough, so an in-container Ollama is CPU-only and unusably slow.
+> Developers install Ollama natively (`brew install ollama` / the `.app`) — it uses Metal — and
+> code/harness reach it at `http://localhost:11434` (from other containers,
+> `host.docker.internal:11434`). `make up` therefore does **not** start Ollama. The compose `ollama`
+> service is kept behind an opt-in profile for Linux/CI hosts with no native daemon:
+> `docker compose --profile ollama up`. This changes only how the daemon is hosted in dev — the
+> Ollama / Bedrock / Anthropic provider abstraction and tiered routing (§3) are unchanged.
 
 ## 2. Auth in dev (decision DX3)
 

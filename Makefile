@@ -6,7 +6,9 @@ scaffold:
 	mkdir -p packages/backend packages/frontend packages/shared infra/terraform
 	$(MAKE) lint
 
-# Local-first dev stack (oxigraph, postgres, localstack, redis, ollama).
+# Local-first dev stack (oxigraph, postgres, localstack, redis).
+# Ollama is NOT started here — run it natively on the host (ADR-011); the
+# in-container Ollama is opt-in via `docker compose --profile ollama up`.
 up:
 	docker compose up -d
 
