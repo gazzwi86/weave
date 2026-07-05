@@ -40,18 +40,28 @@ own ADR-001 sign-off already applied to this table's `tenant_id UUID` divergence
    implement with `asyncpg`, positional parameters (still fully parameterised — no string
    concatenation, satisfying `security.md` regardless of which parameter-binding syntax is used).**
 
-2. **`workspace_id` has no JWT claim — reuse the active-workspace fallback.** The brief's pseudocode
-   reads `claims.get("workspace_id")` and 422s if absent. The real `Principal` model
-   (`auth/dependencies.py`) carries `sub` / `tenant_id` / `principal_iri` only — no token issuer in
-   this codebase ever emits a `workspace_id` claim. `sparql.py`'s `_resolve_named_graph` and
-   `search.py`'s `_authorize_search` already solve exactly this: `workspace_id` is an **optional**
-   request parameter that falls back to `tenancy.sessions.get_active_workspace(tenant_id, sub)`
-   (the caller's Redis-backed active-workspace pointer) when omitted — the same pattern
-   `app/api/search/route.ts`'s own comment documents ("No workspace_id is sent — the backend falls
-   back to the caller's active session workspace"). **Decision: `layout.py` reuses this exact
-   pattern** — `workspace_id: str | None` accepted on all three routes (body field for POST, query
-   param for GET/DELETE), falling back to `get_active_workspace`; `422 missing_workspace_id` if
-   neither resolves (same status/body the brief specifies, just a different source for the value).
+2. **`workspace_id` has no JWT claim — reuse the active-workspace fallback, and the same
+   membership check.** The brief's pseudocode reads `claims.get("workspace_id")` and 422s if
+   absent. The real `Principal` model (`auth/dependencies.py`) carries `sub` / `tenant_id` /
+   `principal_iri` only — no token issuer in this codebase ever emits a `workspace_id` claim.
+   `sparql.py`'s `_resolve_named_graph` and `search.py`'s `_authorize_search` already solve exactly
+   this: `workspace_id` is an **optional** request parameter that falls back to
+   `tenancy.sessions.get_active_workspace(tenant_id, sub)` (the caller's Redis-backed
+   active-workspace pointer) when omitted, **and** — because a client-suppliable `workspace_id` is
+   an IDOR surface the moment it's trusted without a check — both call `tenancy.workspaces.get_workspace`
+   (404 if the id doesn't exist for this tenant) then `rbac.enforce_workspace_role` (403 if the
+   caller has no active membership row) before ever touching the workspace's data, on a real
+   `db.pool.tenant_connection` (the connection `workspaces`/`workspace_members`'s own RLS policy —
+   keyed on `app.tenant_id` — actually requires). **Decision: `layout.py` reuses this exact
+   pattern in full**, via its own `_authorize_workspace` helper — `workspace_id: str | None`
+   accepted on all three routes (body field for POST, query param for GET/DELETE), falling back to
+   `get_active_workspace`, then authorized via `_authorize_workspace` (`404 workspace_not_found` /
+   `403 forbidden`, translated to this router's flat-body convention); `422 missing_workspace_id`
+   if neither the request nor the active-session fallback resolves an id at all.
+   *(QA-FAIL correction, 2026-07-06: the first implementation reused only the fallback half of
+   this pattern and dropped the membership check entirely — a real cross-workspace IDOR, since
+   `workspace_id` is client-suppliable. `_authorize_workspace` closes that gap; this ADR originally
+   claimed the pattern was already mirrored in full, which was inaccurate until this fix.)*
 
 3. **A dedicated `_layout_connection` helper, not the shared `tenant_connection`.** Per TASK-001's
    already-human-approved schema divergence (ADR-001 Status: "Schema (AC-4/AC-5): approved as-is...
@@ -65,7 +75,12 @@ own ADR-001 sign-off already applied to this table's `tenant_id UUID` divergence
    before any query) but targeting `app.current_tenant_id`, and it casts/validates `tenant_id` as a
    UUID string before use (a non-UUID `tenant_id`, e.g. a test's human-readable slug, must fail
    loudly with `503 store_unavailable`, not silently corrupt or bypass RLS) — the accepted trade-off
-   TASK-001 already signed off on.
+   TASK-001 already signed off on. Corollary (see decision 2's QA-FAIL correction):
+   `_authorize_workspace`'s `get_workspace`/`enforce_workspace_role` calls run on a **real**
+   `tenant_connection`, never `_layout_connection` — `workspaces`/`workspace_members`'s RLS policy
+   is keyed on `app.tenant_id`, so authorizing on a connection that only ever set
+   `app.current_tenant_id` would leave `app.tenant_id` unset and RLS would silently return zero
+   rows for every workspace, turning every real caller into a false `404`.
 
 ## Consequences
 

@@ -4,10 +4,15 @@
 
 ADR-004 documents three deliberate departures from the brief's generic
 pseudocode: asyncpg (not SQLAlchemy -- no router in this codebase uses an
-ORM), `workspace_id` resolved via the same active-session fallback
-`sparql.py`/`search.py` already use (no token issuer emits a `workspace_id`
-claim), and a dedicated `_layout_connection` helper targeting this table's
-`app.current_tenant_id` RLS key (distinct from the platform's `app.tenant_id`).
+ORM), `workspace_id` resolved via the same active-session fallback AND the
+same `get_workspace`/`enforce_workspace_role` membership check
+`sparql.py::_resolve_named_graph`/`search.py::_authorize_search` already use
+(QA FAIL fix: the membership check was originally dropped, an IDOR -- see
+`_authorize_workspace` below), and a dedicated `_layout_connection` helper
+targeting this table's `app.current_tenant_id` RLS key (distinct from the
+platform's `app.tenant_id`, which `workspaces`/`workspace_members` RLS keys
+off -- `_authorize_workspace` uses the real `tenant_connection` for that
+reason, never `_layout_connection`).
 
 Flat error bodies: FastAPI's `HTTPException(detail=...)` always nests the
 body under a `"detail"` key, which cannot produce this task's mandated
@@ -26,17 +31,19 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 import asyncpg
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
-from weave_backend.db.pool import get_app_pool
+from weave_backend.db.pool import get_app_pool, tenant_connection
+from weave_backend.rbac import enforce_workspace_role
 from weave_backend.schemas.layout import (
     LayoutPositionOut,
     LayoutPositionsResponse,
     LayoutSaveRequest,
 )
 from weave_backend.tenancy.sessions import get_active_workspace
+from weave_backend.tenancy.workspaces import get_workspace
 
 router = APIRouter(prefix="/api", tags=["layout"])
 
@@ -130,10 +137,41 @@ def _check_tenant_match(claimed: str | None, actual: str) -> None:
         raise LayoutApiError(403, {"error": "forbidden"})
 
 
+async def _authorize_workspace(principal: Principal, workspace_id: str) -> None:
+    """QA FAIL fix (IDOR): copies the exact pattern `sparql.py::_resolve_named_graph`
+    and `search.py::_authorize_search` already use -- 404 on a foreign/missing
+    workspace before the 403 role check (never leak existence via the
+    role-check branch), on a real `tenant_connection` (not this router's own
+    `_layout_connection`: `workspaces`/`workspace_members` RLS keys off
+    `app.tenant_id`, which only `tenant_connection` sets -- `_layout_connection`
+    sets the table-specific `app.current_tenant_id` instead, so reusing it here
+    would leave `app.tenant_id` unset and RLS would hide every row). Both of
+    `enforce_workspace_role`'s and `HTTPException`'s bodies are nested under
+    `"detail"` -- translated here to this router's flat-body convention.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        workspace = await get_workspace(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        )
+        if workspace is None:
+            raise LayoutApiError(404, {"error": "workspace_not_found"})
+        try:
+            await enforce_workspace_role(
+                conn,
+                tenant_id=principal.tenant_id,
+                workspace_id=workspace_id,
+                user_sub=principal.sub,
+                min_role="read",
+            )
+        except HTTPException as exc:
+            raise LayoutApiError(403, {"error": "forbidden"}) from exc
+
+
 async def _resolve_workspace_id(requested: str | None, principal: Principal) -> str:
     workspace_id = requested or await get_active_workspace(principal.tenant_id, principal.sub)
     if workspace_id is None:
         raise LayoutApiError(422, {"error": "missing_workspace_id"})
+    await _authorize_workspace(principal, workspace_id)
     return workspace_id
 
 

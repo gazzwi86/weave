@@ -40,6 +40,20 @@ def _patch_layout_connection(monkeypatch: pytest.MonkeyPatch, conn: _FakeConnect
     monkeypatch.setattr(_LAYOUT_CONNECTION_PATCH_TARGET, lambda _tid: _fake_layout_connection(conn))
 
 
+_AUTHORIZE_WORKSPACE_PATCH_TARGET = "weave_backend.routers.layout._authorize_workspace"
+
+
+def _patch_authorize_workspace(
+    monkeypatch: pytest.MonkeyPatch, *, raises: Exception | None = None
+) -> None:
+    """`_authorize_workspace` opens a real `tenant_connection` -- out of scope
+    for these no-docker unit tests (see tests/integration/test_layout_persistence.py
+    for the real-Aurora membership proof). Mirrors test_search.py's own
+    convention of mocking the whole authz boundary rather than its DB internals.
+    """
+    monkeypatch.setattr(_AUTHORIZE_WORKSPACE_PATCH_TARGET, AsyncMock(side_effect=raises))
+
+
 async def test_save_position_returns_401_when_jwt_absent_on_post() -> None:
     """The 401 path is the shared `get_current_principal` dependency (out of
     scope for this task -- see ADR-004/progress summary), so this exercises
@@ -80,6 +94,7 @@ async def test_save_position_executes_parameterised_upsert_with_correct_ids(
 ) -> None:
     conn = _FakeConnection()
     _patch_layout_connection(monkeypatch, conn)
+    _patch_authorize_workspace(monkeypatch)
     principal = _principal()
     body = LayoutSaveRequest(
         graph_id="g1",
@@ -120,6 +135,7 @@ async def test_save_position_returns_403_when_tenant_id_mismatches_jwt_claim() -
 async def test_reset_layout_returns_204_with_no_body(monkeypatch: pytest.MonkeyPatch) -> None:
     conn = _FakeConnection()
     _patch_layout_connection(monkeypatch, conn)
+    _patch_authorize_workspace(monkeypatch)
     principal = _principal()
 
     response = await reset_layout(principal, graph_id="g1", workspace_id="ws-1", tenant_id=None)
@@ -137,6 +153,7 @@ async def test_get_positions_returns_workspace_scoped_rows(monkeypatch: pytest.M
         ]
     )
     _patch_layout_connection(monkeypatch, conn)
+    _patch_authorize_workspace(monkeypatch)
     principal = _principal()
 
     result = await get_positions(principal, graph_id="g1", workspace_id="ws-1", tenant_id=None)
@@ -158,9 +175,17 @@ async def test_save_position_rejects_workspace_the_caller_is_not_a_member_of(
     read/write/delete another workspace's layout by supplying its id. This
     test encodes the required (secure) behaviour and is EXPECTED TO FAIL until
     routers/layout.py adds the same `get_workspace`/`enforce_workspace_role`
-    check -- see the accompanying QA failure report for TASK-004."""
+    check -- see the accompanying QA failure report for TASK-004.
+
+    `_authorize_workspace` itself opens a real `tenant_connection` (see its
+    docstring in routers/layout.py for why it can't reuse `_layout_connection`),
+    so it's mocked here the same way the other tests mock it -- the real,
+    docker-backed membership proof is
+    tests/integration/test_layout_persistence.py::test_save_position_rejects_non_member_workspace.
+    """
     conn = _FakeConnection()
     _patch_layout_connection(monkeypatch, conn)
+    _patch_authorize_workspace(monkeypatch, raises=LayoutApiError(403, {"error": "forbidden"}))
     principal = _principal()
     body = LayoutSaveRequest(
         graph_id="g1",
