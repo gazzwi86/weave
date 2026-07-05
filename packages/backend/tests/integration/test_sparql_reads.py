@@ -20,7 +20,7 @@ from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
-from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
+from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle, load_graph
 from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
 
@@ -109,7 +109,9 @@ async def _any_resource_iri(version_iri: str) -> str:
     turtle = await fetch_graph_turtle(version_iri)
     graph = Graph()
     graph.parse(data=turtle, format="turtle")
-    return next(str(s) for s in graph.subjects() if str(s).startswith("https://weave.io/instances/"))
+    return next(
+        str(s) for s in graph.subjects() if str(s).startswith("https://weave.io/instances/")
+    )
 
 
 async def test_sparql_get_returns_bindings_for_a_valid_select(
@@ -185,6 +187,95 @@ async def test_sparql_get_across_tenants_returns_404_for_foreign_version(
     finally:
         await clear_graph(workspace_a.named_graph_iri)
         await clear_graph(workspace_b.named_graph_iri)
+
+
+async def test_sparql_get_pins_to_the_explicit_version_not_the_latest_commit(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """CE-TASK-007 QA edge case (AC-007-11): a query naming an OLDER, explicit
+    ``version`` executes against exactly that version's own snapshot graph --
+    never whatever the workspace's working graph has been promoted to since.
+    Every prior integration test here only ever commits ONE version, so
+    "latest" and "the named version" are indistinguishable; this seeds two
+    real, distinct versions (`mint_version` + `load_graph` really do give
+    each its own named graph, per `operations/pipeline.py`) and proves the
+    second commit's rows never leak into the first version's query.
+    """
+    _tenant_id, workspace, headers = await _setup_member(client, label="sparql-version-pin")
+    try:
+        v1_iri = await _commit_version(client, headers)
+
+        v2_operations = [
+            {"op": "add_node", "ref": "a2", "kind": "Actor", "label": "Support Team"},
+            {"op": "add_node", "ref": "p2", "kind": "Process", "label": "Refunds"},
+            {"op": "add_edge", "subject_ref": "p2", "predicate": "performedBy", "object_ref": "a2"},
+        ]
+        v2_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": v2_operations, "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        assert v2_response.status_code == 201
+        v2_iri = v2_response.json()["version_iri"]
+        assert v2_iri != v1_iri
+
+        query = {"query": "SELECT ?s WHERE { GRAPH ?g { ?s a ?o } }"}
+        v1_result = await client.get(
+            "/api/sparql", params={**query, "version": v1_iri}, headers=headers
+        )
+        v2_result = await client.get(
+            "/api/sparql", params={**query, "version": v2_iri}, headers=headers
+        )
+        assert v1_result.status_code == 200
+        assert v2_result.status_code == 200
+
+        v1_subjects = {b["s"]["value"] for b in v1_result.json()["results"]["bindings"]}
+        v2_subjects = {b["s"]["value"] for b in v2_result.json()["results"]["bindings"]}
+
+        # v1's snapshot must contain only its own two rows, even though the
+        # workspace's working graph has since been promoted past it.
+        assert len(v1_subjects) == 2
+        assert len(v2_subjects) == 4
+        assert v1_subjects < v2_subjects
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_sparql_get_paginates_a_real_result_set_over_1000_rows(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """CE-TASK-007 QA edge case (AC-007-03): a real result set over 1000 rows
+    (against a live Oxigraph store, not the mocked-bindings unit proof in
+    `test_query_router.py`/`test_sparql_router.py`) is split into pages,
+    reporting a `Link: rel="next"` header on the first page and no further
+    page once exhausted.
+    """
+    _tenant_id, workspace, headers = await _setup_member(client, label="sparql-pagination")
+    try:
+        version_iri = await _commit_version(client, headers)
+        total_rows = 1005
+        triples = "\n".join(
+            f"<https://weave.io/instances/big-{i}> a <https://weave.io/ontology/Actor> ."
+            for i in range(total_rows)
+        )
+        await load_graph(version_iri, triples)
+
+        query = {
+            "query": "SELECT ?s WHERE { GRAPH ?g { ?s a ?o } } ORDER BY ?s",
+            "version": version_iri,
+        }
+
+        page_one = await client.get("/api/sparql", params=query, headers=headers)
+        assert page_one.status_code == 200
+        assert 'rel="next"' in page_one.headers["link"]
+        assert len(page_one.json()["results"]["bindings"]) == 1000
+
+        page_two = await client.get("/api/sparql", params={**query, "page": 2}, headers=headers)
+        assert page_two.status_code == 200
+        assert "link" not in page_two.headers
+        assert len(page_two.json()["results"]["bindings"]) == total_rows - 1000
+    finally:
+        await clear_graph(workspace.named_graph_iri)
 
 
 async def test_resource_route_across_tenants_returns_404_for_a_real_iri(
