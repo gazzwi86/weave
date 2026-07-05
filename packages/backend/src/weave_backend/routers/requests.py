@@ -143,11 +143,11 @@ async def stream_request_route(
     polls for new ones until `done: true` (see `requests/store.py`'s
     module docstring for why this is a Redis list, not pub/sub).
     """
+    await _get_record_or_404(request_id, principal.tenant_id)
     redis_client = await store.get_redis_client()
 
     async def _event_source() -> AsyncIterator[str]:
         async for event in store.subscribe_events(redis_client, request_id):
             yield f"data: {json.dumps(event)}\n\n"
 
-    _ = principal  # authz boundary only -- no per-event field depends on the caller
     return StreamingResponse(_event_source(), media_type="text/event-stream")

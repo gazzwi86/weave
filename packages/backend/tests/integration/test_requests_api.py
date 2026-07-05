@@ -141,6 +141,41 @@ async def test_create_request_returns_401_without_jwt(client: AsyncClient) -> No
     assert response.headers["www-authenticate"] == "Bearer"
 
 
+async def test_stream_returns_404_for_other_tenants_request(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Fix: cross-tenant IDOR -- tenant B must not be able to open tenant
+    A's SSE stream, whether or not tenant A's request_id even exists.
+    """
+    tenant_a = _unique_tenant("tenant-req-a")
+    tenant_b = _unique_tenant("tenant-req-b")
+    tokens_a = await issue_token_pair(sub="u-1", tenant_id=tenant_a)
+    tokens_b = await issue_token_pair(sub="u-2", tenant_id=tenant_b)
+    headers_a = {"Authorization": f"Bearer {tokens_a.access_token}"}
+    headers_b = {"Authorization": f"Bearer {tokens_b.access_token}"}
+
+    create_response = await client.post(
+        "/api/requests",
+        json={"prompt": "build a widget tracker", "run_mode": "draft_spec_only"},
+        headers=headers_a,
+    )
+    assert create_response.status_code == 202
+    request_id = create_response.json()["request_id"]
+
+    async with client.stream(
+        "GET", f"/api/requests/{request_id}/stream", headers=headers_a
+    ) as own_stream:
+        await own_stream.aread()
+
+    async with client.stream(
+        "GET", f"/api/requests/{request_id}/stream", headers=headers_b
+    ) as cross_tenant_stream:
+        body = await cross_tenant_stream.aread()
+        assert cross_tenant_stream.status_code == 404
+
+    assert json.loads(body) == {"detail": {"error": "not_found"}}
+
+
 async def test_request_degrades_gracefully_when_ce_unreachable(
     client: AsyncClient, platform_stack: Path
 ) -> None:
