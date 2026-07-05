@@ -154,3 +154,46 @@ test.describe("compliance accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 });
+
+// GE-TASK-002 QA FIX 3: no real-browser axe pass existed for /explorer's
+// force canvas -- Cytoscape draws to <canvas>, so this also checks the
+// canvas/minimap wrapper elements carry accessible names rather than being
+// silent to a screen reader, not just colour contrast.
+test.describe("explorer accessibility (axe-core, real browser)", () => {
+  test("explorer force canvas has zero axe violations", async ({ page }) => {
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: "https://weave.example/process/onboarding",
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Process",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await expect(page.getByTestId("explorer-canvas")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
