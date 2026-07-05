@@ -5,8 +5,17 @@
 control flow -- enqueue is a plain insert; flush marks a row delivered only
 if the emitter succeeds, and never lets one row's failure stop the rest or
 propagate to the caller -- is provable without a real Postgres connection.
-Savepoint-scoped rollback-on-emit-failure itself is proven for real against
-docker Postgres in the integration suite.
+The per-row savepoint's real job is rolling back the *claim* (the
+`delivered_at` flip) when the emitter fails, so the row stays genuinely
+pending -- proven for real against docker Postgres in the integration suite
+(`test_outbox_survives_a_failing_emitter_and_delivers_on_retry`,
+`test_outbox_flush_isolates_a_mid_batch_failure_across_real_rows`). Both
+drive the failure before the emitter's own `audit_entries` INSERT runs, since
+`HashChainAuditEmitter.emit` performs that insert as a single atomic
+statement with no further write after it that can fail -- so there is no
+"partial audit_entries write" for the savepoint to roll back; the claim
+itself is the write these tests -- and the equivalent `FakeConn` simulation
+here -- prove gets undone.
 """
 
 from __future__ import annotations
