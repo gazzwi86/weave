@@ -276,3 +276,18 @@ async def test_diff_route_authorizes_against_each_versions_real_workspace() -> N
         call.kwargs["workspace"].id for call in authorize_read.await_args_list
     ]
     assert authorized_workspace_ids == ["ws-owner", "ws-other"]
+
+
+async def test_ontology_types_route_returns_catalogue_kinds_and_relationships() -> None:
+    """AC-003-01: `GET /api/ontology/types` returns the live SHACL-shape
+    catalogue -- no tenant/workspace scoping, auth-only (AC-003-07 is
+    enforced by the shared `get_current_principal` dependency, proved by
+    `test_public_routes_guarded.py::test_real_app_passes_the_guard`).
+    """
+    response = await ontology.ontology_types_route(PRINCIPAL)
+
+    kind_iris = {k.iri for k in response.kinds}
+    assert "https://weave.io/ontology/Process" in kind_iris
+    relationship_paths = {r.path for r in response.relationships}
+    assert "https://weave.io/ontology/performedBy" in relationship_paths
+    assert "https://weave.io/ontology/label" not in relationship_paths
