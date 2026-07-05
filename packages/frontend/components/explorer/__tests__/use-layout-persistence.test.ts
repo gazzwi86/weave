@@ -119,6 +119,43 @@ describe("useLayoutPersistence", () => {
     expect(result.current.saveFailed).toBe(false);
   });
 
+  // QA edge case (race condition): each drag-end starts its own independent
+  // saveWithRetry loop with no cancellation/de-dupe keyed by nodeId, so a
+  // second drag on the same node while the first drag's retry is still
+  // in-flight fires a second, fully independent retry loop rather than
+  // superseding the first. This asserts today's actual behaviour (both
+  // calls land, in call order) rather than a "last drag wins" guarantee --
+  // the hook does not currently provide one. Flagged as a non-blocking WARN
+  // for epic assembly: an out-of-order retry resolution could overwrite a
+  // newer position with a stale one.
+  it("does not crash and issues both saves when the same node is dragged again while a retry is in flight", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValue(undefined);
+    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    const adapter = fakeAdapter({
+      onNodeDragEnd: vi.fn((handler) => {
+        dragHandler = handler;
+        return vi.fn();
+      }),
+    });
+
+    renderHook(() =>
+      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+    );
+    act(() => dragHandler?.(NODE_ID, { x: 5, y: 9 }));
+    // Second drag on the same node fires before the first's retry delay elapses.
+    act(() => dragHandler?.(NODE_ID, { x: 40, y: 40 }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs[0] ?? 0);
+    });
+
+    // Both the second drag's immediate attempt and the first drag's retry land.
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(save).toHaveBeenNthCalledWith(1, GRAPH_ID, NODE_ID, 5, 9);
+    expect(save).toHaveBeenNthCalledWith(2, GRAPH_ID, NODE_ID, 40, 40);
+    vi.useRealTimers();
+  });
+
   it("resetLayout() clears saved positions then re-runs fcose with randomize on", async () => {
     const reset = vi.fn(async () => undefined);
     const adapter = fakeAdapter();

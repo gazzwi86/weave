@@ -143,3 +143,35 @@ async def test_get_positions_returns_workspace_scoped_rows(monkeypatch: pytest.M
 
     assert result.positions[0].node_iri == "urn:weave:x:1"
     assert result.positions[0].position_x == 1.0
+
+
+async def test_save_position_rejects_workspace_the_caller_is_not_a_member_of(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """QA edge case (IDOR): `routers/sparql.py::_resolve_named_graph` and
+    `routers/search.py::_authorize_search` both call `get_workspace` +
+    `enforce_workspace_role` whenever `workspace_id` is client-suppliable
+    (see sparql.py's own "QA FAIL remediation (AC-3)" comment -- this exact
+    bug class was already found and fixed there). `layout.py::_resolve_workspace_id`
+    reuses only the active-session-fallback half of that pattern and skips the
+    membership check entirely, so any authenticated member of the tenant can
+    read/write/delete another workspace's layout by supplying its id. This
+    test encodes the required (secure) behaviour and is EXPECTED TO FAIL until
+    routers/layout.py adds the same `get_workspace`/`enforce_workspace_role`
+    check -- see the accompanying QA failure report for TASK-004."""
+    conn = _FakeConnection()
+    _patch_layout_connection(monkeypatch, conn)
+    principal = _principal()
+    body = LayoutSaveRequest(
+        graph_id="g1",
+        node_iri="urn:weave:x:1",
+        position_x=1.0,
+        position_y=2.0,
+        workspace_id="ws-caller-is-not-a-member-of",
+    )
+
+    with pytest.raises(LayoutApiError) as exc_info:
+        await save_position(body, principal)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.body == {"error": "forbidden"}
