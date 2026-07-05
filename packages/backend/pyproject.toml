@@ -81,8 +81,9 @@ max-nested-blocks = 4
 # out to known dev tools (terraform/docker/gitleaks/make) by name for
 # portability across machines/CI. S311: random test-fixture data generation,
 # not a cryptographic use. S105: false positive — "Secret"/"Match" below are
-# gitleaks JSON report field names, not credentials.
-"tests/**" = ["S101", "S603", "S607", "S311", "S105"]
+# gitleaks JSON report field names, not credentials. S106: fake tokens/secret
+# refs passed as keyword args to test fixtures/mocks, never real credentials.
+"tests/**" = ["S101", "S603", "S607", "S311", "S105", "S106"]
 
 [tool.ruff.format]
 quote-style = "double"
