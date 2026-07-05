@@ -110,6 +110,18 @@ phases) and the Build Engine's always-HITL deploy.
 | Events & Actions | + LocalStack SQS/SNS (run engine), mock/sandbox connectors | Bedrock (agentic actions) |
 | Onboarding | Hammerbarn seed via the local CE/Build/Events pipelines | inherits the above |
 
+## 5b. Parallel lanes (multiple stacks side by side)
+
+`docker-compose.yml`'s host ports are all overridable (`WEAVE_PG_PORT`, `WEAVE_REDIS_PORT`,
+`WEAVE_OXIGRAPH_PORT`, `WEAVE_LOCALSTACK_PORT`, `WEAVE_OLLAMA_PORT`; unset defaults match today's
+5432/6379/7878/4566/11434 exactly), so a second agent lane can run its own isolated stack beside
+the default one without touching those containers: set `COMPOSE_PROJECT_NAME=weave-lane-<n>` plus a
+shifted value for each port env var, then run `docker compose up -d` as normal — the project name
+gives it its own container/network namespace and the shifted ports avoid collisions with the
+default stack (and with any other lane running concurrently). Tear it down with
+`docker compose -p weave-lane-<n> down -v`; never run a bare `docker compose down` while another
+lane may be using the default project.
+
 ## 6. Open (tech-spec)
 
 - Exact "couple of small entities" in the shared dev account (Secrets Manager / SES / ECR — confirm).
