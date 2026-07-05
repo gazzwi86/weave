@@ -185,9 +185,7 @@ async def test_publish_then_appears_in_version_list_as_published(
     """AC-002-07/-11, E2E row: apply -> publish -> the version list reflects
     the published status, driven entirely through the real HTTP surface.
     """
-    _tenant_id, workspace, headers = await _setup_member(
-        client, label="ont-publish", role="admin"
-    )
+    _tenant_id, workspace, headers = await _setup_member(client, label="ont-publish", role="admin")
 
     try:
         apply_response = await client.post(
@@ -232,14 +230,10 @@ async def test_republish_returns_405_immutable_message(
         )
         version_iri = apply_response.json()["version_iri"]
 
-        first = await client.post(
-            f"/api/ontology/versions/{version_iri}/publish", headers=headers
-        )
+        first = await client.post(f"/api/ontology/versions/{version_iri}/publish", headers=headers)
         assert first.status_code == 200
 
-        second = await client.post(
-            f"/api/ontology/versions/{version_iri}/publish", headers=headers
-        )
+        second = await client.post(f"/api/ontology/versions/{version_iri}/publish", headers=headers)
         assert second.status_code == 405
         assert second.json()["detail"]["message"] == "version is published and immutable"
     finally:

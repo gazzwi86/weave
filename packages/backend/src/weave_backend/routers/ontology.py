@@ -39,9 +39,7 @@ async def _authorize_read(
     conn: asyncpg.Connection, *, principal: Principal, workspace_id: str
 ) -> None:
     """Shared 404-before-403 IDOR-safe check for both read routes below."""
-    workspace = await get_workspace(
-        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
-    )
+    workspace = await get_workspace(conn, tenant_id=principal.tenant_id, workspace_id=workspace_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
     await enforce_workspace_role(
