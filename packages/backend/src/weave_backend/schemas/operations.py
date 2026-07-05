@@ -1,4 +1,4 @@
-"""Law 13: request-body schema for CE-WRITE-1 (`POST /api/operations/apply`).
+"""Request-body schema for CE-WRITE-1 (`POST /api/operations/apply`).
 
 `Op` is a discriminated union on the `op` field, matching the contract's
 `add_node | update_node | add_edge | delete_node | delete_edge` set. New

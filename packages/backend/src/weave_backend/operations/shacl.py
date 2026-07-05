@@ -1,7 +1,11 @@
 """SHACL evaluation for CE-WRITE-1 (AC-001-02/-03).
 
-Shapes graph (framework + tenant) loaded once and cached -- ADR-001's
-"loaded at startup, cached, invalidated only when shapes change" rule.
+The framework shapes graph is loaded lazily, on first use, from the static
+`framework.shacl.ttl` file and cached for the life of the process (CE
+ADR-001) -- not at startup, and there is no production invalidation path;
+a shape-file edit needs a process restart to take effect until shape-
+authoring (per-tenant custom shapes) lands in a later task. Tenant shapes
+are out of scope here -- this module only ever loads the framework file.
 Validation runs with `inference='none'` (Polikoff rule): SHACL checks
 exactly the submitted triples, no OWL reasoning folded in first.
 """
