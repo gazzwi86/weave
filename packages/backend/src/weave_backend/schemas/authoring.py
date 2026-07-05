@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from weave_backend.schemas.operations import Op
+
 
 class NlAuthoringRequest(BaseModel):
     """AC-004-01: free-text modeller intent, plus the existing class IRIs
@@ -18,6 +20,19 @@ class NlAuthoringRequest(BaseModel):
 
     text: str = Field(min_length=1, max_length=2000)
     known_class_iris: dict[str, str] = Field(default_factory=dict)
+    #: CE-TASK-006 AC-006-02/-03: when true, the route parses the request
+    #: into an operation batch and returns it for modeller confirmation --
+    #: it does NOT dispatch to CE-WRITE-1. Default false preserves
+    #: TASK-004's original commit-immediately behaviour.
+    preview: bool = False
+
+
+class NlPreviewResponse(BaseModel):
+    """CE-TASK-006: the parsed-but-not-yet-committed operation batch, shown
+    to the modeller in chat before they confirm.
+    """
+
+    operations: list[Op]
 
 
 class RestrictionRequest(BaseModel):
