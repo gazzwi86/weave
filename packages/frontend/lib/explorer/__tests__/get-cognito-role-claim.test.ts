@@ -30,4 +30,14 @@ describe("getCognitoRoleClaim", () => {
   it("returns null when the role claim is not a string", () => {
     expect(getCognitoRoleClaim(fakeJwt({ role: 123 }))).toBeNull();
   });
+
+  // QA edge case: a two-segment token (passes the `payloadSegment` presence
+  // check) whose payload is not valid base64url/JSON must still fall through
+  // to the safe `null` default via the `catch` branch, not throw -- a
+  // raw-IRI gate that can throw is worse than one that silently withholds
+  // the IRI. The prior "malformed JWT" test above never reaches this branch
+  // (it has no `.` at all, so it returns via the earlier guard).
+  it("returns null (not a throw) when the payload segment is not valid base64/JSON", () => {
+    expect(getCognitoRoleClaim("header.not-valid-base64url-json.signature")).toBeNull();
+  });
 });
