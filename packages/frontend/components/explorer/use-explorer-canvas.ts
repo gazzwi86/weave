@@ -26,6 +26,11 @@ declare global {
      * exposes the already-fetched elements instead of the renderer itself.
      * Dev-only, never attached in a production build. */
     __explorerElements?: CytoscapeElement[];
+    /** Playwright-only introspection hook -- flips true once the fcose
+     * entrance-animation layout genuinely settles ("layoutstop"), so an E2E
+     * spec can wait for real settle instead of polling the DOM and risking
+     * a false-stable read mid-animation. Dev-only, never in production. */
+    __explorerLayoutSettled?: boolean;
   }
 }
 
@@ -79,6 +84,12 @@ function wireCanvas(cy: CyLike, config: ExplorerConfig, onViewportChange: (indic
   cy.on("viewport", updateMinimap);
   updateMinimap();
 
+  if (process.env.NODE_ENV !== "production") {
+    cy.on("layoutstop", () => {
+      window.__explorerLayoutSettled = true;
+    });
+  }
+
   return registerKeyBindings(cy);
 }
 
@@ -102,6 +113,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
     async function load(): Promise<void> {
       setLoadState("loading");
       setErrorMessage(null);
+      if (process.env.NODE_ENV !== "production") window.__explorerLayoutSettled = false;
       try {
         const [palette, elements] = await Promise.all([fetchPalette(), fetchGraph(config.ceTimeoutMs)]);
         if (cancelled) return;
@@ -129,7 +141,10 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       unregisterRef.current?.();
       cyRef.current?.destroy();
       cyRef.current = null;
-      if (process.env.NODE_ENV !== "production") delete window.__explorerElements;
+      if (process.env.NODE_ENV !== "production") {
+        delete window.__explorerElements;
+        delete window.__explorerLayoutSettled;
+      }
     };
   }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
 
