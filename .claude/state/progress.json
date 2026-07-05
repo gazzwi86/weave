@@ -284,7 +284,7 @@
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003",
@@ -297,7 +297,7 @@
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL\u2192SELECT Query and SPARQL Editor",
+      "title": "NL→SELECT Query and SPARQL Editor",
       "status": "backlog",
       "blocked_by": [
         "CE-TASK-003"
@@ -330,7 +330,7 @@
       "engine": "graph-explorer",
       "epic": "GE-EPIC-001",
       "title": "Whole-Company Force Canvas + Navigation",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "GE-TASK-001"
       ],
@@ -385,7 +385,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-005",
       "title": "Task-Brief Schema & Architect Agent Generation (FR-018)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-002.md"
     },
@@ -394,7 +394,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-001",
       "title": "Request Studio: Intake Form & AI Spec Drafting (E1-S1)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-003.md"
     },
@@ -415,7 +415,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-006",
       "title": "Spec Lifecycle & Run Modes (E6-S1 to E6-S4)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-005.md"
     },
@@ -476,7 +476,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-011",
       "title": "Repo Bootstrap: External Project Repository (E11-S7, FR-061)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-TASK-001"
       ],
