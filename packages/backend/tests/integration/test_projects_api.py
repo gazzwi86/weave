@@ -321,3 +321,25 @@ async def test_create_project_returns_503_when_ce_versions_list_is_empty(
 
     assert response.status_code == 503
     assert response.json()["detail"] == {"error": "ce_version_unavailable"}
+
+
+async def test_create_project_over_length_name_returns_same_422_shape_as_blank_name(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-6's 422 shape must be uniform: a >120-char name is rejected by
+    Pydantic's `max_length` before the route body even runs, which by
+    default renders FastAPI's `{"detail": [...]}` list body -- a different
+    shape than the route-level `{"error": "validation_error", "field": ...}`
+    used for a blank/emoji-only name. Both must look the same to a client.
+    """
+    tenant_id = _unique_tenant("tenant-proj-long-name")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+
+    response = await client.post(
+        "/api/projects",
+        json={"name": "x" * 121},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {"error": "validation_error", "field": "name"}
