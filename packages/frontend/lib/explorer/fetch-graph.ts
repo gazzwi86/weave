@@ -17,6 +17,12 @@ async function proxyFetch(path: string): Promise<Response> {
   return response;
 }
 
+/** AC-8: the bounded visible-node set. Beyond this, the system relies on
+ * server-side pagination/LOD/domain-focus drill-in rather than rendering
+ * everything on one canvas -- fetchGraph stops pulling further CE-READ-1
+ * pages once it holds this many distinct nodes. */
+export const MAX_VISIBLE_NODES = 1000;
+
 /** AC-3: fetches the BPMO kind→colour palette. */
 export async function fetchPalette(): Promise<NodeKind[]> {
   const response = await proxyFetch("/api/proxy/node-kinds");
@@ -46,14 +52,22 @@ function dedupeNodes(elements: CytoscapeElement[]): CytoscapeElement[] {
 export async function fetchGraph(timeoutMs: number): Promise<CytoscapeElement[]> {
   const deadline = Date.now() + timeoutMs;
   const elements: CytoscapeElement[] = [];
+  const nodeIds = new Set<string>();
   let page = 0;
 
   for (;;) {
     assertWithinDeadline(deadline);
     const response = await proxyFetch(`/api/proxy/sparql?version=latest&page=${page}`);
     const data = (await response.json()) as SparqlPage;
-    elements.push(...mapRowsToElements(data.rows));
-    if (!data.has_more_pages) break;
+    const pageElements = mapRowsToElements(data.rows);
+    elements.push(...pageElements);
+    for (const element of pageElements) {
+      if (element.data.source === undefined) nodeIds.add(element.data.id);
+    }
+    // AC-8: stop pulling further pages once the bounded visible-node set is
+    // reached, even if CE-READ-1 still has more -- beyond this the system
+    // relies on server-side pagination/LOD, not one all-at-once render.
+    if (!data.has_more_pages || nodeIds.size >= MAX_VISIBLE_NODES) break;
     page += 1;
   }
 
