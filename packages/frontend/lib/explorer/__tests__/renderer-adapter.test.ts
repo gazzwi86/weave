@@ -11,12 +11,21 @@ function fakeCollection(overrides: Partial<CyCollection> = {}): CyCollection {
     length: 1,
     map: vi.fn(() => []),
     closedNeighborhood: vi.fn(() => fakeCollection()),
+    position: vi.fn(() => ({ x: 0, y: 0 })),
     ...overrides,
   };
 }
 
 function fakeCy() {
-  const tapListeners = new Set<(evt: { target: unknown }) => void>();
+  const listenersByEvent = new Map<string, Set<(evt: { target: unknown }) => void>>();
+  function listenersFor(event: string): Set<(evt: { target: unknown }) => void> {
+    let listeners = listenersByEvent.get(event);
+    if (!listeners) {
+      listeners = new Set();
+      listenersByEvent.set(event, listeners);
+    }
+    return listeners;
+  }
   return {
     json: vi.fn(),
     zoom: vi.fn(() => 1.5),
@@ -25,15 +34,18 @@ function fakeCy() {
     elements: vi.fn(() => fakeCollection()),
     nodes: vi.fn(() => fakeCollection()),
     getElementById: vi.fn((_id: string) => fakeCollection()),
-    on: vi.fn((_event: string, handler: (evt: { target: unknown }) => void) => {
-      tapListeners.add(handler);
+    on: vi.fn((event: string, handler: (evt: { target: unknown }) => void) => {
+      listenersFor(event).add(handler);
     }),
-    off: vi.fn((_event: string, handler: (evt: { target: unknown }) => void) => {
-      tapListeners.delete(handler);
+    off: vi.fn((event: string, handler: (evt: { target: unknown }) => void) => {
+      listenersFor(event).delete(handler);
     }),
     animate: vi.fn(),
     fireTap(target: unknown) {
-      tapListeners.forEach((handler) => handler({ target }));
+      listenersFor("tap").forEach((handler) => handler({ target }));
+    },
+    fireDragFree(target: unknown) {
+      listenersFor("dragfree").forEach((handler) => handler({ target }));
     },
   };
 }
@@ -226,5 +238,34 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     createRendererAdapter(cy).centerOn("missing", 300);
 
     expect(cy.animate).not.toHaveBeenCalled();
+  });
+});
+
+// TASK-004 AC-1: drag-persist wiring, added to the same ADR-001 seam so a
+// future WebGL swap only touches this adapter's implementation.
+describe("createRendererAdapter -- TASK-004 onNodeDragEnd", () => {
+  it("onNodeDragEnd() fires with the dragged node's id and new position", () => {
+    const cy = fakeCy();
+    const node = fakeCollection({ id: vi.fn(() => "n1"), position: vi.fn(() => ({ x: 42, y: 7 })) });
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onNodeDragEnd(handler);
+    cy.fireDragFree(node);
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith("n1", { x: 42, y: 7 });
+  });
+
+  it("onNodeDragEnd()'s returned unregister function stops future calls", () => {
+    const cy = fakeCy();
+    const node = fakeCollection();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    const unregister = adapter.onNodeDragEnd(handler);
+    unregister();
+    cy.fireDragFree(node);
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });

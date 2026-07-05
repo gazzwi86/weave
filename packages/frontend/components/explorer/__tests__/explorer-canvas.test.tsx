@@ -46,6 +46,7 @@ describe("ExplorerCanvas", () => {
         getNodeData: vi.fn(),
         listNodes: vi.fn(() => []),
         centerOn: vi.fn(),
+        onNodeDragEnd: vi.fn(() => vi.fn()),
       },
     });
 
@@ -68,7 +69,9 @@ describe("ExplorerCanvas", () => {
     render(<ExplorerCanvas />);
 
     expect(screen.queryByTestId("explorer-canvas")).not.toBeInTheDocument();
-    expect(screen.getByTestId("explorer-empty-state")).toHaveTextContent("CE error 503");
+    expect(screen.getByTestId("explorer-empty-state")).toHaveTextContent(
+      "CE error 503",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(retry).toHaveBeenCalledTimes(1);

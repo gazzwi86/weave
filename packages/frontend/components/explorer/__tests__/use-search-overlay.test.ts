@@ -6,7 +6,9 @@ import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
 import { useSearchOverlay } from "../use-search-overlay";
 
-function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
+function fakeAdapter(
+  overrides: Partial<RendererAdapter> = {},
+): RendererAdapter {
   return {
     load: vi.fn(),
     getViewport: vi.fn(() => ({ zoom: 1, pan: { x: 0, y: 0 } })),
@@ -22,6 +24,7 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
       { id: "n2", label: "Invoice", bpmoKind: "Process" },
     ]),
     centerOn: vi.fn(),
+    onNodeDragEnd: vi.fn(() => vi.fn()),
     ...overrides,
   };
 }
@@ -34,10 +37,22 @@ describe("useSearchOverlay", () => {
   // AC-5: Cmd+K (or the sidebar icon) opens the overlay, client-side only.
   it("opens on Cmd+K when no text input is focused", () => {
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
     });
 
     expect(result.current.open).toBe(true);
@@ -48,10 +63,22 @@ describe("useSearchOverlay", () => {
     document.body.appendChild(input);
     input.focus();
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
     });
 
     expect(result.current.open).toBe(false);
@@ -63,10 +90,22 @@ describe("useSearchOverlay", () => {
     const bubbleListener = vi.fn();
     document.body.addEventListener("keydown", bubbleListener);
     const adapter = fakeAdapter();
-    renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => {
-      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "k",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
     });
 
     expect(bubbleListener).not.toHaveBeenCalled();
@@ -75,7 +114,13 @@ describe("useSearchOverlay", () => {
 
   it("openOverlay()/closeOverlay() toggle manually (sidebar search icon path)", () => {
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => result.current.openOverlay());
     expect(result.current.open).toBe(true);
@@ -87,19 +132,36 @@ describe("useSearchOverlay", () => {
   // AC-5: matching nodes highlight, non-matches dim.
   it("highlights matching nodes and lists them as results when the query matches", () => {
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => result.current.setQuery("onboard"));
 
-    expect(result.current.results).toEqual([{ id: "n1", label: "Customer Onboarding", typeLabel: "Process" }]);
-    expect(adapter.highlightNodes).toHaveBeenCalledWith(["n1"], DEFAULT_EXPLORER_CONFIG.spotlightDimOpacity);
+    expect(result.current.results).toEqual([
+      { id: "n1", label: "Customer Onboarding", typeLabel: "Process" },
+    ]);
+    expect(adapter.highlightNodes).toHaveBeenCalledWith(
+      ["n1"],
+      DEFAULT_EXPLORER_CONFIG.spotlightDimOpacity,
+    );
     expect(result.current.noResults).toBe(false);
   });
 
   // AC-7: zero matches -> "No results" and canvas opacity untouched.
   it("reports noResults and leaves canvas opacity untouched when nothing matches", () => {
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => result.current.setQuery("nonexistent-thing"));
 
@@ -111,7 +173,13 @@ describe("useSearchOverlay", () => {
 
   it("resets opacity and clears results when the query is cleared", () => {
     const adapter = fakeAdapter();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected: vi.fn() }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected: vi.fn(),
+      }),
+    );
 
     act(() => result.current.setQuery("onboard"));
     act(() => result.current.setQuery(""));
@@ -126,13 +194,22 @@ describe("useSearchOverlay", () => {
   it("selectResult() closes the overlay, centres on the node, and notifies the caller", () => {
     const adapter = fakeAdapter();
     const onResultSelected = vi.fn();
-    const { result } = renderHook(() => useSearchOverlay({ adapter, config: DEFAULT_EXPLORER_CONFIG, onResultSelected }));
+    const { result } = renderHook(() =>
+      useSearchOverlay({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        onResultSelected,
+      }),
+    );
 
     act(() => result.current.openOverlay());
     act(() => result.current.selectResult("n1"));
 
     expect(result.current.open).toBe(false);
-    expect(adapter.centerOn).toHaveBeenCalledWith("n1", DEFAULT_EXPLORER_CONFIG.centreAnimationMs);
+    expect(adapter.centerOn).toHaveBeenCalledWith(
+      "n1",
+      DEFAULT_EXPLORER_CONFIG.centreAnimationMs,
+    );
     expect(onResultSelected).toHaveBeenCalledWith("n1");
   });
 });

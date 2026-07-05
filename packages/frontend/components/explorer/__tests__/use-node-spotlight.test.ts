@@ -6,7 +6,9 @@ import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
 import { useNodeSpotlight } from "../use-node-spotlight";
 
-function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
+function fakeAdapter(
+  overrides: Partial<RendererAdapter> = {},
+): RendererAdapter {
   return {
     load: vi.fn(),
     getViewport: vi.fn(() => ({ zoom: 1, pan: { x: 0, y: 0 } })),
@@ -16,9 +18,13 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     highlightNodes: vi.fn(),
     onNodeTap: vi.fn(() => vi.fn()),
     onBackgroundTap: vi.fn(() => vi.fn()),
-    getNodeData: vi.fn(() => ({ label: "Customer Onboarding", bpmoKind: "Process" })),
+    getNodeData: vi.fn(() => ({
+      label: "Customer Onboarding",
+      bpmoKind: "Process",
+    })),
     listNodes: vi.fn(() => []),
     centerOn: vi.fn(),
+    onNodeDragEnd: vi.fn(() => vi.fn()),
     ...overrides,
   };
 }
@@ -48,13 +54,26 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(() => new Promise<never>(() => {})); // never resolves in this test
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() =>
-      expect(result.current.panel).toEqual({ status: "loading", label: "Customer Onboarding", typeLabel: "Process" })
+      expect(result.current.panel).toEqual({
+        status: "loading",
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+      }),
     );
-    expect(adapter.spotlightNode).toHaveBeenCalledWith("n1", DEFAULT_EXPLORER_CONFIG.spotlightDimOpacity);
+    expect(adapter.spotlightNode).toHaveBeenCalledWith(
+      "n1",
+      DEFAULT_EXPLORER_CONFIG.spotlightDimOpacity,
+    );
   });
 
   it("does nothing when the tapped node id is unknown/stale (spotlightNode returns false)", async () => {
@@ -62,7 +81,13 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn();
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("stale");
 
     expect(result.current.panel).toEqual({ status: "closed" });
@@ -76,10 +101,21 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+      },
     }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
@@ -94,10 +130,21 @@ describe("useNodeSpotlight", () => {
     const iri = "https://weave.example/entity/cust-onboarding";
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: iri,
+      },
     }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
@@ -109,13 +156,26 @@ describe("useNodeSpotlight", () => {
   it("falls back to the already-loaded label/type with an error notice on a non-404 CE failure", async () => {
     const adapter = fakeAdapter();
     const events = capture(adapter);
-    const fetchNodeProps = vi.fn(async () => ({ type: "error" as const, status: 503 }));
+    const fetchNodeProps = vi.fn(async () => ({
+      type: "error" as const,
+      status: 503,
+    }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() => expect(result.current.panel.status).toBe("error"));
-    expect(result.current.panel).toEqual({ status: "error", label: "Customer Onboarding", typeLabel: "Process" });
+    expect(result.current.panel).toEqual({
+      status: "error",
+      label: "Customer Onboarding",
+      typeLabel: "Process",
+    });
   });
 
   // AC-8: a 404 (cross-tenant or genuinely missing) is "Not found" -- distinct
@@ -123,12 +183,23 @@ describe("useNodeSpotlight", () => {
   it("shows 'not-found' (not the generic error fallback) on a 404", async () => {
     const adapter = fakeAdapter();
     const events = capture(adapter);
-    const fetchNodeProps = vi.fn(async () => ({ type: "error" as const, status: 404 }));
+    const fetchNodeProps = vi.fn(async () => ({
+      type: "error" as const,
+      status: 404,
+    }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
-    await waitFor(() => expect(result.current.panel).toEqual({ status: "not-found" }));
+    await waitFor(() =>
+      expect(result.current.panel).toEqual({ status: "not-found" }),
+    );
   });
 
   // AC-4: background click restores opacity and closes the panel.
@@ -137,7 +208,13 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(() => new Promise<never>(() => {}));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
     await waitFor(() => expect(result.current.panel.status).toBe("loading"));
 
@@ -153,12 +230,20 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(() => new Promise<never>(() => {}));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
     await waitFor(() => expect(result.current.panel.status).toBe("loading"));
 
     act(() => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
     });
 
     expect(adapter.resetOpacity).toHaveBeenCalled();
@@ -173,10 +258,21 @@ describe("useNodeSpotlight", () => {
       .mockResolvedValueOnce({ type: "error", status: 503 })
       .mockResolvedValueOnce({
         type: "ok",
-        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null },
+        data: {
+          label: "Customer Onboarding",
+          typeLabel: "Process",
+          keyProperties: [],
+          rawIri: null,
+        },
       });
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
     await waitFor(() => expect(result.current.panel.status).toBe("error"));
 
@@ -184,6 +280,10 @@ describe("useNodeSpotlight", () => {
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
     expect(fetchNodeProps).toHaveBeenCalledTimes(2);
-    expect(fetchNodeProps).toHaveBeenNthCalledWith(2, "n1", DEFAULT_EXPLORER_CONFIG.ceTimeoutMs);
+    expect(fetchNodeProps).toHaveBeenNthCalledWith(
+      2,
+      "n1",
+      DEFAULT_EXPLORER_CONFIG.ceTimeoutMs,
+    );
   });
 });

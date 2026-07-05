@@ -34,6 +34,9 @@ export interface RendererAdapter {
   getNodeData(nodeId: string): NodeData | undefined;
   listNodes(): ListedNode[];
   centerOn(nodeId: string, durationMs: number): void;
+  /** TASK-004 AC-1: fires once a drag gesture releases, with the node's new
+   * position -- the seam use-layout-persistence.ts saves against. */
+  onNodeDragEnd(handler: (nodeId: string, position: { x: number; y: number }) => void): () => void;
 }
 
 export interface CyCollection {
@@ -44,6 +47,7 @@ export interface CyCollection {
   length: number;
   map<T>(fn: (ele: CyCollection) => T): T[];
   closedNeighborhood(): CyCollection;
+  position(): { x: number; y: number };
 }
 
 export interface AdaptableCy {
@@ -72,6 +76,21 @@ function wireTap(cy: AdaptableCy, isMatch: (target: unknown) => boolean, handler
   };
   cy.on("tap", listener);
   return () => cy.off("tap", listener);
+}
+
+// TASK-004 AC-1: cytoscape's "dragfree" event only ever fires with the
+// dragged node as evt.target (never the core), so -- unlike wireTap -- no
+// isMatch filter is needed here.
+function wireDragFree(
+  cy: AdaptableCy,
+  handler: (nodeId: string, position: { x: number; y: number }) => void
+): () => void {
+  const listener = (evt: { target: unknown }) => {
+    const node = evt.target as CyCollection;
+    handler(node.id(), node.position());
+  };
+  cy.on("dragfree", listener);
+  return () => cy.off("dragfree", listener);
 }
 
 export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
@@ -125,6 +144,9 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
       const node = cy.getElementById(nodeId);
       if (node.length === 0) return;
       cy.animate({ center: { eles: node } }, { duration: durationMs });
+    },
+    onNodeDragEnd(handler) {
+      return wireDragFree(cy, handler);
     },
   };
 }
