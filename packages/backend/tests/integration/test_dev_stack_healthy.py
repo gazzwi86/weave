@@ -20,6 +20,12 @@ from weave_backend import app
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.docker,
+    # stack: this file's `running_services` fixture manages its own compose stack and
+    # tears it down (`down -v`) mid-session — running it alongside the shared
+    # `platform_stack` fixture kills that stack's containers for every test sorting
+    # after it. Same convention as test_local_stack.py; run explicitly, never in the
+    # `and not stack` lane.
+    pytest.mark.stack,
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
 

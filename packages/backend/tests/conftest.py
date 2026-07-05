@@ -12,6 +12,13 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
+# Must run before the first `weave_backend` import anywhere in the suite --
+# `weave_backend/__init__.py` reads WEAVE_ENV once at module import time to
+# decide whether the billing harness routes are mounted (PLAT-TASK-008 QA
+# fix), and every test that exercises them imports the package at collection
+# time via this conftest or a test module.
+os.environ.setdefault("WEAVE_ENV", "test")
+
 import pytest
 
 from weave_backend.db.migrate import run_migrations

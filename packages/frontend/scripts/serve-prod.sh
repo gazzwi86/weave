@@ -29,7 +29,11 @@ cd "$HERE"
 : "${AUTH_TRUST_HOST:=true}"
 AUTH_SECRET_DEFAULT="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
 : "${AUTH_SECRET:=$AUTH_SECRET_DEFAULT}"
-export OIDC_ISSUER_URL OIDC_CLIENT_ID OIDC_CLIENT_SECRET BACKEND_API_URL AUTH_TRUST_HOST AUTH_SECRET
+# ui_verify's Playwright suite does a fresh login per test (~5 /api/auth
+# requests each); the prod default of 5 req/60s (lib/rate-limit.ts) is a
+# per-user login budget, not a per-gate-run one -- raise it here, harness-only.
+: "${AUTH_RATE_LIMIT_MAX:=100}"
+export OIDC_ISSUER_URL OIDC_CLIENT_ID OIDC_CLIENT_SECRET BACKEND_API_URL AUTH_TRUST_HOST AUTH_SECRET AUTH_RATE_LIMIT_MAX
 
 echo "WARNING: serve-prod.sh uses ephemeral dev secrets (fresh AUTH_SECRET, dev-secret OIDC client). Test harness only -- not a deploy path." >&2
 
