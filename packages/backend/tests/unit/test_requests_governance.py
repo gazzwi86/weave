@@ -177,6 +177,23 @@ async def test_sign_off_blocked_when_cost_cap_exceeded() -> None:
     }
 
 
+async def test_sign_off_reject_without_reason_returns_422() -> None:
+    """Fix: `reject` with no `rejection_reason` must 422, not silently
+    return a `SignOffResponse` with `rejection_reason=None` -- TASK-004.md
+    line 187 requires the reason when the action is reject.
+    """
+    body = SignOffBody(action="reject")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await submit_sign_off_route("r1", body, _PRINCIPAL, httpx.AsyncClient())
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == {  # type: ignore[comparison-overlap]
+        "error": "validation_error",
+        "field": "rejection_reason",
+    }
+
+
 async def test_sign_off_reject_returns_to_draft() -> None:
     """AC-6."""
     body = SignOffBody(action="reject", rejection_reason="not needed right now")

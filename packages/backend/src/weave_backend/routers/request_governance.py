@@ -93,6 +93,10 @@ def _validate_sign_off_action(body: SignOffBody) -> None:
         raise HTTPException(
             status_code=422, detail={"error": "validation_error", "field": "action"}
         )
+    if body.action == "reject" and not (body.rejection_reason or "").strip():
+        raise HTTPException(
+            status_code=422, detail={"error": "validation_error", "field": "rejection_reason"}
+        )
 
 
 def _check_blast_radius_gate(record: RequestRecord, body: SignOffBody) -> None:
