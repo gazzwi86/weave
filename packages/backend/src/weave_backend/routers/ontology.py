@@ -15,7 +15,12 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.ontology import catalogue
 from weave_backend.operations import diff as diff_ops
 from weave_backend.operations import versioning
-from weave_backend.rbac import InsufficientRole, enforce_workspace_role
+from weave_backend.rbac import (
+    ROLE_RANK,
+    InsufficientRole,
+    enforce_workspace_role,
+    resolve_workspace_role,
+)
 from weave_backend.schemas.ontology import (
     DiffResponse,
     KindEntry,
@@ -142,12 +147,19 @@ async def _list_versions_outcome(
     if denied is not None:
         return denied
 
+    # AC-003-03: draft versions are only visible to callers with author+
+    # role -- a plain "read" caller only ever sees published history.
+    role = await resolve_workspace_role(
+        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id, user_sub=principal.sub
+    )
+    include_drafts = role is not None and ROLE_RANK.get(role, -1) >= ROLE_RANK["author"]
+
     page_result = await versioning.list_versions(
         conn,
         tenant_id=principal.tenant_id,
         workspace_id=workspace_id,
-        page=page,
-        per_page=per_page,
+        page=versioning.Page(number=page, size=per_page),
+        include_drafts=include_drafts,
     )
     return VersionsResponse(
         versions=[

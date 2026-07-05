@@ -57,6 +57,17 @@ class VersionPage:
     total: int
 
 
+@dataclass(frozen=True)
+class Page:
+    """Bundles `page`/`per_page` into one param -- keeps `list_versions`
+    under the Law E five-parameter budget now that AC-003-03 added
+    `include_drafts`, rather than waiving the check.
+    """
+
+    number: int
+    size: int
+
+
 def _row_to_version(row: asyncpg.Record, *, version_iri: str) -> GraphVersion:
     return GraphVersion(
         version_iri=version_iri,
@@ -122,23 +133,43 @@ async def get_version(
 
 
 async def list_versions(
-    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, page: int, per_page: int
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    workspace_id: str,
+    page: Page,
+    include_drafts: bool = True,
 ) -> VersionPage:
-    """AC-002-11: paginated, newest-first."""
-    rows = await conn.fetch(
-        "SELECT semver, status, created_at, published_at, actor_iri, workspace_id, version_iri "
-        "FROM graph_versions WHERE tenant_id = $1 AND workspace_id = $2 "
-        "ORDER BY created_at DESC LIMIT $3 OFFSET $4",
-        tenant_id,
-        workspace_id,
-        per_page,
-        (page - 1) * per_page,
-    )
-    total_row = await conn.fetchrow(
-        "SELECT COUNT(*) AS total FROM graph_versions WHERE tenant_id = $1 AND workspace_id = $2",
-        tenant_id,
-        workspace_id,
-    )
+    """AC-002-11: paginated, newest-first. AC-003-03: the router computes
+    `include_drafts` from the caller's real RBAC role (author+ only) --
+    this function just applies whichever of two fixed, static queries that
+    decision picks, never string-building a clause from caller input.
+    """
+    if include_drafts:
+        list_query = (
+            "SELECT semver, status, created_at, published_at, actor_iri, workspace_id, "
+            "version_iri FROM graph_versions WHERE tenant_id = $1 AND workspace_id = $2 "
+            "ORDER BY created_at DESC LIMIT $3 OFFSET $4"
+        )
+        count_query = (
+            "SELECT COUNT(*) AS total FROM graph_versions "
+            "WHERE tenant_id = $1 AND workspace_id = $2"
+        )
+    else:
+        list_query = (
+            "SELECT semver, status, created_at, published_at, actor_iri, workspace_id, "
+            "version_iri FROM graph_versions "
+            "WHERE tenant_id = $1 AND workspace_id = $2 AND status != 'draft' "
+            "ORDER BY created_at DESC LIMIT $3 OFFSET $4"
+        )
+        count_query = (
+            "SELECT COUNT(*) AS total FROM graph_versions "
+            "WHERE tenant_id = $1 AND workspace_id = $2 AND status != 'draft'"
+        )
+
+    offset = (page.number - 1) * page.size
+    rows = await conn.fetch(list_query, tenant_id, workspace_id, page.size, offset)
+    total_row = await conn.fetchrow(count_query, tenant_id, workspace_id)
     versions = [_row_to_version(row, version_iri=str(row["version_iri"])) for row in rows]
     return VersionPage(versions=versions, total=int(total_row["total"]) if total_row else 0)
 
