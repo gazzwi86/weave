@@ -13,6 +13,12 @@ export interface ExplorerConfig {
   spotlightDimOpacity: number;
   /** AC-6: duration of the centre-on-select animation, ms. */
   centreAnimationMs: number;
+  /** TASK-004 AC-1/AC-2: backoff delays (ms) between save-position retries;
+   * a non-blocking toast only appears once every delay is exhausted. */
+  layoutSaveRetryDelaysMs: number[];
+  /** TASK-004: fixed graph id for the M1 whole-company force canvas -- there
+   * is no per-graph routing yet (single canvas, single graph). */
+  layoutGraphId: string;
   fcoseParams: typeof FCOSE_PARAMS;
 }
 
@@ -22,5 +28,7 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   edgeLabelThreshold: 0.55,
   spotlightDimOpacity: 0.18,
   centreAnimationMs: 300,
+  layoutSaveRetryDelaysMs: [2000, 4000, 8000],
+  layoutGraphId: "whole-company",
   fcoseParams: FCOSE_PARAMS,
 });
