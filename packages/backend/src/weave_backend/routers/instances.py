@@ -43,6 +43,7 @@ from weave_backend.schemas.instances import (
     UpdateInstanceRequest,
 )
 from weave_backend.schemas.operations import (
+    AddEdgeOp,
     AddNodeOp,
     ApplyRequest,
     ApplyResponse,
@@ -88,12 +89,17 @@ async def _load_active_workspace(
 
 
 async def _dispatch(
-    principal: Principal, workspace_id: str, conn: asyncpg.Connection, op: Op
+    principal: Principal, workspace_id: str, conn: asyncpg.Connection, ops: list[Op]
 ) -> ApplyResponse | ViolationsResponse | HTTPException:
-    """Same shape as `routers.authoring._dispatch`: one-op `ApplyRequest`
-    through CE-WRITE-1's real entry point, outbox flushed on success.
+    """Same shape as `routers.authoring._dispatch`: one `ApplyRequest`
+    through CE-WRITE-1's real entry point, outbox flushed on success. `ops`
+    is a list, not a single op -- AC-005-01: a kind with a hard relationship
+    requirement (e.g. ProcessShape's `performedBy`) can only pass SHACL
+    re-validation if its `add_node` and the linking `add_edge` land in the
+    same batch (SHACL validates the whole graph per batch, never
+    per-op) -- see `AddInstanceRequest.relationships`.
     """
-    body = ApplyRequest(operations=[op], actor=principal.principal_iri)
+    body = ApplyRequest(operations=ops, actor=principal.principal_iri)
     outcome = await _run_apply(conn, principal=principal, workspace_id=workspace_id, body=body)
     if isinstance(outcome, ApplyResponse):
         try:
@@ -140,14 +146,20 @@ async def add_instance_route(
                 content={"error": "duplicate_entity", "existing_iri": existing_iri},
             )
 
-        op = AddNodeOp(
-            op="add_node",
-            ref="n1",
-            kind=body.kind,
-            label=body.label,
-            properties=body.properties,
+        ops: list[Op] = [
+            AddNodeOp(
+                op="add_node",
+                ref="n1",
+                kind=body.kind,
+                label=body.label,
+                properties=body.properties,
+            ),
+        ]
+        ops.extend(
+            AddEdgeOp(op="add_edge", subject_ref="n1", predicate=predicate, object_ref=target_iri)
+            for predicate, target_iri in body.relationships.items()
         )
-        outcome = await _dispatch(principal, workspace_id, conn, op)
+        outcome = await _dispatch(principal, workspace_id, conn, ops)
 
     if isinstance(outcome, HTTPException):
         raise outcome
@@ -177,7 +189,7 @@ async def update_instance_route(
     async with tenant_connection(principal.tenant_id) as conn:
         _workspace, workspace_id = await _load_active_workspace(conn, principal)
         op = UpdateNodeOp(op="update_node", iri=iri, properties=body.properties)
-        outcome = await _dispatch(principal, workspace_id, conn, op)
+        outcome = await _dispatch(principal, workspace_id, conn, [op])
 
     if isinstance(outcome, HTTPException):
         raise outcome
@@ -249,7 +261,7 @@ async def delete_instance_route(
             return await _delete_preview(conn, principal, workspace, workspace_id, iri)
 
         op = DeleteNodeOp(op="delete_node", iri=iri)
-        outcome = await _dispatch(principal, workspace_id, conn, op)
+        outcome = await _dispatch(principal, workspace_id, conn, [op])
 
     if isinstance(outcome, HTTPException):
         raise outcome

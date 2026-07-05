@@ -17,6 +17,14 @@ class AddInstanceRequest(BaseModel):
     kind: str = Field(min_length=1)
     label: str = Field(min_length=1)
     properties: dict[str, Any] = Field(default_factory=dict)
+    #: AC-005-01: relationship-shaped fields (e.g. a Process's `performedBy`)
+    #: -- predicate local name -> an *already-existing* target IRI. Kept
+    #: separate from `properties` because these dispatch as `add_edge` ops
+    #: in the same batch, not literal-valued triples: SHACL validates the
+    #: whole graph per batch, so a kind with a hard relationship requirement
+    #: (e.g. ProcessShape's `performedBy`) can only ever be created
+    #: satisfied, never created-then-linked in a later request.
+    relationships: dict[str, str] = Field(default_factory=dict)
 
 
 class UpdateInstanceRequest(BaseModel):
