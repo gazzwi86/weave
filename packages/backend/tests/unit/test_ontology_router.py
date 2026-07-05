@@ -70,6 +70,7 @@ async def test_list_versions_route_returns_paginated_newest_first_history() -> N
         patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
         patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
         patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(ontology, "resolve_workspace_role", AsyncMock(return_value="admin")),
         patch.object(versioning, "list_versions", AsyncMock(return_value=page_result)),
     ):
         result = await ontology.list_versions_route(
@@ -79,6 +80,43 @@ async def test_list_versions_route_returns_paginated_newest_first_history() -> N
     assert result.total == 2
     assert [v.version_iri for v in result.versions] == [V2, V1]
     assert result.versions[0].status == "published"
+
+
+async def test_list_versions_route_grants_drafts_to_author_role_or_above() -> None:
+    """AC-003-03: an author+ caller sees drafts (`include_drafts=True`)."""
+    list_versions_spy = AsyncMock(
+        return_value=versioning.VersionPage(versions=[], total=0)
+    )
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(ontology, "resolve_workspace_role", AsyncMock(return_value="author")),
+        patch.object(versioning, "list_versions", list_versions_spy),
+    ):
+        await ontology.list_versions_route(PRINCIPAL, workspace_id=None, page=1, per_page=50)
+
+    assert list_versions_spy.call_args.kwargs["include_drafts"] is True
+
+
+async def test_list_versions_route_denies_drafts_to_read_only_role() -> None:
+    """AC-003-03: a plain "read" caller never sees drafts
+    (`include_drafts=False`)."""
+    list_versions_spy = AsyncMock(
+        return_value=versioning.VersionPage(versions=[], total=0)
+    )
+    with (
+        patch.object(ontology, "tenant_connection", _fake_tenant_connection),
+        patch.object(ontology, "_resolve_workspace_id", AsyncMock(return_value="ws-1")),
+        patch.object(ontology, "get_workspace", AsyncMock(return_value=_workspace())),
+        patch.object(ontology, "_authorize_read", AsyncMock(return_value=None)),
+        patch.object(ontology, "resolve_workspace_role", AsyncMock(return_value="read")),
+        patch.object(versioning, "list_versions", list_versions_spy),
+    ):
+        await ontology.list_versions_route(PRINCIPAL, workspace_id=None, page=1, per_page=50)
+
+    assert list_versions_spy.call_args.kwargs["include_drafts"] is False
 
 
 async def test_authorize_workspace_role_denies_and_audits_insufficient_role() -> None:
