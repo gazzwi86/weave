@@ -37,7 +37,22 @@ declare global {
      * performance.now() so IPC round-trips don't skew the reading.
      * Dev-only, never in production. */
     __explorerRenderDurationMs?: number;
+    /** Playwright-only introspection hook (TASK-003 E2E) -- Cytoscape
+     * renders to <canvas>, so a node has no DOM element a test can click or
+     * inspect computed style on. Exposes the node's real on-screen pixel
+     * centre (for a genuine `page.mouse.click`) and its current opacity
+     * (for asserting AC-1/AC-6 spotlight dimming) by id. Dev-only, never in
+     * production. */
+    __explorerNodeInfo?: (nodeId: string) => { x: number; y: number; opacity: number } | undefined;
   }
+}
+
+/** Structural subset of the real `cytoscape.Core` needed for the
+ * `__explorerNodeInfo` dev hook -- not part of `CyLike`/`AdaptableCy`
+ * (production call sites never need it), bridged the same way as
+ * `AdaptableCy` above: both describe the same real instance at runtime. */
+interface CyNodeIntrospection {
+  getElementById(id: string): { length: number; renderedPosition(): { x: number; y: number }; style(prop: string): string };
 }
 
 /** Structural subset of `cytoscape.Core` this hook actually calls --
@@ -110,6 +125,18 @@ function resetDevIntrospection(): void {
   window.__explorerLayoutSettled = false;
   delete window.__explorerRenderDurationMs;
   delete window.__explorerElements;
+  delete window.__explorerNodeInfo;
+}
+
+function nodeInfoLookup(cy: CyLike): (nodeId: string) => { x: number; y: number; opacity: number } | undefined {
+  return (nodeId: string) => {
+    const rect = cy.container()?.getBoundingClientRect();
+    if (!rect) return undefined;
+    const element = (cy as unknown as CyNodeIntrospection).getElementById(nodeId);
+    if (element.length === 0) return undefined;
+    const position = element.renderedPosition();
+    return { x: rect.left + position.x, y: rect.top + position.y, opacity: Number(element.style("opacity")) };
+  };
 }
 
 /** Exposes the freshly-loaded elements and wires the AC-8 perf-mark
@@ -118,6 +145,7 @@ function resetDevIntrospection(): void {
 function exposeDevIntrospection(cy: CyLike, elements: CytoscapeElement[], loadStartedAt: number): void {
   if (process.env.NODE_ENV === "production") return;
   window.__explorerElements = elements;
+  window.__explorerNodeInfo = nodeInfoLookup(cy);
   cy.on("layoutstop", () => {
     window.__explorerRenderDurationMs = performance.now() - loadStartedAt;
   });
@@ -128,6 +156,7 @@ function clearDevIntrospection(): void {
   delete window.__explorerElements;
   delete window.__explorerLayoutSettled;
   delete window.__explorerRenderDurationMs;
+  delete window.__explorerNodeInfo;
 }
 
 export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): ExplorerCanvasState {
