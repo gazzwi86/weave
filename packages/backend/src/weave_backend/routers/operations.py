@@ -5,6 +5,7 @@ that's the point (single validated entry point, no bypass path).
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 import asyncpg
@@ -25,6 +26,8 @@ from weave_backend.rbac import InsufficientRole, enforce_workspace_role
 from weave_backend.schemas.operations import ApplyRequest, ApplyResponse, ViolationsResponse
 from weave_backend.tenancy.sessions import get_active_workspace, get_redis
 from weave_backend.tenancy.workspaces import Workspace, get_workspace
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["operations"])
 
@@ -159,9 +162,18 @@ async def apply_operations_route(
         # mutation's own transaction (ADR-002) -- a fresh connection/
         # transaction, deliberately separate from the one that just
         # committed, so a slow/unavailable audit sink can never roll back
-        # the mutation (AC-002-04).
-        async with tenant_connection(principal.tenant_id) as flush_conn:
-            await outbox.flush_pending(flush_conn, principal.tenant_id)
+        # the mutation (AC-002-04). This is best-effort: a pool-acquire or
+        # SELECT failure here must never 500 an already-committed mutation
+        # -- the row stays enqueued, pending, for the next flush.
+        try:
+            async with tenant_connection(principal.tenant_id) as flush_conn:
+                await outbox.flush_pending(flush_conn, principal.tenant_id)
+        except Exception:
+            log.warning(
+                "post-commit outbox flush failed for tenant=%s, will retry next flush",
+                principal.tenant_id,
+                exc_info=True,
+            )
 
     if isinstance(outcome, HTTPException):
         raise outcome

@@ -24,6 +24,7 @@ import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import jwt
 import pytest
@@ -36,7 +37,7 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.keys import KEY_ID, PRIVATE_KEY
 from weave_backend.mock_oidc.tokens import ISSUER, issue_token_pair
-from weave_backend.operations import pipeline
+from weave_backend.operations import outbox, pipeline
 from weave_backend.operations.idempotency import release_lock, try_acquire_lock
 from weave_backend.operations.provenance import prov_graph_iri
 from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
@@ -154,6 +155,51 @@ async def test_valid_mutation_commits_new_version_and_reflects_in_the_graph(
         assert diff_summary["activity_iri"] == body["activity_iri"]
         assert diff_summary["applied_count"] == 3
         assert diff_summary["claimed_actor_iri"] == "urn:weave:principal:test-actor"
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_flush_failure_never_500s_an_already_committed_mutation(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #23 finding #4: the post-commit `outbox.flush_pending` call is a
+    best-effort delivery attempt (AC-002-04) -- the mutation it flushes for
+    has already committed, so a pool-acquire or SELECT failure there must
+    never surface as a 500. The event stays enqueued, pending, for the next
+    flush; nothing here should re-raise.
+    """
+    tenant_id = _unique_tenant("ops-flush-fail")
+    workspace = await _make_workspace(tenant_id, label="ops-flush")
+    await _add_member(
+        tenant_id, workspace.id, user_sub="u-author", role="author", email="author@example.invalid"
+    )
+    headers = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-author", workspace_id=workspace.id
+    )
+
+    try:
+        with patch.object(
+            outbox, "flush_pending", AsyncMock(side_effect=ConnectionError("pool exhausted"))
+        ):
+            response = await client.post(
+                "/api/operations/apply",
+                json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+                headers=headers,
+            )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert body["applied_count"] == 3
+
+        # The mutation itself still committed, and its audit entry is still
+        # pending for the next flush -- nothing was dropped.
+        async with tenant_connection(tenant_id) as conn:
+            pending = await conn.fetch(
+                "SELECT event_type FROM audit_outbox WHERE tenant_id = $1 AND delivered_at IS NULL",
+                tenant_id,
+            )
+        assert len(pending) == 1
+        assert pending[0]["event_type"] == "operations.applied"
     finally:
         await clear_graph(workspace.named_graph_iri)
 
