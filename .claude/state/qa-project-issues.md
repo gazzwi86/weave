@@ -84,6 +84,10 @@ per-task reports.
   grows.
 - **Deadline:** Validate `mutation-strict` on the next main-push; raise the floor as unit-killable
   coverage improves.
+- **VALIDATED (2026-07-05):** platform stack merged to main (PRs #17/#18/#19); `mutation-strict`
+  ran blocking on the merge push (run 28725517537) and scored **77.3% vs the 70% threshold — PASS**.
+  The deterministic tier works end-to-end. Remaining action: revisit the per-PR floor (60) upward
+  as the unit-killable pool grows — otherwise this issue can close.
 
 ## PROJ-006: Second consecutive feature's Playwright E2E fully mocks the network (Law B gap)
 

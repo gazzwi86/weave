@@ -79,5 +79,11 @@ Approved 2026-07-05 (HITL, engine-boundary sign-off). Accepted with tracked debt
 real-backend e2e retrofit; docs/api.md + docs/architecture.md generation. Open ledger table
 above carries forward — nothing closed silently.
 
+**Post-merge verification (2026-07-05):** PRs #17/#18/#19 merged to main by the human; the
+blocking `mutation-strict` job ran on the merge push (run 28725517537) and scored
+**77.3% against the 70% threshold — PASS**. The gate-time RED (64.5%, per-PR unit lane,
+structurally capped per PROJ-005) is closed: the deferred full-suite measurement exists and
+clears the bar. Checklist mutation row considered satisfied as of this run.
+
 ---
 *HITL gate template. This file is created per phase and reviewed by the human approver.*
