@@ -21,7 +21,8 @@ S3Client = Any
 
 
 def s3_client() -> S3Client:
-    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", "http://localhost:4566")
+    default_endpoint = f"http://localhost:{os.environ.get('WEAVE_LOCALSTACK_PORT', '4566')}"
+    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", default_endpoint)
     return boto3.client(
         "s3",
         endpoint_url=endpoint_url,

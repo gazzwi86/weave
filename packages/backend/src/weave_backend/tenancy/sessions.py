@@ -32,7 +32,7 @@ def get_redis() -> redis.Redis:
     current_loop = asyncio.get_event_loop()
     if _client is None or _client_loop is not current_loop:
         host = os.environ.get("REDIS_HOST", "localhost")
-        port = os.environ.get("REDIS_PORT", "6379")
+        port = os.environ.get("REDIS_PORT", os.environ.get("WEAVE_REDIS_PORT", "6379"))
         _client = redis.from_url(
             f"redis://{host}:{port}/0",
             decode_responses=True,

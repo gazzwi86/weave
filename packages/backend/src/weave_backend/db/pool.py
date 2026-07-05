@@ -21,7 +21,7 @@ _pool_loop: asyncio.AbstractEventLoop | None = None
 def _dsn() -> str:
     user = os.environ.get("POSTGRES_APP_USER", "weave_app")
     host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = os.environ.get("POSTGRES_PORT", "5432")
+    port = os.environ.get("POSTGRES_PORT", os.environ.get("WEAVE_PG_PORT", "5432"))
     database = os.environ.get("POSTGRES_DB", "weave")
     return f"postgresql://{user}@{host}:{port}/{database}"
 

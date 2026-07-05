@@ -12,7 +12,7 @@ services:
       # Secrets Manager (infra/terraform/modules/secrets), never this image.
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5432:5432"
+      - "${WEAVE_PG_PORT:-5432}:5432"
     volumes:
       - ./seed/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
@@ -24,7 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${WEAVE_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -39,13 +39,13 @@ services:
       # custody (weave/platform/audit-signing-key), also LocalStack-only.
       SERVICES: s3,sqs,sns,sts,iam,secretsmanager
     ports:
-      - "4566:4566"
+      - "${WEAVE_LOCALSTACK_PORT:-4566}:4566"
     # localstack ships its own HEALTHCHECK; no override needed.
 
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "${WEAVE_OLLAMA_PORT:-11434}:11434"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -59,7 +59,7 @@ services:
   oxigraph:
     image: ghcr.io/oxigraph/oxigraph:latest
     ports:
-      - "7878:7878"
+      - "${WEAVE_OXIGRAPH_PORT:-7878}:7878"
 
   # One-shot loader: waits for oxigraph's HTTP API, then PUTs the seed
   # triples into the default graph via the SPARQL 1.1 Graph Store Protocol.

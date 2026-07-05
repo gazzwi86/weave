@@ -35,7 +35,8 @@ class StsValidationError(Exception):
 
 
 def _get_caller_identity_arn_sync(sts_token: str) -> str:
-    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", "http://localhost:4566")
+    default_endpoint = f"http://localhost:{os.environ.get('WEAVE_LOCALSTACK_PORT', '4566')}"
+    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", default_endpoint)
     client = boto3.client(
         "sts",
         endpoint_url=endpoint_url,

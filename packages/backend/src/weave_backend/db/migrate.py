@@ -24,7 +24,7 @@ MIGRATIONS_DIR = Path(__file__).resolve().parents[3] / "migrations"
 
 def _dsn(user: str) -> str:
     host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = os.environ.get("POSTGRES_PORT", "5432")
+    port = os.environ.get("POSTGRES_PORT", os.environ.get("WEAVE_PG_PORT", "5432"))
     database = os.environ.get("POSTGRES_DB", "weave")
     return f"postgresql://{user}@{host}:{port}/{database}"
 

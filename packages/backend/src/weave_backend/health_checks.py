@@ -30,18 +30,19 @@ async def _tcp_check(host: str, port: int) -> str:
 
 async def check_postgres() -> str:
     host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = int(os.environ.get("POSTGRES_PORT", "5432"))
+    port = int(os.environ.get("POSTGRES_PORT", os.environ.get("WEAVE_PG_PORT", "5432")))
     return await _tcp_check(host, port)
 
 
 async def check_redis() -> str:
     host = os.environ.get("REDIS_HOST", "localhost")
-    port = int(os.environ.get("REDIS_PORT", "6379"))
+    port = int(os.environ.get("REDIS_PORT", os.environ.get("WEAVE_REDIS_PORT", "6379")))
     return await _tcp_check(host, port)
 
 
 async def check_oxigraph() -> str:
-    url = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
+    default_url = f"http://localhost:{os.environ.get('WEAVE_OXIGRAPH_PORT', '7878')}"
+    url = os.environ.get("OXIGRAPH_URL", default_url)
     try:
         async with httpx.AsyncClient(timeout=CONNECT_TIMEOUT_SECONDS) as client:
             response = await client.get(url)
