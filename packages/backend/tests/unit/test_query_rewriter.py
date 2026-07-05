@@ -22,6 +22,8 @@ import pytest
 
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
+    ProhibitedClauseError,
+    ServiceBlockedError,
     UnscopedQueryError,
     validate_query,
 )
@@ -119,3 +121,56 @@ def test_sparql_from_clause_disallowed() -> None:
             "SELECT * FROM NAMED <urn:weave:tenant:other-tenant:ws:evil> "
             "WHERE { GRAPH ?g { ?s ?p ?o } }"
         )
+
+
+def test_sparql_service_federation_raises_service_blocked_error() -> None:
+    """AC-003-06: SERVICE gets its own error shape (`service_blocked`),
+    distinct from AC-003-05's generic `prohibited_clause` -- the router
+    must be able to tell them apart without string-matching the message.
+    """
+    with pytest.raises(ServiceBlockedError):
+        validate_query(
+            "SELECT * WHERE { GRAPH ?g { SERVICE <http://evil.example/sparql> { ?s ?p ?o } } }"
+        )
+
+
+def test_sparql_insert_data_raises_prohibited_clause_error_named_insert() -> None:
+    """AC-003-05: an INSERT DATA statement must be identifiable as an
+    `INSERT` clause (not just a generic "unparseable" rejection) so the
+    router can return `{error: "prohibited_clause", clause: "INSERT"}`.
+    """
+    with pytest.raises(ProhibitedClauseError) as exc_info:
+        validate_query(
+            'INSERT DATA { GRAPH <urn:weave:tenant:acme-corp:ws:1> { <urn:s> <urn:p> "x" } }'
+        )
+    assert exc_info.value.clause == "INSERT"
+
+
+def test_sparql_delete_data_raises_prohibited_clause_error_named_delete() -> None:
+    with pytest.raises(ProhibitedClauseError) as exc_info:
+        validate_query(
+            'DELETE DATA { GRAPH <urn:weave:tenant:acme-corp:ws:1> { <urn:s> <urn:p> "x" } }'
+        )
+    assert exc_info.value.clause == "DELETE"
+
+
+def test_sparql_modify_statement_raises_prohibited_clause_error_named_update() -> None:
+    """A `DELETE {...} INSERT {...} WHERE {...}` Modify form is neither a
+    pure INSERT nor a pure DELETE -- reported as the generic `UPDATE` label.
+    """
+    with pytest.raises(ProhibitedClauseError) as exc_info:
+        validate_query(
+            "DELETE { ?s ?p ?o } INSERT { ?s ?p \"y\" } "
+            "WHERE { GRAPH <urn:weave:tenant:acme-corp:ws:1> { ?s ?p ?o } }"
+        )
+    assert exc_info.value.clause == "UPDATE"
+
+
+def test_prohibited_clause_error_is_a_disallowed_query_error() -> None:
+    """Backward compatibility: existing callers catching the broad
+    `DisallowedQueryError` (e.g. `routers/search.py`) must keep working
+    unchanged -- both new error types are subclasses, never a parallel
+    hierarchy.
+    """
+    assert issubclass(ProhibitedClauseError, DisallowedQueryError)
+    assert issubclass(ServiceBlockedError, DisallowedQueryError)
