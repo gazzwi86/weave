@@ -130,10 +130,15 @@ async def test_create_request_streams_sections_and_persists_draft(
 
 
 async def test_create_request_returns_401_without_jwt(client: AsyncClient) -> None:
+    """AC-5: exact body + `Www-Authenticate` header, not just the status
+    code -- the shared auth dependency's platform-wide 401 contract.
+    """
     response = await client.post(
         "/api/requests", json={"prompt": "build a widget", "run_mode": "draft_spec_only"}
     )
     assert response.status_code == 401
+    assert response.json() == {"detail": {"error": "unauthorised"}}
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 async def test_request_degrades_gracefully_when_ce_unreachable(

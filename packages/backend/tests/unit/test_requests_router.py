@@ -42,6 +42,8 @@ async def test_create_request_route_returns_401_without_jwt() -> None:
         response = await client.post("/api/requests", json=_body())
 
     assert response.status_code == 401
+    assert response.json() == {"detail": {"error": "unauthorised"}}
+    assert response.headers["www-authenticate"] == "Bearer"
 
 
 async def test_create_request_route_422_when_run_mode_invalid() -> None:

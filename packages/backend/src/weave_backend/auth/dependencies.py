@@ -36,14 +36,17 @@ class Principal(BaseModel):
     principal_type: str = "human"
 
 
+#: AC-5 (BE-TASK-003) / AC-3 (BE-TASK-001): the platform-wide "you are not
+#: authenticated" 401 contract -- distinct from the more specific
+#: `token_ttl_exceeded` / `session_revoked` 401s below, which have their own
+#: established, separately-tested bodies (PLAT-TASK-003/004) and are left
+#: alone here.
+_UNAUTHORISED_HEADERS = {"WWW-Authenticate": "Bearer"}
+
+
 def _unauthorised() -> HTTPException:
-    """AC-003-07: the shared shape for "no credential at all" -- every route
-    depending on `get_current_principal` gets this for free.
-    """
     return HTTPException(
-        status_code=401,
-        detail={"error": "unauthorised"},
-        headers={"WWW-Authenticate": "Bearer"},
+        status_code=401, detail={"error": "unauthorised"}, headers=_UNAUTHORISED_HEADERS
     )
 
 
@@ -64,7 +67,7 @@ async def get_current_principal(
     except TokenTtlExceeded as exc:
         raise HTTPException(status_code=401, detail={"error": "token_ttl_exceeded"}) from exc
     except TokenVerificationError as exc:
-        raise HTTPException(status_code=401, detail="invalid access token") from exc
+        raise _unauthorised() from exc
 
     tenant_id_var.set(claims["tenant_id"])
     principal_iri_var.set(claims["principal_iri"])
