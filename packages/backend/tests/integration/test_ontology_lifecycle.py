@@ -13,17 +13,20 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+import asyncpg
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from weave_backend import app
 from weave_backend.audit.emitter import AuditEvent, HashChainAuditEmitter, default_audit_emitter
 from weave_backend.auth.oidc_client import get_oidc_client
+from weave_backend.db.migrate import _dsn
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
@@ -178,6 +181,67 @@ async def test_outbox_survives_a_failing_emitter_and_delivers_on_retry(
         assert len(rows) == 1
     finally:
         await clear_graph(workspace.named_graph_iri)
+
+
+async def test_audit_outbox_immutability_trigger_permits_only_delivered_at_flip(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #23 finding #2: 0007 granted UPDATE on audit_outbox with no trigger
+    at all -- unlike graph_versions (relaxed trigger, same migration) and
+    audit_entries (fully append-only, 0005). The trigger permits exactly the
+    delivered_at NULL -> timestamp transition and rejects every other UPDATE.
+
+    DELETE was never GRANTed to weave_app at all, so for that role it is
+    rejected at the GRANT layer (`InsufficientPrivilegeError`) before it ever
+    reaches the trigger -- same belt-and-braces layering as
+    `test_audit_chain_api.py`'s `..._rejected_for_weave_app`. The trigger's
+    own DELETE rejection is what actually matters, since it also binds the
+    superuser migration role that GRANT/REVOKE can't constrain (triggers
+    fire regardless of role) -- proven below via a direct superuser
+    connection, mirroring
+    `test_audit_table_update_rejected_for_superuser_migration_role`.
+    """
+    tenant_id = _unique_tenant("ont-outbox-trigger")
+    event = AuditEvent(
+        tenant_id=tenant_id,
+        event_type="test.outbox.trigger",
+        actor_iri="urn:weave:principal:test-actor",
+        subject_iri="urn:weave:test:subject",
+        engine="constitution",
+        payload={"n": 1},
+    )
+    async with tenant_connection(tenant_id) as conn:
+        await outbox.enqueue(conn, event)
+        row = await conn.fetchrow("SELECT id FROM audit_outbox WHERE tenant_id = $1", tenant_id)
+    row_id = row["id"]
+
+    with pytest.raises(asyncpg.exceptions.RaiseError):
+        async with tenant_connection(tenant_id) as conn:
+            await conn.execute(
+                "UPDATE audit_outbox SET event_type = 'tampered' WHERE id = $1", row_id
+            )
+
+    with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
+        async with tenant_connection(tenant_id) as conn:
+            await conn.execute("DELETE FROM audit_outbox WHERE id = $1", row_id)
+
+    su_user = os.environ.get("POSTGRES_MIGRATION_USER", "weave")
+    su_conn = await asyncpg.connect(_dsn(su_user))
+    try:
+        with pytest.raises(asyncpg.exceptions.RaiseError, match="audit_outbox"):
+            await su_conn.execute("DELETE FROM audit_outbox WHERE id = $1", row_id)
+    finally:
+        await su_conn.close()
+
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "UPDATE audit_outbox SET delivered_at = now() WHERE id = $1 AND delivered_at IS NULL",
+            row_id,
+        )
+        delivered = await conn.fetchrow(
+            "SELECT delivered_at FROM audit_outbox WHERE id = $1", row_id
+        )
+    assert delivered["delivered_at"] is not None
 
 
 @pytest.mark.e2e

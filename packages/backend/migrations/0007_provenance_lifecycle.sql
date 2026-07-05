@@ -55,3 +55,35 @@ CREATE POLICY tenant_isolation ON audit_outbox
     USING (tenant_id = current_setting('app.tenant_id', true));
 
 GRANT SELECT, INSERT, UPDATE ON audit_outbox TO weave_app;
+
+-- PR #23 finding #2: 0006/graph_versions gets a relaxed append-only trigger
+-- above; audit_outbox got the UPDATE grant with no trigger at all, so
+-- weave_app (and the superuser migration role -- GRANT/REVOKE alone can't
+-- bind that, see 0005's own comment) could silently rewrite a pending row's
+-- event_type/payload. Permit exactly one transition: delivered_at
+-- NULL -> a timestamp (flush_pending's own claim), nothing else.
+CREATE OR REPLACE FUNCTION audit_outbox_immutable() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        RAISE EXCEPTION 'audit_outbox rows are immutable once enqueued';
+    END IF;
+    IF OLD.delivered_at IS NOT NULL
+        OR NEW.delivered_at IS NULL
+        OR OLD.tenant_id <> NEW.tenant_id
+        OR OLD.event_type <> NEW.event_type
+        OR OLD.actor_iri <> NEW.actor_iri
+        OR OLD.subject_iri <> NEW.subject_iri
+        OR OLD.engine <> NEW.engine
+        OR OLD.payload <> NEW.payload
+        OR OLD.created_at <> NEW.created_at THEN
+        RAISE EXCEPTION
+            'audit_outbox rows are immutable once enqueued (delivered_at NULL -> timestamp is the only permitted update)';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS audit_outbox_no_mutate ON audit_outbox;
+CREATE TRIGGER audit_outbox_no_mutate
+    BEFORE UPDATE OR DELETE ON audit_outbox
+    FOR EACH ROW EXECUTE FUNCTION audit_outbox_immutable();
