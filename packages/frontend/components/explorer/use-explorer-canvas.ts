@@ -11,6 +11,7 @@ import { fetchGraph as defaultFetchGraph, fetchPalette as defaultFetchPalette } 
 import { registerKeyBindings } from "@/lib/explorer/key-bindings";
 import { computeViewportIndicator, type ViewportIndicator } from "@/lib/explorer/minimap-geometry";
 import { rafThrottle } from "@/lib/explorer/raf-throttle";
+import { createRendererAdapter } from "@/lib/explorer/renderer-adapter";
 import { applySemanticZoom } from "@/lib/explorer/semantic-zoom";
 import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
 
@@ -36,6 +37,7 @@ export interface CyLike {
   json(spec: { elements: CytoscapeElement[] }): void;
   layout(options: { name: string } & Record<string, unknown>): { run(): void };
   zoom(): number;
+  pan(): { x: number; y: number };
   extent(): { x1: number; y1: number; x2: number; y2: number };
   elements(): { boundingBox(): { x1: number; y1: number; x2: number; y2: number } };
   on(event: string, handler: () => void): void;
@@ -49,11 +51,7 @@ export interface UseExplorerCanvasOptions {
   config?: ExplorerConfig;
   fetchPalette?: () => Promise<NodeKind[]>;
   fetchGraph?: (timeoutMs: number) => Promise<CytoscapeElement[]>;
-  createCy?: (
-    container: HTMLElement | null,
-    elements: CytoscapeElement[],
-    stylesheet: cytoscape.StylesheetStyle[],
-  ) => CyLike;
+  createCy?: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
 }
 
 export interface ExplorerCanvasState {
@@ -107,8 +105,13 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       try {
         const [palette, elements] = await Promise.all([fetchPalette(), fetchGraph(config.ceTimeoutMs)]);
         if (cancelled) return;
-        const cy = createCy(containerRef.current, elements, buildStylesheet(palette));
-        cy.layout({ name: "fcose", ...config.fcoseParams }).run();
+        const cy = createCy(containerRef.current, buildStylesheet(palette));
+        // ADR-001: element loading and layout run through the renderer
+        // adapter, not direct cytoscape calls, so a future WebGL swap only
+        // touches the adapter's implementation, never this call site.
+        const adapter = createRendererAdapter(cy);
+        adapter.load(elements);
+        adapter.setLayout("fcose", config.fcoseParams);
         unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
         cyRef.current = cy;
         if (process.env.NODE_ENV !== "production") window.__explorerElements = elements;

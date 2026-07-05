@@ -13,12 +13,30 @@ function kindStyle(kind: NodeKind): cytoscape.StylesheetStyle {
   };
 }
 
-// ponytail: stub -- red before green (TDD step 1).
+const CSS_VAR_PATTERN = /^var\((--[\w-]+)\)$/;
+
+function resolveValue(value: unknown, resolve: (token: string) => string): unknown {
+  if (typeof value !== "string") return value;
+  const match = CSS_VAR_PATTERN.exec(value);
+  return match ? resolve(match[1] as string) : value;
+}
+
+/** Cytoscape's stylesheet engine draws to <canvas> and never resolves CSS
+ * custom properties -- any `var(--token)` value (e.g. the design-token grey
+ * fallback) must be resolved to a concrete value before reaching the real
+ * renderer. `resolve` is injected so this stays testable without a real DOM
+ * stylesheet (ADR-001 seam); the browser boundary supplies the real
+ * `getComputedStyle` reader (create-cytoscape.ts). */
 export function resolveStylesheetTokens(
   stylesheet: cytoscape.StylesheetStyle[],
   resolve: (token: string) => string,
 ): cytoscape.StylesheetStyle[] {
-  throw new Error("not implemented");
+  return stylesheet.map((rule) => ({
+    ...rule,
+    style: Object.fromEntries(
+      Object.entries(rule.style).map(([key, value]) => [key, resolveValue(value, resolve)]),
+    ) as typeof rule.style,
+  }));
 }
 
 /** AC-3: single ellipse shape for every node in M1 (kind→shape mapping is
