@@ -58,6 +58,25 @@ describe("useExplorerCanvas", () => {
     expect(createCy).not.toHaveBeenCalled();
   });
 
+  // QA edge case: a legitimately empty workspace graph (zero rows, no CE
+  // error) must still reach "ready" and construct the canvas with an empty
+  // element set -- AC-2's empty-state is for a CE *error*, not a valid-but-
+  // empty graph, so these two zero-node paths must not be conflated.
+  it("reaches ready (not error) and constructs the canvas with zero elements for an empty graph", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => []);
+    const createCy = vi.fn(fakeCy);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    expect(result.current.errorMessage).toBeNull();
+    expect(createCy).toHaveBeenCalledWith(null, [], expect.anything());
+  });
+
   it("retry() re-attempts the load after a failure", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi

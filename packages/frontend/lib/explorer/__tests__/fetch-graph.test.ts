@@ -119,4 +119,18 @@ describe("fetchGraph -- timeout and isolation", () => {
 
     expect(elements).toEqual([]);
   });
+
+  // QA edge case: a *legitimately empty* graph (workspace has no rows yet)
+  // is a single successful 200 page, not an error -- distinct from AC-2's
+  // CE-error path. fetchGraph must resolve (not throw) so the caller renders
+  // the (empty) canvas, not the CE-error empty-state.
+  it("resolves to zero elements for a single-page graph with no rows, without throwing", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ rows: [], columns: [], has_more_pages: false, page: 0 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchGraph(10_000)).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
