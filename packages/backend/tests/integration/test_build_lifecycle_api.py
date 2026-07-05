@@ -7,6 +7,7 @@ end-to-end through the real ASGI app + mock-OIDC JWTs, and a FAIL
 
 from __future__ import annotations
 
+import json
 import shutil
 import uuid
 from collections.abc import AsyncIterator
@@ -109,4 +110,7 @@ async def test_agent_result_fail_persists_typed_result_via_audit(
             tenant_id,
         )
     assert row is not None
-    assert row["diff_summary"]["failure_class"] == "logic"
+    # diff_summary is JSONB stored via json.dumps and read raw (no jsonb codec on
+    # the pool -- the app readers in audit/listing.py + verify.py json.loads it too),
+    # so asyncpg hands it back as a str, not a dict. Parse before indexing.
+    assert json.loads(row["diff_summary"])["failure_class"] == "logic"
