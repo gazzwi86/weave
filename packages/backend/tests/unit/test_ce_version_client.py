@@ -11,6 +11,8 @@ import pytest
 
 from weave_backend.projects.ce_version_client import (
     CeVersionUnavailable,
+    close_ce_client,
+    get_ce_client,
     get_pinned_latest_version,
 )
 
@@ -64,6 +66,22 @@ async def test_get_pinned_latest_version_raises_on_non_2xx_status() -> None:
 
     with pytest.raises(CeVersionUnavailable):
         await get_pinned_latest_version(client)
+
+
+async def test_get_ce_client_yields_an_async_client_and_close_ce_client_closes_it() -> None:
+    """Exercises the loop-rebind-guard singleton directly (same pattern as
+    `auth/oidc_client.py`/`db/pool.py`) -- not covered elsewhere since the
+    integration tests override this dependency with a stub.
+    """
+    agen = get_ce_client()
+    client = await agen.__anext__()
+
+    assert isinstance(client, httpx.AsyncClient)
+
+    with pytest.raises(StopAsyncIteration):
+        await agen.__anext__()
+
+    await close_ce_client()
 
 
 async def test_get_pinned_latest_version_raises_when_no_entry_is_latest() -> None:

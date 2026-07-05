@@ -23,8 +23,8 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.dependencies import Principal
 from weave_backend.projects.ce_version_client import CeVersionUnavailable
-from weave_backend.projects.model import Project
-from weave_backend.routers.projects import create_project_route
+from weave_backend.projects.model import Project, ProjectExists
+from weave_backend.routers.projects import create_project_route, get_project_route
 from weave_backend.schemas.projects import CreateProjectRequest
 
 _PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
@@ -130,3 +130,71 @@ async def test_create_project_route_returns_pinned_version_on_success() -> None:
 
     assert result.project_iri == "urn:weave:project:t1:acme-corp"
     assert result.pinned_graph_version_iri == "urn:weave:version:v2"
+
+
+async def test_create_project_route_409_on_race_condition_from_create_project() -> None:
+    """The pre-check (`find_existing_project_iri`) passes, but a concurrent
+    request wins the INSERT first -- `create_project` raises `ProjectExists`,
+    which must still turn into the same 409 shape as the pre-check path.
+    """
+    body = CreateProjectRequest(name="Acme Corp")
+
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch(
+            "weave_backend.routers.projects.find_existing_project_iri",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "weave_backend.routers.projects.get_pinned_latest_version",
+            AsyncMock(return_value="urn:weave:version:v2"),
+        ),
+        patch(
+            "weave_backend.routers.projects.create_project",
+            AsyncMock(side_effect=ProjectExists("urn:weave:project:t1:acme-corp")),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await create_project_route(body, _PRINCIPAL, httpx.AsyncClient())
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail == {  # type: ignore[comparison-overlap]
+        "error": "project_exists",
+        "existing_iri": "urn:weave:project:t1:acme-corp",
+    }
+
+
+async def test_get_project_route_returns_project_when_found() -> None:
+    found = Project(
+        project_iri="urn:weave:project:t1:acme-corp",
+        name="Acme Corp",
+        pinned_graph_version_iri="urn:weave:version:v2",
+        created_at=datetime.now(UTC),
+    )
+
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch(
+            "weave_backend.routers.projects.get_project",
+            AsyncMock(return_value=found),
+        ),
+    ):
+        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+
+    assert result.project_iri == "urn:weave:project:t1:acme-corp"
+    assert result.name == "Acme Corp"
+
+
+async def test_get_project_route_raises_404_when_not_found() -> None:
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch(
+            "weave_backend.routers.projects.get_project",
+            AsyncMock(return_value=None),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await get_project_route("urn:weave:project:t1:missing", _PRINCIPAL)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == {"error": "not_found"}  # type: ignore[comparison-overlap]
