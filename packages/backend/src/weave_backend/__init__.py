@@ -26,6 +26,9 @@ from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
 from weave_backend.routers.sparql import router as sparql_router
+from weave_backend.routers.specs import router as specs_router
+from weave_backend.routers.tasks import router as tasks_router
+from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
 
 # AC-3 design decision: RBAC is dependency-by-default -- every route must
@@ -65,7 +68,14 @@ app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(briefs_router)
-app.add_exception_handler(RequestValidationError, projects_validation_error_handler)
+app.include_router(specs_router)
+app.include_router(tasks_router)
+# tasks_validation_error_handler chains to projects_validation_error_handler
+# (which falls back to FastAPI's default) for out-of-prefix paths, so a single
+# registration covers /api/tasks, /api/projects, and everything else. Only one
+# handler can be registered per exception class -- add_exception_handler
+# overwrites, it does not chain -- hence the in-handler delegation.
+app.add_exception_handler(RequestValidationError, tasks_validation_error_handler)
 
 assert_all_routes_guarded(app)
 
