@@ -14,6 +14,7 @@ function fakeCy() {
     json: vi.fn(),
     layout: vi.fn(() => ({ run: vi.fn() })),
     zoom: vi.fn(() => 1),
+    pan: vi.fn(() => ({ x: 0, y: 0 })),
     extent: vi.fn(() => ({ x1: 0, y1: 0, x2: 0, y2: 0 })),
     elements: vi.fn(() => ({ boundingBox: () => ({ x1: 0, y1: 0, x2: 0, y2: 0 }) })),
     on: vi.fn(),
@@ -38,7 +39,13 @@ describe("useExplorerCanvas", () => {
     await waitFor(() => expect(result.current.loadState).toBe("ready"));
 
     expect(createCy).toHaveBeenCalledTimes(1);
-    expect(createCy).toHaveBeenCalledWith(null, ELEMENTS, expect.anything());
+    // ADR-001: canvas creation routes through renderer-adapter, not a direct
+    // cytoscape constructor call -- elements load via adapter.load() (cy.json),
+    // not a 3rd createCy argument (QA FIX 2).
+    expect(createCy).toHaveBeenCalledWith(null, expect.anything());
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.json).toHaveBeenCalledWith({ elements: ELEMENTS });
+    expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose" }));
   });
 
   it("shows the CE error message and never constructs the canvas on failure (AC-2)", async () => {
@@ -74,7 +81,8 @@ describe("useExplorerCanvas", () => {
     await waitFor(() => expect(result.current.loadState).toBe("ready"));
 
     expect(result.current.errorMessage).toBeNull();
-    expect(createCy).toHaveBeenCalledWith(null, [], expect.anything());
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.json).toHaveBeenCalledWith({ elements: [] });
   });
 
   it("retry() re-attempts the load after a failure", async () => {
