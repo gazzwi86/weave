@@ -68,6 +68,11 @@ test("renders labelled nodes on the force canvas for an authenticated viewer on 
   await expect(page.getByTestId("explorer-canvas")).toBeVisible();
   await expect(page.getByTestId("explorer-minimap")).toBeVisible();
 
+  // Canvas element mounts before the fetch settles -- wait for the
+  // dev-only introspection hook (set once, after load finishes) rather
+  // than racing it.
+  await page.waitForFunction(() => window.__explorerElements !== undefined, undefined, { timeout: 15_000 });
+
   const elements = await page.evaluate(() => window.__explorerElements);
   expect(elements?.some((el) => el.data.label === "Customer Onboarding" && el.data.bpmo_kind === "Process")).toBe(
     true,

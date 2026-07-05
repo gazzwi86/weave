@@ -165,6 +165,12 @@ test.describe("canvas bounded visible-node set (AC-8)", () => {
     await loginAndGoToExplorer(page);
     await expect(page.getByTestId("explorer-canvas")).toBeVisible();
 
+    // Canvas element mounts before the paginated fetch settles -- wait for
+    // the dev-only introspection hook (set once, after the full bounded
+    // fetch loop finishes) rather than racing it, same pattern as
+    // __explorerRenderDurationMs above.
+    await page.waitForFunction(() => window.__explorerElements !== undefined, undefined, { timeout: 15_000 });
+
     const nodeCount = await page.evaluate(() => {
       const elements = window.__explorerElements ?? [];
       return new Set(elements.filter((el) => el.data.source === undefined).map((el) => el.data.id)).size;

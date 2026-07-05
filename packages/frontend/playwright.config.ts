@@ -16,7 +16,9 @@ const FRONTEND_ENV = {
   // Fresh login per e2e test (~5 /api/auth requests each) shares one
   // in-memory rate-limit budget (lib/rate-limit.ts) -- raise the ceiling
   // for this harness-launched server only, prod default is unaffected.
-  AUTH_RATE_LIMIT_MAX: "100",
+  // 31 tests x ~5 requests ~= 155 within a ~90s run outgrew 100/60s
+  // (observed flake); 300 gives headroom for suite growth.
+  AUTH_RATE_LIMIT_MAX: "300",
 };
 
 export default defineConfig({
