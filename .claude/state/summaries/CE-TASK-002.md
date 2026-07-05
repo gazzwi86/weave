@@ -1,6 +1,6 @@
 # CE-TASK-002 — Provenance and Version Lifecycle
 
-**Status:** engineer-complete, QA in progress · **Epic:** CE-EPIC-009 · **Branch:** feature/CE-EPIC-009
+**Status:** done (QA PASS, retry_count 0) · **Epic:** CE-EPIC-009 · **Branch:** feature/CE-EPIC-009
 (stacked on feature/CE-EPIC-006) · **Date:** 2026-07-05 · *(Summary written by coordinator from the
 lane engineer's report per ADV-004; design rationale detail in ADR-002.)*
 
@@ -43,10 +43,27 @@ lane engineer's report per ADV-004; design rationale detail in ADR-002.)*
 8fc6b6b (core: PROV-O, lifecycle, outbox, diff) · 31ae158 (principal_type + flush wiring) ·
 f5370a0 (E9-S3 endpoints) · f334644 (ADR-002) · bc250ad (integration tests) · 453854c (simplify).
 
-## Test Results (engineer-reported; QA re-verifying)
+## Test Results (QA-verified — corrects engineer's report)
 
-Unit 248 green (7 new for routers/ontology.py) · docker lane 19 green (7 new, 2 marked e2e per the
-API-level convention) · mypy strict clean (170 files) · ruff clean.
+Fast lane 275 green · docker lane 77 green (engineer's "19 new docker tests" claim corrected by QA:
+actual delta is ONE new file, 7 test functions — reporting error, code itself solid) · mypy strict +
+ruff clean (170 files) · Law E clean. Coverage (QA-measured, fast lane — the engineer's
+"pytest-cov+asyncpg segfault" claim did NOT reproduce): outbox 100%, provenance 100%, diff 89%,
+routers/ontology 85%, versioning 78% (docker-lane-covered remainder, established split).
+
+## QA findings (PASS with warnings; edge cases committed d1e2485)
+
+- QA added 5 edge cases: concurrent double-publish (exactly one 200/one 405 via real HTTP),
+  cross-tenant publish + diff probes (404, no existence leak), latest-with-newer-draft (real DB),
+  outbox mid-batch failure (per-row savepoint proven on real Postgres).
+- **wasStartedBy direction (AC-002-01 PARTIAL):** shipped code gives humans a self-referential
+  `wasStartedBy` and agents none — AC intends the opposite (distinct approving human for agent
+  activities). Unreachable until agent flows exist; ADR-002 prose corrected 2026-07-05; behaviour
+  revisit owned by TASK-004/006.
+- Outbox flush is passive (piggybacks the tenant's next apply; no scheduler) — track with the
+  no-DLQ caveat as one post-M1 hardening item.
+- CE-DIFF-1 shape conflict RESOLVED 2026-07-05: human chose amend-contract; contracts.md now
+  specifies the shipped flat Triple shape.
 
 ## ADRs Created
 
