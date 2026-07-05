@@ -160,4 +160,28 @@ test.describe("CE authoring surfaces", () => {
     await expect(page.getByLabel(/owner/i)).toHaveAttribute("aria-invalid", "true");
     expect(applyCalled).toBe(false);
   });
+
+  // DoD: "SHACL-driven form tested with all BPMO kinds". GuidedForm has zero
+  // per-kind branching (every field comes from `shape.properties`), so this
+  // hits the real, unmocked CE-READ-1 catalogue and opens the form for every
+  // live kind -- proving the projection never crashes, for any kind, without
+  // hand-listing all 13/14 in the test.
+  test("opens the guided form for every live BPMO kind without error", async ({ page }) => {
+    await loginAndGoToCe(page);
+    const kindLabels = await page
+      .getByRole("combobox", { name: /add entity/i })
+      .locator("option")
+      .allTextContents();
+    const realKinds = kindLabels.filter((label) => label !== "Select a kind…");
+    expect(realKinds.length).toBeGreaterThan(0);
+
+    // GuidedForm unmounts the selector while open (only "Close", after a
+    // successful submit, brings it back) -- a fresh page load per kind is
+    // simpler than adding a cancel-without-submitting path for this test.
+    for (const label of realKinds) {
+      await page.goto("/ce");
+      await page.getByRole("combobox", { name: /add entity/i }).selectOption({ label });
+      await expect(page.getByLabel(/^label/i)).toBeVisible();
+    }
+  });
 });

@@ -14,9 +14,18 @@ interface ApplyResponseBody {
 }
 
 const LABEL_FIELD = "label";
+// Some BPMO kinds' SHACL shapes declare their own rdfs-label property
+// (`authoring/imports.py`'s `_WEAVE_LABEL`). The form already has a fixed
+// Label field wired to `add_node`'s own `label`, so this predicate is
+// excluded from the shape-derived fields to avoid rendering it twice.
+const LABEL_PREDICATE_IRI = "https://weave.io/ontology/label";
 
 function isRequired(property: PropertyShape): boolean {
   return property.min_count !== null && property.min_count >= 1;
+}
+
+function extraFields(shape: KindEntry): PropertyShape[] {
+  return shape.properties.filter((property) => property.path !== LABEL_PREDICATE_IRI);
 }
 
 /** AC-006-08: every `sh:minCount 1` field left empty blocks submit and
@@ -25,7 +34,7 @@ function isRequired(property: PropertyShape): boolean {
 function validateFields(shape: KindEntry, values: Record<string, string>): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!values[LABEL_FIELD]?.trim()) errors[LABEL_FIELD] = "Label is required (min count 1)";
-  for (const property of shape.properties) {
+  for (const property of extraFields(shape)) {
     if (isRequired(property) && !values[property.path]?.trim()) {
       errors[property.path] = `${property.name} is required (min count 1)`;
     }
@@ -35,7 +44,7 @@ function validateFields(shape: KindEntry, values: Record<string, string>): Recor
 
 function buildOperation(kindIri: string, shape: KindEntry, values: Record<string, string>): Op {
   const properties: Record<string, unknown> = {};
-  for (const property of shape.properties) {
+  for (const property of extraFields(shape)) {
     if (values[property.path]) properties[property.path] = values[property.path];
   }
   return { op: "add_node", ref: "form1", kind: kindIri, label: values[LABEL_FIELD] ?? "", properties };
@@ -156,7 +165,7 @@ export function GuidedForm({ kindIri, onClose }: { kindIri: string; onClose: () 
         error={errors[LABEL_FIELD]}
         onChange={(value) => setField(LABEL_FIELD, value)}
       />
-      {shape.properties.map((property) => (
+      {extraFields(shape).map((property) => (
         <FormField
           key={property.path}
           id={`ce-form-${property.path}`}
