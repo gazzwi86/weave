@@ -14,3 +14,6 @@
 | 8 | architecture.md + testing-strategy.md missing (CRITICAL) | Both produced 2026-07-02 (dark-factory C4, 5 agent principals, model routing; delta-scoped mutation, pinned CE stubs, testcontainers-postgres) |
 
 Gates: Brief/PRD/Roadmap/timing/dependency-graph all PASS (EARS was already clean; DAG acyclic, TASK-006's 5 blockers all M1).
+
+**2026-07-05 mtime-check:** specs touched after this review only by 99d623a (harness dedupe) —
+reference-only lines (arch-skill renames). No semantic change; verdict stands. Marker refreshed.
