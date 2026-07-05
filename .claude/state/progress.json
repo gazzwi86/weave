@@ -46,7 +46,7 @@
     {
       "id": "CE-EPIC-006",
       "title": "CE-EPIC-006",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-EPIC-009",
@@ -228,9 +228,10 @@
       "engine": "constitution-engine",
       "epic": "CE-EPIC-006",
       "title": "SHACL Validation Pipeline",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-001.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-001.md",
+      "retry_count": 1
     },
     {
       "id": "CE-TASK-002",

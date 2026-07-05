@@ -84,6 +84,10 @@ per-task reports.
   grows.
 - **Deadline:** Validate `mutation-strict` on the next main-push; raise the floor as unit-killable
   coverage improves.
+- **VALIDATED (2026-07-05):** platform stack merged to main (PRs #17/#18/#19); `mutation-strict`
+  ran blocking on the merge push (run 28725517537) and scored **77.3% vs the 70% threshold — PASS**.
+  The deterministic tier works end-to-end. Remaining action: revisit the per-PR floor (60) upward
+  as the unit-killable pool grows — otherwise this issue can close.
 
 ## PROJ-006: Second consecutive feature's Playwright E2E fully mocks the network (Law B gap)
 
@@ -110,3 +114,22 @@ per-task reports.
 - **Deadline:** Before the phase-1 gate's security review + mutation-testing pass (this task's own
   team-lead brief flagged the same gate as imminent) — do not let a third feature ship with this gap
   before the template exists.
+
+## PROJ-007: Manual per-route audit emission — no structural guard (3rd occurrence)
+
+- **Title:** Escalated per the Law #11 aggregation rule — the same recommendation ("audit emission
+  is a manual per-call-site convention; add a structural guard or accept the risk explicitly") has
+  now surfaced in THREE contexts: PLAT-EPIC-003 PR review (settings route omission — happened),
+  PLAT-TASK-009 QA (kept manual during the emitter hardening, risk explicitly deferred "do not
+  defer this again without a decision"), and CE-TASK-001 QA (CE-WRITE-1, the platform's most
+  consequential mutation surface, shipped with zero audit emission — the predicted "6th mutation
+  route" failure mode, materialized).
+- **Root cause:** emission is a per-route convention with no enforcement seam. Every new mutation
+  route starts audit-silent by default and stays that way unless the engineer remembers.
+- **Severity:** Project · **Raised in:** PLAT-EPIC-003 review, PLAT-TASK-009 QA, CE-TASK-001 QA.
+- **Owner:** Architect — decide between (a) a startup-time structural check in the pattern of
+  `rbac.assert_all_routes_guarded` verifying every state-mutating route emits, (b) middleware/
+  dependency-injected emission, or (c) an explicit tech-spec acceptance of the manual-call-site
+  risk. The immediate CE-TASK-001 instance is being fixed in the task retry; this issue is about
+  the structural guard so a 7th route can't repeat it.
+- **Deadline:** Before CE-TASK-003 (next contract-surface task) starts.
