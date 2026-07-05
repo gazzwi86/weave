@@ -238,7 +238,7 @@
       "engine": "constitution-engine",
       "epic": "CE-EPIC-009",
       "title": "Provenance and Version Lifecycle",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-TASK-001"
       ],
@@ -322,7 +322,7 @@
       "engine": "graph-explorer",
       "epic": "GE-EPIC-001",
       "title": "SPIKE: Cytoscape 10k-node Benchmark + Aurora Layout Schema Design",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-001.md"
     },
@@ -377,7 +377,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-002",
       "title": "M1 Project Bootstrap Stub",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-001.md"
     },
