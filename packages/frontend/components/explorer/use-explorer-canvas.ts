@@ -11,7 +11,7 @@ import { fetchGraph as defaultFetchGraph, fetchPalette as defaultFetchPalette } 
 import { registerKeyBindings } from "@/lib/explorer/key-bindings";
 import { computeViewportIndicator, type ViewportIndicator } from "@/lib/explorer/minimap-geometry";
 import { rafThrottle } from "@/lib/explorer/raf-throttle";
-import { createRendererAdapter } from "@/lib/explorer/renderer-adapter";
+import { createRendererAdapter, type AdaptableCy, type RendererAdapter } from "@/lib/explorer/renderer-adapter";
 import { applySemanticZoom } from "@/lib/explorer/semantic-zoom";
 import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
 
@@ -71,6 +71,9 @@ export interface ExplorerCanvasState {
   minimapIndicator: ViewportIndicator | null;
   containerRef: RefObject<HTMLDivElement | null>;
   retry: () => void;
+  /** TASK-003: the ADR-001 renderer-adapter seam for the tapped node/search
+   * overlay to drive spotlight/highlight -- null until the canvas is ready. */
+  adapter: RendererAdapter | null;
 }
 
 function errorMessageFor(err: unknown): string {
@@ -140,6 +143,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [minimapIndicator, setMinimapIndicator] = useState<ViewportIndicator | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [adapter, setAdapter] = useState<RendererAdapter | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,13 +159,17 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
         const cy = createCy(containerRef.current, buildStylesheet(palette));
         // ADR-001: element loading and layout run through the renderer
         // adapter, not direct cytoscape calls, so a future WebGL swap only
-        // touches the adapter's implementation, never this call site.
-        const adapter = createRendererAdapter(cy);
-        adapter.load(elements);
-        adapter.setLayout("fcose", config.fcoseParams);
+        // touches the adapter's implementation, never this call site. The
+        // cast bridges CyLike (this file's narrow, test-double-friendly
+        // subset) to AdaptableCy (the fuller seam TASK-003 needs) -- both
+        // describe the same real cytoscape.Core instance at runtime.
+        const canvasAdapter = createRendererAdapter(cy as unknown as AdaptableCy);
+        canvasAdapter.load(elements);
+        canvasAdapter.setLayout("fcose", config.fcoseParams);
         unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
         cyRef.current = cy;
         exposeDevIntrospection(cy, elements, loadStartedAt);
+        setAdapter(canvasAdapter);
         setLoadState("ready");
       } catch (err) {
         if (cancelled) return;
@@ -176,11 +184,12 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       unregisterRef.current?.();
       cyRef.current?.destroy();
       cyRef.current = null;
+      setAdapter(null);
       clearDevIntrospection();
     };
   }, [config, fetchPalette, fetchGraph, createCy, retryToken]);
 
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 
-  return { loadState, errorMessage, minimapIndicator, containerRef, retry };
+  return { loadState, errorMessage, minimapIndicator, containerRef, retry, adapter };
 }

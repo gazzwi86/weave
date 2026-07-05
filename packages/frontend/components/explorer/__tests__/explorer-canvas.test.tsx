@@ -16,12 +16,42 @@ describe("ExplorerCanvas", () => {
       minimapIndicator: { left: 1, top: 2, width: 3, height: 4 },
       containerRef: { current: null },
       retry: vi.fn(),
+      adapter: null,
     });
 
     render(<ExplorerCanvas />);
 
     expect(screen.getByTestId("explorer-canvas")).toBeInTheDocument();
     expect(screen.getByTestId("explorer-minimap")).toBeInTheDocument();
+  });
+
+  // TASK-003 (AC-5): the search trigger only mounts once the renderer
+  // adapter exists -- there's nothing to search/spotlight before then.
+  it("renders the search trigger once the renderer adapter is ready", () => {
+    mockedUseExplorerCanvas.mockReturnValue({
+      loadState: "ready",
+      errorMessage: null,
+      minimapIndicator: null,
+      containerRef: { current: null },
+      retry: vi.fn(),
+      adapter: {
+        load: vi.fn(),
+        getViewport: vi.fn(),
+        setLayout: vi.fn(),
+        spotlightNode: vi.fn(),
+        resetOpacity: vi.fn(),
+        highlightNodes: vi.fn(),
+        onNodeTap: vi.fn(() => vi.fn()),
+        onBackgroundTap: vi.fn(() => vi.fn()),
+        getNodeData: vi.fn(),
+        listNodes: vi.fn(() => []),
+        centerOn: vi.fn(),
+      },
+    });
+
+    render(<ExplorerCanvas />);
+
+    expect(screen.getByTestId("explorer-search-button")).toBeInTheDocument();
   });
 
   it("renders the empty-state with retry wired to the hook on CE error, no canvas mounted (AC-2)", () => {
@@ -32,6 +62,7 @@ describe("ExplorerCanvas", () => {
       minimapIndicator: null,
       containerRef: { current: null },
       retry,
+      adapter: null,
     });
 
     render(<ExplorerCanvas />);
