@@ -30,6 +30,7 @@ from weave_backend.schemas.authoring import (
     ImportRequest,
     ImportResult,
     NlAuthoringRequest,
+    NlPreviewResponse,
     RestrictionRequest,
 )
 from weave_backend.schemas.operations import (
@@ -77,12 +78,26 @@ async def _dispatch(principal: Principal, operations: list[Op]) -> ApplyResponse
     return outcome
 
 
-@router.post("/nl", response_model=ApplyResponse, status_code=201)
+@router.post(
+    # CE-TASK-006: `preview` branch returns a `NlPreviewResponse`, not an
+    # `ApplyResponse` -- a mixed union isn't a single valid Pydantic
+    # response field, so (mirroring `routers/instances.py`'s delete route)
+    # this route documents its own responses instead of declaring one.
+    "/nl",
+    response_model=None,
+    status_code=201,
+)
 async def nl_authoring_route(
     body: NlAuthoringRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> ApplyResponse | JSONResponse:
-    """AC-004-01/-02: NL intent -> validated CE-WRITE-1 operations."""
+    """AC-004-01/-02: NL intent -> validated CE-WRITE-1 operations.
+
+    CE-TASK-006 AC-006-02/-03: `body.preview=True` returns the parsed
+    operation batch (200) for modeller confirmation instead of dispatching
+    -- the chat panel's "propose, then confirm" flow. Default behaviour
+    (commit immediately) is unchanged.
+    """
     try:
         request = parse_operations(
             body.text,
@@ -93,6 +108,12 @@ async def nl_authoring_route(
         raise HTTPException(
             status_code=422, detail={"error": "nl_parse_failed", "message": str(exc)}
         ) from exc
+
+    if body.preview:
+        return JSONResponse(
+            status_code=200,
+            content=NlPreviewResponse(operations=request.operations).model_dump(),
+        )
 
     return await _dispatch(principal, request.operations)
 
