@@ -141,6 +141,34 @@ async def test_add_instance_returns_committed_iri(client: AsyncClient) -> None:
         await clear_graph(workspace.named_graph_iri)
 
 
+async def test_add_instance_audit_is_delivered_immediately_not_left_pending(
+    client: AsyncClient,
+) -> None:
+    """Code-review fix: `_dispatch` used to flush the outbox while the
+    write's own transaction was still open on the same connection -- the
+    flush would run, see no committed row yet, and silently do nothing,
+    leaving the audit event pending until some later, unrelated flush.
+    `_dispatch` now closes its own write transaction before flushing, so a
+    successful instance write's audit row is `delivered_at IS NOT NULL`
+    immediately, mirroring `routers.authoring._dispatch`'s ordering.
+    """
+    tenant_id, workspace, headers = await _authored_workspace(client, "add-audit")
+    try:
+        response = await client.post(
+            "/api/instances", json={"kind": "Actor", "label": "Audit Check"}, headers=headers
+        )
+        assert response.status_code == 201
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT delivered_at FROM audit_outbox WHERE tenant_id = $1", tenant_id
+            )
+        assert len(rows) == 1
+        assert rows[0]["delivered_at"] is not None
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
 async def test_add_instance_rejects_a_kind_outside_bpmo_before_dispatch(
     client: AsyncClient,
 ) -> None:
