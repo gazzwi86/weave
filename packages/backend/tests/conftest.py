@@ -77,11 +77,12 @@ def _core_services_healthy(repo_root: Path) -> bool:
 
 
 def _oxigraph_reachable() -> bool:
+    port = os.environ.get("WEAVE_OXIGRAPH_PORT", "7878")
     result = subprocess.run(
         [
             "curl",
             "-sf",
-            "http://localhost:7878/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
+            f"http://localhost:{port}/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
         ],
         capture_output=True,
         text=True,

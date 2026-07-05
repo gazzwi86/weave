@@ -11,6 +11,7 @@ flake to chase.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -64,13 +65,14 @@ def _all_healthy(repo_root: Path) -> bool:
 
 
 def _oxigraph_seeded() -> bool:
+    port = os.environ.get("WEAVE_OXIGRAPH_PORT", "7878")
     result = subprocess.run(
         [
             "curl",
             "-sf",
             "-H",
             "Accept: application/sparql-results+json",
-            "http://localhost:7878/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
+            f"http://localhost:{port}/query?query=" + "ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D",
         ],
         capture_output=True,
         text=True,
@@ -133,8 +135,9 @@ def test_local_stack_boots(running_stack: Path) -> None:
     assert _oxigraph_seeded(), "expected at least one triple loaded in oxigraph"
 
     # Zero live AWS: localstack is the only thing answering AWS-shaped endpoints.
+    localstack_port = os.environ.get("WEAVE_LOCALSTACK_PORT", "4566")
     localstack_check = subprocess.run(
-        ["curl", "-sf", "http://localhost:4566/_localstack/health"],
+        ["curl", "-sf", f"http://localhost:{localstack_port}/_localstack/health"],
         capture_output=True,
         text=True,
         timeout=15,

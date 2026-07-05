@@ -26,7 +26,8 @@ _cached_key: Ed25519PrivateKey | None = None  # gitleaks:allow -- type name, not
 
 
 def _secrets_client() -> SecretsClient:
-    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", "http://localhost:4566")
+    default_endpoint = f"http://localhost:{os.environ.get('WEAVE_LOCALSTACK_PORT', '4566')}"
+    endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT_URL", default_endpoint)
     return boto3.client(
         "secretsmanager",
         endpoint_url=endpoint_url,

@@ -18,7 +18,8 @@ _client_loop: asyncio.AbstractEventLoop | None = None
 
 
 def oxigraph_url() -> str:
-    return os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
+    default_url = f"http://localhost:{os.environ.get('WEAVE_OXIGRAPH_PORT', '7878')}"
+    return os.environ.get("OXIGRAPH_URL", default_url)
 
 
 def _get_client() -> httpx.AsyncClient:
