@@ -87,6 +87,10 @@ test.describe("CE authoring surfaces", () => {
     expect(captured.applyBody?.operations).toEqual([
       { op: "add_node", ref: "p1", kind: PROCESS_KIND.iri, label: "Customer Onboarding" },
     ]);
+
+    // AC-006-05/DoD: chat history survives a real page reload (localStorage).
+    await page.reload();
+    await expect(page.getByRole("link", { name: /urn:weave:process:1/ })).toBeVisible();
   });
 
   // AC-006-04: "undo" proposes the inverse batch; confirming it removes the entity.
