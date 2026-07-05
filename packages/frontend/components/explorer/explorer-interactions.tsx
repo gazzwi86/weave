@@ -1,8 +1,11 @@
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
+import { Button } from "../ui/button";
+import { Toast } from "../ui/toast";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
+import { useLayoutPersistence } from "./use-layout-persistence";
 import { useNodeSpotlight } from "./use-node-spotlight";
 import { useSearchOverlay } from "./use-search-overlay";
 
@@ -17,9 +20,10 @@ export interface ExplorerInteractionsProps {
  * overlay onto the ADR-001 renderer-adapter seam. A search-result click
  * hands off to the same node-spotlight flow as a direct canvas click.
  * TASK-004: also wires drag-persist-with-retry-toast + reset-layout. */
-export function ExplorerInteractions({ adapter, config }: ExplorerInteractionsProps) {
+export function ExplorerInteractions({ adapter, config, graphId }: ExplorerInteractionsProps) {
   const { panel, openNode, close, retry } = useNodeSpotlight({ adapter, config });
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });
+  const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({ adapter, config, graphId });
 
   return (
     <>
@@ -32,6 +36,13 @@ export function ExplorerInteractions({ adapter, config }: ExplorerInteractionsPr
       >
         Search…
       </button>
+      <Button
+        variant="secondary"
+        onClick={resetLayout}
+        className="absolute right-[var(--space-4)] top-[var(--space-4)] z-[var(--z-panel)]"
+      >
+        Reset layout
+      </Button>
       <SidePanel state={panel} onClose={close} onRetry={retry} />
       <SearchOverlay
         open={search.open}
@@ -42,6 +53,9 @@ export function ExplorerInteractions({ adapter, config }: ExplorerInteractionsPr
         onSelect={search.selectResult}
         onClose={search.closeOverlay}
       />
+      {saveFailed && (
+        <Toast message="Couldn't save layout position. Retrying stopped." onDismiss={dismissSaveFailure} />
+      )}
     </>
   );
 }
