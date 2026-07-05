@@ -9,6 +9,10 @@ export interface ExplorerConfig {
   nodeLabelThreshold: number;
   /** AC-6: zoom below this hides edge labels. */
   edgeLabelThreshold: number;
+  /** AC-1: opacity applied to non-neighbourhood elements when spotlighting. */
+  spotlightDimOpacity: number;
+  /** AC-6: duration of the centre-on-select animation, ms. */
+  centreAnimationMs: number;
   fcoseParams: typeof FCOSE_PARAMS;
 }
 
@@ -16,5 +20,7 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   ceTimeoutMs: 10_000,
   nodeLabelThreshold: 0.3,
   edgeLabelThreshold: 0.55,
+  spotlightDimOpacity: 0.18,
+  centreAnimationMs: 300,
   fcoseParams: FCOSE_PARAMS,
 });
