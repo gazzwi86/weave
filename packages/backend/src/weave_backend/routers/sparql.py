@@ -17,11 +17,13 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import diff, versioning
 from weave_backend.rbac import enforce_workspace_role
 from weave_backend.rdf.oxigraph_client import run_query
+from weave_backend.rdf.patterns import NAMED_PATTERNS, ZERO_ROW_MESSAGES
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
     UnscopedQueryError,
     validate_query,
 )
+from weave_backend.rdf.results import bindings_to_rows
 from weave_backend.schemas.sparql import SparqlQueryRequest
 from weave_backend.tenancy.sessions import get_active_workspace
 from weave_backend.tenancy.workspaces import get_workspace
@@ -136,6 +138,37 @@ def _paginate_bindings(
     return page_bindings, has_next
 
 
+def _resolve_pattern_query(pattern: str) -> str:
+    """AC-007-12: `pattern=` names a stored SELECT (`rdf/patterns.py`) --
+    never arbitrary text -- so an unrecognised name is a 400, not a KeyError.
+    """
+    try:
+        return NAMED_PATTERNS[pattern]
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail={"error": "unknown_pattern"}) from exc
+
+
+async def _pattern_response(
+    principal: Principal, *, pattern: str, workspace_id: str | None, version: str
+) -> dict[str, Any]:
+    """AC-007-10/-12/-13: stored patterns still pass through
+    `validate_query` (the one choke point, ADR-005 #2) and the same
+    version-pinned graph resolution as `query=` -- only the response shape
+    differs (`{rows, column_names, message?}, ADR-005 #3), matching what
+    the NL query endpoint (`routers/query.py`) also returns.
+    """
+    query_text = _resolve_pattern_query(pattern)
+    validate_query(query_text)
+    graph_iri = await _resolve_query_graph(principal, workspace_id=workspace_id, version=version)
+    results = await run_query(query_text, graph_iri)
+    column_names = results.get("head", {}).get("vars", [])
+    rows = bindings_to_rows(results.get("results", {}).get("bindings", []), column_names)
+    body: dict[str, Any] = {"rows": rows, "column_names": column_names}
+    if not rows:
+        body["message"] = ZERO_ROW_MESSAGES.get(pattern, "No results found")
+    return body
+
+
 async def _since_version_response(
     principal: Principal, *, workspace_id: str | None, version: str, since_version: str
 ) -> dict[str, Any]:
@@ -204,11 +237,18 @@ async def sparql_select_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
     response: Response,
     params: Annotated[SparqlQueryParams, Depends(_sparql_query_params)],
+    pattern: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
     """CE-READ-1: AC-003-04 (paginated SELECT-only reads), AC-003-09 (404 on
     an unknown version), AC-003-10 (`Link: rel="next"` past 1000 rows),
-    AC-003-15 (`since_version` polling fallback returns a diff instead).
+    AC-003-15 (`since_version` polling fallback returns a diff instead),
+    AC-007-12 (`pattern=` runs a named stored query instead of `query=`).
     """
+    if pattern is not None:
+        return await _pattern_response(
+            principal, pattern=pattern, workspace_id=params.workspace_id, version=params.version
+        )
+
     if params.since_version is not None:
         return await _since_version_response(
             principal,
