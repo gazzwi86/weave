@@ -6,6 +6,7 @@ file is picked up automatically without this module changing.
 
 from __future__ import annotations
 
+from weave_backend.authoring.bpmo import BPMO_KINDS
 from weave_backend.ontology import catalogue
 
 _WEAVE = "https://weave.io/ontology/"
@@ -18,6 +19,17 @@ def test_list_kinds_returns_one_entry_per_shacl_node_shape() -> None:
     # CE-TASK-001 ships exactly these 3 BPMO kinds (framework.shacl.ttl);
     # TASK-004 adds the rest without this test needing to change shape.
     assert {f"{_WEAVE}Process", f"{_WEAVE}Activity", f"{_WEAVE}Goal"} <= kind_iris
+
+
+def test_list_kinds_covers_every_bpmo_kind() -> None:
+    """AC-004-05: CE-READ-1's guided-form options must cover all 13 BPMO
+    kinds, not just the 3 CE-TASK-001 shipped -- every kind in
+    `authoring/bpmo.py::BPMO_KINDS` (the taxonomy's one source of truth)
+    needs a `sh:NodeShape`/`sh:targetClass` in framework.shacl.ttl.
+    """
+    kind_local_names = {k.label for k in catalogue.list_kinds()}
+
+    assert kind_local_names == set(BPMO_KINDS)
 
 
 def test_list_kinds_labels_use_the_local_name() -> None:
