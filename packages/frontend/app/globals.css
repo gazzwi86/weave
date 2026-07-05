@@ -112,6 +112,7 @@
   --z-panel: 200;
   --z-overlay: 300;
   --z-command: 500;
+  --z-toast: 600;
 
   /* focus ring — always-on accessibility primitive, exempt from reduced-motion */
   --ring-focus: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent-primary);
