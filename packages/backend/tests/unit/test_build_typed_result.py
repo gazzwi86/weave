@@ -136,3 +136,34 @@ async def test_result_for_unknown_task_raises_not_found() -> None:
 def test_fail_result_requires_failure_class() -> None:
     with pytest.raises(ValueError, match="failure_class"):
         TypedResult(status="FAIL", retry_recommended=True)
+
+
+@pytest.mark.parametrize("failure_class", ["logic", "syntax", "dependency", "spec_ambiguity"])
+async def test_fail_result_classifies_first_submission_as_retry_for_every_class(
+    failure_class: FailureClass,
+) -> None:
+    """Edge case: every `TypedResult.failure_class` literal (not just the two
+    the happy-path tests happen to use) must classify and increment its own
+    counter -- a first FAIL is always under-ceiling (every default ceiling
+    is >= 1), so the action is always "retry", never "hitl_gate".
+    """
+    store.create_task("t1", f"task-{failure_class}")
+    fire_hitl_gate_fn = AsyncMock()
+
+    outcome = await handle_agent_result(
+        None,
+        AgentResultContext(
+            tenant_id="t1",
+            actor_iri="a1",
+            task_id=f"task-{failure_class}",
+            result=_fail_result(failure_class),
+        ),
+        audit_emitter=_FakeAuditEmitter(),
+        fire_hitl_gate_fn=fire_hitl_gate_fn,
+    )
+
+    assert outcome == {"action": "retry", "retry_count": 1}
+    task = store.get_task("t1", f"task-{failure_class}")
+    assert task is not None
+    assert task.retry_counts == {failure_class: 1}
+    fire_hitl_gate_fn.assert_not_called()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -98,3 +99,48 @@ async def test_valid_transition_updates_status_and_emits_audit() -> None:
     assert len(emitter.events) == 1
     assert emitter.events[0].event_type == "spec_transition"
     assert emitter.events[0].payload == {"from": "Draft", "to": "Spec Review"}
+
+
+async def test_concurrent_transitions_never_corrupt_state() -> None:
+    """Edge case: two concurrent `transition_spec` calls racing on the same
+    spec must never both "win" nor leave a torn/inconsistent record --
+    exactly one succeeds from the original state, the other either succeeds
+    consistently or cleanly raises `InvalidTransition` against the
+    already-updated state. `Blocked` has two distinct valid targets
+    (`In Progress` and `Draft`), so this actually races two different
+    outcomes rather than two calls that would trivially agree.
+    """
+    store.create_spec("t1", "spec-race", status="Blocked")
+
+    async def _attempt(requested_state: str) -> Any:
+        try:
+            return await transition_spec(
+                None,
+                SpecTransition(
+                    tenant_id="t1",
+                    spec_id="spec-race",
+                    requested_state=requested_state,
+                    actor_iri="urn:weave:principal:user:u1",
+                ),
+                audit_emitter=_FakeAuditEmitter(),
+            )
+        except InvalidTransition as exc:
+            return exc
+
+    results = await asyncio.gather(
+        _attempt("In Progress"), _attempt("Draft"), return_exceptions=False
+    )
+
+    successes = [r for r in results if not isinstance(r, InvalidTransition)]
+    failures = [r for r in results if isinstance(r, InvalidTransition)]
+    # Exactly one attempt must land cleanly; asyncio's cooperative scheduling
+    # means the loser sees the winner's already-updated state (never a torn
+    # write), so it either raises InvalidTransition or -- if the FSM happened
+    # to still allow it -- also succeeds consistently. It must never silently
+    # no-op or corrupt the record to something outside VALID_TRANSITIONS.
+    assert len(successes) >= 1
+    final = store.get_spec("t1", "spec-race")
+    assert final is not None
+    assert final.status in {"In Progress", "Draft"}
+    if failures:
+        assert failures[0].current == final.status

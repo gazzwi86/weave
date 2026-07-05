@@ -6,7 +6,7 @@ build-engine EPIC-006).
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -16,9 +16,11 @@ from weave_backend.build.hitl import (
     HitlGateContext,
     HitlResponseContext,
     SelfApprovalNotPermitted,
+    default_audit_health_check,
     fire_hitl_gate,
     handle_hitl_response,
 )
+from weave_backend.build.store import TaskNotFound
 
 
 class _FakeAuditEmitter:
@@ -171,3 +173,92 @@ async def test_hitl_amend_transitions_task_to_draft() -> None:
     task = store.get_task("t1", "task-4")
     assert task is not None
     assert task.status == "Draft"
+
+
+async def test_hitl_response_for_unknown_task_raises_not_found() -> None:
+    """Edge case: `handle_hitl_response` itself (not just the router's mocked
+    side_effect in test_tasks_router.py) must reject an unknown task_id.
+    """
+    resolve_principal = AsyncMock(return_value=_FakePrincipal("urn:weave:principal:user:u1"))
+
+    with pytest.raises(TaskNotFound):
+        await handle_hitl_response(
+            None,
+            HitlResponseContext(
+                tenant_id="t1",
+                task_id="does-not-exist",
+                approving_principal_iri="urn:weave:principal:user:u1",
+                action="approve",
+            ),
+            resolve_principal=resolve_principal,
+        )
+
+
+async def test_hitl_halted_task_can_still_be_replanned() -> None:
+    """Edge case: reject (halted) does not brick the task -- a later amend
+    (replan) on the same task must still succeed, proving `halted` is not a
+    dead end the human is stuck in.
+    """
+    store.create_task("t1", "task-5")
+    store.set_last_agent_principal("t1", "task-5", "urn:weave:principal:agent:a1")
+    resolve_principal = AsyncMock(return_value=_FakePrincipal("urn:weave:principal:user:u1"))
+
+    halted = await handle_hitl_response(
+        None,
+        HitlResponseContext(
+            tenant_id="t1",
+            task_id="task-5",
+            approving_principal_iri="urn:weave:principal:user:u1",
+            action="reject",
+        ),
+        resolve_principal=resolve_principal,
+        audit_emitter=_FakeAuditEmitter(),
+    )
+    assert halted == {"action": "halted"}
+
+    replanned = await handle_hitl_response(
+        None,
+        HitlResponseContext(
+            tenant_id="t1",
+            task_id="task-5",
+            approving_principal_iri="urn:weave:principal:user:u1",
+            action="amend",
+            amendment="try a different approach",
+        ),
+        resolve_principal=resolve_principal,
+        audit_emitter=_FakeAuditEmitter(),
+    )
+    assert replanned == {"action": "replan"}
+    task = store.get_task("t1", "task-5")
+    assert task is not None
+    assert task.status == "Draft"
+    assert task.blocked_reason is None
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "QA FINDING (BE-TASK-005, AC-5): `default_audit_health_check`'s "
+        "`pool = await get_app_pool()` (hitl.py:67) sits OUTSIDE the "
+        "try/except (hitl.py:68-72). When the pool itself cannot be "
+        "created (audit DB fully down, no cached pool yet -- arguably the "
+        "*most* likely real trigger of an 'audit service unreachable' "
+        "outage) the OSError/TimeoutError propagates uncaught instead of "
+        "being treated as 'unreachable': no HitlGateClosedError, no "
+        "audit_outage notify, gate does not cleanly fail closed. Fix: move "
+        "the `get_app_pool()` call inside the try block. Remove this "
+        "xfail once fixed -- it will XPASS and fail the suite as a signal."
+    ),
+)
+async def test_default_audit_health_check_fails_closed_on_pool_error() -> None:
+    """Edge case: exercise the *real* `default_audit_health_check` (the
+    function actually wired as `fire_hitl_gate`'s default, not the AsyncMock
+    stand-in every other test injects) to prove the fail-closed except
+    clause (AC-5) genuinely fires when the pool itself is unreachable.
+    """
+    with patch(
+        "weave_backend.build.hitl.get_app_pool", AsyncMock(side_effect=OSError("no pool"))
+    ):
+        healthy = await default_audit_health_check()
+
+    assert healthy is False
