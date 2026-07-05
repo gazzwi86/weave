@@ -12,6 +12,7 @@ cross-engine wiring gets proven once that lane's endpoint merges.
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import uuid
 from collections.abc import AsyncIterator
@@ -197,3 +198,138 @@ async def test_create_project_persists_source_control_config(
         )
     assert row["source_control_provider"] == "github"
     assert row["source_control_token_secret_ref"] == "weave/tenant/scm-project/github-token"
+
+
+# --- QA edge cases (BE-TASK-001) -------------------------------------------
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "QA finding (BE-TASK-001): slugify() strips an emoji/punctuation-only "
+        "name down to '', which passes the router's `not body.name.strip()` "
+        "AC-6 gate but fails the projects table's CHECK(slug <> ''). The "
+        "UniqueViolationError handler in projects/model.py does not catch "
+        "CheckViolationError, so this reaches the client as an unhandled 500 "
+        "instead of AC-6's 422. Remove this xfail once the engineer adds an "
+        "empty-slug guard (e.g. reject when `slugify(name) == ''`)."
+    ),
+)
+async def test_create_project_emoji_only_name_returns_422_not_500(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    tenant_id = _unique_tenant("tenant-proj-emoji")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+
+    response = await client.post(
+        "/api/projects",
+        json={"name": "🎉🎉🎉"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == {"error": "validation_error", "field": "name"}
+
+
+async def test_create_project_true_concurrent_race_second_request_gets_409(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-5's pseudocode: two requests race past the pre-check for the same
+    (tenant_id, slug); the DB's UNIQUE constraint -- not the pre-check --
+    must be what turns the loser into a 409. Unlike
+    `test_create_project_route_409_on_race_condition_from_create_project`
+    (unit test, mocks `create_project` to *simulate* the race), this drives
+    two real concurrent inserts against Postgres.
+    """
+    tenant_id = _unique_tenant("tenant-proj-race")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    responses = await asyncio.gather(
+        client.post("/api/projects", json={"name": "Race Project"}, headers=headers),
+        client.post("/api/projects", json={"name": "Race Project"}, headers=headers),
+    )
+
+    statuses = sorted(r.status_code for r in responses)
+    assert statuses == [201, 409]
+    winner = next(r for r in responses if r.status_code == 201).json()
+    loser = next(r for r in responses if r.status_code == 409).json()
+    assert loser["detail"]["existing_iri"] == winner["project_iri"]
+
+
+async def test_create_project_duplicate_name_does_not_leak_across_tenants(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """The duplicate-name conflict check is scoped by `tenant_id`, so tenant
+    B creating the same name as tenant A must succeed (201), not 409 -- a 409
+    here would let tenant B infer tenant A's project names exist.
+    """
+    tenant_a = _unique_tenant("tenant-dup-a")
+    tenant_b = _unique_tenant("tenant-dup-b")
+    tokens_a = await issue_token_pair(sub="u-a", tenant_id=tenant_a)
+    tokens_b = await issue_token_pair(sub="u-b", tenant_id=tenant_b)
+
+    response_a = await client.post(
+        "/api/projects",
+        json={"name": "Shared Name"},
+        headers={"Authorization": f"Bearer {tokens_a.access_token}"},
+    )
+    response_b = await client.post(
+        "/api/projects",
+        json={"name": "Shared Name"},
+        headers={"Authorization": f"Bearer {tokens_b.access_token}"},
+    )
+
+    assert response_a.status_code == 201
+    assert response_b.status_code == 201
+    assert response_a.json()["project_iri"] != response_b.json()["project_iri"]
+
+
+async def test_create_project_returns_503_when_ce_versions_has_no_is_latest_entry(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Pre-first-publish CE graph: `GET /api/ontology/versions` returns a
+    non-empty list with no `is_latest: true` entry. Must be the same 503 as
+    an unreachable CE, not a 500/crash.
+    """
+    app.dependency_overrides[get_ce_client] = lambda: _ce_stub(
+        [
+            {
+                "version_iri": "urn:weave:version:v0",
+                "semver": "0.9.0",
+                "published_at": "2025-01-01T00:00:00Z",
+                "is_latest": False,
+            }
+        ]
+    )
+    tenant_id = _unique_tenant("tenant-proj-no-latest")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+
+    response = await client.post(
+        "/api/projects",
+        json={"name": "No Latest Project"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {"error": "ce_version_unavailable"}
+
+
+async def test_create_project_returns_503_when_ce_versions_list_is_empty(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """CE graph has published nothing yet -- an empty list, not just a
+    missing `is_latest` flag. Must still be 503, not a crash on `next()`.
+    """
+    app.dependency_overrides[get_ce_client] = lambda: _ce_stub([])
+    tenant_id = _unique_tenant("tenant-proj-empty-versions")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+
+    response = await client.post(
+        "/api/projects",
+        json={"name": "Empty Versions Project"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == {"error": "ce_version_unavailable"}

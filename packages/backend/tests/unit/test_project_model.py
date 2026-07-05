@@ -41,6 +41,20 @@ def test_build_project_iri_from_tenant_and_slugified_name() -> None:
     assert build_project_iri("tenant-a", "acme-corp") == "urn:weave:project:tenant-a:acme-corp"
 
 
+@pytest.mark.parametrize("name", ["🎉🎉🎉", "!!!", "___", "---"])
+def test_slugify_returns_empty_string_for_punctuation_or_emoji_only_input(name: str) -> None:
+    """QA edge case (BE-TASK-001): a name that is non-empty and non-whitespace
+    (so it survives the router's `not body.name.strip()` AC-6 gate) can still
+    slugify to `""`. The `projects` table has `CHECK (slug <> '')`, and
+    nothing between `slugify()` and the INSERT validates this, so this input
+    reaches the DB and raises an unhandled `asyncpg.CheckViolationError`
+    (proven end-to-end by
+    `test_create_project_emoji_only_name_returns_422_not_500` in the
+    integration suite) instead of AC-6's `422`. See QA failure report.
+    """
+    assert slugify(name) == ""
+
+
 class _FakeRow(dict[str, Any]):
     """dict subclass -- stands in for an asyncpg.Record (supports `row["x"]`)."""
 
