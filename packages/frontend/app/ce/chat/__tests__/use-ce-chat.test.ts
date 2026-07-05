@@ -188,6 +188,118 @@ describe("useCeChat", () => {
     expect(result.current.pendingOperations).toBeNull();
   });
 
+  // Edge case (AC-006-04): "undo" with no prior confirmed mutation this
+  // session must not throw or fabricate an operation -- it tells the user
+  // there's nothing to undo yet.
+  it("says there's nothing to undo when no mutation has been applied yet", async () => {
+    stubFetch((url) => {
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const { result } = renderHook(() => useCeChat());
+
+    await act(async () => {
+      await result.current.sendMessage("undo");
+    });
+
+    expect(result.current.pendingOperations).toBeNull();
+    expect(result.current.messages.at(-1)?.text).toContain("nothing to undo");
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  // Edge case (AC-006-04/ADR-005 §5): the last applied batch contained an
+  // op `invertOperations` can't invert (e.g. `update_node`, no pre-edit
+  // snapshot captured) -- undo must say so, not propose an empty/wrong batch.
+  it("says the change can't be undone when the last batch has no invertible ops", async () => {
+    stubFetch((url) => {
+      if (url.includes("/api/ontology/authoring/nl")) {
+        return jsonResponse(200, {
+          operations: [{ op: "update_node", iri: "urn:weave:process:1", properties: { label: "Y" } }],
+        });
+      }
+      if (url.includes("/api/operations/apply")) {
+        return jsonResponse(201, { activity_iri: "urn:a", applied_count: 1, version_iri: "urn:v1", ref_map: {} });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const { result } = renderHook(() => useCeChat());
+    await act(async () => {
+      await result.current.sendMessage("rename it to Y");
+    });
+    await act(async () => {
+      await result.current.confirm();
+    });
+
+    await act(async () => {
+      await result.current.sendMessage("undo");
+    });
+
+    expect(result.current.pendingOperations).toBeNull();
+    expect(result.current.messages.at(-1)?.text).toContain("can't be automatically undone");
+  });
+
+  // Edge case (AC-006-13): "Why?" wiring end to end through the hook -- the
+  // explanation must quote the source text that produced the pending proposal.
+  it("answers 'Why?' with the source text and interpretation for a pending proposal", async () => {
+    stubFetch((url) => {
+      if (url.includes("/api/ontology/authoring/nl")) {
+        return jsonResponse(200, {
+          operations: [{ op: "add_node", ref: "p1", kind: "Process", label: "Customer Onboarding" }],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const { result } = renderHook(() => useCeChat());
+    await act(async () => {
+      await result.current.sendMessage("Add a Process called Customer Onboarding");
+    });
+
+    await act(async () => {
+      await result.current.sendMessage("Why?");
+    });
+
+    expect(result.current.messages.at(-1)?.text).toContain(
+      'You said: "Add a Process called Customer Onboarding"'
+    );
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  // Edge case (AC-006-14): "What are the consequences?" wiring end to end --
+  // fetches the kind catalogue and reports the pending proposal's bounded
+  // properties rather than throwing when nothing is pending.
+  it("answers 'What are the consequences?' using the pending proposal's kind shape", async () => {
+    stubFetch((url) => {
+      if (url.includes("/api/ontology/authoring/nl")) {
+        return jsonResponse(200, {
+          operations: [{ op: "add_node", ref: "p1", kind: "urn:weave:bpmo:Process", label: "X" }],
+        });
+      }
+      if (url.includes("/api/ontology/types")) {
+        return jsonResponse(200, {
+          kinds: [
+            {
+              iri: "urn:weave:bpmo:Process",
+              label: "Process",
+              properties: [
+                { path: "urn:weave:bpmo:owner", name: "owner", is_relationship: true, min_count: 1, max_count: 1, severity: "Violation" },
+              ],
+            },
+          ],
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    const { result } = renderHook(() => useCeChat());
+    await act(async () => {
+      await result.current.sendMessage("Add a Process called X");
+    });
+
+    await act(async () => {
+      await result.current.sendMessage("what happens?");
+    });
+
+    expect(result.current.messages.at(-1)?.text).toContain("owner (max 1)");
+  });
+
   // AC-006-05: conversation history survives a page reload.
   it("persists conversation history to localStorage across hook instances", async () => {
     stubFetch(() =>
