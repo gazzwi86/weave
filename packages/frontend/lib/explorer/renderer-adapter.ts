@@ -22,7 +22,16 @@ export interface AdaptableCy {
   layout(options: { name: string } & Record<string, unknown>): { run(): void };
 }
 
-// ponytail: stub -- red before green (TDD step 1).
-export function createRendererAdapter(_cy: AdaptableCy): RendererAdapter {
-  throw new Error("not implemented");
+export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
+  return {
+    load(elements) {
+      cy.json({ elements });
+    },
+    getViewport() {
+      return { zoom: cy.zoom(), pan: cy.pan() };
+    },
+    setLayout(name, params) {
+      cy.layout({ name, ...params }).run();
+    },
+  };
 }
