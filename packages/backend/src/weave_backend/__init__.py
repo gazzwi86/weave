@@ -17,6 +17,7 @@ from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.notifications import router as notifications_router
+from weave_backend.routers.operations import router as operations_router
 from weave_backend.routers.projects import projects_validation_error_handler
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.search import router as search_router
@@ -53,6 +54,7 @@ if os.environ.get("WEAVE_ENV") in ("dev", "test"):
 app.include_router(tenancy_router)
 app.include_router(settings_router)
 app.include_router(sparql_router)
+app.include_router(operations_router)
 app.include_router(identity_router)
 app.include_router(search_router)
 app.include_router(notifications_router)
