@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CeReadError } from "../ce-read-error";
-import { fetchGraph, fetchPalette } from "../fetch-graph";
+import { fetchGraph, fetchPalette, MAX_VISIBLE_NODES } from "../fetch-graph";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -132,5 +132,46 @@ describe("fetchGraph -- timeout and isolation", () => {
 
     await expect(fetchGraph(10_000)).resolves.toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // AC-8: beyond the bounded visible-node set, the system relies on
+  // server-side pagination/LOD rather than rendering everything at once --
+  // fetchGraph must stop pulling further pages once it holds MAX_VISIBLE_NODES
+  // distinct nodes, even if CE-READ-1 still reports more pages available.
+  it("stops paginating once the visible-node cap is reached, even if has_more_pages is still true", async () => {
+    // Self-loop rows (subject === object) so each row contributes exactly
+    // one new distinct node -- keeps the per-page node count exact and the
+    // test's arithmetic easy to verify (400/page, cap crossed mid-page 2).
+    const rowsForPage = (page: number) =>
+      Array.from({ length: 400 }, (_, i) => ({
+        subject: `urn:node:${page}-${i}`,
+        predicate: "https://weave.example/hasStep",
+        object: `urn:node:${page}-${i}`,
+        bpmo_kind: "Process",
+        label: `Node ${page}-${i}`,
+      }));
+    const fetchMock = vi.fn(async () => {
+      const page = fetchMock.mock.calls.length - 1;
+      return jsonResponse({
+        rows: rowsForPage(page),
+        columns: ["subject", "predicate", "object"],
+        has_more_pages: true,
+        page,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const elements = await fetchGraph(10_000);
+    const nodeIds = new Set(elements.filter((el) => !el.data.source).map((el) => el.data.id));
+
+    // Cap is checked at page boundaries (no mid-page row truncation) --
+    // AC-8's bound is "approx 1-2k nodes", not an exact ceiling, so this
+    // only asserts pagination actually stops once the cap is crossed
+    // rather than looping forever against an CE-READ-1 that never runs out.
+    expect(nodeIds.size).toBe(1200);
+    expect(nodeIds.size).toBeGreaterThanOrEqual(MAX_VISIBLE_NODES);
+    // 400/page: page 0 -> 400 nodes, page 1 -> 800, page 2 crosses the 1000
+    // cap and must be the last fetch (3 calls, not an unbounded loop).
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
