@@ -98,4 +98,19 @@ describe("fetchGraph", () => {
 
     await expect(fetchGraph(-5_000)).rejects.toBeInstanceOf(CeReadError);
   });
+
+  // AC-9: cross-tenant isolation is enforced server-side (CE-READ-1 scopes
+  // the named graph from the JWT's tenant claim; the proxy route never
+  // forwards a `graph=` override -- see route.test.ts). A tenant-A JWT that
+  // matches zero tenant-B rows produces zero Cytoscape elements client-side.
+  it("produces zero elements when CE-READ-1 returns an empty row set (cross-tenant isolation)", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ rows: [], columns: [], has_more_pages: false, page: 0 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const elements = await fetchGraph(10_000);
+
+    expect(elements).toEqual([]);
+  });
 });
