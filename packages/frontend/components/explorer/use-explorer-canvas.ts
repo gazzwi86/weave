@@ -166,6 +166,77 @@ function clearDevIntrospection(): void {
   delete window.__explorerNodeInfo;
 }
 
+interface LoadCanvasParams {
+  config: ExplorerConfig;
+  fetchPalette: () => Promise<NodeKind[]>;
+  fetchGraph: (timeoutMs: number) => Promise<CytoscapeElement[]>;
+  fetchLayoutPositions: (graphId: string) => Promise<SavedLayoutPosition[]>;
+  createCy: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
+  containerRef: RefObject<HTMLDivElement | null>;
+  cyRef: RefObject<CyLike | null>;
+  unregisterRef: RefObject<(() => void) | null>;
+  isCancelled: () => boolean;
+  setLoadState: (state: LoadState) => void;
+  setErrorMessage: (message: string | null) => void;
+  setMinimapIndicator: (indicator: ViewportIndicator | null) => void;
+  setAdapter: (adapter: RendererAdapter | null) => void;
+}
+
+// XT-008: pulled out of useExplorerCanvas's load effect to keep the hook
+// under Law E's line budget -- one params object (not the individual refs
+// and setters) so this stays a single-param function.
+async function loadCanvas(params: LoadCanvasParams): Promise<void> {
+  const {
+    config,
+    fetchPalette,
+    fetchGraph,
+    fetchLayoutPositions,
+    createCy,
+    containerRef,
+    cyRef,
+    unregisterRef,
+    isCancelled,
+    setLoadState,
+    setErrorMessage,
+    setMinimapIndicator,
+    setAdapter,
+  } = params;
+
+  setLoadState("loading");
+  setErrorMessage(null);
+  const loadStartedAt = performance.now();
+  resetDevIntrospection();
+  try {
+    const [palette, elements, savedPositions] = await Promise.all([
+      fetchPalette(),
+      fetchGraph(config.ceTimeoutMs),
+      fetchLayoutPositions(config.layoutGraphId),
+    ]);
+    if (isCancelled()) return;
+    const cy = createCy(containerRef.current, buildStylesheet(palette));
+    // ADR-001: element loading and layout run through the renderer
+    // adapter, not direct cytoscape calls, so a future WebGL swap only
+    // touches the adapter's implementation, never this call site. The
+    // cast bridges CyLike (this file's narrow, test-double-friendly
+    // subset) to AdaptableCy (the fuller seam TASK-003 needs) -- both
+    // describe the same real cytoscape.Core instance at runtime.
+    const canvasAdapter = createRendererAdapter(cy as unknown as AdaptableCy);
+    const positionedElements = applySavedPositions(elements, savedPositions);
+    canvasAdapter.load(positionedElements);
+    // TASK-004 AC-3/AC-5: a restored layout must not be re-randomized.
+    canvasAdapter.setLayout("fcose", { ...config.fcoseParams, randomize: savedPositions.length === 0 });
+    unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
+    cyRef.current = cy;
+    exposeDevIntrospection(cy, elements, loadStartedAt);
+    setAdapter(canvasAdapter);
+    setLoadState("ready");
+  } catch (err) {
+    if (isCancelled()) return;
+    setErrorMessage(errorMessageFor(err));
+    setLoadState("error");
+  }
+}
+
 export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): ExplorerCanvasState {
   const config = options.config ?? DEFAULT_EXPLORER_CONFIG;
   const fetchPalette = options.fetchPalette ?? defaultFetchPalette;
@@ -185,42 +256,21 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   useEffect(() => {
     let cancelled = false;
 
-    async function load(): Promise<void> {
-      setLoadState("loading");
-      setErrorMessage(null);
-      const loadStartedAt = performance.now();
-      resetDevIntrospection();
-      try {
-        const [palette, elements, savedPositions] = await Promise.all([
-          fetchPalette(),
-          fetchGraph(config.ceTimeoutMs),
-          fetchLayoutPositions(config.layoutGraphId),
-        ]);
-        if (cancelled) return;
-        const cy = createCy(containerRef.current, buildStylesheet(palette));
-        // ADR-001: element loading and layout run through the renderer
-        // adapter, not direct cytoscape calls, so a future WebGL swap only
-        // touches the adapter's implementation, never this call site. The
-        // cast bridges CyLike (this file's narrow, test-double-friendly
-        // subset) to AdaptableCy (the fuller seam TASK-003 needs) -- both
-        // describe the same real cytoscape.Core instance at runtime.
-        const canvasAdapter = createRendererAdapter(cy as unknown as AdaptableCy);
-        const positionedElements = applySavedPositions(elements, savedPositions);
-        canvasAdapter.load(positionedElements);
-        // TASK-004 AC-3/AC-5: a restored layout must not be re-randomized.
-        canvasAdapter.setLayout("fcose", { ...config.fcoseParams, randomize: savedPositions.length === 0 });
-        unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
-        cyRef.current = cy;
-        exposeDevIntrospection(cy, elements, loadStartedAt);
-        setAdapter(canvasAdapter);
-        setLoadState("ready");
-      } catch (err) {
-        if (cancelled) return;
-        setErrorMessage(errorMessageFor(err));
-        setLoadState("error");
-      }
-    }
-    void load();
+    void loadCanvas({
+      config,
+      fetchPalette,
+      fetchGraph,
+      fetchLayoutPositions,
+      createCy,
+      containerRef,
+      cyRef,
+      unregisterRef,
+      isCancelled: () => cancelled,
+      setLoadState,
+      setErrorMessage,
+      setMinimapIndicator,
+      setAdapter,
+    });
 
     return () => {
       cancelled = true;

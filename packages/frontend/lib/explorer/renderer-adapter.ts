@@ -93,6 +93,29 @@ function wireDragFree(
   return () => cy.off("dragfree", listener);
 }
 
+// XT-008: pulled out of createRendererAdapter's returned object to keep that
+// function under Law E's line budget -- same shape wireTap/wireDragFree
+// already use (standalone fn taking `cy`, thin delegator below).
+function applySpotlight(cy: AdaptableCy, nodeId: string, dimOpacity: number): boolean {
+  const node = cy.getElementById(nodeId);
+  if (node.length === 0) return false;
+  const neighbourhood = node.closedNeighborhood();
+  cy.elements().not(neighbourhood).style({ opacity: dimOpacity });
+  neighbourhood.style({ opacity: 1 });
+  return true;
+}
+
+function applyHighlight(cy: AdaptableCy, nodeIds: string[], dimOpacity: number): void {
+  cy.elements().style({ opacity: dimOpacity });
+  nodeIds.forEach((nodeId) => cy.getElementById(nodeId).style({ opacity: 1 }));
+}
+
+function centerOnNode(cy: AdaptableCy, nodeId: string, durationMs: number): void {
+  const node = cy.getElementById(nodeId);
+  if (node.length === 0) return;
+  cy.animate({ center: { eles: node } }, { duration: durationMs });
+}
+
 export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
   return {
     load(elements) {
@@ -105,19 +128,13 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
       cy.layout({ name, ...params }).run();
     },
     spotlightNode(nodeId, dimOpacity) {
-      const node = cy.getElementById(nodeId);
-      if (node.length === 0) return false;
-      const neighbourhood = node.closedNeighborhood();
-      cy.elements().not(neighbourhood).style({ opacity: dimOpacity });
-      neighbourhood.style({ opacity: 1 });
-      return true;
+      return applySpotlight(cy, nodeId, dimOpacity);
     },
     resetOpacity() {
       cy.elements().style({ opacity: 1 });
     },
     highlightNodes(nodeIds, dimOpacity) {
-      cy.elements().style({ opacity: dimOpacity });
-      nodeIds.forEach((nodeId) => cy.getElementById(nodeId).style({ opacity: 1 }));
+      applyHighlight(cy, nodeIds, dimOpacity);
     },
     onNodeTap(handler) {
       return wireTap(
@@ -141,9 +158,7 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
       return cy.nodes().map((node) => ({ id: node.id(), ...readNodeData(node) }));
     },
     centerOn(nodeId, durationMs) {
-      const node = cy.getElementById(nodeId);
-      if (node.length === 0) return;
-      cy.animate({ center: { eles: node } }, { duration: durationMs });
+      centerOnNode(cy, nodeId, durationMs);
     },
     onNodeDragEnd(handler) {
       return wireDragFree(cy, handler);
