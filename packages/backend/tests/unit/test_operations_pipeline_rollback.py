@@ -18,6 +18,7 @@ from weave_backend.schemas.operations import (
     AddEdgeOp,
     AddNodeOp,
     ApplyRequest,
+    ApplyResponse,
     ViolationsResponse,
 )
 
@@ -52,6 +53,37 @@ def _valid_request() -> ApplyRequest:
         ],
         actor="urn:weave:principal:test",
     )
+
+
+async def test_warning_only_batch_commits_with_advisories_populated(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """AC-001-03, direct: `validate_graph` severity classification is unit-
+    tested in `test_operations_shacl.py`, but nothing previously proved the
+    *pipeline* actually commits a Warning/Info-only batch and surfaces the
+    advisories in the response, rather than treating any non-empty result
+    list as blocking."""
+    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
+    )
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
+    )
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    request = ApplyRequest(
+        # Activity with a label but no description -- Warning only, no Violation.
+        operations=[AddNodeOp(op="add_node", ref="a1", kind="Activity", label="Send invoice")],
+        actor="urn:weave:principal:test",
+    )
+
+    result = await pipeline.apply_operations_request(ctx, request, redis_client=None)
+
+    assert isinstance(result, ApplyResponse)
+    assert result.advisories
+    assert result.advisories[0].severity == "Warning"
 
 
 async def test_mixed_violation_and_warning_batch_still_blocks_commit(
