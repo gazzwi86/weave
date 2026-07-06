@@ -28,7 +28,7 @@ from weave_backend.projects.model import (
 )
 from weave_backend.requests.ce_read import extract_entity_iris
 from weave_backend.requests.pipeline import BUILD_SERVICE_PRINCIPAL_IRI
-from weave_backend.schemas.operations import ViolationsResponse
+from weave_backend.schemas.operations import ApplyResponse, ViolationsResponse
 
 __all__ = [
     "DEFAULT_DEPS",
@@ -137,19 +137,7 @@ async def _write_back(
         ctx.ce_write_client, operations=operations, actor=BUILD_SERVICE_PRINCIPAL_IRI
     )
     if isinstance(response, ViolationsResponse):
-        violations = [v.model_dump() for v in response.violations]
-        await deps.emit_audit(
-            conn,
-            AuditEvent(
-                tenant_id=ctx.tenant_id,
-                event_type="write_back_fail_shacl",
-                actor_iri=BUILD_SERVICE_PRINCIPAL_IRI,
-                subject_iri=ctx.project_iri,
-                payload={"violations": violations},
-                engine="build",
-            ),
-        )
-        return {"write_back_status": "rejected", "violations": violations}
+        return await _emit_write_back_rejected(conn, ctx, deps, response)
 
     artefact_iri = f"urn:weave:artefact:{ctx.tenant_id}:{run.run_id}"
     await update_project_write_back(
@@ -158,6 +146,55 @@ async def _write_back(
         project_iri=ctx.project_iri,
         write_back_artefact_iri=artefact_iri,
     )
+    advisories = await _emit_write_back_success(conn, ctx, deps, response, artefact_iri)
+    outcome: dict[str, object] = {
+        "write_back_status": "committed",
+        "write_back_artefact_iri": artefact_iri,
+        "activity_iri": response.activity_iri,
+        "applied_count": response.applied_count,
+    }
+    if advisories:
+        outcome["advisories"] = advisories
+    return outcome
+
+
+async def _emit_write_back_rejected(
+    conn: asyncpg.Connection, ctx: DeployContext, deps: DeployDeps, response: ViolationsResponse
+) -> dict[str, object]:
+    """AC-4: a 422 from CE-WRITE-1 records a `write_back_fail_shacl` audit
+    event and routes to HITL (rejected, no commit, no rollback).
+    """
+    violations = [v.model_dump() for v in response.violations]
+    await deps.emit_audit(
+        conn,
+        AuditEvent(
+            tenant_id=ctx.tenant_id,
+            event_type="write_back_fail_shacl",
+            actor_iri=BUILD_SERVICE_PRINCIPAL_IRI,
+            subject_iri=ctx.project_iri,
+            payload={"violations": violations},
+            engine="build",
+        ),
+    )
+    return {"write_back_status": "rejected", "violations": violations}
+
+
+async def _emit_write_back_success(
+    conn: asyncpg.Connection,
+    ctx: DeployContext,
+    deps: DeployDeps,
+    response: ApplyResponse,
+    artefact_iri: str,
+) -> list[dict[str, Any]]:
+    """AC-5: any `sh:Violation` (even advisory-severity) on the committed
+    201 is recorded in PLAT-AUDIT-1 alongside the success event, not
+    silently dropped. Returns the (possibly empty) advisories list so the
+    caller can also surface it in the outcome.
+    """
+    advisories = [v.model_dump() for v in response.advisories]
+    payload: dict[str, Any] = {"artefact_iri": artefact_iri, "activity_iri": response.activity_iri}
+    if advisories:
+        payload["advisories"] = advisories
     await deps.emit_audit(
         conn,
         AuditEvent(
@@ -165,16 +202,11 @@ async def _write_back(
             event_type="write_back_success",
             actor_iri=BUILD_SERVICE_PRINCIPAL_IRI,
             subject_iri=ctx.project_iri,
-            payload={"artefact_iri": artefact_iri, "activity_iri": response.activity_iri},
+            payload=payload,
             engine="build",
         ),
     )
-    return {
-        "write_back_status": "committed",
-        "write_back_artefact_iri": artefact_iri,
-        "activity_iri": response.activity_iri,
-        "applied_count": response.applied_count,
-    }
+    return advisories
 
 
 async def publish_and_write_back(

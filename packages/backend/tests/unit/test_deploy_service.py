@@ -235,13 +235,11 @@ async def test_write_back_422_records_violations_and_routes_to_hitl() -> None:
     ]
 
 
-async def test_write_back_201_with_advisories_does_not_audit_them() -> None:
-    """QA edge case / AC-5 gap: the brief requires "any sh:Violation (even
-    advisory) is recorded in PLAT-AUDIT-1" on a 201. `_write_back` never
-    reads `response.advisories` -- this pins today's actual (gap) behaviour:
-    a 201 carrying advisories is treated identically to a clean 201, no
-    audit event mentions them, and they don't surface in the outcome. A fix
-    for AC-5 should make this assertion false.
+async def test_write_back_records_shacl_violations_in_audit() -> None:
+    """AC-5: "any sh:Violation (even advisory) is recorded in PLAT-AUDIT-1".
+    A 201 carrying advisory-severity violations must audit them (not just
+    silently succeed like a clean 201) and surface them in the outcome so
+    the caller/HITL can see them.
     """
     deps, emitted = _deps()
     apply_mock = AsyncMock(
@@ -266,9 +264,34 @@ async def test_write_back_201_with_advisories_does_not_audit_them() -> None:
         outcome = await publish_and_write_back(AsyncMock(), _ctx(), deps)
 
     assert outcome["write_back_status"] == "committed"
+    advisories = cast(list[dict[str, Any]], outcome["advisories"])
+    assert advisories[0]["message"] == "label could be more descriptive"
+    payload = cast(dict[str, Any], emitted[0]["payload"])
+    assert payload["advisories"] == advisories
+
+
+async def test_write_back_clean_201_omits_advisories_key() -> None:
+    """A clean 201 (no advisories) behaves exactly as before -- no
+    `advisories` key in the outcome, none in the audit payload.
+    """
+    deps, emitted = _deps()
+    apply_mock = AsyncMock(
+        return_value=ApplyResponse(
+            activity_iri="urn:weave:activity:1",
+            applied_count=1,
+            version_iri="urn:weave:version:v2",
+        )
+    )
+    with (
+        _patched(project=_project(), run=_run(), brief=_brief()),
+        patch(f"{_MODULE}.apply_write_back", apply_mock),
+    ):
+        outcome = await publish_and_write_back(AsyncMock(), _ctx(), deps)
+
+    assert outcome["write_back_status"] == "committed"
     assert "advisories" not in outcome
     payload = cast(dict[str, Any], emitted[0]["payload"])
-    assert payload.get("advisories") is None
+    assert "advisories" not in payload
 
 
 async def test_ce_write_unavailable_propagates_uncommitted() -> None:
