@@ -74,6 +74,43 @@ class TestTranslateToSparql:
         assert "What processes does Customer own?" in sent_prompt
         assert "Process" in sent_prompt
 
+    def test_provider_failure_degrades_to_a_canned_query_instead_of_raising(self) -> None:
+        """The demo must never hard-crash on query -- no ANTHROPIC_API_KEY
+        set / Ollama host unreachable both raise from `route()`."""
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("no auth method / connection refused")
+
+        sparql_text = translate_to_sparql("What processes exist?", provider=provider)
+
+        assert "GRAPH ?g" in sparql_text
+        assert "weave:Process" in sparql_text
+
+    def test_canned_fallback_matches_a_process_keyword(self) -> None:
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("unreachable")
+
+        sparql_text = translate_to_sparql("List all processes", provider=provider)
+
+        assert "weave:Process" in sparql_text
+
+    def test_canned_fallback_matches_an_actor_keyword(self) -> None:
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("unreachable")
+
+        sparql_text = translate_to_sparql("Who are the actors?", provider=provider)
+
+        assert "weave:Actor" in sparql_text
+
+    def test_canned_fallback_defaults_to_show_everything_for_an_unmatched_question(self) -> None:
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("unreachable")
+
+        sparql_text = translate_to_sparql("What is the meaning of life?", provider=provider)
+
+        assert sparql_text == (
+            "SELECT ?subject ?predicate ?object WHERE { GRAPH ?g { ?subject ?predicate ?object } }"
+        )
+
 
 class TestExplainQuery:
     def test_returns_the_models_explanation_text(self) -> None:
@@ -84,6 +121,16 @@ class TestExplainQuery:
         )
 
         assert explanation == "This finds every Process and its label."
+
+    def test_provider_failure_degrades_to_a_canned_explanation_instead_of_raising(self) -> None:
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("unreachable")
+
+        explanation = explain_query(
+            "SELECT ?p WHERE { GRAPH ?g { ?p a weave:Process } }", provider=provider
+        )
+
+        assert "not available" in explanation.lower() or "reachable" in explanation.lower()
 
 
 class TestExplainEmptyResult:
@@ -97,3 +144,15 @@ class TestExplainEmptyResult:
         )
 
         assert "out of scope" in explanation
+
+    def test_provider_failure_degrades_to_a_canned_explanation_instead_of_raising(self) -> None:
+        provider = MagicMock()
+        provider.complete.side_effect = RuntimeError("unreachable")
+
+        explanation = explain_empty_result(
+            "What flying cars does Weave sell?",
+            "SELECT ?p WHERE { GRAPH ?g { ?p a weave:Process . FILTER(false) } }",
+            provider=provider,
+        )
+
+        assert "not available" in explanation.lower() or "reachable" in explanation.lower()

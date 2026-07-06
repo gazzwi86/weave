@@ -21,6 +21,50 @@ from weave_backend.ontology import catalogue
 _TIER = "sonnet"
 _FENCE_RE = re.compile(r"^```(?:sparql)?\s*|\s*```$", re.IGNORECASE | re.MULTILINE)
 
+#: ponytail: the demo must never hard-crash on query (no ANTHROPIC_API_KEY
+#: set / Ollama host unreachable both raise here) -- a keyword match against
+#: a couple of demo questions, falling back to "show me everything", covers
+#: the PoC without needing a real translation model. Ceiling: no real NL
+#: understanding: upgrade path is a working provider (WEAVE_MODEL_PROVIDER).
+_CANNED_SPARQL_FALLBACKS: tuple[tuple[str, str], ...] = (
+    (
+        "process",
+        "PREFIX weave: <https://weave.io/ontology/>\n"
+        "SELECT ?subject ?label WHERE { GRAPH ?g { "
+        "?subject a weave:Process . OPTIONAL { ?subject weave:label ?label } } }",
+    ),
+    (
+        "actor",
+        "PREFIX weave: <https://weave.io/ontology/>\n"
+        "SELECT ?subject ?label WHERE { GRAPH ?g { "
+        "?subject a weave:Actor . OPTIONAL { ?subject weave:label ?label } } }",
+    ),
+)
+_CANNED_SPARQL_DEFAULT = (
+    "SELECT ?subject ?predicate ?object WHERE { GRAPH ?g { ?subject ?predicate ?object } }"
+)
+
+
+def _canned_sparql_fallback(question: str) -> str:
+    lowered = question.lower()
+    for keyword, query in _CANNED_SPARQL_FALLBACKS:
+        if keyword in lowered:
+            return query
+    return _CANNED_SPARQL_DEFAULT
+
+
+_CANNED_EXPLANATION_FALLBACK = (
+    "An explanation isn't available right now (no NL model is reachable) -- "
+    "showing results without commentary."
+)
+
+
+def _route_or_canned_explanation(prompt: str, *, provider: ModelProvider | None) -> str:
+    try:
+        return route(_TIER, prompt, provider=provider)
+    except Exception:  # graceful-degradation boundary, see module note above
+        return _CANNED_EXPLANATION_FALLBACK
+
 
 class TranslationFailed(Exception):
     """AC-007-05: the model produced no usable SPARQL text at all -- the
@@ -72,9 +116,14 @@ def translate_to_sparql(question: str, *, provider: ModelProvider | None = None)
     """Returns raw (unsanitised) SPARQL text -- the caller MUST run it
     through `query_rewriter.validate_query` before execution (AC-007-02).
     Never logs `question` (DoD: NL question text must not be logged at
-    INFO+ -- business-sensitive).
+    INFO+ -- business-sensitive). Degrades to a canned SPARQL query (never
+    raises TranslationFailed) if the configured provider itself fails --
+    see `_canned_sparql_fallback` above.
     """
-    raw = route(_TIER, _translation_prompt(question), provider=provider)
+    try:
+        raw = route(_TIER, _translation_prompt(question), provider=provider)
+    except Exception:  # graceful-degradation boundary, see module note above
+        return _canned_sparql_fallback(question)
     sparql_text = _FENCE_RE.sub("", raw).strip()
     if not sparql_text:
         raise TranslationFailed(question)
@@ -90,7 +139,7 @@ def explain_query(sparql_text: str, *, provider: ModelProvider | None = None) ->
         "Explain what the following SPARQL query does, in plain language, "
         f"for a non-technical business analyst:\n\n{sparql_text}"
     )
-    return route(_TIER, prompt, provider=provider)
+    return _route_or_canned_explanation(prompt, provider=provider)
 
 
 def explain_empty_result(
@@ -107,4 +156,4 @@ def explain_empty_result(
         "results -- for example because the question is out of scope for "
         "this schema, or because no matching data currently exists."
     )
-    return route(_TIER, prompt, provider=provider)
+    return _route_or_canned_explanation(prompt, provider=provider)

@@ -1,7 +1,7 @@
 """AC-4: routes a (tier, prompt) call to the right model via the configured
-provider. ``WEAVE_MODEL_PROVIDER=bedrock|anthropic`` selects the provider;
-callers may also inject one directly (tests always do — Law F, no live
-Bedrock/Anthropic calls).
+provider. ``WEAVE_MODEL_PROVIDER=bedrock|anthropic|ollama`` selects the
+provider; callers may also inject one directly (tests always do — Law F, no
+live Bedrock/Anthropic/Ollama calls).
 """
 
 from __future__ import annotations
@@ -9,12 +9,20 @@ from __future__ import annotations
 import os
 
 from weave_backend.ai.config import MODEL_ROUTING_TABLE
-from weave_backend.ai.providers import AnthropicProvider, BedrockProvider, ModelProvider
+from weave_backend.ai.providers import (
+    AnthropicProvider,
+    BedrockProvider,
+    ModelProvider,
+    OllamaProvider,
+)
 
 
 def _select_provider() -> ModelProvider:
-    if os.environ.get("WEAVE_MODEL_PROVIDER") == "bedrock":
+    provider_name = os.environ.get("WEAVE_MODEL_PROVIDER")
+    if provider_name == "bedrock":
         return BedrockProvider()
+    if provider_name == "ollama":
+        return OllamaProvider()
     return AnthropicProvider()
 
 
