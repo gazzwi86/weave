@@ -21,6 +21,7 @@ from httpx import ASGITransport, AsyncClient
 
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
+from weave_backend.build.dep_summary import DepSummary, write_dep_summary
 from weave_backend.build.orchestrator import run_dark_factory
 from weave_backend.build.state_spine import (
     StateSpine,
@@ -181,3 +182,26 @@ async def test_state_spine_rls_tenant_b_sees_no_tenant_a_rows(
         f"/api/state/{project_iri}", headers={"Authorization": f"Bearer {tokens_b.access_token}"}
     )
     assert response.status_code == 404
+
+
+async def test_dep_summaries_rls_tenant_b_sees_no_tenant_a_rows(platform_stack: Path) -> None:
+    """AC-4/AC-7 edge case (QA-added): `dep_summaries` carries its own RLS
+    policy, separate from `state_spines` -- proven independently rather than
+    assumed from the state-spine RLS test passing, since a policy typo/miss
+    on this table wouldn't be caught by that test at all.
+    """
+    tenant_a = _unique_tenant("tenant-dep-a")
+    tenant_b = _unique_tenant("tenant-dep-b")
+    project_iri = await _seed_project_with_repo(tenant_a, "acme")
+
+    async with tenant_connection(tenant_a) as conn:
+        await write_dep_summary(
+            conn,
+            tenant_id=tenant_a,
+            project_iri=project_iri,
+            summary=DepSummary(task_id="t-1", decisions=["chose X"]),
+        )
+
+    async with tenant_connection(tenant_b) as conn:
+        rows = await conn.fetch("SELECT task_id FROM dep_summaries")
+    assert rows == []

@@ -305,6 +305,75 @@ async def test_model_routing_miss_halts_task_not_silent_invoke(
     assert summary is None
 
 
+async def test_turn_cap_never_re_resolved_mid_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC-1 edge case (QA-added): `PLAT-SETTINGS-1` is resolved once by the
+    API layer before the run starts (`routers.runs._effective_turn_cap`) and
+    stored on the spine -- `run_dark_factory` itself must never re-resolve
+    it mid-run, or a settings change during an active run could retroactively
+    change its cap. Proven by making `resolve_setting` explode if called at
+    all during the loop, not just by asserting the final dispatch count.
+    """
+    from weave_backend.settings import resolver
+
+    async def _boom(*_a: Any, **_kw: Any) -> Any:
+        raise AssertionError("run_dark_factory must never call resolve_setting mid-run")
+
+    monkeypatch.setattr(resolver, "resolve_setting", _boom)
+
+    async def _fake_hitl(_conn: Any, _ctx: HitlGateContext, **_kw: Any) -> None:
+        return None
+
+    tasks = [TaskState(id=f"t{i}", status="Queued") for i in range(3)]
+    spine = _spine(turn_cap=2, tasks=tasks)
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(), dispatch_pdac_fn=_always_pass, fire_hitl_gate_fn=_fake_hitl
+    )
+
+    result = await run_dark_factory(_FakeConnection(), spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.dispatch_count == 2
+    assert result.phase == "halted_turn_cap"
+
+
+async def test_run_dark_factory_propagates_commit_timeout_not_swallowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-8 edge case (QA-added): a commit timeout hit *during the dispatch
+    loop* (not just a direct `commit_state_spine` call) must propagate out
+    of `run_dark_factory` rather than being caught and treated as a
+    successful cycle -- the existing AC-8 test only proves
+    `commit_state_spine` itself raises; this proves the loop doesn't
+    swallow that exception on the way out.
+    """
+    import asyncio
+
+    from weave_backend.audit.emitter import default_audit_emitter
+
+    async def _noop_emit(_conn: Any, _event: Any) -> None:
+        return None
+
+    # `commit_state_spine`'s `audit_emitter` default isn't reachable through
+    # `OrchestratorDeps` -- patch the shared singleton's `emit` instead of
+    # standing up the real hash-chain audit path in the fake connection.
+    monkeypatch.setattr(default_audit_emitter, "emit", _noop_emit)
+
+    class _SlowOnStateSpineConnection(_FakeConnection):
+        async def execute(self, query: str, *args: Any) -> None:
+            if "state_spines" in query:
+                await asyncio.sleep(0.6)
+                return
+            await super().execute(query, *args)
+
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    deps = OrchestratorDeps(repo_deps=_repo_deps(), dispatch_pdac_fn=_always_pass)
+
+    with pytest.raises(StateSpineCommitTimeout):
+        await run_dark_factory(
+            _SlowOnStateSpineConnection(), spine, tenant_id=_TENANT, deps=deps
+        )
+
+
 async def test_state_spine_commit_blocks_on_timeout() -> None:
     """AC-8: a commit slower than the timeout raises
     `StateSpineCommitTimeout` and never returns normally -- the caller
