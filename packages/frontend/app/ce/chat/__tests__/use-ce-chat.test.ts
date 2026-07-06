@@ -206,7 +206,7 @@ describe("useCeChat", () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
-  // Edge case (AC-006-04/ADR-005 §5): the last applied batch contained an
+  // Edge case (AC-006-04/ADR-007 §5): the last applied batch contained an
   // op `invertOperations` can't invert (e.g. `update_node`, no pre-edit
   // snapshot captured) -- undo must say so, not propose an empty/wrong batch.
   it("says the change can't be undone when the last batch has no invertible ops", async () => {
