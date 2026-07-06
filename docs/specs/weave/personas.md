@@ -229,9 +229,9 @@ All five value claims from the draft, against what's specced — and when Hammer
 
 **Hammerbarn sequencing reality:** the CE + Explorer Hammerbarn content ships in the M1 window; the
 full demo (Kitchen Designer app + example automations) is post-v1-gated on Build/Events GA; the
-entity content itself lives in the not-yet-written **Hammerbarn Content Brief**
-(`onboarding-content-brief.md`). If the value-demonstration pack above should be *shown in
-Hammerbarn*, each row's scenario belongs in that content brief — add it when the brief is authored.
+entity content itself lives in the **Hammerbarn Content Brief**
+(`docs/specs/weave/hammerbarn-content-brief.md`). If the value-demonstration pack above should be
+*shown in Hammerbarn*, each row's scenario belongs in that content brief.
 
 ---
 
