@@ -1,7 +1,7 @@
 ---
 type: Task
 title: "Task: TASK-009 — Deploy/Demo & Graph Write-Back (E8-S4 + E9-S1)"
-description: "Deploy the generated app to a preview environment with a time-limited demo URL, and write BE-ARTEFACT-1 provenance headers back to the Constitution graph via CE-WRITE-1."
+description: "Publish the generated app bundle to S3 and write BE-ARTEFACT-1 provenance headers back to the Constitution graph via CE-WRITE-1 (lean M1 scope — no live preview / feature-flag rollback)."
 tags: [build-engine, arch, task, m1]
 status: Backlog
 priority: Must Have
@@ -33,57 +33,61 @@ and [EPIC-009 — Bidirectional Graph Sync & Staleness](../../../build-engine.md
 **Priority:** Must Have
 
 **As a** product owner
-**I want** the generated application deployed to a preview environment with a shareable demo URL,
-and the generated entities written back to the Constitution graph with provenance
-**So that** I can verify the artefact works and the Constitution graph reflects what was built
+**I want** the generated application bundle published to durable storage (S3) and the generated
+entities written back to the Constitution graph with provenance
+**So that** the artefact is retrievable and the Constitution graph reflects what was built
 
-> **FRs covered:** FR-033 (deploy to preview + time-limited demo URL), FR-035 (write-back via
-> `CE-WRITE-1` only; SHACL-validated on throwaway clone; `BE-ARTEFACT-1` provenance header;
-> 422 → feature-flag rollback). Staleness (FR-036) is M2. Self-healing (FR-037–FR-040) is
-> post-v1.
+> **FRs covered (lean M1 scope):** FR-033 (publish artefact bundle to S3 →
+> `demo_output_location_ref`) — the live preview environment and time-limited shareable demo URL
+> are **deferred to M2** (Law F makes a real Lambda+CloudFront preview synthetic-only, and the M1
+> exit criterion in `weave-spec.md §1.3` is `write_back_complete=true` + a resolvable artefact IRI,
+> not a served URL). FR-035 (write-back via `CE-WRITE-1` only; SHACL-validated on throwaway clone;
+> `BE-ARTEFACT-1` provenance header; **422 → record violations + route to HITL**). The
+> feature-flag rollback path is **deferred to M2** with the live preview it protects. Staleness
+> (FR-036) is M2. Self-healing (FR-037–FR-040) is post-v1.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN a DoD-passing generation commit is available, THE SYSTEM SHALL deploy the FastAPI backend and Next.js frontend to a preview environment and return `{demo_url, expires_at}` with a time-limited (default 72 h) shareable URL | `test_deploy_returns_demo_url_with_expiry` |
-| AC-2 | WHEN a deploy fails for any reason, THE SYSTEM SHALL retain the prior demo URL (if one exists), surface the error in `{deploy_status: "failed", error: "<message>", prior_demo_url: "<url>|null"}`, and NOT present a false-green demo-readiness status | `test_deploy_failure_retains_prior_demo_url` |
-| AC-3 | WHEN the artefact is successfully deployed (non-Spike run), THE SYSTEM SHALL write the generated `System`, `Service`, and `DataAsset` nodes to the Constitution graph via `CE-WRITE-1` (`POST /api/operations/apply`) only — every entity carries a `BE-ARTEFACT-1` provenance header `{spec_id, pinned_version_iri, entity_iris}` | `test_write_back_calls_ce_write_1_with_provenance_header` |
-| AC-4 | WHEN `CE-WRITE-1` returns `422 { violations: [...] }`, THE SYSTEM SHALL roll back the deployed artefact via its feature flag, surface the violations on the task, and return `{write_back_status: "rolled_back", violations: [...]}` — the graph and deployed state MUST NOT silently diverge | `test_write_back_422_rolls_back_deployment` |
+| AC-1 | WHEN a DoD-passing generation commit is available, THE SYSTEM SHALL publish the generated app bundle to S3 and return `{output_location_ref}` — the durable S3 URI (`s3://weave-artefacts/{tenant_id}/{run_id}/`) recorded on `projects.demo_output_location_ref` | `test_publish_returns_output_location_ref` |
+| AC-2 | WHEN a publish fails for any reason, THE SYSTEM SHALL retain the prior `output_location_ref` (if one exists), surface the error in `{publish_status: "failed", error: "<message>", prior_output_location_ref: "<uri>|null"}`, and NOT present a false-green readiness status | `test_publish_failure_retains_prior_output_location_ref` |
+| AC-3 | WHEN the artefact is successfully published (non-Spike run), THE SYSTEM SHALL write the generated `System`, `Service`, and `DataAsset` nodes to the Constitution graph via `CE-WRITE-1` (`POST /api/operations/apply`) only — every entity carries a `BE-ARTEFACT-1` provenance header `{spec_id, pinned_version_iri, entity_iris}` | `test_write_back_calls_ce_write_1_with_provenance_header` |
+| AC-4 | WHEN `CE-WRITE-1` returns `422 { violations: [...] }`, THE SYSTEM SHALL leave `write_back_complete` false, record `write_back_fail_shacl` with the violations in `PLAT-AUDIT-1`, and return `{write_back_status: "rejected", violations: [...]}` routing the task to HITL — no blind retry, no graph mutation committed | `test_write_back_422_records_violations_and_routes_to_hitl` |
 | AC-5 | WHEN a write-back completes with `201` from `CE-WRITE-1`, THE SYSTEM SHALL verify zero `sh:Violation` in the SHACL validation (on the throwaway clone) before treating the write as committed; any `sh:Violation` (even advisory) is recorded in `PLAT-AUDIT-1` | `test_write_back_records_shacl_violations_in_audit` |
 | AC-6 | WHEN the run mode is `spike`, THE SYSTEM SHALL prevent write-back from calling `CE-WRITE-1` and return `{write_back_status: "skipped", reason: "spike_mode"}` — no graph mutation originates from a spike run | `test_spike_mode_skips_write_back` |
-| AC-7 | WHEN write-back completes successfully, THE SYSTEM SHALL emit a `PROV-O activity` to `PLAT-AUDIT-1` attributed to the Build service principal (`PLAT-IDENTITY-1` IRI) with `{activity_iri, applied_count, entity_iris, pinned_version_iri}` | `test_write_back_success_emits_prov_o_activity_to_audit` |
-| AC-8 | WHEN the demo URL is returned, THE SYSTEM SHALL include the `expires_at` ISO 8601 timestamp so consumers can display an accurate expiry; a URL with no expiry MUST NOT be returned | `test_demo_url_includes_expires_at` |
+| AC-7 | WHEN write-back completes successfully, THE SYSTEM SHALL emit a `PROV-O activity` to `PLAT-AUDIT-1` attributed to the Build service principal (`PLAT-IDENTITY-1` IRI) with `{activity_iri, applied_count, entity_iris, pinned_version_iri}` and set `projects.write_back_complete=true` with a resolvable `write_back_artefact_iri` (the `weave-spec §1.3` M1 exit criterion) | `test_write_back_success_emits_prov_o_activity_and_marks_complete` |
+| AC-8 | WHEN `CE-WRITE-1` is unreachable (`ConnectionError`), THE SYSTEM SHALL leave `write_back_complete` false and return `503 {error: "ce_write_unavailable"}` — the published S3 bundle is retained but unreferenced as committed, so graph and artefact state never silently diverge | `test_write_back_ce_unreachable_returns_503_uncommitted` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-function deploy_and_write_back(jwt, project_iri, task_id, commit_sha):
+function publish_and_write_back(jwt, project_iri, task_id, commit_sha, run_mode):
   claims = cognito.verify(jwt)        # → 401
+  if run_mode not in ALLOWED_RUN_MODES:   # schemas/requests.ALLOWED_RUN_MODES
+    return 422 with {"error": "invalid_run_mode", "allowed": ALLOWED_RUN_MODES}
   project = aurora.get_project(project_iri, tenant=claims.tenant_id)
   if not project: return 404 with {"error": "not_found"}
-  task = aurora.get_task(task_id, tenant=claims.tenant_id)
-  if not task: return 404 with {"error": "not_found"}
+  # The DoD-passing generation run for this commit (from TASK-008) supplies run_id.
+  run = aurora.get_generation_run(commit_sha, tenant=claims.tenant_id)
+  if not run: return 404 with {"error": "not_found"}
 
-  # Deploy to preview environment
-  prior_demo = aurora.get_prior_demo_url(project_iri)
+  # Publish artefact bundle to durable storage (S3). No live preview / feature flag in M1.
+  prior_ref = project.demo_output_location_ref
   try:
-    deploy_result = preview_deployer.deploy(commit_sha, project_iri)
-    # preview_deployer wraps AWS Lambda + CloudFront + S3 deployment
-    expires_at = utcnow() + timedelta(hours=DEMO_URL_TTL_HOURS)  # default 72
-    demo_url = deploy_result.url
-    aurora.update_project(project_iri, demo_url=demo_url, demo_expires_at=expires_at,
-                          deploy_status="success")
-  except DeployError as e:
-    aurora.update_project(project_iri, deploy_status="failed")
-    return 200 with {"deploy_status": "failed", "error": str(e),
-                     "prior_demo_url": prior_demo}
+    output_location_ref = artefact_publisher.publish(commit_sha, claims.tenant_id, run.run_id)
+    # artefact_publisher wraps an S3 put -> s3://weave-artefacts/{tenant_id}/{run_id}/ (Law F: mocked)
+    aurora.update_project(project_iri, demo_output_location_ref=output_location_ref)
+  except PublishError as e:
+    return 200 with {"publish_status": "failed", "error": str(e),
+                     "prior_output_location_ref": prior_ref}
 
-  # Write-back (skip if spike mode)
-  if task.run_mode == "spike":
-    return 201 with {"demo_url": demo_url, "expires_at": expires_at.isoformat(),
+  # Write-back (skip gracefully if spike mode — return skipped, NOT the 403 that
+  # operations.guards.assert_not_spike_write_back raises; that guard is for the mutate path).
+  if run_mode == "spike":
+    return 201 with {"output_location_ref": output_location_ref,
                      "write_back_status": "skipped", "reason": "spike_mode"}
 
   # Compose BE-ARTEFACT-1 provenance header
@@ -103,20 +107,21 @@ function deploy_and_write_back(jwt, project_iri, task_id, commit_sha):
       "target": "draft",
     })
   except ConnectionError:
-    # CE-WRITE-1 unreachable; rollback deploy
-    preview_deployer.rollback(deploy_result.feature_flag)
-    return 503 with {"error": "ce_write_unavailable", "deploy_status": "rolled_back"}
+    # CE-WRITE-1 unreachable. write_back_complete stays false; S3 bundle retained but uncommitted.
+    return 503 with {"error": "ce_write_unavailable"}
 
   if ce_write_response.status_code == 422:
     violations = ce_write_response.json()["violations"]
-    preview_deployer.rollback(deploy_result.feature_flag)
-    emit_audit("write_back_fail_shacl", actor=BUILD_PRINCIPAL, target=task_id,
+    emit_audit("write_back_fail_shacl", actor=BUILD_SERVICE_PRINCIPAL_IRI, target=task_id,
                diff_summary={"violations": violations})
-    return 200 with {"write_back_status": "rolled_back", "violations": violations,
-                     "deploy_status": "rolled_back"}
+    # No rollback: an unreferenced S3 bundle without write_back_complete does not diverge from
+    # the graph. Route to HITL; do not retry blindly (tech-spec business-process §deploy flow).
+    return 200 with {"write_back_status": "rejected", "violations": violations}
 
-  # 201 success: emit PROV-O activity to PLAT-AUDIT-1
+  # 201 success: mark complete, emit PROV-O activity to PLAT-AUDIT-1
   activity = ce_write_response.json()
+  artefact_iri = f"urn:weave:artefact:{claims.tenant_id}:{run.run_id}"
+  aurora.update_project(project_iri, write_back_complete=True, write_back_artefact_iri=artefact_iri)
   emit_audit("write_back_success", actor=BUILD_SERVICE_PRINCIPAL_IRI, target=task_id,
              diff_summary={
                "activity_iri": activity["activity_iri"],
@@ -126,9 +131,9 @@ function deploy_and_write_back(jwt, project_iri, task_id, commit_sha):
              })
 
   return 201 with {
-    "demo_url": demo_url,
-    "expires_at": expires_at.isoformat(),
+    "output_location_ref": output_location_ref,
     "write_back_status": "committed",
+    "write_back_artefact_iri": artefact_iri,
     "activity_iri": activity["activity_iri"],
     "applied_count": activity["applied_count"],
   }
@@ -142,37 +147,38 @@ Request body:
 
 ```json
 {
-  "commit_sha": "string — git commit SHA from TASK-008 generation (required)"
+  "commit_sha": "string — git commit SHA from TASK-008 generation (required)",
+  "run_mode": "string — one of ALLOWED_RUN_MODES (draft_spec_only | spec_to_build | spike); spike skips write-back"
 }
 ```
 
-Response `201` (deploy + write-back success):
+Response `201` (publish + write-back success):
 
 ```json
 {
-  "demo_url": "string — time-limited shareable preview URL",
-  "expires_at": "string — ISO 8601 UTC expiry timestamp",
+  "output_location_ref": "string — S3 URI of the published artefact bundle",
   "write_back_status": "string — committed | skipped",
+  "write_back_artefact_iri": "string | null — resolvable artefact IRI (null if skipped)",
   "activity_iri": "string | null — CE PROV-O activity IRI (null if skipped)",
   "applied_count": "integer | null — nodes/edges applied (null if skipped)"
 }
 ```
 
-Response `200` (deploy failed — not 5xx; prior state preserved):
+Response `200` (publish failed — not 5xx; prior state preserved):
 
 ```json
 {
-  "deploy_status": "failed",
-  "error": "string — deploy error message",
-  "prior_demo_url": "string | null — prior URL if one existed, else null"
+  "publish_status": "failed",
+  "error": "string — publish error message",
+  "prior_output_location_ref": "string | null — prior S3 URI if one existed, else null"
 }
 ```
 
-Response `200` (write-back rolled back):
+Response `200` (write-back rejected — SHACL violations, routed to HITL):
 
 ```json
 {
-  "write_back_status": "rolled_back",
+  "write_back_status": "rejected",
   "violations": [
     {
       "focus_node": "string — IRI of the failing node",
@@ -180,8 +186,7 @@ Response `200` (write-back rolled back):
       "severity": "string — Violation | Warning | Info",
       "message": "string — human-readable violation message"
     }
-  ],
-  "deploy_status": "rolled_back"
+  ]
 }
 ```
 
@@ -191,7 +196,7 @@ Error responses:
 |---|---|---|
 | 401 | Missing or invalid JWT | `{"error": "unauthorised"}` + `Www-Authenticate: Bearer` |
 | 404 | Project or task not found | `{"error": "not_found"}` |
-| 503 | `CE-WRITE-1` unreachable (triggers deploy rollback) | `{"error": "ce_write_unavailable", "deploy_status": "rolled_back"}` |
+| 503 | `CE-WRITE-1` unreachable (write-back left uncommitted) | `{"error": "ce_write_unavailable"}` |
 
 **`GET /api/projects/{project_iri}/demo`**
 
@@ -199,9 +204,9 @@ Response `200`:
 
 ```json
 {
-  "demo_url": "string | null — current demo URL, null if never deployed",
-  "expires_at": "string | null — ISO 8601 UTC, null if never deployed",
-  "deploy_status": "string — success | failed | never_deployed"
+  "output_location_ref": "string | null — current S3 artefact URI, null if never published",
+  "write_back_complete": "boolean — true once CE-WRITE-1 committed the artefact",
+  "write_back_artefact_iri": "string | null — resolvable artefact IRI, null if not committed"
 }
 ```
 
@@ -209,62 +214,63 @@ Response `200`:
 
 | Diagram | File | Relevant Section | Summary |
 |---|---|---|---|
-| Sequence | `../tech-spec/business-process.md` | `#deploy-and-write-back-flow` | Deploy → SHACL validate → CE-WRITE-1 → rollback-on-422 sequence |
+| Sequence | `../tech-spec/business-process.md` | `#deploy-and-write-back-flow` | Publish bundle to S3 → CE-WRITE-1 (BE-ARTEFACT-1) → PROV-O → PLAT-AUDIT-1; 422 → HITL |
 | State | `../tech-spec/business-process.md` | `#gate-flow` | Gate-flow diagram (build-engine.md §4) showing WRITEBACK and DoD positions |
-| Data Model | `../tech-spec/data-model.md` | `#projects-demo-and-write-back-fields` | `demo_url`, `demo_expires_at`, `write_back_status` columns on `projects` table |
+| Data Model | `../tech-spec/data-model.md` | `#projects-demo-and-write-back-fields` | `demo_output_location_ref`, `write_back_complete`, `write_back_artefact_iri` columns on `projects` |
 
-All three are pending tech-spec additions (DoR blockers).
+All three sections exist in the tech-spec (DoR blockers cleared).
 
 ### Design Decisions
 
 | Decision | Reference | Impact on This Task |
 |---|---|---|
 | CE-WRITE-1 is the ONLY mutation entry point | [contracts.md `CE-WRITE-1`](../../../../contracts.md#ce-write-1) | No direct SPARQL Update or legacy `POST /api/llm/mutate` calls; all mutations via `POST /api/operations/apply` |
-| 422 from CE-WRITE-1 → feature-flag rollback | [build-engine.md FR-035](../../../build-engine.md#21-functional-requirements) | `preview_deployer.rollback(feature_flag)` is the rollback mechanism; feature-flag name recorded at deploy time |
+| Deploy = publish bundle to S3 (no live preview in M1) | [business-process.md `#deploy-and-write-back-flow`](../../../build-engine/tech-spec/business-process.md#deploy-and-write-back-flow) | `artefact_publisher.publish(...)` wraps an S3 put; live Lambda+CloudFront preview + time-limited demo URL deferred to M2 |
+| 422 from CE-WRITE-1 → record + route to HITL | [build-engine.md FR-035](../../../build-engine.md#21-functional-requirements) | No feature-flag rollback (deferred with the live preview); leave `write_back_complete` false, audit the violations, return `rejected` |
 | BE-ARTEFACT-1 provenance header on every entity | [contracts.md `BE-ARTEFACT-1`](../../../../contracts.md#be-artefact-1) | `{spec_id, pinned_version_iri, entity_iris}` header included in `CE-WRITE-1` operations payload |
 | Spike mode: no write-back, no prod merge | [build-engine.md EPIC-006 decision B4](../../../build-engine.md#key-decisions) | `task.run_mode == "spike"` guard before any `ce_write_client.post(...)` call |
 | PROV-O activity attributed to Build service principal | [contracts.md `CE-WRITE-1`](../../../../contracts.md#ce-write-1) + [contracts.md `PLAT-IDENTITY-1`](../../../../contracts.md#plat-identity-1) | `actor` field = `BUILD_SERVICE_PRINCIPAL_IRI` from `PLAT-IDENTITY-1`; not the user's JWT sub |
-| CE-WRITE-1 unreachable → rollback deployed artefact | [build-engine.md FR-035](../../../build-engine.md#21-functional-requirements) | Graph and deployed state must never silently diverge; deploy is reversed if write-back cannot complete |
+| CE-WRITE-1 unreachable → leave uncommitted (no divergence) | [business-process.md `#deploy-and-write-back-flow`](../../../build-engine/tech-spec/business-process.md#deploy-and-write-back-flow) | `write_back_complete` stays false; the S3 bundle is inert until committed, so graph and artefact state never silently diverge |
 
 ## Test Requirements
 
 ### Unit Tests (minimum 5)
 
-- `should return 200 with deploy_failed and retain prior_demo_url when deploy raises DeployError`
+- `should return 200 with publish_failed and retain prior_output_location_ref when publish raises PublishError`
 - `should skip write-back and return skipped reason when run_mode is spike`
 - `should call CE-WRITE-1 with BE-ARTEFACT-1 provenance header fields`
-- `should rollback deploy and return violations when CE-WRITE-1 returns 422`
-- `should rollback deploy and return 503 when CE-WRITE-1 raises ConnectionError`
-- `should include expires_at ISO 8601 timestamp in demo URL response`
+- `should record violations and return rejected without committing when CE-WRITE-1 returns 422`
+- `should return 503 and leave write_back_complete false when CE-WRITE-1 raises ConnectionError`
+- `should return output_location_ref (S3 URI) on successful publish`
 
 ### Integration Tests (minimum 3)
 
-- `should emit PROV-O activity to PLAT-AUDIT-1 on successful write-back`
+- `should emit PROV-O activity to PLAT-AUDIT-1 and set write_back_complete on successful write-back`
 - `should record write_back_fail_shacl audit event on 422 from CE-WRITE-1`
-- `should persist demo_url and demo_expires_at to Aurora projects table on success`
+- `should persist demo_output_location_ref and write_back_artefact_iri to Aurora projects table on success`
 
 ### E2E Tests
 
-N/A — deploy pipeline is backend-only in M1; covered by integration tests.
+N/A — publish + write-back pipeline is backend-only in M1; covered by integration tests.
 
 ### AC-to-Test Mapping
 
 | AC | Test Type | Test Name |
 |---|---|---|
-| AC-1 | Integration | `should persist demo_url and demo_expires_at to Aurora projects table on success` |
-| AC-2 | Unit | `should return 200 with deploy_failed and retain prior_demo_url when deploy raises DeployError` |
+| AC-1 | Unit | `should return output_location_ref (S3 URI) on successful publish` |
+| AC-2 | Unit | `should return 200 with publish_failed and retain prior_output_location_ref when publish raises PublishError` |
 | AC-3 | Unit | `should call CE-WRITE-1 with BE-ARTEFACT-1 provenance header fields` |
-| AC-4 | Unit | `should rollback deploy and return violations when CE-WRITE-1 returns 422` |
+| AC-4 | Unit | `should record violations and return rejected without committing when CE-WRITE-1 returns 422` |
 | AC-5 | Integration | `should record write_back_fail_shacl audit event on 422 from CE-WRITE-1` |
 | AC-6 | Unit | `should skip write-back and return skipped reason when run_mode is spike` |
-| AC-7 | Integration | `should emit PROV-O activity to PLAT-AUDIT-1 on successful write-back` |
-| AC-8 | Unit | `should include expires_at ISO 8601 timestamp in demo URL response` |
+| AC-7 | Integration | `should emit PROV-O activity to PLAT-AUDIT-1 and set write_back_complete on successful write-back` |
+| AC-8 | Unit | `should return 503 and leave write_back_complete false when CE-WRITE-1 raises ConnectionError` |
 
 ## Dependencies
 
 - **blocked_by:** [TASK-007, TASK-008]
 - **unlocks:** []
-- **External prerequisites:** `"CE-WRITE-1 endpoint available in staging"`, `"Preview deployment infrastructure (Lambda + CloudFront + S3) provisioned"`, `"Feature-flag service available for deployment rollback"`, `"PLAT-AUDIT-1 emit endpoint available"`, `"PLAT-IDENTITY-1 service principal IRI for Build service registered"`
+- **External prerequisites:** `"CE-WRITE-1 endpoint available in staging"`, `"S3 artefact bucket (weave-artefacts) provisioned — LocalStack under Law F"`, `"PLAT-AUDIT-1 emit endpoint available"`, `"PLAT-IDENTITY-1 service principal IRI for Build service registered"`
 
 ## Cost Estimate
 
@@ -278,13 +284,13 @@ N/A — deploy pipeline is backend-only in M1; covered by integration tests.
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
 - [x] API contracts defined
-- [x] Diagram references included (3 pending — DoR blockers for tech-spec pass)
+- [x] Diagram references included (all 3 exist in the tech-spec)
 - [x] Design decisions noted
 - [x] Test scenarios specified with types and counts
 - [x] Dependencies defined
 - [x] Cost estimate provided
-- [ ] Tech-spec deploy sequence and write-back flow diagrams created (DoR blockers)
-- [ ] Feature-flag rollback mechanism identified and provisioned
+- [x] Tech-spec deploy sequence and write-back flow diagrams created (business-process.md §deploy-and-write-back-flow, §gate-flow; data-model.md §projects-demo-and-write-back-fields)
+- [x] Rollback mechanism resolved — deferred to M2 with the live preview; M1 leaves failed write-back uncommitted (no live state to roll back), so no feature-flag service is needed
 
 ## Definition of Done Checklist
 
@@ -300,20 +306,57 @@ N/A — deploy pipeline is backend-only in M1; covered by integration tests.
 
 ## Implementation Hints
 
-- The `preview_deployer.rollback(feature_flag)` call must be idempotent — if the deploy
-  already partially failed, a second rollback call must not raise an error (use a feature-flag
-  SDK that supports safe-rollback semantics).
+- **Migration `0016_projects_write_back.sql`** (next free number after `0015_generation_runs.sql`)
+  adds three columns to `projects`: `demo_output_location_ref TEXT`, `write_back_complete BOOLEAN
+  NOT NULL DEFAULT false`, `write_back_artefact_iri TEXT`. No RLS change — `projects` already has
+  its tenant policy from `0009_projects.sql`; `ALTER TABLE` inherits it.
+- `run_id` is resolved from the `generation_runs` row for `commit_sha` (see `0015_generation_runs`)
+  — it is not a column on any task record. `run_mode` arrives in the request body (there is no
+  stored run_mode); validate it against `schemas/requests.ALLOWED_RUN_MODES`.
+- `artefact_publisher.publish(commit_sha, tenant_id, run_id)` wraps a single S3 put of the
+  generated bundle and returns the `s3://weave-artefacts/{tenant_id}/{run_id}/` URI. Inject it as
+  a dependency; under Law F it is mocked in unit tests and hits LocalStack in integration tests —
+  never a real AWS account. A `PublishError` surfaces as the AC-2 `publish_failed` 200 body.
 - `extract_entity_iris(task)` should parse the tech-spec section of the approved spec for
   mentions of named BPMO kinds (`System`, `Service`, `DataAsset`) and resolve them to IRIs via
   `CE-READ-1` — do not invent IRIs. The 200-node context cap (OQ-11) applies here too.
 - The SHACL validation in CE-WRITE-1 runs on a throwaway clone server-side (per the contract);
   the Build service does not need to run SHACL locally. Trust the 422 response body — parse
   `violations` directly from it.
-- `DEMO_URL_TTL_HOURS` should default to 72 and be overridable via `PLAT-SETTINGS-1`
-  (`demo_url_ttl_hours` setting at workspace level); load it at deploy time.
-- The `BUILD_SERVICE_PRINCIPAL_IRI` is registered with `PLAT-IDENTITY-1` at service startup
-  (not per-request); cache it in a module-level constant populated from the identity service
-  on first call, not from an environment variable.
+- Reuse the existing `BUILD_SERVICE_PRINCIPAL_IRI` module constant
+  (`requests/pipeline.py:50` — `"urn:weave:principal:service:build-drafting-pipeline"`) as the
+  `actor_iri` on the write-back audit event. Do NOT fetch it from an identity service — it is a
+  plain constant, not a runtime lookup.
+
+## Existing code to reuse (verified file:line — do NOT re-implement)
+
+Every accessor below already exists on this branch. Extend, don't duplicate.
+
+- **Read the run for a `commit_sha`:** no getter exists yet — add one to
+  `generation/store.py` mirroring the existing `insert_generation_run` (same file). Table
+  `generation_runs` (migration `0015`) already grants `SELECT` to `weave_app`; columns:
+  `run_id, tenant_id, project_iri, task_id, status, gate_results, branch, commit_sha, created_at`.
+- **Read/update the project:** `get_project` at `projects/model.py:134`
+  (`async def get_project(conn, *, tenant_id, project_iri) -> Project | None`). Extend the
+  `Project` dataclass + its `SELECT`, and add a write-back `UPDATE` — `projects` already grants
+  `UPDATE` (`0009_projects.sql:29`), so no grant change.
+- **CE-WRITE-1 client:** no write client exists — follow the `get_ce_client` pattern in
+  `projects/ce_version_client.py:48` (yields `httpx.AsyncClient`, `base_url` from
+  `CE_API_BASE_URL`, 5s timeout). POST `/api/operations/apply`; request/response schemas are
+  `ApplyRequest` / `ApplyResponse` / `ViolationDetail` / `ViolationsResponse` in
+  `schemas/operations.py`. Parse `violations` straight off the 422 body.
+- **Audit / PROV-O emit:** `default_audit_emitter` (`audit/emitter.py:132`), call
+  `await default_audit_emitter.emit(conn, AuditEvent(tenant_id=..., event_type=...,
+  actor_iri=..., subject_iri=..., payload=..., engine="build"))` (`AuditEvent` at
+  `audit/emitter.py:28`). Use it for both `write_back_fail_shacl` and the success PROV-O triple.
+- **S3 put (for `artefact_publisher`):** `s3_client()` factory + `put_object()` in
+  `storage/tenant_objects.py:23,43`. LocalStack via `LOCALSTACK_ENDPOINT_URL` /
+  `WEAVE_LOCALSTACK_PORT` (default 4566) — never a real AWS account (Law F).
+- **run_mode validation:** `ALLOWED_RUN_MODES` in `schemas/requests.py:13`; the body-validation
+  pattern is `_validate_body` in `routers/requests.py:47`.
+- **Router registration:** import + `app.include_router(...)` in `weave_backend/__init__.py`
+  (see `requests_router` at lines 38/93); create the new router with
+  `APIRouter(prefix="/api/...", tags=[...])`.
 
 ---
 

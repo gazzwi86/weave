@@ -121,7 +121,7 @@
     {
       "id": "BE-EPIC-008",
       "title": "BE-EPIC-008",
-      "status": "backlog"
+      "status": "done"
     }
   ],
   "tasks": [
@@ -457,24 +457,26 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-008",
       "title": "App Generation & M1 Safety Gates (E8-S1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-TASK-006",
         "BE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-008.md"
+      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-008.md",
+      "retry_count": 1
     },
     {
       "id": "BE-TASK-009",
       "engine": "build-engine",
       "epic": "BE-EPIC-008",
       "title": "Deploy/Demo & Graph Write-Back (E8-S4 + E9-S1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-TASK-007",
         "BE-TASK-008"
       ],
-      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-009.md"
+      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-009.md",
+      "retry_count": 1
     },
     {
       "id": "BE-TASK-010",

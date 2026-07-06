@@ -8,6 +8,7 @@ from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.briefs.ce_read_client import close_ce_read_client
 from weave_backend.db.pool import close_app_pool
+from weave_backend.deploy.ce_write_client import close_ce_write_client
 from weave_backend.observability.middleware import (
     install_ce_contract_headers_middleware,
     install_tenant_context_middleware,
@@ -21,7 +22,9 @@ from weave_backend.routers.authoring import router as authoring_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
+from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.gates import router as gates_router
+from weave_backend.routers.generation import router as generation_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
@@ -85,6 +88,8 @@ app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(briefs_router)
+app.include_router(generation_router)
+app.include_router(deploy_router)
 app.include_router(specs_router)
 app.include_router(tasks_router)
 app.include_router(query_router)
@@ -114,6 +119,7 @@ async def _close_db_pool() -> None:
     await close_oidc_client()
     await close_ce_client()
     await close_ce_read_client()
+    await close_ce_write_client()
     await close_redis_client()
 
 

@@ -84,6 +84,10 @@ max-nested-blocks = 4
 # gitleaks JSON report field names, not credentials. S106: fake tokens/secret
 # refs passed as keyword args to test fixtures/mocks, never real credentials.
 "tests/**" = ["S101", "S603", "S607", "S311", "S105", "S106"]
+# generation/gates.py: the M1 safety gates shell out to the exact dev tools
+# Law F mandates (bandit/semgrep/mypy/tsc/mutmut) by name, over our own
+# tempfile.mkdtemp workspace (never user-supplied) — S603/S607 are the point.
+"src/weave_backend/generation/gates.py" = ["S603", "S607"]
 
 [tool.ruff.format]
 quote-style = "double"

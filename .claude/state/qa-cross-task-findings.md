@@ -119,11 +119,31 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   that BE-007 would wire the POST /runs happy path was wrong (BE-007's scope is gates only). Re-point the
   HTTP 202 happy-path test to **BE-TASK-009**. Still OPEN.
 
+## XT-BE006-1 status update (from BE-TASK-009 QA) — SECOND mis-target, un-target from a specific task
+
+- **Not closable by BE-TASK-009 either** (second mis-target). BE-009 is `POST .../deploy`, a different
+  router; it touches zero lines of `routers/runs.py`. QA grepped the whole `tests/` tree: no test uses
+  real ASGI dispatch (`TestClient`/`ASGITransport`) against `routers/runs.py`'s 202 happy path — the one
+  ASGI file (`tests/integration/test_runs_api.py`) deliberately builds the run spine directly and only
+  drives the 409 branch through the real client. **Action:** this finding belongs to whichever future
+  task adds an ASGI-level TestClient 202 test for `start_run_route` — do NOT auto-attach it to the next
+  BE task by prediction (that guessing is what caused two mis-targets). Still **OPEN**, now un-targeted.
+  Classification: test-coverage.
+
+## XT-BE008-2 re-verification (from BE-TASK-009 QA) — independently confirmed fixed
+
+- BE-009 QA re-checked the `base_tree` fix directly (not on the summary's word): `repo_bootstrap/drivers.py`
+  resolves the real tree sha via `GET /repos/{full_name}/git/commits/{parent_sha}` before POSTing
+  `base_tree`; `test_repo_bootstrap_drivers.py` 13/13 pass. Remains RESOLVED — confirmation recorded.
+
 ## XT-BE007-1 — TaskBrief schema has no `design_decisions` field (DoR can never READY on real data)
 
 - **Severity:** Major · **Status:** OPEN (urgent — silently defeats the DoR gate once wired live)
-- **Affects:** BE-TASK-002 (owns the `TaskBrief` schema), BE-TASK-009 (wires DoR against real briefs).
-- **Found by:** BE-TASK-007 QA (traced the exact code path, not a guess).
+- **Affects:** BE-TASK-002 (owns the `TaskBrief` schema); the DoR-gate callers
+  `routers/{runs,gates,tasks,specs}.py` (via `build/gates.py:run_dor_gate`). **NOT BE-TASK-009** —
+  BE-009 QA confirmed `deploy/service.py` never imports or calls `run_dor_gate` and never references
+  `design_decisions`; there is no DoR wiring in BE-009 (corrects the earlier BE-009 attribution).
+- **Found by:** BE-TASK-007 QA (traced the exact code path, not a guess); re-confirmed by BE-TASK-009 QA.
 - **Symptom:** `routers/briefs.py:96` stores `content=brief.model_dump(mode="json")`, but `TaskBrief`
   (`briefs/schema.py`) has no `design_decisions` field. Every real brief created via BE-002's API therefore
   lacks it, so DoR's `design_decisions` completeness check can **never** return READY on production data —
@@ -131,3 +151,36 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Action:** extend `TaskBrief` (BE-002) with a `design_decisions` field before BE-TASK-009 wires DoR live,
   else the gate is a silent no-op on real briefs.
 - **Classification:** interface / cross-task (schema gap upstream of a correct gate).
+
+## XT-BE008-1 — secret-scan gate false-negative on unquoted .env-style secrets
+
+- **Severity:** Medium · **Status:** OPEN
+- **Affects:** BE-TASK-008 (`generation/secret_scanner.py` + `secret_patterns.json`), and any task
+  relying on the secret-scan safety gate to block credential leakage in generated apps.
+- **Found by:** BE-TASK-008 QA (pinned with a test).
+- **Symptom:** the secret-scan regex requires a quoted value (`api_key = "…"`); an unquoted
+  `.env`-style assignment (`API_KEY=AKIA…` with no quotes) is not matched, so a generated app could
+  carry a plaintext secret past the gate.
+- **Root cause:** the regex is the one specified verbatim in the **task brief's own implementation
+  hint** — this is a spec gap, not an engineer deviation. Gate logic is otherwise correct.
+- **Action:** broaden the pattern to cover unquoted assignments (and ideally reuse the platform
+  secret-scan hook's regex set) before the generate endpoint is exercised on real client apps.
+- **Classification:** deferred / spec-vs-implementation gap.
+- **Epic-close (BE-EPIC-008) disposition (2026-07-07):** NOT taken as a cheap ride-along fix.
+  Although this epic touched `generation/secret_scanner.py`, broadening a security gate's regex
+  carries false-positive risk (could block legitimate generated apps) and the "reuse the platform
+  regex set" path is non-trivial — so it fails the "low-risk + cheap" bar for epic-close remediation.
+  Deferred to the phase-1 gate ledger sweep (Step 4), where a security change gets proper scrutiny.
+  Age at defer: raised during BE-TASK-008 QA, ~same day. Still OPEN.
+
+## XT-BE008-2 — AC-6 base_tree defect (RESOLVED — noted for BE-009 reuse)
+
+- **Severity:** High · **Status:** RESOLVED on `feature/BE-EPIC-008` (`7ab5cc4`).
+- **Affects:** BE-TASK-008 (owns `commit_workspace`), BE-TASK-009 (reuses it).
+- **Found by:** coordinator hypothesis → BE-TASK-008 QA confirmed real.
+- **Symptom / fix:** `GitHubDriver.commit_workspace` sent a **commit** sha as `base_tree` (GitHub
+  requires a **tree** sha) → every real call after `write_initial_commit` seeds `main` would 422
+  against live GitHub; all mocks passed because none asserted `base_tree`. Fixed by resolving the
+  parent commit to its tree (`GET /git/commits/{parent_sha}` → `tree.sha`). Recorded here because
+  BE-009 reuses `commit_workspace` — the single fix protects it too; no separate BE-009 action.
+- **Classification:** interface / cross-task (one fix closes both).

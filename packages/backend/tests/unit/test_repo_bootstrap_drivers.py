@@ -8,6 +8,7 @@ GitLab call (Law F).
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -138,6 +139,110 @@ async def test_github_driver_write_initial_commit_issues_blob_tree_commit_ref_ca
     ]
 
 
+async def test_github_driver_commit_workspace_issues_ref_lookup_then_blob_tree_commit_ref(
+    tmp_path: Path,
+) -> None:
+    """BE-TASK-008 AC-6: commit_workspace reads the default branch's HEAD
+    first (so the new branch's tree is based on existing harness files from
+    write_initial_commit), then the same blob -> tree -> commit -> ref
+    sequence, but with base_tree/parents set and a ref created for the NEW
+    feature branch, not the default branch.
+    """
+    (tmp_path / "openapi.yaml").write_text("openapi: 3.1.0\n")
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": "head-sha"}})
+        if "/git/commits/" in request.url.path:
+            return httpx.Response(200, json={"tree": {"sha": "base-tree-sha"}})
+        if request.url.path.endswith("/git/blobs"):
+            return httpx.Response(201, json={"sha": "blob-sha"})
+        if request.url.path.endswith("/git/trees"):
+            return httpx.Response(201, json={"sha": "tree-sha"})
+        if request.url.path.endswith("/git/commits"):
+            return httpx.Response(201, json={"sha": "new-commit-sha"})
+        if request.url.path.endswith("/git/refs"):
+            return httpx.Response(201, json={"ref": "refs/heads/build/acme/t-1"})
+        raise AssertionError(f"unexpected path {request.url.path}")
+
+    driver = GitHubDriver(client=_mock_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="acme/weave-acme-corp",
+        url="https://github.com/acme/weave-acme-corp",
+        default_branch="main",
+    )
+
+    commit_sha = await driver.commit_workspace(
+        repo,
+        workspace=str(tmp_path),
+        branch="build/acme/t-1",
+        message="feat(acme): generate task",
+        token=_FAKE_GH,
+    )
+
+    assert commit_sha == "new-commit-sha"
+    assert calls == [
+        "/repos/acme/weave-acme-corp/git/ref/heads/main",
+        "/repos/acme/weave-acme-corp/git/commits/head-sha",
+        "/repos/acme/weave-acme-corp/git/blobs",
+        "/repos/acme/weave-acme-corp/git/trees",
+        "/repos/acme/weave-acme-corp/git/commits",
+        "/repos/acme/weave-acme-corp/git/refs",
+    ]
+
+
+async def test_github_driver_commit_workspace_resolves_commit_to_tree_sha_for_base_tree(
+    tmp_path: Path,
+) -> None:
+    """AC-6: GitHub's "Create a tree" API documents `base_tree` as the SHA of
+    an existing **tree** object. The ref lookup (`GET .../git/ref/heads/{branch}`)
+    yields a **commit** sha, so `commit_workspace` must first resolve that
+    commit to its tree via `GET .../git/commits/{sha}` -> `tree.sha` and send
+    THAT as `base_tree`. Sending the commit sha directly (the original defect)
+    would 422 the tree-create against real GitHub on the first commit after
+    `write_initial_commit` seeds `main`. This pins the resolved tree sha.
+    """
+    (tmp_path / "openapi.yaml").write_text("openapi: 3.1.0\n")
+    tree_bodies: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/git/ref/heads/main"):
+            return httpx.Response(200, json={"object": {"sha": "commit-abc"}})
+        if "/git/commits/" in request.url.path:
+            return httpx.Response(200, json={"tree": {"sha": "resolved-tree-sha"}})
+        if request.url.path.endswith("/git/blobs"):
+            return httpx.Response(201, json={"sha": "blob-sha"})
+        if request.url.path.endswith("/git/trees"):
+            tree_bodies.append(json.loads(request.content))
+            return httpx.Response(201, json={"sha": "tree-sha"})
+        if request.url.path.endswith("/git/commits"):
+            return httpx.Response(201, json={"sha": "new-commit-sha"})
+        if request.url.path.endswith("/git/refs"):
+            return httpx.Response(201, json={"ref": "refs/heads/build/acme/t-1"})
+        raise AssertionError(f"unexpected path {request.url.path}")
+
+    driver = GitHubDriver(client=_mock_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="acme/weave-acme-corp",
+        url="https://github.com/acme/weave-acme-corp",
+        default_branch="main",
+    )
+
+    await driver.commit_workspace(
+        repo,
+        workspace=str(tmp_path),
+        branch="build/acme/t-1",
+        message="feat(acme): generate task",
+        token=_FAKE_GH,
+    )
+
+    # Fixed behaviour: base_tree is the tree sha resolved from the parent
+    # commit (GET /git/commits/commit-abc -> tree.sha), never the commit sha.
+    assert tree_bodies[0]["base_tree"] == "resolved-tree-sha"
+
+
 def _gitlab_client(handler: httpx.MockTransport) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=handler, base_url="https://gitlab.com/api/v4")
 
@@ -193,4 +298,40 @@ async def test_gitlab_driver_write_initial_commit_creates_single_commit_with_act
     assert body["branch"] == "main"
     assert body["actions"] == [
         {"action": "create", "file_path": "README.md", "content": "# Acme\n"}
+    ]
+
+
+async def test_gitlab_driver_commit_workspace_creates_branch_via_start_branch(
+    tmp_path: Path,
+) -> None:
+    """BE-TASK-008 AC-6: GitLab's Commits API creates the new branch inline
+    via `start_branch` -- one call, unlike GitHub's multi-step sequence.
+    """
+    (tmp_path / "openapi.yaml").write_text("openapi: 3.1.0\n")
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v4/projects/42/repository/commits"
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(201, json={"id": "new-commit-sha"})
+
+    driver = GitLabDriver(client=_gitlab_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="42", url="https://gitlab.com/acme/weave-acme-corp", default_branch="main"
+    )
+
+    commit_sha = await driver.commit_workspace(
+        repo,
+        workspace=str(tmp_path),
+        branch="build/acme/t-1",
+        message="feat(acme): generate task",
+        token=_FAKE_GL,
+    )
+
+    assert commit_sha == "new-commit-sha"
+    body = captured["body"]
+    assert body["branch"] == "build/acme/t-1"
+    assert body["start_branch"] == "main"
+    assert body["actions"] == [
+        {"action": "create", "file_path": "openapi.yaml", "content": "openapi: 3.1.0\n"}
     ]

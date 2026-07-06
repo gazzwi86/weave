@@ -29,6 +29,11 @@ class Project(BaseModel):
     name: str
     pinned_graph_version_iri: str
     created_at: datetime
+    # BE-TASK-009 (migration 0016): write-back state. Defaulted so every
+    # existing `Project(...)` construction elsewhere keeps compiling.
+    demo_output_location_ref: str | None = None
+    write_back_complete: bool = False
+    write_back_artefact_iri: str | None = None
 
 
 class NewProject(BaseModel):
@@ -141,7 +146,8 @@ async def get_project(
     """
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
-        "SELECT project_iri, name, pinned_graph_version_iri, created_at"
+        "SELECT project_iri, name, pinned_graph_version_iri, created_at,"
+        " demo_output_location_ref, write_back_complete, write_back_artefact_iri"
         " FROM projects WHERE tenant_id = $1 AND project_iri = $2",
         tenant_id,
         project_iri,
@@ -153,4 +159,38 @@ async def get_project(
         name=row["name"],
         pinned_graph_version_iri=row["pinned_graph_version_iri"],
         created_at=row["created_at"],
+        demo_output_location_ref=row["demo_output_location_ref"],
+        write_back_complete=row["write_back_complete"],
+        write_back_artefact_iri=row["write_back_artefact_iri"],
+    )
+
+
+async def update_project_publish(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, demo_output_location_ref: str
+) -> None:
+    """AC-1: record the durable S3 location of the published bundle."""
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    await conn.execute(
+        "UPDATE projects SET demo_output_location_ref = $1"
+        " WHERE tenant_id = $2 AND project_iri = $3",
+        demo_output_location_ref,
+        tenant_id,
+        project_iri,
+    )
+
+
+async def update_project_write_back(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, write_back_artefact_iri: str
+) -> None:
+    """AC-7: mark the CE-WRITE-1 commit complete and record the resolvable
+    BE-ARTEFACT-1 IRI. Only called on a 201 (committed) response -- never on
+    a 422 (rejected) or 503 (unavailable) outcome.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    await conn.execute(
+        "UPDATE projects SET write_back_complete = true, write_back_artefact_iri = $1"
+        " WHERE tenant_id = $2 AND project_iri = $3",
+        write_back_artefact_iri,
+        tenant_id,
+        project_iri,
     )
