@@ -121,7 +121,7 @@
     {
       "id": "BE-EPIC-008",
       "title": "BE-EPIC-008",
-      "status": "backlog"
+      "status": "done"
     }
   ],
   "tasks": [
@@ -285,7 +285,7 @@
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003",
@@ -298,7 +298,7 @@
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL→SELECT Query and SPARQL Editor",
+      "title": "NL\u2192SELECT Query and SPARQL Editor",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003"
@@ -470,12 +470,13 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-008",
       "title": "Deploy/Demo & Graph Write-Back (E8-S4 + E9-S1)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-TASK-007",
         "BE-TASK-008"
       ],
-      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-009.md"
+      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-009.md",
+      "retry_count": 1
     },
     {
       "id": "BE-TASK-010",
