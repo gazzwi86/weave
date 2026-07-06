@@ -38,14 +38,36 @@ class TaskRecord:
     blocked_reason: str | None = None
 
 
+@dataclass
+class ProjectSpecRecord:
+    """BE-TASK-007: cascade-presence flags the pre-scaffold gate checks
+    (brief -> PRD -> roadmap -> tech-spec -> impl-ready). Same ADR-002
+    in-memory, process-local pattern as `SpecRecord`/`TaskRecord` -- no
+    Aurora table for this exists anywhere in the codebase, and this task's
+    pre-scaffold gate is an M1 pass-through stub, not durable project-spec
+    storage. `impl_ready_flag` is never auto-computed (Implementation
+    Hints) -- only `upsert_project_spec` sets it, explicitly.
+    """
+
+    tenant_id: str
+    project_iri: str
+    brief_present: bool = False
+    prd_present: bool = False
+    roadmap_present: bool = False
+    tech_spec_present: bool = False
+    impl_ready_flag: bool = False
+
+
 _specs: dict[tuple[str, str], SpecRecord] = {}
 _tasks: dict[tuple[str, str], TaskRecord] = {}
+_project_specs: dict[tuple[str, str], ProjectSpecRecord] = {}
 
 
 def reset_for_tests() -> None:
     """Test-only: clears both stores between tests (autouse fixture)."""
     _specs.clear()
     _tasks.clear()
+    _project_specs.clear()
 
 
 def spec_iri(tenant_id: str, spec_id: str) -> str:
@@ -123,3 +145,26 @@ def increment_retry(tenant_id: str, task_id: str, failure_class: str) -> int:
     record = _require_task(tenant_id, task_id)
     record.retry_counts[failure_class] = record.retry_counts.get(failure_class, 0) + 1
     return record.retry_counts[failure_class]
+
+
+def get_project_spec(tenant_id: str, project_iri: str) -> ProjectSpecRecord:
+    """Never `None` -- a project with no recorded spec state is exactly
+    "nothing present yet" (every cascade step False), which is itself a
+    valid pre-scaffold finding, not a lookup failure.
+    """
+    return _project_specs.get(
+        (tenant_id, project_iri), ProjectSpecRecord(tenant_id=tenant_id, project_iri=project_iri)
+    )
+
+
+def upsert_project_spec(tenant_id: str, project_iri: str, **flags: bool) -> ProjectSpecRecord:
+    """Test/tech-spec-author seeding helper -- `flags` are any subset of
+    `ProjectSpecRecord`'s cascade-presence fields.
+    """
+    record = _project_specs.get(
+        (tenant_id, project_iri), ProjectSpecRecord(tenant_id=tenant_id, project_iri=project_iri)
+    )
+    for key, value in flags.items():
+        setattr(record, key, value)
+    _project_specs[(tenant_id, project_iri)] = record
+    return record
