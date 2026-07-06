@@ -111,7 +111,7 @@
     {
       "id": "BE-EPIC-011",
       "title": "BE-EPIC-011",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-EPIC-012",
@@ -427,7 +427,7 @@
       "engine": "build-engine",
       "epic": "BE-EPIC-011",
       "title": "Dark-Factory Execution Engine (E11-S1 to E11-S5)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-TASK-001",
         "BE-TASK-002",
@@ -435,7 +435,8 @@
         "BE-TASK-005",
         "BE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-006.md"
+      "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-006.md",
+      "retry_count": 0
     },
     {
       "id": "BE-TASK-007",
