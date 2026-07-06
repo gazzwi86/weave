@@ -13,16 +13,12 @@ import {
 } from "./nav-items";
 
 /** Status pill on every rail item (IA rule: every surface carries a tag). */
-const TAG_VARIANT: Record<SurfaceTag, "success" | "info" | "neutral"> = {
-  built: "success",
-  m1: "info",
-  m2: "neutral",
-  "v1.0": "neutral",
-  "post-v1": "neutral",
-};
-
 function TagPill({ tag }: { tag: SurfaceTag }) {
-  return <Badge variant={TAG_VARIANT[tag]}>{TAG_LABEL[tag]}</Badge>;
+  // Always the neutral variant: the tinted success/info badges fall below
+  // 4.5:1 at --text-caption size over the rail's raised/hover backgrounds
+  // (axe color-contrast, light theme). Meaning rides on the label text
+  // anyway (WCAG 1.4.1).
+  return <Badge>{TAG_LABEL[tag]}</Badge>;
 }
 
 function RailItem({ item, pathname, role }: {

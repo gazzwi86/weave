@@ -13,7 +13,12 @@ async function loginAndGoToDashboard(page: Page): Promise<void> {
 
 async function goToQueryPage(page: Page): Promise<void> {
   await loginAndGoToDashboard(page);
-  await page.getByRole("link", { name: "Constitution Engine" }).click();
+  // PoC IA: Query lives in the Constitution section's left rail.
+  await page.getByRole("link", { name: "Constitution" }).click();
+  await page
+    .getByRole("navigation", { name: "Secondary" })
+    .getByRole("link", { name: /^Query/ })
+    .click();
   await expect(page).toHaveURL(/\/ce\/query$/);
   // Next dev-mode compiles a route on first hit -- wait for that to settle
   // before interacting, or the first action races the in-flight compile.
