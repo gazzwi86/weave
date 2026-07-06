@@ -1,9 +1,21 @@
+import { FeatureGrid, HowItWorks } from "@/components/marketing/features";
+import { Hero, MarketingHeader } from "@/components/marketing/hero";
+import { FinalCta, MarketingFooter, Pricing } from "@/components/marketing/pricing-footer";
+
+/** Public marketing index (IA §6) — the only page an anonymous visitor sees
+ * besides /auth/login. App chrome is suppressed via PUBLIC_PATHS. */
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
-      <h1 className="text-[length:var(--text-h1)] leading-[var(--text-h1-line)] tracking-[var(--text-h1-tracking)] font-[var(--font-weight-bold)]">
-        Weave
-      </h1>
-    </main>
+    <div className="flex min-h-screen flex-col">
+      <MarketingHeader />
+      <main className="flex-1">
+        <Hero />
+        <HowItWorks />
+        <FeatureGrid />
+        <Pricing />
+        <FinalCta />
+      </main>
+      <MarketingFooter />
+    </div>
   );
 }
