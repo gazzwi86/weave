@@ -17,11 +17,22 @@ function stubFetch(response: Response): void {
 
 const TOKEN = "token-abc";
 const LATEST_PAGE_ZERO_QUERY = "version=latest&page=0";
-const PAGE_ZERO = {
-  rows: [{ subject: "urn:a", predicate: "urn:rel", object: "urn:b", bpmo_kind: "Process" }],
-  columns: ["subject", "predicate", "object", "bpmo_kind"],
-  has_more_pages: false,
-  page: 0,
+
+// CE-READ-1's own SPARQL-JSON binding shape (routers/sparql.py's raw
+// `query=` path -- see route.ts's BackendSparqlResponse).
+const BACKEND_PAGE_ONE = {
+  version_iri: "urn:workspace:demo:v1",
+  page: 1,
+  head: { vars: ["subject", "predicate", "object"] },
+  results: {
+    bindings: [
+      {
+        subject: { value: "urn:a" },
+        predicate: { value: "urn:rel" },
+        object: { value: "urn:b" },
+      },
+    ],
+  },
 };
 
 function mockAuthedSession(accessToken: string | null = TOKEN): void {
@@ -32,7 +43,7 @@ describe("GET /api/proxy/sparql -- auth and validation", () => {
   beforeEach(() => {
     vi.mocked(auth).mockReset();
     stubFetch(
-      new Response(JSON.stringify(PAGE_ZERO), {
+      new Response(JSON.stringify(BACKEND_PAGE_ONE), {
         status: 200,
         headers: { "content-type": "application/json" },
       })
@@ -60,41 +71,68 @@ describe("GET /api/proxy/sparql -- auth and validation", () => {
   });
 });
 
-describe("GET /api/proxy/sparql -- forwarding and errors", () => {
+describe("GET /api/proxy/sparql -- adapts CE-READ-1 into the Explorer's SparqlPage shape", () => {
   beforeEach(() => {
     vi.mocked(auth).mockReset();
     stubFetch(
-      new Response(JSON.stringify(PAGE_ZERO), {
+      new Response(JSON.stringify(BACKEND_PAGE_ONE), {
         status: 200,
         headers: { "content-type": "application/json" },
       })
     );
   });
 
-  it("forwards version/page and the bearer token, and proxies the CE-READ-1 page", async () => {
+  it("translates the client's 0-indexed page to CE-READ-1's 1-indexed page, injects the default graph query, and shapes the response", async () => {
     mockAuthedSession();
 
-    const response = await GET(makeRequest("version=latest&page=2"));
+    const response = await GET(makeRequest(LATEST_PAGE_ZERO_QUERY));
 
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/sparql?version=latest&page=2"),
+    const [calledUrl] = vi.mocked(fetch).mock.calls[0] as [string];
+    expect(calledUrl).toContain("/api/sparql?");
+    expect(calledUrl).toContain("version=latest");
+    expect(calledUrl).toContain("page=1"); // 0 (client) -> 1 (CE-READ-1)
+    expect(calledUrl).toContain(encodeURIComponent("GRAPH"));
+    expect(vi.mocked(fetch).mock.calls[0]?.[1]).toEqual(
       expect.objectContaining({ headers: { Authorization: `Bearer ${TOKEN}` } })
     );
+
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(PAGE_ZERO);
+    expect(await response.json()).toEqual({
+      rows: [{ subject: "urn:a", predicate: "urn:rel", object: "urn:b" }],
+      columns: ["subject", "predicate", "object"],
+      has_more_pages: false,
+      page: 0,
+    });
   });
 
-  // AC-9: even if a caller tries to sneak a `graph=` override into the
-  // querystring, the schema only ever reads version/page -- there is no
-  // code path that can forward a graph= parameter to CE-READ-1.
-  it("ignores an attempted graph= override -- only version/page ever reach CE-READ-1 (cross-tenant isolation)", async () => {
+  it("reports has_more_pages true only when CE-READ-1 sets a Link header", async () => {
+    mockAuthedSession();
+    stubFetch(
+      new Response(JSON.stringify(BACKEND_PAGE_ONE), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          Link: '</api/sparql?query=x&version=latest&page=2>; rel="next"',
+        },
+      })
+    );
+
+    const response = await GET(makeRequest(LATEST_PAGE_ZERO_QUERY));
+
+    expect((await response.json()).has_more_pages).toBe(true);
+  });
+
+  // AC-9: only version/page ever reach CE-READ-1 -- an attempted `graph=`
+  // (or `query=`) override in the client request is never forwarded; the
+  // query text is always the fixed server-side constant.
+  it("ignores an attempted graph= override -- only version/page/the fixed query ever reach CE-READ-1", async () => {
     mockAuthedSession();
 
     await GET(makeRequest("version=latest&page=0&graph=tenant-b"));
 
     const [calledUrl] = vi.mocked(fetch).mock.calls[0] as [string];
     expect(calledUrl).not.toContain("graph=");
-    expect(calledUrl).toContain(LATEST_PAGE_ZERO_QUERY);
+    expect(calledUrl).toContain("version=latest&page=1");
   });
 
   it("returns a distinguishable error when CE-READ-1 is unreachable", async () => {
@@ -110,5 +148,20 @@ describe("GET /api/proxy/sparql -- forwarding and errors", () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toEqual({ error: "store_unavailable" });
+  });
+
+  it("passes through a CE-READ-1 error body/status unchanged (e.g. no_active_workspace)", async () => {
+    mockAuthedSession();
+    stubFetch(
+      new Response(JSON.stringify({ error: "no_active_workspace" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const response = await GET(makeRequest(LATEST_PAGE_ZERO_QUERY));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "no_active_workspace" });
   });
 });
