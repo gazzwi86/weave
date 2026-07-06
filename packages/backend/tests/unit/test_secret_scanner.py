@@ -50,3 +50,20 @@ def test_scan_for_secrets_matches_connection_string(tmp_path: Path) -> None:
     hits = scan_for_secrets(str(tmp_path))
 
     assert len(hits) == 1
+
+
+def test_scan_for_secrets_misses_unquoted_env_style_secret(tmp_path: Path) -> None:
+    """QA edge case / gap: the generic `key=value` pattern requires an
+    opening quote right after `[:=]` (`["'][^"']{8,}`), so an *unquoted*
+    `.env`-style assignment -- the common real-world shape of
+    `API_KEY=sk-live-...` in a `.env`/`.env.local` file, with no quotes at
+    all -- is NOT caught. This pins today's actual (gap) behaviour rather
+    than the wished-for catch, so a silent widening of scope shows up in a
+    diff; see the QA report for BE-TASK-008 for the follow-up recommendation
+    (add an unquoted-value pattern variant).
+    """
+    payload = "sk-live-" + "abcdefghijklmnop"
+    key_line = "API_KEY" + "=" + payload
+    (tmp_path / ".env").write_text(key_line + "\n")
+
+    assert scan_for_secrets(str(tmp_path)) == []

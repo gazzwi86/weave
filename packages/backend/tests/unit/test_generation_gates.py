@@ -164,3 +164,20 @@ def test_run_mutation_gate_passes_when_score_at_or_above_threshold(tmp_path: Pat
 
     assert result.gate == "mutation"
     assert result.score == pytest.approx(0.75)
+
+
+def test_run_mutation_gate_fails_closed_when_no_mutants_generated(tmp_path: Path) -> None:
+    """QA edge case: a delta with zero killed/survived mutants (e.g. the
+    changed files have no mutatable statements, or mutmut emits nothing)
+    must not be treated as a vacuous pass -- `score = 0.0` when `total == 0`
+    (`run_delta_mutation`'s own guard), so the < 0.70 gate fails closed
+    rather than silently letting an unmutated delta through.
+    """
+    with patch("weave_backend.generation.gates.subprocess.run") as mock_run:
+        mock_run.return_value = _completed(0, stdout=json.dumps({"killed": 0, "survived": 0}))
+
+        with pytest.raises(GateFailure) as exc_info:
+            run_mutation_gate(str(tmp_path))
+
+    assert exc_info.value.error == "mutation_gate_fail"
+    assert exc_info.value.evidence["score"] == pytest.approx(0.0)
