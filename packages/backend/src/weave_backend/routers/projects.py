@@ -27,10 +27,12 @@ from weave_backend.projects.model import (
     get_project,
     slugify,
 )
+from weave_backend.repo_bootstrap.store import ProjectRepoRow, fetch_project_repo_row
 from weave_backend.schemas.projects import (
     CreateProjectRequest,
     CreateProjectResponse,
     ProjectResponse,
+    RepoInfo,
 )
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -118,6 +120,16 @@ async def create_project_route(
     )
 
 
+def _repo_info(repo_row: ProjectRepoRow) -> RepoInfo | None:
+    if repo_row.repo_provider and repo_row.repo_url and repo_row.repo_default_branch:
+        return RepoInfo(
+            provider=repo_row.repo_provider,
+            repo_url=repo_row.repo_url,
+            default_branch=repo_row.repo_default_branch,
+        )
+    return None
+
+
 @router.get("/{project_iri}", response_model=ProjectResponse)
 async def get_project_route(
     project_iri: str,
@@ -125,11 +137,15 @@ async def get_project_route(
 ) -> ProjectResponse:
     async with tenant_connection(principal.tenant_id) as conn:
         project = await get_project(conn, tenant_id=principal.tenant_id, project_iri=project_iri)
-    if project is None:
-        raise HTTPException(status_code=404, detail={"error": "not_found"})
+        if project is None:
+            raise HTTPException(status_code=404, detail={"error": "not_found"})
+        repo_row = await fetch_project_repo_row(
+            conn, tenant_id=principal.tenant_id, project_iri=project_iri
+        )
     return ProjectResponse(
         project_iri=project.project_iri,
         name=project.name,
         pinned_graph_version_iri=project.pinned_graph_version_iri,
         created_at=project.created_at,
+        repo=_repo_info(repo_row) if repo_row is not None else None,
     )

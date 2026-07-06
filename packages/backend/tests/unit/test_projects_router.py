@@ -24,6 +24,7 @@ from weave_backend import app
 from weave_backend.auth.dependencies import Principal
 from weave_backend.projects.ce_version_client import CeVersionUnavailable
 from weave_backend.projects.model import Project, ProjectExists
+from weave_backend.repo_bootstrap.store import ProjectRepoRow
 from weave_backend.routers.projects import create_project_route, get_project_route
 from weave_backend.schemas.projects import CreateProjectRequest
 
@@ -171,6 +172,14 @@ async def test_get_project_route_returns_project_when_found() -> None:
         pinned_graph_version_iri="urn:weave:version:v2",
         created_at=datetime.now(UTC),
     )
+    not_bootstrapped = ProjectRepoRow(
+        name="Acme Corp",
+        source_control_provider=None,
+        source_control_token_secret_ref=None,
+        repo_provider=None,
+        repo_url=None,
+        repo_default_branch=None,
+    )
 
     with (
         patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
@@ -178,11 +187,80 @@ async def test_get_project_route_returns_project_when_found() -> None:
             "weave_backend.routers.projects.get_project",
             AsyncMock(return_value=found),
         ),
+        patch(
+            "weave_backend.routers.projects.fetch_project_repo_row",
+            AsyncMock(return_value=not_bootstrapped),
+        ),
     ):
         result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
 
     assert result.project_iri == "urn:weave:project:t1:acme-corp"
     assert result.name == "Acme Corp"
+    assert result.repo is None
+
+
+async def test_get_project_route_includes_repo_once_bootstrapped() -> None:
+    """TASK-010's API Contract: `GET /api/projects/{project_iri}` includes
+    `repo` once `ensure_project_repo` has bootstrapped it.
+    """
+    found = Project(
+        project_iri="urn:weave:project:t1:acme-corp",
+        name="Acme Corp",
+        pinned_graph_version_iri="urn:weave:version:v2",
+        created_at=datetime.now(UTC),
+    )
+    repo_row = ProjectRepoRow(
+        name="Acme Corp",
+        source_control_provider="github",
+        source_control_token_secret_ref="secret-ref",
+        repo_provider="github",
+        repo_url="https://github.com/acme/weave-acme-corp",
+        repo_default_branch="main",
+    )
+
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.projects.get_project", AsyncMock(return_value=found)),
+        patch(
+            "weave_backend.routers.projects.fetch_project_repo_row",
+            AsyncMock(return_value=repo_row),
+        ),
+    ):
+        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+
+    assert result.repo is not None
+    assert result.repo.provider == "github"
+    assert result.repo.repo_url == "https://github.com/acme/weave-acme-corp"
+    assert result.repo.default_branch == "main"
+
+
+async def test_get_project_route_repo_is_none_when_not_bootstrapped() -> None:
+    found = Project(
+        project_iri="urn:weave:project:t1:acme-corp",
+        name="Acme Corp",
+        pinned_graph_version_iri="urn:weave:version:v2",
+        created_at=datetime.now(UTC),
+    )
+    repo_row = ProjectRepoRow(
+        name="Acme Corp",
+        source_control_provider=None,
+        source_control_token_secret_ref=None,
+        repo_provider=None,
+        repo_url=None,
+        repo_default_branch=None,
+    )
+
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.projects.get_project", AsyncMock(return_value=found)),
+        patch(
+            "weave_backend.routers.projects.fetch_project_repo_row",
+            AsyncMock(return_value=repo_row),
+        ),
+    ):
+        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+
+    assert result.repo is None
 
 
 async def test_get_project_route_raises_404_when_not_found() -> None:

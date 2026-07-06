@@ -36,8 +36,19 @@ class CreateProjectResponse(BaseModel):
     created_at: datetime
 
 
+class RepoInfo(BaseModel):
+    """TASK-010's bootstrapped repo handle, echoed on `GET /api/projects/{id}`
+    once `ensure_project_repo` has run.
+    """
+
+    provider: str
+    repo_url: str
+    default_branch: str
+
+
 class ProjectResponse(BaseModel):
     project_iri: str
     name: str
     pinned_graph_version_iri: str
     created_at: datetime
+    repo: RepoInfo | None = None
