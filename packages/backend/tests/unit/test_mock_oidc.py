@@ -24,6 +24,27 @@ async def client() -> AsyncIterator[AsyncClient]:
         yield ac
 
 
+async def test_authorize_form_defaults_to_seeded_admin_and_lists_demo_logins(
+    client: AsyncClient,
+) -> None:
+    """FIX 1 (P0): the old default (`dev-user-1@weave.local`) has no seeded
+    workspace membership, so logging in as it 400s every workspace-scoped
+    route. The default must be a seeded user (`seed_demo.py`'s ADMIN), and
+    the form must tell a human which demo logins exist so they aren't stuck
+    guessing.
+    """
+    response = await client.get(
+        "/authorize", params={"redirect_uri": "http://localhost:3000/callback"}
+    )
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'value="admin@weave.local"' in body
+    assert "admin@weave.local" in body and "super-admin" in body
+    assert "client@weave.local" in body and "author" in body
+    assert "acme-corp" in body
+
+
 async def test_discovery_document_points_at_this_process(client: AsyncClient) -> None:
     response = await client.get("/.well-known/openid-configuration")
 

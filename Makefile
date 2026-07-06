@@ -27,8 +27,11 @@ seed:
 	cd packages/backend && uv run python -m weave_backend.db.seed_demo
 
 # AC-2/AC-3: mock-oidc stands in for the Cognito hosted UI in dev.
+# FIX 3 (P0): backend defaults to AnthropicProvider, which 502s with no API
+# key -- dev points AI routing at host-native Ollama instead (ADR-011).
 dev:
-	cd packages/backend && uv run uvicorn weave_backend:app --reload --port 8000 & \
+	cd packages/backend && WEAVE_MODEL_PROVIDER=ollama OLLAMA_MODEL=gemma4:e4b \
+		uv run uvicorn weave_backend:app --reload --port 8000 & \
 	cd packages/backend && uv run weave-mock-oidc & \
 	cd packages/frontend && npm run dev
 

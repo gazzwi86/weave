@@ -108,6 +108,14 @@ async def nl_authoring_route(
         raise HTTPException(
             status_code=422, detail={"error": "nl_parse_failed", "message": str(exc)}
         ) from exc
+    except Exception as exc:  # graceful-degradation boundary: model provider
+        # unreachable/misconfigured (Ollama host down, no Anthropic/Bedrock
+        # creds) -- surface a clean 502, never a raw unhandled exception.
+        # Logs the exception type only, never body.text (PII/business data).
+        log.warning("NL authoring provider call failed: %s", type(exc).__name__)
+        raise HTTPException(
+            status_code=502, detail={"error": "model_provider_unavailable"}
+        ) from exc
 
     if body.preview:
         return JSONResponse(

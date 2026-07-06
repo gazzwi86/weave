@@ -95,10 +95,11 @@ async def layout_api_error_handler(request: Request, exc: Exception) -> JSONResp
 @asynccontextmanager
 async def _layout_connection(tenant_id: str) -> AsyncIterator[asyncpg.Connection]:
     """Mirrors `db.pool.tenant_connection` but sets this table's own RLS key,
-    `app.current_tenant_id` (ADR-004 decision 3) -- a different, stricter
-    (non-`missing_ok`) config key than the platform's `app.tenant_id`. Any
-    asyncpg failure (unreachable Aurora, or a non-UUID `tenant_id` tripping
-    the RLS policy's `::uuid` cast) surfaces as 503, never a raw 500.
+    `app.current_tenant_id` (ADR-004 decision 3) -- a distinct config key from
+    the platform's `app.tenant_id`, though both are TEXT and `missing_ok=true`
+    since migration 0014 (the column/cast used to be UUID-only, see that
+    migration's comment). Any asyncpg failure (e.g. unreachable Aurora)
+    surfaces as 503, never a raw 500.
     """
     try:
         pool = await get_app_pool()

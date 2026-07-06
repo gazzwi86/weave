@@ -25,10 +25,20 @@ from weave_backend.mock_oidc.tokens import (
 
 app = FastAPI(title="Weave Mock OIDC Provider")
 
-_DEFAULT_EMAIL = "dev-user-1@weave.local"
+_DEFAULT_EMAIL = "admin@weave.local"
 # PLAT-TASK-003: extended from a single hardcoded tenant so cross-tenant
 # tests can sign in as a second tenant's user via the `tenant_id` form field.
 _DEFAULT_TENANT_ID = "acme-corp"
+
+# FIX 1 (P0): the default used to be an unseeded user (`dev-user-1@weave.local`),
+# which has no workspace membership -- every workspace-scoped route 400s right
+# after login and the app looks dead. Default now points at seed_demo.py's
+# ADMIN login; this hint tells a human the other seeded option too.
+_DEMO_LOGIN_HINT = (
+    "Demo logins (tenant acme-corp): "
+    "<code>admin@weave.local</code> (super-admin), "
+    "<code>client@weave.local</code> (author)."
+)
 
 
 @app.get("/.well-known/openid-configuration")
@@ -67,6 +77,7 @@ async def authorize(redirect_uri: str, state: str | None = None) -> str:
 <html lang="en">
 <body>
   <h1>Weave Mock OIDC — Sign in</h1>
+  <p>{_DEMO_LOGIN_HINT}</p>
   <form method="post" action="/login">
     <input type="hidden" name="redirect_uri" value="{safe_redirect_uri}">
     <input type="hidden" name="state" value="{safe_state}">

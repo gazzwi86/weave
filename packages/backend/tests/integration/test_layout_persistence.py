@@ -30,11 +30,20 @@ pytestmark = [
 ]
 
 
+def _tenant_slug(prefix: str) -> str:
+    """AC-4 regression guard (migration 0014): `explorer_layout_positions.tenant_id`
+    used to be UUID, requiring a syntactically-valid UUID string here -- which
+    never exercised the real bug, since every platform tenant_id is actually a
+    free-text slug (e.g. `acme-corp`) that fails to cast to `::uuid`. Each test
+    gets its own slug (not a hardcoded `acme-corp`) so runs don't collide with
+    each other or with seed_demo.py's real `acme-corp` tenant on a shared DB.
+    """
+    return f"{prefix}-{uuid.uuid4().hex[:8]}"
+
+
 def _uuid() -> str:
-    """explorer_layout_positions.tenant_id/workspace_id are UUID columns
-    (ADR-001-approved, stricter than the platform's TEXT tenant_id) -- test
-    tenant/workspace ids must be real UUIDs, not the free-text slugs other
-    routers' tests use.
+    """workspace ids are real UUIDs (the `workspaces.id` column, unaffected
+    by migration 0014 -- only `explorer_layout_positions.tenant_id` changed).
     """
     return str(uuid.uuid4())
 
@@ -71,7 +80,7 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
 async def test_persist_position_via_post_and_retrieve_via_get(
     client: AsyncClient, platform_stack: Path
 ) -> None:
-    tenant_id = _uuid()
+    tenant_id = _tenant_slug("acme-corp")
     workspace_id = await _member_workspace(tenant_id=tenant_id, user_sub="u-layout-a")
     tokens = await issue_token_pair(sub="u-layout-a", tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
@@ -106,7 +115,7 @@ async def test_persist_position_via_post_and_retrieve_via_get(
 async def test_upsert_on_duplicate_drag_updates_not_inserts(
     client: AsyncClient, platform_stack: Path
 ) -> None:
-    tenant_id = _uuid()
+    tenant_id = _tenant_slug("acme-corp")
     workspace_id = await _member_workspace(tenant_id=tenant_id, user_sub="u-layout-b")
     tokens = await issue_token_pair(sub="u-layout-b", tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
@@ -133,7 +142,7 @@ async def test_upsert_on_duplicate_drag_updates_not_inserts(
 
 
 async def test_reset_layout_clears_rows(client: AsyncClient, platform_stack: Path) -> None:
-    tenant_id = _uuid()
+    tenant_id = _tenant_slug("acme-corp")
     workspace_id = await _member_workspace(tenant_id=tenant_id, user_sub="u-layout-c")
     tokens = await issue_token_pair(sub="u-layout-c", tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
@@ -170,7 +179,7 @@ async def test_cross_tenant_layout_isolation_rls(platform_stack: Path) -> None:
     clause at all, relying solely on the RLS policy set via
     `app.current_tenant_id` to filter tenant-B's row out.
     """
-    tenant_a, tenant_b = _uuid(), _uuid()
+    tenant_a, tenant_b = _tenant_slug("acme-corp"), _tenant_slug("globex")
     workspace_a, workspace_b = _uuid(), _uuid()
 
     async with _layout_connection(tenant_a) as conn:
@@ -217,7 +226,7 @@ async def test_save_position_rejects_non_member_workspace(
     the caller must 403 -- mirrors test_search_tenancy.py's own
     `test_search_rejects_non_member_of_workspace` for the identical check.
     """
-    tenant_id = _uuid()
+    tenant_id = _tenant_slug("acme-corp")
     async with tenant_connection(tenant_id) as conn:
         workspace = await create_workspace(
             conn, tenant_id=tenant_id, slug="ws", display_name="Guarded"
@@ -245,7 +254,7 @@ async def test_save_position_rejects_foreign_tenant_workspace_id(
     leak existence via a 403 -- mirrors test_search_tenancy.py's own
     `test_search_rejects_foreign_tenant_workspace_id` for the identical check.
     """
-    tenant_a, tenant_b = _uuid(), _uuid()
+    tenant_a, tenant_b = _tenant_slug("acme-corp"), _tenant_slug("globex")
     async with tenant_connection(tenant_b) as conn:
         workspace_b = await create_workspace(conn, tenant_id=tenant_b, slug="ws", display_name="B")
 
