@@ -20,6 +20,8 @@ from weave_backend.rdf.oxigraph_client import run_query
 from weave_backend.rdf.patterns import NAMED_PATTERNS, ZERO_ROW_MESSAGES
 from weave_backend.rdf.query_rewriter import (
     DisallowedQueryError,
+    ProhibitedClauseError,
+    ServiceBlockedError,
     UnscopedQueryError,
     validate_query,
 )
@@ -61,19 +63,34 @@ async def _resolve_named_graph(principal: Principal, requested_workspace_id: str
     return workspace.named_graph_iri
 
 
+def _validate_or_400(query: str) -> None:
+    """AC-003-05/-06: the two `/api/sparql` handlers below share this so a
+    prohibited clause or SERVICE federation attempt gets its own precise
+    error shape, not the generic `disallowed_query` catch-all -- matches
+    `routers/query.py::_validated_or_translation_failed`'s ordering
+    (subclasses caught ahead of their `DisallowedQueryError` parent).
+    """
+    try:
+        validate_query(query)
+    except UnscopedQueryError as exc:
+        raise HTTPException(status_code=400, detail={"error": "unscoped_query_rejected"}) from exc
+    except ProhibitedClauseError as exc:
+        raise HTTPException(
+            status_code=400, detail={"error": "prohibited_clause", "clause": exc.clause}
+        ) from exc
+    except ServiceBlockedError as exc:
+        raise HTTPException(status_code=400, detail={"error": "service_blocked"}) from exc
+    except DisallowedQueryError as exc:
+        raise HTTPException(status_code=400, detail={"error": "disallowed_query"}) from exc
+
+
 @router.post("/sparql")
 async def run_sparql_route(
     body: SparqlQueryRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> dict[str, Any]:
     named_graph_iri = await _resolve_named_graph(principal, body.workspace_id)
-    try:
-        validate_query(body.query)
-    except UnscopedQueryError as exc:
-        raise HTTPException(status_code=400, detail={"error": "unscoped_query_rejected"}) from exc
-    except DisallowedQueryError as exc:
-        raise HTTPException(status_code=400, detail={"error": "disallowed_query"}) from exc
-
+    _validate_or_400(body.query)
     return await run_query(body.query, named_graph_iri)
 
 
@@ -260,12 +277,7 @@ async def sparql_select_route(
     if not params.query:
         raise HTTPException(status_code=400, detail={"error": "query_required"})
 
-    try:
-        validate_query(params.query)
-    except UnscopedQueryError as exc:
-        raise HTTPException(status_code=400, detail={"error": "unscoped_query_rejected"}) from exc
-    except DisallowedQueryError as exc:
-        raise HTTPException(status_code=400, detail={"error": "disallowed_query"}) from exc
+    _validate_or_400(params.query)
 
     graph_iri = await _resolve_query_graph(
         principal, workspace_id=params.workspace_id, version=params.version

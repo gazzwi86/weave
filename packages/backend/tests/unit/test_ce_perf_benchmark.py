@@ -133,3 +133,19 @@ def test_main_exit_code_is_zero_when_only_a_non_gating_size_crashes(
     exit_code = asyncio.run(run_benchmark._main())
 
     assert exit_code == 0  # only the non-gating size crashed
+
+
+def test_corpus_sizes_defaults_to_all_three_when_env_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CE_PERF_CORPUS_SIZES", raising=False)
+    assert run_benchmark._corpus_sizes_from_env() == [10_000, 100_000, 500_000]
+
+
+def test_corpus_sizes_env_override_restricts_the_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # CI sets this to the gating 10k only -- 100k/500k crash and are non-gating,
+    # so there is no value running them in CI (ADR-004 decision addendum).
+    monkeypatch.setenv("CE_PERF_CORPUS_SIZES", "10000")
+    assert run_benchmark._corpus_sizes_from_env() == [10_000]

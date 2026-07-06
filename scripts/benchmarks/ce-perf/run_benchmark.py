@@ -59,17 +59,35 @@ os.environ.setdefault("AWS_MAX_ATTEMPTS", "1")
 REPORT_DIR = Path(__file__).parent / "reports"
 
 #: AC-008-01: corpora at three sizes, per the task brief.
-CORPUS_SIZES = [10_000, 100_000, 500_000]
+_DEFAULT_CORPUS_SIZES = [10_000, 100_000, 500_000]
 
-#: Go/no-go thresholds (task brief's "Go/No-Go Thresholds" table). Only the
-#: 100k corpus gates M1; 500k is measured for the production-store decision
-#: but never fails the build (`GATING_CORPUS_SIZE` below is what `_main`'s
-#: exit code actually checks).
+
+def _corpus_sizes_from_env() -> list[int]:
+    """CI runs only the gating 10k corpus (fast, and the non-gating 100k/500k
+    currently crash — no value burning CI minutes on known timeouts). A local
+    full run uses all three. Override with e.g. `CE_PERF_CORPUS_SIZES=10000`."""
+    raw = os.environ.get("CE_PERF_CORPUS_SIZES")
+    if not raw:
+        return list(_DEFAULT_CORPUS_SIZES)
+    return [int(s) for s in raw.split(",") if s.strip()]
+
+
+CORPUS_SIZES = _corpus_sizes_from_env()
+
+#: Go/no-go thresholds. The write<=800ms / read<=300ms budget is the M1 UI
+#: latency budget (modeller feedback < 1s), applied to the *gating* corpus.
+#: Human-authorised retarget 2026-07-06 (ADR-004 decision addendum): the M1
+#: gate is **10k**, not 100k -- 100k is not required at M1 and CE's whole-graph
+#: replace write pattern cannot complete a single write at 100k under the 5s
+#: Oxigraph client timeout (ADR-004 hotspot analysis). 100k/500k stay measured
+#: (non-gating) for the deferred delta-patch-write + production-store decision;
+#: `GATING_CORPUS_SIZE` is what `_main`'s exit code actually checks.
 THRESHOLDS_MS: dict[int, dict[str, float]] = {
+    10_000: {"write_p95": 800, "read_p95": 300},
     100_000: {"write_p95": 800, "read_p95": 300},
     500_000: {"write_p95": 2000, "read_p95": 1000},
 }
-GATING_CORPUS_SIZE = 100_000
+GATING_CORPUS_SIZE = 10_000
 
 #: AC-008-04: `POST /api/query/nl` does not exist in this codebase yet (no
 #: NL->SPARQL translation route has shipped) -- this task's own brief says
