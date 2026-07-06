@@ -1,4 +1,4 @@
-.PHONY: dev test lint scaffold up down
+.PHONY: dev test lint scaffold up down migrate seed
 
 # AC-1: (re)create the monorepo directory tree, then prove the repo still
 # lints clean. Idempotent — safe to re-run on an already-scaffolded repo.
@@ -14,6 +14,17 @@ up:
 
 down:
 	docker compose down -v
+
+# Apply any pending Postgres migrations (run once after `make up`, before
+# `make seed`/`make dev`). Safe to re-run -- tracked in `schema_migrations`.
+migrate:
+	cd packages/backend && uv run python -m weave_backend.db.migrate
+
+# Idempotent demo data: one workspace, an admin + client login (both via
+# mock-oidc), a small BPMO graph. Not wired into `make dev` automatically --
+# run it explicitly once after `make migrate` on a fresh stack.
+seed:
+	cd packages/backend && uv run python -m weave_backend.db.seed_demo
 
 # AC-2/AC-3: mock-oidc stands in for the Cognito hosted UI in dev.
 dev:
