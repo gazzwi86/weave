@@ -193,3 +193,98 @@ def test_add_node_with_empty_kind_or_label_is_rejected_at_the_schema_boundary() 
     graph-op logic, guards against a blank kind/label node)."""
     with pytest.raises(ValueError):
         AddNodeOp(op="add_node", ref="n1", kind="", label="Invoicing")
+
+
+OWL = Namespace("http://www.w3.org/2002/07/owl#")
+RDFS = Namespace("http://www.w3.org/2000/01/rdf-schema#")
+
+
+def test_add_node_with_absolute_iri_kind_passes_through_unscoped() -> None:
+    """TASK-004 AC-004-06: OWL restriction nodes are typed `owl:Restriction`,
+    not a WEAVE-namespaced BPMO kind -- an absolute IRI `kind` must not be
+    double-prefixed under `weave:`.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="r1",
+                kind=str(OWL.Restriction),
+                label="hasActivity >= 1",
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["r1"])
+    assert (iri, RDF.type, OWL.Restriction) in graph
+    assert (iri, RDF.type, WEAVE.Restriction) not in graph
+
+
+def test_add_edge_with_absolute_iri_predicate_passes_through_unscoped() -> None:
+    """TASK-004 AC-004-07: `owl:disjointWith` must land as the real OWL
+    predicate, not `weave:http://...#disjointWith`.
+    """
+    graph = Graph()
+
+    apply_operations(
+        graph,
+        [
+            AddNodeOp(op="add_node", ref="p1", kind="Process", label="Onboarding"),
+            AddNodeOp(op="add_node", ref="d1", kind="DataAsset", label="Customer Record"),
+            AddEdgeOp(
+                op="add_edge",
+                subject_ref="p1",
+                predicate=str(OWL.disjointWith),
+                object_ref="d1",
+            ),
+        ],
+    )
+
+    assert any(p == OWL.disjointWith for _, p, _ in graph)
+
+
+def test_add_node_with_absolute_iri_property_key_passes_through_unscoped() -> None:
+    """TASK-004 AC-004-06: `owl:minCardinality` on a restriction node must
+    not be forced under the `weave:` namespace.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="r1",
+                kind=str(OWL.Restriction),
+                label="hasActivity >= 1",
+                properties={str(OWL.minCardinality): 1},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["r1"])
+    assert graph.value(iri, OWL.minCardinality) == Literal(1)
+
+
+def test_update_node_with_absolute_iri_property_key_passes_through_unscoped() -> None:
+    graph = Graph()
+    subject = URIRef("https://weave.io/instances/restriction-1")
+    graph.add((subject, RDF.type, OWL.Restriction))
+
+    apply_operations(
+        graph,
+        [
+            UpdateNodeOp(
+                op="update_node",
+                iri=str(subject),
+                properties={str(OWL.onProperty): str(WEAVE.hasActivity)},
+            )
+        ],
+    )
+
+    assert graph.value(subject, OWL.onProperty) == Literal(
+        str(WEAVE.hasActivity), datatype=XSD.string
+    )

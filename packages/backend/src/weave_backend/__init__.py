@@ -15,12 +15,14 @@ from weave_backend.projects.ce_version_client import close_ce_client
 from weave_backend.routers.audit import router as audit_router
 from weave_backend.routers.auth import refresh
 from weave_backend.routers.auth import router as auth_router
+from weave_backend.routers.authoring import router as authoring_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
+from weave_backend.routers.instances import router as instances_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
@@ -49,6 +51,7 @@ install_tenant_context_middleware(app)
 install_ce_contract_headers_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(authoring_router)
 app.include_router(billing_router)
 # QA blocker (PLAT-TASK-008): simulate-ai-call/simulate-run call the real
 # ai_route() and incur real billed spend -- RBAC (author role) alone is not
@@ -67,6 +70,7 @@ app.include_router(sparql_router)
 app.include_router(operations_router)
 app.include_router(ontology_router)
 app.include_router(identity_router)
+app.include_router(instances_router)
 app.include_router(search_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)

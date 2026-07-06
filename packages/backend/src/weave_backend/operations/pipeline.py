@@ -25,6 +25,7 @@ import asyncpg
 from rdflib import Graph
 
 from weave_backend.audit.emitter import AuditEvent
+from weave_backend.authoring.bpmo import validate_kind
 from weave_backend.operations import metrics
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
@@ -40,6 +41,7 @@ from weave_backend.operations.shacl import validate_graph
 from weave_backend.operations.versioning import get_version, mint_version
 from weave_backend.rdf.oxigraph_client import fetch_graph_turtle, load_graph
 from weave_backend.schemas.operations import (
+    AddNodeOp,
     ApplyRequest,
     ApplyResponse,
     ViolationDetail,
@@ -196,6 +198,20 @@ def _to_violation_detail(result: Any) -> ViolationDetail:
 async def _apply_uncached(
     ctx: ApplyContext, request: ApplyRequest
 ) -> ApplyResponse | ViolationsResponse:
+    # TASK-004 AC-004-02: every add_node's kind must be one of the 13 BPMO
+    # kinds. Checked here -- the one place every authoring surface (NL,
+    # form, import, and a raw POST /api/operations/apply caller) routes
+    # through -- rather than in each caller, so there's no bypass path.
+    # Pure input validation, so it runs before any DB/graph I/O.
+    #
+    # An absolute-IRI kind (e.g. "http://www.w3.org/2002/07/owl#Restriction")
+    # is OWL/RDFS vocabulary, not a BPMO business kind -- graph_ops._expand()
+    # already passes these through untouched for AC-004-06/-07's restriction/
+    # disjointness authoring, so the guard mirrors that same distinction.
+    for op in request.operations:
+        if isinstance(op, AddNodeOp) and "://" not in op.kind:
+            validate_kind(op.kind)
+
     source_graph_iri = resolve_source_graph_iri(ctx.named_graph_iri, request.target)
     if request.target != "draft":
         target_version = await get_version(
@@ -229,6 +245,7 @@ async def _apply_uncached(
         applied_count=apply_result.applied_count,
         version_iri=version_iri,
         advisories=advisories,
+        ref_map=apply_result.ref_map,
     )
 
 
