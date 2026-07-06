@@ -89,3 +89,26 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Action:** whichever GE task introduces kind→shape/icon pairing must close WCAG 1.4.1. Tracked, not
   fixed in M1.
 - **Classification:** deferred / cross-task.
+
+## XT-BE006-1 — POST /api/projects/{iri}/runs happy-path untested
+
+- **Severity:** Minor · **Status:** OPEN
+- **Affects:** BE-TASK-006 (dark-factory run engine); closable by BE-TASK-007 (wires PLAN consumption).
+- **Found by:** BE-TASK-006 QA (live mutation pass).
+- **Symptom:** every integration test drives `StateSpine` directly or hits the 409/404 error branches;
+  the 202 happy-path (real dispatch through the HTTP layer) has zero coverage. Not an AC violation — no AC
+  requires HTTP-driven backlog seeding — but the primary run entrypoint is unproven end-to-end.
+- **Action:** add an HTTP happy-path integration test when BE-007 wires PLAN to consume a real backlog.
+- **Classification:** test-coverage / cross-task.
+
+## XT-BE006-2 — turn_cap_override not clamped against PLAT-SETTINGS-1 cascade
+
+- **Severity:** Minor · **Status:** OPEN (ponytail-marked, upgrade path in `routers/runs.py`)
+- **Affects:** BE-TASK-006 (`routers/runs.py` `_effective_turn_cap`).
+- **Found by:** BE-TASK-006 QA (dev #4 adjudication).
+- **Symptom:** `turn_cap_override` is applied as a direct override, not clamped against PLAT-SETTINGS-1's
+  cascade despite the API-contract prose "capped by (PLAT-SETTINGS-1)". AC-1's testable text only requires
+  a default-60 configurable cap, so this is a WARN not a FAIL. Limited blast radius — an authenticated
+  principal can only raise their own tenant's cap.
+- **Action:** clamp the override to the settings-resolved ceiling before this surface is exposed more broadly.
+- **Classification:** deferred / spec-prose-vs-AC gap.

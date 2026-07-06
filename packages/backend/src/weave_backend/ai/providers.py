@@ -1,6 +1,7 @@
-"""Two provider implementations for the same tier-routed model call (AC-4).
-Real SDK clients (`boto3`, `anthropic`) are only ever constructed lazily and
-never invoked in tests — every test passes its own mock `client=`.
+"""Provider implementations for the same tier-routed model call (AC-4).
+Real SDK/HTTP clients (`boto3`, `anthropic`, `httpx`) are only ever
+constructed lazily and never invoked in tests — every test passes its own
+mock `client=`.
 """
 
 from __future__ import annotations
@@ -8,6 +9,8 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Protocol
+
+import httpx
 
 
 class ModelProvider(Protocol):
@@ -67,3 +70,28 @@ class BedrockProvider:
         response = self._client.invoke_model(modelId=model_id, body=body)
         payload = json.loads(response["body"].read())
         return str(payload["content"][0]["text"])
+
+
+class OllamaProvider:
+    """Calls a host-native Ollama HTTP API (ADR-011: Ollama runs on the dev
+    host, never in docker-compose -- no GPU passthrough into containers on
+    Apple-Silicon macOS). Dev-only NL query provider; `model_id` (a Claude
+    tier id from `ai/config.py`) is ignored -- Ollama always uses whichever
+    local model `OLLAMA_MODEL` names.
+    """
+
+    def __init__(self, client: httpx.Client | None = None, *, model: str | None = None) -> None:
+        self._model = model or os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
+        if client is None:
+            base_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+            client = httpx.Client(base_url=base_url, timeout=30.0)
+        self._client = client
+
+    def complete(self, model_id: str, prompt: str, **kwargs: Any) -> str:
+        del model_id  # Ollama's model is OLLAMA_MODEL, not the Claude tier id
+        response = self._client.post(
+            "/api/generate",
+            json={"model": self._model, "prompt": prompt, "stream": False, **kwargs},
+        )
+        response.raise_for_status()
+        return str(response.json()["response"])

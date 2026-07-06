@@ -23,24 +23,29 @@ describe("GET /api/proxy/node-kinds", () => {
     expect(response.status).toBe(401);
   });
 
-  it("forwards the caller's bearer token to CE-READ-1 and proxies the palette", async () => {
+  it("forwards the caller's bearer token to CE-READ-1 and adapts the kind catalogue into a palette", async () => {
     vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
     stubFetch(
-      new Response(JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      })
+      new Response(
+        JSON.stringify({
+          kinds: [
+            { iri: "https://weave.example/bpmo#Process", label: "Process", properties: [] },
+          ],
+          relationships: [],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
     );
 
     const response = await GET();
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/node-kinds"),
+      expect.stringContaining("/api/ontology/types"),
       expect.objectContaining({ headers: { Authorization: "Bearer token-abc" } })
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }],
+      kinds: [{ id: "Process", label: "Process", colour: "var(--color-kind-fallback)" }],
     });
   });
 

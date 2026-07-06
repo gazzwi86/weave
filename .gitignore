@@ -15,6 +15,9 @@ out/
 # would otherwise silently swallow it).
 !packages/backend/src/weave_backend/build/
 !packages/backend/src/weave_backend/build/**
+# ...and the frontend's Build-section route (app router page, not an artefact).
+!packages/frontend/app/build/
+!packages/frontend/app/build/**
 
 # Environment
 .env
