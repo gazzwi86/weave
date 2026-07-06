@@ -185,3 +185,64 @@ async def test_dod_gate_records_result_to_audit_on_fail_with_command_details(
         )
     assert len(rows) == 1
     assert rows[0]["diff_summary"] is not None
+
+
+# --- QA edge cases ---------------------------------------------------------
+#
+# The brief's own Integration Test Requirements (minimum 3) don't name a
+# pre-scaffold HTTP-route test, and none of the 3 delivered integration
+# tests exercise `POST /api/projects/{project_iri}/gates/pre-scaffold` --
+# only the unit-level `run_pre_scaffold_gate` callable is proven (bypassing
+# routing/auth/DB wiring entirely). AC-5/AC-6 and the "audit write ordered
+# before response" design decision are unverified for this gate's actual
+# wire path. Closing that gap here.
+
+
+async def test_pre_scaffold_gate_route_persists_and_proceeds(client: AsyncClient) -> None:
+    tenant_id = f"tenant-gates-{uuid.uuid4().hex[:8]}"
+    project_iri = _unique_project_iri("proj")
+    task_store.upsert_project_spec(tenant_id, project_iri, brief_present=True, prd_present=True)
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.post(
+        f"/api/projects/{project_iri}/gates/pre-scaffold", headers=headers
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result"] == "PROCEED"
+    failing_steps = {finding["step"] for finding in body["findings"]}
+    assert failing_steps == {"roadmap", "tech_spec", "impl_ready"}
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT event_type, diff_summary FROM audit_entries"
+            " WHERE tenant_id = $1 AND event_type = 'gate_result_pre_scaffold'",
+            tenant_id,
+        )
+    assert len(rows) == 1
+    assert rows[0]["diff_summary"] is not None
+
+
+async def test_gate_results_rls_tenant_isolation(client: AsyncClient) -> None:
+    """`gate_results` has the same FORCE ROW LEVEL SECURITY precedent as
+    `task_briefs` (0010) -- `test_brief_store_rls_tenant_isolation` proves
+    that table's isolation, but nothing proved it for `gate_results` before
+    this test. A tenant must never see another tenant's gate rows.
+    """
+    tenant_a = f"tenant-gates-a-{uuid.uuid4().hex[:8]}"
+    tenant_b = f"tenant-gates-b-{uuid.uuid4().hex[:8]}"
+    project_iri = _unique_project_iri("proj")
+    task_store.upsert_project_spec(tenant_a, project_iri, brief_present=True)
+    tokens_a = await issue_token_pair(sub="u-a", tenant_id=tenant_a)
+
+    response = await client.post(
+        f"/api/projects/{project_iri}/gates/pre-scaffold",
+        headers={"Authorization": f"Bearer {tokens_a.access_token}"},
+    )
+    assert response.status_code == 200
+
+    async with tenant_connection(tenant_b) as conn:
+        rows = await conn.fetch("SELECT id FROM gate_results")
+    assert rows == []
