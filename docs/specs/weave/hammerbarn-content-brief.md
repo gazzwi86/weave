@@ -64,6 +64,14 @@ Who reads it:
 - **Build + Events (post-v1)** — extend the seed with the Kitchen Designer app (BE-ARTEFACT-1) and example
   automations (EA-AUTOMATION-1). Stubbed here (§13), authored later.
 
+**Primary audience — Hammerbarn's Head Office IT Systems / Digital team.** This team is the archetypal
+Weave customer and the star of the demo's "why Weave" narrative. They model the company's operations as the
+BPMO ontology (this brief), then use Weave's **Build** engine to generate the apps that run the business
+(retail site and mobile app, inventory management, customer loyalty) and the **Events** engine to run the
+automations that keep it moving (pricing propagation, delivery notifications, stock reorder) — every one
+grounded in the same ontology. This is exactly what the **Technical** onboarding path showcases: model
+once, then generate and operate the digital estate from the model.
+
 **Live-pipeline principle.** The seed is **authored through the engines, not shipped as a static RDF
 snapshot.** Ontology/glossary/brand/governance are written via CE-WRITE-1; the Build project via
 BE-ARTEFACT-1; automations via EA-AUTOMATION-1. This keeps the demo in step with the real product — if a
@@ -83,7 +91,8 @@ Merchandising, Finance and People function.
 Revenue lines, in rough order of size: **in-store retail sales** (consumer), **trade account sales** (on
 credit, volume-priced), **click-and-collect** (order online, pick up in ~1 hour from the trade counter),
 **home delivery** (kerbside and room-of-choice for bulky goods), and a small **tool & plant hire** line
-(deferred from the M1 model — see §15). Hammerbarn's promise is broad range, trade-friendly pricing, and
+(flavour only — not modelled as a process; OQ-HB-4). Hammerbarn's promise is broad range, trade-friendly
+pricing, and
 reliable next-day availability of core lines — which is why *reduce stockouts* and *next-day trade
 fulfilment* (§5) sit at the top of its goal set.
 
@@ -360,7 +369,8 @@ ex:act-allocate-stock    a weave:Activity ; rdfs:label "Allocate stock" ;
 ex:act-pick-and-stage    a weave:Activity ; rdfs:label "Pick and stage (click-and-collect)" ;
     weave:stepOrder 5 ; rdfs:comment "Conditional: click-and-collect and delivery orders only." .
 ex:act-notify-ready      a weave:Activity ; rdfs:label "Notify customer ready" ;
-    weave:stepOrder 6 ; weave:accesses ex:service-notification .
+    weave:stepOrder 6 ; weave:accesses ex:service-notification ;
+    weave:performedBy ex:actor-notification-service .
 ex:act-complete-order    a weave:Activity ; rdfs:label "Complete order" ;
     weave:stepOrder 7 ; weave:produces ex:data-sales-orders .
 
@@ -456,8 +466,9 @@ ex:act-check-margin         a weave:Activity ; rdfs:label "Check against margin 
 ex:act-dual-authorise       a weave:Activity ; rdfs:label "Dual authorise" ;
     weave:stepOrder 3 ; weave:performedBy ex:actor-regional-manager ;
     weave:governedBy ex:policy-price-change-dual-auth .
-ex:act-publish-price        a weave:Activity ; rdfs:label "Publish price" ;
-    weave:stepOrder 4 ; weave:produces ex:data-product-catalogue .
+ex:act-publish-price        a weave:Activity ; rdfs:label "Publish price (propagate to POS/e-commerce)" ;
+    weave:stepOrder 4 ; weave:produces ex:data-product-catalogue ;
+    weave:performedBy ex:actor-pricing-service .
 ex:act-schedule-promotion   a weave:Activity ; rdfs:label "Schedule promotion" ; weave:stepOrder 5 .
 
 ex:event-price-review-due  a weave:Event ; rdfs:label "Price review due" .
@@ -483,14 +494,30 @@ within a domain's function). The rightmost column maps each role to how Onboardi
 | `ex:actor-finance-clerk` | Finance Clerk | `ex:domain-finance` | Compliance — credit control, audit, policies |
 | `ex:actor-customer-service-agent` | Customer Service Agent | `ex:domain-customer-trade` | Business |
 | `ex:actor-it-admin` | IT / Systems Admin | `ex:domain-finance` | Admin — systems, connectors, RBAC |
+| `ex:actor-it-systems-manager` | IT Systems Manager | `ex:actor-head-office-it` | Admin + Tech — owns digital estate |
+| `ex:actor-solutions-architect` | Solutions Architect | `ex:actor-it-systems-manager` | Tech — models + designs apps |
+| `ex:actor-software-engineer` | Software Engineer | `ex:actor-it-systems-manager` | Tech — builds apps + automations |
+| `ex:actor-data-engineer` | Data Engineer | `ex:actor-it-systems-manager` | Tech — pipelines + integrations |
+| `ex:actor-pricing-service` | Pricing Service (principal) | `ex:domain-merchandising` | automated — prices |
+| `ex:actor-notification-service` | Notification Service (principal) | `ex:domain-retail-ops` | automated — ready |
 
-Non-human principals (kept minimal): the systems and services in §8 act as `weave:Actor` service
-principals where a process step is automated (e.g. the notification service sending the "ready to collect"
-message). Seed authors may pun a `weave:System` with a service-principal `weave:Actor` where a step has no
-human performer.
+**Head Office IT Systems / Digital team (primary Weave audience).** The `ex:actor-head-office-it` org unit
+and its four roles above are the archetypal Weave users: they model Hammerbarn's operations as the BPMO
+ontology, then generate and operate the digital estate (§8) from it — the Solutions Architect is the
+Technical onboarding path's protagonist. All four are human (`prov:Person`), distinct from the automated
+service principals below.
+
+**Service principals (OQ-HB-6 resolved).** Automated process steps are attributed to their own
+`weave:Actor` service principals — not left implicit on the System. Two are modelled: `ex:actor-pricing-service`
+(price propagation to POS/e-commerce, §6.5) and `ex:actor-notification-service` (the "ready to collect"
+message, §6.3, and the post-v1 goods-inward notification, §6.1/§13). In PROV-O these are
+`prov:SoftwareAgent` principals, distinct from human `prov:Person` actors — which aligns with the Events
+engine's per-automation-principal, no-self-approval governance model (each automation runs as its own
+non-human identity, so an agent action can never masquerade as a human approval).
 
 ```turtle
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
 @prefix weave: <https://weave.io/ontology/> .
 @prefix ex:    <https://weave.io/instances/> .
 
@@ -512,6 +539,30 @@ ex:actor-customer-service-agent a weave:Actor ; rdfs:label "Customer Service Age
     weave:partOf ex:domain-customer-trade .
 ex:actor-it-admin        a weave:Actor ; rdfs:label "IT / Systems Admin" ;
     weave:partOf ex:domain-finance .
+
+# Head Office IT Systems / Digital team (human, prov:Person) — primary Weave audience.
+ex:actor-head-office-it a weave:Actor ; rdfs:label "Head Office IT / Digital" ;
+    rdfs:comment "Head-Office org unit that models operations and builds/operates the digital estate (§8)." .
+ex:actor-it-systems-manager a weave:Actor, prov:Person ; rdfs:label "IT Systems Manager" ;
+    weave:partOf ex:actor-head-office-it ;
+    rdfs:comment "Owns the digital estate." .
+ex:actor-solutions-architect a weave:Actor, prov:Person ; rdfs:label "Solutions Architect" ;
+    weave:partOf ex:actor-it-systems-manager ;
+    rdfs:comment "Models the ontology and designs apps; the Technical onboarding path's protagonist." .
+ex:actor-software-engineer a weave:Actor, prov:Person ; rdfs:label "Software Engineer" ;
+    weave:partOf ex:actor-it-systems-manager ;
+    rdfs:comment "Builds apps and automations from the ontology." .
+ex:actor-data-engineer a weave:Actor, prov:Person ; rdfs:label "Data Engineer" ;
+    weave:partOf ex:actor-it-systems-manager ;
+    rdfs:comment "Builds data pipelines and integrations." .
+
+# Service principals (non-human) — prov:SoftwareAgent, distinct from human prov:Person actors above.
+ex:actor-pricing-service a weave:Actor, prov:SoftwareAgent ; rdfs:label "Pricing Service (principal)" ;
+    weave:partOf ex:domain-merchandising ;
+    rdfs:comment "Automated principal that propagates published prices to POS and e-commerce (§6.5)." .
+ex:actor-notification-service a weave:Actor, prov:SoftwareAgent ; rdfs:label "Notification Service (principal)" ;
+    weave:partOf ex:domain-retail-ops ;
+    rdfs:comment "Automated principal that sends order-ready messages (§6.3) and post-v1 goods-inward alerts." .
 ```
 
 ---
@@ -522,15 +573,29 @@ ex:actor-it-admin        a weave:Actor ; rdfs:label "IT / Systems Admin" ;
 process calls (often a boundary integration). Processes relate via `runsOn` (primary system of record) and
 `accesses` (systems/services it also touches).
 
+The **digital estate** below (from `ex:system-inventory-mgmt` down) is what Hammerbarn's Head Office IT
+team (§7) builds and operates with Weave — apps generated by **Build**, automations run by **Events**, all
+grounded in this ontology. The Solutions Architect and Software Engineer own the apps; the Data Engineer
+owns the pipelines and integrations behind them.
+
 | IRI | Kind | Label | Role |
 |---|---|---|---|
 | `ex:system-pos` | System | Point of Sale (POS) | Till + trade-counter sales |
 | `ex:system-wms` | System | Warehouse Management (WMS) | DC receiving, put-away, picking |
 | `ex:system-erp-inventory` | System | ERP / Inventory | Stock ledger, POs, system of record |
-| `ex:system-ecommerce` | System | E-commerce Platform | Online orders, click-and-collect |
-| `ex:system-crm` | System | CRM | Customer & trade-account records |
+| `ex:system-ecommerce` | System | Retail Website (e-commerce) | Online orders, click-and-collect |
+| `ex:system-crm` | System | CRM | Consumer customer records |
 | `ex:service-payment` | Service | Payment Service | Card auth, refunds, trade credit auth |
 | `ex:service-notification` | Service | Notification Service | SMS/email order-ready + delivery updates |
+| `ex:system-inventory-mgmt` | System | Inventory Management app | IT-built inventory UI over ERP/Inventory |
+| `ex:system-retail-app` | System | Retail Mobile App | Consumer mobile app |
+| `ex:system-delivery-logistics` | System | Delivery & Logistics | Delivery scheduling + logistics |
+| `ex:system-pricing` | System | Pricing System | Price mgmt + propagation (§6.5) |
+| `ex:system-loyalty` | System | Customer Loyalty | Loyalty program + app |
+| `ex:system-trade-crm` | System | Trade CRM | Trade-account CRM (consumer in `ex:system-crm`) |
+
+`ex:system-retail-web` from the estate list is **consolidated into `ex:system-ecommerce`** (the retail
+e-commerce website) rather than double-modelled.
 
 ```turtle
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -541,12 +606,28 @@ ex:system-pos           a weave:System ; rdfs:label "Point of Sale (POS)" .
 ex:system-wms           a weave:System ; rdfs:label "Warehouse Management (WMS)" .
 ex:system-erp-inventory a weave:System ; rdfs:label "ERP / Inventory" ;
     rdfs:comment "System of record for the stock ledger and purchase orders." .
-ex:system-ecommerce     a weave:System ; rdfs:label "E-commerce Platform" .
-ex:system-crm           a weave:System ; rdfs:label "CRM" .
+ex:system-ecommerce     a weave:System ; rdfs:label "Retail Website (e-commerce)" ;
+    rdfs:comment "Online orders and click-and-collect; consolidates the 'retail web' estate entry." .
+ex:system-crm           a weave:System ; rdfs:label "CRM" ;
+    rdfs:comment "Consumer customer records; trade accounts live in ex:system-trade-crm." .
 ex:service-payment      a weave:Service ; rdfs:label "Payment Service" ;
     rdfs:comment "Card authorisation, refunds and trade-credit authorisation." .
 ex:service-notification a weave:Service ; rdfs:label "Notification Service" ;
     rdfs:comment "Customer SMS/email for order-ready and delivery updates." .
+
+# Digital estate — built and operated by the Head Office IT team (§7) via Build + Events.
+ex:system-inventory-mgmt a weave:System ; rdfs:label "Inventory Management app" ;
+    rdfs:comment "IT-built inventory management UI over the ERP/Inventory system of record." .
+ex:system-retail-app a weave:System ; rdfs:label "Retail Mobile App" ;
+    rdfs:comment "Consumer-facing mobile app." .
+ex:system-delivery-logistics a weave:System ; rdfs:label "Delivery & Logistics" ;
+    rdfs:comment "Delivery scheduling and logistics system." .
+ex:system-pricing a weave:System ; rdfs:label "Pricing System" ;
+    rdfs:comment "Price management and propagation (§6.5); ex:actor-pricing-service runs on it." .
+ex:system-loyalty a weave:System ; rdfs:label "Customer Loyalty" ;
+    rdfs:comment "Customer loyalty program and app." .
+ex:system-trade-crm a weave:System ; rdfs:label "Trade CRM" ;
+    rdfs:comment "CRM for trade accounts; consumer records in ex:system-crm." .
 ```
 
 ---
@@ -565,6 +646,11 @@ key fields in the table.
 | `ex:data-sales-orders` | Sales Orders | order_number, customer, line_items, channel, total | Retail Ops |
 | `ex:data-customer-records` | Customer Records | customer_id, name, type, contact | Customer & Trade |
 | `ex:data-supplier-records` | Supplier Records | supplier_id, name, lead_time_days, terms | Merchandising |
+| `ex:data-store-records` | Store Records | store_id, name, region, format | Retail Ops |
+
+**Region is a plain field (OQ-HB-2 resolved).** A store's region is a `weave:Field` on Store Records —
+values `North`, `Midlands`, `South`, `Scotland`, `Wales` — **not** a first-class entity. There is no Region
+`weave:Actor` and no Region vocabulary `weave:Class`; region is simply an attribute of a Store.
 
 ```turtle
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
@@ -592,6 +678,17 @@ ex:field-po-supplier   a weave:Field ; rdfs:label "supplier" ; weave:partOf ex:d
 ex:field-po-line-items a weave:Field ; rdfs:label "line_items" ; weave:partOf ex:data-purchase-orders .
 ex:field-po-status     a weave:Field ; rdfs:label "status" ; weave:partOf ex:data-purchase-orders .
 ex:field-po-eta        a weave:Field ; rdfs:label "eta" ; weave:partOf ex:data-purchase-orders .
+
+ex:data-store-records a weave:DataAsset ; rdfs:label "Store Records" ;
+    rdfs:comment "Store master data; region is a plain field here (OQ-HB-2), not a first-class entity." ;
+    weave:hasField ex:field-store-id, ex:field-store-name, ex:field-store-region, ex:field-store-format .
+
+ex:field-store-id     a weave:Field ; rdfs:label "store_id" ; weave:partOf ex:data-store-records .
+ex:field-store-name   a weave:Field ; rdfs:label "name" ; weave:partOf ex:data-store-records .
+ex:field-store-region a weave:Field ; rdfs:label "region" ; weave:partOf ex:data-store-records ;
+    weave:describes ex:class-store ;
+    rdfs:comment "Enumerated: North | Midlands | South | Scotland | Wales. A field, not an entity." .
+ex:field-store-format a weave:Field ; rdfs:label "format" ; weave:partOf ex:data-store-records .
 
 # Remaining assets (fields listed in the table; expand to weave:Field as above when seeding):
 ex:data-product-catalogue a weave:DataAsset ; rdfs:label "Product Catalogue" .
@@ -644,7 +741,9 @@ ex:class-product a weave:Class, weave:Concept, owl:Class, skos:Concept ;
 
 ex:class-store a weave:Class, weave:Concept, owl:Class, skos:Concept ;
     rdfs:label "Store" ; skos:prefLabel "Store" ;
-    skos:definition "A physical Hammerbarn retail+warehouse location." .
+    skos:definition "A physical Hammerbarn retail+warehouse location." ;
+    weave:hasField ex:field-store-region ;
+    rdfs:comment "Region is a plain field (ex:field-store-region), not a first-class entity — OQ-HB-2." .
 
 ex:class-supplier a weave:Class, weave:Concept, owl:Class, skos:Concept ;
     rdfs:label "Supplier" ; skos:prefLabel "Supplier" ;
@@ -699,7 +798,7 @@ ex:policy-refund-approval-threshold a weave:Policy ; rdfs:label "Refund approval
 ex:policy-quarterly-stock-count a weave:Policy ; rdfs:label "Quarterly stock count" ;
     rdfs:comment "A full physical stock count is completed and reconciled each quarter." .
 ex:policy-trade-credit-limit a weave:Policy ; rdfs:label "Trade credit limit" ;
-    rdfs:comment "A trade order may not push an account's outstanding balance above its credit limit." .
+    rdfs:comment "A trade order may not push an account's balance above its credit limit (default £10,000)." .
 ex:policy-price-change-dual-auth a weave:Policy ; rdfs:label "Price-change dual authorisation" ;
     rdfs:comment "Any price change must be countersigned by a second authoriser before publishing." .
 
@@ -741,7 +840,10 @@ efficient — respects the customer's time, especially trade at the counter at 6
 ## 13. Post-v1 content (STUBBED — not authored here)
 
 The following are **stubs**. They land post-v1 and are authored by their owning engines' pipelines; this
-brief only records what they will contain.
+brief only records what they will contain. Together they show the payoff of the §1 narrative: the Head
+Office IT team's **digital estate** (§8) as live Build/Events artefacts, all grounded in this ontology —
+generated apps (the Kitchen Designer is one example alongside the retail website/app, inventory management,
+and loyalty estate) and the automations that operate them (pricing, delivery notifications, stock reorder).
 
 - **Kitchen Designer app (Build — BE-ARTEFACT-1).** A generated example application — a customer-facing
   kitchen planner that lets a shopper lay out a kitchen from Hammerbarn's Product range and produce a
@@ -749,8 +851,9 @@ brief only records what they will contain.
   StockItems, prices). *Post-v1; not authored in this file.*
 - **Example automations (Events — EA-AUTOMATION-1).** The canonical demo automation is
   **goods-inward → Slack**: when `ex:event-goods-received` fires, post a message to a store's Slack channel
-  (the Events spec uses this exact flow as its demo). Plus a low-stock → reorder-draft automation.
-  *Post-v1; not authored in this file.*
+  (the Events spec uses this exact flow as its demo). The automation runs as the
+  `ex:actor-notification-service` principal (a `prov:SoftwareAgent`, per §7 / OQ-HB-6), never as a human
+  identity. Plus a low-stock → reorder-draft automation. *Post-v1; not authored in this file.*
 - **Example Build project.** The Build project record behind the Kitchen Designer — spec, generation
   provenance (BE-ARTEFACT-1 header, pinned CE version, referenced entity IRIs), and generated artefacts.
   *Post-v1; not authored in this file.*
@@ -769,31 +872,50 @@ graph (reset only by explicit "Reset demo"). Sandbox writes never touch canonica
 | §3–§11 | Domains, capabilities, goals, processes, actors, systems, data, vocabulary, policies | CE-WRITE-1 | **M1** |
 | §12 | Glossary text; brand/voice individuals | CE-WRITE-1 (voice via CE-BRAND-1) | M1 seed / **M2** project |
 | Explorer view of §3–§11 | Canvas exploration of the seed | consumed via CE-READ-1 / GE-CANVAS-1 | **M1** |
+| Instance data (hundreds) | Concrete Product / StockItem / Order rows | CE-WRITE-1 (CE-TASK-005 pass) | **M2** |
 | §13 Kitchen Designer | Generated example app | BE-ARTEFACT-1 | **post-v1** |
 | §13 Automations | goods-inward → Slack, low-stock → reorder | EA-AUTOMATION-1 | **post-v1** |
 | §13 Build project | Build project record + provenance | BE-ARTEFACT-1 | **post-v1** |
 
+**Instance-data volume (OQ-HB-5 resolved: "realistic, hundreds").** M1 seeds the BPMO business brain (the
+model: kinds, classes, processes) plus glossary. The **M2 instance-data pass (CE-TASK-005)** then generates
+hundreds of concrete instances — a target of **~200–400 Products** and **hundreds of StockItem and Order
+rows** across the 42 stores + 3 DCs. Enough to make Explorer and the search/canvas exercises feel real,
+while staying legible on a user's first run (not tens of thousands).
+
 M1 seed scope in one line: **the full BPMO business brain (§3–§11) plus glossary text (§12)**, published
-canonical at `weave:graph/v1.0.0`, forked per user by Onboarding. Build/Events content (§13) is deferred.
+canonical at `weave:graph/v1.0.0`, forked per user by Onboarding. Concrete instance rows (hundreds) land in
+the M2 CE-TASK-005 pass; Build/Events content (§13) is deferred to post-v1.
 
 ---
 
-## 15. Open questions
+## 15. Resolutions log
 
-Decisions a human content owner must still make (these are content choices, not spec):
+All open questions have been resolved by the human content owner. Nothing here is genuinely open; this is
+kept as a decisions log.
 
-- **OQ-HB-1 — Store & DC count.** Reference scale is 42 stores + 3 DCs. Confirm, or set the exact numbers
-  the seed should instantiate (affects how many Store instances the M2 instance-data pass creates).
-- **OQ-HB-2 — Multi-region modelling.** Model regions (e.g. North/Midlands/South) as first-class Actors/
-  vocabulary, or leave region as a plain field on Store? Trade-off: richer graph demo vs seed bloat.
-- **OQ-HB-3 — Exact £ thresholds.** Refund approval (£50) and any trade credit-limit example values are
-  placeholders. Confirm the numbers the demo should show.
-- **OQ-HB-4 — Tool & plant hire line.** Deferred from the M1 model. Add as a 6th process post-v1, or drop?
-- **OQ-HB-5 — Instance-data volume.** How many concrete Product / StockItem / Order instances should the
-  seed carry for a convincing Explorer demo (dozens? hundreds?) versus keeping the graph legible?
-- **OQ-HB-6 — Service-principal actors.** Confirm whether automated steps (notifications, price
-  propagation) should be modelled as `weave:Actor` service principals or left implicit on the System.
-- **OQ-HB-7 — Filename (RESOLVED).** The pointers in `engines/onboarding.md` (EPIC-001) and
+- **OQ-HB-1 — Store & DC count. RESOLVED: 42 stores + 3 DCs (confirmed).** The M2 instance-data pass
+  (CE-TASK-005) instantiates against this scale.
+- **OQ-HB-2 — Multi-region modelling. RESOLVED: region is a plain field on Store, not a first-class
+  entity.** `ex:field-store-region` on Store Records (§9), enumerated North / Midlands / South / Scotland /
+  Wales, and referenced from `ex:class-store` (§10). No Region `weave:Actor` and no Region `weave:Class`.
+- **OQ-HB-3 — £ thresholds. RESOLVED: refund approval = £50; trade credit-limit example = £10,000
+  default.** Both confirmed and reflected in the §11 policies.
+- **OQ-HB-4 — Tool & plant hire line. RESOLVED: dropped from the model.** Not a process; kept only as a
+  one-line flavour mention in §2.
+- **OQ-HB-5 — Instance-data volume. RESOLVED: realistic (hundreds).** ~200–400 Products and hundreds of
+  StockItem / Order rows, generated by the M2 CE-TASK-005 pass (§14) — convincing in Explorer and the
+  search/canvas exercises, still legible on first run.
+- **OQ-HB-6 — Service-principal actors. RESOLVED: model automated actors as `weave:Actor` service
+  principals.** `ex:actor-pricing-service` and `ex:actor-notification-service` (§7), typed
+  `prov:SoftwareAgent`, attributed via `weave:performedBy` on the automated steps (§6.3, §6.5) and the
+  post-v1 goods-inward automation (§13); distinct from human `prov:Person` actors, aligning with the
+  Events engine's per-automation-principal / no-self-approval model.
+- **OQ-HB-7 — Filename. RESOLVED.** The pointers in `engines/onboarding.md` (EPIC-001) and
   `personas.md` have been aligned to this file's name, `hammerbarn-content-brief.md`, chosen because
   the artefact is cross-engine (CE, Onboarding, Build) and matches the "Hammerbarn Content Brief"
   prose name used throughout the specs.
+- **Enrichment (2026-07-06, content-owner input).** Added Hammerbarn's Head Office IT Systems / Digital
+  team as the primary Weave audience and Technical-path protagonist (`ex:actor-head-office-it` +
+  Manager/Solutions Architect/Software Engineer/Data Engineer, §7) and its digital estate (inventory
+  management, retail app, delivery/logistics, pricing, loyalty, trade CRM, §8), wired to Build/Events (§13).
