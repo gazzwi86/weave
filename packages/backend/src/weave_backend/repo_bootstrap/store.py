@@ -21,6 +21,7 @@ class ProjectRepoRow:
     repo_provider: str | None
     repo_url: str | None
     repo_default_branch: str | None
+    repo_id: str | None = None
 
 
 async def fetch_project_repo_row(
@@ -29,7 +30,7 @@ async def fetch_project_repo_row(
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         "SELECT name, source_control_provider, source_control_token_secret_ref,"
-        " repo_provider, repo_url, repo_default_branch"
+        " repo_provider, repo_url, repo_default_branch, repo_id"
         " FROM projects WHERE tenant_id = $1 AND project_iri = $2",
         tenant_id,
         project_iri,
@@ -43,6 +44,7 @@ async def fetch_project_repo_row(
         repo_provider=row["repo_provider"],
         repo_url=row["repo_url"],
         repo_default_branch=row["repo_default_branch"],
+        repo_id=row["repo_id"],
     )
 
 

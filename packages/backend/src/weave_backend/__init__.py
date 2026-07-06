@@ -22,6 +22,7 @@ from weave_backend.routers.billing import harness_router as billing_harness_rout
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.gates import router as gates_router
+from weave_backend.routers.generation import router as generation_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
@@ -85,6 +86,7 @@ app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(briefs_router)
+app.include_router(generation_router)
 app.include_router(specs_router)
 app.include_router(tasks_router)
 app.include_router(query_router)

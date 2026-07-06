@@ -11,6 +11,7 @@ client, never a real provider call.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Protocol
 
 import httpx
@@ -46,6 +47,10 @@ class ScmDriver(Protocol):
         self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
     ) -> None: ...
 
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str: ...
+
 
 def _raise_if_auth_error(response: httpx.Response) -> None:
     if response.status_code in (401, 403):
@@ -59,6 +64,27 @@ async def _post_checked(
     response = await client.post(path, json=body, headers=headers)
     _raise_if_auth_error(response)
     return response
+
+
+async def _get_checked(
+    client: httpx.AsyncClient, path: str, headers: dict[str, str]
+) -> httpx.Response:
+    response = await client.get(path, headers=headers)
+    _raise_if_auth_error(response)
+    return response
+
+
+def _read_workspace_files(workspace: str) -> dict[str, str]:
+    """BE-TASK-008: every file in a generated workspace, keyed by its path
+    relative to the workspace root (POSIX separators, for use as a repo
+    path in either provider's commit API).
+    """
+    root = Path(workspace)
+    return {
+        str(path.relative_to(root).as_posix()): path.read_text(errors="ignore")
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
 
 
 class GitHubDriver:
@@ -114,6 +140,56 @@ class GitHubDriver:
             headers,
         )
 
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        """BE-TASK-008 AC-6: commit a generated workspace to a NEW feature
+        branch off the current default-branch HEAD (so existing harness
+        files from `write_initial_commit` persist), via the same
+        blob -> tree -> commit Git Data API sequence, but with `base_tree`
+        and `parents` set so this is an incremental commit, not a fresh
+        history.
+        """
+        headers = {"Authorization": f"token {token}"}
+        full_name = repo.repo_id
+        head_ref = await _get_checked(
+            self._client, f"/repos/{full_name}/git/ref/heads/{repo.default_branch}", headers
+        )
+        parent_sha = head_ref.json()["object"]["sha"]
+
+        tree_entries = []
+        for path, content in _read_workspace_files(workspace).items():
+            blob = await _post_checked(
+                self._client,
+                f"/repos/{full_name}/git/blobs",
+                {"content": content, "encoding": "utf-8"},
+                headers,
+            )
+            tree_entries.append(
+                {"path": path, "mode": "100644", "type": "blob", "sha": blob.json()["sha"]}
+            )
+
+        tree = await _post_checked(
+            self._client,
+            f"/repos/{full_name}/git/trees",
+            {"base_tree": parent_sha, "tree": tree_entries},
+            headers,
+        )
+        commit = await _post_checked(
+            self._client,
+            f"/repos/{full_name}/git/commits",
+            {"message": message, "tree": tree.json()["sha"], "parents": [parent_sha]},
+            headers,
+        )
+        commit_sha = str(commit.json()["sha"])
+        await _post_checked(
+            self._client,
+            f"/repos/{full_name}/git/refs",
+            {"ref": f"refs/heads/{branch}", "sha": commit_sha},
+            headers,
+        )
+        return commit_sha
+
 
 class GitLabDriver:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
@@ -156,6 +232,31 @@ class GitLabDriver:
             },
             headers,
         )
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        """BE-TASK-008 AC-6: GitLab's Commits API creates the new branch
+        inline via `start_branch` -- one call, unlike GitHub's separate
+        blob/tree/commit/ref sequence.
+        """
+        headers = {"PRIVATE-TOKEN": token}
+        actions = [
+            {"action": "create", "file_path": path, "content": content}
+            for path, content in _read_workspace_files(workspace).items()
+        ]
+        response = await _post_checked(
+            self._client,
+            f"/projects/{repo.repo_id}/repository/commits",
+            {
+                "branch": branch,
+                "start_branch": repo.default_branch,
+                "commit_message": message,
+                "actions": actions,
+            },
+            headers,
+        )
+        return str(response.json()["id"])
 
 
 def get_scm_driver(provider: str) -> ScmDriver:
