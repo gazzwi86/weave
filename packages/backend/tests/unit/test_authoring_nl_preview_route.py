@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import httpx
+import pytest
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from weave_backend.auth.dependencies import Principal
@@ -55,3 +58,22 @@ async def test_preview_false_dispatches_as_before() -> None:
 
     dispatch.assert_awaited_once_with(PRINCIPAL, _PARSED.operations)
     assert response == dispatched
+
+
+async def test_provider_unreachable_returns_502_not_a_raw_exception() -> None:
+    """FIX 3: no WEAVE_MODEL_PROVIDER graceful-degradation path existed for
+    the authoring NL route -- unlike nl_query/translator.py (which has a
+    canned-fallback boundary), a provider outage (Ollama host down, no
+    Anthropic/Bedrock creds) propagated straight past this route as an
+    unhandled exception. Must surface as a clean 502, not a traceback.
+    """
+    body = NlAuthoringRequest(text="Add a Process called Customer Onboarding")
+
+    with (
+        patch.object(authoring, "parse_operations", side_effect=httpx.ConnectError("refused")),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await authoring.nl_authoring_route(body, PRINCIPAL)
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.detail == {"error": "model_provider_unavailable"}  # type: ignore[comparison-overlap]
