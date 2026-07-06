@@ -112,3 +112,22 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   principal can only raise their own tenant's cap.
 - **Action:** clamp the override to the settings-resolved ceiling before this surface is exposed more broadly.
 - **Classification:** deferred / spec-prose-vs-AC gap.
+
+## XT-BE006-1 status update (from BE-TASK-007 QA)
+
+- **Re-targeted:** BE-TASK-007 did NOT close this — it never touched `routers/runs.py`. The prediction
+  that BE-007 would wire the POST /runs happy path was wrong (BE-007's scope is gates only). Re-point the
+  HTTP 202 happy-path test to **BE-TASK-009**. Still OPEN.
+
+## XT-BE007-1 — TaskBrief schema has no `design_decisions` field (DoR can never READY on real data)
+
+- **Severity:** Major · **Status:** OPEN (urgent — silently defeats the DoR gate once wired live)
+- **Affects:** BE-TASK-002 (owns the `TaskBrief` schema), BE-TASK-009 (wires DoR against real briefs).
+- **Found by:** BE-TASK-007 QA (traced the exact code path, not a guess).
+- **Symptom:** `routers/briefs.py:96` stores `content=brief.model_dump(mode="json")`, but `TaskBrief`
+  (`briefs/schema.py`) has no `design_decisions` field. Every real brief created via BE-002's API therefore
+  lacks it, so DoR's `design_decisions` completeness check can **never** return READY on production data —
+  only on hand-seeded test dicts. BE-007's gate logic is correct; the defect is BE-002's schema.
+- **Action:** extend `TaskBrief` (BE-002) with a `design_decisions` field before BE-TASK-009 wires DoR live,
+  else the gate is a silent no-op on real briefs.
+- **Classification:** interface / cross-task (schema gap upstream of a correct gate).
