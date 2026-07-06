@@ -323,9 +323,40 @@ N/A — publish + write-back pipeline is backend-only in M1; covered by integrat
 - The SHACL validation in CE-WRITE-1 runs on a throwaway clone server-side (per the contract);
   the Build service does not need to run SHACL locally. Trust the 422 response body — parse
   `violations` directly from it.
-- The `BUILD_SERVICE_PRINCIPAL_IRI` is registered with `PLAT-IDENTITY-1` at service startup
-  (not per-request); cache it in a module-level constant populated from the identity service
-  on first call, not from an environment variable.
+- Reuse the existing `BUILD_SERVICE_PRINCIPAL_IRI` module constant
+  (`requests/pipeline.py:50` — `"urn:weave:principal:service:build-drafting-pipeline"`) as the
+  `actor_iri` on the write-back audit event. Do NOT fetch it from an identity service — it is a
+  plain constant, not a runtime lookup.
+
+## Existing code to reuse (verified file:line — do NOT re-implement)
+
+Every accessor below already exists on this branch. Extend, don't duplicate.
+
+- **Read the run for a `commit_sha`:** no getter exists yet — add one to
+  `generation/store.py` mirroring the existing `insert_generation_run` (same file). Table
+  `generation_runs` (migration `0015`) already grants `SELECT` to `weave_app`; columns:
+  `run_id, tenant_id, project_iri, task_id, status, gate_results, branch, commit_sha, created_at`.
+- **Read/update the project:** `get_project` at `projects/model.py:134`
+  (`async def get_project(conn, *, tenant_id, project_iri) -> Project | None`). Extend the
+  `Project` dataclass + its `SELECT`, and add a write-back `UPDATE` — `projects` already grants
+  `UPDATE` (`0009_projects.sql:29`), so no grant change.
+- **CE-WRITE-1 client:** no write client exists — follow the `get_ce_client` pattern in
+  `projects/ce_version_client.py:48` (yields `httpx.AsyncClient`, `base_url` from
+  `CE_API_BASE_URL`, 5s timeout). POST `/api/operations/apply`; request/response schemas are
+  `ApplyRequest` / `ApplyResponse` / `ViolationDetail` / `ViolationsResponse` in
+  `schemas/operations.py`. Parse `violations` straight off the 422 body.
+- **Audit / PROV-O emit:** `default_audit_emitter` (`audit/emitter.py:132`), call
+  `await default_audit_emitter.emit(conn, AuditEvent(tenant_id=..., event_type=...,
+  actor_iri=..., subject_iri=..., payload=..., engine="build"))` (`AuditEvent` at
+  `audit/emitter.py:28`). Use it for both `write_back_fail_shacl` and the success PROV-O triple.
+- **S3 put (for `artefact_publisher`):** `s3_client()` factory + `put_object()` in
+  `storage/tenant_objects.py:23,43`. LocalStack via `LOCALSTACK_ENDPOINT_URL` /
+  `WEAVE_LOCALSTACK_PORT` (default 4566) — never a real AWS account (Law F).
+- **run_mode validation:** `ALLOWED_RUN_MODES` in `schemas/requests.py:13`; the body-validation
+  pattern is `_validate_body` in `routers/requests.py:47`.
+- **Router registration:** import + `app.include_router(...)` in `weave_backend/__init__.py`
+  (see `requests_router` at lines 38/93); create the new router with
+  `APIRouter(prefix="/api/...", tags=[...])`.
 
 ---
 
