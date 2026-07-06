@@ -328,6 +328,40 @@ class TestRunSparqlRoute:
         assert exc_info.value.detail == {"error": "service_blocked"}  # type: ignore[comparison-overlap]
 
     @pytest.mark.asyncio
+    async def test_modify_statement_is_rejected_with_the_generic_update_clause_shape(
+        self,
+    ) -> None:
+        """QA edge case (AC-003-05): a `DELETE {...} INSERT {...} WHERE {...}`
+        Modify form is neither a pure INSERT nor a pure DELETE, so
+        `query_rewriter._UPDATE_CLAUSE_LABELS` has no entry for it and it
+        falls back to the generic `"UPDATE"` label
+        (`_DEFAULT_UPDATE_CLAUSE_LABEL`). `test_query_rewriter.py` proves
+        this at the `validate_query` unit level, but neither `TestSparqlSelectRoute`
+        nor this class had proven the fallback label survives the router's
+        `_validate_or_400` -> `ProhibitedClauseError` -> HTTPException path
+        end-to-end -- only the two labelled cases (INSERT, SERVICE) were.
+        """
+        from weave_backend.schemas.sparql import SparqlQueryRequest
+
+        with (
+            patch.object(sparql, "_resolve_named_graph", AsyncMock(return_value=V1)),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await sparql.run_sparql_route(
+                SparqlQueryRequest(
+                    query=(
+                        "DELETE { GRAPH <urn:g> { ?s ?p ?o } } "
+                        'INSERT { GRAPH <urn:g> { ?s ?p "y" } } '
+                        "WHERE { GRAPH <urn:g> { ?s ?p ?o } }"
+                    )
+                ),
+                PRINCIPAL,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == {"error": "prohibited_clause", "clause": "UPDATE"}  # type: ignore[comparison-overlap]
+
+    @pytest.mark.asyncio
     async def test_valid_select_runs_against_the_resolved_graph(self) -> None:
         from weave_backend.schemas.sparql import SparqlQueryRequest
 
