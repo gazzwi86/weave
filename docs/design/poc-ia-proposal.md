@@ -4,9 +4,9 @@ title: "Weave PoC — Information Architecture & Navigation Proposal"
 description: "IA + navigation proposal for the working PoC: primary/secondary nav, app shell, RBAC
   split, phase-placeholder inventory, marketing index outline, and Blushift/Foundry mapping."
 tags: [design, ia, navigation, poc]
-status: Approved — human sign-off 2026-07-06 (all 6 decisions accepted: Home added as item #1;
+status: "Approved — human sign-off 2026-07-06 (all 6 decisions accepted: Home added as item #1;
   audit inference views = post-v1 placeholders + roadmap addition; Explorer-in-Constitution, keep
-  Events/Audit labels, org-chart dropped, three demo logins — all accepted)
+  Events/Audit labels, org-chart dropped, three demo logins — all accepted)"
 timestamp: 2026-07-06T00:00:00Z
 resource: docs/design/poc-ia-proposal.md
 source: hand-authored (design agent)
