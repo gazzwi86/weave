@@ -181,6 +181,61 @@ class TestSparqlSelectRoute:
         assert "Link" not in response.headers
 
     @pytest.mark.asyncio
+    async def test_insert_query_is_rejected_with_the_ac_003_05_prohibited_clause_shape(
+        self,
+    ) -> None:
+        """AC-003-05: the router's rejection body names the exact clause
+        (`{error: "prohibited_clause", clause: "INSERT"}`), not the generic
+        `disallowed_query` the parent `DisallowedQueryError` case reports --
+        `ProhibitedClauseError` must be caught ahead of its parent class.
+        """
+        from fastapi import Response
+
+        with pytest.raises(HTTPException) as exc_info:
+            await sparql.sparql_select_route(
+                PRINCIPAL,
+                Response(),
+                sparql.SparqlQueryParams(
+                    query="INSERT DATA { GRAPH <urn:g> { <urn:s> <urn:p> <urn:o> } }",
+                    version="latest",
+                    page=1,
+                    workspace_id="ws-1",
+                    since_version=None,
+                ),
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == {"error": "prohibited_clause", "clause": "INSERT"}  # type: ignore[comparison-overlap]
+
+    @pytest.mark.asyncio
+    async def test_service_query_is_rejected_with_the_ac_003_06_service_blocked_shape(
+        self,
+    ) -> None:
+        """AC-003-06: SERVICE (SSRF vector) gets its own distinct error
+        shape, not the generic `disallowed_query`.
+        """
+        from fastapi import Response
+
+        with pytest.raises(HTTPException) as exc_info:
+            await sparql.sparql_select_route(
+                PRINCIPAL,
+                Response(),
+                sparql.SparqlQueryParams(
+                    query=(
+                        "SELECT ?s WHERE { GRAPH ?g { SERVICE <http://evil.example/sparql> "
+                        "{ ?s ?p ?o } } }"
+                    ),
+                    version="latest",
+                    page=1,
+                    workspace_id="ws-1",
+                    since_version=None,
+                ),
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == {"error": "service_blocked"}  # type: ignore[comparison-overlap]
+
+    @pytest.mark.asyncio
     async def test_select_query_missing_entirely_is_a_400(self) -> None:
         from fastapi import Response
 
@@ -222,3 +277,71 @@ class TestSparqlSelectRoute:
         assert body["removed"] == []
         assert body["since_version"] == V1
         assert body["version_iri"] == V2
+
+
+class TestRunSparqlRoute:
+    """`POST /api/sparql` -- CE-READ-1's other write-shaped-body entry point.
+    No prior unit coverage existed for this route at all.
+    """
+
+    @pytest.mark.asyncio
+    async def test_insert_query_is_rejected_with_the_ac_003_05_prohibited_clause_shape(
+        self,
+    ) -> None:
+        from weave_backend.schemas.sparql import SparqlQueryRequest
+
+        with (
+            patch.object(sparql, "_resolve_named_graph", AsyncMock(return_value=V1)),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await sparql.run_sparql_route(
+                SparqlQueryRequest(
+                    query="INSERT DATA { GRAPH <urn:g> { <urn:s> <urn:p> <urn:o> } }"
+                ),
+                PRINCIPAL,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == {"error": "prohibited_clause", "clause": "INSERT"}  # type: ignore[comparison-overlap]
+
+    @pytest.mark.asyncio
+    async def test_service_query_is_rejected_with_the_ac_003_06_service_blocked_shape(
+        self,
+    ) -> None:
+        from weave_backend.schemas.sparql import SparqlQueryRequest
+
+        with (
+            patch.object(sparql, "_resolve_named_graph", AsyncMock(return_value=V1)),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await sparql.run_sparql_route(
+                SparqlQueryRequest(
+                    query=(
+                        "SELECT ?s WHERE { GRAPH ?g { SERVICE <http://evil.example/sparql> "
+                        "{ ?s ?p ?o } } }"
+                    )
+                ),
+                PRINCIPAL,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == {"error": "service_blocked"}  # type: ignore[comparison-overlap]
+
+    @pytest.mark.asyncio
+    async def test_valid_select_runs_against_the_resolved_graph(self) -> None:
+        from weave_backend.schemas.sparql import SparqlQueryRequest
+
+        fake_results = {"head": {"vars": ["s"]}, "results": {"bindings": [{"s": {"value": "x"}}]}}
+        with (
+            patch.object(sparql, "_resolve_named_graph", AsyncMock(return_value=V1)),
+            patch.object(sparql, "run_query", AsyncMock(return_value=fake_results)) as run_query,
+        ):
+            body = await sparql.run_sparql_route(
+                SparqlQueryRequest(query="SELECT ?s WHERE { GRAPH ?g { ?s ?p ?o } }"),
+                PRINCIPAL,
+            )
+
+        run_query.assert_awaited_once_with(
+            "SELECT ?s WHERE { GRAPH ?g { ?s ?p ?o } }", V1
+        )
+        assert body == fake_results
