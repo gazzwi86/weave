@@ -31,7 +31,7 @@ from weave_backend.deploy.service import (
 )
 from weave_backend.generation.store import GenerationRun
 from weave_backend.projects.model import Project
-from weave_backend.schemas.operations import ApplyResponse, ViolationsResponse
+from weave_backend.schemas.operations import ApplyResponse, ViolationDetail, ViolationsResponse
 
 _MODULE = "weave_backend.deploy.service"
 
@@ -233,6 +233,42 @@ async def test_write_back_422_records_violations_and_routes_to_hitl() -> None:
             "payload": {"violations": violations},
         }
     ]
+
+
+async def test_write_back_201_with_advisories_does_not_audit_them() -> None:
+    """QA edge case / AC-5 gap: the brief requires "any sh:Violation (even
+    advisory) is recorded in PLAT-AUDIT-1" on a 201. `_write_back` never
+    reads `response.advisories` -- this pins today's actual (gap) behaviour:
+    a 201 carrying advisories is treated identically to a clean 201, no
+    audit event mentions them, and they don't surface in the outcome. A fix
+    for AC-5 should make this assertion false.
+    """
+    deps, emitted = _deps()
+    apply_mock = AsyncMock(
+        return_value=ApplyResponse(
+            activity_iri="urn:weave:activity:1",
+            applied_count=1,
+            version_iri="urn:weave:version:v2",
+            advisories=[
+                ViolationDetail(
+                    focus_node="urn:weave:system:widget-svc",
+                    path="urn:weave:bpmo:label",
+                    severity="Warning",
+                    message="label could be more descriptive",
+                )
+            ],
+        )
+    )
+    with (
+        _patched(project=_project(), run=_run(), brief=_brief()),
+        patch(f"{_MODULE}.apply_write_back", apply_mock),
+    ):
+        outcome = await publish_and_write_back(AsyncMock(), _ctx(), deps)
+
+    assert outcome["write_back_status"] == "committed"
+    assert "advisories" not in outcome
+    payload = cast(dict[str, Any], emitted[0]["payload"])
+    assert payload.get("advisories") is None
 
 
 async def test_ce_write_unavailable_propagates_uncommitted() -> None:

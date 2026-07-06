@@ -10,8 +10,13 @@ from collections.abc import Callable
 import httpx
 import pytest
 from httpx import AsyncClient, MockTransport
-from weave_backend.deploy.ce_write_client import CeWriteUnavailable, apply_write_back
 
+from weave_backend.deploy.ce_write_client import (
+    CeWriteUnavailable,
+    apply_write_back,
+    close_ce_write_client,
+    get_ce_write_client,
+)
 from weave_backend.schemas.operations import ApplyResponse, ViolationsResponse
 
 
@@ -86,3 +91,17 @@ async def test_apply_write_back_raises_ce_write_unavailable_on_connection_error(
             operations=[{"op": "update_node", "iri": "urn:weave:x:1", "properties": {}}],
             actor="urn:weave:principal:service:build-drafting-pipeline",
         )
+
+
+async def test_get_ce_write_client_yields_an_async_client_and_close_closes_it() -> None:
+    """QA edge case: `test_ce_version_client.py` covers this same
+    loop-rebind-guard singleton for its sibling client; this file never did.
+    """
+    agen = get_ce_write_client()
+    client = await agen.__anext__()
+
+    assert isinstance(client, httpx.AsyncClient)
+    with pytest.raises(StopAsyncIteration):
+        await agen.__anext__()
+
+    await close_ce_write_client()
