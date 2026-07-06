@@ -166,6 +166,12 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Action:** broaden the pattern to cover unquoted assignments (and ideally reuse the platform
   secret-scan hook's regex set) before the generate endpoint is exercised on real client apps.
 - **Classification:** deferred / spec-vs-implementation gap.
+- **Epic-close (BE-EPIC-008) disposition (2026-07-07):** NOT taken as a cheap ride-along fix.
+  Although this epic touched `generation/secret_scanner.py`, broadening a security gate's regex
+  carries false-positive risk (could block legitimate generated apps) and the "reuse the platform
+  regex set" path is non-trivial — so it fails the "low-risk + cheap" bar for epic-close remediation.
+  Deferred to the phase-1 gate ledger sweep (Step 4), where a security change gets proper scrutiny.
+  Age at defer: raised during BE-TASK-008 QA, ~same day. Still OPEN.
 
 ## XT-BE008-2 — AC-6 base_tree defect (RESOLVED — noted for BE-009 reuse)
 
