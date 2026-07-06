@@ -1028,7 +1028,7 @@ Produce a full phase block using this structure:
 **Exit Criteria (HITL Gate 1):**
 - [ ] WHEN all Phase 1 epics are marked Done THE SYSTEM SHALL have 0 open blocking bugs
 - [ ] WHEN the gate review runs THE SYSTEM SHALL pass all unit, integration, and E2E tests
-- [ ] WHEN coverage is measured THE SYSTEM SHALL report >= 80% line coverage and >= 70% mutation score
+- [ ] WHEN coverage is measured THE SYSTEM SHALL report >= 80% line coverage and >= 60% mutation score
 - [ ] <Phase-specific observable outcome in EARS notation>
 - [ ] Human approver has reviewed and signed off the gate checklist
 

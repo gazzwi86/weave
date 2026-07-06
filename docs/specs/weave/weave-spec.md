@@ -162,7 +162,7 @@ Demo runs on the **Hammerbarn pre-seed** (synthetic company model). Real-client 
       `CE-WRITE-1` with PROV-O attribution — closing the model→generate loop end-to-end.
 - [ ] WHEN any tenant-A principal reads across CE, Explorer, or Build THE SYSTEM SHALL return
       zero tenant-B data — verified by each engine's mandatory cross-tenant-read isolation test.
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs
       across the four M1 components.
 - [ ] **Measurable artefact:** one deployed, demonstrable application (UI + API) with a shareable
       demo URL (Build preview deploy; 72-hour time-limited URL per Build TASK-009), generated from
@@ -402,7 +402,7 @@ Decisions are final unless overridden by explicit PRD justification.
 
 - Python tooling: `uv` only (hook-enforced). Secrets: AWS Secrets Manager only — never
   hardcoded, never in `.env`. Testing: TDD-first; unit → integration → E2E; Playwright;
-  mutation ≥ 70%. Commits: conventional commits; stacked PRs per phase.
+  mutation ≥ 60%. Commits: conventional commits; stacked PRs per phase.
 - Local-first dev model, model routing, and the local→deploy boundary: see
   [`dev-environment.md`](dev-environment.md).
 

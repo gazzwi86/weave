@@ -280,7 +280,7 @@ launch gate together.
 | Publish (snapshot + check + PROV-O) | < 30 s up to 500k triples | PRD §2.2 (reasoner budget 30 s) | Integration timing | Version cut blocks the author |
 | Cross-tenant isolation | zero rows cross-tenant; unscoped rejected | ADR-001 (M1 release gate) | Seeded two-tenant test | Worst-case breach; contract-ending |
 | Availability | 99.9% monthly | PRD | CloudWatch alarms | Pilot-client SLA breach |
-| Mutation coverage | ≥ 70% | Plugin Law C / testing-strategy | mutmut / Stryker in CI | Silent regressions in isolation/validation logic |
+| Mutation coverage | ≥ 60% | Plugin Law C / testing-strategy | mutmut / Stryker in CI | Silent regressions in isolation/validation logic |
 | Line/branch coverage | ≥ 80% | testing-strategy | pytest-cov / v8 in CI | Untested write-path branches |
 
 ---

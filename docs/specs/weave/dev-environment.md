@@ -96,7 +96,7 @@ The single most important devex requirement: **a configurable provider+model rou
 The inner loop runs the **full test pyramid + all gates** against the local substituted stack:
 
 1. Unit + integration + **Playwright E2E** all green.
-2. Quality gates green: SHACL validation, **secret-scan**, SAST, type-check, **mutation ≥ 70%
+2. Quality gates green: SHACL validation, **secret-scan**, SAST, type-check, **mutation ≥ 60%
    (configurable default)**, package-existence / slopsquatting, brand/voice conformance
    (default ≥ 90%, configurable).
 3. The dark factory **cannot request deploy** until 1–2 are green.

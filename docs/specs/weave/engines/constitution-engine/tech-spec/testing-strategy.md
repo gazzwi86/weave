@@ -27,7 +27,7 @@ flowchart TB
 
 | Layer | Tools | Coverage target | Mutation gate | Run in CI |
 |-------|-------|-----------------|---------------|-----------|
-| Unit | pytest + pytest-asyncio · Vitest + @testing-library/react | ≥ 80% (shared line target) | ≥ 70% (mutmut / Stryker) | Every push |
+| Unit | pytest + pytest-asyncio · Vitest + @testing-library/react | ≥ 80% (shared line target) | ≥ 60% (mutmut / Stryker) | Every push |
 | Integration | pytest + pyoxigraph + Testcontainers + pytest-postgresql + fakeredis + LocalStack | contributes to shared ≥ 80% | N/A (fake-infra non-determinism) | Every push |
 | E2E | Playwright (chromium) | Authoring critical paths + release-gate journeys | N/A | PR merge gate |
 
@@ -54,7 +54,7 @@ packages/ce-api/tests/unit/
 
 - Framework: `pytest` + `pytest-asyncio` (async FastAPI handlers); `anyio` backend
 - Coverage: `pytest-cov` with `--cov-fail-under=80`
-- Mutation: `mutmut run` — CI fails below 70%
+- Mutation: `mutmut run` — CI fails below 60%
 - Naming: `test_<function>_<scenario>_<expected_outcome>`
 - Mocks: `pytest-mock` at I/O boundaries only (store adapter, LLM client, PLAT-* clients) — never mock
   the rewriter, the SHACL gate, or the diff computation; those are the point of the tests
@@ -82,7 +82,7 @@ packages/frontend/src/constitution/
 
 - Framework: `Vitest` (`jsdom`) + `@testing-library/react`
 - Coverage: `@vitest/coverage-v8` — `--coverage.thresholds.lines=80`
-- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 70%
+- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 60%
 - Naming: `should <expected behaviour> when <condition>`
 - Mocks: `vi.mock()` at module boundaries; `msw` for HTTP; never mock rendering or pure functions
 

@@ -14,7 +14,21 @@ from typing import Any
 
 import pytest
 
-_BENCHMARK_DIR = Path(__file__).resolve().parents[4] / "scripts" / "benchmarks" / "ce-perf"
+
+# Walk up to find the real repo-root benchmark dir rather than hard-coding a
+# parent depth: under mutmut the test runs from packages/backend/mutants/..., one
+# level deeper than the source tree, so a fixed parents[4] resolves to the wrong
+# dir and the import dies -- crashing mutmut collection (0 killed/survived -> the
+# strict gate fails as "interrupted"). An upward search is depth-independent.
+def _find_benchmark_dir() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "scripts" / "benchmarks" / "ce-perf"
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError("ce-perf benchmark dir not found above this test file")
+
+
+_BENCHMARK_DIR = _find_benchmark_dir()
 sys.path.insert(0, str(_BENCHMARK_DIR))
 
 import run_benchmark  # noqa: E402

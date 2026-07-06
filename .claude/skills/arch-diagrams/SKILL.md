@@ -354,7 +354,7 @@ Add entity-specific invariants from the PRD's functional requirements and constr
 | API write throughput | ≥ 100 triple-writes/sec sustained | Locust load test in CI | Build engine pipeline stall |
 | Cold-start latency | Lambda p99 < 3s | CloudWatch Insights | Agent task timeout |
 | Availability | 99.9% monthly uptime | CloudWatch alarms | SLA breach |
-| Mutation test coverage | ≥ 70% | mutmut in CI | Silent regressions |
+| Mutation test coverage | ≥ 60% | mutmut in CI | Silent regressions |
 
 Adapt targets to entity specifics from the PRD. Do not copy these verbatim — replace
 placeholders with entity-appropriate thresholds.

@@ -1,4 +1,4 @@
-"""AC-3: mutation score gate (>=70%) computed from mutmut's cicd-stats JSON."""
+"""AC-3: mutation score gate (>=60%) computed from mutmut's cicd-stats JSON."""
 
 from __future__ import annotations
 
@@ -98,20 +98,21 @@ def test_main_prints_score_and_threshold(
     main(stats_path)
     out = capsys.readouterr().out
     assert "mutation score: 80.0%" in out
-    assert "threshold 70%" in out
+    assert "threshold 60%" in out
 
 
 def test_main_honours_env_threshold_override(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # The per-PR CI job lowers the blocking bar to a regression floor via the env;
-    # a score that fails the strict 70 must PASS the lower floor.
-    monkeypatch.setenv("MUTATION_SCORE_THRESHOLD", "60")
+    # CI sets no override (one 60% bar via the default), but the env mechanism is
+    # still available to callers — prove it changes the effective bar with a value
+    # distinct from the 60 default: 65% passes 60 but fails an overridden 80.
+    monkeypatch.setenv("MUTATION_SCORE_THRESHOLD", "80")
     stats_path = _write_stats(tmp_path, {"killed": 65, "survived": 35, "total": 100})
-    assert main(stats_path) == 0
+    assert main(stats_path) == 1
     out = capsys.readouterr().out
     assert "mutation score: 65.0%" in out
-    assert "threshold 60%" in out
+    assert "threshold 80%" in out
 
 
 def test_main_prints_structural_pass_message(
@@ -144,8 +145,8 @@ def test_cli_invocation_matches_ci_usage(tmp_path: Path) -> None:
     would fail here even though every direct `main()` call still passes.
     """
     stats_path = _write_stats(tmp_path, {"killed": 5, "survived": 5, "total": 10})
-    # Cleaned env: strip any ambient per-PR floor so this asserts the strict
-    # default (70) deterministically — 50% must fail regardless of the caller's env.
+    # Cleaned env: strip any ambient override so this asserts the 60% default
+    # deterministically — 50% must fail regardless of the caller's env.
     clean_env = {k: v for k, v in os.environ.items() if k != "MUTATION_SCORE_THRESHOLD"}
     result = subprocess.run(
         [sys.executable, "-m", "weave_backend.scripts.mutation_gate", stats_path],

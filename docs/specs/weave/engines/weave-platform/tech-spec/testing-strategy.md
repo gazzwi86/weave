@@ -51,7 +51,7 @@ packages/backend/tests/unit/
 
 - Framework: `pytest` + `pytest-asyncio` (async FastAPI handlers); `anyio` backend
 - Coverage: `pytest-cov` with `--cov-fail-under=80`
-- Mutation: `mutmut run` — CI fails below 70%
+- Mutation: `mutmut run` — CI fails below 60%
 - Naming: `test_<function>_<scenario>_<expected_outcome>`
 - Mocks: `pytest-mock` at I/O boundaries only (repo layer, CE client, Cognito JWKS) —
   never mock business logic (cascade resolution, chain hashing, budget checks are the
@@ -81,7 +81,7 @@ packages/frontend/src/
 
 - Framework: `Vitest` (`jsdom`) + `@testing-library/react`
 - Coverage: `@vitest/coverage-v8` — `--coverage.thresholds.lines=80`
-- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 70%
+- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 60%
 - Naming: `should <expected behaviour> when <condition>`
 - Mocks: `vi.mock()` at module boundaries; `msw` for HTTP; never mock rendering or
   pure functions

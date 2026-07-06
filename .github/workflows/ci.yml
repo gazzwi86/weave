@@ -87,18 +87,16 @@ jobs:
           OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
 
   mutation:
-    # Per-PR tier. Runs unit tests only (fast, no services), so its score is
-    # structurally capped ~62% — the surviving mutants are SQL-string and AWS
-    # (boto3) mutations that die only under integration tests with live services.
-    # It is BLOCKING (no continue-on-error) at a regression FLOOR, not the full
-    # 70% bar, which per-PR unit-only can never reach. The strict 70% runs
-    # deterministically in the `mutation-strict` job on main-push (below) and at
-    # the phase gate. Raising the floor toward 70 is tracked as PROJ-005.
+    # Per-PR tier. Runs unit tests only (fast, no services). Enforces the single
+    # 60% mutation bar (ADV-005) via mutation_gate's default — no threshold
+    # override. The unit-only lane sits at ~64.5% (measured), above the 60 bar,
+    # so a regression that drops it below 60 fails the PR. BLOCKING (no
+    # continue-on-error). The strict tier below runs the same 60 bar with live
+    # services on main-push, where the SQL/boto3 mutants this lane cannot reach
+    # are also killed (~77% measured).
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      MUTATION_SCORE_THRESHOLD: "60"
     defaults:
       run:
         working-directory: packages/backend
@@ -120,13 +118,14 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
 
   mutation-strict:
-    # Deterministic strict tier. Runs post-merge on main (not per-PR: mutating
+    # Deterministic thorough tier. Runs post-merge on main (not per-PR: mutating
     # against live services blows the 10-min PR budget). Boots the same services
     # as the integration job and lets mutmut exercise the integration suite too,
-    # so the SQL/AWS mutants the per-PR job cannot reach are killed here. No
-    # MUTATION_SCORE_THRESHOLD env → mutation_gate enforces the strict 70% default.
-    # BLOCKING (no continue-on-error). This is the deterministic backstop for the
-    # 70% bar so it does not rest solely on the model-executed phase gate.
+    # so the SQL/AWS mutants the per-PR job cannot reach are killed here (~77%
+    # measured). Enforces the same single 60% bar as the per-PR tier (no
+    # MUTATION_SCORE_THRESHOLD env → mutation_gate's 60% default). BLOCKING (no
+    # continue-on-error). Deterministic backstop so the bar does not rest solely
+    # on the model-executed phase gate.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # Post-merge job, not on the PR critical path: sized from a measured local
@@ -154,7 +153,7 @@ jobs:
       - run: uv sync
       - run: uv run mutmut run || true
       - run: uv run mutmut export-cicd-stats
-      - name: Enforce strict 70% mutation score
+      - name: Enforce mutation score (60% bar, with services)
         run: |
           set -o pipefail
           uv run python -m weave_backend.scripts.mutation_gate mutants/mutmut-cicd-stats.json \

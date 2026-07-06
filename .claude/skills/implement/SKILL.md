@@ -330,7 +330,7 @@ When `phase-check` returns COMPLETE:
 2. **Mutation Testing**: Run mutation tests against all source files changed in this phase.
    - TypeScript: `npx stryker run --mutate 'src/**/*.ts' --reporters clear-text,json`
    - Python: `uv run mutmut run`
-   Report the mutation score. Threshold: >= 70%. If below threshold, identify surviving mutant clusters and
+   Report the mutation score. Threshold: >= 60%. If below threshold, identify surviving mutant clusters and
    include them in the phase gate report for human review.
 
 3. **Ledger Remediation Sweep (self-improvement, tier 3 — the full backstop).** The last codified

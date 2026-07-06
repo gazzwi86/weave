@@ -280,7 +280,7 @@ The dark factory mode runs the implementation loop autonomously between human-re
              - Commit to feature branch
    ASSESS:   Invoke qa subagent (worktree isolation)
              - 10-category validation
-             - Mutation testing (≥ 70%)
+             - Mutation testing (≥ 60%)
              - If FAIL: feed report back to engineer, retry (max 3)
    CODIFY:   Write .claude/state/summaries/TASK-NNN.md
              Update + commit .claude/state/progress.json

@@ -1686,7 +1686,7 @@ end-to-end via the Builder, activated, and run.
 - [ ] WHEN a tenant-A principal issues an unscoped or tenant-B registry/run/audit/SPARQL query THE
       SYSTEM SHALL return zero tenant-B records and log the attempt — verified by the cross-tenant-read
       test (§2.2 Isolation).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] Measurable delivered artefact: the goods-inward NL→Slack automation authored end-to-end via the
       Builder, grounded, version-pinned, activated, run, metered, and audited — the v1 GA demo.
 - [ ] **Human sign-off recorded** (always the final exit criterion).
@@ -1766,7 +1766,7 @@ stays Should-Have.
 - [ ] WHEN a template referencing a now-available CE contract is opened THE SYSTEM SHALL clear the
       "unavailable node" flag and permit activation — verified by the template-activation test
       (FR-034).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] Measurable delivered artefact: a graph-change-triggered automation (or its polling-degraded
       equivalent) that writes back via `CE-WRITE-1`, plus one exported `pip`-installable artefact.
 - [ ] **Human sign-off recorded** (always the final exit criterion).

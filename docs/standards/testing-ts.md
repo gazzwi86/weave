@@ -114,7 +114,7 @@ class GraphExplorerPage {
 
 ## Mutation Testing
 
-Mutation testing verifies test quality, not just coverage. CLAUDE.md mandates ≥ 70% mutation score.
+Mutation testing verifies test quality, not just coverage. CLAUDE.md mandates ≥ 60% mutation score.
 
 **Tool:** [Stryker](https://stryker-mutator.io/) with `@stryker-mutator/vitest-runner`.
 

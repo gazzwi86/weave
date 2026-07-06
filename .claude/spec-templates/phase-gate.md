@@ -18,7 +18,7 @@
 - [ ] Complexity within thresholds
 - [ ] QA review complete for all stories
 - [ ] No unresolved failure reports
-- [ ] Mutation score >= 70% (Stryker report attached)
+- [ ] Mutation score >= 60% (Stryker report attached)
 
 ### Artifacts
 - [ ] PRs created and reviewable

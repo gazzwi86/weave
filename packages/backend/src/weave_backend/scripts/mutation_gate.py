@@ -1,4 +1,4 @@
-"""CI mutation-score gate (AC-3: mutation score check >= 70%).
+"""CI mutation-score gate (AC-3: mutation score check >= 60%).
 
 Reads mutmut's `export-cicd-stats` JSON output and decides pass/fail. If
 there are no mutants at all (`total == 0` — an early-stage codebase with
@@ -17,7 +17,7 @@ import os
 import sys
 from pathlib import Path
 
-DEFAULT_THRESHOLD = 70.0
+DEFAULT_THRESHOLD = 60.0
 
 
 def evaluate(
@@ -34,10 +34,11 @@ def evaluate(
 
 
 def _threshold_from_env() -> float:
-    """Per-PR CI passes a lower regression floor via MUTATION_SCORE_THRESHOLD; the
-    phase gate uses the strict DEFAULT_THRESHOLD (env unset). This lets the per-PR
-    gate block on regressions deterministically despite mutmut's cross-environment
-    score variance, while the full quality bar is enforced at the phase gate."""
+    """A single 60% mutation bar applies everywhere (ADV-005): both the per-PR
+    unit-only tier and the strict main-push tier (with live services) enforce
+    DEFAULT_THRESHOLD. MUTATION_SCORE_THRESHOLD remains an available override for
+    callers that need one (e.g. a future per-engine bar), but CI sets no override
+    — the two tiers differ in depth (unit-only vs services), not in the bar."""
     raw = os.environ.get("MUTATION_SCORE_THRESHOLD")
     return float(raw) if raw else DEFAULT_THRESHOLD
 

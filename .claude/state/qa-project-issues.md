@@ -88,6 +88,15 @@ per-task reports.
   ran blocking on the merge push (run 28725517537) and scored **77.3% vs the 70% threshold — PASS**.
   The deterministic tier works end-to-end. Remaining action: revisit the per-PR floor (60) upward
   as the unit-killable pool grows — otherwise this issue can close.
+- **CLOSED / SUPERSEDED (2026-07-06, ADV-005):** the two-number design (per-PR 60 floor + strict 70)
+  is collapsed to a **single 60% bar** enforced by both tiers, on explicit operator authorisation.
+  The "gap to 70" this issue tracked is therefore moot: per-PR unit-only (~64.5%) and strict-with-
+  services (~77.3%) both clear the single 60 bar, so main is green with one consistent number. The
+  strict-70 deterministic backstop recorded above is **replaced** by the single-60 bar (rationale:
+  ADV-005). Both tiers stay blocking; 60 is a floor with a recorded revisit-upward trigger (ratchet
+  rule carries forward), not a ceiling. Note: the recent main redness was **not** a score failure but
+  a mutmut collection crash (`test_ce_perf_benchmark.py`'s `parents[4]` breaking under the `mutants/`
+  copy) — fixed in the ADV-005 change.
 
 ## PROJ-006: Second consecutive feature's Playwright E2E fully mocks the network (Law B gap)
 

@@ -273,7 +273,7 @@ every 10k figure is gated on the OQ-01 spike.
 | RDF store parity | dev = Oxigraph, prod = Neptune \| Jena Fuseki (CE-owned); Explorer store-agnostic | CE-stub tests run identically regardless of store | Hidden store coupling leaks into the Explorer |
 | Availability | 99.9% monthly | CloudWatch alarms | Pilot-client SLA breach |
 | Coverage | ≥ 80% (shared line target) | pytest-cov / Vitest v8 in CI | Silent regressions in isolation and pagination logic |
-| Mutation coverage | ≥ 70% | mutmut / Stryker in CI | Weak tests around adapter, culling, and RLS paths |
+| Mutation coverage | ≥ 60% | mutmut / Stryker in CI | Weak tests around adapter, culling, and RLS paths |
 | Lighthouse (Explorer routes) | Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 | Lighthouse CI on PRs touching the routes | Shell-level slowness or a11y regressions ship unnoticed |
 
 ---

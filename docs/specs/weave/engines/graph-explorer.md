@@ -601,7 +601,7 @@ ACs here** (SS-GE-4 fix).
 - [ ] WHEN a viewer requests impact traversal THE SYSTEM SHALL send a property-path SELECT using
   the OQ-09-confirmed predicate closure; results highlight on-canvas and badge off-canvas nodes;
   depth is capped and tunable — verified by E2-S3 test with a testable example graph.
-- [ ] Coverage ≥ 80% (tunable) · mutation ≥ 70% (tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (tunable) · mutation ≥ 60% (tunable) · 0 blocking bugs.
 
 ---
 
@@ -1044,7 +1044,7 @@ the 10k-node risk and the WebGL escape-hatch go/no-go.
 - [ ] WHEN a user requests impact traversal THE SYSTEM SHALL use the OQ-09-confirmed predicate
   closure (not any hard-coded predicate list) — verified by E2-S3 test.
 - [ ] WHEN any read is issued under a tenant-A JWT THE SYSTEM SHALL return zero tenant-B rows/triples.
-- [ ] Coverage ≥ 80% (tunable) · mutation ≥ 70% (tunable) · 0 blocking bugs · zero axe-core
+- [ ] Coverage ≥ 80% (tunable) · mutation ≥ 60% (tunable) · 0 blocking bugs · zero axe-core
   violations on non-canvas UI in CI.
 - [ ] **Measurable artefacts:** OQ-01 benchmark report; Aurora layout-schema approved; OQ-09
   predicate closure confirmed by CE team.
@@ -1087,7 +1087,7 @@ completeness map; GE-CANVAS-1 force mode published to Build.
 - [ ] WHEN Build mounts GE-CANVAS-1 (`mode:"force"`) THE SYSTEM SHALL render the project slice
   and write-back via CE-WRITE-1 — verified by GE-CANVAS-1 conformance test.
 - [ ] WHEN any read is issued under a tenant-A JWT THE SYSTEM SHALL return zero tenant-B rows/triples.
-- [ ] Coverage ≥ 80% · mutation ≥ 70% · 0 blocking bugs · zero axe-core violations on non-canvas UI.
+- [ ] Coverage ≥ 80% · mutation ≥ 60% · 0 blocking bugs · zero axe-core violations on non-canvas UI.
 - [ ] **Measurable artefacts:** GE-CANVAS-1 contract conformance report; cross-tenant isolation
   test report.
 - [ ] **Human sign-off recorded** (PO + Tech lead).
