@@ -119,11 +119,31 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   that BE-007 would wire the POST /runs happy path was wrong (BE-007's scope is gates only). Re-point the
   HTTP 202 happy-path test to **BE-TASK-009**. Still OPEN.
 
+## XT-BE006-1 status update (from BE-TASK-009 QA) — SECOND mis-target, un-target from a specific task
+
+- **Not closable by BE-TASK-009 either** (second mis-target). BE-009 is `POST .../deploy`, a different
+  router; it touches zero lines of `routers/runs.py`. QA grepped the whole `tests/` tree: no test uses
+  real ASGI dispatch (`TestClient`/`ASGITransport`) against `routers/runs.py`'s 202 happy path — the one
+  ASGI file (`tests/integration/test_runs_api.py`) deliberately builds the run spine directly and only
+  drives the 409 branch through the real client. **Action:** this finding belongs to whichever future
+  task adds an ASGI-level TestClient 202 test for `start_run_route` — do NOT auto-attach it to the next
+  BE task by prediction (that guessing is what caused two mis-targets). Still **OPEN**, now un-targeted.
+  Classification: test-coverage.
+
+## XT-BE008-2 re-verification (from BE-TASK-009 QA) — independently confirmed fixed
+
+- BE-009 QA re-checked the `base_tree` fix directly (not on the summary's word): `repo_bootstrap/drivers.py`
+  resolves the real tree sha via `GET /repos/{full_name}/git/commits/{parent_sha}` before POSTing
+  `base_tree`; `test_repo_bootstrap_drivers.py` 13/13 pass. Remains RESOLVED — confirmation recorded.
+
 ## XT-BE007-1 — TaskBrief schema has no `design_decisions` field (DoR can never READY on real data)
 
 - **Severity:** Major · **Status:** OPEN (urgent — silently defeats the DoR gate once wired live)
-- **Affects:** BE-TASK-002 (owns the `TaskBrief` schema), BE-TASK-009 (wires DoR against real briefs).
-- **Found by:** BE-TASK-007 QA (traced the exact code path, not a guess).
+- **Affects:** BE-TASK-002 (owns the `TaskBrief` schema); the DoR-gate callers
+  `routers/{runs,gates,tasks,specs}.py` (via `build/gates.py:run_dor_gate`). **NOT BE-TASK-009** —
+  BE-009 QA confirmed `deploy/service.py` never imports or calls `run_dor_gate` and never references
+  `design_decisions`; there is no DoR wiring in BE-009 (corrects the earlier BE-009 attribution).
+- **Found by:** BE-TASK-007 QA (traced the exact code path, not a guess); re-confirmed by BE-TASK-009 QA.
 - **Symptom:** `routers/briefs.py:96` stores `content=brief.model_dump(mode="json")`, but `TaskBrief`
   (`briefs/schema.py`) has no `design_decisions` field. Every real brief created via BE-002's API therefore
   lacks it, so DoR's `design_decisions` completeness check can **never** return READY on production data —

@@ -1,7 +1,8 @@
 # BE-TASK-009 — Deploy + CE write-back (build-engine, EPIC-008)
 
-**Status:** implementation complete + green; awaiting QA (ASSESS).
-**Branch:** `feature/BE-EPIC-008`. **Commits:** `f68b608` (feat: impl), `0b3338b` (test: integration).
+**Status:** DONE — QA PASS after 1 logic retry (AC-5). `retry_count: 1`.
+**Branch:** `feature/BE-EPIC-008`. **Commits:** `f68b608` (feat: impl), `0b3338b` (test: integration),
+`3e0f255` (QA edge tests), `3887873` (fix: AC-5 advisory audit + Law E helper extraction).
 This is the LAST task of BE-EPIC-008 — epic-check flips COMPLETE on QA PASS → one epic PR off `main`.
 
 ## Scope (lean M1 — brief trimmed 2026-07-06)
@@ -41,6 +42,7 @@ Scope decision made by the user ("Trim brief to lean scope").
 | AC-1 publish → output_location_ref | unit `test_deploy_service` + integration `test_publish_persists_demo_output_location_ref_to_aurora` |
 | AC-2 publish_failed retains prior state | unit `test_deploy_service` (PublishError → 200 body) |
 | AC-3/AC-4 422 → rejected + HITL, no commit | unit + integration `test_write_back_422_records_write_back_fail_shacl_audit_event` |
+| AC-5 zero-violation verify + advisories audited on 201 | unit `test_write_back_records_shacl_violations_in_audit` (advisories in outcome + audit payload) + `test_write_back_clean_201_omits_advisories_key` (empty-case regression) — **added in retry 1; was the FAIL** |
 | AC-6 spike → skip | unit `test_deploy_service` |
 | AC-7 201 → write_back_complete + PROV-O | integration `test_write_back_committed_sets_write_back_complete_and_emits_prov_o_activity` |
 | AC-8 ConnectionError → 503 uncommitted | unit `test_ce_write_client` / `test_deploy_service` |
@@ -60,9 +62,17 @@ Scope decision made by the user ("Trim brief to lean scope").
 - **Commit hygiene deviation:** engineer folded unit tests + impl into one `feat:` commit
   (`f68b608`) rather than a separate `test:`-first commit. Functionally complete + green; flagged
   for the record, not re-litigated.
-- Closes **XT-BE006-1** re-target (POST /runs happy-path was re-pointed here) — QA to confirm the
-  HTTP happy path is now exercised.
-- **XT-BE007-1 (TaskBrief `design_decisions` schema gap)** is still OPEN and upstream (BE-002 owns
-  the schema); BE-009 wires DoR against real briefs, so QA should verify whether the DoR path is a
-  silent no-op on production briefs here.
-- `commit_workspace` base_tree fix (XT-BE008-2) already RESOLVED on this branch — no BE-009 action.
+- **XT-BE006-1 does NOT close here** (QA-confirmed — corrects my earlier claim). It concerns
+  `routers/runs.py` `start_run_route` (`POST /api/projects/{iri}/runs`, BE-006's endpoint) — a
+  different router BE-009 never touches. No ASGI-TestClient 202 happy-path test for `runs.py` exists
+  anywhere. Second mis-target (BE-007 was the first). Re-pointed in the ledger to whichever task
+  actually adds that test.
+- **XT-BE007-1 is NOT BE-009's concern** (QA-confirmed — corrects my earlier claim). `design_decisions`
+  is checked by `build/gates.py:run_dor_gate`, called from `routers/{runs,gates,tasks,specs}.py` —
+  `deploy/service.py` never imports or calls it. There is no DoR wiring in this task; the finding
+  stays upstream (BE-002 schema owner).
+- `commit_workspace` base_tree fix (XT-BE008-2) — QA independently re-verified genuinely fixed
+  (`test_repo_bootstrap_drivers.py` 13/13). No BE-009 action.
+- **QA retry 1 (logic):** AC-5 (audit SHACL advisories on committed 201) was not implemented —
+  `_write_back` never read `response.advisories`. Being fixed now; QA committed a pinning test
+  (`3e0f255`). Also fixing Law E: `_write_back` was ~60 lines (>50 budget), no waiver.
