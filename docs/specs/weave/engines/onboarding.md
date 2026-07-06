@@ -359,7 +359,7 @@ BusinessCapability, BusinessDomain, Goal, and Policy. Instance categories like "
 are **Class** definitions punned with Concept (decision B1) — not new kinds. Counts are content
 targets owned by the content admin, not contractual constants. The full entity-class→BPMO-kind
 mapping table is content, not PRD — it lives in the **Hammerbarn Content Brief**
-(`docs/specs/weave/onboarding-content-brief.md`, to be created — content artifact tracked in
+(`docs/specs/weave/hammerbarn-content-brief.md` — content artifact tracked in
 EPIC-001). The seed is produced as a **live
 pipeline**: CE via CE-WRITE-1 (ontology/glossary/brand/governance); Build via BE-ARTEFACT-1
 (post-v1); Events via EA-AUTOMATION-1 (post-v1).
