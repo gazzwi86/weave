@@ -131,3 +131,30 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Action:** extend `TaskBrief` (BE-002) with a `design_decisions` field before BE-TASK-009 wires DoR live,
   else the gate is a silent no-op on real briefs.
 - **Classification:** interface / cross-task (schema gap upstream of a correct gate).
+
+## XT-BE008-1 — secret-scan gate false-negative on unquoted .env-style secrets
+
+- **Severity:** Medium · **Status:** OPEN
+- **Affects:** BE-TASK-008 (`generation/secret_scanner.py` + `secret_patterns.json`), and any task
+  relying on the secret-scan safety gate to block credential leakage in generated apps.
+- **Found by:** BE-TASK-008 QA (pinned with a test).
+- **Symptom:** the secret-scan regex requires a quoted value (`api_key = "…"`); an unquoted
+  `.env`-style assignment (`API_KEY=AKIA…` with no quotes) is not matched, so a generated app could
+  carry a plaintext secret past the gate.
+- **Root cause:** the regex is the one specified verbatim in the **task brief's own implementation
+  hint** — this is a spec gap, not an engineer deviation. Gate logic is otherwise correct.
+- **Action:** broaden the pattern to cover unquoted assignments (and ideally reuse the platform
+  secret-scan hook's regex set) before the generate endpoint is exercised on real client apps.
+- **Classification:** deferred / spec-vs-implementation gap.
+
+## XT-BE008-2 — AC-6 base_tree defect (RESOLVED — noted for BE-009 reuse)
+
+- **Severity:** High · **Status:** RESOLVED on `feature/BE-EPIC-008` (`7ab5cc4`).
+- **Affects:** BE-TASK-008 (owns `commit_workspace`), BE-TASK-009 (reuses it).
+- **Found by:** coordinator hypothesis → BE-TASK-008 QA confirmed real.
+- **Symptom / fix:** `GitHubDriver.commit_workspace` sent a **commit** sha as `base_tree` (GitHub
+  requires a **tree** sha) → every real call after `write_initial_commit` seeds `main` would 422
+  against live GitHub; all mocks passed because none asserted `base_tree`. Fixed by resolving the
+  parent commit to its tree (`GET /git/commits/{parent_sha}` → `tree.sha`). Recorded here because
+  BE-009 reuses `commit_workspace` — the single fix protects it too; no separate BE-009 action.
+- **Classification:** interface / cross-task (one fix closes both).
