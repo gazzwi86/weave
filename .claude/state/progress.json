@@ -56,7 +56,7 @@
     {
       "id": "CE-EPIC-010",
       "title": "CE-EPIC-010",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-EPIC-001",
@@ -310,7 +310,7 @@
       "engine": "constitution-engine",
       "epic": "CE-EPIC-010",
       "title": "SPIKE: CE Core Performance Benchmark",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-TASK-001",
         "CE-TASK-003"
