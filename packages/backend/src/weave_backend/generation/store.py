@@ -37,3 +37,41 @@ async def insert_generation_run(
         run.branch,
         run.commit_sha,
     )
+
+
+@dataclass(frozen=True)
+class GenerationRun:
+    """BE-TASK-009: the persisted row the deploy flow looks up by
+    `commit_sha` to find the `run_id` it publishes an artefact under.
+    """
+
+    run_id: str
+    project_iri: str
+    task_id: str
+    branch: str
+    commit_sha: str
+
+
+async def get_generation_run_by_commit_sha(
+    conn: asyncpg.Connection, *, tenant_id: str, commit_sha: str
+) -> GenerationRun | None:
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, project_iri, task_id, branch, commit_sha
+        FROM generation_runs
+        WHERE tenant_id = $1 AND commit_sha = $2
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        tenant_id,
+        commit_sha,
+    )
+    if row is None:
+        return None
+    return GenerationRun(
+        run_id=str(row["run_id"]),
+        project_iri=row["project_iri"],
+        task_id=row["task_id"],
+        branch=row["branch"],
+        commit_sha=row["commit_sha"],
+    )

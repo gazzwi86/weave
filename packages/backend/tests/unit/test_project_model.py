@@ -22,6 +22,8 @@ from weave_backend.projects.model import (
     find_existing_project_iri,
     get_project,
     slugify,
+    update_project_publish,
+    update_project_write_back,
 )
 
 
@@ -67,11 +69,15 @@ class _FakeConnection:
     ) -> None:
         self._fetchrow_result = fetchrow_result
         self._raise_unique_violation = raise_unique_violation
+        self.executed: list[tuple[str, tuple[Any, ...]]] = []
 
     async def fetchrow(self, _query: str, *_args: Any) -> _FakeRow | None:
         if self._raise_unique_violation:
             raise asyncpg.UniqueViolationError("duplicate key")
         return self._fetchrow_result
+
+    async def execute(self, query: str, *args: Any) -> None:
+        self.executed.append((query, args))
 
 
 async def test_find_existing_project_iri_returns_iri_when_row_found() -> None:
@@ -134,6 +140,9 @@ async def test_get_project_returns_project_when_found() -> None:
             name="Acme",
             pinned_graph_version_iri="urn:weave:version:v1",
             created_at=now,
+            demo_output_location_ref="s3://weave-artefacts/t1/run-1/",
+            write_back_complete=True,
+            write_back_artefact_iri="urn:weave:artefact:t1:run-1",
         )
     )
 
@@ -141,6 +150,9 @@ async def test_get_project_returns_project_when_found() -> None:
 
     assert project is not None
     assert project.name == "Acme"
+    assert project.demo_output_location_ref == "s3://weave-artefacts/t1/run-1/"
+    assert project.write_back_complete is True
+    assert project.write_back_artefact_iri == "urn:weave:artefact:t1:run-1"
 
 
 async def test_get_project_returns_none_when_not_found() -> None:
@@ -149,3 +161,34 @@ async def test_get_project_returns_none_when_not_found() -> None:
     project = await get_project(conn, tenant_id="t1", project_iri="urn:weave:project:t1:missing")
 
     assert project is None
+
+
+async def test_update_project_publish_sets_demo_output_location_ref() -> None:
+    conn = _FakeConnection()
+
+    await update_project_publish(
+        conn,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        demo_output_location_ref="s3://weave-artefacts/t1/run-1/",
+    )
+
+    [(query, args)] = conn.executed
+    assert "demo_output_location_ref" in query
+    assert args == ("s3://weave-artefacts/t1/run-1/", "t1", "urn:weave:project:t1:acme")
+
+
+async def test_update_project_write_back_sets_complete_and_artefact_iri() -> None:
+    conn = _FakeConnection()
+
+    await update_project_write_back(
+        conn,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        write_back_artefact_iri="urn:weave:artefact:t1:run-1",
+    )
+
+    [(query, args)] = conn.executed
+    assert "write_back_complete" in query
+    assert "write_back_artefact_iri" in query
+    assert args == ("urn:weave:artefact:t1:run-1", "t1", "urn:weave:project:t1:acme")
