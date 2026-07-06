@@ -397,7 +397,7 @@ async def test_sign_off_approves_with_no_extracted_entities_zero_required() -> N
     short-circuits to `[]` (ce_read.py's own empty-input guard, never even
     reaching CE-READ-1) and the approval is accepted immediately -- there is
     no "required stakeholder" to wait for. This is current, documented
-    (ADR-002) behaviour, not the SPARQL-direction bug already fixed
+    (ADR-003) behaviour, not the SPARQL-direction bug already fixed
     (`hasAuthority` returning `[]` for entities that DO have an authority
     triple) -- this test pins the distinction so a future change to either
     code path is a deliberate decision, not an accidental regression.

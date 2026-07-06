@@ -4,7 +4,7 @@ EPIC-001) -- `request_sign_offs` table, migration `0011`.
 Unlike Request Studio's ephemeral Redis-backed `RequestRecord` (ADR-001), a
 sign-off is a governance record and belongs at the same durability tier as
 `projects` (0009_projects.sql) -- see the task brief's own Diagram
-References (`#sign-offs-table`) and ADR-002.
+References (`#sign-offs-table`) and ADR-003.
 """
 
 from __future__ import annotations

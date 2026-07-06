@@ -128,7 +128,7 @@ def _check_not_self_approval(record: RequestRecord, principal: Principal) -> Non
 def _project_name_from_prompt(prompt: str) -> str:
     """ponytail: the brief says "pass the request name as the project
     name", but a `RequestRecord` has no separate `name` field -- only the
-    free-text `prompt` it was drafted from (ADR-002). First 120 chars
+    free-text `prompt` it was drafted from (ADR-003). First 120 chars
     (matching `CreateProjectRequest.name`'s own `max_length`) is the lazy,
     honest stand-in.
     """

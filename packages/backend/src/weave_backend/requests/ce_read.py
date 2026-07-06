@@ -3,7 +3,7 @@ build-engine EPIC-001).
 
 ponytail: CE-READ-1's concrete BPMO predicates for "touches domain" /
 "touches service" / "has authority over" aren't specced yet -- all three of
-this task's Diagram References are acknowledged DoR blockers (ADR-002
+this task's Diagram References are acknowledged DoR blockers (ADR-003
 follows ADR-001's precedent: a transparent, documented M1 scope-cut, not an
 escalation). The placeholder predicate IRIs below are real SPARQL that runs
 today against Oxigraph and is a one-line swap once BPMO ships the real
@@ -78,7 +78,7 @@ async def resolve_required_stakeholders(entity_iris: list[str]) -> list[str]:
     """Design-decision table's `hasAuthority` query: every stakeholder IRI
     with authority over any of `entity_iris`. Raises `CeReadUnavailable` on
     connection failure -- not handled by sign-off callers (untested, no AC
-    covers a CE outage mid-approval; see ADR-002).
+    covers a CE outage mid-approval; see ADR-003).
     """
     if not entity_iris:
         return []
