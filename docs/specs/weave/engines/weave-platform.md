@@ -1650,7 +1650,7 @@ engine dependency").
   the request before any AI API call with the readable cap message — budget-enforcement test (FR-035)
 - [ ] WHEN the M1 dashboard route loads THE SYSTEM SHALL render the defined placeholder/empty state
   without issuing any CE contract call — dashboard-shell test (E1-S0 moved to M2)
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs
 - [ ] **Measurable artefact:** tenant-isolated SPA shell with the five M1-live platform contracts
   (`PLAT-AUDIT-1 / PLAT-NOTIFY-1 / PLAT-IDENTITY-1 / PLAT-SETTINGS-1 / PLAT-BILLING-1`) and the
   placeholder dashboard home, deployed to dev-AWS, passing the smoke suite (`PLAT-CONNECTOR-1` lands v1.0)
@@ -1721,7 +1721,7 @@ model completeness and what Weave can generate for each role.
 - [ ] WHEN a role navigates to the role-home THE SYSTEM SHALL display capabilities appropriate to that role,
   with non-GA engine capabilities in a defined "coming soon" state, never implied available —
   role-home role-matrix test (E10-S1)
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs
 - [ ] **Measurable artefact:** Generative Dashboard rendering ≥ 9 CE-sourced widget categories with
   server-side pin + publish, plus role-home, deployed to dev-AWS, passing the smoke suite
 - [ ] **Human sign-off recorded**
@@ -1775,7 +1775,7 @@ principal, committed only on SHACL pass, with write-back idempotency and failure
   SHALL publish a `PLAT-NOTIFY-1` event — connector config + health test (FR-031/FR-032)
 - [ ] WHEN inbound connector data arrives THE SYSTEM SHALL ingest it into the graph via `CE-WRITE-1` under
   a connector-scoped agent principal, committing only on SHACL pass — ingestion test (FR-033)
-- [ ] Coverage ≥ 80% · mutation ≥ 70% · 0 blocking bugs
+- [ ] Coverage ≥ 80% · mutation ≥ 60% · 0 blocking bugs
 - [ ] **Human sign-off recorded**
 
 **Phase-gate metadata:**

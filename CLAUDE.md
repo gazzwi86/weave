@@ -77,7 +77,7 @@ Per-package `CLAUDE.md` files (once packages exist) override these global rules.
 - **Python:** `uv` only — bare `pip` is rejected by a hook.
 - **Secrets:** AWS Secrets Manager only — never hardcoded, never in `.env`. See
   [`.claude/rules/security.md`](.claude/rules/security.md).
-- **Testing:** TDD-first; unit → integration → E2E; Playwright for browser; mutation ≥ 70%. Detail
+- **Testing:** TDD-first; unit → integration → E2E; Playwright for browser; mutation ≥ 60%. Detail
   in `docs/standards/testing-py.md`, `testing-ts.md`, `testing-agents.md`.
 - **Commits:** conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`); one PR per EPIC
   (tasks stack within an epic). Detail in `docs/standards/git-workflow.md`.

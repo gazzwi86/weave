@@ -88,7 +88,7 @@ OTel tracing with tenant attributes (ADR-002: raw ASGI middleware, ContextVar st
 
 ## src/weave_backend/scripts/mutation_gate.py
 
-- `evaluate(...)` / `main(stats_path)` — mutmut JSON stats → CI exit code, 70% threshold; fails loudly on interrupted runs (total>0, checked==0)
+- `evaluate(...)` / `main(stats_path)` — mutmut JSON stats → CI exit code, 60% threshold; fails loudly on interrupted runs (total>0, checked==0)
 
 ## src/weave_backend/tenancy/
 
@@ -174,3 +174,11 @@ Global entity search (PLAT-TASK-005, AC-3).
 `tests/unit` (fast, offline), `tests/integration` (markers: `integration`, `docker`), `tests/e2e` (static CI-workflow assertions, e.g. `test_oidc_deploy.py`). Terraform validate/plan tests run offline via a git-ignored local-backend `override.tf`.
 
 Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared](shared.md)
+
+<!-- stale: packages/backend/tests/unit/test_ce_perf_benchmark.py --> <!-- at: 2026-07-06T01:20:48.064039+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/scripts/mutation_gate.py --> <!-- at: 2026-07-06T01:23:56.680241+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_ci_workflow.py --> <!-- at: 2026-07-06T01:25:08.371742+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_mutation_gate.py --> <!-- at: 2026-07-06T01:25:49.984678+00:00 -->

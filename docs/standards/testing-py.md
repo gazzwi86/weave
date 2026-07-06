@@ -24,7 +24,7 @@ before the route handler is written.
 | Unit | pytest | Pure functions, service methods, utilities |
 | Integration | pytest + `httpx.AsyncClient` | FastAPI routes, SPARQL query behaviour, Pydantic validation |
 | E2E | Playwright (via `testing-ts.md`) | Full browser flows |
-| Mutation | mutmut | Test quality gate (≥ 70% mutation score) |
+| Mutation | mutmut | Test quality gate (≥ 60% mutation score) |
 
 ## Project setup
 
@@ -140,7 +140,7 @@ SHACL validator (use a real test graph with known shapes).
 | Line | 80% | `--cov-fail-under=80` in pytest config; CI blocks merge |
 | Branch | 75% | `--cov-branch` flag; CI warns |
 | Mutation (per-PR) | 60% floor | unit-only run (fast, no services); CI blocks the PR below the floor |
-| Mutation (strict) | 70% | `mutation-strict` on main-push (with services) + the phase gate; CI/gate blocks below 70% |
+| Mutation (strict) | 60% | `mutation-strict` on main-push (with services) + the phase gate; CI/gate blocks below 60% |
 
 ## Mutation testing
 

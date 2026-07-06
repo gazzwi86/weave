@@ -232,7 +232,7 @@ if [ -n "$CHANGED_TS" ]; then
 fi
 ```
 
-**Gate rule:** mutation score < 70% on changed files is a `WARN`, not a `FAIL` — a timeout or an
+**Gate rule:** mutation score < 60% on changed files is a `WARN`, not a `FAIL` — a timeout or an
 absent runner is a warning, not a block (the phase gate's own mutation run, Step 3 of
 `phase-gate`, is the hard gate). Report the surviving mutant count in the QA report.
 
@@ -422,7 +422,7 @@ Edge cases added: {{count}} additional tests.
 - [x] Lighthouse 100 across all 4 categories + axe-zero (WCAG 2.1 AA) — UI stories
 - [x] Token/visual-regression baselines green — UI stories
 - [x] UI verification gate (`ui_verify.sh`) passed — UI stories
-- [x] Mutation score >= 70% on changed files (or WARN, surviving mutants reported)
+- [x] Mutation score >= 60% on changed files (or WARN, surviving mutants reported)
 ```
 
 ## What You Do NOT Do

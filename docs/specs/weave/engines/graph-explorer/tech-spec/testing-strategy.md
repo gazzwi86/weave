@@ -26,7 +26,7 @@ flowchart TB
 
 | Layer | Tools | Coverage target | Mutation gate | Run in CI |
 |-------|-------|-----------------|---------------|-----------|
-| Unit | Vitest + @testing-library/react (jsdom) · pytest + pytest-asyncio (layout svc) | ≥ 80% (shared line target) | ≥ 70% (Stryker / mutmut) | Every push |
+| Unit | Vitest + @testing-library/react (jsdom) · pytest + pytest-asyncio (layout svc) | ≥ 80% (shared line target) | ≥ 60% (Stryker / mutmut) | Every push |
 | Integration | MSW CE-READ-1 stubs · pytest-postgresql (RLS) · Next.js route handler tests | contributes to shared ≥ 80% | N/A (fake-infra non-determinism) | Every push |
 | E2E | Playwright (chromium) | Critical canvas journeys + isolation + perf timing | N/A | PR merge gate |
 
@@ -65,7 +65,7 @@ packages/frontend/src/explorer/
 
 - Framework: `Vitest` (`jsdom`) + `@testing-library/react`; Cytoscape runs `headless: true` in unit
 - Coverage: `@vitest/coverage-v8` — `--coverage.thresholds.lines=80`
-- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 70%
+- Mutation: Stryker with `@stryker-mutator/vitest-runner` — threshold ≥ 60%
 - Naming: `should <expected behaviour> when <condition>`
 - Mocks: `msw` for the proxy HTTP boundary; `vi.mock()` at module edges only — never mock the
   adapter interface, culling, or search logic (those are the point of the tests)
@@ -127,7 +127,7 @@ packages/backend/tests/unit/
 ```
 
 - Framework: `pytest` + `pytest-asyncio`; `pytest-cov` with `--cov-fail-under=80`
-- Mutation: `mutmut run` — CI fails below 70%
+- Mutation: `mutmut run` — CI fails below 60%
 - Mocks: `pytest-mock` at the session boundary only; the UPSERT/DELETE SQL is asserted parameterised
   (named params via `text()`), never string-concatenated (security.md)
 

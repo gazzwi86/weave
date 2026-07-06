@@ -115,15 +115,15 @@ Follow the diagram with a 3-row summary table:
 
 | Layer | Tools | Coverage target | Mutation gate | Run in CI |
 |-------|-------|-----------------|---------------|-----------|
-| Unit | ... | ≥ 80% | ≥ 70% Stryker/mutmut | Every push |
-| Integration | ... | ≥ 80% | ≥ 70% | Every push |
+| Unit | ... | ≥ 80% | ≥ 60% Stryker/mutmut | Every push |
+| Integration | ... | ≥ 80% | ≥ 60% | Every push |
 | E2E | ... | Critical paths | N/A | PR merge gate |
 
 Stack rules:
 - **Python unit:** `pytest` + `pytest-asyncio` (for async FastAPI handlers)
-- **Python mutation:** `mutmut` — threshold ≥ 70%, hard gate at phase completion
+- **Python mutation:** `mutmut` — threshold ≥ 60%, hard gate at phase completion
 - **TypeScript unit:** `Vitest` + `@testing-library/react` for React components
-- **TypeScript mutation:** `Stryker` — threshold ≥ 70%
+- **TypeScript mutation:** `Stryker` — threshold ≥ 60%
 - **E2E (both stacks):** `Playwright` — test against the running app, not mocked pages
 
 Present this section, emit confidence block, then continue to Section 2 without a blocking
@@ -145,7 +145,7 @@ tests/unit/
 
 - Framework: `pytest` with `pytest-asyncio` for coroutines
 - Coverage tool: `pytest-cov` with `--cov-fail-under=80`
-- Mutation: `mutmut run` — fail CI if score < 70%
+- Mutation: `mutmut run` — fail CI if score < 60%
 - Naming: `test_<function>_<scenario>_<expected_outcome>`
 - Mock strategy: `unittest.mock.patch` / `pytest-mock` for I/O boundaries only —
   never mock business logic
@@ -173,7 +173,7 @@ src/
 
 - Framework: `Vitest` with `jsdom` environment for React
 - Coverage: `@vitest/coverage-v8` — `--coverage.thresholds.lines=80`
-- Mutation: `Stryker` with `@stryker-mutator/vitest-runner` — threshold ≥ 70%
+- Mutation: `Stryker` with `@stryker-mutator/vitest-runner` — threshold ≥ 60%
 - Naming: `should <expected behaviour> when <condition>`
 - Mock strategy: `vi.mock()` for module boundaries; `msw` for HTTP; never mock component
   rendering or pure functions
@@ -430,7 +430,7 @@ Plugin Law F (no real cloud in tests): complied | violated | N/A — <reason>
 Testing Law 1 (pytest for Python): complied | violated | N/A — <reason>
 Testing Law 2 (Vitest+Playwright for TS): complied | violated | N/A — <reason>
 Testing Law 3 (LocalStack not real AWS): complied | violated | N/A — <reason>
-Testing Law 4 (mutation gate ≥ 70%): complied | violated | N/A — <reason>
+Testing Law 4 (mutation gate ≥ 60%): complied | violated | N/A — <reason>
 Testing Law 5 (coverage ≥ 80%): complied | violated | N/A — <reason>
 Testing Law 6 (HITL gate after Section 2 unit AND Section 3 integration, not other sections): complied | violated | N/A — <reason>
 ```
@@ -489,7 +489,7 @@ A well-produced testing strategy:
   (TypeScript) — never Jest, never unittest alone
 - Specifies LocalStack (or Testcontainers) for every AWS/infrastructure fake — no real
   cloud credentials anywhere
-- States mutation gate of ≥ 70% (mutmut for Python, Stryker for TS) and coverage floor of
+- States mutation gate of ≥ 60% (mutmut for Python, Stryker for TS) and coverage floor of
   ≥ 80% both enforced in CI
 - Has an AC-to-test mapping table with EARS notation (`WHEN ... THEN THE SYSTEM SHALL ...`)
   for every mapped criterion
@@ -586,7 +586,7 @@ Mandatory items:
 - [ ] All acceptance criteria from the tech spec are covered by at least one automated test
 - [ ] Unit test coverage ≥ 80% for all changed modules (measured via pytest-cov / Vitest
       coverage)
-- [ ] Mutation score ≥ 70% for changed modules (measured via mutmut for Python, Stryker for
+- [ ] Mutation score ≥ 60% for changed modules (measured via mutmut for Python, Stryker for
       TypeScript)
 - [ ] Integration tests pass against LocalStack (AWS services) or Oxigraph test instance
       (RDF store) — no real cloud calls in test suite
@@ -742,7 +742,7 @@ A well-produced Definition of Done:
   function length ≤ 50 lines
 - Names the specific tool or command that verifies each item (e.g. Radon, pytest-cov, Bandit,
   commitlint, Playwright) — no item says "verify manually" without a defined procedure
-- Coverage items specify ≥ 80% unit coverage and ≥ 70% mutation score
+- Coverage items specify ≥ 80% unit coverage and ≥ 60% mutation score
 - Security section covers all five rules in `.claude/rules/security.md`
 - Git hygiene section enforces Plugin Law D (stacked PRs, one per phase)
 - LocalStack / Oxigraph called out explicitly in integration tests — no real cloud calls

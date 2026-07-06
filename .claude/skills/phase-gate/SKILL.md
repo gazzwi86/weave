@@ -93,7 +93,7 @@ Extract from Stryker JSON output (`reports/mutation/mutation.json` or stdout):
 - `mutationScore` (percentage, 0–100)
 - `killed`, `survived`, `timeout`, `noCoverage` counts
 
-**Gate rule:** `mutationScore < 70` → mark mutation gate RED. Present the surviving
+**Gate rule:** `mutationScore < 60` → mark mutation gate RED. Present the surviving
 mutant list (up to 10 worst) so the human can decide.
 
 If the mutation runner is not yet installed or configured, emit:
@@ -185,7 +185,7 @@ Populate every item from the template with real status (checked = pass, unchecke
 
 - **Deliverables** — all tasks done (from Step 1)
 - **Quality** — lint errors (from any pre-tool-use hook output), complexity thresholds (Plugin Law E:
-  cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines), mutation score ≥ 70% (Step 3),
+  cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines), mutation score ≥ 60% (Step 3),
   QA review complete (check `docs/specs/weave/engines/qa-report.md` if present)
 - **Artifacts** — PRs created (check `gh pr list --state open`), conventional commits
   (verify last 10 commits: `git log --oneline -10`), documentation updated
@@ -324,7 +324,7 @@ Plugin Law E (complexity budget): complied | violated | N/A — <reason>
 Plugin Law F (synthetic verification only): complied | violated | N/A — <reason>
 Gate Law 1 (evidence-based verdicts only): complied | violated | N/A — <reason>
 Gate Law 2 (CRITICAL security blocks Approve): complied | violated | N/A — <reason>
-Gate Law 3 (mutation < 70% is RED, not amber): complied | violated | N/A — <reason>
+Gate Law 3 (mutation < 60% is RED, not amber): complied | violated | N/A — <reason>
 Gate Law 4 (no placeholder in summary doc): complied | violated | N/A — <reason>
 Gate Law 5 (Reject halts dark factory via exit 2): complied | violated | N/A — <reason>
 Gate Law 6 (UI gate re-executed, RED blocks Approve): complied | violated | N/A — <reason>

@@ -1421,7 +1421,7 @@ Ollama/Bedrock routing per `../dev-environment.md` §5).
   "permitted") — verified by NL-query + coverage-gap tests (FR-018, FR-019, FR-036-partial).
 - [ ] WHEN a tenant-A JWT issues an unscoped SPARQL query THE SYSTEM SHALL return zero tenant-B triples —
   verified by the mandatory cross-tenant-read test (NFR Isolation, FR-032).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** a published version IRI with ≥ 1 client class + ≥ 1 instance authored
   end-to-end via forms and chat, readable through CE-READ-1 at that pin; AND one plain-English question
   answered by a generated SPARQL SELECT against the Hammerbarn pre-seed (the M1 wow).
@@ -1496,7 +1496,7 @@ confirmed for tenant-scoped shapes (FR-025).
   empty result read as "permitted" — verified by an agent-grounding test, no new contract minted (FR-036,
   E7-S4). The shipped **framework competency-question set** SHALL return for the seeded graph and a client
   with < 2 declared domain competency questions SHALL be flagged at onboarding (FR-037).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** all seven `CE-*` contracts exposed at the §2.3 shapes; one tenant-scoped
   governance shape enforced on a later edit; one brand token consumed by a CE-BRAND-1 contract test.
 - [ ] **Human sign-off recorded** (always the final exit criterion).
@@ -1571,7 +1571,7 @@ to cover every ingest route.
   cross-notation-collapse + sub-threshold-not-merged test (FR-042).
 - [ ] **No ingest path bypasses validation:** a CI test asserts every Epic-12 route writes only through
   CE-WRITE-1 (clone-then-validate) and introduces no second mutation entry point (PRD §10 risk).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** one enterprise document ingested end-to-end — agent-proposed additions
   linked to ≥ 1 existing graph resource, accepted per-proposal, committed via CE-WRITE-1 with a PROV-O
   activity naming the source document.
@@ -1631,7 +1631,7 @@ DoR.
   inferred from ≥ N sampled rows (default 20, tunable) for human correction before any commit, flag+skip
   rows failing SHACL with a per-row reason, and commit the rest with a summary — verified by a
   mixed-validity bulk-import test (FR-030).
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** one published version with a per-version inferred named graph showing ≥ 1
   labelled inferred triple, OR a recorded reasoner-timeout that produced no partial graph; one bulk-import
   run with a committed-vs-skipped summary.
@@ -1656,7 +1656,7 @@ all_exit_criteria_met` · `approver: eng-lead` · `blocks: ga`.
 
 > Gate configuration is per project/workspace. Only **spec-approval** is globally mandatory across all
 > four phases; phase-boundary, pre-AWS-deploy, and publish/generate gates are activated per the tables
-> above for this engine. All numeric thresholds (coverage ≥ 80%, mutation ≥ 70%, page sizes, reasoner
+> above for this engine. All numeric thresholds (coverage ≥ 80%, mutation ≥ 60%, page sizes, reasoner
 > budget, sampling N, conformance ≥ 90%) are **default X, tunable** per workspace via PLAT-SETTINGS-1.
 
 ---

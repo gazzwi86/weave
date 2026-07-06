@@ -1447,7 +1447,7 @@ not-yet-GA engines are **feature-flagged off**, not broken.
       (re-trigger) test.
 - [ ] WHEN any onboarding overlay (tour / beacon / modal / checklist) renders THE SYSTEM SHALL pass
       the **WCAG 2.1 AA zero-violations** axe gate in CI — verified by the CI accessibility job.
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable delivered artefacts:** the Hammerbarn CE+Explorer demo workspace; the 4 resolved
       role paths; the CE/GE exercise set (CE-01/02/03/03b, GE-01/02); the onboarding checklist widget;
       the role-segmented analytics dashboard.
@@ -1539,7 +1539,7 @@ beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) 
       Decisions-tab-opened signal — verified against the named completion checks.
 - [ ] WHEN any post-v1 overlay renders THE SYSTEM SHALL pass the WCAG 2.1 AA zero-violations axe gate
       in CI — verified by the CI accessibility job.
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs.
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable delivered artefacts:** the full Hammerbarn demo (CE + Explorer + Build + Events seed
       areas all live); the Build/Events/Dashboard tour set; the BE-01 and AE-01 exercises.
 - [ ] **Human sign-off recorded** (always the final exit criterion).
@@ -1576,7 +1576,7 @@ blocks: release
 | Gate 1 (phase-boundary + pre-deploy + seed publish) | M1 window | All M1 EARS exit criteria met (incl. 403-on-canonical-write, cross-tenant-read zero-triple test, exactly-once activation, WCAG AA axe gate) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
 | Gate 2 (phase-boundary + pre-deploy + full-seed publish) | post-v1 | All post-v1 EARS exit criteria met (full demo content-complete, Build/Events/Dashboard tours, BE-01/AE-01, WCAG AA) + floors green + human sign-off | Product Owner + Tech Lead + Security reviewer |
 
-> All numeric thresholds are **"default X, tunable"** (coverage ≥ 80%, mutation ≥ 70%, reset-op ≤ 30 s,
+> All numeric thresholds are **"default X, tunable"** (coverage ≥ 80%, mutation ≥ 60%, reset-op ≤ 30 s,
 > training search ≤ 300 ms, analytics freshness ≤ 5 min, cohort k ≥ 20, checklist auto-dismiss 7 days,
 > etc.). Activation rate and time-to-first-outcome are **measure-and-report baselines for cohort 1, not
 > GA gates** (decision E4).

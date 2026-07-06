@@ -43,7 +43,7 @@ adr_refs: []
 | AC-1 | WHEN a developer runs `make scaffold`, THE SYSTEM SHALL create the directory tree (`packages/backend`, `packages/frontend`, `packages/shared`, `infra/terraform`) and a root-level lint check exits 0 with zero errors. | unit: `test_scaffold_dirs_exist` |
 | AC-1b | WHEN a developer runs `docker compose up`, THE SYSTEM SHALL start the full local-first stack (Oxigraph, PostgreSQL, LocalStack S3/SQS/SNS, Redis, Ollama) with seed data and **zero live AWS** for the inner loop (per `dev-environment.md` DX1/DX4). | integration: `test_local_stack_boots` |
 | AC-2 | WHEN `terraform validate` runs, THE SYSTEM SHALL validate the **full** local + remote module set (Cognito, Secrets Manager, Aurora PostgreSQL Serverless v2, ElastiCache Redis 7, S3 buckets, CloudFront, prod VPC, state backend); WHEN `terraform apply` runs against the shared dev account, THE SYSTEM SHALL provision **only the essential elements** — the Cognito user pool, a small Secrets Manager, and the S3+DynamoDB remote-state backend — while the non-essential prod modules (Aurora, ElastiCache, CloudFront, SPA/assets buckets, prod VPC) are gated behind a `deploy_prod_stack` flag defaulting **off** in this phase. | integration: `test_terraform_plan_dev_completes` |
-| AC-3 | WHEN a PR is opened, THE SYSTEM SHALL execute type-check, lint, unit tests, and mutation score check (≥70%), and report all results to the GitHub PR check surface within 10 minutes. | integration: `test_ci_pr_gates_pass` |
+| AC-3 | WHEN a PR is opened, THE SYSTEM SHALL execute type-check, lint, unit tests, and mutation score check (≥60%), and report all results to the GitHub PR check surface within 10 minutes. | integration: `test_ci_pr_gates_pass` |
 | AC-4 | WHEN any CI lint gate finds an error, THE SYSTEM SHALL exit non-zero and surface the offending file and line in the GitHub check annotation, blocking merge. | integration: `test_ci_lint_failure_blocks_merge` |
 | AC-5 | WHEN a commit is pushed to `main` and all quality gates pass, THE SYSTEM SHALL run `terraform plan` for the full stack and deploy **only the essential dev elements** via GitHub OIDC (assuming the deploy IAM role, no stored AWS credentials); deployment of the non-essential prod stack (`deploy_prod_stack`) is **gated to a later phase** and does not run in this phase. | integration: `test_oidc_deploy_essential_dev` |
 | AC-6 | WHEN any secret scanning hook detects a credential pattern in a committed file, THE SYSTEM SHALL reject the push and emit the file path and detected pattern without exposing the secret value. | unit: `test_secret_scan_rejects_credential_pattern` |
@@ -98,7 +98,7 @@ jobs:
       - lint:       "uv run ruff check" AND "npx eslint . --max-warnings 0"
       - unit:       "uv run pytest --cov=packages/backend --cov-fail-under=80"
                     AND "npx vitest run --coverage"
-      - mutation:   "npx stryker run"  # threshold: 70%
+      - mutation:   "npx stryker run"  # threshold: 60%
       - secrets:    "git secrets --scan" OR "gitleaks detect --source ."
   deploy-essential-dev:
     needs: [quality]
@@ -228,7 +228,7 @@ graph TD
 - The local inner loop uses docker-compose substitutes (Oxigraph↔Neptune, Postgres↔Aurora, LocalStack↔S3/SQS/SNS, Redis↔ElastiCache, Ollama↔Bedrock small models); parity is preserved by standards (SPARQL 1.1, SQLAlchemy, OIDC, AWS SDK) per `dev-environment.md` §1.
 - `gitleaks` is easier to configure than `git-secrets` for custom patterns; add a `.gitleaks.toml` that allows test fixture strings (prefix `WEAVE_TEST_`) so the secret scan doesn't fire on test data.
 - The GitHub OIDC trust policy must include `token.actions.githubusercontent.com` as a federated principal with a condition on `sub` scoped to `repo:<org>/<repo>:ref:refs/heads/main` — overly broad trust is a security flaw.
-- Mutation testing on the IaC Python helpers (not on Terraform itself); scope Stryker/mutmut to `packages/backend` only to keep the 70% threshold meaningful.
+- Mutation testing on the IaC Python helpers (not on Terraform itself); scope Stryker/mutmut to `packages/backend` only to keep the 60% threshold meaningful.
 
 ---
 

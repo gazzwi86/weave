@@ -269,7 +269,7 @@ Targets are the PRD §2.2 configurable defaults (provisional, not contractual SL
 | RDF store parity | dev = Oxigraph; prod = Neptune \| Jena Fuseki (CE-owned); platform store-agnostic | Contract-client tests run identically against either | Hidden store coupling blocks CE's OQ-01 decision |
 | Cold start (Lambda API) | p99 < 3 s | CloudWatch Insights | Perceived shell slowness at low traffic |
 | Availability | 99.9% monthly | CloudWatch alarms | Pilot-client SLA breach |
-| Mutation coverage | ≥ 70% | Stryker / mutmut in CI | Silent regressions in isolation/audit logic |
+| Mutation coverage | ≥ 60% | Stryker / mutmut in CI | Silent regressions in isolation/audit logic |
 
 ---
 

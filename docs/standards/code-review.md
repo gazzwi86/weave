@@ -39,7 +39,7 @@ Design and correctness first; style last. The linter and CI own style — review
    contracts? Flag breaking changes to signatures, schemas, or response shapes.
 6. **Tests** — New logic has meaningful tests (not just coverage theatre); critical paths and
    edge cases are exercised; deterministic checks (build, typecheck, lint, unit/integration)
-   are green. TDD-first, coverage ≥ 80% line, mutation ≥ 70% for changed modules.
+   are green. TDD-first, coverage ≥ 80% line, mutation ≥ 60% for changed modules.
 7. **Complexity, naming, comments, docs** — Within the budgets in `complexity.md` (cyclomatic
    ≤ 10, cognitive ≤ 15, function ≤ 50 lines, file ≤ 300, params ≤ 5, nesting ≤ 4). Names
    convey intent; comments explain *why*, not *what*; public APIs documented.

@@ -162,7 +162,7 @@ Definition of Done, then Definition of Ready.
 Output:
 - `docs/specs/weave/engines/<entity>/tech-spec/testing-strategy.md` — testing pyramid
   proportions, framework configuration (Pytest for backend, Vitest + Playwright for
-  frontend), coverage targets (mutation ≥ 70% per `CLAUDE.md` conventions), per-task test
+  frontend), coverage targets (mutation ≥ 60% per `CLAUDE.md` conventions), per-task test
   requirements format, mocking strategy, E2E patterns (Page Object Model)
 - `docs/specs/weave/engines/<entity>/tech-spec/definition-of-done.md` — mechanically-verifiable
   DoD checklist

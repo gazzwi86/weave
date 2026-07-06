@@ -60,7 +60,7 @@ gantt
 
 **Exit criteria (EARS, measurable, human-signed):**
 - [ ] WHEN {{event}} THE SYSTEM SHALL {{measurable behaviour}} — verified by {{artefact/test}}
-- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 70% (default, tunable) · 0 blocking bugs
+- [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs
 - [ ] {{≥1 measurable delivered artefact}}
 - [ ] **Human sign-off recorded** (always the final exit criterion)
 

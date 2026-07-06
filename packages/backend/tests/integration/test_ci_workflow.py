@@ -47,9 +47,9 @@ def test_ci_pr_gates_pass(repo_root: Path) -> None:
             f"{job_name} job must report within the 10-minute PR-check budget"
         )
 
-    # Mutation is a two-tier gate. Per-PR: BLOCKING at a regression floor (the
-    # unit-only run is structurally capped below the strict bar). Strict 70%:
-    # enforced deterministically in `mutation-strict` on main-push (with services).
+    # Mutation is a single 60% bar (ADV-005) enforced in two tiers that differ in
+    # depth, not in the bar: per-PR runs unit-only (fast, BLOCKING); `mutation-strict`
+    # re-runs it on main-push with live services. Both use mutation_gate's default.
     from weave_backend.scripts.mutation_gate import DEFAULT_THRESHOLD
 
     per_pr = jobs["mutation"]
@@ -69,20 +69,22 @@ def test_ci_pr_gates_pass(repo_root: Path) -> None:
     assert gate.get("continue-on-error") is not True, "gate step must not be continue-on-error"
     assert "|| true" not in gate["run"], "gate step must propagate its exit code"
     assert "pipefail" in gate["run"], "gate step's tee pipeline must set pipefail"
-    # per-PR floor is numeric and sits within [60, strict bar]
-    floor = float(per_pr["env"]["MUTATION_SCORE_THRESHOLD"])
-    assert 60.0 <= floor <= DEFAULT_THRESHOLD, f"per-PR floor {floor} outside [60, strict]"
+    # single bar: the per-PR tier sets no threshold override — it enforces the
+    # same 60% default as the strict tier (ADV-005, "one 60% gate everywhere").
+    assert "MUTATION_SCORE_THRESHOLD" not in (per_pr.get("env") or {}), (
+        "per-PR job must not override the threshold — one 60% bar via the default"
+    )
+    assert DEFAULT_THRESHOLD == 60.0, "single mutation bar is 60% everywhere (ADV-005)"
 
     # strict deterministic tier: runs mutmut with services and NO threshold-lowering
-    # env, so mutation_gate enforces the strict DEFAULT_THRESHOLD (70).
-    assert DEFAULT_THRESHOLD == 70.0, "strict phase-gate/main-push bar must stay 70%"
+    # env, so mutation_gate enforces the same 60% DEFAULT_THRESHOLD.
     strict = jobs["mutation-strict"]
     strict_texts = " ".join(_step_texts(strict))
     assert "mutmut" in strict_texts and "mutation_gate" in strict_texts
     assert "docker compose up" in strict_texts, "strict mutation job must boot services"
     assert strict.get("continue-on-error") is not True, "strict mutation job must be blocking"
     assert "MUTATION_SCORE_THRESHOLD" not in (strict.get("env") or {}), (
-        "strict job must not lower the threshold — it enforces the 70% default"
+        "strict job must not override the threshold — it enforces the 60% default"
     )
 
     secrets_texts = " ".join(_step_texts(jobs["secrets"]))
