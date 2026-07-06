@@ -155,6 +155,8 @@ async def test_github_driver_commit_workspace_issues_ref_lookup_then_blob_tree_c
         calls.append(request.url.path)
         if request.url.path.endswith("/git/ref/heads/main"):
             return httpx.Response(200, json={"object": {"sha": "head-sha"}})
+        if "/git/commits/" in request.url.path:
+            return httpx.Response(200, json={"tree": {"sha": "base-tree-sha"}})
         if request.url.path.endswith("/git/blobs"):
             return httpx.Response(201, json={"sha": "blob-sha"})
         if request.url.path.endswith("/git/trees"):
@@ -183,6 +185,7 @@ async def test_github_driver_commit_workspace_issues_ref_lookup_then_blob_tree_c
     assert commit_sha == "new-commit-sha"
     assert calls == [
         "/repos/acme/weave-acme-corp/git/ref/heads/main",
+        "/repos/acme/weave-acme-corp/git/commits/head-sha",
         "/repos/acme/weave-acme-corp/git/blobs",
         "/repos/acme/weave-acme-corp/git/trees",
         "/repos/acme/weave-acme-corp/git/commits",
@@ -190,20 +193,16 @@ async def test_github_driver_commit_workspace_issues_ref_lookup_then_blob_tree_c
     ]
 
 
-async def test_github_driver_commit_workspace_sends_commit_sha_not_tree_sha_as_base_tree(
+async def test_github_driver_commit_workspace_resolves_commit_to_tree_sha_for_base_tree(
     tmp_path: Path,
 ) -> None:
-    """QA edge case / AC-6 defect: GitHub's "Create a tree" API documents
-    `base_tree` as the SHA of an existing **tree** object, but
-    `commit_workspace` passes it the ref's **commit** SHA (`object.sha` from
-    `GET .../git/ref/heads/{branch}`) unchanged -- it never resolves that
-    commit to its tree via `GET .../git/commits/{sha}` -> `tree.sha`. Against
-    real GitHub this fails the tree-create call (a commit SHA is not a valid
-    tree object), so the *first* AC-6 `commit_workspace` call on a real repo
-    -- the one after `write_initial_commit` has already put a commit on
-    `main` -- would 422 rather than commit. This test pins that today's
-    `base_tree` body equals the commit sha, not a resolved tree sha; a fix
-    must call `git/commits/{sha}` first and this assertion should flip.
+    """AC-6: GitHub's "Create a tree" API documents `base_tree` as the SHA of
+    an existing **tree** object. The ref lookup (`GET .../git/ref/heads/{branch}`)
+    yields a **commit** sha, so `commit_workspace` must first resolve that
+    commit to its tree via `GET .../git/commits/{sha}` -> `tree.sha` and send
+    THAT as `base_tree`. Sending the commit sha directly (the original defect)
+    would 422 the tree-create against real GitHub on the first commit after
+    `write_initial_commit` seeds `main`. This pins the resolved tree sha.
     """
     (tmp_path / "openapi.yaml").write_text("openapi: 3.1.0\n")
     tree_bodies: list[dict[str, object]] = []
@@ -211,6 +210,8 @@ async def test_github_driver_commit_workspace_sends_commit_sha_not_tree_sha_as_b
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/git/ref/heads/main"):
             return httpx.Response(200, json={"object": {"sha": "commit-abc"}})
+        if "/git/commits/" in request.url.path:
+            return httpx.Response(200, json={"tree": {"sha": "resolved-tree-sha"}})
         if request.url.path.endswith("/git/blobs"):
             return httpx.Response(201, json={"sha": "blob-sha"})
         if request.url.path.endswith("/git/trees"):
@@ -237,10 +238,9 @@ async def test_github_driver_commit_workspace_sends_commit_sha_not_tree_sha_as_b
         token=_FAKE_GH,
     )
 
-    # Today's (defective) behaviour: the commit sha from the ref lookup is
-    # sent straight through as base_tree -- it should instead be a tree sha
-    # resolved from that commit.
-    assert tree_bodies[0]["base_tree"] == "commit-abc"
+    # Fixed behaviour: base_tree is the tree sha resolved from the parent
+    # commit (GET /git/commits/commit-abc -> tree.sha), never the commit sha.
+    assert tree_bodies[0]["base_tree"] == "resolved-tree-sha"
 
 
 def _gitlab_client(handler: httpx.MockTransport) -> httpx.AsyncClient:

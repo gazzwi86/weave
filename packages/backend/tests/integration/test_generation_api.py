@@ -92,14 +92,17 @@ def _github_driver() -> GitHubDriver:
             )
         if path.endswith("/git/ref/heads/main"):
             return httpx.Response(200, json={"object": {"sha": "head-sha"}})
-        if path.endswith("/git/blobs"):
-            return httpx.Response(201, json={"sha": f"blob-{path}"})
-        if path.endswith("/git/trees"):
-            return httpx.Response(201, json={"sha": "tree-sha"})
-        if path.endswith("/git/commits"):
-            return httpx.Response(201, json={"sha": "generated-commit-sha"})
-        if path.endswith("/git/refs"):
-            return httpx.Response(201, json={})
+        if "/git/commits/" in path:  # GET parent commit -> tree sha (AC-6)
+            return httpx.Response(200, json={"tree": {"sha": "base-tree-sha"}})
+        created = {
+            "/git/blobs": {"sha": f"blob-{path}"},
+            "/git/trees": {"sha": "tree-sha"},
+            "/git/commits": {"sha": "generated-commit-sha"},
+            "/git/refs": {},
+        }
+        for suffix, body in created.items():
+            if path.endswith(suffix):
+                return httpx.Response(201, json=body)
         raise AssertionError(f"unexpected path {path}")
 
     return GitHubDriver(

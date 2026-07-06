@@ -156,6 +156,13 @@ class GitHubDriver:
             self._client, f"/repos/{full_name}/git/ref/heads/{repo.default_branch}", headers
         )
         parent_sha = head_ref.json()["object"]["sha"]
+        # AC-6: `base_tree` on POST /git/trees must be a TREE sha, not a commit
+        # sha -- resolve the parent commit to its tree first, else GitHub 422s
+        # the tree-create (the ref's object.sha is a commit object).
+        parent_commit = await _get_checked(
+            self._client, f"/repos/{full_name}/git/commits/{parent_sha}", headers
+        )
+        base_tree_sha = parent_commit.json()["tree"]["sha"]
 
         tree_entries = []
         for path, content in _read_workspace_files(workspace).items():
@@ -172,7 +179,7 @@ class GitHubDriver:
         tree = await _post_checked(
             self._client,
             f"/repos/{full_name}/git/trees",
-            {"base_tree": parent_sha, "tree": tree_entries},
+            {"base_tree": base_tree_sha, "tree": tree_entries},
             headers,
         )
         commit = await _post_checked(
