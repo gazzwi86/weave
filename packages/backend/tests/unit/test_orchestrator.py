@@ -44,6 +44,7 @@ _REPO_ROW = {
     "repo_provider": "github",
     "repo_url": "https://scm/acme/repo",
     "repo_default_branch": "main",
+    "repo_id": "acme/repo",
 }
 
 

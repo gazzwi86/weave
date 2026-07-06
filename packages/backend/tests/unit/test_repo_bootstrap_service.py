@@ -52,6 +52,7 @@ def _project_row(**overrides: Any) -> _FakeRow:
         "repo_provider": None,
         "repo_url": None,
         "repo_default_branch": None,
+        "repo_id": None,
     }
     base.update(overrides)
     return _FakeRow(base)
@@ -74,6 +75,11 @@ class _FakeDriver:
         self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
     ) -> None:
         return None
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        return "sha-fake"
 
 
 def _deps(
