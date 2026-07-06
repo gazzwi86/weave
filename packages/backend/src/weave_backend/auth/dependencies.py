@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from httpx import AsyncClient
 from opentelemetry import trace
 from pydantic import BaseModel
@@ -36,13 +37,29 @@ class Principal(BaseModel):
     principal_type: str = "human"
 
 
-def _unauthorised() -> HTTPException:
-    """AC-003-07: the shared shape for "no credential at all" -- every route
-    depending on `get_current_principal` gets this for free.
+class UnauthorisedError(Exception):
+    """AC-5 (BE-TASK-003) / AC-3 (BE-TASK-001): raised for the platform-wide
+    "you are not authenticated" case (no/garbage bearer token) -- distinct
+    from the more specific `token_ttl_exceeded` / `session_revoked` 401s
+    below, which have their own established, separately-tested bodies
+    (PLAT-TASK-003/004) and stay on plain `HTTPException`.
+
+    Needs its own exception + handler (registered in `weave_backend/__init__.py`)
+    rather than `HTTPException(detail=...)`, because FastAPI always nests an
+    `HTTPException`'s `detail` under a `"detail"` key -- there is no way to
+    get a top-level `{"error": "unauthorised"}` body from it. The 422 path
+    (`projects_validation_error_handler`) uses the same handler-registration
+    mechanism for the same reason: only a handler returning its own
+    `JSONResponse` controls the exact body shape.
     """
-    return HTTPException(
+
+
+async def unauthorised_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """AC-5/AC-3: top-level `{"error": "unauthorised"}` body + `Www-Authenticate`."""
+    del request, exc  # unused -- shape is fixed, no request-dependent detail
+    return JSONResponse(
         status_code=401,
-        detail={"error": "unauthorised"},
+        content={"error": "unauthorised"},
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -50,7 +67,7 @@ def _unauthorised() -> HTTPException:
 def _bearer_token(request: Request) -> str:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise _unauthorised()
+        raise UnauthorisedError
     return auth_header.removeprefix("Bearer ")
 
 
@@ -64,7 +81,7 @@ async def get_current_principal(
     except TokenTtlExceeded as exc:
         raise HTTPException(status_code=401, detail={"error": "token_ttl_exceeded"}) from exc
     except TokenVerificationError as exc:
-        raise HTTPException(status_code=401, detail="invalid access token") from exc
+        raise UnauthorisedError from exc
 
     tenant_id_var.set(claims["tenant_id"])
     principal_iri_var.set(claims["principal_iri"])

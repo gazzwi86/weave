@@ -58,6 +58,24 @@ async def run_query(query: str, named_graph_iri: str) -> dict[str, Any]:
     return result
 
 
+async def run_query_unscoped(query: str) -> dict[str, Any]:
+    """Run `query` against the whole Oxigraph dataset -- every named graph
+    unioned into the default graph (`union-default-graph=true`, Oxigraph's
+    own non-standard SPARQL-protocol extension) -- rather than `run_query`'s
+    single-`named_graph_iri` restriction. BE-TASK-004's blast-radius/
+    authority queries key off a `RequestRecord`'s entity IRIs, which have no
+    single workspace binding to scope by.
+    """
+    response = await _get_client().get(
+        f"{oxigraph_url()}/query",
+        params={"query": query, "union-default-graph": "true"},
+        headers={"Accept": "application/sparql-results+json"},
+    )
+    response.raise_for_status()
+    result: dict[str, Any] = response.json()
+    return result
+
+
 async def load_graph(named_graph_iri: str, turtle_data: str) -> None:
     """PUT triples into a specific named graph via the Graph Store Protocol."""
     response = await _get_client().put(
