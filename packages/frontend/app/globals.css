@@ -36,6 +36,11 @@
   --color-danger-soft: rgba(239, 68, 68, 0.1);
   --color-info: #7dd3fc;
 
+  /* color: BPMO kind fallback (dark) -- unrecognised/extension-kind grey
+   * (docs/standards/design/color.md); only fallback needed for M1, full
+   * 13-kind palette is deferred (kind->shape mapping, OQ-08). */
+  --color-kind-fallback: #64748b;
+
   /* space (8pt grid) */
   --space-1: 4px;
   --space-2: 8px;
@@ -107,6 +112,7 @@
   --z-panel: 200;
   --z-overlay: 300;
   --z-command: 500;
+  --z-toast: 600;
 
   /* focus ring — always-on accessibility primitive, exempt from reduced-motion */
   --ring-focus: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-accent-primary);
@@ -149,6 +155,7 @@
     --color-danger: #b91c1c;
     --color-danger-soft: rgba(185, 28, 28, 0.1);
     --color-info: #0369a1;
+    --color-kind-fallback: #6d7d94;
   }
 }
 

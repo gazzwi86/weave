@@ -23,6 +23,9 @@ globalIgnores([
   "out/**",
   "build/**",
   "next-env.d.ts",
+  // Throwaway spike harnesses: own package.json/node_modules, not part of the
+  // production app -- see benchmarks/ge-oq01-spike/report.md (TASK-001).
+  "benchmarks/**",
 ]), ...storybook.configs["flat/recommended"]]);
 
 export default eslintConfig;

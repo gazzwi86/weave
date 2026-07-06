@@ -6,6 +6,7 @@ import { Badge } from "./badge";
 import { Button } from "./button";
 import { Card, CardContent, CardTitle } from "./card";
 import { Input } from "./input";
+import { Toast } from "./toast";
 
 // ponytail: vitest-axe's `toHaveNoViolations` matcher augments a `Vi` global
 // namespace that vitest 4's types no longer expose, so `tsc --noEmit` fails
@@ -40,6 +41,13 @@ describe("test_storybook_components_render", () => {
         <CardTitle>Constitution Engine</CardTitle>
         <CardContent>The graph/ontology layer.</CardContent>
       </Card>
+    );
+    await expectNoAxeViolations(container);
+  });
+
+  it("Toast has no axe violations", async () => {
+    const { container } = render(
+      <Toast message="Couldn't save layout position." onDismiss={() => undefined} />
     );
     await expectNoAxeViolations(container);
   });

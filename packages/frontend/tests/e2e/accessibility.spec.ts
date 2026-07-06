@@ -154,3 +154,193 @@ test.describe("compliance accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 });
+
+// GE-TASK-002 QA FIX 3: no real-browser axe pass existed for /explorer's
+// force canvas -- Cytoscape draws to <canvas>, so this also checks the
+// canvas/minimap wrapper elements carry accessible names rather than being
+// silent to a screen reader, not just colour contrast.
+test.describe("explorer accessibility (axe-core, real browser)", () => {
+  test("explorer force canvas has zero axe violations", async ({ page }) => {
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: "https://weave.example/process/onboarding",
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Process",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await expect(page.getByTestId("explorer-canvas")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
+  // QA edge case (GE-TASK-003, Category 15): the base-canvas axe pass above
+  // never exercises the side panel or search overlay TASK-003 added -- both
+  // are new DOM surfaces on this same route and each needs its own
+  // zero-violations assertion, not an inference from the canvas-only pass.
+  test("explorer side panel (open) has zero axe violations", async ({ page }) => {
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: "https://weave.example/process/onboarding",
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Process",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+    await page.route("**/api/proxy/ontology/resource/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          label: "Customer Onboarding",
+          type_label: "Process",
+          key_properties: [{ path: "owner", label: "Owner", value: "Ops Team" }],
+          raw_iri: null,
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+
+    const nodeInfo = await page.evaluate(() =>
+      window.__explorerNodeInfo?.("https://weave.example/process/onboarding")
+    );
+    if (!nodeInfo) throw new Error("node not found on canvas");
+    await page.mouse.click(nodeInfo.x, nodeInfo.y);
+    await expect(page.getByTestId("explorer-side-panel")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
+  test("explorer search overlay (open) has zero axe violations", async ({ page }) => {
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: "https://weave.example/process/onboarding",
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Process",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+
+    await page.getByTestId("explorer-search-button").click();
+    await expect(page.getByTestId("explorer-search-overlay")).toBeVisible();
+    await page.getByPlaceholder("Search nodes…").fill("Customer");
+    await expect(page.getByText("Customer Onboarding")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
+  // GE-TASK-004: the save-failure toast is a new DOM surface (role="alert"),
+  // only mounted once every retry is exhausted -- needs its own pass same as
+  // side-panel/search-overlay above, not an inference from the base canvas.
+  test("explorer save-failure toast has zero axe violations", async ({ page }) => {
+    test.slow(); // waits out the real layoutSaveRetryDelaysMs backoff (2s/4s/8s)
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    const sparqlRow = {
+      subject: "https://weave.example/process/onboarding",
+      predicate: "https://weave.example/hasStep",
+      object: "https://weave.example/step/create-account",
+      bpmo_kind: "Process",
+      label: "Customer Onboarding",
+    };
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      const body = { rows: [sparqlRow], columns: ["subject", "predicate", "object"], has_more_pages: false, page: 0 };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    });
+    await page.route("**/api/proxy/layout-positions**", async (route) => {
+      if (route.request().method() !== "GET") return route.fulfill({ status: 500 });
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ positions: [] }) });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+    const nodeInfo = await page.evaluate((id) => window.__explorerNodeInfo?.(id), sparqlRow.subject);
+    if (!nodeInfo) throw new Error("node not found on canvas");
+    await page.mouse.move(nodeInfo.x, nodeInfo.y);
+    await page.mouse.down();
+    await page.mouse.move(nodeInfo.x + 40, nodeInfo.y + 40, { steps: 5 });
+    await page.mouse.up();
+    // Next.js always renders a hidden route-announcer with role="alert" too
+    // (see the billing test above) -- scope to our own text.
+    await expect(page.getByRole("alert").filter({ hasText: "Couldn" })).toBeVisible({ timeout: 20_000 });
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+});
