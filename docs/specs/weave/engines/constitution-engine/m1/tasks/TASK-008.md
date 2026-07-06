@@ -65,8 +65,12 @@ and Graph Explorer teams a confident go/no-go before they build M1 grounding cal
 | Write p95 | 500k triples | ≤ 2000 ms | Large-tenant headroom; degradation allowed but not failure |
 | Read p95 | 500k triples | ≤ 1000 ms | Large-tenant headroom |
 
-Thresholds apply to the **100k corpus** for pass/fail (the M1 target scale). 500k results are
-recorded and inform the production store decision (Neptune vs Jena Fuseki) but do not gate M1.
+**M1 gate retargeted 100k → 10k (human-authorised 2026-07-06 — see [ADR-004](../../decisions/ADR-004.md)
+decision addendum).** The write ≤ 800 ms / read ≤ 300 ms UI budget now applies to the **10k corpus**
+for pass/fail (CE passes it with margin: write p95 641 ms, read p95 111 ms). 100k and 500k stay
+measured but non-gating (informational): 100k's whole-graph-replace write crashes the 5 s Oxigraph
+client timeout, deferred to a scale-hardening follow-up (delta-patch write). 500k continues to inform
+the production store decision (Neptune vs Jena Fuseki).
 
 ### Degrade Plan (if thresholds are not met)
 
