@@ -2,34 +2,71 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Nav } from "../nav";
+import { SectionRail } from "../section-rail";
 
-// CE-TASK-007 shipped the real Constitution Engine route at "/ce/query"
-// (nav-items.ts), replacing the placeholder "/ce" -- match a real subroute.
+// PoC IA (docs/design/poc-ia-proposal.md): pathname under a section prefix
+// marks that section's tab active — /ce/query/history belongs to Constitution.
+let pathname = "/ce/query/history";
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/ce/query/history",
+  usePathname: () => pathname,
 }));
 
 describe("Nav", () => {
-  it("renders all seven area links with the active one aria-current", () => {
+  it("renders the six IA areas with the active one aria-current", () => {
+    pathname = "/ce/query/history";
     render(<Nav />);
 
-    const areas = [
-      "Platform",
-      "Constitution Engine",
-      "Build Engine",
-      "Events & Actions",
-      "Graph Explorer",
-      "Onboarding",
-      "Settings",
-    ];
+    const areas = ["Home", "Constitution", "Build", "Events", "Audit trail", "Settings"];
     for (const label of areas) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
 
-    const active = screen.getByRole("link", { name: "Constitution Engine" });
+    const active = screen.getByRole("link", { name: "Constitution" });
     expect(active).toHaveAttribute("aria-current", "page");
 
-    const inactive = screen.getByRole("link", { name: "Build Engine" });
+    const inactive = screen.getByRole("link", { name: "Build" });
     expect(inactive).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks Audit trail active on the legacy /compliance route", () => {
+    pathname = "/compliance";
+    render(<Nav />);
+    expect(screen.getByRole("link", { name: "Audit trail" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+  });
+});
+
+describe("SectionRail", () => {
+  it("renders grouped items with status pills; placeholders are dimmed non-links", () => {
+    pathname = "/ce/query";
+    render(<SectionRail role="admin" />);
+
+    expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Instances \/ Data/ })).toHaveAttribute(
+      "href",
+      "/ce"
+    );
+    // M2 placeholder: no link, phase pill present.
+    expect(screen.queryByRole("link", { name: /Glossary/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Glossary")).toBeInTheDocument();
+    const pills = screen.getAllByText("M2");
+    expect(pills.length).toBeGreaterThan(0);
+  });
+
+  it("hides admin-only items from non-admin roles (IA §5 RBAC split)", () => {
+    pathname = "/settings/models";
+    const { rerender } = render(<SectionRail role="author" />);
+    expect(screen.queryByText("Workspaces")).not.toBeInTheDocument();
+
+    rerender(<SectionRail role="admin" />);
+    expect(screen.getByRole("link", { name: /Workspaces/ })).toBeInTheDocument();
+  });
+
+  it("renders nothing for sections without a rail (Home)", () => {
+    pathname = "/dashboard";
+    const { container } = render(<SectionRail role="admin" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
