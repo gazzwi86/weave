@@ -1,23 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ChatPanel } from "./chat/chat-panel";
 import { GuidedForm } from "./chat/guided-form";
-import type { KindEntry } from "./chat/types";
-
-/** ponytail: a plain effect + useState, not a shared hook -- this is the
- * only place the full kind list (as opposed to one kind's shape) is needed.
- */
-function useKindList(): KindEntry[] {
-  const [kinds, setKinds] = useState<KindEntry[]>([]);
-  useEffect(() => {
-    fetch("/api/ontology/types")
-      .then((res) => (res.ok ? (res.json() as Promise<{ kinds: KindEntry[] }>) : null))
-      .then((body) => setKinds(body?.kinds ?? []));
-  }, []);
-  return kinds;
-}
+import { useKindList } from "./use-kind-list";
 
 function AddEntityLauncher() {
   const kinds = useKindList();
