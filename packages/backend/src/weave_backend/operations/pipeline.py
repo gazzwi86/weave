@@ -225,7 +225,7 @@ async def _apply_uncached(
     violations = [r for r in shacl_results if r.severity == "Violation"]
 
     if violations:
-        await metrics.emit_mutation_outcome_metric("violation")
+        metrics.schedule_mutation_outcome_metric("violation")
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
     version_iri, activity_iri, turtle = await _commit(
@@ -235,7 +235,7 @@ async def _apply_uncached(
         claimed_actor_iri=request.actor,
         applied_count=apply_result.applied_count,
     )
-    await metrics.emit_mutation_outcome_metric("success")
+    metrics.schedule_mutation_outcome_metric("success")
     # Last, irreversible step -- everything failable already happened and
     # committed (or would roll back) above; see module docstring.
     await load_graph(ctx.named_graph_iri, turtle)
