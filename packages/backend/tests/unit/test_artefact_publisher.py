@@ -10,6 +10,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+
 from weave_backend.deploy.artefact_publisher import PublishError, publish
 
 _MODULE = "weave_backend.deploy.artefact_publisher"
