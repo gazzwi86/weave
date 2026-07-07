@@ -63,7 +63,15 @@ def schedule_mutation_outcome_metric(outcome: str) -> None:
     The emit is already best-effort (failures are caught, never fail the
     mutation), so nothing depends on awaiting it. If there is no running event
     loop (sync context / shutdown), the metric is simply skipped.
+
+    `WEAVE_DISABLE_MUTATION_METRICS=1` skips scheduling entirely. Used only in
+    the ce-perf benchmark CI job, where LocalStack's cloudwatch is broken
+    (every put_metric_data 500s) and the resulting flood of failing
+    fire-and-forget boto3 calls starves the shared thread pool the write path
+    itself relies on (asyncio.to_thread). Prod always has this unset.
     """
+    if os.environ.get("WEAVE_DISABLE_MUTATION_METRICS") == "1":
+        return
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:

@@ -89,6 +89,14 @@ jobs:
         run: uv run python -m weave_backend.db.migrate
       - name: Run CE perf benchmark (10k gating corpus)
         working-directory: packages/backend
+        env:
+          # LocalStack's cloudwatch is broken in this env (every put_metric_data
+          # 500s); the resulting flood of failing fire-and-forget boto3 calls
+          # starves the shared thread pool the write path itself relies on
+          # (asyncio.to_thread), inflating measured write latency. The metric
+          # is best-effort observability with zero value here -- disable it
+          # for this step only. Prod and the integration/mutation jobs keep it on.
+          WEAVE_DISABLE_MUTATION_METRICS: "1"
         run: uv run python ../../scripts/benchmarks/ce-perf/run_benchmark.py
       - name: Echo JSON report to the log
         if: always()

@@ -34,3 +34,37 @@ async def test_schedule_mutation_outcome_metric_does_not_await_the_emit(
 def test_schedule_mutation_outcome_metric_without_a_running_loop_is_a_noop() -> None:
     # No event loop running here (sync test) -- must not raise.
     metrics.schedule_mutation_outcome_metric("violation")
+
+
+async def test_schedule_mutation_outcome_metric_disabled_by_env_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WEAVE_DISABLE_MUTATION_METRICS=1 (ce-perf benchmark only) must short-
+    circuit before touching the event loop -- no task created, nothing to await.
+    """
+    mock_emit = AsyncMock(return_value=None)
+    monkeypatch.setattr(metrics, "emit_mutation_outcome_metric", mock_emit)
+    monkeypatch.setenv("WEAVE_DISABLE_MUTATION_METRICS", "1")
+
+    metrics.schedule_mutation_outcome_metric("success")
+
+    await asyncio.sleep(0)
+    mock_emit.assert_not_called()
+    assert not metrics._background_tasks
+
+
+async def test_schedule_mutation_outcome_metric_env_flag_unset_preserves_behaviour(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sanity check: with the flag unset (the prod default), scheduling still
+    happens as before.
+    """
+    mock_emit = AsyncMock(return_value=None)
+    monkeypatch.setattr(metrics, "emit_mutation_outcome_metric", mock_emit)
+    monkeypatch.delenv("WEAVE_DISABLE_MUTATION_METRICS", raising=False)
+
+    metrics.schedule_mutation_outcome_metric("success")
+
+    assert metrics._background_tasks
+    await asyncio.sleep(0)
+    mock_emit.assert_awaited_once_with("success")
