@@ -47,3 +47,37 @@ async def emit_mutation_outcome_metric(outcome: str) -> None:
         await asyncio.to_thread(_put_metric, outcome)
     except Exception:
         log.warning("failed to emit mutation outcome metric outcome=%s", outcome, exc_info=True)
+
+
+# Strong refs to in-flight fire-and-forget tasks. asyncio only holds a weak
+# reference to a task, so without this set an unreferenced task can be
+# garbage-collected before it runs (CPython-documented gotcha).
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+def schedule_mutation_outcome_metric(outcome: str) -> None:
+    """Fire-and-forget the best-effort metric emit so a CloudWatch round trip
+    never sits on the write critical path (ADR-004 hotspot: ~90ms+ per apply
+    against LocalStack, pushing write p95 over the 800ms M1 budget).
+
+    The emit is already best-effort (failures are caught, never fail the
+    mutation), so nothing depends on awaiting it. If there is no running event
+    loop (sync context / shutdown), the metric is simply skipped.
+
+    `WEAVE_DISABLE_MUTATION_METRICS=1` skips scheduling entirely. Used only in
+    the ce-perf benchmark CI job, where LocalStack's cloudwatch is broken
+    (every put_metric_data 500s) and the resulting flood of failing
+    fire-and-forget boto3 calls starves the shared thread pool the write path
+    itself relies on (asyncio.to_thread). Prod always has this unset.
+    """
+    if os.environ.get("WEAVE_DISABLE_MUTATION_METRICS") == "1":
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop (sync context / shutdown). Return before creating the
+        # coroutine so it can't leak un-awaited. Best-effort: metric is skipped.
+        return
+    task = loop.create_task(emit_mutation_outcome_metric(outcome))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)

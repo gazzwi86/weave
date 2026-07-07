@@ -24,6 +24,26 @@ import pytest
 from weave_backend.db.migrate import run_migrations
 
 
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limit_stores() -> Iterator[None]:
+    """Clear the auth/identity rate-limit stores before every test.
+
+    Both limiters (`auth._refresh_rate_limit_store`,
+    `identity._agent_token_rate_limit_store`) are module-level dicts keyed on
+    the client IP. Under the test client every request shares one localhost
+    bucket, so token mints/refreshes accumulate ACROSS tests and eventually
+    trip the 5-req/60s window — most visibly in mutmut's full-suite clean
+    baseline (`test_identity_rbac::test_agent_registry_tenant_scoped` -> 429).
+    Resetting per test isolates the window; production behaviour is untouched
+    (the limiter and its own unit/integration tests are unchanged).
+    """
+    from weave_backend.routers import auth, identity
+
+    auth._refresh_rate_limit_store.clear()
+    identity._agent_token_rate_limit_store.clear()
+    yield
+
+
 def _find_repo_root(start: Path) -> Path:
     """Walk up from ``start`` until a directory containing ``.git`` is found."""
     for candidate in (start, *start.parents):
