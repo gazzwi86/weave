@@ -27,3 +27,15 @@ describe("DEFAULT_EXPLORER_CONFIG -- TASK-004 additions", () => {
     expect(DEFAULT_EXPLORER_CONFIG.layoutGraphId).toBe("whole-company");
   });
 });
+
+// TASK-005 AC-1/AC-6 (SS-GE-4): domain-membership predicate is a config
+// value, never a literal in query-builder/logic files.
+describe("DEFAULT_EXPLORER_CONFIG -- TASK-005 additions", () => {
+  it("has a non-empty absolute-IRI domainMembershipPredicate", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.domainMembershipPredicate).toMatch(/^https?:\/\//);
+  });
+
+  it("defaults expandConfirmThreshold to 500", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.expandConfirmThreshold).toBe(500);
+  });
+});

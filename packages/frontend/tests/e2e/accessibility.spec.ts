@@ -299,6 +299,7 @@ test.describe("explorer accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 
+
   // GE-TASK-004: the save-failure toast is a new DOM surface (role="alert"),
   // only mounted once every retry is exhausted -- needs its own pass same as
   // side-panel/search-overlay above, not an inference from the base canvas.
@@ -339,6 +340,142 @@ test.describe("explorer accessibility (axe-core, real browser)", () => {
     // Next.js always renders a hidden route-announcer with role="alert" too
     // (see the billing test above) -- scope to our own text.
     await expect(page.getByRole("alert").filter({ hasText: "Couldn" })).toBeVisible({ timeout: 20_000 });
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
+  // QA edge case (GE-TASK-005, Category 15): the panel/canvas axe passes
+  // above never exercise the node-context-menu, confirm-dialog, or
+  // domain-focus-notice TASK-005 added -- each is a new interactive DOM
+  // surface and needs its own zero-violations assertion.
+  test("explorer node context menu (open) has zero axe violations", async ({ page }) => {
+    const ONBOARDING = "https://weave.example/process/onboarding";
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Domain", label: "Domain", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: ONBOARDING,
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Domain",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+    await page.route("**/api/proxy/ontology/resource/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          label: "Customer Onboarding",
+          type_label: "Domain",
+          bpmo_kind: "Domain",
+          key_properties: [],
+          raw_iri: null,
+          neighbours: [],
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+
+    const nodeInfo = await page.evaluate(
+      (id) => window.__explorerNodeInfo?.(id),
+      ONBOARDING
+    );
+    if (!nodeInfo) throw new Error("node not found on canvas");
+    await page.mouse.click(nodeInfo.x, nodeInfo.y);
+    await expect(page.getByTestId("explorer-side-panel")).toBeVisible();
+    // See explorer-domain-focus-expand-collapse.spec.ts: right-click must
+    // wait for the panel to leave "loading" or the context menu never opens.
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    await page.mouse.click(nodeInfo.x, nodeInfo.y, { button: "right" });
+    await expect(page.getByRole("menu", { name: "Node actions" })).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
+  test("explorer domain-focus empty-state notice has zero axe violations", async ({ page }) => {
+    const ONBOARDING = "https://weave.example/process/onboarding";
+    const DOMAIN_MEMBERSHIP_PREDICATE = "https://weave.example/ontology/bpmo#memberOfDomain";
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Domain", label: "Domain", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      const body = route.request().postDataJSON() as { query: string } | null;
+      const isDomainQuery = body?.query.includes(DOMAIN_MEMBERSHIP_PREDICATE) ?? false;
+      const responseBody = isDomainQuery
+        ? { rows: [] }
+        : {
+            rows: [
+              {
+                subject: ONBOARDING,
+                predicate: "https://weave.example/hasStep",
+                object: "https://weave.example/step/create-account",
+                bpmo_kind: "Domain",
+                label: "Customer Onboarding",
+              },
+            ],
+            columns: ["subject", "predicate", "object"],
+            has_more_pages: false,
+            page: 0,
+          };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(responseBody) });
+    });
+    await page.route("**/api/proxy/ontology/resource/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          label: "Customer Onboarding",
+          type_label: "Domain",
+          bpmo_kind: "Domain",
+          key_properties: [],
+          raw_iri: null,
+          neighbours: [],
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+
+    const nodeInfo = await page.evaluate(
+      (id) => window.__explorerNodeInfo?.(id),
+      ONBOARDING
+    );
+    if (!nodeInfo) throw new Error("node not found on canvas");
+    await page.mouse.click(nodeInfo.x, nodeInfo.y);
+    await expect(page.getByTestId("explorer-side-panel")).toBeVisible();
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    await page.mouse.click(nodeInfo.x, nodeInfo.y, { button: "right" });
+    await page.getByRole("menuitem", { name: "Focus domain" }).click();
+    await expect(page.getByTestId("domain-focus-notice")).toBeVisible();
+    await expect(page.getByText("This domain has no members")).toBeVisible();
 
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);

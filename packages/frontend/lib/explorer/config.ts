@@ -19,6 +19,18 @@ export interface ExplorerConfig {
   /** TASK-004: fixed graph id for the M1 whole-company force canvas -- there
    * is no per-graph routing yet (single canvas, single graph). */
   layoutGraphId: string;
+  /** TASK-005 AC-1 (SS-GE-4): predicate IRI CE uses for domain membership.
+   * Lives here (config), never as a literal in a query-builder/logic file --
+   * query builders receive it as a parameter. */
+  domainMembershipPredicate: string;
+  /** TASK-005 AC-4: neighbour count above which expand asks for confirmation
+   * before mutating the canvas. */
+  expandConfirmThreshold: number;
+  /** TASK-005 AC-3: bpmoKind value that marks a node as a domain -- the
+   * context menu only offers "Focus domain" when a node's kind matches this.
+   * Lives here (not a literal in node-context-menu.tsx) so it can be
+   * corrected without a code change if CE's ontology names it differently. */
+  domainKind: string;
   fcoseParams: typeof FCOSE_PARAMS;
 }
 
@@ -30,5 +42,8 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   centreAnimationMs: 300,
   layoutSaveRetryDelaysMs: [2000, 4000, 8000],
   layoutGraphId: "whole-company",
+  domainMembershipPredicate: "https://weave.example/ontology/bpmo#memberOfDomain",
+  expandConfirmThreshold: 500,
+  domainKind: "Domain",
   fcoseParams: FCOSE_PARAMS,
 });

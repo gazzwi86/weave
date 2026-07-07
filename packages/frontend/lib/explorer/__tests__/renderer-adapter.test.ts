@@ -1,54 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createRendererAdapter, type CyCollection } from "../renderer-adapter";
+import { createRendererAdapter } from "../renderer-adapter";
 
-function fakeCollection(overrides: Partial<CyCollection> = {}): CyCollection {
-  return {
-    id: vi.fn(() => "n1"),
-    data: vi.fn(() => undefined),
-    style: vi.fn(),
-    not: vi.fn(() => fakeCollection()),
-    length: 1,
-    map: vi.fn(() => []),
-    closedNeighborhood: vi.fn(() => fakeCollection()),
-    position: vi.fn(() => ({ x: 0, y: 0 })),
-    ...overrides,
-  };
-}
-
-function fakeCy() {
-  const listenersByEvent = new Map<string, Set<(evt: { target: unknown }) => void>>();
-  function listenersFor(event: string): Set<(evt: { target: unknown }) => void> {
-    let listeners = listenersByEvent.get(event);
-    if (!listeners) {
-      listeners = new Set();
-      listenersByEvent.set(event, listeners);
-    }
-    return listeners;
-  }
-  return {
-    json: vi.fn(),
-    zoom: vi.fn(() => 1.5),
-    pan: vi.fn(() => ({ x: 10, y: 20 })),
-    layout: vi.fn(() => ({ run: vi.fn() })),
-    elements: vi.fn(() => fakeCollection()),
-    nodes: vi.fn(() => fakeCollection()),
-    getElementById: vi.fn((_id: string) => fakeCollection()),
-    on: vi.fn((event: string, handler: (evt: { target: unknown }) => void) => {
-      listenersFor(event).add(handler);
-    }),
-    off: vi.fn((event: string, handler: (evt: { target: unknown }) => void) => {
-      listenersFor(event).delete(handler);
-    }),
-    animate: vi.fn(),
-    fireTap(target: unknown) {
-      listenersFor("tap").forEach((handler) => handler({ target }));
-    },
-    fireDragFree(target: unknown) {
-      listenersFor("dragfree").forEach((handler) => handler({ target }));
-    },
-  };
-}
+import { fakeCollection, fakeCy } from "./renderer-adapter-test-support";
 
 // ADR-001: TASK-002 builds only the subset of the render-adapter surface it
 // needs now (load, getViewport, setLayout) -- onNodeClick/pin land with the
@@ -178,6 +132,34 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     cy.fireTap(cy);
 
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  // TASK-005: right-clicking a node is the context menu trigger for
+  // "Focus domain"/"Expand neighbours"/"Collapse neighbours" (AC-3/AC-5).
+  it("onNodeRightClick() fires with the node's id and rendered position, ignoring background right-click", () => {
+    const cy = fakeCy();
+    const node = fakeCollection({ id: vi.fn(() => "n1") });
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onNodeRightClick(handler);
+    cy.fireRightClick(node, { x: 12, y: 34 });
+    cy.fireRightClick(cy, { x: 1, y: 1 }); // background right-click -- ignored
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith("n1", { x: 12, y: 34 });
+  });
+
+  it("onNodeRightClick()'s returned unregister function stops future calls", () => {
+    const cy = fakeCy();
+    const node = fakeCollection();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    const unregister = adapter.onNodeRightClick(handler);
+    unregister();
+    cy.fireRightClick(node, { x: 0, y: 0 });
+
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("getNodeData() reads the already-loaded label/bpmoKind for a known node", () => {

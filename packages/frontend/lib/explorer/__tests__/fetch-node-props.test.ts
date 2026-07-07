@@ -41,8 +41,59 @@ describe("fetchNodeProps", () => {
         bpmoKind: "Process",
         keyProperties: [{ path: "rdfs:comment", label: "Description", value: "…" }],
         rawIri: null,
+        neighbours: [],
       },
     });
+  });
+
+  // TASK-005 AC-3: neighbour expansion reuses this same fetch (no second
+  // CE-READ-1 round trip) -- the response's `neighbours` field is mapped
+  // through alongside the rest of the node's properties.
+  it("maps the response's neighbours field through to camelCase", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          label: "Customer Onboarding",
+          type_label: "Process",
+          key_properties: [],
+          raw_iri: null,
+          neighbours: [
+            {
+              iri: "https://weave.example/entity/invoice-1",
+              label: "Invoice 1",
+              bpmo_kind: "DataAsset",
+              edge_predicate: "https://weave.example/ontology/bpmo#relatesTo",
+              edge_direction: "outgoing",
+            },
+          ],
+        })
+      )
+    );
+
+    const result = await fetchNodeProps(IRI, 10_000);
+
+    expect(result.type).toBe("ok");
+    expect(result.type === "ok" && result.data.neighbours).toEqual([
+      {
+        iri: "https://weave.example/entity/invoice-1",
+        label: "Invoice 1",
+        bpmoKind: "DataAsset",
+        edgePredicate: "https://weave.example/ontology/bpmo#relatesTo",
+        edgeDirection: "outgoing",
+      },
+    ]);
+  });
+
+  it("defaults neighbours to an empty list when the response omits it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ label: "L", type_label: "T", key_properties: [], raw_iri: null }))
+    );
+
+    const result = await fetchNodeProps(IRI, 10_000);
+
+    expect(result.type === "ok" && result.data.neighbours).toEqual([]);
   });
 
   it("returns a 404 error result without ever exposing the response body (AC-8)", async () => {
