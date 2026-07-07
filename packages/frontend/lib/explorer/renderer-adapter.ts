@@ -1,4 +1,15 @@
+import { EXPLORER_HIGHLIGHT_CLASS } from "./build-stylesheet";
 import type { CytoscapeElement } from "./types";
+
+/** TASK-005 AC-3: one immediate neighbour of an expanded node, as returned
+ * by `GET /api/ontology/resource/{iri}`'s `neighbours` field. */
+export interface NeighbourElement {
+  iri: string;
+  label: string;
+  bpmoKind: string;
+  edgePredicate: string;
+  edgeDirection: "outgoing" | "incoming";
+}
 
 export interface Viewport {
   zoom: number;
@@ -31,23 +42,48 @@ export interface RendererAdapter {
   highlightNodes(nodeIds: string[], dimOpacity: number): void;
   onNodeTap(handler: (nodeId: string) => void): () => void;
   onBackgroundTap(handler: () => void): () => void;
+  /** TASK-005: right-click on a node, for the context menu ("Focus domain",
+   * "Expand neighbours"/"Collapse neighbours") -- fires with the node's id
+   * and its on-screen position so the menu can be placed there. */
+  onNodeRightClick(handler: (nodeId: string, position: { x: number; y: number }) => void): () => void;
   getNodeData(nodeId: string): NodeData | undefined;
   listNodes(): ListedNode[];
   centerOn(nodeId: string, durationMs: number): void;
   /** TASK-004 AC-1: fires once a drag gesture releases, with the node's new
    * position -- the seam use-layout-persistence.ts saves against. */
   onNodeDragEnd(handler: (nodeId: string, position: { x: number; y: number }) => void): () => void;
+  /** TASK-005 AC-3: attaches newly-discovered neighbours (nodes + edges) to
+   * the canvas, highlights any already present instead of duplicating them,
+   * and records the added node ids on the focus node's own data so a later
+   * collapse (AC-5) knows what it added. Returns the added node ids. */
+  expandNode(nodeId: string, neighbours: NeighbourElement[]): string[];
+  /** TASK-005 AC-5: removes the nodes a prior `expandNode` call added for
+   * `nodeId`, except any that gained a retained connection to something
+   * outside that added set; the focus node itself is never removed. */
+  collapseNode(nodeId: string): void;
+  /** AC-5: whether a node currently has expanded neighbours -- reads the
+   * same data expandNode/collapseNode maintain, so it's correct across
+   * remounts of any consuming hook/component. */
+  hasExpandedNeighbours(nodeId: string): boolean;
 }
 
 export interface CyCollection {
   id(): string;
-  data(key: string): unknown;
+  data(key: string, value?: unknown): unknown;
   style(styles: Record<string, unknown>): void;
   not(other: CyCollection): CyCollection;
   length: number;
   map<T>(fn: (ele: CyCollection) => T): T[];
+  filter(fn: (ele: CyCollection) => boolean): CyCollection;
+  connectedEdges(): CyCollection;
+  addClass(className: string): void;
   closedNeighborhood(): CyCollection;
   position(): { x: number; y: number };
+}
+
+interface CyEvent {
+  target: unknown;
+  renderedPosition?: { x: number; y: number };
 }
 
 export interface AdaptableCy {
@@ -58,9 +94,11 @@ export interface AdaptableCy {
   elements(): CyCollection;
   nodes(): CyCollection;
   getElementById(id: string): CyCollection;
-  on(event: string, handler: (evt: { target: unknown }) => void): void;
-  off(event: string, handler: (evt: { target: unknown }) => void): void;
+  on(event: string, handler: (evt: CyEvent) => void): void;
+  off(event: string, handler: (evt: CyEvent) => void): void;
   animate(position: { center: { eles: CyCollection } }, options: { duration: number }): void;
+  add(elements: CytoscapeElement[]): void;
+  remove(collection: CyCollection): void;
 }
 
 function readNodeData(node: CyCollection): NodeData {
@@ -70,12 +108,21 @@ function readNodeData(node: CyCollection): NodeData {
   };
 }
 
-function wireTap(cy: AdaptableCy, isMatch: (target: unknown) => boolean, handler: (target: unknown) => void): () => void {
-  const listener = (evt: { target: unknown }) => {
-    if (isMatch(evt.target)) handler(evt.target);
+function wireEvent(
+  cy: AdaptableCy,
+  eventName: string,
+  isMatch: (target: unknown) => boolean,
+  handler: (evt: CyEvent) => void
+): () => void {
+  const listener = (evt: CyEvent) => {
+    if (isMatch(evt.target)) handler(evt);
   };
-  cy.on("tap", listener);
-  return () => cy.off("tap", listener);
+  cy.on(eventName, listener);
+  return () => cy.off(eventName, listener);
+}
+
+function wireTap(cy: AdaptableCy, isMatch: (target: unknown) => boolean, handler: (target: unknown) => void): () => void {
+  return wireEvent(cy, "tap", isMatch, (evt) => handler(evt.target));
 }
 
 // TASK-004 AC-1: cytoscape's "dragfree" event only ever fires with the
@@ -110,13 +157,85 @@ function applyHighlight(cy: AdaptableCy, nodeIds: string[], dimOpacity: number):
   nodeIds.forEach((nodeId) => cy.getElementById(nodeId).style({ opacity: 1 }));
 }
 
-function centerOnNode(cy: AdaptableCy, nodeId: string, durationMs: number): void {
-  const node = cy.getElementById(nodeId);
-  if (node.length === 0) return;
-  cy.animate({ center: { eles: node } }, { duration: durationMs });
+function neighbourEdgeData(nodeId: string, neighbour: NeighbourElement): { id: string; source: string; target: string; label: string } {
+  const [source, target] = neighbour.edgeDirection === "outgoing" ? [nodeId, neighbour.iri] : [neighbour.iri, nodeId];
+  return { id: `${source}|${neighbour.edgePredicate}|${target}`, source, target, label: neighbour.edgePredicate };
 }
 
-export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
+function neighbourToElements(nodeId: string, neighbour: NeighbourElement): CytoscapeElement[] {
+  return [
+    { data: { id: neighbour.iri, label: neighbour.label, bpmo_kind: neighbour.bpmoKind } },
+    { data: neighbourEdgeData(nodeId, neighbour) },
+  ];
+}
+
+function otherEndpoint(edge: CyCollection, candidateId: string): string {
+  const source = edge.data("source") as string;
+  const target = edge.data("target") as string;
+  return source === candidateId ? target : source;
+}
+
+/** AC-5: a candidate is safe to remove only if every edge it still has
+ * connects it to either the focus node or another node in the removed set
+ * -- any edge to something else means some other still-visible part of the
+ * canvas depends on this node, so it's retained. */
+function hasExternalConnection(candidate: CyCollection, removableIds: Set<string>, focusId: string): boolean {
+  const candidateId = candidate.id();
+  return candidate
+    .connectedEdges()
+    .map((edge) => otherEndpoint(edge, candidateId))
+    .some((otherId) => otherId !== focusId && !removableIds.has(otherId));
+}
+
+function expandNodeOn(cy: AdaptableCy, nodeId: string, neighbours: NeighbourElement[]): string[] {
+  const node = cy.getElementById(nodeId);
+  if (node.length === 0) return [];
+
+  const newElements: CytoscapeElement[] = [];
+  const addedIds: string[] = [];
+  for (const neighbour of neighbours) {
+    const existing = cy.getElementById(neighbour.iri);
+    if (existing.length > 0) {
+      existing.addClass(EXPLORER_HIGHLIGHT_CLASS);
+      continue;
+    }
+    newElements.push(...neighbourToElements(nodeId, neighbour));
+    addedIds.push(neighbour.iri);
+  }
+
+  if (newElements.length > 0) cy.add(newElements);
+  node.data("expandedNeighbourIds", addedIds);
+  return addedIds;
+}
+
+function hasExpandedNeighboursOn(cy: AdaptableCy, nodeId: string): boolean {
+  const node = cy.getElementById(nodeId);
+  if (node.length === 0) return false;
+  const ids = (node.data("expandedNeighbourIds") as string[] | undefined) ?? [];
+  return ids.length > 0;
+}
+
+function collapseNodeOn(cy: AdaptableCy, nodeId: string): void {
+  const node = cy.getElementById(nodeId);
+  if (node.length === 0) return;
+  const addedIds = new Set((node.data("expandedNeighbourIds") as string[] | undefined) ?? []);
+  if (addedIds.size === 0) return;
+
+  const removable = cy
+    .nodes()
+    .filter((candidate) => addedIds.has(candidate.id()) && !hasExternalConnection(candidate, addedIds, nodeId));
+  cy.remove(removable);
+  node.data("expandedNeighbourIds", undefined);
+}
+
+type ViewportMethods = Pick<RendererAdapter, "load" | "getViewport" | "setLayout" | "centerOn">;
+type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes">;
+type QueryMethods = Pick<
+  RendererAdapter,
+  "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes"
+>;
+
+function createViewportMethods(cy: AdaptableCy): ViewportMethods {
   return {
     load(elements) {
       cy.json({ elements });
@@ -127,6 +246,16 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     setLayout(name, params) {
       cy.layout({ name, ...params }).run();
     },
+    centerOn(nodeId, durationMs) {
+      const node = cy.getElementById(nodeId);
+      if (node.length === 0) return;
+      cy.animate({ center: { eles: node } }, { duration: durationMs });
+    },
+  };
+}
+
+function createOpacityMethods(cy: AdaptableCy): OpacityMethods {
+  return {
     spotlightNode(nodeId, dimOpacity) {
       return applySpotlight(cy, nodeId, dimOpacity);
     },
@@ -136,6 +265,11 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     highlightNodes(nodeIds, dimOpacity) {
       applyHighlight(cy, nodeIds, dimOpacity);
     },
+  };
+}
+
+function createQueryMethods(cy: AdaptableCy): QueryMethods {
+  return {
     onNodeTap(handler) {
       return wireTap(
         cy,
@@ -150,6 +284,14 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
         () => handler()
       );
     },
+    onNodeRightClick(handler) {
+      return wireEvent(
+        cy,
+        "cxttap",
+        (target) => target !== cy,
+        (evt) => handler((evt.target as CyCollection).id(), evt.renderedPosition ?? { x: 0, y: 0 })
+      );
+    },
     getNodeData(nodeId) {
       const node = cy.getElementById(nodeId);
       return node.length === 0 ? undefined : readNodeData(node);
@@ -157,11 +299,25 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     listNodes() {
       return cy.nodes().map((node) => ({ id: node.id(), ...readNodeData(node) }));
     },
-    centerOn(nodeId, durationMs) {
-      centerOnNode(cy, nodeId, durationMs);
-    },
+  };
+}
+
+export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
+  return {
+    ...createViewportMethods(cy),
+    ...createOpacityMethods(cy),
+    ...createQueryMethods(cy),
     onNodeDragEnd(handler) {
       return wireDragFree(cy, handler);
+    },
+    expandNode(nodeId, neighbours) {
+      return expandNodeOn(cy, nodeId, neighbours);
+    },
+    collapseNode(nodeId) {
+      collapseNodeOn(cy, nodeId);
+    },
+    hasExpandedNeighbours(nodeId) {
+      return hasExpandedNeighboursOn(cy, nodeId);
     },
   };
 }

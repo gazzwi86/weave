@@ -3,13 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ExplorerConfig } from "@/lib/explorer/config";
-import { fetchNodeProps as defaultFetchNodeProps, type FetchNodePropsResult, type KeyProperty } from "@/lib/explorer/fetch-node-props";
+import { fetchNodeProps as defaultFetchNodeProps, type FetchNodePropsResult, type KeyProperty, type NeighbourProps } from "@/lib/explorer/fetch-node-props";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
 export type SidePanelState =
   | { status: "closed" }
   | { status: "loading"; label: string; typeLabel: string }
-  | { status: "loaded"; label: string; typeLabel: string; keyProperties: KeyProperty[]; rawIri: string | null }
+  | {
+      status: "loaded";
+      label: string;
+      typeLabel: string;
+      keyProperties: KeyProperty[];
+      rawIri: string | null;
+      /** TASK-005 AC-3: the tapped node's id and its already-fetched
+       * neighbours -- neighbour expansion reuses this instead of a second
+       * CE-READ-1 call (see renderer-adapter.ts's expandNode). */
+      nodeId: string;
+      neighbours: NeighbourProps[];
+    }
   | { status: "error"; label: string; typeLabel: string }
   | { status: "not-found" };
 
@@ -47,6 +58,8 @@ async function loadNodeProps(
     typeLabel: result.data.typeLabel,
     keyProperties: result.data.keyProperties,
     rawIri: result.data.rawIri,
+    nodeId,
+    neighbours: result.data.neighbours,
   };
 }
 

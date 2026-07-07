@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildStylesheet, resolveStylesheetTokens, UNKNOWN_KIND_COLOUR } from "../build-stylesheet";
+import {
+  buildStylesheet,
+  EXPLORER_HIGHLIGHT_CLASS,
+  resolveStylesheetTokens,
+  UNKNOWN_KIND_COLOUR,
+} from "../build-stylesheet";
 import type { NodeKind } from "../types";
 
 const PALETTE: NodeKind[] = [
@@ -55,5 +60,18 @@ describe("resolveStylesheetTokens", () => {
     const baseNodeStyle = resolved.find((rule) => rule.selector === "node");
     expect(processStyle?.style).toMatchObject({ "background-color": "#3B82F6" });
     expect(baseNodeStyle?.style).toMatchObject({ "font-size": 12 });
+  });
+});
+
+// TASK-005 AC-3: nodes already present on the canvas are highlighted, not
+// duplicated -- a stylesheet class (token-driven border colour), not an
+// ad-hoc inline style (Law 20).
+describe("buildStylesheet -- TASK-005 highlight class", () => {
+  it(`includes a "node.${EXPLORER_HIGHLIGHT_CLASS}" rule with a token-driven border colour`, () => {
+    const stylesheet = buildStylesheet([]);
+
+    const highlightRule = stylesheet.find((rule) => rule.selector === `node.${EXPLORER_HIGHLIGHT_CLASS}`);
+
+    expect(highlightRule?.style).toMatchObject({ "border-color": "var(--color-accent-primary)" });
   });
 });

@@ -117,6 +117,55 @@ describe("GET /api/proxy/ontology/resource/[iri] -- forwarding and role-gated ra
 
     expect(body.raw_iri).toBe(IRI);
   });
+
+  // TASK-005 AC-3: defaults to [] when upstream omits neighbours -- callers
+  // (fetch-node-props.ts) always get an array, never undefined.
+  it("defaults neighbours to [] when the upstream response omits it", async () => {
+    mockAuthedSession(fakeJwt({ sub: "u1" }));
+
+    const response = await GET(makeRequest(IRI), paramsFor(IRI));
+    const body = await response.json();
+
+    expect(body.neighbours).toEqual([]);
+  });
+
+  // TASK-005 AC-3: neighbours pass through with the same @lang stripping
+  // applied to every other label -- this is the same fetch fetch-node-props.ts
+  // already issues for the side panel, reused for expansion (no second
+  // CE-READ-1 round trip, see renderer-adapter.ts's expandNode).
+  it("passes through neighbours with @lang stripped from each label (AC-3)", async () => {
+    mockAuthedSession(fakeJwt({ sub: "u1" }));
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          ...CE_RESPONSE_BODY,
+          neighbours: [
+            {
+              iri: "https://weave.example/entity/invoice-1",
+              label: "Invoice 1@en",
+              bpmo_kind: "DataAsset",
+              edge_predicate: "https://weave.example/ontology/bpmo#relatesTo",
+              edge_direction: "outgoing",
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const response = await GET(makeRequest(IRI), paramsFor(IRI));
+    const body = await response.json();
+
+    expect(body.neighbours).toEqual([
+      {
+        iri: "https://weave.example/entity/invoice-1",
+        label: "Invoice 1",
+        bpmo_kind: "DataAsset",
+        edge_predicate: "https://weave.example/ontology/bpmo#relatesTo",
+        edge_direction: "outgoing",
+      },
+    ]);
+  });
 });
 
 describe("GET /api/proxy/ontology/resource/[iri] -- errors and cross-tenant isolation", () => {

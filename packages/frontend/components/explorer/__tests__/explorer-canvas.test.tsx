@@ -43,10 +43,14 @@ describe("ExplorerCanvas", () => {
         highlightNodes: vi.fn(),
         onNodeTap: vi.fn(() => vi.fn()),
         onBackgroundTap: vi.fn(() => vi.fn()),
+        onNodeRightClick: vi.fn(() => vi.fn()),
         getNodeData: vi.fn(),
         listNodes: vi.fn(() => []),
         centerOn: vi.fn(),
         onNodeDragEnd: vi.fn(() => vi.fn()),
+        expandNode: vi.fn(() => []),
+        collapseNode: vi.fn(),
+        hasExpandedNeighbours: vi.fn(() => false),
       },
     });
 

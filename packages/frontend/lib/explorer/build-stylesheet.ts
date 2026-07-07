@@ -13,6 +13,11 @@ function kindStyle(kind: NodeKind): cytoscape.StylesheetStyle {
   };
 }
 
+/** TASK-005 AC-3: class applied to a node that was already on the canvas
+ * when a neighbour expansion discovered it again -- highlighted, not
+ * duplicated. Border colour is a design token, not an ad-hoc hex (Law 20). */
+export const EXPLORER_HIGHLIGHT_CLASS = "explorer-highlight";
+
 const CSS_VAR_PATTERN = /^var\((--[\w-]+)\)$/;
 
 function resolveValue(value: unknown, resolve: (token: string) => string): unknown {
@@ -55,5 +60,9 @@ export function buildStylesheet(palette: NodeKind[]): cytoscape.StylesheetStyle[
     },
     ...palette.map(kindStyle),
     { selector: "edge", style: { label: "data(label)", "curve-style": "bezier" } },
+    {
+      selector: `node.${EXPLORER_HIGHLIGHT_CLASS}`,
+      style: { "border-width": 3, "border-color": "var(--color-accent-primary)" },
+    },
   ];
 }

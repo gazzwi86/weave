@@ -18,6 +18,7 @@ function fakeAdapter(
     highlightNodes: vi.fn(),
     onNodeTap: vi.fn(() => vi.fn()),
     onBackgroundTap: vi.fn(() => vi.fn()),
+    onNodeRightClick: vi.fn(() => vi.fn()),
     getNodeData: vi.fn(),
     listNodes: vi.fn(() => [
       { id: "n1", label: "Customer Onboarding", bpmoKind: "Process" },
@@ -25,6 +26,9 @@ function fakeAdapter(
     ]),
     centerOn: vi.fn(),
     onNodeDragEnd: vi.fn(() => vi.fn()),
+    expandNode: vi.fn(() => []),
+    collapseNode: vi.fn(),
+    hasExpandedNeighbours: vi.fn(() => false),
     ...overrides,
   };
 }

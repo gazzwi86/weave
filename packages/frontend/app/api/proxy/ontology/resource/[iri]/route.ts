@@ -13,11 +13,20 @@ interface KeyProperty {
   value: string;
 }
 
+interface CeResourceNeighbourBody {
+  iri: string;
+  label: string;
+  bpmo_kind: string;
+  edge_predicate: string;
+  edge_direction: "outgoing" | "incoming";
+}
+
 interface CeResourceBody {
   label: string;
   type_label: string;
   bpmo_kind?: string;
   key_properties: KeyProperty[];
+  neighbours?: CeResourceNeighbourBody[];
 }
 
 // Law 13: the path param is untrusted input -- validated via zod, never cast.
@@ -29,6 +38,7 @@ function stripLangTags(body: CeResourceBody): CeResourceBody {
     label: stripLangTag(body.label),
     type_label: stripLangTag(body.type_label),
     key_properties: body.key_properties.map((property) => ({ ...property, value: stripLangTag(property.value) })),
+    neighbours: (body.neighbours ?? []).map((neighbour) => ({ ...neighbour, label: stripLangTag(neighbour.label) })),
   };
 }
 

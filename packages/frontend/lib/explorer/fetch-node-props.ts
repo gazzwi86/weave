@@ -4,6 +4,18 @@ export interface KeyProperty {
   value: string;
 }
 
+/** TASK-005 AC-3: one immediate neighbour, as returned by this same
+ * endpoint's `neighbours` field -- neighbour expansion reuses this fetch
+ * (already issued to show the side panel) instead of a second CE-READ-1
+ * round trip. */
+export interface NeighbourProps {
+  iri: string;
+  label: string;
+  bpmoKind: string;
+  edgePredicate: string;
+  edgeDirection: "outgoing" | "incoming";
+}
+
 export interface NodeProps {
   label: string;
   typeLabel: string;
@@ -12,9 +24,18 @@ export interface NodeProps {
   /** AC-2: only present (non-null) for the ontologist role -- decided
    * server-side by the proxy route, never a client-side flag. */
   rawIri: string | null;
+  neighbours: NeighbourProps[];
 }
 
 export type FetchNodePropsResult = { type: "ok"; data: NodeProps } | { type: "error"; status: number };
+
+interface CeResourceNeighbourBody {
+  iri: string;
+  label: string;
+  bpmo_kind: string;
+  edge_predicate: string;
+  edge_direction: "outgoing" | "incoming";
+}
 
 interface CeResourceResponseBody {
   label: string;
@@ -22,6 +43,17 @@ interface CeResourceResponseBody {
   bpmo_kind?: string;
   key_properties: KeyProperty[];
   raw_iri: string | null;
+  neighbours?: CeResourceNeighbourBody[];
+}
+
+function mapNeighbour(neighbour: CeResourceNeighbourBody): NeighbourProps {
+  return {
+    iri: neighbour.iri,
+    label: neighbour.label,
+    bpmoKind: neighbour.bpmo_kind,
+    edgePredicate: neighbour.edge_predicate,
+    edgeDirection: neighbour.edge_direction,
+  };
 }
 
 function isAbsoluteIri(iri: string): boolean {
@@ -61,6 +93,7 @@ export async function fetchNodeProps(iri: string, timeoutMs: number): Promise<Fe
       bpmoKind: body.bpmo_kind,
       keyProperties: body.key_properties,
       rawIri: body.raw_iri,
+      neighbours: (body.neighbours ?? []).map(mapNeighbour),
     },
   };
 }

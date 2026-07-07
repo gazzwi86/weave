@@ -31,6 +31,8 @@ describe("SidePanel", () => {
           typeLabel: "Process",
           keyProperties: [{ path: "rdfs:comment", label: "Description", value: "Onboards a new customer" }],
           rawIri: null,
+          nodeId: "n1",
+          neighbours: [],
         }}
         onClose={vi.fn()}
         onRetry={vi.fn()}
@@ -46,7 +48,7 @@ describe("SidePanel", () => {
     const iri = "https://weave.example/entity/cust-onboarding";
     render(
       <SidePanel
-        state={{ status: "loaded", label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri }}
+        state={{ status: "loaded", label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri, nodeId: "n1", neighbours: [] }}
         onClose={vi.fn()}
         onRetry={vi.fn()}
       />
@@ -78,7 +80,7 @@ describe("SidePanel", () => {
     const onClose = vi.fn();
     render(
       <SidePanel
-        state={{ status: "loaded", label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null }}
+        state={{ status: "loaded", label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, nodeId: "n1", neighbours: [] }}
         onClose={onClose}
         onRetry={vi.fn()}
       />

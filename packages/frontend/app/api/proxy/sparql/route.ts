@@ -108,3 +108,66 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   };
   return NextResponse.json(page, { status: 200 });
 }
+
+// Law 13: the POST body is untrusted input -- validated via zod, never cast.
+const sparqlPostBodySchema = z.object({ query: z.string().min(1) });
+
+interface SparqlTerm {
+  value: string;
+}
+
+interface SparqlResultsBody {
+  results: { bindings: Array<Record<string, SparqlTerm>> };
+}
+
+/** Reshapes Oxigraph's raw SPARQL 1.1 results JSON (`results.bindings`,
+ * each value an `{type, value}` term) into the flat `{rows: [...]}` shape
+ * the Explorer's fetch-domain-members.ts (and future traversal reads)
+ * expect. */
+function sparqlResultsToRows(body: SparqlResultsBody): Array<Record<string, string>> {
+  return body.results.bindings.map((binding) =>
+    Object.fromEntries(Object.entries(binding).map(([variable, term]) => [variable, term.value]))
+  );
+}
+
+/** TASK-005 AC-1/AC-3: proxies a parameterised SPARQL SELECT (domain focus,
+ * neighbour expansion) to the backend's real `POST /api/sparql`, attaching
+ * the caller's session bearer token server-side. The backend resolves the
+ * named graph from the JWT's tenant/workspace claim (AC-10) -- this route
+ * never accepts a workspace_id or graph override from the request body. */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const session = await auth();
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  }
+
+  const parsed = sparqlPostBodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+  }
+
+  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${backendUrl}/api/sparql`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: parsed.data.query }),
+      cache: "no-store",
+    });
+  } catch {
+    return NextResponse.json({ error: "store_unavailable" }, { status: 503 });
+  }
+
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return NextResponse.json({ error: "store_unavailable" }, { status: 503 });
+  }
+
+  const upstreamBody = (await upstream.json()) as unknown;
+  if (!upstream.ok) {
+    return NextResponse.json(upstreamBody, { status: upstream.status });
+  }
+
+  return NextResponse.json({ rows: sparqlResultsToRows(upstreamBody as SparqlResultsBody) }, { status: 200 });
+}

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { auth } from "@/auth";
 
-import { GET } from "../route";
+import { GET, POST } from "../route";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 
@@ -163,5 +163,141 @@ describe("GET /api/proxy/sparql -- adapts CE-READ-1 into the Explorer's SparqlPa
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: "no_active_workspace" });
+  });
+});
+
+// TASK-005 AC-1: domain-focus (and, later, neighbour-expansion) reads issue
+// a parameterised SPARQL SELECT via POST -- this proxies to the backend's
+// real `POST /api/sparql` and reshapes its raw SPARQL 1.1 JSON bindings
+// into the `{rows: [...]}` shape the Explorer client code expects.
+function makePostRequest(body: unknown): NextRequest {
+  return new NextRequest("http://localhost:3000/api/proxy/sparql", {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "content-type": "application/json" },
+  });
+}
+
+const SPARQL_BINDINGS_BODY = {
+  head: { vars: ["entity_iri", "entity_label"] },
+  results: {
+    bindings: [
+      {
+        entity_iri: { type: "uri", value: "urn:entity:invoice-1" },
+        entity_label: { type: "literal", value: "Invoice 1" },
+      },
+    ],
+  },
+};
+
+describe("POST /api/proxy/sparql", () => {
+  beforeEach(() => {
+    vi.mocked(auth).mockReset();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns 401 when there is no session", async () => {
+    mockAuthedSession(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(makePostRequest({ query: "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }" }));
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a missing/empty query body (Law 13)", async () => {
+    mockAuthedSession();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(makePostRequest({ query: "" }));
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards the query and bearer token, and reshapes bindings into rows", async () => {
+    mockAuthedSession();
+    stubFetch(
+      new Response(JSON.stringify(SPARQL_BINDINGS_BODY), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const query = "SELECT ?entity_iri ?entity_label WHERE { GRAPH ?g { ?entity_iri a ?entity_label } }";
+    const response = await POST(makePostRequest({ query }));
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/sparql"),
+      expect.objectContaining({
+        method: "POST",
+        headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rows: [{ entity_iri: "urn:entity:invoice-1", entity_label: "Invoice 1" }],
+    });
+  });
+
+  // QA edge case (GE-TASK-005, cross-tenant isolation): TASK-005's
+  // domain-focus/traversal queries go through this POST -- mirrors the GET
+  // route's "ignores an attempted graph= override" test above, but for the
+  // request body. sparqlPostBodySchema only names `query`, so zod strips
+  // any other client-supplied field (e.g. a spoofed workspace_id/graph)
+  // before it ever reaches `JSON.stringify` -- the backend, not the
+  // client, is the only source of tenant scoping.
+  it("strips a client-supplied workspace/graph override from the body -- only query ever reaches CE-READ-1 (cross-tenant isolation)", async () => {
+    mockAuthedSession();
+    stubFetch(
+      new Response(JSON.stringify(SPARQL_BINDINGS_BODY), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const query = "SELECT ?entity_iri WHERE { GRAPH ?g { ?entity_iri a ?o } }";
+    await POST(
+      makePostRequest({ query, workspace_id: "tenant-b", graph: "urn:tenant-b" } as unknown as { query: string })
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/sparql"),
+      expect.objectContaining({ body: JSON.stringify({ query }) })
+    );
+  });
+
+  it("returns a distinguishable error when CE-READ-1 is unreachable", async () => {
+    mockAuthedSession();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      })
+    );
+
+    const response = await POST(makePostRequest({ query: "SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }" }));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "store_unavailable" });
+  });
+
+  it("forwards the backend's rejection status/body verbatim for a disallowed query", async () => {
+    mockAuthedSession();
+    stubFetch(
+      new Response(JSON.stringify({ error: "unscoped_query_rejected" }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const response = await POST(makePostRequest({ query: "SELECT * WHERE { ?s ?p ?o }" }));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "unscoped_query_rejected" });
   });
 });

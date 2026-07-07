@@ -18,6 +18,7 @@ function fakeAdapter(
     highlightNodes: vi.fn(),
     onNodeTap: vi.fn(() => vi.fn()),
     onBackgroundTap: vi.fn(() => vi.fn()),
+    onNodeRightClick: vi.fn(() => vi.fn()),
     getNodeData: vi.fn(() => ({
       label: "Customer Onboarding",
       bpmoKind: "Process",
@@ -25,6 +26,9 @@ function fakeAdapter(
     listNodes: vi.fn(() => []),
     centerOn: vi.fn(),
     onNodeDragEnd: vi.fn(() => vi.fn()),
+    expandNode: vi.fn(() => []),
+    collapseNode: vi.fn(),
+    hasExpandedNeighbours: vi.fn(() => false),
     ...overrides,
   };
 }
@@ -101,12 +105,7 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: {
-        label: "Customer Onboarding",
-        typeLabel: "Process",
-        keyProperties: [],
-        rawIri: null,
-      },
+      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
     }));
 
     const { result } = renderHook(() =>
@@ -130,12 +129,7 @@ describe("useNodeSpotlight", () => {
     const iri = "https://weave.example/entity/cust-onboarding";
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: {
-        label: "Customer Onboarding",
-        typeLabel: "Process",
-        keyProperties: [],
-        rawIri: iri,
-      },
+      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri, neighbours: [] },
     }));
 
     const { result } = renderHook(() =>
@@ -149,6 +143,33 @@ describe("useNodeSpotlight", () => {
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
     expect(result.current.panel).toMatchObject({ rawIri: iri });
+  });
+
+  // TASK-005 AC-3: the loaded panel carries the tapped node's id and its
+  // fetched neighbours through -- the neighbour-expansion hook reuses this
+  // same data instead of issuing a second CE-READ-1 call.
+  it("includes the node id and fetched neighbours in the loaded panel state", async () => {
+    const adapter = fakeAdapter();
+    const events = capture(adapter);
+    const neighbours = [
+      {
+        iri: "https://weave.example/entity/invoice-1",
+        label: "Invoice 1",
+        bpmoKind: "DataAsset",
+        edgePredicate: "https://weave.example/ontology/bpmo#relatesTo",
+        edgeDirection: "outgoing" as const,
+      },
+    ];
+    const fetchNodeProps = vi.fn(async () => ({
+      type: "ok" as const,
+      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours },
+    }));
+
+    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    events.tapNode("n1");
+
+    await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
+    expect(result.current.panel).toMatchObject({ nodeId: "n1", neighbours });
   });
 
   // AC-3: a generic CE error/timeout keeps the already-loaded label/type and
@@ -258,12 +279,7 @@ describe("useNodeSpotlight", () => {
       .mockResolvedValueOnce({ type: "error", status: 503 })
       .mockResolvedValueOnce({
         type: "ok",
-        data: {
-          label: "Customer Onboarding",
-          typeLabel: "Process",
-          keyProperties: [],
-          rawIri: null,
-        },
+        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
       });
 
     const { result } = renderHook(() =>
