@@ -182,3 +182,39 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/tests/integration/test_ci_workflow.py --> <!-- at: 2026-07-06T01:25:08.371742+00:00 -->
 
 <!-- stale: packages/backend/tests/unit/test_mutation_gate.py --> <!-- at: 2026-07-06T01:25:49.984678+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_ce_contract_read_endpoints.py --> <!-- at: 2026-07-06T01:52:52.694858+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_sparql_router.py --> <!-- at: 2026-07-06T01:55:37.615550+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/sparql.py --> <!-- at: 2026-07-06T01:56:21.223613+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/ai/providers.py --> <!-- at: 2026-07-06T03:11:11.936848+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/ai/router.py --> <!-- at: 2026-07-06T03:11:38.166443+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/nl_query/translator.py --> <!-- at: 2026-07-06T03:11:58.213288+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_ai_providers.py --> <!-- at: 2026-07-06T03:13:11.891040+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_nl_translator.py --> <!-- at: 2026-07-06T03:14:04.541839+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/db/seed_demo.py --> <!-- at: 2026-07-06T03:24:51.786073+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_seed_demo.py --> <!-- at: 2026-07-06T03:30:35.778843+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/authoring/nl_parser.py --> <!-- at: 2026-07-08T02:06:18.117921+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_authoring_nl_parser.py --> <!-- at: 2026-07-08T02:07:38.723170+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/operations/graph_ops.py --> <!-- at: 2026-07-08T02:36:40.491759+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_operations_graph_ops.py --> <!-- at: 2026-07-08T02:37:46.732076+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/tenancy.py --> <!-- at: 2026-07-08T02:46:45.638385+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/requests/pipeline.py --> <!-- at: 2026-07-08T03:01:41.151363+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/ontology.py --> <!-- at: 2026-07-08T04:00:23.165534+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_ontology_router.py --> <!-- at: 2026-07-08T04:36:51.572126+00:00 -->

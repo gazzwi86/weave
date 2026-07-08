@@ -79,3 +79,157 @@ Next metadata robots route (public via middleware PUBLIC_PATHS).
 Production build server (`next build && next start`, AUTH_TRUST_HOST) — what ui_verify measures.
 
 Related: [backend](backend.md), [shared](shared.md)
+
+<!-- stale: packages/frontend/app/api/proxy/node-kinds/route.ts --> <!-- at: 2026-07-06T03:05:25.786523+00:00 -->
+
+<!-- stale: packages/frontend/app/api/proxy/node-kinds/__tests__/route.test.ts --> <!-- at: 2026-07-06T03:05:45.642087+00:00 -->
+
+<!-- stale: packages/frontend/app/api/proxy/sparql/route.ts --> <!-- at: 2026-07-06T03:08:12.740327+00:00 -->
+
+<!-- stale: packages/frontend/app/api/proxy/sparql/__tests__/route.test.ts --> <!-- at: 2026-07-06T03:09:02.301168+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/nav-items.ts --> <!-- at: 2026-07-06T04:02:29.438448+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/__tests__/nav.test.tsx --> <!-- at: 2026-07-06T04:03:12.244216+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/nav.tsx --> <!-- at: 2026-07-06T04:03:27.167667+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/section-rail.tsx --> <!-- at: 2026-07-06T04:03:47.114425+00:00 -->
+
+<!-- stale: packages/frontend/lib/auth/session-claims.ts --> <!-- at: 2026-07-06T04:04:04.074724+00:00 -->
+
+<!-- stale: packages/frontend/lib/auth/session-claims.test.ts --> <!-- at: 2026-07-06T04:04:20.453135+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/app-shell.tsx --> <!-- at: 2026-07-06T04:04:40.492147+00:00 -->
+
+<!-- stale: packages/frontend/app/layout.tsx --> <!-- at: 2026-07-06T04:04:53.199066+00:00 -->
+
+<!-- stale: packages/frontend/components/placeholder-page.tsx --> <!-- at: 2026-07-06T04:06:46.253471+00:00 -->
+
+<!-- stale: packages/frontend/app/build/page.tsx --> <!-- at: 2026-07-06T04:06:57.514737+00:00 -->
+
+<!-- stale: packages/frontend/app/events/page.tsx --> <!-- at: 2026-07-06T04:07:02.338078+00:00 -->
+
+<!-- stale: packages/frontend/app/audit/page.tsx --> <!-- at: 2026-07-06T04:07:07.351511+00:00 -->
+
+<!-- stale: packages/frontend/app/audit/logs/page.tsx --> <!-- at: 2026-07-06T04:07:12.373264+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/overview/page.tsx --> <!-- at: 2026-07-06T04:07:17.312533+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/versions/page.tsx --> <!-- at: 2026-07-06T04:07:22.001553+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/page.tsx --> <!-- at: 2026-07-06T04:07:27.008657+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/models/page.tsx --> <!-- at: 2026-07-06T04:07:31.653277+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/workspaces/page.tsx --> <!-- at: 2026-07-06T04:07:48.748536+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/use-kind-list.ts --> <!-- at: 2026-07-06T04:08:11.363676+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/page.tsx --> <!-- at: 2026-07-06T04:08:16.374258+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/types/page.tsx --> <!-- at: 2026-07-06T04:08:32.239296+00:00 -->
+
+<!-- stale: packages/frontend/components/marketing/cta-link.tsx --> <!-- at: 2026-07-06T04:10:10.850370+00:00 -->
+
+<!-- stale: packages/frontend/components/marketing/hero.tsx --> <!-- at: 2026-07-06T04:10:22.137795+00:00 -->
+
+<!-- stale: packages/frontend/components/marketing/features.tsx --> <!-- at: 2026-07-06T04:10:44.339519+00:00 -->
+
+<!-- stale: packages/frontend/components/marketing/pricing-footer.tsx --> <!-- at: 2026-07-06T04:10:55.735528+00:00 -->
+
+<!-- stale: packages/frontend/app/page.tsx --> <!-- at: 2026-07-06T04:11:07.793902+00:00 -->
+
+<!-- stale: packages/frontend/app/__tests__/page.test.tsx --> <!-- at: 2026-07-06T04:11:27.924117+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/ia-skeleton.spec.ts --> <!-- at: 2026-07-06T04:12:32.709417+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/ce-query.spec.ts --> <!-- at: 2026-07-06T04:28:23.118646+00:00 -->
+
+<!-- stale: packages/frontend/playwright.gif.config.ts --> <!-- at: 2026-07-06T06:52:27.708242+00:00 -->
+
+<!-- stale: packages/frontend/components/explorer/use-layout-persistence.ts --> <!-- at: 2026-07-08T02:39:05.090042+00:00 -->
+
+<!-- stale: packages/frontend/components/explorer/__tests__/use-layout-persistence.test.ts --> <!-- at: 2026-07-08T02:39:58.673139+00:00 -->
+
+<!-- stale: packages/frontend/components/explorer/explorer-interactions.tsx --> <!-- at: 2026-07-08T02:41:22.002247+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/chat/message-text.tsx --> <!-- at: 2026-07-08T02:43:24.626752+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/chat/guided-form.tsx --> <!-- at: 2026-07-08T02:44:02.358460+00:00 -->
+
+<!-- stale: packages/frontend/app/api/tenancy/workspaces/route.ts --> <!-- at: 2026-07-08T02:49:41.612857+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/workspaces/workspaces-panel.tsx --> <!-- at: 2026-07-08T02:50:05.345728+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/workspaces/__tests__/workspaces-panel.test.tsx --> <!-- at: 2026-07-08T02:50:42.612692+00:00 -->
+
+<!-- stale: packages/frontend/app/api/requests/route.ts --> <!-- at: 2026-07-08T02:51:21.530439+00:00 -->
+
+<!-- stale: packages/frontend/app/api/tenancy/workspaces/__tests__/route.test.ts --> <!-- at: 2026-07-08T02:51:22.812643+00:00 -->
+
+<!-- stale: packages/frontend/app/api/requests/[id]/route.ts --> <!-- at: 2026-07-08T02:51:26.671011+00:00 -->
+
+<!-- stale: packages/frontend/app/api/audit/route.ts --> <!-- at: 2026-07-08T02:51:41.249073+00:00 -->
+
+<!-- stale: packages/frontend/app/api/audit/verify/route.ts --> <!-- at: 2026-07-08T02:51:46.334794+00:00 -->
+
+<!-- stale: packages/frontend/app/build/use-request-status.ts --> <!-- at: 2026-07-08T02:51:51.440429+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/workspaces/use-workspaces.ts --> <!-- at: 2026-07-08T02:52:12.335036+00:00 -->
+
+<!-- stale: packages/frontend/app/audit/logs/use-audit-log.ts --> <!-- at: 2026-07-08T02:52:19.809822+00:00 -->
+
+<!-- stale: packages/frontend/app/build/__tests__/page.test.tsx --> <!-- at: 2026-07-08T02:52:54.430327+00:00 -->
+
+<!-- stale: packages/frontend/app/api/requests/__tests__/route.test.ts --> <!-- at: 2026-07-08T02:52:59.552918+00:00 -->
+
+<!-- stale: packages/frontend/app/audit/__tests__/page.test.tsx --> <!-- at: 2026-07-08T02:53:07.715088+00:00 -->
+
+<!-- stale: packages/frontend/app/audit/logs/__tests__/page.test.tsx --> <!-- at: 2026-07-08T02:53:19.523561+00:00 -->
+
+<!-- stale: packages/frontend/app/api/audit/__tests__/route.test.ts --> <!-- at: 2026-07-08T02:53:33.110203+00:00 -->
+
+<!-- stale: packages/frontend/app/api/audit/verify/__tests__/route.test.ts --> <!-- at: 2026-07-08T02:53:38.053747+00:00 -->
+
+<!-- stale: packages/frontend/app/api/billing/caps/route.ts --> <!-- at: 2026-07-08T02:55:03.532459+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/models/__tests__/page.test.tsx --> <!-- at: 2026-07-08T02:55:52.544865+00:00 -->
+
+<!-- stale: packages/frontend/app/api/billing/caps/__tests__/route.test.ts --> <!-- at: 2026-07-08T02:56:05.707950+00:00 -->
+
+<!-- stale: packages/frontend/app/globals.css --> <!-- at: 2026-07-08T03:04:35.210170+00:00 -->
+
+<!-- stale: packages/frontend/lib/explorer/map-rows-to-elements.ts --> <!-- at: 2026-07-08T03:05:45.311709+00:00 -->
+
+<!-- stale: packages/frontend/app/api/tenancy/workspaces/[id]/switch/route.ts --> <!-- at: 2026-07-08T03:13:33.690639+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/chat/use-ce-chat.ts --> <!-- at: 2026-07-08T03:14:49.099320+00:00 -->
+
+<!-- stale: packages/frontend/app/api/tenancy/workspaces/active/route.ts --> <!-- at: 2026-07-08T03:15:45.546463+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/chat/use-ce-chat-actions.ts --> <!-- at: 2026-07-08T03:17:05.939148+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/workspace-switcher.tsx --> <!-- at: 2026-07-08T03:17:45.808687+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/audit-dashboard.spec.ts --> <!-- at: 2026-07-08T03:36:35.855068+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/audit-logs.spec.ts --> <!-- at: 2026-07-08T03:36:51.555724+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/workspaces-provisioning.spec.ts --> <!-- at: 2026-07-08T03:36:58.076520+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/models-settings.spec.ts --> <!-- at: 2026-07-08T03:37:03.551364+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/build-request.spec.ts --> <!-- at: 2026-07-08T03:37:11.948815+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/workspace-switcher.spec.ts --> <!-- at: 2026-07-08T03:37:20.389121+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/help-launcher.tsx --> <!-- at: 2026-07-08T03:48:37.106260+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/overview/use-overview.ts --> <!-- at: 2026-07-08T03:49:15.959348+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/types/use-types.ts --> <!-- at: 2026-07-08T03:49:31.992295+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/types/__tests__/page.test.tsx --> <!-- at: 2026-07-08T03:50:19.153453+00:00 -->
+
+<!-- stale: packages/frontend/app/ce/overview/__tests__/page.test.tsx --> <!-- at: 2026-07-08T03:50:39.741538+00:00 -->

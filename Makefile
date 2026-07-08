@@ -30,10 +30,11 @@ seed:
 # FIX 3 (P0): backend defaults to AnthropicProvider, which 502s with no API
 # key -- dev points AI routing at host-native Ollama instead (ADR-011).
 dev:
-	cd packages/backend && WEAVE_MODEL_PROVIDER=ollama OLLAMA_MODEL=gemma4:e4b \
+	cd packages/backend && WEAVE_ENV=dev WEAVE_MODEL_PROVIDER=ollama OLLAMA_MODEL=batiai/qwen3.6-27b:iq3 \
+		WEAVE_SPEC_DRAFT_TIMEOUT_S=600 OLLAMA_TIMEOUT_S=300 \
 		uv run uvicorn weave_backend:app --reload --port 8000 & \
 	cd packages/backend && uv run weave-mock-oidc & \
-	cd packages/frontend && npm run dev
+	cd packages/frontend && AUTH_RATE_LIMIT_MAX=300 npm run dev
 
 test:
 	cd packages/backend && uv run pytest -m "not docker and not e2e"
