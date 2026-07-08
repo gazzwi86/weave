@@ -29,6 +29,8 @@ preferences to user-level memory instead.
 3. **Touch only what you must.** Isolate your changes; don't refactor adjacent code unless asked.
 4. **Define success, then loop until verified.** State what "done" looks like before you act; test
    and iterate until those criteria objectively hold.
+5. Avoid making obscure references without context, such as TASK-007, EPIC-823 or FR-37. Always 
+   include the explanatory text as to what you are referring to, explaining the item in simple terms.
 
 Look at you proposals plans and the questions you ask me and hypothesis as to the impact, best direction, best question.
 Avoid abbreviations and unclear requests, simplify requests to near ELI5 level.

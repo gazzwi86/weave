@@ -77,7 +77,7 @@ def drift_check(payload: dict) -> None:
 
     Configuration (set via /setup into settings.local.json):
       LLM_BACKEND           — "ollama" | "lmstudio" (omit to disable)
-      LLM_MODEL             — model identifier (e.g. "gemma4:e4b")
+      LLM_MODEL             — model identifier (e.g. "batiai/qwen3.6-27b:iq3")
       LLM_BASE_URL          — backend HTTP base (defaults per backend)
       LLM_CONTEXT_TOKENS    — local model context window (default 8000)
       CLAUDE_CONTEXT_WINDOW — override for Claude's context window (tokens); wins
