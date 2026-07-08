@@ -39,8 +39,13 @@ function resolveGraphId(graphId: string | undefined, config: ExplorerConfig): st
 
 /** Deep-link seam: `/explorer?focus=<iri>` (chat entity links) centers and
  * spotlights the named node once the canvas is live. Reads
- * window.location directly -- one-shot on mount, no router coupling. A
- * focus IRI that isn't on the canvas is a silent no-op (openNode guards). */
+ * window.location directly -- one-shot on mount, no router coupling. The
+ * graph loads async after mount, so this polls until the node exists
+ * (250ms x 40 = ~10s), then gives up silently -- a focus IRI that never
+ * appears on the canvas is a no-op, not an error. */
+const FOCUS_POLL_MS = 250;
+const FOCUS_POLL_MAX_TRIES = 40;
+
 function useFocusParam(adapter: RendererAdapter, config: ExplorerConfig, openNode: (id: string) => void) {
   const openNodeRef = useRef(openNode);
   useEffect(() => {
@@ -48,9 +53,21 @@ function useFocusParam(adapter: RendererAdapter, config: ExplorerConfig, openNod
   });
   useEffect(() => {
     const focus = new URLSearchParams(window.location.search).get("focus");
-    if (!focus) return;
-    adapter.centerOn(focus, config.centreAnimationMs);
-    openNodeRef.current(focus);
+    if (!focus) return undefined;
+    let tries = 0;
+    const focusIfLoaded = () => {
+      tries += 1;
+      if (adapter.getNodeData(focus) === undefined) {
+        if (tries >= FOCUS_POLL_MAX_TRIES) clearInterval(timer);
+        return;
+      }
+      clearInterval(timer);
+      adapter.centerOn(focus, config.centreAnimationMs);
+      openNodeRef.current(focus);
+    };
+    const timer = setInterval(focusIfLoaded, FOCUS_POLL_MS);
+    focusIfLoaded();
+    return () => clearInterval(timer);
   }, [adapter, config.centreAnimationMs]);
 }
 

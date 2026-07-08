@@ -243,3 +243,55 @@ describe("ExplorerInteractions", () => {
     expect(adapter.expandNode).toHaveBeenCalledWith("n1", manyNeighbours);
   });
 });
+
+// Deep-link focus: /explorer?focus=<iri> waits for the async graph load
+// (polls getNodeData) before centering + spotlighting the node.
+describe("ExplorerInteractions -- ?focus= deep link", () => {
+  it("polls until the focus node exists, then centers and spotlights it", async () => {
+    vi.useFakeTimers();
+    window.history.replaceState(null, "", "/explorer?focus=n1");
+    // Absent for the first two polls, present from the third.
+    const getNodeData = vi
+      .fn()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(undefined)
+      .mockReturnValue({ label: "Invoicing", bpmoKind: "Process" });
+    const adapter = fakeAdapter({ getNodeData });
+
+    try {
+      render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} />);
+      expect(adapter.centerOn).not.toHaveBeenCalled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(adapter.centerOn).toHaveBeenCalledWith("n1", DEFAULT_EXPLORER_CONFIG.centreAnimationMs);
+
+      // Poll stops after success -- no repeat centering on later ticks.
+      await act(async () => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(adapter.centerOn).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("gives up silently when the focus node never loads", async () => {
+    vi.useFakeTimers();
+    window.history.replaceState(null, "", "/explorer?focus=ghost");
+    const adapter = fakeAdapter({ getNodeData: vi.fn(() => undefined) });
+
+    try {
+      render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} />);
+      await act(async () => {
+        vi.advanceTimersByTime(15_000);
+      });
+      expect(adapter.centerOn).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      window.history.replaceState(null, "", "/");
+    }
+  });
+});
