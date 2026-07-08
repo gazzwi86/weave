@@ -1,20 +1,18 @@
 ---
 type: Task
-title: "Task: TASK-012 — Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run"
-description: "Prompt box on the Dashboard: editors/admins instruct the agent to change the
-  project; the prompt enqueues a standard dark-factory run (trigger=prompt) whose PLAN stage
-  synthesises a typed FR-018 brief from the prompt (Architect agent) before the FR-046 DoR
-  gate; produces PRs/amendments to code, specs, and backlog on the external repo; readers get
-  403 + audit."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-012 — cost_events Writer (ADR-008): Per-Dispatch Usage Attribution"
+description: "Orchestrator persists one cost_events row per agent dispatch (tokens from the
+  Agent SDK usage block, USD from the PLAT-SETTINGS-1 rate card) and tags PLAT-BILLING-1
+  metering events with task_id/run_id. Rate-card resolution is a run-start preflight."
+tags: [build-engine, arch, task, v1]
 status: Backlog
-priority: Should Have
+priority: Must Have
 entity: build-engine
-epic: EPIC-003
+epic: EPIC-002
 milestone: v1.0
 created: 2026-07-08
-blocked_by: [TASK-003, TASK-010]
-unlocks: []
+blocked_by: [TASK-010]
+unlocks: [TASK-013, TASK-021]
 adr_refs: [ADR-008]
 source: hand-authored
 confirmed_by: "none"
@@ -26,156 +24,134 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-012.md
 ---
 
-# Task: TASK-012 — Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run
+# Task: TASK-012 — cost_events Writer (ADR-008): Per-Dispatch Usage Attribution
 
 ## Story
 
-**Epic:** [EPIC-003 — Project Dashboard](../../../build-engine.md#epic-003)
-**Status:** Backlog · **Priority:** Should Have
+**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
+**Status:** Backlog · **Priority:** Must Have
 
-**As a** project editor
-**I want** to type "change what this API returns" on the project and watch the agent run
-**So that** small directed changes don't need the full Request Studio intake ceremony
+**As a** delivery manager
+**I want** every agent dispatch's token usage attributed to its project, task, run, role, and
+model at the moment it happens
+**So that** budgets, forecasts, and breach halts operate on per-task facts instead of a single
+opaque project total
 
-> **FRs covered:** FR-065 (+ FR-060 gating). The run **reuses the M1 dark-factory lifecycle
-> verbatim** — turn caps, retry taxonomy, safety gates, HITL gates, budget checks (TASK-004),
-> cost attribution (TASK-003), external-repo targets (FR-061). This task adds an entry point
-> plus **one piece of real new PLAN behaviour: prompt→brief synthesis (AC-7/AC-8)**. A raw
-> prompt carries none of what the FR-046 DoR gate requires (EARS ACs, AC-to-test map, dep
-> chain, cost estimate) — so PLAN must have the Architect agent synthesise a typed
-> FR-018-conformant brief from the prompt before anything is dispatched. This is a synthesis
-> step, not a mere context-source branch.
+> **FRs covered:** ADR-008 decisions #1–#3 (write side; the read endpoint + breach check are
+> TASK-013). Closes OQ-05.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN a project editor/admin (or company/domain admin-owner) submits a prompt, THE SYSTEM SHALL persist a `project_prompts` row, enqueue a dark-factory run with `trigger = 'prompt'` through the existing lifecycle enqueue path, and return 202 with the run handle | `should enqueue dark-factory run with trigger prompt when editor submits prompt` |
-| AC-2 | WHEN a reader (no edit role) submits a prompt, THE SYSTEM SHALL return 403 and record the denial to PLAT-AUDIT-1 | `should return 403 and audit entry when reader submits prompt` |
-| AC-3 | WHEN the prompt run executes, THE SYSTEM SHALL scope it to the project (pinned CE version, project repo) and produce PRs/amendments to the project's **code, specs, and/or backlog** as the change requires, opened against the external repo (FR-061) | `should open prs against external repo from prompt run` |
-| AC-4 | WHEN the run is in flight, THE SYSTEM SHALL show visible run status on the Dashboard (queued → running → gates → done/halted) via the existing run-status channel | `should show visible run status for prompt run` |
-| AC-5 | WHEN the prompt run hits any existing cap or gate (turn cap, budget breach, retry ceiling, HITL), THE SYSTEM SHALL behave exactly as a request-triggered run — no prompt-specific bypass exists | `should apply caps and gates identically to prompt runs` |
-| AC-6 | WHEN the prompt text is empty or exceeds the length limit, THE SYSTEM SHALL reject with 422 before any run is enqueued | `should reject empty or oversized prompt` |
-| AC-7 | WHEN a prompt run reaches PLAN, THE SYSTEM SHALL have the Architect agent (FR-045 routing — architect role, `claude-fable-5` tier) synthesise one or more typed FR-018-conformant task briefs from the prompt text + project spec/backlog state + anatomy index — EARS ACs, AC-to-test map, DoR/DoD checklists, dep chain, token cost estimate — and SHALL run the FR-046 DoR gate on the synthesised brief before DELEGATE | `should synthesise typed brief from prompt before delegate` |
-| AC-8 | WHEN the synthesised brief fails the DoR gate (e.g. the prompt is too vague to yield testable ACs), THE SYSTEM SHALL hold the task in Ready with "brief incomplete" and route to replan/HITL — the raw prompt is never dispatched to the Engineer (E5 AC applies verbatim) | `should hold prompt run when synthesised brief fails DoR` |
+| AC-1 | WHEN an agent dispatch returns a typed result, THE SYSTEM SHALL persist one `cost_events` row with `{tenant, project_iri, task_id, run_id, agent_role, model, tokens_in, tokens_out, cost_estimate_usd}` taken from the dispatch context + SDK usage block | `should persist one cost event per agent dispatch` |
+| AC-2 | WHEN non-run work consumes tokens (spec drafting, replan), THE SYSTEM SHALL persist the row with `run_id` (and `task_id` where inapplicable) NULL | `should persist cost event with null run id for non-run work` |
+| AC-3 | WHEN `cost_estimate_usd` is computed, THE SYSTEM SHALL resolve the per-model rate from PLAT-SETTINGS-1 (`build.cost.rate_card`) — never a hardcoded price | `should resolve rate card from settings` |
+| AC-4 | WHEN rate-card resolution fails for a routable model at run start, THE SYSTEM SHALL halt the run with a named config error before any dispatch (fail-closed, same posture as model-routing halt) | `should halt run at start when rate card unresolvable` |
+| AC-5 | WHEN a PLAT-BILLING-1 metering event is emitted for a dispatch, THE SYSTEM SHALL include `task_id` and `run_id` metadata; a metering-emit failure SHALL NOT fail the dispatch (never-dropped queue owns delivery) | `should tag billing events with task and run ids` |
+| AC-6 | WHEN a `cost_events` insert fails, THE SYSTEM SHALL log a named warning and continue the dispatch — attribution loss is disclosed, never fatal and never silent | `should disclose and continue when cost event insert fails` |
+| AC-7 | WHEN tenant-B reads cost events, THE SYSTEM SHALL return zero tenant-A rows | covered by TASK-010 `should return zero tenant-B rows for every new v1 table` (cost path re-asserted here) |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-POST /api/projects/{id}/prompts (Depends(require_project_role(PROMPT))):   # AC-2 via guard
-    validate 1 <= len(text) <= PROMPT_MAX (settings default)               # AC-6
-    prompt = repo.prompts.insert(project, principal, text)
-    run = lifecycle.enqueue_run(project_iri, trigger="prompt",             # AC-1: existing
-                                context={prompt_id, prompt_text})          #   enqueue path
-    repo.prompts.set_run_id(prompt.id, run.id)
-    return 202 {run_id, prompt_id}
+# run start (orchestrator, before step 0):
+rate_card = settings.resolve_group("build.cost.rate_card")   # {model_id: usd_per_1k_in/out}
+for model in ALLOWED_MODELS:
+    if model not in rate_card: raise RateCardConfigError(model)   # AC-4, fail-closed
 
-orchestrator (existing loop — one real PLAN addition):
-    trigger == "prompt" -> PLAN runs BRIEF SYNTHESIS first (AC-7):
-        briefs = architect_agent.synthesise_briefs(       # FR-018 schema; FR-045 routing
-            prompt_text, project.spec_state, project.backlog_state, anatomy_index)
-        for brief in briefs:
-            dor = run_dor_gate(brief)                     # FR-046 — same gate, no bypass
-            if dor.failed:
-                hold(task, reason="brief incomplete"); route_to_replan()      # AC-8
-    everything downstream identical (AC-5): DELEGATE on the synthesised brief,
-    DoD, safety gates, budget checkpoint, HITL, ScmDriver PR to external repo
-
-UI (Dashboard, below the tiles):
-    <PromptBox/> visible to all, disabled+tooltip for readers (UX mirror; 403 is the boundary)
-    submit -> optimistic status chip subscribing to run-status SSE           # AC-4
+# per dispatch (wrap the existing typed-result return path in the PDAC loop):
+def record_dispatch_cost(ctx, dispatch, result):
+    usage = result.usage                        # Agent SDK usage block
+    cost = usage.input_tokens/1000 * rate.in + usage.output_tokens/1000 * rate.out
+    try:
+        repo.cost_events.insert(tenant=ctx.tenant_id, project_iri=ctx.project_iri,
+            task_id=dispatch.task_id, run_id=dispatch.run_id,      # both nullable
+            agent_role=dispatch.role, model=dispatch.model,
+            tokens_in=usage.input_tokens, tokens_out=usage.output_tokens,
+            cost_estimate_usd=cost)
+    except DBError as e:
+        log.warning("cost_event_insert_failed", extra={...})       # AC-6
+    emitter.billing(per_token_event | {"task_id": ..., "run_id": ...})   # AC-5, existing
 ```
 
 ### API Contracts
 
-`POST /api/projects/{id}/prompts` p95 ≤ 500 ms, 202 `{run_id, prompt_id}` (v1-delta §3).
-Errors: 403 (+audit), 404, 422 (validation), 500. Run status rides the existing run channel —
-no new status endpoint. Consumes: lifecycle enqueue (M1), Role Guard (TASK-002),
-`project_prompts` (TASK-001), cost attribution rides TASK-003 (prompt-run dispatches carry
-`run_id`; drafting-side tokens attribute with `task_id` NULL per ADR-008 AC-2).
+No new endpoint. Consumes: `PLAT-SETTINGS-1` (rate card group `build.cost.rate_card`, seeded
+defaults for `claude-fable-5` / `claude-sonnet-5` only); `PLAT-BILLING-1` via the existing M1
+Audit + Billing Emitter (additive metadata only — coordinator has relayed the tag note to
+Platform; no contract shape change).
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Prompt Dispatcher → orchestrator (single entry point preserved) |
-| Run lifecycle | `../../tech-spec/business-process.md` | run-lifecycle diagram | The unchanged loop the prompt run rides |
-| Epic AC | `../../../build-engine.md` | §EPIC-003 E3-S3 | Canonical FR-065 behaviour incl. examples |
+| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Orchestrator → cost_events writer → Aurora |
+| Decision | `../../decisions/ADR-008.md` | whole file | Why local rollup; why Platform stays invoicing SoR |
+| M1 component | `../../tech-spec/architecture.md` | §Level 3 | Audit + Billing Emitter (the component gaining tags) |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Prompt = new trigger on the existing lifecycle, zero new run machinery | `v1-delta.md` §2 / invariant | One orchestrator entry point stays true (invariants.md verify-by); all governance inherited by construction |
-| Prompt→brief synthesis is a PLAN step, not a DoR bypass | AC-7/AC-8, FR-018 × FR-046 | The DoR gate is untouched; the synthesis feeds it a real brief — a vague prompt fails honestly instead of dispatching blind |
-| PROMPT is its own guard action class (editors have it) | FR-065/FR-060 | Readers structurally excluded; future per-project prompt lockdown is a one-line action-set change |
-| Prompt box visible-but-disabled for readers | UX mirror rule (TASK-006 AC-4 posture) | Discoverability without implying permission; server 403 remains the boundary |
-| Prompt length limit is a settings value | AC-6 | Abuse control tunable per company/domain; no magic constant |
+| Attribution at the dispatch site, from the SDK usage block | [ADR-008](../../decisions/ADR-008.md) #1 | No new instrumentation layer; retries and non-run work attribute correctly |
+| Rate card in settings, validated at run start | [ADR-008](../../decisions/ADR-008.md) #2 + AC-4 | Price changes are a settings update; a broken card halts before spend, not per-row |
+| Insert failure = disclosed warning, not dispatch failure | AC-6 | Metering must never kill a run; silent loss is equally banned (run log discloses) |
+| Billing tags additive, Build never reconciles | [ADR-008](../../decisions/ADR-008.md) #3 | Invoicing truth stays with Platform; drift is labelled "estimated" downstream |
 
 ## Test Requirements
 
-### Unit Tests (minimum 3)
+### Unit Tests (minimum 4)
 
-- `should reject empty or oversized prompt`
-- `should persist prompt row linked to run id`
-- `should disable prompt box for readers with explanatory tooltip` (component)
+- `should resolve rate card from settings`
+- `should halt run at start when rate card unresolvable`
+- `should compute cost from usage block and per-model rates`
+- `should disclose and continue when cost event insert fails`
 
-### Integration Tests (minimum 5)
+### Integration Tests (minimum 3)
 
-- `should synthesise typed brief from prompt before delegate` (stub Architect agent returns a
-  valid FR-018 brief; asserts DoR gate ran on it and DELEGATE received the brief, not the
-  prompt)
-- `should hold prompt run when synthesised brief fails DoR` (stub brief missing AC-to-test
-  map; asserts Ready hold with "brief incomplete")
+- `should persist one cost event per agent dispatch` (orchestrator loop with stub agent
+  runtime; asserts row content — Law B backend assertion)
+- `should persist cost event with null run id for non-run work` (spec-drafting path)
+- `should tag billing events with task and run ids` (emitter stub captures payload)
 
-- `should enqueue dark-factory run with trigger prompt when editor submits prompt` (asserts
-  run row `trigger='prompt'` + prompt row linkage — Law B)
-- `should return 403 and audit entry when reader submits prompt` (audit stub payload asserted)
-- `should apply caps and gates identically to prompt runs` (prompt run against a seeded
-  breach fixture halts at checkpoint — reuses TASK-004's fixture)
+### E2E Tests
 
-### E2E Tests (Playwright, minimum 1)
-
-- `should submit prompt and watch run status end to end` (editor session: prompt → 202 →
-  status chip transitions via SSE against the stub runtime; `project_prompts` row asserted
-  server-side; SCM stub received the PR call — Law B full loop)
+N/A — orchestrator-internal; surfaced to users via TASK-013/TASK-019.
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Integration | `should enqueue dark-factory run with trigger prompt when editor submits prompt` |
-| AC-2 | Integration | `should return 403 and audit entry when reader submits prompt` |
-| AC-3 | E2E | `should submit prompt and watch run status end to end` (SCM stub PR assertion) |
-| AC-4 | E2E | same E2E, status chip transitions |
-| AC-5 | Integration | `should apply caps and gates identically to prompt runs` |
-| AC-6 | Unit | `should reject empty or oversized prompt` |
-| AC-7 | Integration | `should synthesise typed brief from prompt before delegate` |
-| AC-8 | Integration | `should hold prompt run when synthesised brief fails DoR` |
+| AC-1 | Integration | `should persist one cost event per agent dispatch` |
+| AC-2 | Integration | `should persist cost event with null run id for non-run work` |
+| AC-3 | Unit | `should resolve rate card from settings` |
+| AC-4 | Unit | `should halt run at start when rate card unresolvable` |
+| AC-5 | Integration | `should tag billing events with task and run ids` |
+| AC-6 | Unit | `should disclose and continue when cost event insert fails` |
+| AC-7 | Integration | TASK-010 two-tenant test, cost path |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-003, TASK-010] (cost attribution live for prompt runs; the Dashboard
-  page this box mounts on)
-- **unlocks:** []
-- **External prerequisites:** M1 lifecycle enqueue + orchestrator + ScmDriver (live); agent
-  runtime + SCM stubbed in tests (Law F)
+- **blocked_by:** [TASK-010] (cost_events table + repo)
+- **unlocks:** [TASK-013, TASK-021]
+- **External prerequisites:** M1 Audit + Billing Emitter (live); PLAT-SETTINGS-1 resolution
+  client (live); agent runtime stubbed in tests (Law F)
 
 ## Cost Estimate
 
-- **Complexity:** L
-- **Estimated tokens:** ~22k input, ~11k output (brief-synthesis PLAN step on top of the
-  entry point + UI)
-- **Estimated cost:** ~$0.80 (claude-sonnet-5 implementation tier)
+- **Complexity:** M
+- **Estimated tokens:** ~14k input, ~6k output
+- **Estimated cost:** ~$0.45 (claude-sonnet-5 implementation tier)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
-- [x] API contracts defined
+- [x] API contracts defined (internal; consumed contracts cited)
 - [x] Diagram references included
 - [x] Design decisions noted (ADR-008)
 - [x] Test scenarios specified with types and counts
@@ -185,33 +161,26 @@ no new status endpoint. Consumes: lifecycle enqueue (M1), Role Guard (TASK-002),
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing (incl. the full-loop E2E)
+- [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on the dashboard
-      route with the prompt box mounted (v1-delta §6)
-- [ ] `trigger` greppable with no second orchestrator entry point (invariants.md verify-by)
-- [ ] Brief-synthesis test greppable (invariants.md verify-by: `should synthesise typed brief
-      from prompt`)
-- [ ] Reader-403 test greppable (invariants.md verify-by)
-- [ ] `ui_verify` passes on the prompt box; design tokens only
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on public APIs/components
-- [ ] Conventional commit(s); PR references this task and EPIC-003
+- [ ] No literal USD rate in code (invariants.md verify-by: settings resolution only)
+- [ ] Docstrings on public APIs
+- [ ] Conventional commit(s); PR references this task and EPIC-002
 
 ## Implementation Hints
 
-- The brief-synthesis step (AC-7) is the only orchestrator change — reuse the M1 Architect
-  brief-generation path (FR-018, E5-S1) with the prompt + project state as its input; do NOT
-  build a parallel PLAN variant, and do NOT shortcut it to a context-source branch — the DoR
-  gate needs a real brief to evaluate.
-- Spike-mode rules do NOT apply here: a prompt run is a normal governed run (write-back and
-  PR both allowed, gated). Do not route prompts through spike mode as a shortcut — spike
-  forbids prod merge, which defeats FR-065.
-- The examples in the FR ("fix this inaccuracy", "change what this API returns / the error
-  message it throws") are the E2E prompt fixtures — use one verbatim.
-- Backlog amendments (AC-3) mean spec/task file changes in the external repo's spec tree —
-  the same ScmDriver PR path as code; no Weave-internal backlog mutation.
+- The typed-result return path in `build/orchestrator.py` is the single wrap point — every
+  dispatch (PLAN/DELEGATE/ASSESS/CODIFY, investigator, drafting) flows through it; do not
+  instrument agents individually.
+- Keep the writer off the critical path the same way the recent best-effort metric-emit change
+  did (see `perf(ce)` commits on main) — but the *insert* is synchronous-cheap (one row); only
+  the billing emit rides the queue.
+- Rate card keys are exactly the confirmed model IDs; do not add speculative entries for
+  models the router can't select (`ALLOWED_MODELS` is the validation universe).
+- `RateCardConfigError` should surface through the existing run-halt HITL path (same UX as
+  `ModelRoutingError`), not a new error channel.
 
 ---
 

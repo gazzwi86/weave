@@ -396,7 +396,7 @@ stateDiagram-v2
 The following flows are **explicitly out of scope for M1.** They extend the degrade paths defined
 above. Flows requiring the Authority Extension module (program ADR-002 vocabulary) are
 **post-v1** — the extension's build is deferred per [ADR-013](../decisions/ADR-013.md); M2 ships
-only the base-links deny-default surface (m2/tasks/TASK-010).
+only the base-links deny-default surface (v1/tasks/TASK-010).
 
 | Flow | M1 anchor | Later addition (phase) |
 |---|---|---|

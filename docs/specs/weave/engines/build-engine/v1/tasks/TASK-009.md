@@ -1,19 +1,18 @@
 ---
 type: Task
-title: "Task: TASK-009 — Run-Log Sink + Task Detail 5-Tab Panel (FR-019/FR-020)"
-description: "Net-new orchestrator run-log sink (NDJSON to S3, log_location_ref pointer), the
-  net-new 8-state visual capture producer in the QA/ASSESS lane (nothing in M1/M2 produces the
-  captures manifest — without it the Tests tab is permanently hollow), and the Task Detail
-  panel: Brief / Handoff / Tests / Console / Audit tabs with the honest 'audit unavailable'
-  state."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-009 — Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)"
+description: "Implement the anatomy/wiki auto-index in generated repos (FR-031), the
+  CE-VERSION-1 staleness indicator (FR-036), the release/rollback-plan artefact (FR-034), and
+  flip both M1 pass-through stubs to enforcing: dep-summary read-and-gate (FR-043) and
+  pre-scaffold cascade blocking (FR-055)."
+tags: [build-engine, arch, task, v1]
 status: Backlog
 priority: Must Have
 entity: build-engine
-epic: EPIC-005
-milestone: v1.0
+epic: EPIC-008
+milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-001]
+blocked_by: []
 unlocks: []
 adr_refs: []
 source: hand-authored
@@ -26,155 +25,169 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-009.md
 ---
 
-# Task: TASK-009 — Run-Log Sink + Task Detail 5-Tab Panel (FR-019/FR-020)
+# Task: TASK-009 — Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)
 
 ## Story
 
-**Epic:** [EPIC-005 — Task Brief & Detail](../../../build-engine.md#epic-005)
+**Epic:** [EPIC-008 — App Generation](../../../build-engine.md#epic-008) (plus E9-S2, E11-S3,
+E12-S6 story slices)
 **Status:** Backlog · **Priority:** Must Have
 
-**As a** technical architect reviewing dark-factory work
-**I want** one panel showing a task's brief, handoff summaries, test evidence, console log,
-and audit trail
-**So that** I can judge a task's history without assembling it from five systems
+**As a** dark-factory agent (and the operator watching it)
+**I want** generated repos self-describing (anatomy/wiki), drift visible (staleness), rollout
+reversible (release plan), and the two M1 courtesy checks now enforcing
+**So that** agents load context instead of re-discovering it, nobody ships against a stale
+graph unknowingly, and the M1 "records but never blocks" grace period is over
 
-> **FRs covered:** FR-019 (five tabs), FR-020 (8 visual-state captures; read-only Audit tab).
-> Includes TWO net-new producers, because both tabs would otherwise have no data source:
-> the **Run-Log Sink** (M1 emits Python logging only — verified in `build/orchestrator.py`;
-> nothing persisted per run → Console tab needs it) and the **visual-state capture producer**
-> (verified: nothing in the M1/M2 pipeline writes `captures/manifest.json` → the Tests tab
-> captures grid needs it; v1-delta §2 bullet).
+> **FRs covered:** FR-031 (anatomy/wiki — **M2 exit criterion 4**), FR-036 (staleness), FR-034
+> (release/rollback plan), FR-043 (dep-summary read-and-gate, M1 stub → enforcing), FR-055
+> (pre-scaffold cascade blocking, M1 stub → enforcing).
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN a run executes, THE SYSTEM SHALL write structured NDJSON log lines to S3 and set `generation_runs.log_location_ref` at run end; a sink failure is a disclosed warning, never a run failure | `should persist run log and set location ref` |
-| AC-2 | WHEN the Task Detail opens, THE SYSTEM SHALL render Brief / Handoff / Tests / Console / Audit tabs, tab switch ≤ 200 ms; Brief renders the typed YAML brief, Handoff renders predecessors' dep summaries | `should render five tabs from task detail payload` |
-| AC-3 | WHEN the Tests tab renders a UI-bearing task, THE SYSTEM SHALL show the 8 visual-state captures (default/hover/focus/active/disabled/loading/empty/error) from `{output_location_ref}/captures/manifest.json`; a missing manifest shows "captures not available", never broken images | `should render eight capture states or honest absence` |
-| AC-4 | WHEN the Console tab opens for a live run, THE SYSTEM SHALL tail via the existing run-status pub/sub; for a finished run it SHALL read the S3 log by `log_location_ref`; absent pointer ⇒ "log not captured" | `should read console from pubsub live and s3 when finished` |
-| AC-5 | WHEN the Audit tab cannot reach PLAT-AUDIT-1, THE SYSTEM SHALL show "audit unavailable" and never fabricate entries | `should show audit unavailable when PLAT-AUDIT-1 unreachable` |
-| AC-6 | WHEN a task links an ADR/decision in its brief, THE SYSTEM SHALL resolve the link to the corresponding Decision Log record (E7 AC) | `should link brief decision to decision log record` |
-| AC-7 | WHEN the QA/ASSESS lane runs for a UI-bearing task, THE SYSTEM SHALL capture the 8 visual states (default/hover/focus/active/disabled/loading/empty/error) of the task's primary UI surface via the existing Playwright lane, writing `{output_location_ref}/captures/{state}.png` + `manifest.json`; a state the surface cannot exhibit is listed in the manifest as `absent` with a reason; non-UI tasks write no manifest (AC-3 renders honest absence); a capture failure is a disclosed warning, never an ASSESS failure | `should write captures manifest for ui task during assess` |
+| AC-1 | WHEN a generation run commits, THE SYSTEM SHALL regenerate `ANATOMY.md` + `docs/wiki/` in the generated repo (files, functions, capability descriptions, ADRs) as part of the run's atomic commit set | `should refresh anatomy in same commit set` |
+| AC-2 | WHEN an agent starts a task in a project repo, THE SYSTEM SHALL load the repo's anatomy index into the task context before DELEGATE | `should load anatomy into task context before delegate` |
+| AC-3 | WHEN a project is read, THE SYSTEM SHALL compute staleness as CE-VERSION-1 version-lag vs the project's pinned version and set the indicator at lag ≥ threshold (default 2, PLAT-SETTINGS-1) | `should set staleness indicator at lag threshold` |
+| AC-4 | WHEN CE is unreachable during staleness computation, THE SYSTEM SHALL report `"unknown"` — never `0`, never the last cached healthy value presented as current | `should report unknown staleness when CE unreachable` |
+| AC-5 | WHEN a run reaches deploy readiness, THE SYSTEM SHALL generate a release/rollback-plan artefact (markdown, committed to the project repo): rollout sequence, feature-flag rollback path (FR-035 linkage), approvers, target date | `should commit release plan artefact with required sections` |
+| AC-6 | WHEN PLAN runs for a task with predecessors, THE SYSTEM SHALL read each predecessor's dep-summary; a missing summary SHALL hold the task in `Ready` with hold reason `dep_summary_missing` (FR-043 — no longer best-effort) | `should hold task in Ready when predecessor dep summary missing` |
+| AC-7 | WHEN the pre-scaffold gate detects a critical cascade gap, THE SYSTEM SHALL return `BLOCKED` naming the failing transition and halt scaffolding (FR-055 — the M1 always-PROCEED behaviour is removed) | `should block scaffolding on critical cascade gap` |
+| AC-8 | WHEN the pre-scaffold gate blocks, THE SYSTEM SHALL fire `PLAT-NOTIFY-1` `spec_gap_critical` as a blocking event (not the M1 warning) and record the gate row `result: "BLOCKED"` | `should fire blocking notify and record BLOCKED row` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-# sink (orchestrator):
-class RunLogSink:                          # constructed per run beside the emitter
-    def emit(self, event: dict): buffer.append(ndjson(event))     # PDAC steps, gates, retries
-    def close(self):                        # run end (any terminal status)
-        try: s3.put(f"{artefact_prefix}/{run_id}/run.ndjson", buffer)
-             repo.generation_runs.set_log_ref(run_id, uri)         # AC-1
-        except S3Error: log.warning("run_log_persist_failed", ...)  # disclosed, non-fatal
+# FR-031 — runs inside the generate pipeline, after gates pass, before commit_workspace
+function refresh_anatomy(staging, project):
+  index = scan(staging)      # files, exported functions/classes, capability map from spec,
+                             # ADRs from decisions/
+  write(staging / "ANATOMY.md", render_anatomy(index))
+  write_tree(staging / "docs/wiki/", render_wiki_pages(index))
+  # part of the same commit set — atomic with the run (AC-1)
 
-# capture producer (QA/ASSESS lane, UI-bearing tasks only — AC-7):
-function capture_visual_states(task, run):            # after the task's Playwright lane passes
-    if not task.has_ui_surface: return                # no manifest — honest absence (AC-3)
-    entries = []
-    for state in [default, hover, focus, active, disabled, loading, empty, error]:
-        try: png = playwright.capture(task.primary_surface, state)
-             s3.put(f"{run.output_location_ref}/captures/{state}.png", png)
-             entries.append({state, "captured"})
-        except StateNotExhibited as e: entries.append({state, "absent", reason: e})
-    s3.put(f"{run.output_location_ref}/captures/manifest.json", entries)
-    # any capture-step crash -> run_log.warning("captures_failed"), ASSESS verdict unaffected
+function load_task_context(task):                       # AC-2 — PLAN pre-step
+  anatomy = scm_driver.read(task.project.repo, "ANATOMY.md")
+  task.context.prepend(anatomy)                          # before retrieval slice (TASK-003)
 
-# endpoint:
-GET /api/projects/{id}/tasks/{task_id}:
-    return {brief: task_briefs row (typed YAML), handoff: dep_summaries of blocked_by,
-            tests: gate/test evidence rows + captures_manifest_ref,
-            console: {live: sse_channel | ref: log_location_ref | null},
-            audit_ref: filter params for the audit read}
-GET /api/projects/{id}/tasks/{task_id}/audit:  proxy PLAT-AUDIT-1 filtered read
-    on unreachable -> 503 {error: "audit_unavailable"}             # AC-5
+# FR-036
+function staleness(project):
+  try:
+    latest = ce_client.get("/api/ontology/versions", latest=True)     # CE-VERSION-1
+    lag = version_distance(project.pinned_graph_version_iri, latest)
+    threshold = settings.resolve("build.staleness.threshold", default=2)
+    return {"lag": lag, "stale": lag >= threshold}
+  except CeUnavailable:
+    return {"lag": None, "stale": "unknown"}             # AC-4 — honest, never fake-healthy
 
-# UI: /build/projects/[id]/tasks/[taskId] — <Tabs> five panes; captures = 8-cell grid
+# FR-034 — deploy-readiness hook
+function emit_release_plan(run, project):
+  plan = render_release_plan(
+    rollout=run.deploy_sequence, flags=run.feature_flags,      # FR-035 rollback path
+    approvers=project.signoff_roles, target_date=run.target_date)
+  scm_driver.commit_file(project.repo, "docs/release-plan.md", plan)
+
+# FR-043 — replaces the M1 best-effort reader in the PDAC loop
+function check_dep_summaries(task):
+  for pred in task.dep_chain.predecessors:
+    if repo.dep_summaries.get(pred) is None:
+      task.hold(status="Ready", reason="dep_summary_missing", missing=pred)   # AC-6
+      raise TaskHeld
+
+# FR-055 — replaces the M1 always-PROCEED return
+function run_pre_scaffold_gate(project_iri):
+  findings = cascade_findings(project_iri)         # M1 checker unchanged
+  critical = [f for f in findings if f.critical]   # e.g. tech_spec absent, impl_ready unset
+  if critical:
+    plat_notify.fire("spec_gap_critical", blocking=True, findings=critical)  # AC-8
+    record_gate(project_iri, "pre_scaffold", "BLOCKED", {"findings": critical})
+    return BLOCKED(failing=critical[0].step)       # AC-7
+  return PROCEED(findings)                          # non-critical findings still recorded
 ```
 
 ### API Contracts
 
-`GET /api/projects/{id}/tasks/{task_id}` p95 ≤ 400 ms ·
-`GET .../tasks/{task_id}/audit` p95 ≤ 800 ms (v1-delta §3). Errors: 403/404/500; audit route
-adds 503 `audit_unavailable`. Consumes PLAT-AUDIT-1 (read-only), existing SSE pub/sub, S3 via
-the M1 storage module.
+- Staleness rides the existing `GET /api/projects/{id}` response as
+  `staleness: {lag, stale: bool|"unknown"}` — ≤ 100 ms added latency (cached lag, m2-delta §7).
+- `POST /api/projects/{project_iri}/gates/pre-scaffold` (M1 endpoint): response `result` gains
+  `"BLOCKED"`; body adds `failing_step`. M1 shape otherwise unchanged.
+- Anatomy/release-plan are repo artefacts, dep-summary hold is loop-internal — no new endpoints.
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 + Run-Log Sink bullet | Why S3-over-CloudWatch (Law F, no CW IAM in PM API) |
-| Data model | `../../tech-spec/data-model.md` | §Task Briefs / §State Spine | Brief + dep-summary rows the tabs read |
-| M1 run bundle | `../../tech-spec/data-model.md` | §Generation Runs Table | `output_location_ref` bundle the captures manifest lives in |
+| Component | `../../tech-spec/m2-delta.md` | §2 diagram | Anatomy Indexer post-gates; stub upgrades in loop |
+| Stub upgrades | `../../tech-spec/m2-delta.md` | §3.2 | Both flips specified |
+| M1 baseline | `../../tech-spec/architecture.md` | §Level 3 | depsum + gates_quality components this replaces behaviour in |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| NDJSON to S3, not a CloudWatch read path | `v1-delta.md` §2 | PM API needs no CW IAM; local tests stub S3 (Law F); one pointer column |
-| Sink failure disclosed, never fatal | AC-1 | Log capture must not kill a run — same posture as cost-event insert (TASK-003 AC-6) |
-| Captures manifest convention, no schema | `v1-delta.md` §4 note | `{output_location_ref}/captures/manifest.json`; the **producer is net-new in this task** (nothing in M1/M2 writes it — verified); rides the existing Playwright lane, no new browser infra |
-| Capture failure never fails ASSESS | AC-7 | Same posture as the sink and cost-event insert: evidence capture is disclosed-best-effort, never a run gate |
-| Audit tab is a filtered proxy, not a copy | FR-020 / PLAT-AUDIT-1 | Build never stores audit rows; unreachable = honest 503 |
+| Anatomy is part of the atomic commit set | m2-delta §2 / FR-031 | A run whose anatomy refresh fails is a failed run — no stale-index commits |
+| Staleness `"unknown"` on CE outage | FR-036 / invariants.md | Mirrors CE-METRICS-1 pending-not-zero honesty rule |
+| Release plan = repo artefact, not DB entity | m2-delta §3.5 | Markdown in the repo; approvers/date from project record — no new table |
+| Hold reason is a named enum value | FR-043 | `dep_summary_missing` greppable; replan agent gets the missing predecessor id |
+| M1 pass-through code paths removed, not flagged | FR-055 | No `if m2:` config toggle — the stub behaviour is deleted; M1 tests asserting always-PROCEED are updated to expect BLOCKED |
 
 ## Test Requirements
 
-### Unit Tests (minimum 4)
+### Unit Tests (minimum 5)
 
-- `should persist run log and set location ref` (S3 stub)
-- `should disclose and continue when run log persist fails`
-- `should render eight capture states or honest absence` (component, both manifest cases)
-- `should link brief decision to decision log record`
+- `should set staleness indicator at lag threshold`
+- `should report unknown staleness when CE unreachable`
+- `should hold task in Ready when predecessor dep summary missing`
+- `should block scaffolding on critical cascade gap`
+- `should proceed with recorded findings when gaps are non-critical`
 
 ### Integration Tests (minimum 4)
 
-- `should write captures manifest for ui task during assess` (loop fixture with stub
-  Playwright lane; asserts manifest content incl. an `absent` state — Law B backend assertion)
-- `should read console from pubsub live and s3 when finished` (both source paths)
-- `should show audit unavailable when PLAT-AUDIT-1 unreachable` (stub down — Law B assertion
-  on the 503 body)
-- `should return task detail payload with brief and handoff` (seeded brief + dep summaries)
+- `should refresh anatomy in same commit set` (SCM stub: one commit contains code + ANATOMY.md)
+- `should load anatomy into task context before delegate` (loop fixture)
+- `should commit release plan artefact with required sections` (section presence asserted)
+- `should fire blocking notify and record BLOCKED row` (notify stub + gate row)
 
-### E2E Tests (Playwright, minimum 1)
+### E2E Tests
 
-- `should open task detail from kanban card and switch all five tabs` (tab switch budget
-  asserted; audit tab against stub)
+N/A — backend/loop internals; the exit-criterion-4 proof is `should load anatomy into task
+context before delegate` running against a generated fixture repo.
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Unit | `should persist run log and set location ref` |
-| AC-2 | Integration + E2E | `should return task detail payload with brief and handoff` / E2E tab flow |
-| AC-3 | Unit | `should render eight capture states or honest absence` |
-| AC-4 | Integration | `should read console from pubsub live and s3 when finished` |
-| AC-5 | Integration | `should show audit unavailable when PLAT-AUDIT-1 unreachable` |
-| AC-6 | Unit | `should link brief decision to decision log record` |
-| AC-7 | Integration | `should write captures manifest for ui task during assess` |
+| AC-1 | Integration | `should refresh anatomy in same commit set` |
+| AC-2 | Integration | `should load anatomy into task context before delegate` |
+| AC-3 | Unit | `should set staleness indicator at lag threshold` |
+| AC-4 | Unit | `should report unknown staleness when CE unreachable` |
+| AC-5 | Integration | `should commit release plan artefact with required sections` |
+| AC-6 | Unit | `should hold task in Ready when predecessor dep summary missing` |
+| AC-7 | Unit | `should block scaffolding on critical cascade gap` |
+| AC-8 | Integration | `should fire blocking notify and record BLOCKED row` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-001] (`log_location_ref` column)
-- **unlocks:** [] (TASK-011 Decision Log consumes the same audit proxy pattern — soft link)
-- **External prerequisites:** M1 storage module (S3), SSE pub/sub channel, PLAT-AUDIT-1 read,
-  QA Playwright lane (all live). The captures **producer does not exist upstream** — it is
-  in-scope here (AC-7); do not assume an M1/M2 capture step
+- **blocked_by:** []
+- **unlocks:** []
+- **External prerequisites:** CE-VERSION-1 (M1, live); M1 dep-summary writer, pre-scaffold
+  checker, PLAT-NOTIFY-1 (all live; this task changes their consumers' behaviour)
 
 ## Cost Estimate
 
 - **Complexity:** L
-- **Estimated tokens:** ~24k input, ~12k output (capture producer adds an orchestrator-lane
-  change on top of sink + panel)
-- **Estimated cost:** ~$0.90 (claude-sonnet-5 implementation tier)
+- **Estimated tokens:** ~18k input, ~8k output
+- **Estimated cost:** ~$0.60 (claude-sonnet-5 implementation tier; verify pricing in MEMORY.md)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
-- [x] API contracts defined
+- [x] API contracts defined (delta on existing endpoints; no new ones)
 - [x] Diagram references included
 - [x] Design decisions noted
 - [x] Test scenarios specified with types and counts
@@ -184,30 +197,28 @@ the M1 storage module.
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing
+- [ ] All specified tests passing (incl. updated M1 stub tests — expect BLOCKED, not PROCEED)
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on the task route
-- [ ] `ui_verify` passes; design tokens only
-- [ ] `audit unavailable` greppable (invariants.md verify-by)
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on public APIs/components
-- [ ] Conventional commit(s); PR references this task and EPIC-005
+- [ ] `unknown` staleness + `dep_summary_missing` + BLOCKED greppable (invariants.md verify-bys)
+- [ ] Docstrings on public APIs
+- [ ] Conventional commit(s); PR references this task and EPIC-008
 
 ## Implementation Hints
 
-- Wire the sink beside the existing Audit + Billing Emitter call sites in the PDAC loop — the
-  events worth logging are exactly the state changes already being emitted; do not invent a
-  second event taxonomy, reuse those payloads.
-- Captures grid: lazy-load images (below-fold budget, v1-delta §6); the 8 state names are a
-  fixed list — render placeholders for states the manifest lacks, labelled per state.
-- Capture producer: drive states with Playwright's own primitives (`hover()`, `focus()`,
-  route-interception for loading/empty/error, `disabled` via selector) — no new dependency;
-  "primary UI surface" = the route/component named in the task brief's `ui_verify` target.
-- The Console live-tail is the same SSE mechanism Request Studio streams with (M1) — one
-  shared hook, not a new client.
-- Audit tab pagination follows TASK-011's Decision Log pattern; if TASK-011 lands first,
-  share the audit-proxy client module.
+- Anatomy scan: language-aware but shallow — exported symbols + docstrings/JSDoc, not a full
+  parse; capability descriptions come from the spec record, not inferred from code.
+- `version_distance`: count published versions between pin and latest from the
+  `GET /api/ontology/versions` ordered list — no semver arithmetic.
+- Cache staleness per project with a short TTL (60 s) so project list reads don't fan out to CE;
+  the cache stores the lag, never fabricates `stale: false` on miss (miss + CE down = unknown).
+- FR-055 critical vs non-critical: critical = missing artefact in the cascade
+  (brief/PRD/roadmap/tech-spec absent, impl_ready unset); non-critical = staleness/format
+  findings. The M1 checker already tags these — reuse its classification.
+- Update, don't duplicate, the M1 tests that pinned always-PROCEED (`test_pre_scaffold_gate_
+  records_findings_and_proceeds_on_missing_prd` becomes the BLOCKED variant for critical gaps;
+  keep a PROCEED test for the non-critical path).
 
 ---
 

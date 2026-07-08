@@ -1,20 +1,20 @@
 ---
 type: Task
-title: "Task: TASK-004 — Structured Model Import: ArchiMate Exchange Format + BPMN"
-description: "E12-S2 (FR-039): deterministic converters from ArchiMate Exchange XML and BPMN
-  (BBO) to RDF, element-type→BPMO kind mapping shipped as versioned data, per-notation
-  well-formedness SHACL, unmapped→Concept flagged, partial-commit skip-and-report."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, archimate, bpmn]
+title: "Task: TASK-004 — Brand & Voice Authoring UI"
+description: "Brand standards + voice rules screen: governed upload/entry forms over CE-WRITE-1,
+  versioned history view, 503-degradation surface for the (Should-Have, out-of-scope) AI
+  extraction path (E4-S1/E4-S2 UI)."
+tags: [constitution-engine, arch, task, milestone-v1]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
-priority: Should Have
+priority: Must Have
 entity: constitution-engine
-epic: EPIC-012
+epic: EPIC-004
 milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-001]
-unlocks: [TASK-003, TASK-007, TASK-008]
-adr_refs: [ADR-010]
+blocked_by: ["TASK-003"]
+unlocks: []
+adr_refs: []
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -24,146 +24,113 @@ owner: gazzwi86
 coverage: "n/a"
 ---
 
-Engine spec: [constitution-engine.md](../../../constitution-engine.md) (FR-039, E12-S2) ·
-Contracts: [contracts.md](../../../../contracts.md) (CE-WRITE-1) · v1 delta:
-[v1-delta.md](../../tech-spec/v1-delta.md) §3 (mapping tables — **canonical for this task**,
-shipped as versioned mapping data; a Fable ontology-review amendment may update rows without
-changing this brief), §4 (well-formedness SHACL) · ADR: [ADR-010](../../decisions/ADR-010.md)
+Engine spec: [constitution-engine.md](../../../constitution-engine.md) (EPIC-004, FR-016/FR-024)
+Contracts: [contracts.md](../../../../contracts.md) (CE-BRAND-1) · M2 delta:
+[m2-delta.md](../../tech-spec/m2-delta.md) §4, §9
 
 ## Story
 
-As an EA/BPM practitioner leaving Bizzdesign/LeanIX/MEGA, I want to import my ArchiMate
-Exchange or BPMN files and get BPMO-mapped graph proposals, so my existing models seed the
-graph without manual re-entry.
+As a brand/marketing owner, I need one place to author and govern brand standards and
+tone-of-voice rules — with versions and provenance visible — so the "single authoritative home"
+promise is something I can actually see and trust, not just an API.
 
 ## Scope
 
-Two deterministic (no-LLM) extractor plugins on the TASK-001 spine: ArchiMate Exchange XML and
-BPMN 2.0 XML (BBO basis). IN: XML parse → intermediate RDF → per-notation well-formedness SHACL
-(v1-delta §4) → kind mapping from the versioned mapping file (v1-delta §3) → proposals (one per
-element/relationship group). Unmapped → `Concept` flagged (settings
-`ingest.unmapped_kind_default`). These paths are LLM-independent — they stay live when AI is
-down. OUT: diagram images (TASK-005), cross-notation merge (TASK-007), any visual mapping UI.
+UI for EPIC-004: brand-standard entry (form; source-URI or content body), VoiceRule entry
+(human label + machine-evaluable assertion fields), list/history views. E4-S2 **AI extraction is
+OUT of scope** (Should-Have, deferred) — this task only ships the extraction surface's
+graceful-degradation state (button present, 503-explains-itself) so its later arrival is additive.
+UI-bearing: design tokens + `ui_verify` gate apply.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-004-01 | WHEN a well-formed ArchiMate Exchange or BPMN file is imported THE SYSTEM SHALL convert it to RDF, map element types per the versioned mapping file (BPMN task→Activity, event→Event, ArchiMate application-component→System, etc. — v1-delta §3 canonical), and materialise accepted proposals through CE-WRITE-1 (`BPMN-task-maps-to-Activity` + one test per mapping-row group). |
-| AC-004-02 | WHEN an element type has no mapping THE SYSTEM SHALL import it as the configured default kind (`Concept`), flag it for review, and list it — never silently drop. |
-| AC-004-03 | WHEN a file fails its notation's well-formedness SHACL shape THE SYSTEM SHALL reject the whole file before any commit with per-element reasons (`malformed-file-commits-nothing`). |
-| AC-004-04 | WHEN a well-formed file contains elements that fail tenant SHACL at commit THE SYSTEM SHALL commit the valid elements and report skipped ones with reasons (skip-and-report, per FR-039). |
-| AC-004-05 | WHEN relationships are converted THE SYSTEM SHALL map them per the relationship table (v1-delta §3 canonical): Assignment→`performedBy`; Composition/Aggregation→`partOf`; Triggering→`triggeredBy`; **Access→`consumes`/`produces` by accessType** (read→consumes, write→produces, readWrite→both; Process/Activity→DataAsset domain — never `accesses`); **Serving within `dependsOn`'s domain only** (consumer∈{Process,Service} dependsOn provider∈{Service,System}; System-serves-Service⟹`service runsOn system`; any other endpoint pair — e.g. Actor-domain — is SKIPPED + listed, no edge emitted); BPMN lane containment→`performedBy`; process containment→`hasStep`; **`sequenceFlow(a→b)` between mapped Activities→`a weave:precedes b`** (step-ordering predicate; BPMN order preserved edge-for-edge); `messageFlow`→`dependsOn` only when its mapped endpoints fall within `dependsOn`'s domain, else skipped + listed; remaining unmapped relationships imported as `describes` + flag. |
-| AC-004-06 | WHEN converted elements re-mention existing graph entities THE SYSTEM SHALL link via find-existing-node (same-label + same-kind), not duplicate — same rule as every ingest path. |
-| AC-004-07 | WHEN the AI provider is down THE SYSTEM SHALL still run these imports end-to-end (deterministic path — no LLM dependency). |
-| AC-004-08 | WHEN mapping produces provenance THE SYSTEM SHALL attribute the converter (not an LLM) as extracting agent, human as approver, file as `prov:used`. |
+| AC-004-01 | WHEN a brand owner submits the brand-standard form THE SYSTEM SHALL dispatch a CE-WRITE-1 op batch creating the individual (content type, body or source URI, effective date, owner) and show the committed version + PROV-O actor on success. |
+| AC-004-02 | WHEN a VoiceRule is authored THE SYSTEM SHALL require severity (`critical`/`normal`) and a machine-evaluable assertion field; a missing assertion surfaces the SHACL 422 as a field-anchored message before-or-at commit. |
+| AC-004-03 | WHEN the brand screen lists standards/rules THE SYSTEM SHALL show current values from the draft graph with each item's last-modified PROV-O attribution, paginated at 50/page. |
+| AC-004-04 | WHEN the AI-extraction affordance is used THE SYSTEM SHALL show the 503 "extraction not yet available" state AND keep all form paths fully live (FR-024 degradation). |
+| AC-004-05 | WHEN the brand page renders THE SYSTEM SHALL meet Lighthouse ≥ 90 perf / ≥ 95 a11y and use only `docs/standards/design/` tokens. |
 
 ## Pseudocode
 
 ```text
-class ArchimateExtractor(Extractor):        # BpmnExtractor mirrors it
-    def extract(job):
-        model = parse_exchange_xml(job.artefact)        # stdlib/defusedxml
-        ir = to_intermediate_rdf(model)                 # element/rel triples, notation ns
-        report = shacl_validate(ir, ArchimateImportShape)   # v1-delta §4, framework graph
-        if report.violations: fail_job(per_element(report)) # whole-file reject
-        mapping = load_mapping("archimate", version=latest) # versioned data file
-        for element in model.elements:
-            kind = mapping.get(element.type) or (settings.unmapped_default, flag=True)
-            yield Candidate(ops=make_node_ops(element, kind),
-                            confidence=1.0,             # deterministic — never LLM-flagged
-                            matches=find_existing_node(element.name, kind),
-                            reason=flag_reason_if_unmapped)
-        for rel in model.relationships:
-            yield Candidate(ops=make_edge_ops(rel, mapping.rels), ...)
+BrandPage:
+    tabs = [Standards, VoiceRules]
+    list(tab, cursor) -> SPARQL SELECT via /api/proxy/sparql (individuals + prov actor)
+    StandardForm.submit / VoiceRuleForm.submit
+        -> op batch (add_node with class from TASK-003 model) -> POST /api/operations/apply
+        -> 422 -> shared SHACL-message mapper -> field errors
+    ExtractButton.click -> POST extraction surface -> render 503 state (forms untouched)
 ```
 
 ## API Contracts
 
-No new endpoints — rides TASK-001's spine (upload with `kind=archimate|bpmn` detection,
-proposals, accept via CE-WRITE-1). Mutation: **CE-WRITE-1** only (contracts.md).
+- Writes: **CE-WRITE-1** `POST /api/operations/apply` (TASK-003 classes). No new endpoints.
+- Reads: **CE-READ-1** SPARQL via existing proxy. CE-BRAND-1 projections are Build's surface,
+  not this UI's — the UI reads individuals, not projections (avoids projection-cache coupling).
 
 ## Diagram References
 
 | Diagram | Source | What it covers |
 |---|---|---|
-| Ingest component delta | [v1-delta.md](../../tech-spec/v1-delta.md) §1 | Notation Converters position (worker, deterministic lane) |
-| Mapping tables | [v1-delta.md](../../tech-spec/v1-delta.md) §3 | Full element + relationship tables (canonical, versioned data) |
-| Well-formedness shapes | [v1-delta.md](../../tech-spec/v1-delta.md) §4 | Whole-file-reject vs skip-and-report split |
+| Authoring flows | [business-process.md](../../tech-spec/business-process.md) | Form → validate → commit loop |
+| M2 component delta | [m2-delta.md](../../tech-spec/m2-delta.md) §10 | Brand Projection vs authoring path separation |
 
 ## Design Decisions
 
 | Decision | Rationale | Source |
 |---|---|---|
-| Mapping shipped as versioned data file, not code branches | Fable ontology review can amend rows without code change; tunable per epic note | v1-delta §3 |
-| Whole-file reject on notation SHACL, skip-and-report on tenant SHACL | Malformed file = user error to fix; failing elements in a valid file = partial value preserved | FR-039 AC, v1-delta §4 |
-| Deterministic confidence 1.0, no 0.6 gating | Confidence gating exists for LLM extraction; converters are exact — flags come from unmapped types only | engine spec E12-S2 |
-| ArchiMEO/archimate2rdf as reference, not dependency | Epic technical note — prior art informs the mapping file, no new dep | engine spec §Technical notes |
+| UI reads individuals, not CE-BRAND-1 projections | Projections are the Build contract; the authoring UI needs full individuals incl. provenance — reading projections would couple UI refresh to projection cache | m2-delta §4 |
+| Extraction ships as a 503 state only | E4-S2 AI extraction is Should-Have deferred; shipping the degradation state now makes later arrival additive, and FR-024's failure AC is testable today | EPIC-004 AC (failure), roadmap carry |
+| Reuse M1 guided-form machinery | TASK-003 shapes declare the fields; forms generate from shapes, not hand-coded | M1 TASK-006 pattern |
 
 ## Test Requirements
 
-Minimum: 5 unit, 4 integration.
+Minimum: 3 unit, 2 integration, 2 E2E.
 
 | Layer | Scenario (`should X when Y`) | AC |
 |---|---|---|
-| Unit | should map BPMN task→Activity (`BPMN-task-maps-to-Activity`) + table-driven test over every mapping-row group (both notations) | AC-004-01/05 |
-| Unit | should map unmapped element to Concept with flag + review reason | AC-004-02 |
-| Unit | should emit performedBy for lane-contained activities and hasStep for process containment | AC-004-05 |
-| Unit | should emit `a weave:precedes b` for every sequenceFlow(a→b) between mapped Activities, preserving BPMN order (fixture: 4-step linear flow → 3 precedes edges in file order) | AC-004-05 |
-| Unit | should map Access by accessType: read→consumes, write→produces, readWrite→both (Process/Activity→DataAsset) — never `accesses` | AC-004-05 |
-| Unit | should skip + list a Serving/messageFlow whose endpoints fall outside dependsOn's domain (e.g. Service serving a BusinessActor) — no edge emitted, no silent drop | AC-004-05 |
-| Unit | should split Serving by endpoint kinds — System-serves-Service emits `service runsOn system` (subject = the service, never inverted); other pairs emit consumer `dependsOn` provider (`serving-split-direction-canary`, Fable review 2026-07-08) | AC-004-05 |
-| Unit | should emit `service runsOn system` for component-realizes-service (hosted-as-subject canary) | AC-004-05 |
-| Unit | should parse Exchange XML with external-entity resolution disabled (defusedxml) | AC-004-01 |
-| Unit | should load mapping by version (amended file picked up without code change) | AC-004-01 |
-| Integration | should reject malformed file whole with per-element reasons, store untouched (`malformed-file-commits-nothing`) | AC-004-03 |
-| Integration | should commit valid elements and report skipped on tenant-SHACL failures | AC-004-04 |
-| Integration | should link re-mentioned entity, not duplicate (seeded graph) | AC-004-06 |
-| Integration | should run end-to-end with LLM mock down (deterministic lane) | AC-004-07 |
+| Unit | should generate standard/voice-rule forms from TASK-003 SHACL shapes | AC-004-01, AC-004-02 |
+| Unit | should render 503 extraction state with forms still enabled | AC-004-04 |
+| Unit | should show PROV-O actor per list row | AC-004-03 |
+| Integration | should commit standard via op batch and re-list it | AC-004-01 |
+| Integration | should field-anchor a missing-assertion 422 | AC-004-02 |
+| E2E | brand owner creates a voice rule; rule appears in list with attribution (backend state asserted) | AC-004-02, AC-004-03 |
+| E2E | extraction affordance 503s; owner completes the same content via form | AC-004-04 |
+| Gate | axe-core + Lighthouse budget on brand page | AC-004-05 |
 
 ## Dependencies
 
-- **blocked_by**: TASK-001 (spine)
-- **unlocks**: TASK-003 (its corpus chunker reuses this task's notation XML parse — ADR-011
-  "no second parser"), TASK-007 (cross-notation reconciliation needs ≥ 2 notations landing),
-  TASK-008
+- **blocked_by**: TASK-003 (classes + shapes + endpoints)
+- **unlocks**: none (leaf)
 
 ## Cost Estimate
 
-**M** — est. **450k tokens** (S ≈ 200k, M ≈ 400k, L ≈ 700k). Two XML parsers + mapping loader +
-two SHACL shapes; table-driven tests keep the mapping surface cheap.
+**M** — est. **350k tokens** (scale: S ≈ 200k, M ≈ 400k, L ≈ 700k). Two forms from existing
+machinery, list views, one degradation state.
 
 ## DoR Checklist
 
-- [x] Mapping tables pinned (v1-delta §3; Fable row-level amendments are data-only)
-- [x] Well-formedness semantics pinned (v1-delta §4)
-- [x] Unmapped default + settings key pinned (v1-delta §6)
-- [ ] TASK-001 merged (DAG)
+- [x] TASK-003 AC table stable (classes/shapes this UI consumes)
+- [x] Design system present; page targets pinned (m2-delta §9)
+- [x] E4-S2 deferral pinned (extraction = 503 state only)
+- [ ] TASK-003 merged
 - [ ] M1 program gate green (build precondition)
 
 ## DoD Checklist
 
-- [ ] All ACs pass; named tests verbatim: `BPMN-task-maps-to-Activity`, `malformed-file-commits-nothing`
-- [ ] Mapping file versioned + loaded at runtime (no inlined table in code)
-- [ ] XML parsing hardened (no external entities/DTD — security rule: validate at boundary)
-- [ ] Coverage ≥ 80%, mutation ≥ 60%; Law E budgets
+- [ ] All ACs pass (unit + integration + E2E)
+- [ ] E2E asserts backend state change (Law B)
+- [ ] `ui_verify` gate passed; tokens only
+- [ ] Lighthouse ≥ 90 / ≥ 95 on brand page
+- [ ] Coverage ≥ 80%, mutation ≥ 60% on new modules
 
 ## Implementation Hints
 
-- Use `defusedxml` for both parsers — Exchange files are untrusted input (XXE at a trust
-  boundary is in-scope security, not optional).
-- The intermediate RDF keeps original notation types as annotations (`weave:sourceType
-  "archimate:Serving"`) so review cards can show what a flagged mapping came from — and
-  TASK-007's reconciler can trace cross-notation origins.
-- Fixtures: one small real-world Exchange file + one BPMN file per happy path; hand-broken
-  copies for the SHACL reject tests. Archi (open-source) exports Exchange format for fixture
-  authoring.
-- Pitfall: BPMN subProcess is both a Process and a step of its parent — emit `partOf` + parent
-  `hasStep`, don't pick one.
-- Pitfall: `weave:precedes` is Activity→Activity only. A sequenceFlow into/out of a gateway has
-  no Activity endpoint on one side — bridge through the gateway (connect its incoming Activities
-  to its outgoing Activities) or, where branch semantics would be lost, skip + list; never emit
-  precedes to a Concept-flagged gateway node.
-- Pitfall: mapping file rows may be amended post-Fable-review — tests must be table-driven off
-  the mapping file itself, not literal expectations duplicated in test code (except the named
-  `BPMN-task-maps-to-Activity` canary).
+- Assertion field: render as type-select (regex / forbidden-term / max-length per TASK-003 DSL)
+  + value input — do not free-text the whole assertion; the shape validates presence + type.
+- Version/provenance display: `prov:wasGeneratedBy` → activity → `prov:wasAssociatedWith` actor;
+  the M1 versions page already renders this chain — reuse its component.
+- Pitfall: source-URI vs content-body are mutually exclusive-ish (one required) — express as a
+  SHACL `sh:xone` in TASK-003 and mirror the toggle in the form; do not validate only client-side.

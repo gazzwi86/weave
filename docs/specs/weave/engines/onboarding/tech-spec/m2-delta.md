@@ -30,8 +30,8 @@ scope.
 
 | # | Question | Disposition (coordinator-approved 2026-07-08) |
 |---|---|---|
-| OQ-M2-1 | Where does the "< 2 domain competency-questions" flag (CE M2 TASK-010 AC-010-07) render? | *(Amended 2026-07-08, red-team.)* Checklist item **"Add domain competency questions"** (manual self-mark — the existing `autoCompleteOn: "manual"` member, M1 OQ-08 machinery) **plus** a beacon on the role-home completeness tile keyed off the item's open/complete state. The original auto-clear rested on a phantom "FR-037 named count query": CE M2 TASK-010 ships the framework question **set**, not a per-tenant **count** — "declared domain competency question" is not modelled as a countable individual and no query id/shape exists. Auto-clear is a **post-v1 upgrade** contingent on CE modelling declared CQs as countable individuals + publishing a named count query (escalated to CE). Deep-link: the onboarding training-library article "Declare your domain competency questions" (no CE authoring surface exists — escalated). |
-| OQ-M2-2 | Do trust-mechanics tours cover CE glossary/brand UIs (CE M2 TASK-002/004)? | **No.** Those are authoring surfaces, not trust mechanics; their tours are v1/post-v1 content. M2 stays at the roadmap's three overlays. |
+| OQ-M2-1 | Where does the "< 2 domain competency-questions" flag (CE v1 TASK-010 AC-010-07) render? | *(Amended 2026-07-08, red-team.)* Checklist item **"Add domain competency questions"** (manual self-mark — the existing `autoCompleteOn: "manual"` member, M1 OQ-08 machinery) **plus** a beacon on the role-home completeness tile keyed off the item's open/complete state. The original auto-clear rested on a phantom "FR-037 named count query": CE v1 TASK-010 ships the framework question **set**, not a per-tenant **count** — "declared domain competency question" is not modelled as a countable individual and no query id/shape exists. Auto-clear is a **post-v1 upgrade** contingent on CE modelling declared CQs as countable individuals + publishing a named count query (escalated to CE). Deep-link: the onboarding training-library article "Declare your domain competency questions" (no CE authoring surface exists — escalated). |
+| OQ-M2-2 | Do trust-mechanics tours cover CE glossary/brand UIs (CE v1 TASK-002/004)? | **No.** Those are authoring surfaces, not trust mechanics; their tours are v1/post-v1 content. M2 stays at the roadmap's three overlays. |
 | OQ-M2-3 | New ADR needed? | **No.** ADR-001 (Driver.js wrapper), ADR-005 (anchors), ADR-006 (code-shipped content) cover all M2 mechanics; M2 is content on new surfaces. |
 | OQ-M2-4 | Gate posture (roadmap: "no separate HITL gate") | Ships as a **v1-interim overlay release inheriting the M1 gate floors** (WCAG 2.1 AA zero axe violations, coverage ≥ 80% / mutation ≥ 60%, defaults tunable); human sign-off folds into the program gate. |
 
@@ -39,15 +39,15 @@ scope.
 
 | Overlay | Owning surface (committed brief) | Data the surface renders | Onboarding consumes |
 |---|---|---|---|
-| Model-completeness map tour + beacons (EPIC-002) | GE M2 TASK-008 completeness overlay (Explorer); Platform M2 TASK-017 role-home completeness tile | GE overlay: `CE-READ-1` `coverage_gap` rows only; Platform tile: `CE-METRICS-1` + `coverage_gap` | Anchors on the owning panels only (§3); no data reads of its own |
-| "What can Weave do for you" role-home guidance (EPIC-003) | Platform M2 TASK-017 role-home route (EPIC-010) | `CE-METRICS-1`, availability registry, M1 RBAC role matrix | Resolved role path (M1 TASK-006) selects the guidance variant |
-| Trust-mechanics tours (EPIC-002) | GE M2 TASK-003 (versions panel + diff), TASK-002 (overlay engine: heatmap/domain colour), TASK-001 (governed-content filters); CE M2 TASK-006 (rules & policies screen + full validation report) | `CE-VERSION-1`/`CE-DIFF-1`, `GET /api/validate` | Anchors only |
+| Model-completeness map tour + beacons (EPIC-002) | GE v1 TASK-008 completeness overlay (Explorer); Platform v1 TASK-017 role-home completeness tile | GE overlay: `CE-READ-1` `coverage_gap` rows only; Platform tile: `CE-METRICS-1` + `coverage_gap` | Anchors on the owning panels only (§3); no data reads of its own |
+| "What can Weave do for you" role-home guidance (EPIC-003) | Platform v1 TASK-017 role-home route (EPIC-010) | `CE-METRICS-1`, availability registry, M1 RBAC role matrix | Resolved role path (M1 TASK-006) selects the guidance variant |
+| Trust-mechanics tours (EPIC-002) | GE v1 TASK-003 (versions panel + diff), TASK-002 (overlay engine: heatmap/domain colour), TASK-001 (governed-content filters); CE v1 TASK-006 (rules & policies screen + full validation report) | `CE-VERSION-1`/`CE-DIFF-1`, `GET /api/validate` | Anchors only |
 | Competency-question guidance (EPIC-003) | Rendered by onboarding itself: manual checklist item + role-home-tile beacon | None — no CE read (§5; OQ-M2-1 amended) | Item state via the M1 checklist API; beacon keys off the same state |
 
 Explicit non-scope: Build M2 is API-only (SDK, ceremonies — UI lands v1.0) → no Build overlay
 this window. CE glossary/brand tours excluded per OQ-M2-2. E3-S2's Business-path
 `CE-METRICS-1` starter tile un-omits via Platform's availability registry + starter-widget
-behaviour — **owned by Platform E1-S6, Platform M2 TASK-010 (AC-8), not TASK-017** — zero
+behaviour — **owned by Platform E1-S6, Platform v1 TASK-010 (AC-8), not TASK-017** — zero
 onboarding build; one E2E assertion verifies it (§7).
 
 ## 3. Anchor-registry delta (ADR-005 + ADR-008 — `phase: "m2"` entries with per-anchor `shipped`)
@@ -114,7 +114,7 @@ self-mark, same `ON CONFLICT DO NOTHING` idempotent write as every completion); 
 tile beacon shows while the item is open and hides on next render once it completes (or when
 independently dismissed — M1 beacon-dismissal machinery). **No CE read, no poller extension, no
 count, no fail-quiet path exists** — there is nothing to fail silently. The former design (CE
-count auto-clear on the ADR-004 poll cycle) rested on a named count query CE M2 TASK-010 does
+count auto-clear on the ADR-004 poll cycle) rested on a named count query CE v1 TASK-010 does
 not ship; reinstating auto-clear is a post-v1 upgrade gated on the CE escalation recorded in
 §1 OQ-M2-1.
 
@@ -141,7 +141,7 @@ not ship; reinstating auto-clear is a post-v1 upgrade gated on the CE escalation
   set; role-tailoring matrix on role-home guidance (4 paths); axe zero-violations with each
   overlay open, incl. welcome-modal **focus trap** (focus enters on open, cannot escape while
   open, Esc closes, focus returns to the trigger); **one assertion** that the Business-path
-  CE-METRICS-1 starter tile is no longer omitted (E3-S2 flip, Platform M2 TASK-010 behaviour —
+  CE-METRICS-1 starter tile is no longer omitted (E3-S2 flip, Platform v1 TASK-010 behaviour —
   verify-not-build); release-gate assertion that every §3 anchor is `shipped: true`.
 - Floors unchanged: coverage ≥ 80%, mutation ≥ 60% (defaults, tunable). Law F unchanged:
   in-process app, stubbed PLAT-*/CE clients, no cloud.

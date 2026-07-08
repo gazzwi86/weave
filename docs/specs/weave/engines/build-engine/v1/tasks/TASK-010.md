@@ -1,18 +1,18 @@
 ---
 type: Task
-title: "Task: TASK-010 — Project Dashboard (FR-013): Per-Tile Isolated Status View"
-description: "Dashboard page with demo-readiness, budget, forecast, tasks-in-flight, blockers,
-  and git-ribbon tiles — each tile fetches its own endpoint and fails locally; the demo tile
-  never shows a false green; cost tiles render ADR-008 labelled estimates."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-010 — v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods"
+description: "Migrations and repo-layer methods for project_contributors, external_bindings,
+  cost_events, project_prompts (all RLS + base-filter), plus generation_runs.trigger and
+  log_location_ref column adds. Foundation task for every v1 surface."
+tags: [build-engine, arch, task, v1]
 status: Backlog
 priority: Must Have
 entity: build-engine
-epic: EPIC-003
+epic: EPIC-002
 milestone: v1.0
 created: 2026-07-08
-blocked_by: [TASK-004, TASK-005]
-unlocks: [TASK-012]
+blocked_by: []
+unlocks: [TASK-011, TASK-012, TASK-018, TASK-022]
 adr_refs: [ADR-008]
 source: hand-authored
 confirmed_by: "none"
@@ -24,128 +24,123 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-010.md
 ---
 
-# Task: TASK-010 — Project Dashboard (FR-013): Per-Tile Isolated Status View
+# Task: TASK-010 — v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods
 
 ## Story
 
-**Epic:** [EPIC-003 — Project Dashboard](../../../build-engine.md#epic-003)
+**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
 **Status:** Backlog · **Priority:** Must Have
 
-**As a** product owner
-**I want** one at-a-glance project status page whose tiles fail independently
-**So that** a single upstream outage degrades one tile, never the whole picture
+**As a** v1 PM-surface engineer
+**I want** the four v1 tables, the two `generation_runs` column adds, and typed repo-layer
+methods, all tenant-isolated exactly like every existing Build table
+**So that** every downstream v1 task builds on a data layer whose isolation is already proven
 
-> **FRs covered:** FR-013. Quick actions (FR-014/E3-S2) are post-v1 — do NOT add action
-> buttons beyond "Open Kanban" navigation. The prompt box on this page is TASK-012.
+> **FRs covered:** data prerequisites for FR-060 (contributors), FR-010 (bindings), FR-065
+> (prompts), ADR-008 (cost_events), FR-019 Console tab (`log_location_ref`). Exact DDL is
+> pinned in [`v1-delta.md`](../../tech-spec/v1-delta.md) §4 — implement it verbatim.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN the dashboard loads, THE SYSTEM SHALL render six tiles (demo-readiness, budget, forecast, tasks-in-flight, blockers, git ribbon), each fetched from its own `GET /api/projects/{id}/dashboard/{tile}` endpoint | `should render six tiles from per-tile endpoints` |
-| AC-2 | WHEN any tile's source errors, THE SYSTEM SHALL render that tile in a localized error state while every other tile renders normally — one outage never blanks the page | `should render tile error state and keep page alive when one tile source fails` |
-| AC-3 | WHEN the demo URL cannot be captured (deploy failed), THE SYSTEM SHALL retain the prior demo URL and surface the failure — the demo-readiness tile never shows a false green | `should retain prior demo url and surface error when deploy fails` |
-| AC-4 | WHEN budget/forecast tiles render, THE SYSTEM SHALL show TASK-004's labelled estimates, the binding cascade level, and the forecast inputs — never an unexplained number | `should render budget forecast with estimated label and inputs` |
-| AC-5 | WHEN the git ribbon renders, THE SYSTEM SHALL show recent commits from `generation_runs` rows (branch, sha, time) linking to the project's external repo — no live SCM call on page load | `should render git ribbon from recorded runs` |
-| AC-6 | WHEN a Weave-product self-improvement proposal is relevant, THE SYSTEM SHALL surface it as a read-only card linking to the Platform surface — Build does not own the proposal lifecycle; absent feed ⇒ card hidden, not errored | `should show read-only self-improvement card when feed present` |
+| AC-1 | WHEN the v1 migrations are applied, THE SYSTEM SHALL create `project_contributors`, `external_bindings`, `cost_events`, `project_prompts` with ROW LEVEL SECURITY enabled and the tenant policy attached | `should enable row level security on all four v1 tables` |
+| AC-2 | WHEN a tenant-B session queries any new table through the repo layer, THE SYSTEM SHALL return zero tenant-A rows | `should return zero tenant-B rows for every new v1 table` |
+| AC-3 | WHEN `generation_runs` is migrated, THE SYSTEM SHALL default existing rows to `trigger = 'request'` and leave `log_location_ref` NULL | `should default existing runs to trigger request` |
+| AC-4 | WHEN a contributor row is inserted with a role outside `admin`/`editor`, THE SYSTEM SHALL reject it at the DB constraint | `should reject invalid contributor role` |
+| AC-5 | WHEN a duplicate binding `(tenant, project, system, space_ref)` is inserted, THE SYSTEM SHALL reject it via the unique constraint | `should reject duplicate external binding` |
+| AC-6 | WHEN any service code touches a v1 table, THE SYSTEM SHALL route through repo-layer methods only (base filter applied); no raw SQL outside the repo module | `should access v1 tables only via repo layer` (grep-style test per M1 pattern) |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-GET /api/projects/{id}/dashboard/{tile}:      # one route, tile param enum — six handlers
-    demo:     projects demo fields (demo_output_location_ref, last deploy status + prior URL)
-    budget:   TASK-004 rollup total + binding cap + level
-    forecast: TASK-004 forecast + inputs
-    tasks:    spine counts by lane (reuse TASK-008 lane mapping)
-    blockers: tasks held (missing handoff / NOT READY / HITL pending) with reasons
-    ribbon:   last N generation_runs (branch, commit_sha, created_at, repo_url join)
+migration 00NN_v1_pm_tables.sql:
+  CREATE TABLE project_contributors / external_bindings / cost_events / project_prompts
+      exactly per v1-delta.md §4 (PKs, CHECKs, UNIQUEs, index idx_cost_events_rollup)
+  ALTER TABLE generation_runs ADD trigger ... DEFAULT 'request', ADD log_location_ref TEXT
+  for each new table: ENABLE ROW LEVEL SECURITY + tenant policy (copy pattern from
+      0013_gate_results.sql / 0015_generation_runs.sql)
 
-UI /build/projects/[id]:
-    six <Tile> islands, independent useQuery each; error -> <TileError retry/>   # AC-2
-    DemoTile: current URL or prior URL + failure banner                          # AC-3
-    BudgetTile/ForecastTile: "estimated" chip + "capped at {level}" + inputs popover  # AC-4
-    SelfImprovementCard: renders only when platform feed returns items           # AC-6
-    "Open Kanban" is a nav link, not a quick-action framework                    # non-goal
+repo layer (one module per table family, mirroring generation/store.py):
+  contributors: get_all(project), upsert(principal, role), delete(principal)
+  bindings:     get_all(project), put(system, connector_ref, space_ref), delete(binding_id)
+  cost_events:  insert(event), rollup(project_iri) -> totals + by_task rows
+  prompts:      insert(prompt), set_run_id(prompt_id, run_id), get_recent(project)
+  all methods take (conn, *, tenant_id, ...) — base-filter arg is not optional
 ```
 
 ### API Contracts
 
-`GET /api/projects/{id}/dashboard/{tile}` p95 ≤ 400 ms per tile (v1-delta §3); unknown tile
-⇒ 400. Tile payloads are per-handler typed models — no aggregate mega-endpoint (aggregation
-would recouple tile failure modes). Consumes TASK-004 costs internals, spine reads, projects
-fields; self-improvement card reads the Platform feed by contract (`BE-SELFIMPROVE-1`
-consumer note) and treats absence as empty.
+None — data layer only. Consumers land in TASK-011/003/005; endpoint shapes are pinned in
+`v1-delta.md` §3.
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Dashboard tiles → per-tile API → repo_layer/Cost Reader |
-| Surface honesty | `../../tech-spec/v1-delta.md` | §5 | The three honesty rules this page owns (tile isolation, no false green, estimated labels) |
-| M1 demo fields | `../../tech-spec/data-model.md` | §Projects Demo and Write-Back Fields | Demo tile's source columns |
+| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | repo_layer is the single Aurora choke point for all new components |
+| Data model | `../../tech-spec/v1-delta.md` | §4 | Exact DDL for the four tables + column adds |
+| M1 isolation | `../../tech-spec/data-model.md` | §Cross-Tenant Isolation Invariant | The release-gate test pattern to extend |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Per-tile endpoints, no aggregate | FR-013 AC / AC-2 | Failure isolation is structural, not try/catch theatre; caching per tile |
-| Git ribbon reads recorded runs, never live SCM | AC-5 / OQ-07 disposition | Page load can't hang on GitHub; the recorded rows are already the source of truth for what Weave pushed |
-| Prior-demo-URL retention is server-side state | AC-3 | The tile is honest even on first render after a failed deploy — not a client cache trick |
-| Self-improvement card is read-only + link-out | B5 / EPIC-003 AC | Build never owns the proposal lifecycle; zero proposal mutations in this codebase |
+| cost_events is an event table, not run columns | [ADR-008](../../decisions/ADR-008.md) | Attribution survives multi-agent retries and non-run work (`run_id`/`task_id` nullable) |
+| Readers have no contributor row | `v1-delta.md` §4 note | Read access = company (tenant) membership; do NOT model a `reader` role value |
+| Whole-key uniqueness on bindings | `v1-delta.md` §4 | `(tenant, project, system, space_ref)` — a project may bind two Jira boards, never the same one twice |
+| RLS + repo-layer base filter (both) | M1 D3 | Defence-in-depth; single-layer tenancy is a rejected alternative |
 
 ## Test Requirements
 
-### Unit Tests (minimum 4)
+### Unit Tests (minimum 3)
 
-- `should render tile error state and keep page alive when one tile source fails`
-- `should render budget forecast with estimated label and inputs`
-- `should render git ribbon from recorded runs`
-- `should show read-only self-improvement card when feed present` (and hidden when absent)
+- `should reject invalid contributor role`
+- `should reject duplicate external binding`
+- `should compute rollup totals and by_task rows from seeded cost events`
 
-### Integration Tests (minimum 2)
+### Integration Tests (minimum 3)
 
-- `should retain prior demo url and surface error when deploy fails` (seeded failed deploy
-  after a successful one — Law B: server state asserted)
-- `should return four hundred on unknown tile`
+- `should enable row level security on all four v1 tables` (Aurora testcontainer, catalog query)
+- `should return zero tenant-B rows for every new v1 table` (two-tenant fixture)
+- `should default existing runs to trigger request` (migrate a pre-seeded runs row)
 
-### E2E Tests (Playwright, minimum 2)
+### E2E Tests
 
-- `should render six tiles from per-tile endpoints` (full page against seeded project)
-- `should keep five tiles alive when one endpoint is stubbed down` (network-intercept one
-  tile; DOM asserts the other five rendered)
+N/A — no UI surface. `should access v1 tables only via repo layer` runs as a static/grep test
+per the M1 no-raw-query pattern (ADR-001 mitigation 3).
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | E2E | `should render six tiles from per-tile endpoints` |
-| AC-2 | Unit + E2E | tile error unit / stubbed-down E2E |
-| AC-3 | Integration | `should retain prior demo url and surface error when deploy fails` |
-| AC-4 | Unit | `should render budget forecast with estimated label and inputs` |
-| AC-5 | Unit | `should render git ribbon from recorded runs` |
-| AC-6 | Unit | `should show read-only self-improvement card when feed present` |
+| AC-1 | Integration | `should enable row level security on all four v1 tables` |
+| AC-2 | Integration | `should return zero tenant-B rows for every new v1 table` |
+| AC-3 | Integration | `should default existing runs to trigger request` |
+| AC-4 | Unit | `should reject invalid contributor role` |
+| AC-5 | Unit | `should reject duplicate external binding` |
+| AC-6 | Static | `should access v1 tables only via repo layer` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-004, TASK-005]
-- **unlocks:** [TASK-012] (the prompt box mounts on this page)
-- **External prerequisites:** M1 demo/deploy fields (live); Platform self-improvement feed
-  (optional — card degrades to hidden)
+- **blocked_by:** [] — first v1 task
+- **unlocks:** [TASK-011, TASK-012, TASK-018, TASK-022]
+- **External prerequisites:** none (migration pipeline + testcontainer fixtures exist from M1)
 
 ## Cost Estimate
 
-- **Complexity:** L
-- **Estimated tokens:** ~18k input, ~10k output
-- **Estimated cost:** ~$0.70 (claude-sonnet-5 implementation tier)
+- **Complexity:** M
+- **Estimated tokens:** ~12k input, ~6k output
+- **Estimated cost:** ~$0.40 (claude-sonnet-5 implementation tier)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
-- [x] API contracts defined
+- [x] API contracts defined (N/A — data layer; consumers cited)
 - [x] Diagram references included
 - [x] Design decisions noted (ADR-008)
 - [x] Test scenarios specified with types and counts
@@ -155,27 +150,23 @@ consumer note) and treats absence as empty.
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing (incl. stubbed-down tile E2E)
+- [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on the dashboard route
-- [ ] `ui_verify` passes; design tokens only
-- [ ] Tile-isolation test greppable (invariants.md verify-by)
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on public APIs/components
-- [ ] Conventional commit(s); PR references this task and EPIC-003
+- [ ] `ENABLE ROW LEVEL SECURITY` greppable on all four tables (invariants.md verify-by)
+- [ ] Docstrings on public APIs
+- [ ] Conventional commit(s); PR references this task and EPIC-002
 
 ## Implementation Hints
 
-- The deploy service already retains `demo_output_location_ref`; AC-3 needs a
-  last-deploy-status field or derives it from the latest run's deploy gate result — check
-  `deploy/service.py` before adding state; the failure info likely already exists.
-- Blockers tile reasons come from existing hold states (missing handoff, NOT READY, HITL
-  pending) — string-match none of them; use the status enums the spine already stores.
-- Below-fold tiles lazy-load (v1-delta §6); demo + budget render first (the two tiles humans
-  check most).
-- `repo_url` join for ribbon links: the projects row already stores it (M1 ScmDriver) — no
-  SCM API involvement anywhere in this task.
+- Copy the RLS policy + migration idiom from `packages/backend/migrations/0013_gate_results.sql`
+  — do not invent a new policy shape.
+- Repo methods follow `generation/store.py` (frozen dataclass row types, `asyncpg`,
+  keyword-only `tenant_id`). Keep one module per table family; no ORM additions.
+- `rollup()` is one SQL aggregate over `idx_cost_events_rollup` — no in-Python summing.
+- The two-tenant fixture already exists (data-model.md §Isolation release-gate test); extend
+  its table list rather than writing a new fixture.
 
 ---
 

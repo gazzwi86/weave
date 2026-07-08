@@ -398,7 +398,7 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-024 | Brand & Voice screen stores brand individuals + VoiceRules with versioning + PROV-O; AI extraction from pasted styleguide, with form fallback when AI unavailable. AC: form path works at 503. | E4-S1, E4-S2 | P0 | MVP |
 | FR-025 | Governance screen: SHACL shapes stored in the **authoring tenant's** shapes graph (never global) with PROV-O; browsable by target class; shape change invalidates validation cache across all workers/instances. AC: cross-tenant shape-leak test passes. | E5-S1, E5-S3 | P0 | MVP; PLAT-SETTINGS-1 |
 | FR-026 | Self-audit gap queries available from Governance screen; PII/sensitive handling via SHACL + data-classification properties in M1/M2 (ODRL authority extension deferred post-v1 per CE ADR-013); schedulable; failed run → PLAT-NOTIFY-1. AC: gap query lists uncovered entities. | E5-S2 | P1 | MVP; PLAT-NOTIFY-1 |
-| FR-027 | `GET /api/validate` returns a full SHACL report (JSON-LD/Turtle) incl. violations/warnings/info, tenant-scoped; bad version → 404; no JWT → 401. AC: report enumerates all severities. | E6-S3 | P0 | MVP; ships M2 (M1→M2 move — delivered with the EPIC-005 rules screen, m2/tasks/TASK-006) |
+| FR-027 | `GET /api/validate` returns a full SHACL report (JSON-LD/Turtle) incl. violations/warnings/info, tenant-scoped; bad version → 404; no JWT → 401. AC: report enumerates all severities. | E6-S3 | P0 | MVP; ships M2 (M1→M2 move — delivered with the EPIC-005 rules screen, v1/tasks/TASK-006) |
 | FR-028 | OWL inferred triples materialised **per published version** (e.g. `urn:weave:g:tenant:{id}:v1.2.0:inferred`) at publish; pinned reads include/exclude inferred deterministically per version; reasoner-timeout (default 30s, tunable) → no partial graph. AC: v1.2 read excludes v1.3 inferences. | E8-S1, E1-S4 | P1 | MVP; gated on OQ-01 |
 | FR-029 | Inferred triples labelled as inferred in query results and instance views. AC: asserted vs inferred distinguishable in output. | E8-S1 | P1 | MVP |
 | FR-030 | Bulk-populate: CSV/table upload with AI column-to-property mapping + xsd datatype inference sampling ≥ N rows (default 20, tunable, not 1) shown for human correction before commit; rows failing SHACL flagged + skipped with reason; passing rows commit. AC: skipped-row reason surfaced. | E2-S3 | P1 | MVP |
@@ -934,7 +934,7 @@ validation endpoint. No other content area may write except through this gate.
   - AC (failure): if the AI "fix this" helper is unavailable, the raw structured violation (focus node,
     path, severity, message) is still shown so the user can fix it manually.
 - **TASK-003 / E6-S3 — Standalone validation endpoint** (Must; **ships M2** — moved M1→M2 and
-  delivered under EPIC-005's rules-screen task, m2/tasks/TASK-006; re-parent recorded there).
+  delivered under EPIC-005's rules-screen task, v1/tasks/TASK-006; re-parent recorded there).
   - AC: `GET /api/validate` returns a SHACL validation report (JSON-LD or Turtle) listing violations,
     warnings, info, scoped to the caller's tenant.
   - AC (failure): a request for a non-existent version → 404; a request without a valid JWT → 401.
@@ -1072,7 +1072,7 @@ named-graph versioning, inferred-triple labelling, PROV-O.
 **Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006,
 PLAT-AUDIT-1, PLAT-IDENTITY-1 · **blocks:** EPIC-001, EPIC-008 · **provides:** CE-DIFF-1,
 CE-VERSION-1 · **provides (M2, beta):** CE-EVENT-1 (transactional change-feed transport lands M2
-per ADR-008 — M1 does NOT provide CE-EVENT-1; m2/tasks/TASK-008) · **consumes:** PLAT-AUDIT-1,
+per ADR-008 — M1 does NOT provide CE-EVENT-1; v1/tasks/TASK-008) · **consumes:** PLAT-AUDIT-1,
 PLAT-IDENTITY-1
 
 Makes every change auditable and the model versionable: every committed batch produces an append-only
@@ -1127,7 +1127,7 @@ named-graph versioning (semver version IRIs), DCTERMS, append-only audit.
 PLAT-IDENTITY-1, PLAT-SETTINGS-1 · **blocks:** EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005,
 EPIC-007, EPIC-012 · **provides:** CE-READ-1, CE-WRITE-1 · **provides (M2 definition / post-v1
 execution):** CE-FUNCTION-1 · **provides (M2 addition):** kind-level `description` field on
-`GET /api/ontology/types`, sourced from each framework kind's `skos:definition` (m2/tasks/TASK-011)
+`GET /api/ontology/types`, sourced from each framework kind's `skos:definition` (v1/tasks/TASK-011)
 · **consumes:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
 
 Exposes the two core contract-hub interfaces every downstream engine depends on: CE-READ-1, a versioned,
@@ -1236,11 +1236,11 @@ mutation entry point (CE-WRITE-1) with PROV-O attribution and reuses the propose
 find-existing-node reconciliation flow — none introduces a second mutation path. This is user-supplied,
 **materialised-copy** import, distinct from the platform's live managed connectors (PLAT-CONNECTOR-1).
 
-**User stories** *(task IDs resynced 2026-07-08 after the v1 spine insert: v1 TASK-001 = shared
-ingest spine, v1 TASK-003 = document corpus store E12-S6/S7, v1 TASK-008 = import page + epic close —
+**User stories** *(task IDs resynced 2026-07-08 after the v1 spine insert: v1 TASK-012 = shared
+ingest spine, v1 TASK-014 = document corpus store E12-S6/S7, v1 TASK-019 = import page + epic close —
 story→task refs below name the v1 task files)*
 
-- **v1 TASK-002 / E12-S1 — Agent-driven conversational document ingest [USER PRIORITY]** (Must-within-epic,
+- **v1 TASK-013 / E12-S1 — Agent-driven conversational document ingest [USER PRIORITY]** (Must-within-epic,
   FR-038). Upload an existing enterprise document (BPM, policy, runbook, process doc) and have an agent
   propose, through the chat panel, additions linked to what the graph already holds.
   - AC (EARS): WHEN the agent processes an uploaded document, THE SYSTEM SHALL extract candidate entities +
@@ -1258,7 +1258,7 @@ story→task refs below name the v1 task files)*
     extraction is committed; the user can still author via forms/chat once the provider returns.
   - AC (failure — invalid): a proposal that would produce a `sh:Violation` is blocked at commit (422) with
     the violation shown against the proposal; the graph is unchanged.
-- **v1 TASK-004 / E12-S2 — Structured model import (ArchiMate Exchange Format + BPMN)** (Should, FR-039).
+- **v1 TASK-015 / E12-S2 — Structured model import (ArchiMate Exchange Format + BPMN)** (Should, FR-039).
   - AC (EARS): WHEN a well-formed ArchiMate Exchange Format or BPMN (BBO) file is imported, THE SYSTEM
     SHALL convert it to RDF and materialise it through CE-WRITE-1 with a per-notation SHACL
     well-formedness shape checked before commit, mapping ArchiMate/BPMN element types to BPMO
@@ -1268,14 +1268,14 @@ story→task refs below name the v1 task files)*
   - AC (failure): a file failing the per-notation well-formedness SHACL shape is rejected with a per-element
     reason; nothing committed; a partially-valid file commits only the valid elements and reports the
     skipped ones.
-- **v1 TASK-005 / E12-S3 — AI diagram / image-to-data** (Should, FR-040).
+- **v1 TASK-016 / E12-S3 — AI diagram / image-to-data** (Should, FR-040).
   - AC (EARS): WHEN the vision model processes an uploaded image, THE SYSTEM SHALL propose
     BPMO entities + relationships through the same per-proposal review + CE-WRITE-1 commit flow as E12-S1.
   - AC (default, tunable): extraction confidence below a threshold (default 0.6, tunable) flags the
     proposal for explicit review.
   - AC (failure): if the vision model cannot parse the image (unreadable / unsupported), the surface
     returns a clear error and proposes nothing; no partial commit.
-- **v1 TASK-006 / E12-S4 — Structured-data import (R2RML + RML)** (Should, FR-041).
+- **v1 TASK-017 / E12-S4 — Structured-data import (R2RML + RML)** (Should, FR-041).
   - AC (EARS): WHEN the import runs over a source dataset and a mapping, THE SYSTEM SHALL materialise
     RDF committed through CE-WRITE-1 (materialised copy, not a live virtual graph),
     SHACL-validated per row, with PROV-O attribution naming the source.
@@ -1286,7 +1286,7 @@ story→task refs below name the v1 task files)*
     untouched.
   - Note: materialised-copy import, explicitly NOT query-time SPARQL→SQL federation (OQ-17) and distinct
     from the platform's live connectors (Non-Goal #4).
-- **v1 TASK-007 / E12-S5 — SKOS cross-notation reconciliation** (Should, FR-042).
+- **v1 TASK-018 / E12-S5 — SKOS cross-notation reconciliation** (Should, FR-042).
   - AC (EARS): WHEN reconciliation runs over entities ingested from multiple notations that denote the
     same concept, THE SYSTEM SHALL collapse them to **one canonical resource** via the same
     find-existing-node reconciliation flow (same-label + same-kind reuse), so the concept is one punned

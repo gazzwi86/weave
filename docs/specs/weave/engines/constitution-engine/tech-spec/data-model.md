@@ -504,7 +504,7 @@ While the Authority Extension is not populated (always, until post-v1 — ADR-01
 4. An empty result NEVER means "permitted" — the API contract guarantees a `coverage-gap` or `deny`.
 
 The `coverage_gap` SELECT ships M1 (default invocation `(Process, [performedBy, governedBy])`, per
-CE-READ-1). M2 ships base-links `authority()` / `escalation()` at this degrade (m2/tasks/TASK-010);
+CE-READ-1). M2 ships base-links `authority()` / `escalation()` at this degrade (v1/tasks/TASK-010);
 extension-resolved authority (Role/Permission chains, deadlines) is post-v1 (ADR-013). Reference:
 [CE-READ-1 — contracts.md §authority scope](../../../../contracts.md).
 

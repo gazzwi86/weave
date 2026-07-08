@@ -1,18 +1,19 @@
 ---
 type: Task
-title: "Task: TASK-011 — Decision Log (FR-027): Searchable Read-Only View over PLAT-AUDIT-1"
-description: "Searchable, paginated table of agent decisions and ADRs as a filtered proxy over
-  PLAT-AUDIT-1 — never a copy, never fabricated, honest 'audit unavailable' state; brief-linked
-  decisions resolve to their records."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-011 — Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary"
+description: "FastAPI dependency enforcing project admin/editor roles with the company/domain
+  admin-owner overlay read from the PLAT-IDENTITY-1 JWT roles claim (workspace level dropped);
+  company-wide read; every denial is 403 + PLAT-AUDIT-1. Gates every PM mutation shipped in
+  later v1 tasks."
+tags: [build-engine, arch, task, v1]
 status: Backlog
 priority: Must Have
 entity: build-engine
-epic: EPIC-007
+epic: EPIC-002
 milestone: v1.0
 created: 2026-07-08
-blocked_by: [TASK-002]
-unlocks: []
+blocked_by: [TASK-010]
+unlocks: [TASK-014, TASK-017, TASK-020]
 adr_refs: []
 source: hand-authored
 confirmed_by: "none"
@@ -24,125 +25,145 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-011.md
 ---
 
-# Task: TASK-011 — Decision Log (FR-027): Searchable Read-Only View over PLAT-AUDIT-1
+# Task: TASK-011 — Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary
 
 ## Story
 
-**Epic:** [EPIC-007 — Decision Log](../../../build-engine.md#epic-007)
+**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
 **Status:** Backlog · **Priority:** Must Have
 
-**As a** technical architect
-**I want** a searchable log of every agent decision and ADR for a project
-**So that** "why did the agent do that" has a queryable answer with an audit-grade source
+**As a** company (tenant) member
+**I want** project edits restricted to project admins/editors (with company/domain admin-owner
+override) while everyone in the company can read
+**So that** projects are governed without blocking visibility
 
-> **FRs covered:** FR-027. Export (FR-028) is post-v1 — no export affordance. The log is a
-> **view/filter over PLAT-AUDIT-1** (contract: engines keep no independent signed stores).
+> **FRs covered:** FR-060 (role model — defined at M1, enforced here). The role semantics are
+> fixed by the E2-S4 AC in the engine spec: **admin** = project settings, contributors,
+> external bindings, backlog; **editor** = author specs/backlog, run generation; **all company
+> (tenant) users read any project**; **company/domain admin/owner edits any project**.
+> **Role source (pinned):** the overlay and grants come from the **PLAT-IDENTITY-1 JWT `roles`
+> claim** (tenant + project/domain-scoped grants — contracts.md §PLAT-IDENTITY-1, the single
+> contracted source for mutation gates), full record readable at `GET /api/principals/{iri}`;
+> effective precedence via `PLAT-SETTINGS-1`. There is **no workspace-role claim** (workspace
+> dropped 2026-07-08) and the guard invents no bespoke role lookup.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN `GET /api/projects/{id}/decisions?search=` is called, THE SYSTEM SHALL return a paginated, filtered PLAT-AUDIT-1 read (engine=build, project target, decision/ADR event types) with search over event summaries | `should return searchable paginated decisions from audit` |
-| AC-2 | WHEN PLAT-AUDIT-1 is unreachable, THE SYSTEM SHALL show "audit unavailable" — never fabricated entries, never a blank screen | `should show audit unavailable when PLAT-AUDIT-1 unreachable` |
-| AC-3 | WHEN an ADR is linked from a task brief, THE SYSTEM SHALL resolve the link to the corresponding audit record in the log (deep-linkable row) | `should resolve brief adr link to decision log row` |
-| AC-4 | WHEN the log renders, THE SYSTEM SHALL be read-only — no mutation affordance exists anywhere on the surface, and Build persists no copy of audit rows | `should render read-only log with no build-side audit rows` |
-| AC-5 | WHEN search matches zero records, THE SYSTEM SHALL show an empty-state with the active query shown and a clear action — never a blank table | `should show empty state when search matches nothing` |
-| AC-6 | WHEN the first page renders, THE SYSTEM SHALL do so ≤ 1 s (v1-delta §6 budget) with cursor pagination — no full-log fetch | `should paginate decisions with cursor` |
+| AC-1 | WHEN a project admin calls a settings/contributors/bindings mutation, THE SYSTEM SHALL allow it | `should allow settings mutation to project admin` |
+| AC-2 | WHEN a project editor calls a settings or contributors mutation, THE SYSTEM SHALL return 403 AND write a PLAT-AUDIT-1 denial entry (principal, project, action) | `should deny settings mutation to editor and allow to admin` |
+| AC-3 | WHEN a project editor calls a spec/backlog/generation action, THE SYSTEM SHALL allow it | `should allow backlog authoring to editor` |
+| AC-4 | WHEN a principal whose JWT `roles` claim carries a tenant admin/owner grant — or a domain admin/owner grant covering the project's domain — calls any project mutation with no contributor row, THE SYSTEM SHALL allow it (overlay from the claim; PLAT-SETTINGS-1 precedence) | `should allow any project mutation to company or domain admin` |
+| AC-5 | WHEN any company (tenant) member calls a project read with no contributor row, THE SYSTEM SHALL allow it | `should allow project read to any company member` |
+| AC-6 | WHEN a denial occurs and the audit emit fails, THE SYSTEM SHALL still return 403 (the denial never depends on audit availability) | `should return 403 even when audit emit fails` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-GET /api/projects/{id}/decisions?search=&cursor=:
-    return audit_client.query(                       # shared proxy client (see TASK-009 hint)
-        engine="build", target_iri=project_iri,
-        event_types=DECISION_EVENT_TYPES,            # decision, adr, gate verdicts — one
-        search=search, cursor=cursor, limit=50)      #   constants list, not ad-hoc strings
-    on AuditUnreachable -> 503 {error: "audit_unavailable"}      # AC-2
+def require_project_role(action: Action):            # FastAPI dependency factory
+    async def guard(ctx = Depends(request_context), project_id: UUID):
+        # overlay: PLAT-IDENTITY-1 JWT `roles` claim — tenant + project/domain-scoped grants
+        # (contracts.md §PLAT-IDENTITY-1; no workspace-role claim exists)
+        if has_admin_grant(ctx.roles_claim,           # tenant admin/owner, OR domain
+                           domain=project.domain_iri):  # admin/owner covering this project
+            return                                    # precedence via PLAT-SETTINGS-1
+        role = await repo.contributors.get_role(ctx.tenant_id, project_id, ctx.principal_iri)
+        if role_allows(role, action):                 # table: admin ⊇ editor actions
+            return
+        emit_audit_denial(ctx, project_id, action)    # best-effort; never raises to caller
+        raise HTTPException(403)
+    return guard
 
-UI /build/projects/[id]/decisions:
-    <SearchInput urlState/> <DecisionTable rows/> <CursorPager/>
-    row: ts · actor principal · event type · summary · target link
-    deep link: /decisions?record={seq} scrolls to + highlights the row     # AC-3
-    503 -> <AuditUnavailable/>; zero rows -> <EmptyState query/>           # AC-2/AC-5
+ROLE_ACTIONS = {
+  "admin":  {SETTINGS, CONTRIBUTORS, BINDINGS, BACKLOG, SPECS, GENERATE, PROMPT},
+  "editor": {BACKLOG, SPECS, GENERATE, PROMPT},
+}
+# reads carry no guard beyond existing tenancy/auth middleware (AC-5)
 ```
 
 ### API Contracts
 
-`GET /api/projects/{id}/decisions?search=&cursor=` p95 ≤ 800 ms (v1-delta §3; audit-bound).
-Errors: 400 (bad cursor), 403, 503 (`audit_unavailable`), 500. Consumes the PLAT-AUDIT-1
-read/query surface (event shape
-`{seq, ts, actor_principal_iri, engine, event_type, target_iri, diff_summary, signature}`).
-Search is server-side over `diff_summary`/`event_type` via the audit query API — Build adds
-no search index.
+No new endpoint — a dependency consumed by every PM mutation route (TASK-014/007/012/013/014).
+Consumes: JWT `principal_iri` + `roles` claims (`PLAT-IDENTITY-1` — the `roles` claim is the
+contracted role/scope source; `GET /api/principals/{iri}` for the full record if ever needed);
+`project_contributors` via TASK-010 repo; `PLAT-AUDIT-1` emitter (M1
+`audit` module). Denial audit event shape follows the existing emitter's
+`{actor_principal_iri, engine: "build", event_type: "authz_denied", target_iri, diff_summary}`.
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Decision Log → PLAT-AUDIT-1 read view |
-| Contract | `../../../../contracts.md` | §PLAT-AUDIT-1 | Single system of record; views/filters only; event shape |
+| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Role Guard sits between PM API routes and repo_layer |
+| Contract | `../../../../contracts.md` | §PLAT-IDENTITY-1 | `principal_iri` + `roles` claims from JWT (tenant + project/domain grants); no separate resolve call, no bespoke role lookup |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Proxy, never a copy | PLAT-AUDIT-1 contract | Build stores zero audit rows; tamper-evidence stays platform-owned |
-| Decision event types are one constants list | AC-1 | Adding an event type to the log is a one-line change, greppable |
-| Deep-linkable rows by audit `seq` | AC-3 | Brief ADR links and TASK-009's Audit tab share the resolution scheme |
-| Cursor pagination against the audit API | AC-6 | Append-only log ⇒ seq-cursor is stable; OFFSET over an audit log is unbounded |
+| Enforcement at the API boundary, not in queries | FR-060 / E2-S4 AC | One dependency, uniform 403 semantics; RLS still owns tenancy underneath |
+| Admin overlay resolved from the JWT `roles` claim, not the contributor table | contracts.md §PLAT-IDENTITY-1 / `v1-delta.md` §4 note | No row needed for company/domain admins; contributor table stays project-scoped; the claim is the single contracted source |
+| Denial audit is best-effort, denial itself is unconditional | AC-6 | Opposite of HITL fail-closed: a 403 must not become a 500 on audit outage; the *denial* is the safe state |
+| Action sets as one constants table | pseudocode | Adding a role/action later is a one-line change; no scattered `if role ==` checks |
 
 ## Test Requirements
 
-### Unit Tests (minimum 3)
+### Unit Tests (minimum 4)
 
-- `should show empty state when search matches nothing`
-- `should render read-only log with no build-side audit rows` (component + grep-style check:
-  no audit table in Build migrations)
-- `should resolve brief adr link to decision log row`
+- `should allow settings mutation to project admin`
+- `should allow backlog authoring to editor`
+- `should deny contributors mutation to editor` (variant of AC-2 on second action class)
+- `should return 403 even when audit emit fails` (audit stub raising)
 
 ### Integration Tests (minimum 3)
 
-- `should return searchable paginated decisions from audit` (audit stub with seeded events)
-- `should show audit unavailable when PLAT-AUDIT-1 unreachable` (stub down; 503 body asserted)
-- `should paginate decisions with cursor` (two-page fixture)
+- `should deny settings mutation to editor and allow to admin` (real routes, seeded roles;
+  asserts the PLAT-AUDIT-1 stub received the denial entry — Law B backend assertion)
+- `should allow any project mutation to company or domain admin` (JWT fixtures: tenant-admin
+  grant; domain-admin grant covering the project's domain; domain-admin grant for a DIFFERENT
+  domain must be denied)
+- `should allow project read to any company member` (no contributor row)
 
-### E2E Tests (Playwright, minimum 1)
+### E2E Tests
 
-- `should search decisions and open a deep linked record` (search → row → deep link
-  round-trip against the audit stub)
+Deferred to the first UI task that mounts a guarded mutation (TASK-015 asserts the 403 path
+end-to-end through the browser). This task has no UI surface.
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Integration | `should return searchable paginated decisions from audit` |
-| AC-2 | Integration | `should show audit unavailable when PLAT-AUDIT-1 unreachable` |
-| AC-3 | Unit + E2E | `should resolve brief adr link to decision log row` / deep-link E2E |
-| AC-4 | Unit | `should render read-only log with no build-side audit rows` |
-| AC-5 | Unit | `should show empty state when search matches nothing` |
-| AC-6 | Integration | `should paginate decisions with cursor` |
+| AC-1 | Unit | `should allow settings mutation to project admin` |
+| AC-2 | Integration | `should deny settings mutation to editor and allow to admin` |
+| AC-3 | Unit | `should allow backlog authoring to editor` |
+| AC-4 | Integration | `should allow any project mutation to company or domain admin` |
+| AC-5 | Integration | `should allow project read to any company member` |
+| AC-6 | Unit | `should return 403 even when audit emit fails` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-002] (router family; reads are company-open)
-- **unlocks:** []
-- **External prerequisites:** PLAT-AUDIT-1 query/read API (live, M1); audit-proxy client
-  shared with TASK-009's Audit tab (whichever lands first owns the module)
+- **blocked_by:** [TASK-010] (contributor repo methods)
+- **unlocks:** [TASK-014, TASK-017, TASK-020] (TASK-021 consumes the guard transitively via
+  TASK-019)
+- **External prerequisites:** M1 auth middleware surfacing JWT `principal_iri` (live) — this
+  task extends it to parse the PLAT-IDENTITY-1 `roles` claim (Platform mints the claim; contract
+  live per PLAT-IDENTITY-1); M1 audit emitter module (live)
 
 ## Cost Estimate
 
 - **Complexity:** M
-- **Estimated tokens:** ~14k input, ~7k output
-- **Estimated cost:** ~$0.50 (claude-sonnet-5 implementation tier)
+- **Estimated tokens:** ~12k input, ~6k output
+- **Estimated cost:** ~$0.40 (claude-sonnet-5 implementation tier)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
-- [x] API contracts defined
+- [x] API contracts defined (dependency; consumed contracts cited)
 - [x] Diagram references included
 - [x] Design decisions noted
 - [x] Test scenarios specified with types and counts
@@ -154,24 +175,22 @@ no search index.
 - [ ] All AC met
 - [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on the decisions route
-- [ ] `ui_verify` passes; design tokens only
-- [ ] `audit unavailable` greppable (invariants.md verify-by, shared with TASK-009)
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on public APIs/components
-- [ ] Conventional commit(s); PR references this task and EPIC-007
+- [ ] `403` and `PLAT-AUDIT-1` greppable in the same handler path (invariants.md verify-by)
+- [ ] Docstrings on public APIs
+- [ ] Conventional commit(s); PR references this task and EPIC-002
 
 ## Implementation Hints
 
-- Check the Platform audit module for an existing query client before writing one — the M1
-  `audit/` package already emits; a read client may exist for the health check (ADR-002 made
-  it a local DB probe — that decision is being superseded by Platform, verify current state).
-- If the audit query API lacks server-side search at implementation time, filter on
-  `event_type` + paginate server-side and search client-side within the page — and log a
-  coordinator flag; do NOT build a Build-side index (contract violation).
-- The table is the design system's data-table component with virtualised rows; the ≤ 1 s
-  budget is on first page render, not total log size.
+- The M1 `rbac.py` module exists — extend it rather than adding a parallel authz module;
+  the guard should live beside the existing permission helpers.
+- Do not cache role lookups across requests in v1 — a removed contributor must lose access on
+  the next request; one indexed PK lookup per mutation is inside the p95 budgets.
+- The audit emitter already has the best-effort/never-raise wrapper pattern (see the recent
+  metric-emit change on main) — reuse it for the denial emit.
+- Guard *factories* per action class, not per route — routes declare
+  `Depends(require_project_role(SETTINGS))`; resist per-route bespoke checks.
 
 ---
 

@@ -80,7 +80,7 @@ both choke points unchanged (`repo_layer`, `ce_client`).
   backend config: provider select (GitHub/GitLab) + write-only token entry. Build writes the
   token straight to Secrets Manager and stores/returns **the reference name only** — no API
   response, log, or page ever carries the token value (M1 SCM-token confidentiality invariant
-  extended to the UI). Task: v1 TASK-014.
+  extended to the UI). Task: v1 TASK-023.
 - **Visual-state capture producer (FR-020)** — net-new: nothing in M1/M2 produces the 8-state
   captures manifest (verified — the Tests tab would be permanently hollow without it). The
   QA/ASSESS lane gains a Playwright capture step for UI-bearing tasks writing

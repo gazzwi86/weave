@@ -59,7 +59,7 @@ selectors — each invariant maps to a release-gate test per testing-strategy.md
 - With any M2 overlay open, the owning page still meets its engine's Lighthouse/axe gate;
   modals trap focus and return it on close — verify-by: `e2e/onboarding/m2-overlays.spec.ts` + grep `focus trap|overlay open`
 - E3-S2 Business-path CE-METRICS-1 tile un-omit is Platform availability-registry /
-  starter-widget behaviour (Platform E1-S6, Platform M2 TASK-010): onboarding asserts it in
+  starter-widget behaviour (Platform E1-S6, Platform v1 TASK-010): onboarding asserts it in
   E2E, implements nothing — verify-by: `e2e/onboarding/m2-overlays.spec.ts` + grep `starter tile`
 - Release gate fails while any m2 registry anchor is `shipped: false` — verify-by: `e2e/onboarding/m2-overlays.spec.ts` + grep `shipped`
 - Zero new endpoints, services, queues, schema members, or DDL in the M2 window; all state on

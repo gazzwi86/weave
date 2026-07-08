@@ -1,18 +1,18 @@
 ---
 type: Task
-title: "Task: TASK-006 — Registry Grid + Project Settings UI (FR-006/008/009/011, E2-S4 contributors UI)"
-description: "First Build pages in the shared SPA: Registry grid (status cards, filter, name
-  search) and the project settings tabs (governance, model tier, contributors, secrets refs,
-  binding slots placeholder). Design tokens only; Lighthouse + ui_verify gated."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-006 — Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)"
+description: "Implement preflight credential-reference checks (FR-049), the agent
+  self-verification block at HITL handoffs (FR-048), and the rich repo scaffold with mandatory
+  environment-verification HITL gate (FR-050/FR-062) extending the M1 create-and-push floor."
+tags: [build-engine, arch, task, v1]
 status: Backlog
-priority: Must Have
+priority: Should Have
 entity: build-engine
-epic: EPIC-002
-milestone: v1.0
+epic: EPIC-011
+milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-005]
-unlocks: [TASK-013, TASK-014]
+blocked_by: []
+unlocks: []
 adr_refs: []
 source: hand-authored
 confirmed_by: "none"
@@ -24,129 +24,154 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md
 ---
 
-# Task: TASK-006 — Registry Grid + Project Settings UI
+# Task: TASK-006 — Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)
 
 ## Story
 
-**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
-**Status:** Backlog · **Priority:** Must Have
+**Epic:** [EPIC-011 — Dark-Factory Orchestration](../../../build-engine.md#epic-011)
+**Status:** Backlog · **Priority:** Should Have
 
-**As a** product owner
-**I want** a browsable project registry and per-project settings tabs
-**So that** I can find any project fast and govern it without touching an API
+**As a** build operator
+**I want** runs to verify their prerequisites before spending budget, agents to prove rule
+compliance at every handoff, and new repos to arrive fully scaffolded behind a human
+environment check
+**So that** runs fail in second one instead of minute nine, silent rule violations stop at the
+handoff, and no feature work starts on a repo whose CI/secrets/protections aren't verified
 
-> **FRs covered:** FR-006 (grid UI), FR-008/FR-009 (caps + model-tier settings UI), FR-011
-> (secret references display), E2-S4 contributors UI (FR-060), FR-010 binding **slots
-> placeholder** ("available when connectors ship" — live bindings are TASK-013).
+> **FRs covered:** FR-049 (preflight), FR-048 (self-verification block), FR-050 + FR-062 (rich
+> scaffold + environment-verification gate; M1 FR-061 create-and-push remains the floor).
+> **Preflight closes M2 exit criterion 5.**
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN the Registry loads, THE SYSTEM SHALL render status cards (phase, budget, owner, demo status) with filter and name search, interactive ≤ 1 s at 100 projects | `should render filtered searchable registry grid` |
-| AC-2 | WHEN a filter/search resolves to zero projects, THE SYSTEM SHALL show an empty-state message with a clear-filters action — never a blank grid | `should show empty state when no projects match` |
-| AC-3 | WHEN a project admin edits settings (caps, model tier), THE SYSTEM SHALL save via TASK-005 routes; WHEN the API rejects a looser-than-parent cap (422), THE SYSTEM SHALL show the binding parent level in the error — not a generic failure | `should surface binding cascade level on cap rejection` |
-| AC-4 | WHEN an editor (non-admin) views settings, THE SYSTEM SHALL render governance fields read-only and hide mutation affordances; a forced request still 403s server-side (defence in depth — UX mirrors, never replaces, the Role Guard) | `should render settings read-only for editor` |
-| AC-5 | WHEN contributors are managed, THE SYSTEM SHALL support add/change-role/remove with the admin/editor roles only, and explain that read access is company-wide (tenant membership) | `should manage contributors from settings tab` |
-| AC-6 | WHEN secret configuration renders, THE SYSTEM SHALL show reference names only, with no reveal affordance | `should display secret reference names only` |
-| AC-7 | WHEN the bindings tab renders before connectors ship, THE SYSTEM SHALL show the Confluence/Jira/ServiceNow slots as "available when connectors ship" — present, labelled, disabled | `should show binding slots placeholder` |
+| AC-1 | WHEN a run starts and at each phase boundary, THE SYSTEM SHALL verify every required credential **reference** resolves (Secrets Manager describe — names only, never values) and record a `gate_results` row `gate: "preflight"` | `should record preflight row at run start and phase boundary` |
+| AC-2 | WHEN a critical credential reference is missing or unresolvable, THE SYSTEM SHALL STOP the run to HITL naming the missing reference — never proceed degraded | `should stop to HITL when critical credential reference missing` |
+| AC-3 | WHEN preflight reads a credential, THE SYSTEM SHALL never call `get_secret_value` — describe/list only; no secret value in logs, gate rows, or API responses | `should never call get_secret_value in preflight` |
+| AC-4 | WHEN an agent hands off at any HITL boundary, THE SYSTEM SHALL attach a self-verification block — one line per applicable rule, `complied\|violated\|n/a` + confidence note — persisted on the handoff record in the state spine | `should persist self-verification block on handoff` |
+| AC-5 | WHEN any self-verification line reads `violated`, THE SYSTEM SHALL stop that task for revision (not Done, not next phase) | `should stop task for revision on violated line` |
+| AC-6 | WHEN a project repo is bootstrapped (run step 0), THE SYSTEM SHALL additionally apply the rich scaffold: branch-protection rules, full CI workflow, secrets wiring (references), health route + smoke test, git hooks, harness boilerplate | `should apply rich scaffold on bootstrap` |
+| AC-7 | WHEN the rich scaffold completes, THE SYSTEM SHALL fire a mandatory environment-verification HITL gate and SHALL NOT dispatch any feature task until a human (non-self, D9) approves it | `should hold feature tasks until env verification approved` |
+| AC-8 | WHEN any scaffold step fails (e.g. branch-protection API rejects), THE SYSTEM SHALL halt fail-closed with the failing step named — the M1 floor (create+push) does not silently substitute | `should halt naming failing scaffold step` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-routes (Next.js app router, Build module in the shared SPA):
-  /build                       -> RegistryGrid (server component + client filter bar)
-  /build/projects/[id]/settings -> SettingsTabs(governance | contributors | integrations)
+function preflight(run, phase):
+  refs = required_refs(run)        # SCM token, deploy role, CE endpoint, per-project extras
+  results = []
+  for ref in refs:
+    ok = secrets.describe(ref.name) is not None     # names only — AC-3
+    results.append({ref: ref.name, ok, critical: ref.critical})
+  record_gate(run, "preflight", all(r.ok for r in results), {"refs": results, "phase": phase})
+  missing_critical = [r for r in results if r.critical and not r.ok]
+  if missing_critical:
+    fire_hitl_gate("preflight_failed", refs=[r.ref for r in missing_critical])   # AC-2
+    raise RunHalted
 
-RegistryGrid: useQuery(GET /api/projects?filters) -> <ProjectCard/> grid
-  empty result -> <EmptyState onClear={resetFilters}/>            # AC-2
-SettingsTabs:
-  role = useProjectRole()      # from session/contributor payload  # AC-4
-  governance tab: CapFields (cascade level shown per field), ModelTierSelect
-    on 422 CapLooserThanParent -> inline error naming level        # AC-3
-  contributors tab: table + AddContributorDialog (role select: admin|editor)  # AC-5
-  integrations tab: three disabled BindingSlot cards               # AC-7
-all styling via design tokens (docs/standards/design/tokens.md); shadcn primitives
+function self_verify(agent_result, applicable_rules):
+  block = agent_result.self_verification      # produced by agent prompt template (FR-048)
+  validate block covers every applicable_rule with complied|violated|n/a  # missing line = violated
+  state_spine.attach(agent_result.handoff_id, block)                      # AC-4
+  if any(line.status == "violated" for line in block):
+    task.status = "revision"                                             # AC-5
+    raise HandoffRejected(block.violated_lines)
+
+function rich_scaffold(project):              # extends M1 ensure_project_repo (step 0)
+  ensure_project_repo(project)                # M1 floor: create + initial push (FR-061)
+  for step in [branch_protection, ci_workflow, secrets_wiring,
+               health_route_and_smoke, git_hooks, harness_boilerplate]:
+    try: step.apply(project)
+    except ScmError as e:
+      raise ScaffoldFailed(step=step.name, cause=e)                       # AC-8 — fail closed
+  fire_hitl_gate("env_verification", project=project)                     # AC-7
+  project.feature_dispatch_held = True        # released only by gate approval (D9 non-self)
 ```
 
 ### API Contracts
 
-Consumes TASK-005 routes only (`GET /api/projects`, `PATCH settings`, contributors CRUD) —
-shapes pinned there and in `v1-delta.md` §3. No new endpoints.
+No new public endpoint — orchestrator-internal; the env-verification gate surfaces through the
+existing M1 HITL web gate (`PLAT-NOTIFY-1` event + Approve/Amend/Reject). Preflight adds
+≤ 5 s p95 per boundary (within pipeline budget).
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Registry/settings pages → PM Surface API |
-| Design system | `../../../../../standards/design/design.md` | component catalogue | Cards, tables, dialogs, empty states to compose from |
-| Lighthouse | `../../tech-spec/v1-delta.md` | §6 | Page targets + registry render budget |
+| Component | `../../tech-spec/m2-delta.md` | §2 diagram | Preflight before loop; Rich Scaffold extends step 0 |
+| Gate flow | `../../tech-spec/m2-delta.md` | §3.4 | Self-verification at handoffs |
+| M1 baseline | `../../tech-spec/architecture.md` | §Level 3 | scm_step0 + hitl components this task extends |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| UX role-gating mirrors the Role Guard, never replaces it | AC-4 / FR-060 | Hidden affordances are UX; the 403 is the boundary — E2E asserts both |
-| Binding slots ship disabled, not omitted | FR-010 AC | Users see the feature exists and what gates it; TASK-013 flips them live |
-| Server components for grid data, client islands for filters | Next.js 15 default | Keeps the interactive ≤ 1 s budget at 100 projects |
-| No ad-hoc styling values | `docs/standards/design/` | `ui_verify` gate rejects raw hex/px/duration |
+| References, never values | FR-049 / security rule | `describe_secret` only; invariants.md greps preflight for `get_secret_value` absence |
+| Missing self-verify line = violated | this brief (fail-safe) | An agent that omits a rule line is treated as violating it — no silent gaps |
+| Env-verification reuses M1 HITL gate | FR-050/FR-062 | D9 no-self-approval + fail-closed inherited; no new approval flow |
+| Scaffold fail-closed, M1 floor never substitutes silently | FR-062 / M1 repo-bootstrap invariant | Halt + named step; operator decides, not fallback logic |
+| Self-verify block stored on state spine, no new table | m2-delta §3.4 | JSONB on the existing handoff record |
 
 ## Test Requirements
 
-### Unit Tests (minimum 4)
+### Unit Tests (minimum 5)
 
-- `should render filtered searchable registry grid` (component test, mocked query)
-- `should show empty state when no projects match`
-- `should surface binding cascade level on cap rejection`
-- `should display secret reference names only`
+- `should never call get_secret_value in preflight` (spy on secrets client)
+- `should treat missing rule line as violated`
+- `should stop task for revision on violated line`
+- `should halt naming failing scaffold step`
+- `should classify non-critical missing ref as warning not halt`
 
-### Integration Tests (minimum 2)
+### Integration Tests (minimum 4)
 
-- `should render settings read-only for editor` (rendered against role payload)
-- `should show binding slots placeholder`
+- `should record preflight row at run start and phase boundary`
+- `should stop to HITL when critical credential reference missing`
+- `should persist self-verification block on handoff` (state-spine row asserted)
+- `should apply rich scaffold on bootstrap` (SCM stub asserts protection+CI+hooks calls)
+- `should hold feature tasks until env verification approved` (dispatch attempted pre-approval
+  is refused; approved by non-self principal releases)
 
-### E2E Tests (Playwright, minimum 3 — Law B: backend state asserted)
+### E2E Tests
 
-- `should manage contributors from settings tab` (add editor → DB row asserted; remove →
-  row gone; UI reflects)
-- `should deny settings mutation to editor end to end` (editor session forces a PATCH → 403
-  + audit entry asserted server-side; UI shows read-only)
-- `should filter registry and open a project` (grid → settings navigation)
+N/A — orchestrator-internal; the env-verification web gate reuses the M1 HITL surface already
+covered by M1 E2E.
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Unit | `should render filtered searchable registry grid` |
-| AC-2 | Unit | `should show empty state when no projects match` |
-| AC-3 | Unit | `should surface binding cascade level on cap rejection` |
-| AC-4 | Integration + E2E | `should render settings read-only for editor` / `should deny settings mutation to editor end to end` |
-| AC-5 | E2E | `should manage contributors from settings tab` |
-| AC-6 | Unit | `should display secret reference names only` |
-| AC-7 | Integration | `should show binding slots placeholder` |
+| AC-1 | Integration | `should record preflight row at run start and phase boundary` |
+| AC-2 | Integration | `should stop to HITL when critical credential reference missing` |
+| AC-3 | Unit | `should never call get_secret_value in preflight` |
+| AC-4 | Integration | `should persist self-verification block on handoff` |
+| AC-5 | Unit | `should stop task for revision on violated line` |
+| AC-6 | Integration | `should apply rich scaffold on bootstrap` |
+| AC-7 | Integration | `should hold feature tasks until env verification approved` |
+| AC-8 | Unit | `should halt naming failing scaffold step` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-005]
-- **unlocks:** [TASK-013] (extends the integrations tab), [TASK-014] (source-control tab
-  mounts in these settings tabs)
-- **External prerequisites:** `docs/standards/design/` tokens (present); SPA shell routes
-  (Platform, live); Playwright + ui_verify harness (live)
+- **blocked_by:** []
+- **unlocks:** []
+- **External prerequisites:** M1 ScmDriver + HITL gate machinery + state spine (all live);
+  Secrets Manager stubbed in tests (Law F); GitHubDriver/GitLabDriver branch-protection API
+  support (extend both drivers behind the one interface)
 
 ## Cost Estimate
 
 - **Complexity:** L
-- **Estimated tokens:** ~18k input, ~10k output
-- **Estimated cost:** ~$0.70 (claude-sonnet-5 implementation tier)
+- **Estimated tokens:** ~18k input, ~9k output
+- **Estimated cost:** ~$0.65 (claude-sonnet-5 implementation tier; verify pricing in MEMORY.md)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
 - [x] Pseudocode provided
-- [x] API contracts defined (consumes TASK-005; cited)
+- [x] API contracts defined (internal; HITL surface reused)
 - [x] Diagram references included
 - [x] Design decisions noted
 - [x] Test scenarios specified with types and counts
@@ -156,25 +181,28 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing (incl. Playwright E2E with backend assertions)
+- [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on both routes
-- [ ] `ui_verify` gate passes; zero ad-hoc style values (design tokens only)
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on exported components
-- [ ] Conventional commit(s); PR references this task and EPIC-002
+- [ ] No `get_secret_value` in preflight module (invariants.md verify-by)
+- [ ] Docstrings on public APIs
+- [ ] Conventional commit(s); PR references this task and EPIC-011
 
 ## Implementation Hints
 
-- Compose from the design system's existing card/table/dialog/empty-state components
-  (`docs/standards/design/components.md`) — build no bespoke primitives.
-- The role payload for AC-4 comes with the project settings response (TASK-005) — do not add
-  a separate "my role" endpoint.
-- Empty-state and error-state components are design-system catalogue items; the AC-2/AC-3
-  states are compositions, not new patterns.
-- Keep filter state in the URL (searchParams) so filtered views are shareable and the
-  back-button behaves; this also makes the Playwright assertions trivial.
+- `required_refs(run)` derives from project config + run mode — keep it a data table, not
+  branching logic; per-project extras come from `PLAT-SETTINGS-1`.
+- The self-verification block is produced by the **agent prompt template** — this task adds the
+  validator/persistence side and the template line-format contract; the applicable-rule list per
+  principal comes from the M1 agent-role config.
+- Branch protection differs across GitHub/GitLab APIs — implement in each driver behind the
+  existing `ScmDriver` interface method (`apply_branch_protection`); do not leak provider
+  branching into the orchestrator.
+- Harness boilerplate content: render from the effective standards set when present (TASK-001)
+  else the demo-default templates — one call, already-built resolution.
+- `feature_dispatch_held` lives on the project record; the loop's dispatch guard checks it —
+  one boolean, not a new FSM state.
 
 ---
 

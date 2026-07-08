@@ -54,7 +54,7 @@ depend on. CE owns and publishes ALL of the following.
   - **Kind descriptions (added 2026-07-08):** every framework kind carries a `skos:definition`
     (plain-language description) in the shipped ontology, surfaced as a `description` field per
     kind in this response. Consumers (GE side panel, CE authoring surfaces) render it rather than
-    hand-copying glossary text. Authored + exposed by CE M2 TASK-011.
+    hand-copying glossary text. Authored + exposed by CE v1 TASK-011.
   - This is a **framework, not a populated taxonomy** (decision A1): clients extend it with
     their own domain kinds/relationships. Aligned to ArchiMate 3; REA + UFO inform the design
     behind the curtain. Kind/relationship names and cardinalities are finalised in the CE

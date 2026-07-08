@@ -160,7 +160,7 @@ per-task reports.
 - **Title:** Three conformance checks were ruled necessary in the M2/v1 coordinator pass but exist
   only as decision-log checkboxes, not as any brief's AC or a tracked test: (a) JWT
   `principal_iri` claim conformance test — a Cognito config change must not silently break GE
-  attribution (partial ACs exist in GE M2 TASK-004 but no platform-side contract test); (b)
+  attribution (partial ACs exist in GE v1 TASK-004 but no platform-side contract test); (b)
   CE-WRITE-1 idempotency-key contract test — Platform v1 TASK-018 AC-6 depends on the pinned
   semantics (per-tenant key, 24h window, replay→201, diff→409) but CE has no test proving it
   serves them; (c) `ge-canvas-1.md` prop-surface freeze confirmation — frontmatter still

@@ -1,19 +1,19 @@
 ---
 type: Task
-title: "Task: TASK-003 — cost_events Writer (ADR-008): Per-Dispatch Usage Attribution"
-description: "Orchestrator persists one cost_events row per agent dispatch (tokens from the
-  Agent SDK usage block, USD from the PLAT-SETTINGS-1 rate card) and tags PLAT-BILLING-1
-  metering events with task_id/run_id. Rate-card resolution is a run-start preflight."
+title: "Task: TASK-003 — BPMO Retrieval Under 200-Node Cap + Investigator Runs (ADR-005, FR-051)"
+description: "Implement the deterministic seed + weighted k-hop retrieval pipeline for prompt
+  assembly (ADR-005, closes OQ-11) and the read-only investigator overflow path (FR-051):
+  Sandbox-class principal, no sub-spawn, ≤500-token summary to tenant store."
 tags: [build-engine, arch, task, v1]
 status: Backlog
-priority: Must Have
+priority: Should Have
 entity: build-engine
-epic: EPIC-002
-milestone: v1.0
+epic: EPIC-011
+milestone: v1
 created: 2026-07-08
 blocked_by: [TASK-001]
-unlocks: [TASK-004, TASK-012]
-adr_refs: [ADR-008]
+unlocks: []
+adr_refs: [ADR-005]
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -24,127 +24,138 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-003.md
 ---
 
-# Task: TASK-003 — cost_events Writer (ADR-008): Per-Dispatch Usage Attribution
+# Task: TASK-003 — BPMO Retrieval Under 200-Node Cap + Investigator Runs (ADR-005, FR-051)
 
 ## Story
 
-**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
-**Status:** Backlog · **Priority:** Must Have
+**Epic:** [EPIC-011 — Dark-Factory Orchestration](../../../build-engine.md#epic-011)
+**Status:** Backlog · **Priority:** Should Have
 
-**As a** delivery manager
-**I want** every agent dispatch's token usage attributed to its project, task, run, role, and
-model at the moment it happens
-**So that** budgets, forecasts, and breach halts operate on per-task facts instead of a single
-opaque project total
+**As a** dark-factory agent
+**I want** the most relevant 200-node BPMO slice in my prompt, a disclosure when it was
+truncated, and a bounded way to fetch more
+**So that** grounding quality is predictable and worst-case context cost is capped instead of
+unbounded
 
-> **FRs covered:** ADR-008 decisions #1–#3 (write side; the read endpoint + breach check are
-> TASK-004). Closes OQ-05.
+> **FRs covered:** FR-051 (isolated investigator runs); OQ-11 retrieval strategy (ADR-005).
+> Replaces the M1 naive "first 200 via pagination" behaviour in prompt assembly.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN an agent dispatch returns a typed result, THE SYSTEM SHALL persist one `cost_events` row with `{tenant, project_iri, task_id, run_id, agent_role, model, tokens_in, tokens_out, cost_estimate_usd}` taken from the dispatch context + SDK usage block | `should persist one cost event per agent dispatch` |
-| AC-2 | WHEN non-run work consumes tokens (spec drafting, replan), THE SYSTEM SHALL persist the row with `run_id` (and `task_id` where inapplicable) NULL | `should persist cost event with null run id for non-run work` |
-| AC-3 | WHEN `cost_estimate_usd` is computed, THE SYSTEM SHALL resolve the per-model rate from PLAT-SETTINGS-1 (`build.cost.rate_card`) — never a hardcoded price | `should resolve rate card from settings` |
-| AC-4 | WHEN rate-card resolution fails for a routable model at run start, THE SYSTEM SHALL halt the run with a named config error before any dispatch (fail-closed, same posture as model-routing halt) | `should halt run at start when rate card unresolvable` |
-| AC-5 | WHEN a PLAT-BILLING-1 metering event is emitted for a dispatch, THE SYSTEM SHALL include `task_id` and `run_id` metadata; a metering-emit failure SHALL NOT fail the dispatch (never-dropped queue owns delivery) | `should tag billing events with task and run ids` |
-| AC-6 | WHEN a `cost_events` insert fails, THE SYSTEM SHALL log a named warning and continue the dispatch — attribution loss is disclosed, never fatal and never silent | `should disclose and continue when cost event insert fails` |
-| AC-7 | WHEN tenant-B reads cost events, THE SYSTEM SHALL return zero tenant-A rows | covered by TASK-001 `should return zero tenant-B rows for every new v1 table` (cost path re-asserted here) |
+| AC-1 | WHEN prompt assembly retrieves grounding for the same graph fixture and same seed set twice, THE SYSTEM SHALL select the identical 200 nodes (stable score sort, IRI tie-break) | `should select same 200 nodes for same graph and seeds` |
+| AC-2 | WHEN the candidate set exceeds 200, THE SYSTEM SHALL always retain every seed node and cut only expanded nodes | `should always retain seed nodes` |
+| AC-3 | WHEN truncation occurs, THE SYSTEM SHALL set `retrieval_truncated: true` + dropped-count in the run log AND include a truncation notice in the prompt preamble | `should disclose truncation in run log and prompt` |
+| AC-4 | WHEN scoring candidates, THE SYSTEM SHALL use `weight(predicate_class) / (1 + hops)` with weights and `max_hops` resolved via PLAT-SETTINGS-1 (defaults: structural 1.0, associative 0.5, annotation 0.1, k=2) — never hardcoded | `should resolve weights and max_hops from settings` |
+| AC-5 | WHEN an agent requests context beyond the slice, THE SYSTEM SHALL dispatch an investigator run under a read-only Sandbox-class PLAT-IDENTITY-1 principal with no write tools and SHALL reject any investigator attempt to spawn a sub-investigator | `should reject sub-investigator spawn` |
+| AC-6 | WHEN an investigator completes, THE SYSTEM SHALL persist `{pointer, summary ≤ 500 tokens}` to the tenant-scoped summary store and return only the summary to the requesting agent — never the raw subgraph | `should return summary not raw subgraph` |
+| AC-7 | WHEN a tenant-B investigator queries, THE SYSTEM SHALL return zero tenant-A graph entities or summary rows (isolation inherited; no bypass) | `should return zero tenant-A rows for tenant-B investigator` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-# run start (orchestrator, before step 0):
-rate_card = settings.resolve_group("build.cost.rate_card")   # {model_id: usd_per_1k_in/out}
-for model in ALLOWED_MODELS:
-    if model not in rate_card: raise RateCardConfigError(model)   # AC-4, fail-closed
+function retrieve_slice(ctx, seed_iris):
+  cfg = settings.resolve_group("build.retrieval")     # weights, max_hops (AC-4)
+  scores = {iri: INF for iri in seed_iris}            # seeds always survive (AC-2)
+  frontier = seed_iris
+  for hop in 1..cfg.max_hops:
+    edges = ce_client.neighbours(frontier, paginate=True)   # CE-READ-1, ADR-001
+    for (src, predicate, dst) in edges:
+      s = cfg.weight(predicate_class(predicate)) / (1 + hop)
+      scores[dst] = max(scores.get(dst, 0), s)              # max over paths
+    frontier = newly_seen(edges)
+  ranked = sort(scores.items(), by=(-score, iri))            # stable tie-break (AC-1)
+  slice, dropped = ranked[:200], ranked[200:]
+  if dropped:
+    run_log.info(retrieval_truncated=true, dropped=len(dropped))     # AC-3
+    ctx.prompt_preamble += truncation_notice(len(dropped))
+  return slice
 
-# per dispatch (wrap the existing typed-result return path in the PDAC loop):
-def record_dispatch_cost(ctx, dispatch, result):
-    usage = result.usage                        # Agent SDK usage block
-    cost = usage.input_tokens/1000 * rate.in + usage.output_tokens/1000 * rate.out
-    try:
-        repo.cost_events.insert(tenant=ctx.tenant_id, project_iri=ctx.project_iri,
-            task_id=dispatch.task_id, run_id=dispatch.run_id,      # both nullable
-            agent_role=dispatch.role, model=dispatch.model,
-            tokens_in=usage.input_tokens, tokens_out=usage.output_tokens,
-            cost_estimate_usd=cost)
-    except DBError as e:
-        log.warning("cost_event_insert_failed", extra={...})       # AC-6
-    emitter.billing(per_token_event | {"task_id": ..., "run_id": ...})   # AC-5, existing
+function dispatch_investigator(ctx, question):
+  principal = identity.resolve("sandbox_investigator")       # read-only (AC-5)
+  if ctx.caller_is_investigator: raise SubInvestigatorForbidden     # AC-5
+  model = routing.resolve(role="investigator")   # FR-045 — never a hardcoded model literal;
+                                                 # routing miss = halt, not silent invocation
+  result = agent_run(principal, tools=READ_ONLY_TOOLS, prompt=question, model=model)
+  summary = truncate_tokens(result.summary, 500)              # AC-6
+  row = repo.dep_summaries.insert(kind="investigation", pointer=result.pointer,
+                                  summary=summary, tenant=ctx.tenant_id)
+  return summary                                              # never raw subgraph
 ```
 
 ### API Contracts
 
-No new endpoint. Consumes: `PLAT-SETTINGS-1` (rate card group `build.cost.rate_card`, seeded
-defaults for `claude-fable-5` / `claude-sonnet-5` only); `PLAT-BILLING-1` via the existing M1
-Audit + Billing Emitter (additive metadata only — coordinator has relayed the tag note to
-Platform; no contract shape change).
+No new public endpoint — both are orchestrator-internal. Consumes `CE-READ-1` neighbour reads
+(paginated, via `ce_client` only — ADR-001; issues no raw SPARQL). Investigator runs count
+against the M1 turn/budget caps (FR-041); retrieval adds ≤ 10 s p95 to prompt assembly.
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Orchestrator → cost_events writer → Aurora |
-| Decision | `../../decisions/ADR-008.md` | whole file | Why local rollup; why Platform stays invoicing SoR |
-| M1 component | `../../tech-spec/architecture.md` | §Level 3 | Audit + Billing Emitter (the component gaining tags) |
+| Component | `../../tech-spec/m2-delta.md` | §2 diagram | Investigator Dispatch → ce_client; retrieval inside loop |
+| Decision | `../../decisions/ADR-005.md` | whole file | 3-stage pipeline + overflow rationale |
+| Data model | `../../tech-spec/data-model.md` | §State Spine and Dep Summaries | Summary rows reuse `dep_summaries` family |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Attribution at the dispatch site, from the SDK usage block | [ADR-008](../../decisions/ADR-008.md) #1 | No new instrumentation layer; retries and non-run work attribute correctly |
-| Rate card in settings, validated at run start | [ADR-008](../../decisions/ADR-008.md) #2 + AC-4 | Price changes are a settings update; a broken card halts before spend, not per-row |
-| Insert failure = disclosed warning, not dispatch failure | AC-6 | Metering must never kill a run; silent loss is equally banned (run log discloses) |
-| Billing tags additive, Build never reconciles | [ADR-008](../../decisions/ADR-008.md) #3 | Invoicing truth stays with Platform; drift is labelled "estimated" downstream |
+| Deterministic, no vectors/LLM re-rank in M2 | [ADR-005](../../decisions/ADR-005.md) | Pure-function scoring; S3 Vectors is v1.0, do not add |
+| Weights/k as config, not code | [ADR-005](../../decisions/ADR-005.md) | PLAT-SETTINGS-1 group `build.retrieval`; defaults in one constants module |
+| Investigator = Sandbox-class principal, read-only, no sub-spawn | FR-051 / [ADR-005](../../decisions/ADR-005.md) | Tool allowlist at dispatch; spawn guard raises, never warns |
+| Summary ≤ 500 tokens to tenant store | [ADR-005](../../decisions/ADR-005.md) | Reuse `dep_summaries` with `kind="investigation"` — no new table |
+| Seeds survive truncation unconditionally | [ADR-005](../../decisions/ADR-005.md) | INF score for seeds; if seeds alone > 200, error loudly (cannot honour cap) — edge pinned by test |
 
 ## Test Requirements
 
-### Unit Tests (minimum 4)
+### Unit Tests (minimum 5)
 
-- `should resolve rate card from settings`
-- `should halt run at start when rate card unresolvable`
-- `should compute cost from usage block and per-model rates`
-- `should disclose and continue when cost event insert fails`
+- `should select same 200 nodes for same graph and seeds` (300-node fixture, run twice)
+- `should always retain seed nodes`
+- `should resolve weights and max_hops from settings`
+- `should score node by max over multiple paths`
+- `should error loudly when seed set alone exceeds cap`
 
 ### Integration Tests (minimum 3)
 
-- `should persist one cost event per agent dispatch` (orchestrator loop with stub agent
-  runtime; asserts row content — Law B backend assertion)
-- `should persist cost event with null run id for non-run work` (spec-drafting path)
-- `should tag billing events with task and run ids` (emitter stub captures payload)
+- `should disclose truncation in run log and prompt` (fixture graph via CE stub)
+- `should return summary not raw subgraph` (investigator with stub agent runtime)
+- `should return zero tenant-A rows for tenant-B investigator` (two-tenant fixture)
 
 ### E2E Tests
 
-N/A — orchestrator-internal; surfaced to users via TASK-004/TASK-010.
+N/A — orchestrator-internal; no UI surface. `should reject sub-investigator spawn` runs as a
+unit test on the dispatch guard.
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Integration | `should persist one cost event per agent dispatch` |
-| AC-2 | Integration | `should persist cost event with null run id for non-run work` |
-| AC-3 | Unit | `should resolve rate card from settings` |
-| AC-4 | Unit | `should halt run at start when rate card unresolvable` |
-| AC-5 | Integration | `should tag billing events with task and run ids` |
-| AC-6 | Unit | `should disclose and continue when cost event insert fails` |
-| AC-7 | Integration | TASK-001 two-tenant test, cost path |
+| AC-1 | Unit | `should select same 200 nodes for same graph and seeds` |
+| AC-2 | Unit | `should always retain seed nodes` |
+| AC-3 | Integration | `should disclose truncation in run log and prompt` |
+| AC-4 | Unit | `should resolve weights and max_hops from settings` |
+| AC-5 | Unit | `should reject sub-investigator spawn` |
+| AC-6 | Integration | `should return summary not raw subgraph` |
+| AC-7 | Integration | `should return zero tenant-A rows for tenant-B investigator` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-001] (cost_events table + repo)
-- **unlocks:** [TASK-004, TASK-012]
-- **External prerequisites:** M1 Audit + Billing Emitter (live); PLAT-SETTINGS-1 resolution
-  client (live); agent runtime stubbed in tests (Law F)
+- **blocked_by:** [TASK-001] (both modify the E8-S1 generation-context builder; standards lands
+  first to avoid conflicting edits)
+- **unlocks:** []
+- **External prerequisites:** CE-READ-1 neighbour/paginated reads (M1, live); PLAT-IDENTITY-1
+  Sandbox principal (M1, live); agent runtime stubbed in tests (Law F)
 
 ## Cost Estimate
 
-- **Complexity:** M
-- **Estimated tokens:** ~14k input, ~6k output
-- **Estimated cost:** ~$0.45 (claude-sonnet-5 implementation tier)
+- **Complexity:** L
+- **Estimated tokens:** ~18k input, ~8k output
+- **Estimated cost:** ~$0.60 (claude-sonnet-5 implementation tier; verify pricing in MEMORY.md)
 
 ## Definition of Ready Checklist
 
@@ -153,7 +164,7 @@ N/A — orchestrator-internal; surfaced to users via TASK-004/TASK-010.
 - [x] Pseudocode provided
 - [x] API contracts defined (internal; consumed contracts cited)
 - [x] Diagram references included
-- [x] Design decisions noted (ADR-008)
+- [x] Design decisions noted (ADR-005)
 - [x] Test scenarios specified with types and counts
 - [x] Dependencies defined
 - [x] Cost estimate provided
@@ -165,22 +176,27 @@ N/A — orchestrator-internal; surfaced to users via TASK-004/TASK-010.
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] No literal USD rate in code (invariants.md verify-by: settings resolution only)
+- [ ] `retrieval_truncated` greppable in run-log emit (invariants.md verify-by)
 - [ ] Docstrings on public APIs
-- [ ] Conventional commit(s); PR references this task and EPIC-002
+- [ ] Conventional commit(s); PR references this task and EPIC-011
 
 ## Implementation Hints
 
-- The typed-result return path in `build/orchestrator.py` is the single wrap point — every
-  dispatch (PLAN/DELEGATE/ASSESS/CODIFY, investigator, drafting) flows through it; do not
-  instrument agents individually.
-- Keep the writer off the critical path the same way the recent best-effort metric-emit change
-  did (see `perf(ce)` commits on main) — but the *insert* is synchronous-cheap (one row); only
-  the billing emit rides the queue.
-- Rate card keys are exactly the confirmed model IDs; do not add speculative entries for
-  models the router can't select (`ALLOWED_MODELS` is the validation universe).
-- `RateCardConfigError` should surface through the existing run-halt HITL path (same UX as
-  `ModelRoutingError`), not a new error channel.
+- `predicate_class(predicate)` is a lookup over one shipped config map (structural/associative/
+  annotation IRI sets from the BPMO upper framework served by `GET /api/ontology/types` — treat
+  that endpoint as authoritative, never hand-copy the kind list per ontology-standards rule).
+  Structural (1.0) includes `partOf`, `dependsOn`, `governedBy`, `realizes` (American spelling —
+  the served IRI), `hasStep`, `performedBy`, `consumes`, `produces` (ADR-005). Key the map by
+  served predicate IRIs: unknown predicate ⇒ annotation weight, logged once — a hand-misspelled
+  entry silently drops to 0.1, which is why hand-copying is banned here.
+- Score container: plain dict + `heapq.nlargest(200, ...)` — no graph library; the fixture is
+  300 nodes, production graphs page through `ce_client`.
+- Truncation notice in the prompt must state dropped-count and that the investigator path
+  exists — that is what makes the agent's "request more" behaviour discoverable.
+- `truncate_tokens` reuses the M1 token-counting util from cost estimation (FR-004) — do not
+  add a tokenizer dependency.
+- Investigator READ_ONLY_TOOLS: graph read + repo read only — no ScmDriver, no write-back, no
+  file writes. Assert the allowlist in the spawn-guard unit test, not just the guard flag.
 
 ---
 

@@ -1499,7 +1499,7 @@ post-v1 gate or ships as a v1-interim feature release, depending on ship order.
 
 **Dependency:** gated on the M2 CE/Explorer/Platform feature set being in implementation. See
 `../weave-spec.md §M2` and [../contracts.md](../contracts.md) for M2 contract scope. Tasks:
-`onboarding/m2/tasks/` (TASK-001–005); delta spec: `onboarding/tech-spec/m2-delta.md`
+`onboarding/v1/tasks/` (TASK-001–005); delta spec: `onboarding/tech-spec/m2-delta.md`
 (red-team remediated 2026-07-08 — per-anchor shipped signal ADR-008; competency flag manual).
 
 ### post-v1: Full Hammerbarn demo — Build & Events seed, tours, and exercises (Build+Events GA)

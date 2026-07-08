@@ -1,18 +1,19 @@
 ---
 type: Task
-title: "Task: TASK-007 — Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm"
-description: "Pin-diff proxy endpoint (nodes+edges since the project's pinned CE version),
-  explicit-confirmation upgrade endpoint with audit, and the settings-tab upgrade dialog
-  wired to the M2 staleness indicator."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-007 — Full QA Category Suite (E12-S3, FR-054)"
+description: "Implement the full QA suite the phase-gate ceremony invokes: nine categories
+  (AC↔test mapping, coverage, complexity, lint, a11y, perf-vs-SLO, browser+backend assertion,
+  delta mutation, edge-case extension), each producing a category verdict; unavailable
+  category = NOT VERIFIED = suite fail."
+tags: [build-engine, arch, task, v1]
 status: Backlog
 priority: Must Have
 entity: build-engine
-epic: EPIC-002
-milestone: v1.0
+epic: EPIC-012
+milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-005]
-unlocks: []
+blocked_by: []
+unlocks: [TASK-008]
 adr_refs: []
 source: hand-authored
 confirmed_by: "none"
@@ -24,129 +25,143 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md
 ---
 
-# Task: TASK-007 — Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm
+# Task: TASK-007 — Full QA Category Suite (E12-S3, FR-054)
 
 ## Story
 
-**Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
+**Epic:** [EPIC-012 — Quality Gates & Spec-Coverage](../../../build-engine.md#epic-012)
 **Status:** Backlog · **Priority:** Must Have
 
-**As a** technical architect
-**I want** to see exactly what changed in the ontology since my project's pin, and upgrade
-only on explicit confirmation
-**So that** a pin upgrade is an informed decision, never a surprise re-grounding
+**As a** phase-gate ceremony
+**I want** a QA suite that runs every applicable category against the generated project and
+never silently skips one
+**So that** "QA passed" means every category was actually evaluated — a category that could not
+run is a failure, not a footnote
 
-> **FRs covered:** FR-012. Builds on FR-036 (M2 staleness indicator — the trigger surface)
-> and `CE-DIFF-1` (nodes+edges diff between version IRIs).
+> **FRs covered:** FR-054. This suite is a callable the ceremony (TASK-008) invokes; it extends
+> the M1 DoD gate runner (FR-047 — QA agent self-runs commands, unrunnable = NOT VERIFIED)
+> from 5 commands to 9 categories with per-category applicability rules.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN `GET /api/projects/{id}/pin-diff` is called, THE SYSTEM SHALL return the CE-DIFF-1 delta between `pinned_graph_version_iri` and the newest published version — the triple delta plus the response's ordered `versions: [{version_iri, breaking}]` span passed through verbatim (CE computes `breaking` at publish, covering function-signature AND shape/kind changes; Build never derives it) | `should return pin diff between pinned and latest version` |
-| AC-2 | WHEN CE is unreachable during diff, THE SYSTEM SHALL return a named "diff unavailable" error — the UI renders it as such, never an empty diff (an empty diff reads as "no changes", a false-safe signal) | `should return diff unavailable not empty diff when CE unreachable` |
-| AC-3 | WHEN `POST /api/projects/{id}/pin-upgrade` is called, THE SYSTEM SHALL require the request to echo the exact target `version_iri` shown in the diff (the explicit confirmation) and reject a mismatch with 409 | `should reject pin upgrade when confirmed version mismatches latest` |
-| AC-4 | WHEN the upgrade commits, THE SYSTEM SHALL update `pinned_graph_version_iri`, write a PLAT-AUDIT-1 entry (old pin, new pin, principal), and the staleness indicator SHALL read current on next fetch | `should upgrade pin atomically with audit entry` |
-| AC-5 | WHEN the upgrade dialog renders a diff containing `breaking: true` versions, THE SYSTEM SHALL visually flag the breaking span and require a second acknowledgement affordance before enabling confirm | `should require breaking acknowledgement before confirm` |
-| AC-6 | WHEN a non-admin attempts the upgrade, THE SYSTEM SHALL 403 + audit (SETTINGS guard class) | covered by Role Guard suite (TASK-002); route registration asserted here |
+| AC-1 | WHEN the suite runs, THE SYSTEM SHALL evaluate all applicable categories — `ac_test_mapping`, `coverage` (≥ 80%), `complexity` (Law E thresholds), `lint`, `a11y` (axe / WCAG 2.1 AA), `perf` (vs project SLOs), `browser_backend` (browser automation + backend-state assertion), `delta_mutation` (≥ 70%), `edge_case_extension` — and record one `gate_results` row per category | `should record one gate row per applicable category` |
+| AC-2 | WHEN a category's tool cannot run or is absent, THE SYSTEM SHALL record that category `not_verified` and the overall suite FAIL — never skipped, never warned-and-passed | `should record not_verified and fail suite when qa category unavailable` |
+| AC-3 | WHEN the generated project has no UI, THE SYSTEM SHALL mark `a11y` and `browser_backend` `n/a` (with reason) — `n/a` with a recorded reason does not fail the suite; only `not_verified` does | `should mark a11y n/a with reason for headless project` |
+| AC-4 | WHEN `ac_test_mapping` runs, THE SYSTEM SHALL verify every AC in the project's task briefs maps to a named test present in the test tree; an unmapped AC is a category failure listing the AC IDs | `should fail ac mapping listing unmapped ac ids` |
+| AC-5 | WHEN `browser_backend` runs for a UI project, THE SYSTEM SHALL execute the Playwright lane AND assert backend state changed (Law B) — a UI-only pass without a backend assertion is a category failure | `should fail browser category without backend assertion` |
+| AC-6 | WHEN all applicable categories pass, THE SYSTEM SHALL return an aggregate PASS with the per-category evidence bundle for the ceremony record | `should aggregate pass with evidence bundle` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-GET /pin-diff (guard: read — any company (tenant) member):
-    latest = ce_client.current_version()
-    diff = ce_client.diff(project.pinned_graph_version_iri, latest)   # CE-DIFF-1
-    return {from, to: latest, nodes, edges,
-            versions: diff.versions}   # ordered [{version_iri, breaking}] — CE-DIFF-1
-                                       # passthrough; same source as the M2 sdk_breaking_ack check
-    on CEUnreachable -> 503 {error: "diff_unavailable"}               # AC-2
+CATEGORIES = [   # (name, applicability, runner)
+  ("ac_test_mapping",    always,       run_ac_mapping),
+  ("coverage",           always,       cmd("pytest --cov --cov-fail-under=80 / vitest --coverage")),
+  ("complexity",         always,       run_complexity_budget),      # Law E thresholds
+  ("lint",               always,       cmd("ruff check / eslint")),
+  ("a11y",               ui_only,      cmd("playwright + axe-core, WCAG 2.1 AA")),
+  ("perf",               has_slo,      run_perf_vs_slo),
+  ("browser_backend",    ui_only,      run_browser_with_backend_assert),   # AC-5
+  ("delta_mutation",     always,       cmd("mutmut/Stryker delta ≥ 70%")),
+  ("edge_case_extension",always,       run_edge_case_extension),
+]
 
-POST /pin-upgrade (guard: SETTINGS):
-    if body.confirm_version_iri != ce_client.current_version(): raise 409   # AC-3
-    async with tx:                                                     # AC-4
-        repo.projects.update_pin(project_id, new=body.confirm_version_iri)
-        emit_audit(pin_upgrade, old, new, ctx.principal_iri)           # in-tx outbox per
-                                                                       # existing emitter pattern
-UI (settings governance tab):
-    StalenessBadge (existing FR-036 read) -> "Review upgrade" opens PinDiffDialog
-    PinDiffDialog: node/edge delta list; breaking span -> AckCheckbox gates Confirm  # AC-5
-    Confirm posts {confirm_version_iri: diff.to}
+function run_full_qa(project, run):
+  results = []
+  for (name, applicable, runner) in CATEGORIES:
+    if not applicable(project):
+      results.append((name, "n_a", {"reason": why_not(project, name)}))   # AC-3
+      continue
+    try:
+      verdict, evidence = runner(project)          # QA agent self-runs (FR-047 pattern)
+    except ToolUnavailable as e:
+      verdict, evidence = "not_verified", {"tool": e.tool}                # AC-2
+    results.append((name, verdict, evidence))
+    record_gate(run, f"qa_{name}", verdict, evidence)                     # AC-1
+  overall = PASS if all(v in ("passed","n_a") for (_, v, _) in results) else FAIL
+  record_gate(run, "qa_full", overall, {"categories": summarise(results)})
+  return overall, results
 ```
 
 ### API Contracts
 
-`GET /api/projects/{id}/pin-diff` p95 ≤ 2 s (CE-bound; v1-delta §3) ·
-`POST /api/projects/{id}/pin-upgrade` p95 ≤ 800 ms. Errors: 403, 404, 409 (confirm
-mismatch), 503 (diff unavailable), 500. Consumes `CE-DIFF-1` + `CE-VERSION-1` via `ce_client`
-only (ADR-001 — no raw SPARQL), `PLAT-AUDIT-1` emitter.
+No public endpoint — invoked by the ceremony (TASK-008) and available to the orchestrator.
+Suite budget: within the ceremony's ≤ 10 min p95 ex-human (m2-delta §7); long lanes (mutation,
+Playwright) stream progress to the run log.
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | Pin Upgrade → ce_client path |
-| Contract | `../../../../contracts.md` | §CE-DIFF-1 (breaking-span) | Diff shape + ordered `versions[].breaking` span — the one contracted breakingness source (`any(v.breaking)` in one call) |
-| M2 staleness | `../../tech-spec/m2-delta.md` | §3.5 | The indicator this flow hangs off |
+| Ceremony flow | `../../tech-spec/m2-delta.md` | §3.3 | Suite is ceremony step 3 |
+| M1 baseline | `../../tech-spec/architecture.md` | §Level 3 | DoD gate runner this extends (FR-047 semantics) |
+| Testing | `../../tech-spec/testing-strategy.md` | whole file | Framework/tooling conventions per language |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Confirmation = echo the target version IRI | AC-3 | Race-proof: a version published mid-review invalidates the confirm (409) instead of upgrading past what was reviewed |
-| Empty diff is never synthesised from an error | AC-2 | Mirrors the staleness "unknown" honesty rule; CE outage must look like an outage |
-| Breaking span needs a second acknowledgement | AC-5 | Same posture as the SDK `sdk_breaking_ack` gate (M2) — breaking is never one-click |
-| Upgrade + audit in one transaction (outbox) | AC-4 | No pin change without its audit trail |
+| `not_verified` ≠ `n_a` | FR-054 + this brief | Unavailable tool fails; inapplicable-with-reason doesn't — the distinction is the honesty rule |
+| Extends the FR-047 runner pattern | M1 TASK-007 | Same self-run/no-simulation discipline; categories are data, not bespoke code paths |
+| One gate row per category + one aggregate | m2-delta §4 | `qa_*` kinds in the open enum; ceremony consumes the aggregate, audit reads categories |
+| Applicability is project-derived, not config | this brief | `ui_only` = project has UI packages; `has_slo` = SLOs declared in spec; no manual toggles to forget |
+| Browser lane must assert backend state | Plugin Law B | Playwright test that only reads the DOM fails the category |
 
 ## Test Requirements
 
-### Unit Tests (minimum 3)
+### Unit Tests (minimum 5)
 
-- `should reject pin upgrade when confirmed version mismatches latest`
-- `should return diff unavailable not empty diff when CE unreachable` (ce_client stub raising)
-- `should require breaking acknowledgement before confirm` (dialog component test)
+- `should record not_verified and fail suite when qa category unavailable`
+- `should mark a11y n/a with reason for headless project`
+- `should fail ac mapping listing unmapped ac ids`
+- `should fail browser category without backend assertion` (evidence lacks backend assert)
+- `should aggregate pass with evidence bundle`
 
-### Integration Tests (minimum 2)
+### Integration Tests (minimum 3)
 
-- `should return pin diff between pinned and latest version` (CE stub with fixture versions)
-- `should upgrade pin atomically with audit entry` (asserts row + audit stub payload — Law B)
+- `should record one gate row per applicable category` (fixture project, stub runners)
+- `should run real coverage and lint runners against fixture project` (small seeded repo)
+- `should stream long-lane progress to run log` (stub mutation lane)
 
-### E2E Tests (Playwright, minimum 1)
+### E2E Tests
 
-- `should review diff and upgrade pin end to end` (staleness badge → dialog → confirm →
-  badge reads current; `pinned_graph_version_iri` asserted server-side)
+The suite itself IS the E2E machinery for generated projects; its own E2E proof is the
+ceremony lane in TASK-008 (fixture app through ceremony incl. this suite).
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Integration | `should return pin diff between pinned and latest version` |
-| AC-2 | Unit | `should return diff unavailable not empty diff when CE unreachable` |
-| AC-3 | Unit | `should reject pin upgrade when confirmed version mismatches latest` |
-| AC-4 | Integration + E2E | `should upgrade pin atomically with audit entry` / E2E flow |
-| AC-5 | Unit | `should require breaking acknowledgement before confirm` |
-| AC-6 | Integration | Role Guard suite; route registration check |
+| AC-1 | Integration | `should record one gate row per applicable category` |
+| AC-2 | Unit | `should record not_verified and fail suite when qa category unavailable` |
+| AC-3 | Unit | `should mark a11y n/a with reason for headless project` |
+| AC-4 | Unit | `should fail ac mapping listing unmapped ac ids` |
+| AC-5 | Unit | `should fail browser category without backend assertion` |
+| AC-6 | Unit | `should aggregate pass with evidence bundle` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-005] (settings tab + guard-wired router family)
-- **unlocks:** []
-- **External prerequisites:** `CE-DIFF-1` endpoint (live since CE M2); FR-036 staleness read
-  (live since Build M2); `ce_client` (M1)
+- **blocked_by:** []
+- **unlocks:** [TASK-008]
+- **External prerequisites:** QA tooling in the agent execution image (ruff/eslint, pytest/vitest,
+  mutmut/Stryker, Playwright + axe-core); M1 DoD runner (FR-047) as the extension seam
 
 ## Cost Estimate
 
-- **Complexity:** M
-- **Estimated tokens:** ~14k input, ~7k output
-- **Estimated cost:** ~$0.50 (claude-sonnet-5 implementation tier)
+- **Complexity:** L
+- **Estimated tokens:** ~18k input, ~9k output
+- **Estimated cost:** ~$0.65 (claude-sonnet-5 implementation tier; verify pricing in MEMORY.md)
 
 ## Definition of Ready Checklist
 
 - [x] User story clear
 - [x] All AC have mapped tests
-- [x] Pseudocode provided
-- [x] API contracts defined
+- [x] Pseudocode provided (categories as data table)
+- [x] API contracts defined (internal callable; budget stated)
 - [x] Diagram references included
 - [x] Design decisions noted
 - [x] Test scenarios specified with types and counts
@@ -156,25 +171,28 @@ only (ADR-001 — no raw SPARQL), `PLAT-AUDIT-1` emitter.
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing (incl. Playwright E2E with backend assertion)
+- [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] `confirm` greppable in the pin-upgrade handler (invariants.md verify-by)
-- [ ] Dialog passes ui_verify; Lighthouse targets hold on the settings route
+- [ ] `not_verified` greppable in suite module (invariants.md verify-by)
 - [ ] Docstrings on public APIs
-- [ ] Conventional commit(s); PR references this task and EPIC-002
+- [ ] Conventional commit(s); PR references this task and EPIC-012
 
 ## Implementation Hints
 
-- `ce_client` already wraps CE-VERSION-1/CE-DIFF-1 from M1/M2 — this task adds routes + UI,
-  not client methods (check before writing new ones).
-- The diff payload can be large on a stale pin; render nodes/edges as virtualised lists and
-  summarise counts up top — the p95 budget is on the API, the dialog must not choke on 1k rows.
-- Reuse the M2 `sdk_breaking_ack` visual language for the breaking span flag (consistency:
-  breaking looks the same everywhere).
-- Audit emit uses the existing in-tx outbox pattern from the M1 emitter — do not emit
-  post-commit fire-and-forget for a governance change.
+- Keep `CATEGORIES` a module-level data table — the M1 DoD runner already proves the
+  loop-over-commands shape; nine categories should not mean nine functionsful of orchestration.
+- `edge_case_extension`: QA agent proposes additional edge-case tests for uncovered boundaries
+  and runs them — this is the one LLM-involved category; its verdict is based on the *tests
+  executing*, not on model opinion (failing proposed test = finding, not category fail unless
+  it reveals an AC violation).
+- `run_perf_vs_slo`: SLOs come from the generated project's spec record; absent SLOs ⇒ `has_slo`
+  false ⇒ `n_a` with reason — do not invent default SLOs.
+- Evidence bundles go in the `gate_results.failing_checks` JSONB (naming kept from M1 even for
+  pass evidence) — truncate tool output to 2k chars per category, full output to the run log.
+- a11y lane: axe-core via Playwright fixture, WCAG 2.1 AA ruleset only — do not enable
+  experimental rules (noise fails ceremonies).
 
 ---
 

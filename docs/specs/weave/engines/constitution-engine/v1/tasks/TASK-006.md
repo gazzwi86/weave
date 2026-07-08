@@ -1,20 +1,20 @@
 ---
 type: Task
-title: "Task: TASK-006 — Structured-Data Import: R2RML + RML (morph-kgc), OCEL Reference Mapping"
-description: "E12-S4 (FR-041): morph-kgc executes user-supplied R2RML/RML mappings over uploaded
-  dumps (SQLite/CSV/JSON/XML), per-row SHACL skip-and-report through CE-WRITE-1; ships the OCEL
-  2.0 reference RML mapping (ADR-010). No live connection strings (ADR-012)."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, r2rml, rml, ocel]
+title: "Task: TASK-006 — Rules & Policies Screen + Full Validation Report API"
+description: "Browse all modelled rules with live violation coverage and a 'validation pending'
+  state (E5-S3), plus GET /api/validate returning the full tenant-scoped SHACL report
+  (FR-027 / E6-S3 — moved M1→M2, delivered under EPIC-005)."
+tags: [constitution-engine, arch, task, milestone-v1]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
-priority: Should Have
+priority: Must Have
 entity: constitution-engine
-epic: EPIC-012
+epic: EPIC-005
 milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-001]
-unlocks: [TASK-008]
-adr_refs: [ADR-010, ADR-012]
+blocked_by: ["TASK-005"]
+unlocks: []
+adr_refs: []
 source: hand-authored
 confirmed_by: "none"
 confirmed_on: null
@@ -24,157 +24,125 @@ owner: gazzwi86
 coverage: "n/a"
 ---
 
-Engine spec: [constitution-engine.md](../../../constitution-engine.md) (FR-041, E12-S4) ·
-Contracts: [contracts.md](../../../../contracts.md) (CE-WRITE-1) · v1 delta:
-[v1-delta.md](../../tech-spec/v1-delta.md) §1–§2, §6 · ADRs:
-[ADR-010](../../decisions/ADR-010.md) (materialised copy; OCEL rides this path),
-[ADR-012](../../decisions/ADR-012.md) (morph-kgc; mappings are corpus artefacts;
-uploaded-dumps-only)
+Engine spec: [constitution-engine.md](../../../constitution-engine.md) (EPIC-005, FR-027)
+Contracts: [contracts.md](../../../../contracts.md) · M2 delta:
+[m2-delta.md](../../tech-spec/m2-delta.md) §3, §7, §9
 
 ## Story
 
-As a data owner with CMDB exports, spreadsheets, or OCEL event logs, I want to run a W3C
-R2RML/RML mapping over an uploaded dataset and get SHACL-validated graph rows, so structured
-inventories seed the graph as a materialised, versioned copy.
+As a compliance officer, I need to see every modelled rule and which entities currently violate
+it — with an honest "validation pending" state instead of stale numbers — so I can prove coverage
+to an auditor from the screen, not from tribal knowledge.
 
 ## Scope
 
-The RML extractor plugin (kind=`dataset`). IN: mapping upload (Turtle, a corpus artefact per
-ADR-012), source upload (SQLite dump / CSV / JSON / XML), morph-kgc execution in the worker,
-per-row SHACL with skip-and-report, datatype inference sampling (≥ 20 rows, settings
-`ingest.datatype_inference_sample_rows`), committed-vs-skipped summary (FR-030-consistent),
-and the shipped **OCEL 2.0 reference RML mapping** as a documented example (closes OQ-14's
-build side). Deterministic — no LLM. OUT: live connection strings (ADR-012 — config schema has
-no DSN field), visual mapping editor (deferred), query-time federation (ADR-010).
+Rules & Policies screen — EPIC-005 story **E5-S3** (rule list + per-rule violation coverage +
+severity display incl. `sh:Info`) — and the `GET /api/validate` full-report endpoint (FR-027).
+**Provenance note:** `GET /api/validate` is PO story **E6-S3** (EPIC-006, originally an M1
+Must); it ships **M2**, re-parented into this EPIC-005 rules-screen delivery — the M1→M2 move
+and the EPIC-006→EPIC-005 re-parent are recorded in the engine spec (FR-027 phase column and
+the EPIC-006 E6-S3 story note). Scheduled self-audit (E5-S2 + PLAT-NOTIFY-1) is Phase 4 — OUT.
+UI-bearing: tokens + `ui_verify` apply.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-006-01 | WHEN an import runs over an uploaded source + mapping THE SYSTEM SHALL materialise RDF committed through CE-WRITE-1 (batched), SHACL-validated, with PROV-O naming the source dataset AND the mapping via `prov:used`. |
-| AC-006-02 | WHEN rows fail SHACL THE SYSTEM SHALL skip them with a per-row reason (violations mapped back to source rows) and commit the rest (`failing-rows-skip-and-report`), reporting a committed-vs-skipped summary consistent with the bulk-CSV flow (FR-030). Skip granularity is the FK-connected proposal batch (AC-006-09); the summary counts every source row inside a skipped batch, each with its reason. |
-| AC-006-03 | WHEN the mapping is malformed THE SYSTEM SHALL reject it before any commit with a clear error; the store is untouched. |
-| AC-006-04 | WHEN datatype inference runs THE SYSTEM SHALL sample ≥ N rows (default 20, from settings) before typing a column. |
-| AC-006-05 | WHEN a mapping config is submitted THE SYSTEM SHALL accept only uploaded-dump source references — no DSN/connection-string field exists in the schema (ADR-012; invariants delta). |
-| AC-006-06 | WHEN an OCEL 2.0 JSON log is imported with the shipped reference mapping THE SYSTEM SHALL land events as `Event` individuals and object types as their mapped BPMO kinds, unmapped→Concept flagged (ADR-010) — no process-mining output of any kind. |
-| AC-006-07 | WHEN mapped rows re-mention existing entities THE SYSTEM SHALL reuse via find-existing-node (CE-WRITE-1 dedup also backstops at commit). |
-| AC-006-08 | WHEN the AI provider is down THE SYSTEM SHALL still run this import end-to-end (deterministic lane). |
-| AC-006-09 | WHEN mapped rows reference each other across tables (cross-table FK edges) THE SYSTEM SHALL batch the FK-connected rows into ONE CE-WRITE-1 op-batch, with new nodes carrying local `ref`s and FK edges targeting those `ref`s so they resolve **in-batch** (CE-WRITE-1 multi-op semantics) — no FK edge may dangle and 422 because its target lives in a sibling proposal (`fk-edges-resolve-in-batch`). Circular FK groups are handled two-pass **within the batch**: all `add_node` ops first, then all `add_edge` ops. |
+| AC-006-01 | WHEN `GET /api/validate?version=latest\|{iri}\|draft` is called THE SYSTEM SHALL return the full tenant-scoped SHACL report — violations, warnings, info — each entry carrying shape IRI, focus node, path, message, severity. |
+| AC-006-02 | WHEN `GET /api/validate` is called with an unknown version THE SYSTEM SHALL return 404; without a JWT, 401 (FR-027 error floor). |
+| AC-006-03 | WHEN the rules screen lists shapes THE SYSTEM SHALL show framework AND tenant shapes with severity, description, and the count + list of entities currently in violation. |
+| AC-006-04 | WHEN validation has not yet run for the current draft state THE SYSTEM SHALL show "validation pending" — never stale counts and never an empty state readable as "no violations". |
+| AC-006-05 | WHEN a rule row is expanded THE SYSTEM SHALL list violating entities with links to their resource views. |
+| AC-006-06 | WHEN the full report is requested THE SYSTEM SHALL respond p95 ≤ 2 s at the 100k store with governance shapes loaded (m2-delta §9). |
+| AC-006-07 | WHEN the rules page renders THE SYSTEM SHALL meet Lighthouse ≥ 90 perf / ≥ 95 a11y with design tokens only. |
 
 ## Pseudocode
 
 ```text
-class RmlExtractor(Extractor):               # kind='dataset'; job carries mapping_artefact_iri
-    def extract(job):
-        mapping = corpus.fetch(job.mapping_artefact_iri)      # Turtle, ADR-012
-        try: config = morph_kgc_config(source=local_path(job.artefact), mapping=mapping)
-        except MappingError as e: fail_job(str(e))            # before any commit
-        triples = morph_kgc.materialize(config)               # in-process
-        # Group subjects, then merge subject-groups that reference each other into
-        # FK-connected components — cross-table FK edges must resolve IN one batch:
-        groups     = group_by_subject(triples)
-        components = connected_components(groups,             # union-find over
-                          edges=cross_subject_references)     # subject->subject objects
-        for comp in components:                               # ONE proposal per component
-            node_ops = [add_node(ref=local_ref(g), kind=kind_of(g) or
-                            (settings.unmapped_default, flag=True), props=...)
-                        for g in comp.groups]                 # pass 1: ALL nodes (refs)
-            edge_ops = [add_edge(src_ref, pred, dst_ref_or_iri)
-                        for e in comp.edges]                  # pass 2: ALL edges — refs
-                                                              # resolve in-batch, so circular
-                                                              # FKs cannot dangle
-            yield Candidate(ops=node_ops + edge_ops, confidence=1.0,
-                            matches=find_existing_node_per_group(comp),
-                            reason=row_reasons_if_flagged(comp))
-# SHACL happens at accept via the normal prospective validation; "commit rest, skip
-# failures" runs accepts in bulk mode: each FK-connected component is its own proposal,
-# so a failing component 422s alone and the summary counts its rows as skipped (with the
-# violations mapped back to source rows). Rows with no cross-references remain singleton
-# components — per-row granularity is preserved where no FK couples them.
+GET /api/validate?version=...:
+    graph  = resolve(version)               # M1 version-resolution helper
+    shapes = load(framework ∪ tenant)       # TASK-005 loader, same cache
+    report = pyshacl(graph, shapes, inference='none')
+    return {results: [{shape_iri, focus_node, path, message,
+                       severity: Violation|Warning|Info}],
+            ran_at, version_resolved}
+
+RulesPage:
+    list  = shapes + per-shape violation counts (from latest report for current state)
+    state = report.ran_at matches current draft hash ? counts : "validation pending"
+    expand(rule) -> violating entities -> links to resource view
 ```
 
 ## API Contracts
 
-No new endpoints — TASK-001 spine (upload accepts `mapping_artefact_iri` alongside the dataset;
-both are ordinary corpus artefacts). Mutation: **CE-WRITE-1** only.
+- **NEW endpoint** `GET /api/validate` (FR-027; CE-internal surface, not a `CE-*` inter-engine
+  contract). Errors: 401, 404, 500. p95 ≤ 2 s full report.
+- Reads for the screen: `GET /api/validate` + CE-READ-1 SPARQL for shape metadata.
 
 ## Diagram References
 
 | Diagram | Source | What it covers |
 |---|---|---|
-| Ingest component delta | [v1-delta.md](../../tech-spec/v1-delta.md) §1 | RML Runner position (worker, deterministic lane) |
-| Mapping-layer decision | [ADR-012](../../decisions/ADR-012.md) | Engine choice, storage, dumps-only guard |
-| OCEL decision | [ADR-010](../../decisions/ADR-010.md) | OCEL→BPMO reference mapping semantics |
+| Governance shapes design | [m2-delta.md](../../tech-spec/m2-delta.md) §3 | Shape set + hash the pending-state check keys on |
+| Validation report spec | [m2-delta.md](../../tech-spec/m2-delta.md) §7 | Report scope and error floor |
+| M1 validation pipeline | [architecture.md](../../tech-spec/architecture.md) | The validator this endpoint wraps for whole-graph runs |
 
 ## Design Decisions
 
 | Decision | Rationale | Source |
 |---|---|---|
-| One proposal per **FK-connected component** (nodes-then-edges, local `ref`s) | One-proposal-per-row dangles cross-table FK edges (target row = sibling proposal ⟹ 422 on every FK edge). CE-WRITE-1 pins that `ref`s resolve within the SAME batch, so batching the component makes FK edges resolve by construction; two-pass ordering inside the batch handles circular FKs. Skip-and-report still falls out of the per-proposal 422 path at component granularity | Red-team blocker fix 2026-07-08; contracts.md CE-WRITE-1 (`ref` in-batch resolution); FR-041 AC + TASK-001 spine |
-| morph-kgc in-process, no sidecar | Only Python engine covering R2RML+RML; Law A/E | ADR-012 |
-| Dumps-only source schema | No live credentials in CE; live sources are PLAT-CONNECTOR-1 | ADR-012 |
-| OCEL ships as a reference mapping file, not code | Data not code — amendable like the TASK-004 tables; per-qualifier gaps land as flagged rows | ADR-010 |
+| "Validation pending" keyed on draft hash | The report is stamped with the shapes+data state it ran against; mismatch = pending. Honest-state is an epic AC ("never stale or empty coverage") | EPIC-005 E5-S3 AC (failure), m2-delta §3 |
+| Whole-graph validation is on-demand (this endpoint), not continuous | Per-commit validation already gates writes; a background revalidator is Phase 4 (scheduled self-audit). On-demand keeps M2 lean | roadmap carry, ponytail: add scheduling in Phase 4 only |
+| `sh:Info` displayed, not hidden | EPIC-005 AC names Info explicitly; auditors read advisory severity too | EPIC-005 E5-S2 AC |
 
 ## Test Requirements
 
-Minimum: 4 unit, 5 integration.
+Minimum: 3 unit, 4 integration, 1 E2E.
 
 | Layer | Scenario (`should X when Y`) | AC |
 |---|---|---|
-| Unit | should reject malformed mapping before materialisation | AC-006-03 |
-| Unit | should group subjects into FK-connected components (union-find over cross-subject refs) | AC-006-09 |
-| Unit | should order component ops all-nodes-then-all-edges with local refs (circular FK fixture) | AC-006-09 |
-| Unit | should sample ≥ N rows (from settings) for datatype inference | AC-006-04 |
-| Unit | should reject config containing any connection-string-shaped source (schema-level) | AC-006-05 |
-| Integration | CSV fixture + RML mapping → committed rows with prov:used naming source AND mapping | AC-006-01 |
-| Integration | two-table SQLite fixture with cross-table FKs (incl. one circular pair) → all FK edges land, zero dangling-reference 422s (`fk-edges-resolve-in-batch`) | AC-006-09 |
-| Integration | fixture with 2 SHACL-failing rows → rest commit, summary counts skips with reasons (`failing-rows-skip-and-report`) | AC-006-02 |
-| Integration | malformed mapping → store untouched (graph diff empty) | AC-006-03 |
-| Integration | OCEL 2.0 sample log + shipped mapping → Event individuals + flagged unmapped object types | AC-006-06 |
-| Integration | end-to-end with LLM mock down | AC-006-08 |
+| Unit | should map pyshacl results to the report schema incl. Info severity | AC-006-01 |
+| Unit | should compute pending state when report hash ≠ current draft hash | AC-006-04 |
+| Unit | should group violations by shape with counts | AC-006-03 |
+| Integration | should return full report for seeded graph with known violations (all 3 severities) | AC-006-01 |
+| Integration | should 404 unknown version and 401 missing JWT | AC-006-02 |
+| Integration | should include tenant shapes (TASK-005 fixture) in the report | AC-006-03 |
+| Perf | locust: full report p95 ≤ 2 s @ 100k + governance shapes | AC-006-06 |
+| E2E | officer opens rules screen post-commit → pending → report runs → violating entity linked and opened | AC-006-03..05 |
+| Gate | axe-core + Lighthouse on rules page | AC-006-07 |
 
 ## Dependencies
 
-- **blocked_by**: TASK-001 (spine; corpus artefact storage for mappings)
-- **unlocks**: TASK-008
+- **blocked_by**: TASK-005 (tenant shapes + loader + hash this screen keys on)
+- **unlocks**: none (leaf; CE-METRICS-1 in TASK-007 reads validation results independently)
 
 ## Cost Estimate
 
-**M** — est. **450k tokens** (S ≈ 200k, M ≈ 400k, L ≈ 700k). morph-kgc integration + row-group
-proposal shaping + the OCEL reference mapping authoring + fixture matrix (CSV/SQLite/OCEL).
+**M** — est. **400k tokens** (scale: S ≈ 200k, M ≈ 400k, L ≈ 700k). One endpoint wrapping the
+existing validator, one screen, one perf case.
 
 ## DoR Checklist
 
-- [x] Engine + storage + dumps-only pinned (ADR-012)
-- [x] OCEL semantics pinned (ADR-010)
-- [x] Sampling default + settings key pinned (v1-delta §6)
-- [ ] TASK-001 merged (DAG)
+- [x] Report shape + error floor pinned (m2-delta §7)
+- [x] Pending-state semantics pinned (draft-hash keyed)
+- [x] p95 pinned (≤ 2 s, m2-delta §9)
+- [ ] TASK-005 merged
 - [ ] M1 program gate green (build precondition)
 
 ## DoD Checklist
 
-- [ ] All ACs pass; named tests verbatim: `failing-rows-skip-and-report`,
-      `fk-edges-resolve-in-batch`
-- [ ] No DSN field anywhere in config schema (invariant verify-by green)
-- [ ] OCEL reference mapping shipped + documented as the worked example
-- [ ] Coverage ≥ 80%, mutation ≥ 60%; Law E budgets
+- [ ] All ACs pass (unit + integration + perf + E2E)
+- [ ] "Validation pending" verified: no path renders zero-counts without a matching report
+- [ ] `ui_verify` gate passed; Lighthouse budgets met
+- [ ] E2E asserts backend state (report ran; entity link resolves) — Law B
+- [ ] Coverage ≥ 80%, mutation ≥ 60% on new modules
 
 ## Implementation Hints
 
-- morph-kgc reads a config INI/dict naming source + mapping paths — wrap it, don't shell out.
-- Big datasets: cap v1 at the 25 MB upload bound; row volume beyond that is a re-import in
-  slices. <!-- ponytail: no streaming/chunked import; revisit if real dumps exceed the cap -->
-- The "bulk accept" UX for thousands of row-proposals: accept-all-unflagged is a client loop
-  over TASK-001 accepts in v1 (per-proposal HITL stays intact — flagged rows always need
-  explicit clicks). A proposal is now a component, so a "row" card may carry several rows —
-  render the component's rows in one card, flags per row.
-- Component sizing: cap component merging at the FK edges the mapping actually emits — do not
-  union the whole dataset into one mega-batch via a hub table; if a hub row (e.g. a shared
-  lookup value) links everything, dedupe it to an existing node first (`find_existing_node`)
-  so it stops being a new-`ref` connector. <!-- ponytail: union-find + hub-dedupe; smarter
-  partitioning only if real dumps produce oversized batches -->
-- Pitfall: morph-kgc output IRIs come from the mapping's templates — run them through the IRI
-  conventions check (semantic-web standards) before proposing; bad templates should read as
-  per-row skip reasons, not 500s.
-- Pitfall: OCEL `object` types are tenant-vocabulary, not BPMO — expect most to flag to Concept;
-  that is correct behaviour, not a mapping bug (ADR-010 consequence).
+- Wrap the existing per-commit validator for whole-graph runs — same pyshacl config
+  (`inference='none'`), same shape loader (TASK-005). Do not instantiate a second validator
+  configuration; drift between commit-gate and report is an audit bug.
+- Report caching: store the last report per (tenant, state-hash) in Aurora or Redis; the screen's
+  pending check is then a hash comparison, no re-validation on page load.
+- Pitfall: large violation lists — paginate per-rule entity lists (50/page) in the expand call,
+  not eagerly in the report payload.

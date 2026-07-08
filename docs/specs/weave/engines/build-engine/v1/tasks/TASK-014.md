@@ -1,19 +1,18 @@
 ---
 type: Task
-title: "Task: TASK-014 — Source-Control Provider Config UI (E2-S6, FR-061/B9)"
-description: "Settings tab + endpoints for the M1 backend source-control config: provider
-  select (GitHub/GitLab), write-only token entry stored straight to Secrets Manager (reference
-  name only ever returned), current-config display. Closes the E2-S6 v1 UI gap — the config
-  existed since M1 with no surface."
-tags: [build-engine, arch, task, v1, ui]
+title: "Task: TASK-014 — PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)"
+description: "The Lambda PM Surface API's core routes: paginated project grid with filter +
+  name search, cascade-validated settings PATCH (model tier, caps), contributors CRUD behind
+  the Role Guard, and create-time governance resolution (no ungoverned window)."
+tags: [build-engine, arch, task, v1]
 status: Backlog
 priority: Must Have
 entity: build-engine
 epic: EPIC-002
 milestone: v1.0
 created: 2026-07-08
-blocked_by: [TASK-006]
-unlocks: []
+blocked_by: [TASK-011]
+unlocks: [TASK-015, TASK-016, TASK-019]
 adr_refs: []
 source: hand-authored
 confirmed_by: "none"
@@ -25,126 +24,124 @@ timestamp: 2026-07-08T00:00:00Z
 resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-014.md
 ---
 
-# Task: TASK-014 — Source-Control Provider Config UI (E2-S6, FR-061/B9)
+# Task: TASK-014 — PM Surface API Core: Projects Grid, Settings, Contributors
 
 ## Story
 
 **Epic:** [EPIC-002 — Project Registry & Settings](../../../build-engine.md#epic-002)
 **Status:** Backlog · **Priority:** Must Have
 
-**As a** project admin
-**I want** to configure my project's source-control provider and token from the settings tabs
-**So that** repo bootstrap (FR-061) is configurable without an operator poking `PLAT-SETTINGS-1`
-and Secrets Manager by hand — the M1 config path finally gets its surface
+**As a** product owner or delivery manager
+**I want** a queryable project registry with governed, role-guarded settings and contributors
+**So that** concurrent projects are browsable and every governance change is authorised and
+cascade-consistent
 
-> **FRs covered:** FR-061/B9 settings surface (E2-S6 — the M1 slice was "a config value only,
-> NOT the full settings UI"; this is that UI). The E2-S6 AC applies verbatim: provider
-> (GitHub or GitLab) via `PLAT-SETTINGS-1`, **token in AWS Secrets Manager only — never in
-> Build, never displayed after entry**; an invalid/absent token fails repo bootstrap closed
-> (M1 behaviour, unchanged here). Source control is NOT a `PLAT-CONNECTOR-1` connector.
+> **FRs covered:** FR-006 (grid data), FR-007 (create-time cascade resolution — the M1
+> minimal bootstrap gains the "no ungoverned window" guarantee), FR-008 (cap config side;
+> breach runtime is TASK-013), FR-009 (model-tier gating), FR-060 (contributors API).
+> FR-011: settings responses show secret *names/references* only — never values.
 
 ## Acceptance Criteria
 
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
-| AC-1 | WHEN `GET /api/projects/{id}/source-control` is called, THE SYSTEM SHALL return `{provider, token_secret_ref, configured_by, configured_at}` — the Secrets Manager **reference name**, never a token value, in any code path including errors | `should never echo source-control token in any response` |
-| AC-2 | WHEN `PUT /api/projects/{id}/source-control` is called with `{provider, token}`, THE SYSTEM SHALL write the token to Secrets Manager, persist only the reference via `PLAT-SETTINGS-1` (project scope; domain scope is Platform-side config), emit a `PLAT-AUDIT-1` entry (provider + reference name, no value), and never log the token | `should store token to secrets manager and persist reference only` |
-| AC-3 | WHEN a provider outside `github`/`gitlab` is submitted, THE SYSTEM SHALL reject with 422 naming the allowed values | `should reject unknown provider` |
-| AC-4 | WHEN the settings tab renders an existing config, THE SYSTEM SHALL show provider + reference name + configured-by/at with a write-only "replace token" field — no reveal affordance exists | `should render config with reference name and no reveal affordance` |
-| AC-5 | WHEN no config exists, THE SYSTEM SHALL render the setup state explaining repo bootstrap fails closed without it (FR-061) | `should render unconfigured setup state` |
-| AC-6 | WHEN the config is mutated, THE SYSTEM SHALL require the SETTINGS guard class (project admin / company-or-domain admin-owner); denial = 403 + audit | Role Guard suite (TASK-002); route registration asserted here |
+| AC-1 | WHEN `GET /api/projects` is called with status/phase/owner filters and/or a name search, THE SYSTEM SHALL return a paginated grid payload (phase, budget summary, owner, demo status per card) matching the filters | `should filter and search projects grid` |
+| AC-2 | WHEN a project is created from an approved request, THE SYSTEM SHALL resolve governance through the Company→Domain→Project cascade (tighter-wins) at create time — there is no window where the project exists ungoverned | `should resolve governance cascade at project create` |
+| AC-3 | WHEN `PATCH /api/projects/{id}/settings` sets a cap looser than a parent level, THE SYSTEM SHALL reject it with the binding parent level named (tighter-wins; loosening needs parent approval per PLAT-SETTINGS-1) | `should reject cap looser than parent cascade level` |
+| AC-4 | WHEN a model tier is set on a project, THE SYSTEM SHALL default from domain policy (PLAT-SETTINGS-1 cascade) and accept only defined tiers (standard/fast/premium/experimental) | `should default model tier from domain policy` |
+| AC-5 | WHEN contributors are mutated, THE SYSTEM SHALL require the SETTINGS/CONTRIBUTORS guard (project admin or company/domain admin-owner) and persist via the TASK-010 repo | `should mutate contributors behind role guard` |
+| AC-6 | WHEN any settings response includes secret configuration, THE SYSTEM SHALL return the Secrets Manager reference name only — never a value, in any code path including errors | `should never return secret values in settings responses` |
 
 ## Implementation
 
 ### Pseudocode
 
 ```
-GET /api/projects/{id}/source-control (guard: read — any company member):
-    cfg = settings.resolve("build.source_control", ctx)   # M1 config path, PLAT-SETTINGS-1
-    return {provider, token_secret_ref, configured_by, configured_at} | 404 if unset (AC-5 UI)
-    # response model has NO token field — value is structurally unreturnable (AC-1)
+GET /api/projects:
+    q = repo.projects.grid_query(tenant, filters, search, page)   # one indexed query
+    return [ProjectCard(phase, budget_summary, owner, demo_status, ...) for row in q]
 
-PUT /api/projects/{id}/source-control (guard: SETTINGS):
-    validate body.provider in ("github", "gitlab")                     # AC-3
-    ref = secrets.put(f"build/{tenant}/{project_id}/scm-token", body.token)  # write-only
-    settings.set("build.source_control", {provider, token_secret_ref: ref}, scope=project)
-    emit_audit("source_control_configured", {provider, ref})           # no value — AC-2
-    return the GET shape (reference only)
+POST project create (extends M1 lifecycle_api create path):
+    pinned = ce_client.current_version()                          # existing M1 pin
+    effective = settings.resolve_cascade_all(ctx, PROJECT_GOVERNANCE_KEYS)   # AC-2
+    repo.projects.create(..., pinned, effective_snapshot=effective)
+    # create is atomic with resolution — no ungoverned window
 
-UI (settings tabs, TASK-006 family — new "Source control" tab):
-    configured -> ProviderBadge + RefName + ReplaceTokenField(write-only)   # AC-4
-    unconfigured -> SetupCard("repo bootstrap fails closed without this")   # AC-5
+PATCH /api/projects/{id}/settings (Depends(require_project_role(SETTINGS))):
+    for key, value in patch:
+        parent = settings.resolve_cascade(key, ctx, up_to="domain")   # Company→Domain→Project
+        if is_looser(value, parent): raise 422 CapLooserThanParent(level=parent.level)  # AC-3
+    repo.projects.update_settings(...)
+
+contributors routes: thin CRUD over repo.contributors, guarded (AC-5)
 ```
 
 ### API Contracts
 
-`GET/PUT /api/projects/{id}/source-control` — p95 ≤ 500 ms (v1-delta §3). Errors: 401, 403
-(+audit), 404 (project / unset config on GET), 422 (provider), 500. Consumes `PLAT-SETTINGS-1`
-(config), Secrets Manager via the M1 secrets module (write + describe only — the PM API never
-calls `get_secret_value`), `PLAT-AUDIT-1` emitter. Repo bootstrap consumption (FR-061,
-M1 TASK-010 drivers) is unchanged — same config key it has read since M1.
+From `v1-delta.md` §3: `GET /api/projects` ≤ 300 ms · `PATCH /api/projects/{id}/settings`
+≤ 500 ms · `GET/PUT/DELETE /api/projects/{id}/contributors[/{principal}]` ≤ 400 ms. Errors:
+400 (bad filter), 403 (guard), 404, 422 (cascade violation, named binding level), 500.
+Consumes `PLAT-SETTINGS-1` cascade-resolution API; `CE-VERSION-1` at create (existing M1 path).
 
 ### Diagram References
 
 | Diagram | File | Section | Summary |
 |---|---|---|---|
-| Architecture delta | `../../tech-spec/v1-delta.md` | §2 source-control bullet | Settings-tab surface over the M1 config path |
-| M1 baseline | `../../../build-engine.md` | §EPIC-002 E2-S6 AC | Canonical behaviour incl. fail-closed bootstrap |
-| Data model | `../../tech-spec/data-model.md` | §Projects Table | No new columns — config lives in PLAT-SETTINGS-1 + Secrets Manager |
+| Architecture delta | `../../tech-spec/v1-delta.md` | §2 diagram | PM Surface API → Role Guard → repo_layer |
+| Data model | `../../tech-spec/data-model.md` | §Projects Table | Existing columns the grid reads (phase, demo, write-back fields) |
+| Contract | `../../../../contracts.md` | §PLAT-SETTINGS-1 | Cascade semantics: tighter-wins, parent approval to loosen |
 
 ### Design Decisions
 
 | Decision | Reference | Impact |
 |---|---|---|
-| Token is write-only end to end | E2-S6 AC / M1 SCM-token confidentiality invariant | Response models carry no token field; there is no code path that could leak it |
-| Reuse the M1 config key, add no table | E2-S6 M1 slice | This task is a surface over existing plumbing — zero schema change, zero new bootstrap logic |
-| No "test connection" button in v1 | FR-061 fail-closed AC | Bootstrap already fails closed with a named error on a bad token; a pre-flight ping is additive later, not required (YAGNI) |
-| Domain-level provider default stays Platform-side | PLAT-SETTINGS-1 cascade | Build writes project scope only; domain defaults resolve through the cascade read |
+| Grid is one indexed query, no N+1 per card | AC-1 / p95 ≤ 300 ms | Budget summary comes from a denormalised read or single join — engineer must not call TASK-013 costs per card |
+| Cascade validated at write time AND resolved at read time | AC-3 | Double protection: invalid configs can't persist; effective value always computed fresh |
+| Model tiers are a fixed enum in v1 | FR-009 | No custom tiers; domain policy supplies the default only |
+| Secret values structurally unreachable | FR-011 / AC-6 | Settings rows store reference names; there is no code path that fetches values in the PM API |
 
 ## Test Requirements
 
-### Unit Tests (minimum 3)
+### Unit Tests (minimum 4)
 
-- `should reject unknown provider`
-- `should render config with reference name and no reveal affordance` (component)
-- `should render unconfigured setup state` (component)
+- `should filter and search projects grid`
+- `should reject cap looser than parent cascade level`
+- `should default model tier from domain policy`
+- `should never return secret values in settings responses` (response-shape assertion incl. error paths)
 
-### Integration Tests (minimum 2)
+### Integration Tests (minimum 3)
 
-- `should store token to secrets manager and persist reference only` (secrets stub asserts
-  put; settings stub asserts reference; audit payload carries no value — Law B)
-- `should never echo source-control token in any response` (PUT then GET; response-shape
-  assertion incl. error paths)
+- `should resolve governance cascade at project create` (create → immediate settings read shows effective values)
+- `should mutate contributors behind role guard` (editor 403 + audit; admin 200 — Law B backend assertion)
+- `should paginate grid at 100 projects within p95` (seeded fixture)
 
-### E2E Tests (Playwright, minimum 1)
+### E2E Tests
 
-- `should configure provider and token end to end` (admin session: setup state → save →
-  reference name shown; secrets stub received the value server-side; token absent from DOM
-  and network responses after entry)
+Deferred to TASK-015 (the Registry UI E2E exercises these routes end-to-end).
 
 ### AC-to-Test Mapping
 
 | AC | Type | Test |
 |---|---|---|
-| AC-1 | Integration | `should never echo source-control token in any response` |
-| AC-2 | Integration | `should store token to secrets manager and persist reference only` |
-| AC-3 | Unit | `should reject unknown provider` |
-| AC-4 | Unit + E2E | `should render config with reference name and no reveal affordance` / E2E flow |
-| AC-5 | Unit | `should render unconfigured setup state` |
-| AC-6 | Integration | Role Guard suite; route registration check |
+| AC-1 | Unit | `should filter and search projects grid` |
+| AC-2 | Integration | `should resolve governance cascade at project create` |
+| AC-3 | Unit | `should reject cap looser than parent cascade level` |
+| AC-4 | Unit | `should default model tier from domain policy` |
+| AC-5 | Integration | `should mutate contributors behind role guard` |
+| AC-6 | Unit | `should never return secret values in settings responses` |
 
 ## Dependencies
 
-- **blocked_by:** [TASK-006] (settings tabs this mounts in; TASK-002 guard transitively)
-- **unlocks:** []
-- **External prerequisites:** M1 secrets module + `build.source_control` settings key (live
-  since M1 TASK-010); PLAT-SETTINGS-1 write API (live)
+- **blocked_by:** [TASK-011] (Role Guard; TASK-010 transitively)
+- **unlocks:** [TASK-015, TASK-016, TASK-019]
+- **External prerequisites:** PLAT-SETTINGS-1 cascade-resolution API (live); M1 project
+  create path in lifecycle_api (live)
 
 ## Cost Estimate
 
-- **Complexity:** M
-- **Estimated tokens:** ~12k input, ~6k output
-- **Estimated cost:** ~$0.40 (claude-sonnet-5 implementation tier)
+- **Complexity:** L
+- **Estimated tokens:** ~16k input, ~8k output
+- **Estimated cost:** ~$0.60 (claude-sonnet-5 implementation tier)
 
 ## Definition of Ready Checklist
 
@@ -161,28 +158,24 @@ M1 TASK-010 drivers) is unchanged — same config key it has read since M1.
 ## Definition of Done Checklist
 
 - [ ] All AC met
-- [ ] All specified tests passing (incl. the token-absence E2E)
+- [ ] All specified tests passing
 - [ ] Coverage ≥ 80% changed code; delta mutation ≥ 70%
-- [ ] No token field in any response model; no `get_secret_value` in the PM API
-      (invariants.md verify-by)
-- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95, Best-practices ≥ 90 on the settings
-      route with the source-control tab live (v1-delta §6)
-- [ ] `ui_verify` passes; design tokens only
 - [ ] Lint passes (zero errors)
 - [ ] Complexity within thresholds (cyclomatic ≤ 10, cognitive ≤ 15, fn ≤ 50 lines)
-- [ ] Docstrings/JSDoc on public APIs/components
+- [ ] Guard `Depends` greppable on every mutation route (invariants.md verify-by)
+- [ ] p95 targets met against seeded fixtures
+- [ ] Docstrings on public APIs
 - [ ] Conventional commit(s); PR references this task and EPIC-002
 
 ## Implementation Hints
 
-- The M1 repo-bootstrap step (TASK-010) already reads this config — change nothing on the read
-  side; this task is purely the authoring surface. Verify the exact settings key name in the
-  M1 code before hardcoding it here.
-- Secrets naming: follow the existing M1 secret-path convention (grep the M1 secrets module) —
-  do not invent a new prefix scheme.
-- The write-only token field is the design system's password-style input; clear it after
-  submit and never re-populate from any response.
-- Audit event type: `build.source_control.configured` (dotted convention, PLAT-AUDIT-1).
+- Extend the M1 `projects` module + `lifecycle_api` create path — do not create a second
+  projects service; the v1 routes join the existing router family.
+- `resolve_cascade_all` batches keys in one settings call; do not resolve per key per request.
+- Demo status on the card comes from the existing `demo_output_location_ref` /
+  `write_back_complete` fields — no new state.
+- Grid pagination: keyset (created_at, id), not OFFSET — the 100-project budget is the test
+  floor, not the ceiling.
 
 ---
 

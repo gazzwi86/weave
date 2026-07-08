@@ -169,3 +169,30 @@ tenancy write-back, S3 erratum), Onboarding+personas (7 workspace-cascade lines,
 **Follow-ups closed:** GE dup ADR-004 (already fixed), prop-freeze rule present (frontmatter
 confirm → PROJ-009c), elicit-skill bug → PROJ-008, conformance tests → PROJ-009, S3 erratum +
 personas tags + FR-043 + competency clause → dispatched above.
+
+## Milestone folder merge m2 -> v1 (2026-07-08, task #12 of the consolidation plan)
+
+Executed the literal-merge ruling: every engine's `m2/` folded into a single `v1/` milestone
+folder. E&A `post-v1/` and all `m1/` folders untouched.
+
+**Numbering rule:** ex-m2 briefs KEEP their numbers (externally cited everywhere as "M2 TASK-NNN",
+now labelled "v1 TASK-NNN"); old-v1 briefs renumbered upward:
+
+| Engine | ex-m2 (kept) | old-v1 -> new |
+|---|---|---|
+| constitution-engine | TASK-001..011 | TASK-001..008 -> TASK-012..019 |
+| build-engine | TASK-001..009 | TASK-001..014 -> TASK-010..023 |
+| weave-platform | TASK-010..017,024 | unchanged (already globally numbered 006,018..023,025) |
+| graph-explorer | TASK-001..011 | (no old v1) |
+| onboarding | TASK-001..005 | (no old v1) |
+
+**progress.json reseeded:** 106 tasks (31 done preserved; +CE-V1-TASK-011 kind-descriptions brief),
+53 epics (`*-M2-EPIC-*` renamed `*-V1-EPIC-*`; BE/PLAT EPIC-002 milestone-span duplicates merged),
+phase_plan 12 -> 9 phases (one v1 phase per engine). Task IDs: `*-M2-TASK-*` -> `*-V1-TASK-*`.
+
+**Sweeps:** brief frontmatter `milestone:`/tags -> v1; all `m2/tasks/` paths -> `v1/tasks/`;
+prose "M2 TASK-NNN" -> "v1 TASK-NNN"; old-v1 external citations renumbered (constitution-engine.md
+E12 story list, ADR-011, BE v1-delta). One hand-fix: BE v1 TASK-023 bare "(TASK-010)" meaning the
+m1 repo-bootstrap task, disambiguated to "(m1 TASK-010)". `tech-spec/m2-delta.md` filenames kept
+(historical delta records). Dated entries earlier in THIS file keep their original "M2 TASK" labels
+as history — map via the table above.
