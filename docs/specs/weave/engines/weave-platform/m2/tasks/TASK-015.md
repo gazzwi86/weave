@@ -1,7 +1,7 @@
 ---
 type: Task Brief
-title: "Task: TASK-015 — Publish widgets to the workspace library; independent per-user copies (E1-S5)"
-description: "Workspace-scoped widget library: publish a pinned widget with name + description
+title: "Task: TASK-015 — Publish widgets to the tenant (company) widget library; independent per-user copies (E1-S5)"
+description: "Tenant-scoped (company) widget library — workspace ≡ tenant: publish a pinned widget with name + description
   (author permission enforced, 403 otherwise), list with author + date, and add-to-my-dashboard
   creating an independent (tenant,user) copy that refreshes the same contract and is
   independently refinable."
@@ -18,7 +18,7 @@ unlocks: []
 adr_refs: [ADR-014]
 ---
 
-# Task: TASK-015 — Publish widgets to the workspace library; independent per-user copies (E1-S5)
+# Task: TASK-015 — Publish widgets to the tenant (company) widget library; independent per-user copies (E1-S5)
 
 **Spec:** [weave-platform.md](../../../weave-platform.md) · **Delta:** [m2-delta.md](../../tech-spec/m2-delta.md) · **Contracts:** [contracts.md](../../../../contracts.md)
 
@@ -28,7 +28,7 @@ adr_refs: [ADR-014]
 **Priority:** Must Have
 
 **As a** workspace member who built a useful widget
-**I want** to publish it to a shared workspace library so teammates can add it to their own
+**I want** to publish it to the shared company (tenant) library so teammates can add it to their own
 dashboards as their own copy
 **So that** good views spread across the team without anyone's dashboard being coupled to mine.
 
@@ -36,10 +36,10 @@ dashboards as their own copy
 
 | ID | EARS Criterion | Test Mapping |
 |----|----------------|--------------|
-| AC-1 | WHEN a user publishes a pinned widget with name + description, THE SYSTEM SHALL store it **server-side, workspace-scoped** in `widget_library_items` and list it in the Workspace Library panel with author + publish date (FR-011; mirrors Explorer Saved Views `D2`). | integration: `test_publish_stores_workspace_scoped` |
+| AC-1 | WHEN a user publishes a pinned widget with name + description, THE SYSTEM SHALL store it **server-side, tenant-scoped** (the "workspace library" = the company library; workspace ≡ tenant, no `workspace_id` column — m2-delta §4) in `widget_library_items` and list it in the Library panel with author + publish date (FR-011; mirrors Explorer Saved Views `D2`). | integration: `test_publish_stores_tenant_scoped` |
 | AC-2 | IF the publishing user lacks `author` authority (M1 RBAC, `PLAT-SETTINGS-1`-resolved), THEN THE SYSTEM SHALL return HTTP 403 with reason and record the denial to `PLAT-AUDIT-1` (FR-011 failure AC; M1 FR-024 pattern). | integration: `test_publish_without_author_403_audited` |
 | AC-3 | WHEN another member adds a library widget, THE SYSTEM SHALL create an **independent (tenant, user) copy** (`widget_instances` row, `library_item_id` provenance FK) that refreshes the same data-source contract and is independently refinable — refining or unpinning the copy never mutates the library item or any other member's copy (E1-S5). | integration: `test_add_creates_independent_copy` |
-| AC-4 | WHEN the library lists items, THE SYSTEM SHALL return name, description, author principal, publish date, and the spec's component type + data-source contract(s) for preview — visible to all workspace members (read authority suffices to VIEW and ADD; author is required only to PUBLISH). | integration: `test_library_visibility_by_authority` |
+| AC-4 | WHEN the library lists items, THE SYSTEM SHALL return name, description, author principal, publish date, and the spec's component type + data-source contract(s) for preview — visible to all tenant members (read authority suffices to VIEW and ADD; author is required only to PUBLISH). | integration: `test_library_visibility_by_authority` |
 | AC-5 | WHEN a publish or add occurs, THE SYSTEM SHALL write `PLAT-AUDIT-1` entries (`dashboard.library.published` / `.added`) in the same transaction. | integration: `test_library_actions_audited` |
 | AC-6 | WHEN a library item's underlying category becomes non-GA-sourced or its contract errors, copies render the m2-delta §6 states like any widget (no special library failure mode); the library panel itself renders items whose source is not GA with the same "source engine not yet available" tag. | unit: `test_library_items_state_tagged` |
 
@@ -53,7 +53,7 @@ POST /api/dashboard/library  { widget_id, name, description }
   rbac.require(caller, area="dashboard", level="author")        # 403 + audit denial (M1 helper)
   widget = load widget_instances[widget_id] (owner-only, 403 otherwise)
   txn:
-    item = insert widget_library_items(tenant, workspace, name, description,
+    item = insert widget_library_items(tenant, name, description,
                                        spec=widget.spec,        # spec SNAPSHOT, not reference
                                        author_principal_iri=caller, published_at=now())
     audit.emit(caller, "dashboard.library.published", target=item.id)
@@ -61,7 +61,7 @@ POST /api/dashboard/library  { widget_id, name, description }
 
 # Add to my dashboard
 POST /api/dashboard/library/{id}/add
-  item = load widget_library_items[id]                          # RLS: same tenant+workspace
+  item = load widget_library_items[id]                          # RLS: same tenant
   txn:
     row = insert widget_instances(scope='user', owner=caller, spec=item.spec,  # copy
                                   library_item_id=item.id, position=max+1, status='fresh')
@@ -70,7 +70,7 @@ POST /api/dashboard/library/{id}/add
 
 # List
 GET /api/dashboard/library -> items + availability tag per item
-  tag = availability.is_ga(item.spec.data_source_contracts)      # TASK-010 registry
+  tag = availability.source_available(item.spec.data_source_contracts)  # pinned signature, m2-delta §1
 
 # Library panel (packages/frontend/src/dashboard/LibraryPanel.tsx)
 side panel from dashboard header; cards: name, description, author, date, component icon,
@@ -114,7 +114,7 @@ publish entry point: widget header menu "Publish to library" -> name+description
 
 ### Integration Tests (minimum 4)
 
-- `test_publish_stores_workspace_scoped` — publish; list from another member of same workspace shows it; different workspace ⟹ absent; different tenant ⟹ absent (RLS)
+- `test_publish_stores_tenant_scoped` — publish; list from another member of the same tenant shows it; different tenant ⟹ absent (DB RLS backstop, app predicate disabled)
 - `test_publish_without_author_403_audited` — read-only member publishes ⟹ 403 + audit denial row
 - `test_add_creates_independent_copy` — member B adds; refine B's copy; A's widget, the library item, and member C's copy all unchanged; B's copy refreshes same contract
 - `test_library_visibility_by_authority` — read-authority member can GET list and POST add; cannot publish
@@ -128,7 +128,7 @@ publish entry point: widget header menu "Publish to library" -> name+description
 
 | AC | Test Type | Test Name |
 |----|-----------|-----------|
-| AC-1 | Integration | `test_publish_stores_workspace_scoped` |
+| AC-1 | Integration | `test_publish_stores_tenant_scoped` |
 | AC-2 | Integration | `test_publish_without_author_403_audited` |
 | AC-3 | Integration + E2E | `test_add_creates_independent_copy`, `test_publish_and_add_flow` |
 | AC-4 | Integration | `test_library_visibility_by_authority` |
@@ -161,9 +161,9 @@ publish entry point: widget header menu "Publish to library" -> name+description
 - [ ] Independence test proves refine-isolation across three parties
 - [ ] 403 publish denial audited (matches M1 FR-024 pattern)
 - [ ] Library cards show author + date + contract footer + availability tag
-- [ ] Cross-tenant/cross-workspace invisibility verified
+- [ ] Cross-tenant invisibility verified (DB RLS backstop alone)
 - [ ] Coverage ≥ 80%; mutation ≥ 60%
-- [ ] Conventional commit: `feat: add workspace widget library with independent copies`
+- [ ] Conventional commit: `feat: add tenant widget library with independent copies`
 
 ## Implementation Hints
 

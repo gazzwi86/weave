@@ -26,7 +26,7 @@ adr_refs: [ADR-012]
 **Epic:** EPIC-001 Dashboard
 **Priority:** Must Have
 
-**As a** workspace member
+**As a** domain member
 **I want** the AI to pick the best-fit visualisation for what I asked, let me override it by
 naming a chart type, and let me switch visualisation afterwards without re-asking
 **So that** results are design-consistent and predictable — never free-form code, never an
@@ -38,7 +38,7 @@ ill-fitting chart.
 |----|----------------|--------------|
 | AC-1 | WHEN the agent resolves a prompt, THE SYSTEM SHALL map intent to exactly one of the 9 library components by the declarative rule table (m2-delta §2: count/status→kpi_card, trend→line_area_chart, comparison→bar_chart, ranked→ranked_list, log→activity_feed, ratio→pie_donut, two-dim matrix→heatmap, alert→alert_banner, rows→table) and SHALL NOT emit free-form code or any type outside the set (FR-005). | unit: `test_intent_mapping_audit` (parametrised) |
 | AC-2 | WHERE a component type is named in the prompt and is compatible with the resolved data shape, THE SYSTEM SHALL honour the override; WHERE it is incompatible, THE SYSTEM SHALL use the rule-table choice and note the override was not applicable (E1-S2). | unit: `test_named_type_override` |
-| AC-3 | IF no component matches the resolved data shape, THEN THE SYSTEM SHALL decline with the unsatisfiable-prompt message naming the reason (via TASK-011's `error {state: "unsatisfiable"}`) and SHALL NOT render an ill-fit chart (FR-004). | unit: `test_no_match_declines` |
+| AC-3 | IF no component matches the resolved data shape or no data source exists for the intent, THEN THE SYSTEM SHALL decline with the unsatisfiable-prompt message naming the reason (via TASK-011's `error {state: "unsatisfiable"}`) and SHALL NOT render an ill-fit chart (FR-004). A resolvable category whose engine is not GA is NOT unsatisfiable — it returns `SourceNotGA` so TASK-011 emits `source_not_ga` (distinct states, never conflated). | unit: `test_no_match_declines`, `test_non_ga_returns_source_not_ga_not_none` |
 | AC-4 | WHEN the agent returns a spec, THE SYSTEM SHALL validate it against the WidgetSpec JSON schema BEFORE the `spec` event emits; a schema-invalid agent output is retried once with the validation error appended, then declined — never streamed (m2-delta §3). | integration: `test_invalid_agent_spec_never_streams` |
 | AC-5 | WHEN the user selects "Change visualisation" on a rendered widget, THE SYSTEM SHALL re-render the held data in the new type with NO re-prompt and NO re-fetch (pure client re-render of `last_result`), and SHALL disable incompatible types with a reason (FR-006). | unit(TS) + e2e: `test_change_viz_no_refetch`, `test_change_viz_disables_incompatible` |
 | AC-6 | WHEN compatibility is computed (for AC-2 and AC-5), THE SYSTEM SHALL use one shared shape-compatibility matrix (data shape × component) defined once and consumed by both the agent-side resolver and the client-side change-viz menu — no second implementation. | unit: `test_compatibility_matrix_single_source` |
@@ -63,11 +63,14 @@ COMPAT = {
 PRIMARY = first element of each list  # the rule-table default
 
 # Agent-side resolver (packages/backend/dashboard/intent.py — called by model_router.dashboard_agent)
-def resolve(prompt) -> WidgetSpec | None:
+def resolve(prompt) -> WidgetSpec | SourceNotGA | None:
   tool_result = llm.call(RESOLVE_TOOL, prompt)   # tool schema constrains output:
-      # { data_shape: enum, bindings: {contract, field}, named_type?: enum(9), title }
+      # { data_shape: enum, category: enum, bindings: {contract, field}, named_type?: enum(9), title }
       # enum-constrained tool schema = the model CANNOT emit an out-of-library type
-  if tool_result.bindings unavailable per availability/category registry: return None  # -> unsatisfiable
+  # Two DISTINCT declines (TASK-011 AC-6; m2-delta §2):
+  if not availability.is_ga(CATEGORIES[tool_result.category].source_engine):
+      return SourceNotGA(source_engine)          # real category, dark engine -> source_not_ga
+  if tool_result.bindings do not exist for any category: return None   # -> unsatisfiable
   shape = tool_result.data_shape
   component = tool_result.named_type if tool_result.named_type in COMPAT[shape] \
               else PRIMARY[shape]     # AC-2: honour compatible override, else rule default
@@ -114,7 +117,8 @@ existing `PATCH /api/dashboard/widgets/{id}` (`{ "spec": { "component_type": "ta
 
 - `test_intent_mapping_audit` — parametrised over the full prompt-fixture corpus (≥ 2 fixtures per data shape, 16+): every fixture resolves to exactly one of the 9 components or declines; assert no other outcome is reachable (epic AC: "single intent-mapping audit")
 - `test_named_type_override` — "as a table" on categorical data ⟹ table; "as a heatmap" on scalar data ⟹ kpi_card + override-not-applicable note
-- `test_no_match_declines` — fixture with no available binding ⟹ None ⟹ unsatisfiable path
+- `test_no_match_declines` — fixture with no existing binding ⟹ None ⟹ unsatisfiable path
+- `test_non_ga_returns_source_not_ga_not_none` — fixture classifying to a Build category ⟹ `SourceNotGA("build")`, never None (states stay distinct)
 - `test_compatibility_matrix_single_source` — backend resolver and the shipped frontend JSON are byte-identical (read both, compare); every shape lists ≥ 1 component; every component appears in ≥ 1 shape
 - `test_change_viz_no_refetch` (Vitest) — select new type; assert fetch/EventSource spies never called; component re-renders from held data
 - `test_change_viz_disables_incompatible` (Vitest) — scalar-shape widget ⟹ heatmap option disabled with reason tooltip
@@ -133,7 +137,7 @@ existing `PATCH /api/dashboard/widgets/{id}` (`{ "spec": { "component_type": "ta
 |----|-----------|-----------|
 | AC-1 | Unit | `test_intent_mapping_audit` |
 | AC-2 | Unit | `test_named_type_override` |
-| AC-3 | Unit | `test_no_match_declines` |
+| AC-3 | Unit | `test_no_match_declines`, `test_non_ga_returns_source_not_ga_not_none` |
 | AC-4 | Integration | `test_invalid_agent_spec_never_streams` |
 | AC-5 | Unit(TS) + E2E | `test_change_viz_no_refetch`, `test_change_visualisation_flow` |
 | AC-6 | Unit | `test_compatibility_matrix_single_source` |

@@ -66,7 +66,11 @@ flowchart LR
   (E1-S6), and role-home "coming soon" (E10). One source, so the epic AC's single
   consistency test can cover all surfaces. At M2 it is a static config map
   (`ce: ga, build: pending, events: pending, explorer: pending`) — a service endpoint is
-  YAGNI until an engine flips at runtime.
+  YAGNI until an engine flips at runtime. **Pinned signatures (one module, two views):**
+  `availability.is_ga(source_engine: str) -> bool` and
+  `availability.source_available(contract_ids: list[str]) -> bool` (maps contract IDs →
+  owning engine → `is_ga`; used where callers hold contracts, e.g. library-item tags).
+  No other call shapes.
 
 ## 2. Component library + declarative intent mapping (FR-005, E1-S2)
 
@@ -91,8 +95,12 @@ code; output is a `WidgetSpec`, JSON-schema-validated before the `spec` event em
 
 - Named-type override: a component named in the prompt wins if data-shape-compatible;
   incompatible types are disabled with a reason (FR-006).
-- No matching component or no available data source ⟹ decline with named reason
-  (`unsatisfiable`), never an ill-fit chart (FR-004).
+- **Two distinct decline states — never conflated (FR-004 vs FR-015):**
+  `source_not_ga` = the resolver classified the prompt to a real category whose owning
+  engine is not GA per the availability registry (deterministic registry check AFTER the
+  resolver classifies — never a keyword guess); `unsatisfiable` = no library component
+  matches the resolved data shape OR no data source exists for the intent at all. The
+  registry decides GA-ness; the resolver decides satisfiability.
 - "Change visualisation" re-renders the held data client-side — no re-prompt, no re-fetch.
 
 ## 3. SSE generation surface (ADR-012)
@@ -105,12 +113,16 @@ code; output is a `WidgetSpec`, JSON-schema-validated before the `spec` event em
 | `spec` | `WidgetSpec { component_type, title, data_source_contracts[], bindings, column_span }` | first event; skeleton renders from it; the ≤ 1 s p95 target is measured to this event |
 | `data` | `{ rows | points | cells, partial: bool }` | chunked; ≤ 1,000 points per FR SLA |
 | `done` | `{ token_count, widget_id? }` | terminal; token receipt for metering reconciliation |
-| `error` | `{ state, reason }` — `state ∈ budget-cap · unsatisfiable · provider-503 · source-unavailable · source-not-ga` | terminal; maps 1:1 to the honest-state matrix (§6) |
+| `error` | `{ state, reason }` — `state ∈ budget_cap · unsatisfiable · provider_503 · unavailable · source_not_ga` (canonical tokens, underscore form — identical to the §6 matrix names where they map; no hyphen variants anywhere) | terminal; maps 1:1 to the honest-state matrix (§6) |
 
 - Order invariant: exactly one `spec`, then zero-or-more `data`, then exactly one terminal
   (`done` | `error`).
 - Budget: FR-035 gate **before** the Model Router call; cap reached mid-stream ⟹ `error
-  budget-cap`, partial widget rolled back (no partial save) — E1-S1 AC.
+  budget_cap`, partial widget rolled back (no partial save) — E1-S1 AC.
+- Gate order: budget gate → resolver (model classifies intent) → **availability-registry
+  check on the resolved category** (`source_not_ga` if the owning engine is not GA) →
+  data fetch. The keyword table is a latency-contingency spec source only (below) — it is
+  never the authority for GA-gating or satisfiability.
 - Refine: request carries the current `WidgetSpec` + delta prompt; response uses the same
   grammar; history append is server-side (§4), capped at 10 (tunable); refine failure
   preserves prior state (FR-007).
@@ -124,16 +136,20 @@ code; output is a `WidgetSpec`, JSON-schema-validated before the `spec` event em
 
 ## 4. Data-model delta (ADR-014) — extends data-model.md ERD
 
-Four new Aurora tables, same RLS policy family and `weave_app` grants as the M1 16-entity
-ERD (ADR-002/003). The M1 cross-tenant-read test extends to all four.
+Four new Aurora tables. **Isolation is TENANT-scoped** (workspace ≡ company/tenant; the
+Workspace level was removed 2026-07-08 — no `workspace_id` column on any M2 table, per
+data-model.md §Workspace). Every table carries `tenant_id NOT NULL` with the **DB-enforced
+Postgres ROW LEVEL SECURITY policy family** (ADR-002/003:
+`CREATE POLICY … USING (tenant_id = current_setting('app.tenant_id')::uuid)` +
+`weave_app` grants) as the backstop **in addition to** the app-layer base predicate —
+tenant isolation must hold even if application code regresses. The M1 cross-tenant-read
+test extends to all four.
 
 ```mermaid
 erDiagram
-    TENANT ||--o{ WIDGET_INSTANCE : has
-    TENANT ||--o{ WIDGET_LIBRARY_ITEM : has
+    TENANT ||--o{ WIDGET_INSTANCE : "has (RLS tenant_id)"
+    TENANT ||--o{ WIDGET_LIBRARY_ITEM : "has (RLS tenant_id)"
     TENANT ||--o{ METRICS_DAILY_SNAPSHOT : "samples (E2-S13)"
-    WORKSPACE ||--o{ WIDGET_INSTANCE : scopes
-    WORKSPACE ||--o{ WIDGET_LIBRARY_ITEM : scopes
     WIDGET_LIBRARY_ITEM ||--o{ WIDGET_INSTANCE : "copied as"
     WIDGET_INSTANCE ||--o{ WIDGET_REFINEMENT : "history (cap 10)"
 ```
@@ -143,9 +159,8 @@ erDiagram
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | UUID | PK | — |
-| `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `workspace_id` | UUID | FK → workspaces, NOT NULL | — |
-| `scope` | varchar | CHECK IN ('user','workspace_default','role_home') | E1-S0 fixed tiles = `workspace_default`, `owner_principal_iri` NULL |
+| `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor (DB-enforced policy — §4 intro) |
+| `scope` | varchar | CHECK IN ('user','tenant_default','role_home') | E1-S0 fixed tiles = `tenant_default` (one default set per company; was `workspace_default` pre workspace-drop), `owner_principal_iri` NULL |
 | `owner_principal_iri` | varchar | NULL only when scope ≠ 'user' | (tenant,user) pin scoping (FR-008) |
 | `spec` | JSONB | NOT NULL | `WidgetSpec` (§3) — validated against the same schema as the SSE `spec` event |
 | `position` | int4 | NOT NULL | grid order (drag-reorder, FR-010) |
@@ -157,21 +172,22 @@ erDiagram
 | `suggested` | boolean | NOT NULL DEFAULT false | E1-S6 starter flag; cleared on first pin/remove |
 | `created_at` / `updated_at` | timestamptz | NOT NULL | — |
 
-Index: `(tenant_id, workspace_id, scope, owner_principal_iri)`.
+Index: `(tenant_id, scope, owner_principal_iri)`.
 
 ### `widget_library_items`
+
+Tenant-scoped (the "workspace library" = the company library; workspace ≡ tenant).
 
 | Column | Type | Constraints |
 |---|---|---|
 | `id` | UUID | PK |
-| `tenant_id` | UUID | FK → tenants, NOT NULL (RLS) |
-| `workspace_id` | UUID | FK → workspaces, NOT NULL |
+| `tenant_id` | UUID | FK → tenants, NOT NULL (RLS, DB-enforced) |
 | `name` / `description` | varchar / text | NOT NULL / — |
 | `spec` | JSONB | NOT NULL (`WidgetSpec`) |
 | `author_principal_iri` | varchar | NOT NULL (FR-011: author + date displayed) |
 | `published_at` | timestamptz | NOT NULL |
 
-Index: `(tenant_id, workspace_id)`. Publish requires `author` authority (403 otherwise,
+Index: `(tenant_id)`. Publish requires `author` authority (403 otherwise,
 audited via PLAT-AUDIT-1).
 
 ### `widget_refinements`
@@ -192,7 +208,7 @@ App-enforced cap: 10 rows per widget (tunable via PLAT-SETTINGS-1); oldest delet
 
 `CE-METRICS-1` is point-in-time; the growth-trend widget needs a series. The platform samples
 it: on each successful metrics fetch, upsert one row per (tenant, day). No scheduler at M2 —
-a workspace nobody opens needs no history; the stagnation advisory is suppressed until ≥ 14
+a tenant nobody opens needs no history; the stagnation advisory is suppressed until ≥ 14
 samples exist (TASK-016 AC-8).
 
 | Column | Type | Constraints |
@@ -224,7 +240,9 @@ All routes: Cognito JWT + RBAC middleware (M1), tenant-scoped, OTel span attribu
 | `POST /api/dashboard/widgets/{id}/refine` (SSE) | same as generate | FR-007 |
 | `GET /api/dashboard/widgets?scope=…` | ≤ 200 ms | SWR read: state + `last_result`; dashboard ≤ 2 s SLA is met from this |
 | `POST /api/dashboard/widgets` (pin) | ≤ 300 ms | writes audit entry in-txn |
-| `PATCH /api/dashboard/widgets/{id}` (reorder/span/remove) | ≤ 300 ms | — |
+| `PATCH /api/dashboard/widgets/{id}` (spec / column_span) | ≤ 300 ms | single-widget update (change-viz persistence, span) |
+| `PATCH /api/dashboard/widgets/order` (batch reorder) | ≤ 300 ms | `{ ids_in_order }`; one txn, one audit entry (TASK-014) |
+| `DELETE /api/dashboard/widgets/{id}` (unpin / starter removal) | ≤ 300 ms | remove is DELETE, never PATCH |
 | `POST /api/dashboard/widgets/{id}/refresh` | ≤ 500 ms + upstream contract latency | revalidation; failure ⟹ `stale`, never blank |
 | `GET /api/dashboard/library` · `POST /api/dashboard/library` · `POST /api/dashboard/library/{id}/add` | ≤ 300 ms | add creates an independent per-user `widget_instances` copy |
 | `GET /api/role-home` | ≤ 500 ms cold / ≤ 200 ms warm | aggregates CE-METRICS-1 (CE caches 60 s) + availability registry |
@@ -249,7 +267,10 @@ One parametrised degradation sweep test covers all five (epic AC).
 
 - Separate route in primary nav (not a modal), M1 shell chrome unchanged.
 - Data: `CE-METRICS-1` (`entity_count_by_kind`, `shacl_errors_by_severity`,
-  `draft_published_delta`) + `CE-READ-1` `coverage_gap` rows for the completeness map;
+  `draft_published_delta`) + `CE-READ-1` `coverage_gap(kind, required_links[])` rows
+  (exact contract signature; row shape `{ entity_iri, missing_link }` — the platform
+  passes the kind/links pairs it needs and never derives per-kind link requirements
+  itself) for the completeness map;
   role resolution via the M1 RBAC middleware (PLAT-SETTINGS-1); capability visibility
   filtered by the user's authority level (epic AC role-matrix test) and the availability
   registry (§1) for coming-soon items.
@@ -277,7 +298,7 @@ coverage ≥ 80% and mutation ≥ 60% gates unchanged. New required families:
 | Intent-mapping audit | unit, parametrised | every prompt fixture resolves to exactly one §2 component or declines — no free-form path (epic AC) |
 | Degradation sweep | integration, parametrised | all five §6 states incl. per-field `pending` — one sweep (epic AC) |
 | Budget-cap mid-stream | integration | halt + rollback, no partial `widget_instances` row |
-| Cross-tenant/cross-user widget state | integration (extends M1 cross-tenant-read test) | tenant A sees zero of B's widget rows; user X sees none of Y's pins; workspace library visible workspace-wide |
+| Cross-tenant/cross-user widget state | integration (extends M1 cross-tenant-read test) | tenant A sees zero of B's widget rows **with the app-layer predicate disabled** (proves the DB RLS backstop alone); user X sees none of Y's pins; library visible tenant-wide |
 | Pin persistence | E2E (Playwright, two contexts) | same user, second device/session sees pins with live data (FR-008) |
 | Publish/add independent copy | E2E | copy refreshes same contract, independently refinable (E1-S5) |
 | Role-home role matrix | integration + one E2E | Viewer/Analyst/Engineer see only role-appropriate capabilities; coming-soon consistency with FR-015 uses the SAME availability registry fixture (epic AC single test) |

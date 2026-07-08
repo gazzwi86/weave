@@ -33,7 +33,7 @@ adr_refs: [ADR-013, ADR-014]
 **Epic:** EPIC-002 Widget Library
 **Priority:** Must Have (S11 rows: Should)
 
-**As a** workspace member using the dashboard (fixed tiles, generated widgets, or role-home)
+**As a** domain member using the dashboard (fixed tiles, generated widgets, or role-home)
 **I want** every widget category backed by its real contract with honest thresholds and
 degradation
 **So that** any number on my dashboard is live, cited, tunable, and never fabricated.
@@ -42,10 +42,10 @@ degradation
 
 | ID | EARS Criterion | Test Mapping |
 |----|----------------|--------------|
-| AC-1 | WHEN any category binding resolves, THE SYSTEM SHALL bind only published contract IDs (`CE-METRICS-1`, `CE-READ-1`, `CE-VERSION-1`, `CE-EVENT-1`, `PLAT-AUDIT-1`, `PLAT-BILLING-1`, `PLAT-SETTINGS-1`, `PLAT-IDENTITY-1`) and every rendered widget SHALL cite its contract(s) in the data-source footer — no category sources an uncontracted engine surface (epic AC). | unit: `test_bindings_cite_published_contracts_only` |
+| AC-1 | WHEN any category binding resolves, THE SYSTEM SHALL bind only published contract IDs (`CE-METRICS-1`, `CE-READ-1`, `CE-VERSION-1`, `CE-EVENT-1`, `PLAT-AUDIT-1`, `PLAT-BILLING-1`, `PLAT-SETTINGS-1`, `PLAT-IDENTITY-1`) — plus, for S10 only, the platform's own CloudWatch ops-metrics namespace (an internal telemetry source, labelled "platform ops metrics" in the footer, not a contract) — and every rendered widget SHALL cite its source(s) in the data-source footer; no category sources an uncontracted *engine* surface (epic AC). | unit: `test_bindings_cite_published_contracts_only` |
 | AC-2 | WHEN a category is requested (via resolver, fixed tile, or role-home), THE SYSTEM SHALL resolve it per the normative binding table below — fields, windows, and thresholds exactly as listed. | integration: `test_category_bindings_table` (parametrised, one case per category) |
 | AC-3 | WHEN a compliance-widget entry (S5) is selected, THE SYSTEM SHALL deep-link the entity via `CE-READ-1` `/resource/{iri}` (FR-016). | e2e: `test_compliance_deep_link` |
-| AC-4 | WHEN the operational-health category (S10) aggregates, THE SYSTEM SHALL compute error/retry/agent-failure rates per engine exclusively from `PLAT-AUDIT-1` `event_type` + `engine` fields over a rolling window (default 7 d) — no NLP, no inferred signals; WHEN any rate exceeds the spike threshold (default 2× the 7-day baseline, tunable), THE SYSTEM SHALL fire the alert-banner widget listing the driving audit entries ranked by frequency. | integration: `test_ops_health_aggregation_and_spike` |
+| AC-4 | WHEN the operational-health category (S10) aggregates, THE SYSTEM SHALL compute error/retry/agent-failure rates per engine exclusively from the **CloudWatch metrics emitted by the structured-log/OTel pipeline** (E0-S7 scaffold; namespace `Weave/Ops`, dimensions `engine` + metric name) over a rolling window (default 7 d) — **never from `PLAT-AUDIT-1`** (audit is tamper-evident provenance, not ops telemetry: contracts.md PLAT-AUDIT-1 altitude note), no NLP, no inferred signals; WHEN any rate exceeds the spike threshold (default 2× the 7-day baseline, tunable), THE SYSTEM SHALL fire the alert-banner widget listing the driving metric series ranked by magnitude. Tests use LocalStack CloudWatch (Law F). | integration: `test_ops_health_aggregation_and_spike` |
 | AC-5 | WHERE a binding uses a threshold or window (version-lag amber ≥ 2 / red ≥ 4; spike 2×; stagnation 14 d; burn-rate alert at 90% projected; growth window 30/90 d; refresh lag ≤ 5 min), THE SYSTEM SHALL resolve it through `PLAT-SETTINGS-1` with the stated default — never hard-coded (epic AC). | unit: `test_thresholds_resolve_via_settings` |
 | AC-6 | IF a category's source errs, THEN THE SYSTEM SHALL degrade per its story-specific honesty rule (table below: cached-series+staleness for S13; unavailable-never-zero-gaps for S14; last-%-never-false-0/100 for S15; last-known+timestamp for S3; last-snapshot+"refresh delayed" for S10) — extending TASK-010's single degradation sweep, one parametrised case per category (epic AC). | integration: `test_degradation_sweep_per_category` |
 | AC-7 | WHERE a row within a category depends on a non-GA engine (S3 per-run, S7 Build issues, S11 non-CE engine rows), THE SYSTEM SHALL render the defined "source engine not yet available" state with no fabricated/zeroed rows — one regression test covers all such rows simultaneously (epic AC). | integration: `test_not_yet_available_regression` |
@@ -56,11 +56,11 @@ degradation
 | Story | Category | Contract(s) + fields | Thresholds / windows (defaults, tunable) |
 |---|---|---|---|
 | S1 | Ontology health | `CE-METRICS-1`: all five fields | — |
-| S2 | Completeness / knowledge gaps | `CE-METRICS-1` `entity_count_by_kind` + `CE-READ-1` `coverage_gap` rows; kinds from `GET /api/ontology/types`, never hand-copied | — |
-| S3-token | Token & AI spend | `PLAT-BILLING-1` per-token dims (by engine/user/project, 7d/30d trend) + `PLAT-SETTINGS-1` budget caps | burn-rate alert at 90% projected; data lag ≤ 5 min; per-run dims dark until Events GA |
+| S2 | Completeness / knowledge gaps | `CE-METRICS-1` `entity_count_by_kind` + `CE-READ-1` `coverage_gap(kind, required_links[])` — **exact contract signature**, rows `{ entity_iri, missing_link }`; the binding passes explicit pairs: default `coverage_gap(Process, [performedBy, governedBy])` plus `coverage_gap(BusinessCapability, [ownedBy])`; which predicates are "required" per kind is named HERE by the consumer, never derived per-kind in code, never hard-coded in the query; kinds from `GET /api/ontology/types`, never hand-copied | — |
+| S3-token | Token & AI spend | `PLAT-BILLING-1` read surface: `GET /api/billing/usage?group_by=engine\|user\|project&from=&to=&granularity=day` → `{ rows: [{ key, tokens, runs, cost }], as_of }` (trend = `granularity=day` series; breakdown = `group_by` variants) + `PLAT-SETTINGS-1` budget caps (caps are settings — no billing budget endpoint exists) | burn-rate alert at 90% projected; staleness from `as_of` (lag ≤ 5 min); per-run dims (`runs`) dark until Events GA |
 | S5 | Compliance status | `CE-METRICS-1` `shacl_errors_by_severity` + `CE-READ-1` (deep-link, self-audit) | — |
 | S7-CE | Ontology issues | `CE-METRICS-1` `owl_inconsistencies` + `CE-READ-1` + `CE-VERSION-1` canonical lag | stale = lag ≥ 2; Build-project issues dark until Build GA |
-| S10 | Operational health | `PLAT-AUDIT-1` aggregate on `event_type` + `engine` only | window 7 d; spike 2× baseline → alert banner |
+| S10 | Operational health | CloudWatch ops metrics from the structured-log/OTel pipeline (`Weave/Ops` namespace, `engine` dimension) — never `PLAT-AUDIT-1` | window 7 d; spike 2× baseline → alert banner |
 | S11 | Agent activity feed | `PLAT-AUDIT-1` filtered to agent-principal IRIs (`PLAT-IDENTITY-1` scheme) reverse-chronological | CE rows only at M2; other engines not-yet-available |
 | S13 | Graph growth trend | `metrics_daily_snapshots` (sampled from `CE-METRICS-1`) | window 30/90 d; stagnation advisory 14 d flat/declining |
 | S14 | RBAC & access coverage | `PLAT-SETTINGS-1` RBAC + `PLAT-IDENTITY-1`: users w/o role, areas w/o owner, role changes (7 d), broad-scope agent principals | — |
@@ -81,17 +81,20 @@ CATEGORIES = {
   ... one per table row ...
 }
 # fetch fns reuse: TASK-010 ce_metrics client; M1 billing/audit/settings/identity query modules.
-# NEW upstream calls are ONLY: CE-READ-1 coverage_gap + /resource deep-link URL build,
-# CE-VERSION-1 lag read, PLAT-AUDIT-1 aggregate query, PLAT-BILLING-1 spend query,
-# PLAT-SETTINGS-1/IDENTITY-1 RBAC coverage query.
+# NEW upstream calls are ONLY: CE-READ-1 coverage_gap(kind, required_links[]) with the S2
+# pairs + /resource deep-link URL build, CE-VERSION-1 lag read, CloudWatch GetMetricData
+# (S10, boto3 — LocalStack in tests), GET /api/billing/usage spend query,
+# PLAT-SETTINGS-1/IDENTITY-1 RBAC coverage query, PLAT-AUDIT-1 query (S11 feed ONLY).
 
-# Ops-health aggregation (S10)
+# Ops-health aggregation (S10) — CloudWatch, never audit (contracts.md altitude note)
 def ops_health(tenant, window=settings("ops.window", "7d")):
-  rows = audit.query(tenant, group_by=["engine","event_type"], since=window)   # M1 FR-037 API
-  rates = {engine: {error_rate, retry_rate, agent_failure_rate}}               # pure field counts
-  baseline = same aggregation over prior window
+  series = cloudwatch.get_metric_data(namespace="Weave/Ops",
+             metrics=["error_count","retry_count","agent_failure_count"],
+             dimensions={"engine": ALL}, period=window)          # emitted by E0-S7 pipeline
+  rates = per-engine rates from series                            # pure metric math
+  baseline = same query over the immediately-preceding window
   spikes = [e for e in rates if rate > settings("ops.spike_factor", 2.0) * baseline[e]]
-  if spikes: attach alert_banner rows = top driving entries ranked by frequency
+  if spikes: attach alert_banner rows = top driving metric series ranked by magnitude
 
 # Growth snapshot (S13)  # ponytail: sampled on fetch, no scheduler — a workspace nobody
 #                        # looks at needs no history; upgrade to EventBridge cron if
@@ -128,7 +131,8 @@ Upstream calls per the binding table; all cited contracts are published in
 | One declarative CATEGORIES registry | Arch Law 6; epic AC "every category cites real contracts" | Resolver/tiles/role-home cannot drift; AC-1 test walks the dict |
 | Growth history = platform-side daily snapshot sampled on fetch | CE-METRICS-1 exposes no history (contract shape is point-in-time) | New small table (m2-delta §4.4); no scheduler at M2; advisory suppressed < 14 samples |
 | S13 charts entity counts only at M2 | CE-METRICS-1 has no relationship-count field | Relationship counts need a CE contract field — flagged to coordinator, not invented here |
-| S10 reads only `event_type` + `engine` fields | E2-S10 AC ("no NLP, no inferred signals") | Aggregation is pure counting; anything smarter is out of scope by spec |
+| S10 reads the CloudWatch/structured-log pipeline, never PLAT-AUDIT-1 | contracts.md PLAT-AUDIT-1 altitude note (audit ≠ ops telemetry); E2-S10 as re-sourced 2026-07-08 | boto3 GetMetricData on `Weave/Ops`; LocalStack in tests (Law F); high-volume error/retry signals never touch the append-only audit chain |
+| S11 (agent feed) legitimately reads PLAT-AUDIT-1 | S11 is a provenance feed (who did what), not telemetry | The audit query API serves S11 only; S10 and S11 sources must not be swapped |
 | All thresholds via PLAT-SETTINGS-1 | epic AC | One `settings(key, default)` helper (M1); grep finds zero literal thresholds in binding code |
 
 ## Test Requirements
@@ -143,7 +147,7 @@ Upstream calls per the binding table; all cited contracts are published in
 ### Integration Tests (minimum 4)
 
 - `test_category_bindings_table` — parametrised ×10: each category resolves its table row's fields against seeded fixtures (CE fixture + M1 audit/billing/settings seeds)
-- `test_ops_health_aggregation_and_spike` — seeded audit rows ⟹ correct per-engine rates; injected error burst ⟹ spike + ranked driving entries; below threshold ⟹ no banner
+- `test_ops_health_aggregation_and_spike` — seeded LocalStack CloudWatch metric data ⟹ correct per-engine rates; injected error-count burst ⟹ spike + ranked driving series; below threshold ⟹ no banner; spy proves zero PLAT-AUDIT-1 queries on the S10 path
 - `test_degradation_sweep_per_category` — parametrised ×10 (extends TASK-010 sweep): each category's story-specific honest state; explicit negative assertions (S14 never "0 gaps", S15 never 0%/100%, S13 never empty chart)
 - `test_not_yet_available_regression` — availability fixture (CE-only GA): S3 per-run, S7 Build, S11 non-CE rows all render not-yet-available; flip Build GA in fixture ⟹ S7 Build rows activate (proves gating is registry-driven)
 - `test_growth_snapshot_upsert_and_suppression` — two fetches same day ⟹ one row; series over seeded 30 days renders
@@ -200,12 +204,13 @@ Upstream calls per the binding table; all cited contracts are published in
 
 - Each binding's `fetch` should return `(data_shape, rows)` so TASK-012's compatibility matrix
   applies mechanically — bindings never name components.
-- The audit aggregate for S10/S11 is one GROUP BY query via the M1 query API — do not export
-  raw audit rows into Python to count them.
+- S10 is one CloudWatch `GetMetricData` batch call (all three metrics, both windows) — do not
+  loop per metric/engine. S11's audit read is one filtered query via the M1 FR-037 API — do not
+  export raw audit rows into Python to count them.
 - S15's completeness score reuses S2's per-kind computation with a different projection —
   one function, two views.
 - Baseline for spike detection = the window immediately preceding the current one; store
-  nothing — compute both aggregates in one query with a CASE on the time bucket.
+  nothing — request both windows in the same `GetMetricData` call and compare in memory.
 - Snapshot upsert lives in the TASK-010 client's success hook — one line, no new call site.
 
 ---

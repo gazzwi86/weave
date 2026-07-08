@@ -66,12 +66,13 @@ query-rewriter is the **single enforcement point** — see
 Unscoped queries are rejected (`UnscopedQueryRejected`); SELECT-only + SERVICE-blocked per
 [rbac-multi-tenancy §RDF layer](../../../../../../standards/rbac-multi-tenancy.md).
 
-### Workspace IRI vs Named-Graph IRI
+### Workspace IRI vs Named-Graph IRI *(historical — workspace removed 2026-07-08)*
 
-TASK-003 mints `urn:weave:tenant:{tid}:ws:{wid}` at workspace creation. This is the
-**resource identifier** for the workspace node inside the tenant named graph — it is not a
-graph IRI and must not be used as a `FROM` clause scope. The isolation boundary is the
-per-tenant named graph. The workspace IRI locates a node; the tenant graph IRI is the scope.
+TASK-003 minted `urn:weave:tenant:{tid}:ws:{wid}` at intra-tenant workspace creation. The
+2026-07-08 realignment removed intra-tenant workspaces (workspace ≡ company/tenant — see
+§Workspace below); these IRIs are legacy resource identifiers to be folded into the
+company graph by the migration. Either way they were never graph IRIs and must not be
+used as a `FROM` clause scope. The isolation boundary is the per-tenant named graph.
 
 ## ER Diagram
 
@@ -84,9 +85,8 @@ erDiagram
     TENANT ||--o{ CONNECTOR_CONFIG : "configures"
     TENANT ||--o{ METERING_RECORD : "accrues"
     TENANT ||--o{ BUDGET_CAP : "caps"
-    DOMAIN ||--o{ WORKSPACE : "scopes"
-    WORKSPACE ||--o{ PROJECT : "scopes"
-    WORKSPACE ||--o{ ROLE_BINDING : "governs"
+    DOMAIN ||--o{ PROJECT : "scopes"
+    TENANT ||--o{ ROLE_BINDING : "governs"
     PRINCIPAL_USER ||--o{ ROLE_BINDING : "holds"
     PRINCIPAL_AGENT ||--o{ ROLE_BINDING : "holds"
     PRINCIPAL_USER ||--o{ NOTIFICATION : "receives"
@@ -96,7 +96,6 @@ erDiagram
     SERVICE_PRINCIPAL_REGISTRY ||--o{ PRINCIPAL_AGENT : "mints IRI"
     TENANT ||--o{ SETTING_VALUE : "scopes (company)"
     DOMAIN ||--o{ SETTING_VALUE : "scopes (domain)"
-    WORKSPACE ||--o{ SETTING_VALUE : "scopes (workspace)"
     PROJECT ||--o{ SETTING_VALUE : "scopes (project)"
 
     TENANT {
@@ -111,18 +110,10 @@ erDiagram
         string name
         timestamp created_at
     }
-    WORKSPACE {
-        uuid id PK
-        uuid tenant_id FK
-        uuid domain_id FK
-        string name
-        string resource_iri
-        timestamp created_at
-    }
     PROJECT {
         uuid id PK
         uuid tenant_id FK
-        uuid workspace_id FK
+        uuid domain_id FK
         string name
         timestamp created_at
     }
@@ -156,7 +147,8 @@ erDiagram
     ROLE_BINDING {
         uuid id PK
         uuid tenant_id FK
-        uuid workspace_id FK
+        string scope_level
+        uuid scope_id
         string principal_iri
         string authority_level
         string area
@@ -191,8 +183,13 @@ erDiagram
         uuid id PK
         uuid tenant_id FK
         string connector_type
+        string handle UK
         string secret_arn
         string lifecycle_state
+        string sync_direction
+        interval sync_frequency
+        timestamp next_sync_at
+        text last_sync_cursor
         timestamp updated_at
         string updated_by_iri
     }
@@ -201,7 +198,10 @@ erDiagram
         uuid tenant_id FK
         string status
         timestamp last_checked_at
+        timestamp last_sync
         text last_error_redacted
+        int error_count
+        int kinds_skipped
     }
     NOTIFICATION {
         uuid id PK
@@ -278,31 +278,29 @@ cascade level for settings and budget caps.
 | `description` | text | — | optional |
 | `created_at` | timestamptz | NOT NULL | — |
 
-### Workspace
+### Workspace — REMOVED (2026-07-08 human decision)
 
-Team context; the primary RBAC boundary for role bindings. Creation mints the workspace
-resource IRI `urn:weave:tenant:{tid}:ws:{wid}` and stores it as `resource_iri` (see
-[§ Named-Graph Scheme](#named-graph-scheme) — this is a node identifier, not a graph IRI).
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | UUID | PK | — |
-| `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `domain_id` | UUID | FK → domains, NOT NULL | — |
-| `name` | varchar | NOT NULL | unique within domain |
-| `resource_iri` | varchar | UK, NOT NULL | `urn:weave:tenant:{tid}:ws:{wid}`; immutable after create |
-| `created_at` | timestamptz | NOT NULL | — |
+**Workspace ≡ the company/tenant.** The intra-tenant `workspaces` table and its
+`urn:weave:tenant:{tid}:ws:{wid}` resource IRIs are a divergence to migrate away from
+(see `.claude/memory/decision_tenancy-workspace-alignment.md`): existing sub-workspace
+rows fold into the company graph, the settings cascade drops the Workspace level
+(former workspace-scoped values re-home to their enclosing Domain; on a re-home
+collision the tighter value wins), and RBAC re-scopes to tenant-wide plus
+project/domain grants. **M2/v1 briefs test this spec, not the residual M1 column** —
+new tables MUST NOT add `workspace_id` FKs. The UI term "workspace" (switcher,
+workspace admin) survives and means the company/tenant.
 
 ### Project
 
-Scoped work unit within a workspace. The fourth (innermost) cascade level for settings.
+Scoped work unit within a Domain. The third (innermost) cascade level for settings.
+*(Amended 2026-07-08: re-parented from the removed Workspace to Domain.)*
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | UUID | PK | — |
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `workspace_id` | UUID | FK → workspaces, NOT NULL | — |
-| `name` | varchar | NOT NULL | unique within workspace |
+| `domain_id` | UUID | FK → domains, NOT NULL | was `workspace_id` pre-amendment; migration re-points to the enclosing Domain |
+| `name` | varchar | NOT NULL | unique within domain |
 | `created_at` | timestamptz | NOT NULL | — |
 
 ### Principal (User)
@@ -360,7 +358,9 @@ behind SEC-5 (see [§ Audit Entry](#audit-entry)).
 
 ### Role Binding
 
-Assignment of an authority level to a principal within a workspace and functional area.
+Assignment of an authority level to a principal within a scope (tenant-wide, domain, or
+project — per the 2026-07-08 tenancy realignment: senior roles bind tenant-wide;
+non-senior users work through project-scoped grants) and functional area.
 
 `authority_level` ∈ `{ read, author, publish, admin }` — the SKOS ordered scheme defined once
 in the framework graph per [ADR-002](../../../../decisions/ADR-002-authority-extension.md)
@@ -371,7 +371,8 @@ and [rbac-multi-tenancy](../../../../../../standards/rbac-multi-tenancy.md).
 |---|---|---|---|
 | `id` | UUID | PK | — |
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `workspace_id` | UUID | FK → workspaces, NOT NULL | — |
+| `scope_level` | varchar | CHECK IN ('company','domain','project'), NOT NULL DEFAULT 'company' | was `workspace_id`; 'company' = tenant-wide grant |
+| `scope_id` | UUID | NOT NULL | tenant/domain/project id matching `scope_level` (same pattern as `setting_values`) |
 | `principal_iri` | varchar | NOT NULL | FK-by-IRI to user or agent principal |
 | `authority_level` | varchar | CHECK IN ('read','author','publish','admin') | read ≺ author ≺ publish ≺ admin |
 | `area` | varchar | NOT NULL | functional area or `*` for all areas |
@@ -385,20 +386,22 @@ reconciled to ADR-002 terminology during implementation (flagged in §Conflicts)
 
 ### Setting Value
 
-A cascade-level key/value pair. `level` ∈ `{ company, domain, workspace, project }`.
-`tighter_rank` drives resolution: 0 = project (tightest, wins) … 3 = company (broadest).
-The resolver walks Project→Workspace→Domain→Company and returns the first non-null value.
+A cascade-level key/value pair. `level` ∈ `{ company, domain, project }` (the
+`workspace` level was removed 2026-07-08; existing workspace-level rows re-home to their
+enclosing Domain, tighter value winning on collision).
+`tighter_rank` drives resolution: 0 = project (tightest, wins) … 2 = company (broadest).
+The resolver walks Project→Domain→Company and returns the first non-null value.
 See [PLAT-SETTINGS-1](../../../../contracts.md) for the full resolver contract.
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | UUID | PK | — |
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `level` | varchar | CHECK IN ('company','domain','workspace','project') | cascade level |
-| `scope_id` | UUID | NOT NULL | references the relevant tenant/domain/workspace/project id |
+| `level` | varchar | CHECK IN ('company','domain','project') | cascade level (workspace removed 2026-07-08) |
+| `scope_id` | UUID | NOT NULL | references the relevant tenant/domain/project id |
 | `key` | varchar | NOT NULL | namespaced key e.g. `billing.token_cap` |
 | `value` | jsonb | NOT NULL | typed JSON value |
-| `tighter_rank` | int4 | NOT NULL | 0 = tightest (project) … 3 = broadest (company) |
+| `tighter_rank` | int4 | NOT NULL | 0 = tightest (project) … 2 = broadest (company) |
 | `set_at` | timestamptz | NOT NULL | — |
 | `set_by_iri` | varchar | NOT NULL | audit trail: who set this value |
 
@@ -435,7 +438,7 @@ tenant role binding. Export flow is in
 
 **Indexes:** `(tenant_id, seq)`, `(tenant_id, ts DESC)`, `(tenant_id, actor_principal_iri, ts)`.
 
-### Connector Config
+### Connector Config *(UNIFIED SCHEMA — canonical, 2026-07-08)*
 
 Handle to a managed connector. Credentials are stored exclusively in AWS Secrets Manager.
 `secret_arn` is the reference — **the credential value is never stored in this table and
@@ -444,34 +447,69 @@ applied before writing any error messages (see `connector_health.last_error_reda
 
 Seven supported connector types (**managed connectors are deferred from MVP to v1.0** — config + health
 probe and ingestion all activate at v1.0):
-`snowflake`, `databricks`, `aws`, `azure-datalake`, `atlassian`, `servicenow`, `slack`.
+`snowflake`, `databricks`, `aws`, `azure_data_lake`, `atlassian`, `servicenow`, `slack`.
 
 Atlassian covers Jira + Confluence as one OAuth family (one config row per tenant).
+
+> **Canonical-schema rule.** This table + `connector_health` below are THE connector
+> schema. The v1 delta (`v1-delta.md` §4) and every task brief (TASK-006/018–023) extend
+> or cite this definition — no fold-in of health columns, no parallel `secret_path` /
+> `status`-on-config variants. The prior v1-delta draft that folded health into the
+> config row is superseded.
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | UUID | PK | — |
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
 | `connector_type` | varchar | NOT NULL | one of the seven types above |
-| `secret_arn` | varchar | NOT NULL | `weave/{tenant_id}/{connector_type}/credentials` |
-| `lifecycle_state` | varchar | NOT NULL | `configured \| authorized \| syncing \| error \| revoked` |
+| `handle` | varchar | NOT NULL; UK `(tenant_id, handle)`; CHECK `position(':' in handle) = 0` | connector **instance handle**; defaults to `connector_type` at v1; prefixes `weave:externalId` (`"<handle>:<source_id>"`, parse first-colon-only — hence no colon allowed in the handle) |
+| `secret_arn` | varchar | NOT NULL | full Secrets Manager **ARN** returned at create; the secret *name* follows `weave/{tenant_id}/{connector_type}/credentials` (single canonical column — no `secret_path` variant) |
+| `lifecycle_state` | varchar | NOT NULL | `configured \| authorized \| syncing \| error \| revoked` (state machine in `business-process.md`); OAuth types reach `authorized` via the auth-code callback (TASK-025); credential types on a successful fail-closed config probe |
+| `sync_direction` | varchar | NOT NULL DEFAULT 'read' | `read \| write \| bidirectional`; `write`/`bidirectional` valid only for the ADR-017 allowlist (`atlassian`, `servicenow`) — 422 otherwise, enforced at config save (TASK-006) |
+| `sync_frequency` | interval | NOT NULL DEFAULT '1 hour' | captured at config (E7-S1 / FR-031) |
+| `next_sync_at` | timestamptz | — | ADR-016 poller claim key; partial index WHERE NOT NULL; set at authorization, cleared on revoke |
+| `last_sync_cursor` | text | — | driver-opaque incremental cursor (advances only after a run's final batch — TASK-018 AC-6) |
 | `created_at` | timestamptz | NOT NULL | — |
 | `updated_at` | timestamptz | NOT NULL | — |
 | `updated_by_iri` | varchar | NOT NULL | last actor principal IRI |
 
-**Unique constraint:** `(tenant_id, connector_type)` — one active config per type per tenant.
+**Unique constraint:** `(tenant_id, connector_type)` — one active config per type per tenant
+(v1; the `handle` UK future-proofs multi-instance).
 
-### Connector Health
+**SSRF guard (config-time):** any tenant-supplied host/account/instance URL in the
+credential/config payload is validated before storage — HTTPS only, hostname must match the
+connector type's allowed-domain suffix list (e.g. `*.snowflakecomputing.com`,
+`*.atlassian.net`, `*.service-now.com`, `*.azuredatabricks.net`/`*.cloud.databricks.com`,
+`*.dfs.core.windows.net`, `slack.com`), and its resolved IPs must not fall in loopback,
+link-local (incl. `169.254.169.254`), RFC-1918, CGNAT, or IPv6 ULA/link-local ranges.
+Runtime connections re-validate and pin the resolved IP (DNS-rebind aware). Test/dev
+fixture endpoints are permitted only via an explicit `connectors.allow_private_endpoints`
+settings flag (default **off**; never on in production). See v1-delta §2a and TASK-006/018.
 
-Cached health status for a connector. Populated by the health-probe endpoint.
+### Connector Health *(UNIFIED SCHEMA — canonical, 2026-07-08)*
+
+Cached health status for a connector — 1:1 with `connector_config`. Populated by the
+**worker-side probe** (sync cadence) and the config-time fail-closed probe; the HTTP
+health read (`GET /api/connectors/{type}/health`) **reads this stored row and never
+probes an external system inline** (TASK-006).
+
+**ONE status enum** (canonical; supersedes `ok|degraded|unreachable` and
+`healthy|degraded|offline` variants): `connected \| degraded \| disconnected` — matching
+E7-S2. `disconnected` = credentials invalid / unreachable / not authorized (fail-closed);
+`degraded` = partial (sustained kind-skips, timeouts, retry exhaustion) — still syncs so
+resync recovery works; `connected` = last probe + run clean. A health-read outage renders
+"health unknown" client-side — that is a render state, never a stored value.
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `connector_config_id` | UUID | PK, FK → connector_configs | 1:1 with connector_config |
 | `tenant_id` | UUID | NOT NULL | RLS anchor |
-| `status` | varchar | NOT NULL | `ok \| degraded \| unreachable` |
+| `status` | varchar | NOT NULL | CHECK IN (`connected`,`degraded`,`disconnected`); default `disconnected` |
 | `last_checked_at` | timestamptz | NOT NULL | — |
-| `last_error_redacted` | text | — | credential-scrubbed error message |
+| `last_sync` | timestamptz | — | last successful sync run (PLAT-CONNECTOR-1 health shape) |
+| `last_error_redacted` | text | — | credential-scrubbed error message (API field name: `last_error`) |
+| `error_count` | int4 | NOT NULL DEFAULT 0 | PLAT-CONNECTOR-1 health shape |
+| `kinds_skipped` | int4 | NOT NULL DEFAULT 0 | latest-run skipped-kind count (ADR-015 §2); sustained skips (default 3 runs) ⟹ `degraded` |
 
 ### Notification
 
@@ -525,14 +563,14 @@ See [PLAT-BILLING-1](../../../../contracts.md).
 
 ### Budget Cap
 
-Cascade-resolved spending limit. Resolution follows the same Project→Workspace→Domain→
-Company order as settings (tighter scope wins, `tighter_rank` ascending).
+Cascade-resolved spending limit. Resolution follows the same Project→Domain→Company
+order as settings (tighter scope wins, `tighter_rank` ascending).
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | UUID | PK | — |
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
-| `level` | varchar | CHECK IN ('company','domain','workspace','project') | cascade level |
+| `level` | varchar | CHECK IN ('company','domain','project') | cascade level (workspace removed 2026-07-08) |
 | `scope_id` | UUID | NOT NULL | id of the scoping entity |
 | `cap_type` | varchar | NOT NULL | `token \| run` |
 | `cap_value` | bigint | NOT NULL | — |
@@ -625,8 +663,8 @@ Mandatory before M1 ships per [ADR-001 §Release gate](../../../../decisions/ADR
 | Table | Index columns | Purpose |
 |---|---|---|
 | `domains` | `(tenant_id, name)` | tenant domain listing |
-| `workspaces` | `(tenant_id, domain_id)` | domain workspace listing |
-| `role_bindings` | `(tenant_id, workspace_id, principal_iri)` | RBAC lookup |
+| `projects` | `(tenant_id, domain_id)` | domain project listing |
+| `role_bindings` | `(tenant_id, scope_level, scope_id, principal_iri)` | RBAC lookup |
 | `role_bindings` | `(tenant_id, principal_iri, revoked_at)` | active binding check |
 | `setting_values` | `(tenant_id, level, scope_id, key)` | cascade resolver |
 | `audit_entries` | `(tenant_id, seq)` UNIQUE | chain traversal; PK covers this |
@@ -644,7 +682,7 @@ The following entities are post-M1 and must not appear in the M1 schema:
 | Entity | Owner | Reason deferred |
 |---|---|---|
 | `dashboard_widgets` (per-user pin table) | Platform | FR-008 is M2; M1 dashboard is fixed CE-sourced view |
-| `dashboard_library` (workspace-shared widgets) | Platform | FR-011 is M2 |
+| `dashboard_library` (tenant-shared widgets) | Platform | FR-011 is M2 |
 | `connector_ingest_jobs` | Platform / CE | Connector ingestion (E7-S3) needs CE-WRITE-1; connectors deferred to v1.0 |
 | Full ODRL `Permission` / `Prohibition` instances | Platform / CE | ADR-002 M2 authority module |
 | `weave:Activity` HITL duty triples | Platform / CE | ADR-002 M2 |

@@ -36,12 +36,12 @@ hallucinated, or budget-busting result.
 
 | ID | EARS Criterion | Test Mapping |
 |----|----------------|--------------|
-| AC-1 | WHEN a user submits a prompt, THE SYSTEM SHALL resolve the workspace AI budget via `PLAT-SETTINGS-1` and hard-reject at 100% cap **before any model call** with SSE `error {state: "budget-cap"}` (FR-035; reuses M1 TASK-008 gate — no re-implementation). | integration: `test_budget_gate_blocks_before_model_call` |
+| AC-1 | WHEN a user submits a prompt, THE SYSTEM SHALL resolve the tenant AI budget via `PLAT-SETTINGS-1` (3-level cascade) and hard-reject at 100% cap **before any model call** with SSE `error {state: "budget_cap"}` (FR-035; reuses M1 TASK-008 gate — no re-implementation). | integration: `test_budget_gate_blocks_before_model_call` |
 | AC-2 | WHEN generation proceeds, THE SYSTEM SHALL emit exactly one `spec` event, then zero-or-more `data` events, then exactly one terminal (`done` or `error`) — the m2-delta §3 order invariant; `done` carries `token_count`. | integration: `test_sse_order_invariant` |
 | AC-3 | WHEN the `spec` event is emitted, the client SHALL render the streaming skeleton/header from it; p95 prompt-to-`spec` ≤ 1 s (FR-003). IF the p95 target cannot be met with the agent call in the path, THEN THE SYSTEM SHALL emit a provisional `spec` from the rule-based keyword map (m2-delta §2) and follow with the agent-resolved spec as a spec-replacing refine — same grammar, no client change (ADR-012 contingency, binding). | integration: `test_spec_event_latency_or_provisional_fallback` |
-| AC-4 | IF the AI provider is unconfigured/unreachable, THEN THE SYSTEM SHALL emit `error {state: "provider-503"}` and the client SHALL render the defined retryable offline state (matches prototype `LlmBar` 503 handling; FR-003) — never a blank result. | integration: `test_provider_503_named_state` |
-| AC-5 | WHEN the budget cap is reached mid-stream, THE SYSTEM SHALL halt generation, emit `error {state: "budget-cap"}` with the E8-S2 cap message, and roll back the partial widget — no partial `widget_instances` row survives (E1-S1 AC). | integration: `test_midstream_cap_halts_and_rolls_back` |
-| AC-6 | WHEN a prompt targets a category whose source engine is not GA (availability registry, m2-delta §1), THE SYSTEM SHALL emit `error {state: "source-not-ga"}` rendering the "source engine not yet available" state, and SHALL NOT call the model (FR-015, FR-004). | unit: `test_non_ga_category_short_circuits` |
+| AC-4 | IF the AI provider is unconfigured/unreachable, THEN THE SYSTEM SHALL emit `error {state: "provider_503"}` and the client SHALL render the defined retryable offline state (matches prototype `LlmBar` 503 handling; FR-003) — never a blank result. | integration: `test_provider_503_named_state` |
+| AC-5 | WHEN the budget cap is reached mid-stream, THE SYSTEM SHALL halt generation, emit `error {state: "budget_cap"}` with the E8-S2 cap message, and roll back the partial widget — no partial `widget_instances` row survives (E1-S1 AC). | integration: `test_midstream_cap_halts_and_rolls_back` |
+| AC-6 | WHEN the resolver classifies a prompt to a category whose source engine is not GA (deterministic **availability-registry check on the resolved category** — m2-delta §1/§3 gate order; never a keyword guess), THE SYSTEM SHALL emit `error {state: "source_not_ga"}` rendering the "source engine not yet available" state and SHALL NOT fetch any data. `source_not_ga` and `unsatisfiable` are **distinct states**: `unsatisfiable` (TASK-012) means no component/data-shape match; `source_not_ga` means the category is real but its engine is dark (FR-015 vs FR-004). | integration: `test_non_ga_category_distinct_from_unsatisfiable` |
 | AC-7 | WHEN generation completes, THE SYSTEM SHALL meter `token_count` on the existing `PLAT-BILLING-1` queue and write a `PLAT-AUDIT-1` entry (actor, `event_type="dashboard.widget.generated"`, prompt_hash) — and emit the OTel span attributes per PRD §2.2 (`prompt_hash`, `component_type`, `data_source_contract`, `token_count`, `latency_ms`, `tenant_id`). | integration: `test_generation_metered_and_audited` |
 | AC-8 | WHILE the prompt bar is empty, THE SYSTEM SHALL show 4–6 role-tailored example prompts scoped to available categories only (never a non-GA source); WHEN the user has generated 3 widgets (tunable), THE SYSTEM SHALL hide them (E1-S7, FR-013). Prompt bar opens with Cmd+K and is keyboard-focusable (FR-001). | unit + e2e: `test_example_prompts_scoped_to_ga`, `test_prompt_to_widget_stream` |
 
@@ -53,18 +53,21 @@ hallucinated, or budget-busting result.
 # Generate endpoint (packages/backend/dashboard/generate.py)
 POST /api/dashboard/widgets/generate  { prompt }  -> text/event-stream
   rbac.require(caller, area="dashboard", level="read")            # M1 middleware
-  category = keyword_precheck(prompt)                             # cheap, rule-table §2
-  if category and not availability.is_ga(category.source_engine):
-      yield sse("error", state="source-not-ga", reason=category.source_engine); return
-  if billing.budget_state(tenant, workspace) == AT_CAP:           # M1 TASK-008 gate, pre-call
-      yield sse("error", state="budget-cap", reason=cap_message()); return
+  if billing.budget_state(tenant) == AT_CAP:                      # M1 TASK-008 gate, pre-call
+      yield sse("error", state="budget_cap", reason=cap_message()); return
 
   try:
-      spec = model_router.dashboard_agent.resolve(prompt)         # sonnet; faked in tests
+      result = model_router.dashboard_agent.resolve(prompt)       # sonnet; faked in tests
   except ProviderUnavailable:
-      yield sse("error", state="provider-503", reason="AI provider unavailable"); return
-  if spec is None:                                                # no component/data match
+      yield sse("error", state="provider_503", reason="AI provider unavailable"); return
+  # Gate order (m2-delta §3): budget -> resolver -> registry -> fetch.
+  # The RESOLVER classifies (category + data shape); the REGISTRY decides GA-ness.
+  # No fragile keyword precheck in the gating path.
+  if result is SourceNotGA:            # resolved category's engine dark per availability registry
+      yield sse("error", state="source_not_ga", reason=result.source_engine); return
+  if result is None:                   # no component/data-shape match (TASK-012)
       yield sse("error", state="unsatisfiable", reason=named_reason); return
+  spec = result
 
   validate spec against WidgetSpec JSON schema (m2-delta §3)      # invalid = bug, 500 not stream
   yield sse("spec", spec)
@@ -80,8 +83,10 @@ POST /api/dashboard/widgets/generate  { prompt }  -> text/event-stream
   yield sse("done", token_count=token_count, widget_id=row.id)
 
 # Latency contingency (activate ONLY if perf test shows spec-p95 > 1s):
-#   yield sse("spec", keyword_precheck(prompt).provisional_spec) immediately,
+#   yield sse("spec", keyword_table_provisional_spec(prompt)) immediately,
 #   then agent spec streams later as a spec-replacing event — grammar unchanged.
+#   The keyword table serves ONLY this provisional-spec fallback — it never gates
+#   source_not_ga / unsatisfiable (registry + resolver own those, above).
 
 # Prompt bar (packages/frontend/src/dashboard/PromptBar.tsx)
 Cmd+K focus; EventSource-style fetch-stream consumer hook useWidgetStream(url, body)
@@ -109,7 +114,7 @@ event: done
 data: {"token_count":412,"widget_id":"<uuid>"}
 ```
 
-Terminal error example: `event: error` / `data: {"state":"budget-cap","reason":"Workspace AI budget reached (cap resolved at Domain level)."}`
+Terminal error example: `event: error` / `data: {"state":"budget_cap","reason":"Monthly AI budget cap reached (cap resolved at Domain level)."}`
 p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/403 as HTTP status before the stream opens.
 
 ### Diagram References
@@ -125,7 +130,8 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 | Decision | Source | Impact on This Task |
 |----------|--------|---------------------|
 | Custom SSE on the Platform API; LLM only in Model Router behind the budget gate | ADR-012 | No Vercel AI SDK, no Next.js server-side LLM call; one client stream hook, native fetch-stream |
-| Latency contingency: provisional rule-based spec then spec-replacing refine | ADR-012 confidence flag → m2-delta §3 | Build the keyword precheck anyway (needed for AC-6 short-circuit); flipping it to provisional-spec emitter is config, not redesign |
+| Latency contingency: provisional rule-based spec then spec-replacing refine | ADR-012 confidence flag → m2-delta §3 | Keyword table exists ONLY as the provisional-spec source; it never gates GA-ness or satisfiability (registry + resolver own those — AC-6) |
+| `source_not_ga` ≠ `unsatisfiable` — registry decides GA, resolver decides satisfiability | m2-delta §2/§3 (red-team fix 2026-07-08) | Two distinct terminal states with distinct renders; conflating them (or keyword-gating either) is a review Blocker |
 | Budget/metering/audit reuse M1 machinery | FR-035, PLAT-BILLING-1, PLAT-AUDIT-1 | Import M1 TASK-008/009 services; any re-implementation is a review Blocker |
 | Availability registry is the single GA source | m2-delta §1 | Example-prompt filtering and AC-6 short-circuit import the same module TASK-016/017 use |
 | SSE route needs a streaming runtime | ADR-012 §Decision 5 | Route pinned to Fargate/ALB (or Lambda response streaming) — coordinate at deploy config, logged in arch-delivery ledger |
@@ -134,7 +140,7 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 
 ### Unit Tests (minimum 4)
 
-- `test_non_ga_category_short_circuits` — prompt naming a Build-sourced category ⟹ `source-not-ga` error event, model router spy shows zero calls
+- `test_non_ga_category_distinct_from_unsatisfiable` — resolver fixture classifying to a Build-sourced category ⟹ `source_not_ga` error event with the engine named and zero data fetches; resolver fixture returning no-match ⟹ `unsatisfiable`; the two never produce each other's state (parametrised, integration-level — sits in the Integration list below)
 - `test_example_prompts_scoped_to_ga` — role fixtures ⟹ 4–6 prompts, none tagged to a non-GA category; count ≥ 4 after filtering (catalogue must over-provide)
 - `test_widget_spec_schema_rejects_unknown_component` — spec with `component_type="gauge"` fails validation (closed set of 9)
 - `test_sse_event_serialisation` — each event type round-trips through its Pydantic model
@@ -142,10 +148,10 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 
 ### Integration Tests (minimum 5)
 
-- `test_budget_gate_blocks_before_model_call` — tenant at 100% cap ⟹ `error budget-cap`, model router spy zero calls
+- `test_budget_gate_blocks_before_model_call` — tenant at 100% cap ⟹ `error budget_cap`, model router spy zero calls
 - `test_sse_order_invariant` — happy path ⟹ exactly [spec, data*, done]; parametrised error paths ⟹ [error] or [spec, data*, error], never events after terminal
 - `test_midstream_cap_halts_and_rolls_back` — cap flips during data streaming ⟹ error event AND no `widget_instances` row persisted
-- `test_provider_503_named_state` — model router raises ProviderUnavailable ⟹ `provider-503`, retryable
+- `test_provider_503_named_state` — model router raises ProviderUnavailable ⟹ `provider_503`, retryable
 - `test_generation_metered_and_audited` — done path ⟹ PLAT-BILLING-1 queue message with token_count + PLAT-AUDIT-1 entry with prompt_hash
 - `test_spec_event_latency_or_provisional_fallback` — with the faked router at recorded-fixture latency, `spec` arrives ≤ 1 s; contingency branch test: provisional spec then replacing spec, client state consistent
 
@@ -162,7 +168,7 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 | AC-3 | Integration | `test_spec_event_latency_or_provisional_fallback` |
 | AC-4 | Integration | `test_provider_503_named_state` |
 | AC-5 | Integration | `test_midstream_cap_halts_and_rolls_back` |
-| AC-6 | Unit | `test_non_ga_category_short_circuits` |
+| AC-6 | Integration | `test_non_ga_category_distinct_from_unsatisfiable` |
 | AC-7 | Integration | `test_generation_metered_and_audited` |
 | AC-8 | Unit + E2E | `test_example_prompts_scoped_to_ga`, `test_prompt_to_widget_stream` |
 
@@ -189,7 +195,7 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 ## Definition of Done Checklist
 
 - [ ] All ACs met
-- [ ] Model router spy proves zero LLM calls on budget-cap and source-not-ga paths
+- [ ] Model router spy proves zero LLM calls on the budget_cap path; zero data fetches on source_not_ga
 - [ ] No partial widget row on any error path (rollback verified)
 - [ ] Raw prompt text absent from spans and audit entries (hash only)
 - [ ] `grep -ri "anthropic\|bedrock" packages/frontend/src` → no hits (invariant, m2-delta §10)
@@ -200,7 +206,7 @@ p95: `spec` ≤ 1 s, terminal ≤ 5 s at ≤ 1,000 points (m2-delta §5). 401/40
 
 - Use FastAPI `StreamingResponse` with an async generator; wrap the DB work in the generator so `MidStreamCap` unwinds the transaction naturally — do not manage rollback by hand.
 - The frontend hook should use `fetch` + `ReadableStream` (not `EventSource` — it can't POST); parse `event:`/`data:` lines with a ~20-line splitter, no SSE library.
-- Keep `keyword_precheck` as data (keyword → category/component table), not code branches — TASK-012's rule table and the contingency both read it.
+- Keep the contingency keyword table as data (keyword → category/component), not code branches — TASK-012's rule table and the provisional-spec fallback both read it; nothing else may.
 - Budget re-check cadence during streaming: once per `data` chunk is enough; per-row is waste.
 - Abort handling: client `AbortController` on unmount; server generator must tolerate disconnect without leaking the transaction.
 

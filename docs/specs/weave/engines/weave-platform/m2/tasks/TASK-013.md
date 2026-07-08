@@ -51,7 +51,7 @@ destroys what I had.
 # Refine endpoint (packages/backend/dashboard/refine.py)
 POST /api/dashboard/widgets/{id}/refine  { prompt }  -> text/event-stream
   widget = load widget_instances[id]  (RLS scopes tenant; 403 if scope='user' and not owner;
-                                       workspace_default is read-only-composed at M2 -> 403)
+                                       tenant_default is read-only-composed at M2 -> 403)
   # delegate to TASK-011's generate pipeline with held context:
   spec = model_router.dashboard_agent.resolve(prompt, context=widget.spec)   # TASK-012 resolver,
         # context makes it a delta: resolver receives current spec + delta prompt
@@ -117,12 +117,12 @@ upstream (matches refresh — it IS a refresh with a different spec).
 
 ### Integration Tests (minimum 4)
 
-- `test_refine_reuses_generate_pipeline` — refine at budget cap ⟹ `error budget-cap`, model spy zero calls (proves the gate is in the path); happy refine ⟹ metered + audited as `dashboard.widget.refined`
+- `test_refine_reuses_generate_pipeline` — refine at budget cap ⟹ `error budget_cap`, model spy zero calls (proves the gate is in the path); happy refine ⟹ metered + audited as `dashboard.widget.refined`
 - `test_refinement_history_capped_at_10` — 12 refines ⟹ 10 rows, seqs are the latest 10
-- `test_refine_failure_preserves_prior_state` — provider-503 mid-refine ⟹ spec, last_result, history byte-identical to before
+- `test_refine_failure_preserves_prior_state` — provider_503 mid-refine ⟹ spec, last_result, history byte-identical to before
 - `test_history_restore_no_model_call` — restore seq 2 ⟹ spec swapped, data re-fetched (CE client called), model router spy zero calls
 - `test_refine_unsatisfiable_declines` — delta requesting an unexposed dimension ⟹ `unsatisfiable`, state intact
-- `test_refine_forbidden_on_workspace_default` — 403 (read-only-composed at M2)
+- `test_refine_forbidden_on_tenant_default` — 403 (read-only-composed at M2)
 
 ### E2E Tests (minimum 1)
 
@@ -165,7 +165,7 @@ upstream (matches refresh — it IS a refresh with a different spec).
 - [ ] Refine path contains no duplicated budget/meter/audit code (imports TASK-011 modules)
 - [ ] No write on any error path (verified by state-diff assertions)
 - [ ] Restore path model-free (spy-verified)
-- [ ] workspace_default refine returns 403
+- [ ] tenant_default refine returns 403
 - [ ] Coverage ≥ 80%; mutation ≥ 60%
 - [ ] Conventional commit: `feat: add widget refine with capped history and restore`
 

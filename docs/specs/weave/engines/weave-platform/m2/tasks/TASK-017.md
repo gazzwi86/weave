@@ -38,7 +38,7 @@ gap L1/D7).
 |----|----------------|--------------|
 | AC-1 | WHEN a user navigates to role-home, THE SYSTEM SHALL render a role-tailored view per the content table below: available capabilities, modelled summary (from `CE-METRICS-1`), recommended next action, and links to relevant engine areas (E10-S1). | integration: `test_role_home_content_by_role` |
 | AC-2 | WHERE an engine is not GA, its capabilities SHALL render in the defined "coming soon" state with a one-line description of what it will enable — never hidden, never implied available — using the SAME availability registry as FR-015; one shared test fixture verifies role-home and widget-category gating consistently (epic AC). | integration: `test_coming_soon_consistency_with_fr015` |
-| AC-3 | WHEN the completeness map renders, THE SYSTEM SHALL show per-kind coverage over the BPMO kinds served by `GET /api/ontology/types` (CE-READ-1 — never a hand-copied kind list), combining `entity_count_by_kind` (CE-METRICS-1) with `coverage_gap` rows (CE-READ-1) via TASK-016's bindings (E10-S2). | integration: `test_completeness_map_kinds_from_types_endpoint` |
+| AC-3 | WHEN the completeness map renders, THE SYSTEM SHALL show per-kind coverage over the BPMO kinds served by `GET /api/ontology/types` (CE-READ-1 — never a hand-copied kind list), combining `entity_count_by_kind` (CE-METRICS-1) with `coverage_gap(kind, required_links[])` rows (CE-READ-1 — **exact contract signature**, rows `{ entity_iri, missing_link }`; invocations are TASK-016 S2's explicit pairs: `coverage_gap(Process, [performedBy, governedBy])` default + `coverage_gap(BusinessCapability, [ownedBy])`; no per-kind derivation logic platform-side) via TASK-016's bindings (E10-S2). | integration: `test_completeness_map_kinds_from_types_endpoint` |
 | AC-4 | WHEN a user's role lacks a capability's required authority, THE SYSTEM SHALL NOT show it (Viewer sees no author-or-above capabilities) — verified by role-matrix test across read/author/publish/admin (epic AC role-matrix across Viewer, Business Analyst, Engineer maps to these levels). | integration: `test_role_matrix_capability_filtering` |
 | AC-5 | IF `CE-METRICS-1` or `CE-READ-1` is unavailable, THEN THE SYSTEM SHALL degrade to the last-cached snapshot with a staleness indicator (m2-delta §6 `stale` state — role-home tiles are `scope='role_home'` widget instances riding TASK-010's SWR path), never a blank or zeroed view (E10-S1/S2 failure ACs). | integration: `test_role_home_degrades_to_cached_snapshot` |
 | AC-6 | WHEN role-home loads, `GET /api/role-home` SHALL respond ≤ 500 ms cold / ≤ 200 ms warm p95 and the page SHALL meet the ≤ 2 s p95 CE-sourced load target (epic AC; m2-delta §5), passing the Lighthouse-100/axe-0 gate (m2-delta §8). | perf assertion in integration + Lighthouse CI gate |
@@ -69,7 +69,7 @@ assign roles ▸ else → explore/deep-link. First match wins; one rule, unit-te
 ```text
 # Role-home endpoint (packages/backend/dashboard/role_home.py)
 GET /api/role-home
-  level = rbac.authority_level(jwt.principal_iri, workspace)      # M1 middleware
+  level = rbac.authority_level(jwt.principal_iri, tenant)         # M1 middleware (tenant-scoped; workspace ≡ tenant)
   tiles = widget_instances where scope='role_home' and owner=caller
   if empty: lazy-create from ROLE_HOME_TILES[level] (same idempotent pattern as
             TASK-010 starters; specs reuse TASK-016 bindings: completeness map,
