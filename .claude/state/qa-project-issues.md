@@ -142,3 +142,32 @@ per-task reports.
   risk. The immediate CE-TASK-001 instance is being fixed in the task retry; this issue is about
   the structural guard so a 7th route can't repeat it.
 - **Deadline:** Before CE-TASK-003 (next contract-surface task) starts.
+
+## PROJ-008: elicit skill SKILL.md has a broken path template (harness bug — governance path)
+
+- **Title:** `.claude/skills/elicit/SKILL.md` lines ~44/105/120 concatenate a directory onto a file
+  path with no separator: `docs/specs/weave/engines/<entity>.md00-elicit/` (missing `/` between
+  `.md` and `00-elicit`, and `.md` should not precede a directory segment at all). Any agent
+  following the template writes elicitation output to a garbage path.
+- **Severity:** Project (harness) · **Raised in:** M2/v1 red-team coordinator log (2026-07-08),
+  re-verified 2026-07-08 WS1-GAP pass.
+- **Owner:** Harness maintainer — this is a `.claude/skills/**` file, so the fix requires an
+  advisor consult + `Advisor-Consult:` trailer per harness-governance; do NOT fix inline mid-task.
+- **Deadline:** Next harness PR / phase-gate remediation sweep.
+
+## PROJ-009: Cross-engine conformance tests promised but untracked (3 items)
+
+- **Title:** Three conformance checks were ruled necessary in the M2/v1 coordinator pass but exist
+  only as decision-log checkboxes, not as any brief's AC or a tracked test: (a) JWT
+  `principal_iri` claim conformance test — a Cognito config change must not silently break GE
+  attribution (partial ACs exist in GE M2 TASK-004 but no platform-side contract test); (b)
+  CE-WRITE-1 idempotency-key contract test — Platform v1 TASK-018 AC-6 depends on the pinned
+  semantics (per-tenant key, 24h window, replay→201, diff→409) but CE has no test proving it
+  serves them; (c) `ge-canvas-1.md` prop-surface freeze confirmation — frontmatter still
+  `confirmed_by: none` despite the stability rule being load-bearing for Build M2.
+- **Severity:** Project · **Raised in:** m2-v1-spec-decisions.md follow-ups, WS1-GAP verification
+  (2026-07-08).
+- **Owner:** (a) Platform architect — add contract-test AC to the identity/JWT surface task;
+  (b) CE architect — add idempotency contract-test AC to the CE-WRITE-1 owning task; (c) GE — set
+  `confirmed_by`/`confirmed_on` in ge-canvas-1.md frontmatter at next GE spec touch.
+- **Deadline:** Before the merged-milestone spec-review gate (WS1 step 4 / /spec-review).

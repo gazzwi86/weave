@@ -1,7 +1,7 @@
 # Session Snapshot
 
-Captured at: 2026-07-08T12:16:43+00:00
-Event: session-end
+Captured at: 2026-07-08T13:05:31+00:00
+Event: pre-compact
 
 ## Current State
 

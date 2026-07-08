@@ -139,3 +139,33 @@ Onboarding(M2), + program-docs workspace-purge (weave-spec/personas/dev-environm
 
 - Human-principal IRI: NOT a gap — M1 PLAT-TASK-004 mints it in the JWT claim. Doc fixed.
 - Build M2 ≠ GE-CANVAS-1 consumer (that's Build v1.0 FR-032, post-v1). Build M2 = Legibility+Trust.
+
+## WS1-GAP verification + closure pass (2026-07-08, orchestrator session)
+
+**Verification (6 parallel agents, main @ f677b7e):** Build M2+v1, GE M2, CE M2+v1, Platform M2+v1
+all red-team Blockers/Majors CLOSED (incl. Platform v1 SSRF — comprehensive mitigation in
+v1-delta §2a). Onboarding M2 closed on its side but CE side of the competency ruling was
+unexecuted. Full evidence in the verification agents' reports (session f9432b24, 2026-07-08).
+
+**New user rulings (MCQ 2026-07-08):**
+- **Milestone dirs: literal merge** — m2/ folds into v1/ per engine, one contiguous task
+  numbering, progress.json reseeded. (Supersedes the sibling-dirs layout.)
+- **CE + GE specs: merge** — into one spec tree, INCLUDING historic m1 artifacts; keep existing
+  naming conventions (no new codename); renumber only on ID collision.
+- **Billing rate card (dollar conversion): post-v1.** PLAT-BILLING-1 `cost` = null until then;
+  consumers render counts. Contract note applied.
+- **Email channel (SES): post-v1.** PLAT-NOTIFY-1 note applied; digest preference UI-gated.
+- **Never delete descoped task briefs** — anything moved post-v1 keeps its task file, relocated
+  to the engine's `post-v1/tasks/` dir.
+
+**Closure edits this pass:** contracts.md — CE-READ-1 kind `description` (skos:definition,
+CE M2 TASK-011), PLAT-NOTIFY-1 email-post-v1 + publish-notification behaviour, PLAT-IDENTITY-1
+role-vocabulary pointer (10 roles + super admin), PLAT-BILLING-1 cost-null-until-rate-card.
+Engine fixes dispatched to 3 agents: CE (AC-010-07 phantom clause, v1.0→post-v1 tags, ADR-001
+retext, FR-043 pointer, TASK-011 brief), Platform (SSRF canonicalisation addendum, stale 4-level
+cascade sweep in architecture/business-process/testing-strategy, rate-card + SES post-v1 notes,
+tenancy write-back, S3 erratum), Onboarding+personas (7 workspace-cascade lines, 3 authority tags).
+
+**Follow-ups closed:** GE dup ADR-004 (already fixed), prop-freeze rule present (frontmatter
+confirm → PROJ-009c), elicit-skill bug → PROJ-008, conformance tests → PROJ-009, S3 erratum +
+personas tags + FR-043 + competency clause → dispatched above.
