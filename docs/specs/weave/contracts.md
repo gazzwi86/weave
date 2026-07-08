@@ -41,12 +41,16 @@ depend on. CE owns and publishes ALL of the following.
     (constraint/rule/regulatory-requirement/principle), `Goal` (motivation/driver/outcome),
     `Actor` (role/person/service-account identity), `Concept` (SKOS glossary term), `Class`
     (OWL type). `Concept`+`Class` are one punned resource (decision B1).
-  - **Relationship types:** `performedBy` (Process/Activity→Actor), `consumes` and `produces`
-    (Process/Activity↔DataAsset), `triggeredBy` (Process←Event), `hasStep`
-    (Process→Activity), `dependsOn`, `runsOn` (Service→System), `accesses`
-    (Service→DataAsset), `realizes` (Process→BusinessCapability), `servesGoal`
-    (BusinessCapability→Goal), `inDomain`, `hasCapability`, `governedBy`
+  - **Relationship types (illustrative — `GET /api/ontology/types` is authoritative, never a
+    hand-copied list per `ontology-standards.md`):** `performedBy` (Process/Activity→Actor),
+    `consumes` and `produces` (Process/Activity↔DataAsset), `hasField` (DataAsset→Field),
+    `triggeredBy` (Process←Event), `hasStep` (Process→Activity), `precedes`/`follows`
+    (Activity→Activity step ordering, from BPMN sequenceFlow — CE ADR-013-adjacent), `dependsOn`, `runsOn`
+    (Service→System), `accesses` (Service→DataAsset), `realizes` (Process→BusinessCapability),
+    `servesGoal` (BusinessCapability→Goal), `inDomain`, `hasCapability`, `governedBy`
     (Process/DataAsset→Policy), `describes`, `partOf`, and SKOS `broader`/`narrower`/`related`.
+    The shipped BPMO data-model table (CE tech spec) is the source; `/api/ontology/types` serves
+    every relationship above **including `hasField`**.
   - This is a **framework, not a populated taxonomy** (decision A1): clients extend it with
     their own domain kinds/relationships. Aligned to ArchiMate 3; REA + UFO inform the design
     behind the curtain. Kind/relationship names and cardinalities are finalised in the CE
@@ -74,9 +78,12 @@ depend on. CE owns and publishes ALL of the following.
   *(Honest scope — the 13-kind framework ships the join skeleton, NOT full authority resolution.)*
   - The base framework (`performedBy` / `governedBy` / `accesses` / `hasStep`) supports two
     queries directly: `escalation(process)` → the Actor(s) to contact/escalate to; and
-    `coverage_gap(process)` → required links that are **absent** (a Process with no
-    `performedBy`/`governedBy`), as explicit `{ entity_iri, missing_link }` rows. **`coverage_gap`
-    is the M1-credible grounding query.**
+    `coverage_gap(kind, required_links[])` → entities of `kind` missing one or more of
+    `required_links`, as explicit `{ entity_iri, missing_link }` rows (one row per absent link).
+    The **default invocation** is `coverage_gap(Process, [performedBy, governedBy])`; consumers
+    pass other pairs (e.g. `(BusinessCapability, [ownedBy])`) — the row shape is unchanged. Which
+    predicates are "required" per kind is named by each consumer, not hard-coded in the query.
+    **`coverage_gap` is the M1-credible grounding query.**
   - **`governedBy` → `Policy` reaches a *described* rule (human-readable prose), not a
     machine-evaluable constraint.** Enforcement lives in SHACL shapes (CE-WRITE-1), not in Policy
     edges. Consumers MUST NOT expect machine-enforceable authority from a `governedBy` edge alone.
@@ -110,8 +117,12 @@ depend on. CE owns and publishes ALL of the following.
     attributed to `actor`.
   - Response: `201 { activity_iri, applied_count, version_iri }` OR
     `422 { violations: [{ focus_node, path, severity, message }] }`.
-  - Idempotency / conflict: duplicate-IRI create is reconciled to the existing node (not an error);
-    callers may pass an idempotency key.
+  - Idempotency / conflict: duplicate-IRI create is reconciled to the existing node (not an error).
+    Callers MAY pass an idempotency key, with pinned semantics: (a) the key is **unique per tenant**;
+    a replay within the window returns the **original stored `201 { activity_iri, version_iri }`** —
+    no re-apply, no new version. (b) Window = **24h default, tunable** (crash-recovery is hours, not
+    months); an expired key is treated as a new request. (c) Same key + **different payload → `409`**
+    (key-reuse error) — never a silent divergence.
   - **Referential integrity:** CE applies exactly the submitted ops — there is no server-side
     cascade beyond them. Integrity is enforced by SHACL at commit: ops that leave a dangling
     reference (where shapes forbid it) fail the whole batch with `422`. A deleting client must
@@ -142,7 +153,18 @@ depend on. CE owns and publishes ALL of the following.
   proves necessary for the Explorer diff overlay, it is added as an additive optional view — never
   by changing this base shape. Authoritative response schema:
   `packages/backend/src/weave_backend/schemas/ontology.py::DiffResponse` (CE ADR-002).
-- Consumers: Graph Explorer (diff overlay), Build (artefact staleness).
+- **Breaking-span (additive):** the response also carries `versions: [{ version_iri, breaking }]` —
+  the **ordered** published-version span `from → to`, each flagged with its `breaking` bool — so a
+  consumer asks "did anything breaking land between my pin and latest?" in ONE call
+  (`any(v.breaking)`), instead of three engines each re-fetching ordered versions and slicing. Base
+  triple shape (`added`/`removed`/`modified`) is untouched.
+- **Shape-break detection lives in CE at publish time** (one owner, one rule set): CE computes each
+  version's `breaking` flag from BOTH function-signature changes (CE-FUNCTION-1 / ADR-009 classes)
+  AND shape/kind surface changes — a property removed or retyped, a cardinality tightened, a kind
+  removed (unstated class defaults to breaking, same precedent ADR-009 set). Build MUST NOT parse
+  SHACL diffs to decide breakingness — that re-implements CE's ontology semantics.
+- Consumers: Graph Explorer (diff overlay), Build (artefact staleness — reads `versions[].breaking`,
+  never derives it).
 
 ### CE-VERSION-1 — Version metadata + canonical lag
 - `GET /api/ontology/versions` (see CE-READ-1) is the single source for "latest".
@@ -163,8 +185,13 @@ depend on. CE owns and publishes ALL of the following.
   (default, tunable via PLAT-SETTINGS-1); an aged-out cursor gets `410 Gone` and re-baselines via
   CE-READ-1 — never a silent empty page. Push fan-out (SNS/WebSocket) is a post-v1 additive upgrade
   reading this feed as its outbox.
-- Consumers: Events (graph-change triggers — **Should Have**, degrade to polling CE-READ-1 with a
-  since-version if the stream isn't ready), Platform (live activity/“draft-vs-published delta” widgets).
+- Consumers: Events (graph-change triggers — **Should Have**), Graph Explorer (live canvas
+  refresh — polls the seq feed for draft + published deltas), Platform (live
+  activity / “draft-vs-published delta” widgets). **There is no separate "since-version poll on
+  CE-READ-1" fallback** — the seq feed above IS the polled transport (it is polling by
+  construction, covers DRAFT commits via `version_iri: null` rows, and degrades via `410 Gone`
+  → re-baseline on CE-READ-1). A consumer that isn't ready for push simply reads the seq feed;
+  it does not invent a version-filtered read that does not exist.
 
 ### CE-BRAND-1 — Brand → design-token projection + VoiceRule contract
 - `GET /api/brand/tokens` → flattened design-token JSON projected from the RDF brand individuals —
@@ -185,9 +212,11 @@ depend on. CE owns and publishes ALL of the following.
 ### CE-METRICS-1 — Aggregate metrics for the Dashboard
 - `GET /api/metrics/ontology` → `{ entity_count_by_kind, latest_version, draft_published_delta,
   shacl_errors_by_severity, owl_inconsistencies }`.
-- `shacl_errors_by_severity` MAY be `{ "pending": true }` when counts for the current graph state
-  are not yet computed; consumers MUST render a pending state, never zeros (honesty rule — a `0`
-  count would read as "no violations", a false-health signal both engines' specs ban).
+- `shacl_errors_by_severity` **and `owl_inconsistencies`** MAY be `{ "pending": true }` when counts
+  for the current graph state are not yet computed (`owl_inconsistencies` has no producer until the
+  post-v1 reasoner lands, so it is `pending` through v1). Consumers MUST render a pending state,
+  never zeros (honesty rule — a `0` count would read as "no violations", a false-health signal both
+  engines' specs ban).
 - Consumer: composable Generative Dashboard (M2+). The **M1 fixed dashboard** is hand-composed
   CE-sourced tiles and does **not** consume this contract — CE-METRICS-1 lands M2.
 
@@ -215,11 +244,14 @@ depend on. CE owns and publishes ALL of the following.
   a breaking change vs the previous published version**. Build SDK codegen refuses to regenerate across
   `breaking: true` without explicit human acknowledgement. `status: "active" | "deprecated"` —
   Events must not bind **new** automations to a deprecated function; existing references resolve.
-- **Milestone split (ADR-009, pinned):** **M2 = the CE surface complete** — definition + revision
-  via CE-WRITE-1, both `GET` endpoints incl. derived JSON Schema, breaking/deprecation semantics
-  live; Build *starts* typed-binding codegen against this surface. **v1.0 = execution** —
-  invocation semantics, implementation residence, runtime binding, SDK generation at scale.
-  Nothing about *executing* a function is M2.
+- **Milestone split (ADR-009, pinned; execution deferred 2026-07-08):** **M2 = the CE surface
+  complete** — definition + revision via CE-WRITE-1, both `GET` endpoints incl. derived JSON Schema,
+  breaking/deprecation semantics live; Build *starts* typed-binding codegen against this surface.
+  **Execution — invocation semantics, implementation residence, runtime binding, SDK generation at
+  scale — is deferred to POST-V1**, built alongside its only consumer (the Events & Actions engine,
+  post-v1). Rationale: no v1.0 caller exists (Build v1 does not invoke functions), so shipping a
+  runtime at v1.0 would be speculative. CE v1.0 = document-corpus ingest (EPIC-012) only. Nothing
+  about *executing* a function is M2 **or v1.0**.
 - Consumers: **Build** generates a typed binding into `BE-SDK-1` (one SDK method per function);
   **Events** references a function by `fn_iri` as an `EA-AUTOMATION-1` action; **Build/Events
   agents** invoke it as a tool. None of them defines or versions it — they all read CE.
@@ -238,6 +270,18 @@ depend on. CE owns and publishes ALL of the following.
 - Append-only enforced at the **DB-constraint level**; deletes rejected by the database and the
   attempt itself logged. Single signing + storage scheme (resolves Platform OQ-09 = Build OQ-04 as
   ONE decision). Query + export (JSON/NDJSON) with signature-verification metadata.
+- **Query filters:** `engine`, `event_type`, `actor_principal_iri`, `target_iri`, time range, plus a
+  `q` substring filter (case-insensitive, matched against `diff_summary` and `target_iri`; plain
+  ILIKE at v1 — no ranking/fuzzy; full-text is an additive upgrade). Consumers (e.g. Build's
+  Decision Log) use `q` server-side rather than paging the whole log to search client-side.
+- **`event_type` naming:** a dotted `{engine}.{noun}.{verb}` namespace convention (e.g.
+  `ce.version.published`, `build.artefact.generated`) — no fixed enum, no registry at v1; the
+  convention is the contract. Filter by prefix (`event_type=ce.*`) for an engine's audit slice.
+- **Altitude — audit is NOT operational telemetry.** This is an immutable tamper-evident
+  provenance log; error/retry/latency rates are high-volume ops signal and MUST NOT be pumped
+  into the append-only signed store. Ops-health surfaces (e.g. Platform's ops dashboard) read
+  CloudWatch metrics / the structured-log pipeline (weave-spec structured-log fields incl.
+  `latency_ms`, `tenant_id`; CE M1 already emits CW metrics) — not PLAT-AUDIT-1.
 
 ### PLAT-NOTIFY-1 — Notification service
 - One extensible service with an **open/registerable** notification-type taxonomy (NOT a fixed
@@ -257,6 +301,13 @@ depend on. CE owns and publishes ALL of the following.
   (Engineer/QA/Architect/Review/Sandbox) + Events' per-automation principals.
 - The canonical principal IRI is used uniformly in PROV-O and every PLAT-AUDIT-1 entry.
   Least-privilege role-scope per principal.
+- **Role / scope claim (single contracted source for mutation gates).** A principal's roles and
+  project/domain grants are carried in the JWT as a `roles` claim (tenant + project/domain-scoped
+  grants) and are authoritative for authorization; the full record is readable at
+  `GET /api/principals/{iri}` (`{ iri, kind, roles, scopes }`). Effective RBAC for a given resource
+  resolves through **PLAT-SETTINGS-1** (the cascade owns precedence). Every mutation gate (e.g.
+  Build's publish/apply guards, GE canvas edits) reads THIS surface — it never invents a bespoke
+  role lookup. *(Post workspace-drop the overlay is project/domain-role, not workspace-role.)*
 
 ### PLAT-CONNECTOR-1 — Managed connector contract
 - v1 integrations (**7**): Snowflake · Databricks · AWS · Azure Data Lake ·
@@ -264,21 +315,50 @@ depend on. CE owns and publishes ALL of the following.
 - Exposes: a connector reference/handle model, a programmatic **health-status read API**
   (`status, last_sync, last_error, error_count`), and a data/event **delivery interface**.
   Credentials in AWS Secrets Manager only.
+- **Instance enumeration:** the connector list read returns one row per configured instance —
+  `{ handle, connector_type, status }` — and IS the enumeration surface. Consumers (e.g. Build's
+  external-binding dialog) enumerate via this read; manual handle entry is not a supported
+  integration path.
 - Connector-data **ingestion into the graph** is a platform ingestion responsibility that writes
   via CE-WRITE-1 (resolves the duplicated Platform OQ-05 / CE OQ-05).
+- **Ingestion identity + idempotency (ADR-015/017):** ingested nodes carry
+  `weave:externalId = "<connector_instance_handle>:<source_id>"` — scoped to the connector
+  **instance** (not type), so two connectors of the same type (e.g. two Jira sites) never collide;
+  parse first-colon-only. No `tenant_id` in the value (the graph is the tenant boundary). Ingestion
+  batches and write-backs carry idempotency keys. Records mapping to a kind absent from the tenant
+  ontology are **skipped (not batch-failed)** and **counted** — surfaced via the health-read API as
+  a skipped-count dimension (sustained skips read as degraded); a later resync recovers them once
+  the kind is added. Write-back v1 allowlist = **Atlassian + ServiceNow** only, reject-on-drift
+  conflict policy; the other five connectors are read-only.
 - **Milestone: the whole connector surface (config + health + ingestion) is deferred to v1.0**
   (post-MVP). The MVP/M1 platform delivers its unique value without external integrations; the
   seven managed connectors are the *extended* value and land at v1.0. Platform still *owns* the
   contract from M1 (it is one of the six `PLAT-*`), but nothing in M1 depends on a live connector.
 
 ### PLAT-SETTINGS-1 — Tenancy & settings cascade
-- Four-level cascade **Company → Domain → Workspace → Project**, tighter-wins precedence;
-  loosening a parent-set constraint requires parent approval. Budget caps, policy, and RBAC resolve
-  through this cascade. Exposes a settings-resolution read API (effective value + which level set it).
+- **Three-level cascade `Company → Domain → Project`** (plus a cross-tenant **super-admin**
+  operator role), tighter-wins precedence; loosening a parent-set constraint requires parent
+  approval. Budget caps, policy, and RBAC resolve through this cascade. Exposes a
+  settings-resolution read API (effective value + which level set it).
+- **Workspace level removed (2026-07-08 human decision).** A former Workspace-scoped setting
+  **re-homes to its enclosing Domain**; on a re-home collision (a Domain row and a former
+  Workspace row for the same key), the **tighter (more restrictive) value wins** — re-homing must
+  never loosen an effective policy (that would be a security regression). See
+  `.claude/memory/decision_tenancy-workspace-alignment.md`.
+- **M1 transition (honest):** M1 shipped Platform code / RLS / JWT may still carry `workspace_id`;
+  **these specs are authoritative for M2+**, and the M1 code refactor is a tracked follow-up (not
+  yet landed). Until it lands, live M1 behaviour and these specs diverge on workspace by design —
+  M2 briefs test against the spec, not the residual M1 column.
 
 ### PLAT-BILLING-1 — Metering
 - Two billable dimensions: automation execution **per-run** AND AI generation/agent usage
   **per-token**. One metering pipeline; metering events never dropped (separate queue from run outcome).
+- **Read surface:** `GET /api/billing/usage?group_by=engine|user|project&from=&to=&granularity=day`
+  → `{ rows: [{ key, tokens, runs, cost }], as_of }`. `as_of` carries FR-034's last-known +
+  timestamp lag semantics (metering is eventually-consistent — never present a stale figure as
+  live). `granularity=day` gives the trend series. This ONE endpoint serves the dashboard spend
+  widget (E2-S3), the FR-034 breakdown, and Build's per-project cost. **No budget/cap endpoints
+  here** — caps resolve via PLAT-SETTINGS-1 (FR-035).
 
 ---
 
@@ -290,6 +370,14 @@ depend on. CE owns and publishes ALL of the following.
 - Consumer: Build embeds a **project-scoped slice** (`filterByIri = project IRI`) and writes project
   architecture updates back via CE-WRITE-1 (bidirectional sync). Explorer owns the component; Build
   manages its project portion.
+- **`filterByIri` slice semantics (pinned — a locked contract with an undefined slice is worse than
+  an unlocked one, Build M2 consumes it):** the slice = the node named by `filterByIri` plus the
+  nodes reachable within the configured hop depth. An edge with **both endpoints inside** the slice
+  renders normally; an edge with **one endpoint outside** (an incident/boundary edge) renders as a
+  **stub marker** on the in-slice node (a "connects outward" affordance) — the out-of-slice node is
+  NOT pulled in. Two conformant builds therefore return the **same** slice for the same input; this
+  is asserted by the ge-canvas-1 conformance suite (no "both pass, different slice" ambiguity). This
+  aligns with CE-WRITE-1's incident-edge rule (a deleting client already reads incident edges first).
 - **M2 pin:** force mode only; exact prop types, behavioural semantics, and the conformance suite are
   pinned in `engines/graph-explorer/tech-spec/ge-canvas-1.md` — prop-surface changes after Build M2
   decomposition are contract amendments. c4 mode post-v1.

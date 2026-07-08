@@ -34,7 +34,7 @@ fake. Everything else runs locally in Docker.
 | **Cognito** | Auth/RBAC/JWT/agent service-principals; OIDC parity with prod | Shared dev user pool (decision DX3) |
 | **Bedrock** | Heavy/complex agentic reasoning + planning (Claude tier) | Used **as little as possible**; tiered routing sends only complex work here (§3) |
 | Secrets Manager *(small)* | Holds the few dev secrets incl. the dev-creds bootstrap | tech-spec to confirm |
-| SES *(small, optional)* | Transactional email (workspace invites) | tech-spec to confirm; can be mocked locally |
+| SES *(small, optional)* | Transactional email (tenant invites) | tech-spec to confirm; can be mocked locally |
 | ECR *(small)* | Image registry for deploy artefacts | only needed at the deploy boundary, not the inner loop |
 
 **Local (Docker — zero AWS):**
@@ -82,14 +82,14 @@ The single most important devex requirement: **a configurable provider+model rou
   for Claude quality without AWS.
 - **Configuration:** a single config surface maps `{agent-role | task-tier | complexity} →
   {provider, model}`, resolvable **per environment** (local / dev / staging / prod) and overridable
-  per workspace/role/task. "Set where and which model" lives here. This extends the CLAUDE.md model
+  per domain/role/task. "Set where and which model" lives here. This extends the CLAUDE.md model
   right-sizing matrix (Fable/Sonnet/Haiku) with a **provider + local** dimension.
 - **Fidelity caveat:** a local quantized model is lower-capability than Claude. Local runs validate
   **plumbing and logic**, not model-output quality. Quality-sensitive paths (final generation,
   spec authoring, the conformance-graded output) must run against Bedrock/Anthropic before sign-off.
 
 > This routing config is also a first-class **Build Engine** requirement (the dark factory's model
-> right-sizing) and a **Platform** settings concern (per-workspace model/provider policy + budget).
+> right-sizing) and a **Platform** settings concern (per-domain model/provider policy + budget).
 
 ## 4. The local → deploy boundary (decision DX4)
 

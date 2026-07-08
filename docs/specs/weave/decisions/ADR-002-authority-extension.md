@@ -26,8 +26,15 @@ Grounds [CE-READ-1 `authority()`](../contracts.md) and the `automatable` propert
 
 Accepted — 2026-07-01 (human-confirmed). **Direction decided now; build phased:** the *base*
 degrade behaviour (`coverage_gap` + deny-by-default + `escalation`) is **M1**; the ODRL/SKOS
-**Authority Extension module** ships **M2** alongside `CE-FUNCTION-1` / `authority()`. Opt-in:
-the base BPMO works without it and degrades honestly.
+**Authority Extension module** ships **post-v1** (see amendment). Opt-in: the base BPMO works
+without it and degrades honestly.
+
+> **Amended 2026-07-08 (human descope):** the full Authority Extension module (ODRL Permission /
+> `authorityLevel` / HITLTrigger / `dataClassification` SKOS scheme) is **deferred to post-v1**,
+> NOT M2. M2 `authority()` ships the honest base only — `deny`-default + `coverage_gap`, with
+> `permit` unreachable (a tested branch invariant). The *direction* in this ADR stands unchanged;
+> only its phase moves. Recorded in **CE ADR-013** (Authority Extension deferred post-v1);
+> **OQ-AUTH-1** remains open (deferred). Any "M2" phrasing below is superseded by this note.
 
 ## Context
 

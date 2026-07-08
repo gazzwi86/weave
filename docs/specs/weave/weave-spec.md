@@ -55,7 +55,7 @@ named reference client with a published case study before that happens.**
 ## 1. Program plan
 
 > All numeric thresholds in this document are **default X, tunable** — they resolve through the
-> `PLAT-SETTINGS-1` four-level cascade (Company → Domain → Workspace → Project, tighter-wins).
+> `PLAT-SETTINGS-1` three-level cascade (Company → Domain → Project, tighter-wins).
 > Cross-engine dependencies cite contract IDs from [`contracts.md`](contracts.md).
 
 **Program north star:** client models their company → asks it a plain-language cross-cutting
@@ -224,20 +224,20 @@ Also post-v1 (Platform-owned, roadmap-level — see [`engines/weave-platform.md`
   under the existing platform primitives; a metering/analytics contract ID is defined when it is built.
 - **MCP server** — expose the ontology and system metrics over a Model Context Protocol server so
   users, agents, and external AI clients can query the ontology, generate reports, and reason over
-  data over time. Access is scoped to the caller's access token (workspace + project-level
-  permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their workspace and the
+  data over time. Access is scoped to the caller's access token (domain + project-level
+  permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their domain and the
   projects they can access) and reads via `CE-READ-1` / `CE-METRICS-1`. Inspiration:
   <https://github.com/fabio-rovai/open-ontologies>. A contract ID is defined when the server is built.
 
 ### 1.5 Program-level HITL gate summary
 
-**Only spec-approval is globally mandatory; every other gate is project/workspace-configurable.**
+**Only spec-approval is globally mandatory; every other gate is project/domain-configurable.**
 
 | Gate | Scope | Mandatory? | Typical approver |
 |------|-------|------------|------------------|
 | **Spec-approval** | Before every phase of every engine | **Globally mandatory** | PO + exec/eng/EA/compliance sponsor (per engine) |
 | **Phase-boundary ceremony** (security-review + mutation + doc-gen) | All security-/audit-load-bearing phases | Per-phase configurable | Architect / Eng lead + security reviewer |
-| **Pre-AWS-deploy** | Every phase that deploys a surface ([`dev-environment.md`](dev-environment.md) §4) | Per-phase configurable | Workspace admin / release approver |
+| **Pre-AWS-deploy** | Every phase that deploys a surface ([`dev-environment.md`](dev-environment.md) §4) | Per-phase configurable | Domain admin / release approver |
 | **Publish/generate** | CE publish · Explorer `GE-CANVAS-1` · Build artefact write-back · Events automation activation | Per-phase configurable | PO / Ontology lead / content admin |
 
 **Program-M1 gate sequence** (human gates the thin loop must pass, in order):
@@ -373,7 +373,8 @@ not restate it.
   (Jira + Confluence, one OAuth family), ServiceNow, Slack. Contract: `PLAT-CONNECTOR-1`.
   **Deferred to v1.0** (post-MVP): the MVP delivers its value without external integrations;
   connectors are the extended value.
-- Tenancy/settings: four-level cascade Company → Domain → Workspace → Project (tighter-wins).
+- Tenancy/settings: three-level cascade Company → Domain → Project (tighter-wins), plus a
+  cross-tenant super-admin operator role.
   Contract: `PLAT-SETTINGS-1`.
 
 **Commercial model:** fully commercial SaaS + consulting/workshop engagement arm (no open source).

@@ -72,7 +72,7 @@ queries) — is the retrieval substrate agents reason inside.
 ## 2. Personas
 
 The draft's six personas map onto the canonical roles as follows. Roles the draft doesn't cover
-(workspace admin, ops/SRE, automation author, brand/content owner, viewer/exec sponsor) already exist
+(domain admin, ops/SRE, automation author, brand/content owner, viewer/exec sponsor) already exist
 in the canonical table and are omitted here deliberately — this doc refines the *authoring-heavy*
 personas that feed the ontology.
 

@@ -46,6 +46,26 @@ changes and PO-artifact contradictions. Fable advisor consulted on consequential
   verify Realization component→service direction. Pre-ship fix (poisons imports otherwise).
 - Multi-user lost-update: client-side drift warning ≠ protection → planned v1 expected_version (delta 9).
 - JWT `principal_iri` claim is now cross-engine surface → needs a conformance test (follow-up).
+- ADR-015 externalId: type-scoped would collide (two Jira sites → merged graph nodes). Fixed to
+  instance-handle-scoped, no tenant_id in value. Skip-unknown-kind kept as warning + counted-degraded.
+
+## v1 streams (2026-07-08, second wave)
+
+- Contract delta 10: **PLAT-CONNECTOR-1** ingestion identity + idempotency + skipped-count health +
+  write-back allowlist (Atlassian/ServiceNow, reject-on-drift). [ADR-015/017, Fable-corrected]
+- **FR-032 (project-ontology embed) = POST-V1** (human ruling) — follows committed roadmap; dropped
+  from Build v1 (ADR-009 + embed tasks cut); GE-CANVAS-1 layout-scope amendment deferred to post-v1.
+- Build v1 ADR-008 cost attribution (local cost_events rollup + additive PLAT-BILLING-1 task_id tags).
+- Platform v1 ADR-016 (DB due-poller, no EventBridge), ADR-017 (write-back allowlist).
+- CE-FUNCTION-1 execution OUT of Build v1 (no v1 FR consumes it; NotExecutableUntilV1 stands).
+- Onboarding M2 = 3 overlays + competency flag; anchor placement self-enforced by M1 CI audit.
+- New follow-up: M1 delivery-spec / env-schema backfill (Build M2 Law-9 gap, recorded not fixed).
+- **CE-FUNCTION-1 execution = POST-V1** (human ruling 2026-07-08). No v1.0 consumer (Build v1 doesn't
+  invoke; Events & Actions is post-v1) → shipping a runtime at v1.0 is speculative. CE v1.0 = ingest
+  (EPIC-012) only. Contract delta 11 applied (contracts.md CE-FUNCTION-1 milestone split). PO erratum:
+  reconcile the "v1.0 (full)" tag in constitution-engine.md (~L561, L1456, L1119) → "post-v1 (execution)".
+- Contract delta 11: CE-FUNCTION-1 execution deferred M2/v1.0 → M2-definition / post-v1-execution.
+- CE-WRITE-1 idempotency-key contract test = v1 dependency (Platform TASK-018 AC-6 relies on it).
 
 ## Open follow-ups (action at wrap)
 
@@ -64,6 +84,56 @@ changes and PO-artifact contradictions. Fable advisor consulted on consequential
 - [ ] GE-CANVAS-1 layout-scope amendment `(source, filterByIri)` when Build v1.0 embeds (noted in GE file).
 - [ ] PO roadmap S3 erratum (story list text still says 9).
 - [ ] stop.py docstring change — user bundling in their own commit (harness path, left uncommitted).
+- [ ] CE ESCALATION E1/E2 (from Onboarding): FR-037 competency-declaration has NO CE carrier.
+      Onboarding ships MANUAL self-mark now (post-v1 auto-clear). CE needs EITHER (a) model declared
+      CQs as countable + named count query over CE-READ-1, OR (b) amend CE M2 TASK-010 AC-010-07 +
+      constitution-engine.md ~L1497 to drop the onboarding-flag clause. DEFAULT RULING = (b) defer
+      auto-competency to post-v1 (mirrors authority descope). Send to CE agent as follow-up. E2 (no
+      client CQ-declaration surface) → post-v1 CE gap; Onboarding interim = training article.
+- [ ] PRODUCT FORK (GE, defaulted tenant-shared): former "workspace-shared" saved-view library
+      re-homed to TENANT-shared (workspace ≡ company). If PO wants PROJECT-scoped saved views
+      instead → 1 DDL column + AC tweak. Surface to user for decision.
+- [ ] personas.md authority tags stale post-descope: L175/178 cite "Authority Extension (ADR-002,
+      M2)" + "M1→M2 ODRL" — now full Authority Extension = post-v1 + ADR-002 is provenance not ODRL.
+      Not in program-purge scope (that agent = workspace only). Patch at wrap review to `[post-v1]`.
+
+## Phase 1 remediation — contracts.md deltas (2026-07-08, Fable-consulted, DONE)
+
+Fable delivered a full contract-batch resolution + addendum. Applied serially by coordinator (sole
+contracts.md writer). All authored:
+
+- **CE-READ-1 coverage_gap** broadened `coverage_gap(kind, required_links[])`, default
+  `(Process,[performedBy,governedBy])`, row shape unchanged. (Platform briefs narrow TO this, not the reverse.)
+- **CE-READ-1 hasField** added to relationship list + list annotated "illustrative — /api/ontology/types
+  authoritative" (fixes GE Blocker + ontology-standards no-hand-copied-list rule).
+- **CE-WRITE-1 idempotency** PINNED: per-tenant key, 24h tunable window, replay→original 201, diff-payload→409.
+- **CE-DIFF-1 breaking-span** additive `versions:[{version_iri,breaking}]` (ordered) + shape-break
+  detection lives in CE at publish (function-sig AND shape/kind); Build reads flag, never parses SHACL.
+- **CE-EVENT-1** stale consumer note fixed → seq feed IS the polled transport; NO "CE-READ-1
+  since-version" fallback (that filter never existed — GE Blocker root cause).
+- **PLAT-AUDIT-1** event_type = dotted `{engine}.{noun}.{verb}` convention (no registry) + altitude
+  note (ops-health reads CloudWatch/structured-log, NOT audit).
+- **PLAT-IDENTITY-1** role/scope claim pinned: JWT `roles` claim + `GET /api/principals/{iri}`; RBAC
+  via PLAT-SETTINGS-1; project/domain-role post-workspace-drop (Build v1 SECURITY gap source).
+- **PLAT-SETTINGS-1** collapsed 4-level→**3-level Company→Domain→Project + super-admin**; workspace
+  re-homes to Domain, collision→tighter-wins; M1 transitional note (M1 code may still carry
+  workspace_id; specs authoritative M2+).
+- **PLAT-BILLING-1** read surface added `GET /api/billing/usage?group_by&granularity` → {rows,as_of}.
+- **GE-CANVAS-1** filterByIri slice semantics PINNED (in-slice edges normal; boundary edges = stub
+  markers; conformant builds return same slice) — fixes GE Major (locked contract, undefined slice).
+
+Fable addendum items folded in: CE-EVENT-1 ban rationale = build-order coupling dissolved by stubs
+(GE polls seq feed, no new surface); Build v1 role-claim promoted to Phase 1 (done above);
+cross-engine reframe grep must include invariants/delta/gate files (handed to GE + Build architects).
+
+## Phase 2 — 6-agent parallel remediation team dispatched (2026-07-08, background)
+
+Partitioned by engine-OWNER (not milestone) so no two agents write the same PO-artifact file. Each got
+its red-team findings + settled contract facts + workspace re-home + stale-PO-tag fix. contracts.md is
+read-only to all (coordinator is sole writer). Agents: CE(M2+v1), Platform(M2+v1), Build(M2+v1), GE(M2),
+Onboarding(M2), + program-docs workspace-purge (weave-spec/personas/dev-environment). Ruling-fallout
+(GE CE-409 purge, Build NotExecutableUntilPostV1 rename) handed to owning architects. Awaiting receipts
+→ Phase 3 (re-verify → progress.json seed → anatomy → commit → push).
 
 ## Cross-engine reconciliations resolved
 
