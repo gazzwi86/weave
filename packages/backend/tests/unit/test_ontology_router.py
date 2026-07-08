@@ -186,11 +186,23 @@ async def test_publish_route_returns_published_version_on_success() -> None:
         patch.object(ontology, "enforce_workspace_role", AsyncMock()),
         patch.object(versioning, "publish_version", AsyncMock(return_value=published)),
         patch.object(ontology, "default_audit_emitter", AsyncMock()),
+        patch.object(
+            ontology, "list_active_member_subs", AsyncMock(return_value=["admin", "client"])
+        ),
+        patch.object(ontology, "dispatch_notification", AsyncMock()) as notify,
     ):
         result = await ontology.publish_version_route(V1, PRINCIPAL)
 
     assert result.version_iri == V1
     assert result.status == "published"
+    # Publish fans out to every active member except the publisher.
+    recipients = [call.args[1].recipient_iri for call in notify.await_args_list]
+    assert PRINCIPAL.principal_iri not in recipients
+    assert len(recipients) == len(["admin", "client"]) - (
+        1 if any(PRINCIPAL.principal_iri.endswith(s) for s in ["admin", "client"]) else 0
+    )
+    for call in notify.await_args_list:
+        assert call.args[1].event_type == "ontology.version.published"
 
 
 async def test_publish_route_denies_and_audits_insufficient_role() -> None:

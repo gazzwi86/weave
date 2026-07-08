@@ -12,6 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
+from weave_backend.notifications.dispatch import dispatch_notification
+from weave_backend.notifications.store import NotificationEvent
 from weave_backend.ontology import catalogue
 from weave_backend.ontology import resource as resource_lookup
 from weave_backend.operations import diff as diff_ops
@@ -36,6 +39,7 @@ from weave_backend.schemas.ontology import (
     VersionEntry,
     VersionsResponse,
 )
+from weave_backend.tenancy.members import list_active_member_subs
 from weave_backend.tenancy.sessions import get_active_workspace
 from weave_backend.tenancy.workspaces import Workspace, get_workspace
 
@@ -255,11 +259,47 @@ async def _publish_version_outcome(
             payload={"semver": published.semver},
         ),
     )
+    # A published version is a release the whole workspace works against --
+    # every active member except the publisher gets an in-app notification.
+    await _notify_members_of_publish(
+        conn,
+        principal=principal,
+        workspace_id=existing.workspace_id,
+        version_iri=version_iri,
+        semver=published.semver,
+    )
     return PublishResponse(
         version_iri=published.version_iri,
         status=published.status,
         published_at=published.published_at,
     )
+
+
+async def _notify_members_of_publish(
+    conn: asyncpg.Connection,
+    *,
+    principal: Principal,
+    workspace_id: str,
+    version_iri: str,
+    semver: str,
+) -> None:
+    subs = await list_active_member_subs(
+        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+    )
+    for sub in subs:
+        recipient_iri = human_principal_iri(sub)
+        if recipient_iri == principal.principal_iri:
+            continue
+        await dispatch_notification(
+            conn,
+            NotificationEvent(
+                tenant_id=principal.tenant_id,
+                recipient_iri=recipient_iri,
+                event_type="ontology.version.published",
+                payload={"version_iri": version_iri, "semver": semver},
+                actor_iri=principal.principal_iri,
+            ),
+        )
 
 
 @router.post("/versions/{version_iri}/publish", response_model=PublishResponse)

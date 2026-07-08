@@ -52,6 +52,19 @@ def test_parse_operations_returns_validated_apply_request() -> None:
     assert op.kind == "Process"
 
 
+def test_parse_operations_strips_markdown_fences() -> None:
+    # Local/small models (Ollama dev provider) fence their JSON even when
+    # told not to -- same failure mode nl_query/translator.py handles.
+    raw = json.dumps(
+        {"operations": [{"op": "add_node", "ref": "p1", "kind": "Process", "label": "Invoicing"}]}
+    )
+    provider = _StubProvider(f"```json\n{raw}\n```")
+
+    request = parse_operations("Add a Process called Invoicing", {}, actor=ACTOR, provider=provider)
+
+    assert isinstance(request.operations[0], AddNodeOp)
+
+
 def test_parse_operations_rejects_invalid_json() -> None:
     provider = _StubProvider("not json")
 

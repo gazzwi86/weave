@@ -223,6 +223,29 @@ def test_add_node_with_absolute_iri_kind_passes_through_unscoped() -> None:
     assert (iri, RDF.type, WEAVE.Restriction) not in graph
 
 
+def test_add_node_with_absolute_iri_kind_mints_from_local_name() -> None:
+    """An IRI kind (model reused known_class_iris) must mint
+    `instances/<localname>-<uuid>`, never `instances/https://...`.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="g1",
+                kind="https://weave.io/ontology/Goal",
+                label="Banana",
+            )
+        ],
+    )
+
+    minted = result.ref_map["g1"]
+    assert minted.startswith("https://weave.io/instances/goal-")
+    assert "instances/https" not in minted
+
+
 def test_add_edge_with_absolute_iri_predicate_passes_through_unscoped() -> None:
     """TASK-004 AC-004-07: `owl:disjointWith` must land as the real OWL
     predicate, not `weave:http://...#disjointWith`.

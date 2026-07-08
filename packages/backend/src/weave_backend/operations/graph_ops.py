@@ -75,7 +75,11 @@ def _apply_add_node(graph: Graph, op: AddNodeOp, ref_map: dict[str, str]) -> Non
     if existing is not None:
         ref_map[op.ref] = str(existing)
         return
-    subject = INSTANCES[f"{op.kind.lower()}-{uuid4().hex}"]
+    # A kind may arrive as a full class IRI (callers are told to reuse
+    # known_class_iris) -- mint from its local name, never the whole IRI,
+    # or the instance IRI double-prefixes (instances/https://...).
+    kind_local = op.kind.rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+    subject = INSTANCES[f"{kind_local.lower()}-{uuid4().hex}"]
     graph.add((subject, RDF.type, _expand(op.kind)))
     graph.add((subject, WEAVE.label, _to_literal(op.label)))
     for key, value in op.properties.items():

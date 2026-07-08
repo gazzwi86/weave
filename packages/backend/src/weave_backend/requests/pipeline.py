@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from dataclasses import dataclass
 
 import httpx
@@ -36,7 +37,9 @@ SECTIONS = ("brief", "prd", "tech_spec")
 #: (`timeout_s=`) so a future PLAT-SETTINGS-1 read can slot in without an
 #: API change. Upgrade path: `settings.resolver.resolve_setting(key=
 #: "build.spec_draft_timeout_s")` once a tunable value is actually needed.
-SPEC_DRAFT_TIMEOUT_S = 60.0
+#: 60s is AC-4's default; WEAVE_SPEC_DRAFT_TIMEOUT_S is a dev-host knob --
+#: three sections through a local Ollama model cannot finish in 60s.
+SPEC_DRAFT_TIMEOUT_S = float(os.environ.get("WEAVE_SPEC_DRAFT_TIMEOUT_S", "60"))
 
 #: See `docs/specs/weave/engines/build-engine/decisions/ADR-001.md` --
 #: not yet executed against a live BPMO SPARQL endpoint (CE-READ-1's actual
@@ -157,6 +160,17 @@ async def run_drafting_pipeline(
     except TimeoutError:
         await store.update_request_record(
             client, draft_request.request_id, status="timed_out", draft_content=sections
+        )
+        await store.publish_event(client, draft_request.request_id, {"done": True})
+        await _fire_generation_failure(
+            draft_request.tenant_id, draft_request.request_id, draft_request.actor_iri
+        )
+        return
+    except Exception:  # provider failure (e.g. httpx.ReadTimeout from a slow
+        # local model) -- without this the background task dies unhandled and
+        # the record is stuck at "drafting" forever, so pollers never stop.
+        await store.update_request_record(
+            client, draft_request.request_id, status="failed", draft_content=sections
         )
         await store.publish_event(client, draft_request.request_id, {"done": True})
         await _fire_generation_failure(

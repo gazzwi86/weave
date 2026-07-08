@@ -12,6 +12,7 @@ risk; user input must not be logged").
 from __future__ import annotations
 
 import json
+import re
 
 from pydantic import ValidationError
 
@@ -21,6 +22,10 @@ from weave_backend.authoring.bpmo import BPMO_KINDS, InvalidBpmoKindError, valid
 from weave_backend.schemas.operations import AddNodeOp, ApplyRequest
 
 _TIER = "sonnet"
+
+# Same failure mode nl_query/translator.py already handles: local/small
+# models wrap JSON in markdown fences even when told not to.
+_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.MULTILINE)
 
 
 class NlParseError(Exception):
@@ -38,9 +43,13 @@ def _build_prompt(text: str, known_class_iris: dict[str, str]) -> str:
                 'Translate the modeller\'s request into {"operations": [...]} '
                 "matching the CE-WRITE-1 operation schema "
                 "(add_node/update_node/add_edge/delete_node/delete_edge). "
+                'add_node objects use exactly these fields: {"op": "add_node", '
+                '"ref": "<unique-ref>", "kind": "<BPMO kind>", "label": "<name>", '
+                '"properties": {}}. '
                 "Every add_node kind must be exactly one of the listed BPMO kinds. "
                 "Reference an existing class by its IRI from known_class_iris "
-                "rather than creating a duplicate."
+                "rather than creating a duplicate. "
+                "Return only the JSON object, with no markdown fences or prose."
             ),
             "bpmo_kinds": sorted(BPMO_KINDS),
             "known_class_iris": known_class_iris,
@@ -63,7 +72,7 @@ def parse_operations(
     raw = route(_TIER, _build_prompt(text, known_class_iris), provider=provider)
 
     try:
-        payload = json.loads(raw)
+        payload = json.loads(_FENCE_RE.sub("", raw).strip())
     except json.JSONDecodeError as exc:
         raise NlParseError("model did not return valid JSON") from exc
 

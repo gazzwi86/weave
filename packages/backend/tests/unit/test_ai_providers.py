@@ -86,13 +86,13 @@ def test_bedrock_provider_passes_through_extra_kwargs_in_body() -> None:
 def test_ollama_provider_calls_generate_endpoint() -> None:
     fake_client = MagicMock()
     fake_client.post.return_value = MagicMock(json=lambda: {"response": "hi from ollama"})
-    provider = OllamaProvider(client=fake_client, model="gemma4:e4b")
+    provider = OllamaProvider(client=fake_client, model="batiai/qwen3.6-27b:iq3")
 
     result = provider.complete("claude-sonnet-5", "hello")
 
     fake_client.post.assert_called_once_with(
         "/api/generate",
-        json={"model": "gemma4:e4b", "prompt": "hello", "stream": False},
+        json={"model": "batiai/qwen3.6-27b:iq3", "prompt": "hello", "stream": False},
     )
     fake_client.post.return_value.raise_for_status.assert_called_once()
     assert result == "hi from ollama"
@@ -101,7 +101,7 @@ def test_ollama_provider_calls_generate_endpoint() -> None:
 def test_ollama_provider_passes_through_extra_kwargs() -> None:
     fake_client = MagicMock()
     fake_client.post.return_value = MagicMock(json=lambda: {"response": "x"})
-    provider = OllamaProvider(client=fake_client, model="gemma4:e4b")
+    provider = OllamaProvider(client=fake_client, model="batiai/qwen3.6-27b:iq3")
 
     provider.complete("claude-sonnet-5", "hello", temperature=0.2)
 

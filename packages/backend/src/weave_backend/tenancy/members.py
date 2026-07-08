@@ -110,3 +110,22 @@ async def revoke_member(
         user_sub,
     )
     return bool(result != "DELETE 0")
+
+
+async def list_active_member_subs(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> list[str]:
+    """Subs of every ACTIVE member of a workspace -- the version-publish
+    notification fan-out audience. Pending invites have no sub yet.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        """
+        SELECT user_sub FROM workspace_members
+        WHERE tenant_id = $1 AND workspace_id = $2
+          AND status = 'active' AND user_sub IS NOT NULL
+        """,
+        tenant_id,
+        workspace_id,
+    )
+    return [row["user_sub"] for row in rows]

@@ -26,11 +26,16 @@ from weave_backend.tenancy.members import (
     invite_member,
     revoke_member,
 )
-from weave_backend.tenancy.sessions import bump_session_version, set_active_workspace
+from weave_backend.tenancy.sessions import (
+    bump_session_version,
+    get_active_workspace,
+    set_active_workspace,
+)
 from weave_backend.tenancy.workspaces import (
     WorkspaceSlugTaken,
     create_workspace,
     get_workspace,
+    list_workspaces,
 )
 
 router = APIRouter(prefix="/api", tags=["tenancy"])
@@ -57,6 +62,17 @@ async def _grant_creator_admin_membership(
     await activate_member(
         conn, workspace_id=workspace_id, email=placeholder_email, user_sub=principal.sub
     )
+
+
+@router.get("/tenants/{tenant_id}/workspaces", response_model=list[WorkspaceResponse])
+async def list_workspaces_route(
+    tenant_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> list[WorkspaceResponse]:
+    _require_own_tenant(principal, tenant_id)
+    async with tenant_connection(tenant_id) as conn:
+        workspaces = await list_workspaces(conn, tenant_id=tenant_id)
+    return [WorkspaceResponse(**workspace.model_dump()) for workspace in workspaces]
 
 
 @router.post("/tenants/{tenant_id}/workspaces", status_code=201, response_model=WorkspaceResponse)
@@ -148,6 +164,16 @@ async def revoke_member_route(
                 ),
             )
     return Response(status_code=204)
+
+
+@router.get("/workspaces/active")
+async def active_workspace_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> dict[str, str | None]:
+    """The caller's active workspace id (session state, Redis) -- None when
+    they have never switched (callers treat that as the seed default)."""
+    workspace_id = await get_active_workspace(principal.tenant_id, principal.sub)
+    return {"workspace_id": workspace_id}
 
 
 @router.post("/workspaces/{workspace_id}/switch", response_model=SwitchWorkspaceResponse)

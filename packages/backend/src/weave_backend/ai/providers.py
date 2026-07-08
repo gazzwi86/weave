@@ -81,10 +81,14 @@ class OllamaProvider:
     """
 
     def __init__(self, client: httpx.Client | None = None, *, model: str | None = None) -> None:
-        self._model = model or os.environ.get("OLLAMA_MODEL", "gemma4:e4b")
+        self._model = model or os.environ.get("OLLAMA_MODEL", "batiai/qwen3.6-27b:iq3")
         if client is None:
             base_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-            client = httpx.Client(base_url=base_url, timeout=30.0)
+            # Local models routinely take >30s on long completions (spec
+            # drafting) -- a too-tight client timeout surfaces as a crashed
+            # pipeline, not a clean failure. Env-tunable for slower hosts.
+            timeout_s = float(os.environ.get("OLLAMA_TIMEOUT_S", "120"))
+            client = httpx.Client(base_url=base_url, timeout=timeout_s)
         self._client = client
 
     def complete(self, model_id: str, prompt: str, **kwargs: Any) -> str:
