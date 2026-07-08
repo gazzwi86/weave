@@ -15,7 +15,7 @@ epic: EPIC-002
 milestone: M2
 created: 2026-07-08
 blocked_by: [TASK-010, TASK-012]
-unlocks: [TASK-017]
+unlocks: [TASK-017, TASK-024]
 adr_refs: [ADR-013, ADR-014]
 ---
 
@@ -172,7 +172,8 @@ Upstream calls per the binding table; all cited contracts are published in
 ## Dependencies
 
 - **blocked_by:** TASK-010 (CE client, tables, state matrix, availability registry), TASK-012 (resolver consumes the registry's shapes for mapping)
-- **unlocks:** TASK-017 (role-home composes completeness/SHACL/RBAC bindings)
+- **unlocks:** TASK-017 (role-home composes completeness/SHACL/RBAC bindings), TASK-024
+  (recent-edits E2-S9 binding joins this registry + degradation sweep)
 
 ## Cost Estimate
 

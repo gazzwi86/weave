@@ -1,7 +1,7 @@
 ---
 type: EngineSpec
 title: "Weave — Platform Shell (consolidated)"
-description: "Cross-cutting application shell: app/nav/workspace/auth/Cognito/Bedrock/tenancy, the six PLAT-* contracts. M1: shell + foundations + immutable audit. M2: Generative Dashboard + role-home. Self-improvement: post-v1."
+description: "Cross-cutting application shell: app/nav/auth/Cognito/Bedrock/tenancy (Company→Domain→Project), the six PLAT-* contracts. M1: shell + foundations + immutable audit. M2: Generative Dashboard + role-home. Self-improvement: post-v1."
 tags: [weave-platform, consolidated]
 status: Draft
 timestamp: 2026-06-30T00:00:00Z
@@ -18,8 +18,8 @@ coverage: n/a
 # Weave Platform Shell
 
 > The Weave Platform is the application **shell** (not an engine): the multi-tenant SPA, navigation,
-> workspace/tenancy, auth (Cognito/Auth0), Bedrock model routing, and the cross-cutting services every
-> engine depends on. It owns the **six PLAT-\* contracts** (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`,
+> tenancy (Company → Domain → Project), auth (Cognito/Auth0), Bedrock model routing, and the
+> cross-cutting services every engine depends on. It owns the **six PLAT-\* contracts** (`PLAT-AUDIT-1`, `PLAT-NOTIFY-1`,
 > `PLAT-IDENTITY-1`, `PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `PLAT-BILLING-1`). **M1** ships the shell,
 > foundations, and immutable audit (no upstream engine dependency). **M2** adds the Generative Dashboard
 > (once CE is GA) and the role-tailored "What can Weave do for you?" home. **Post-v1:** Weave-product
@@ -221,7 +221,7 @@ For the full master list of confirmed architecture decisions, see `CLAUDE.md § 
 | Real-time multi-user collaboration is Phase 2 (Graph Explorer) | MVP ships single-user editing + async sharing (saved views + comments); Yjs co-editing is the costliest, hosting/identity-dependent capability and is sequenced after the Constitution MVP (D1) | 2026-06-30 |
 | Weave ships a process-centric upper ontology (framework, not taxonomy); clients build their own vocabulary on top | The ArchiMate-3-aligned **BPMO framework** — Process at the centre, linked to activities, events, actors, systems, services, data assets, capabilities, domains, goals, and policies, plus SHACL/PROV/SKOS scaffolding; "Weave provides the grammar; the company writes the sentences" (A1). Canonical kind/relationship set: `constitution-engine` brief + `CE-READ-1` | 2026-06-30 |
 | Fully commercial, closed source | No OSS core; protect the platform IP and the engagement business | 2026-06-24 |
-| Pricing: hybrid — workspace-tier subscription + usage on generation/automation | Avoids per-seat friction so the graph spreads org-wide (ops-first), while capturing value where it is created (Build Engine generations, agent/automation runs) | 2026-06-26 |
+| Pricing: hybrid — company-tier (tenant) subscription + usage on generation/automation | Avoids per-seat friction so the graph spreads org-wide (ops-first), while capturing value where it is created (Build Engine generations, agent/automation runs) | 2026-06-26 |
 | Differentiate on loop-closure + authoring + the "business brain", NOT on the semantic substrate | RDF/OWL/SHACL/SPARQL are commodity (mature triple stores plus open source); storage and standards conformance are not a moat. The defensible value is generation/automation closure, whole-business NL+forms authoring over a shipped ontology, and the business brain that grounds agents within the model's bounds | 2026-06-30 |
 
 #### Competitive landscape & closing window
@@ -247,16 +247,16 @@ Foundry (Machinery) and Celonis (OCDM) both do process mining, so that claim is 
 ### Navigation
 
 First-draft information architecture for the Weave SPA. This section owns the **primary navigation** (top
-header bar, company-workspace level) and the global app chrome; each engine's brief owns its own
+header bar, company/tenant level) and the global app chrome; each engine's brief owns its own
 **secondary navigation** (left sidebar). Pattern follows the validated app-shell convention: a top bar for
 global context plus a left sidebar for within-area navigation.
 
 #### App shell
 
 - **Top header bar — primary navigation + global chrome.** Persistent across the app.
-  - Left: Weave home, and the **workspace switcher** (the company/tenant, plus the demo "Hammerbarn"
-    workspace). A regular user sees only their own workspace here; a **Weave super admin** sees the
-    workspaces they operate plus an **"Add workspace"** button that opens the create-workspace +
+  - Left: Weave home, and the **company switcher** (the user's company/tenant, plus the demo "Hammerbarn"
+    company). A regular user sees only their own company here; a **Weave super admin** sees the
+    companies they operate plus an **"Add company"** button that opens the create-company +
     first-admin modal (FR-045/FR-046).
   - Centre: the **primary navigation** (top-level areas, below).
   - Right: **global search**, **notifications**, **help & guided-tour launcher** (onboarding), and the
@@ -270,13 +270,13 @@ global context plus a left sidebar for within-area navigation.
 
 | Area | Engine / scope | Purpose |
 |---|---|---|
-| Dashboard | platform | Home — generative workspace intelligence; AI-composed widgets on demand |
+| Dashboard | platform | Home — generative company intelligence; AI-composed widgets on demand |
 | Constitution | constitution-engine | The model — ontology, glossary, brand, governance, org chart, versions |
 | Explorer | graph-explorer | Visual, collaborative graph canvas |
 | Build | build-engine | Projects — spec → generate → ship |
 | Automate | events-actions-engine | Event-driven automations |
 | Compliance | cross-cutting | Conformance checks + audit / decision logs |
-| Settings | platform | Workspace, members, integrations, billing |
+| Settings | platform | Company, members, integrations, billing |
 
 > Note: 3–6 primary items is the UX sweet spot. **Resolved at PRD:** Compliance stays a top-level,
 > platform-owned cross-cutting area that aggregates per-engine compliance views, and **Audit is a sub-view
@@ -300,7 +300,7 @@ in the dashboard grid.
   severity-bucketed bar chart; a token-spend trend becomes a line chart; a list of active proposals
   renders as a ranked card stack.
 - Generated widgets are saveable and shareable: once a user creates a useful widget, they pin it to their
-  dashboard and can publish it to a workspace-shared library.
+  dashboard and can publish it to a tenant-shared library.
 - The default dashboard ships with a set of pre-built "starter widgets" (below) so the screen is not blank
   on first load; users customise from there.
 
@@ -326,16 +326,16 @@ in the dashboard grid.
 | Version pinning | Which Build projects and Automations are pinned to which ontology versions; alert if pinned to a version ≥ 2 behind latest |
 | RBAC & access | Roles assigned vs unassigned users, any areas with no assigned owner, recent permission changes |
 | Graph growth | Entity and relationship count over time — is the model being actively maintained or drifting stagnant? |
-| Workspace onboarding | For new workspaces: model completeness score and next recommended action |
+| Company onboarding | For new companies (tenants): model completeness score and next recommended action |
 
 #### Global chrome elements
 
-- **Workspace switcher** — company tenant plus the Hammerbarn demo workspace (a **per-user writable** copy
-  that persists changes across sessions and resets only on an explicit button; its seed content is
-  **live-pipeline built** via CE/Build/Events, with the CE+Explorer portion available at MVP and the full
-  demo gated on Build/Events GA — see the `onboarding` brief). For a **Weave super admin** the switcher
-  also lists every workspace they operate and carries an **"Add workspace"** button (create workspace +
-  first admin user, FR-045/FR-046); a regular user sees only their own workspace.
+- **Company switcher** — the user's company (tenant) plus the Hammerbarn demo company (a **per-user
+  writable** copy that persists changes across sessions and resets only on an explicit button; its seed
+  content is **live-pipeline built** via CE/Build/Events, with the CE+Explorer portion available at MVP and
+  the full demo gated on Build/Events GA — see the `onboarding` brief). For a **Weave super admin** the
+  switcher also lists every company they operate and carries an **"Add company"** button (create company +
+  first admin user, FR-045/FR-046); a regular user sees only their own company.
 - **Global search** — across entities, automations, projects, and docs.
 - **Notifications** — budget alerts, approvals, automation outcomes.
 - **Help & guided-tour launcher** — onboarding overlays, tours, and the training library (see the
@@ -357,8 +357,8 @@ detailed permission matrix is refined at PRD / tech spec.
 
 | Role | Primary access |
 |---|---|
-| **Weave super admin (platform operator)** | Weave-operator identity **outside any single tenant's RBAC**: create workspaces via the UI, create each workspace's initial workspace-admin user, and navigate between workspaces via the header switcher's "Add workspace" flow. Provisioning only — it does not read tenant business data. (Distinct from the post-v1 *self-improvement* operator.) |
-| Workspace admin / owner | Full control **within their workspace**: settings, members & roles, integrations, billing, and all engines |
+| **Weave super admin (platform operator)** | Weave-operator identity **outside any single tenant's RBAC**: create companies (tenants) via the UI, create each company's initial company-admin user, and navigate between companies via the header switcher's "Add company" flow. Provisioning only — it does not read tenant business data. (Distinct from the post-v1 *self-improvement* operator.) |
+| Company admin / owner | Full control **within their company (tenant)**: settings, members & roles, integrations, billing, and all engines |
 | Enterprise architect | Author ontology structure, types, and rules; full model read; build and explore |
 | Business analyst / SME | Author instance data and glossary; explore; limited structural change |
 | Data steward / data engineer | Author schemas, column descriptions, glossaries, data rules, and classification content as instance + glossary data; propose data-quality SHACL shapes for architect/compliance review; read the model and explore. Data domain. |
@@ -410,13 +410,13 @@ AI agents and bots are first-class identities, not anonymous background processe
 
 - **RBAC** — roles grant permissions scoped to engines/areas and to action level (e.g. read vs author vs
   publish vs administer). Roles can be combined on one identity.
-- **Tenant-scoped** — a user's roles apply within a company workspace (tenant); the Hammerbarn demo is a
-  separate workspace with its own access. A **regular workspace user only ever sees their own workspace and
-  its dashboard** — no cross-workspace navigation, listing, or data (hard tenant isolation, FR-047).
+- **Tenant-scoped** — a user's roles apply within a company (tenant); the Hammerbarn demo is a
+  separate tenant with its own access. A **regular user only ever sees their own company and
+  its dashboard** — no cross-tenant navigation, listing, or data (hard tenant isolation, FR-047).
 - **Platform-operator scope (out-of-band)** — the Weave super admin is a Weave-operator identity that sits
-  *outside* tenant RBAC. It provisions workspaces and their first admins and can switch between workspaces
+  *outside* tenant RBAC. It provisions companies and their first admins and can switch between companies
   via the header switcher; it is minted as a dedicated Cognito group + `PLAT-IDENTITY-1` principal and is
-  never granted through a client workspace's RBAC (FR-045/FR-046).
+  never granted through a client tenant's RBAC (FR-045/FR-046).
 - **Least privilege by default** — admins assign roles; new identities start minimal.
 - **Identity** — authentication via AWS Cognito (default) or Auth0 (multi-IdP), per the stack; org-chart
   identities may sync from SSO/HR systems.
@@ -442,7 +442,7 @@ that every engine emits to or reads from. See `../contracts.md` for the six PLAT
 The user-facing centrepiece is the **Dashboard**. It ships in two stages:
 
 - **At M1, the dashboard is a SIMPLE FIXED DEFAULT** — a small, hand-composed set of CE-sourced widgets
-  (ontology health / coverage via `CE-METRICS-1`) that persists as every workspace's default home. There
+  (ontology health / coverage via `CE-METRICS-1`) that persists as every company's default home. There
   is no prompt bar, no AI composition, and no broad widget library at M1. The fixed default is
   deliberately minimal: it surfaces the only live provider data that exists (CE) and gives every member a
   non-blank home from first login.
@@ -451,7 +451,7 @@ The user-facing centrepiece is the **Dashboard**. It ships in two stages:
   and expand per-engine as each source engine's data ships. It remains fully specified and milestone-tagged
   M2.
 
-The deferred generative pattern is the **Generative Dashboard**: a workspace-intelligence surface where
+The deferred generative pattern is the **Generative Dashboard**: a company-intelligence surface where
 users describe what they want to see and the AI composes the best-fit widget from a finite, well-designed
 component library (KPI card, time-series chart, table, ranked list, activity feed, heatmap, alert banner)
 and streams it into the dashboard grid. This is a *declarative* generative-UI pattern — intent maps to a
@@ -472,10 +472,10 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 
 **Goals:**
 
-1. Give every workspace member a single home that surfaces the health and activity of the live Weave
+1. Give every company member a single home that surfaces the health and activity of the live Weave
    deployment at a glance, personalised by role and gated to the engines that are actually available.
-2. Give every workspace a non-blank home at M1 via a simple fixed default dashboard of CE-sourced
-   widgets; then at M2 let users generate any workspace-intelligence view by describing it in natural
+2. Give every company a non-blank home at M1 via a simple fixed default dashboard of CE-sourced
+   widgets; then at M2 let users generate any company-intelligence view by describing it in natural
    language — without a dashboard-configuration UI — bounded to a finite, design-consistent component set.
 3. Provide the cross-cutting platform primitives (tenancy + settings cascade, auth, RBAC, agent identity,
    navigation, search, notifications, connectors, billing, audit) that all four engines depend on, each as
@@ -506,7 +506,7 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | Persona | Description | Primary need | Permission level |
 |---|---|---|---|
 | Operations / transformation lead | Owns how the company runs; first adopter | Model coverage, compliance, activity in one view | author |
-| CTO / exec sponsor | Funds and governs the initiative | Spend, compliance posture, model health at a glance | viewer + billing/budget visibility (least-privilege — an exec who administers is additionally granted workspace admin explicitly) |
+| CTO / exec sponsor | Funds and governs the initiative | Spend, compliance posture, model health at a glance | viewer + billing/budget visibility (least-privilege — an exec who administers is additionally granted company admin explicitly) |
 | Enterprise architect | Extends the ontology to the client domain | Ontology health, version status, SHACL errors, growth | publish |
 | Compliance / risk officer | Owns governance/compliance content | Cross-engine compliance views + immutable audit feed | author (read audit) |
 | Engineer / developer | Builds via the Build Engine | Active projects, token spend, agent activity, connectors | author |
@@ -517,13 +517,13 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | Automation author | Creates and manages automations | Automation status, run health | author |
 | Viewer / stakeholder | Read-only | Read-only explore + dashboards | read |
 | **Agent principals** *(non-human)* | Per `PLAT-IDENTITY-1` | Least-privilege scope per principal | scoped service principal |
-| **Weave super admin** *(platform operator)* | Weave operator, outside tenant RBAC | Create workspaces + first admins; switch between workspaces | platform-operator (out-of-band) |
+| **Weave super admin** *(platform operator)* | Weave operator, outside tenant RBAC | Create companies + first admins; switch between companies | platform-operator (out-of-band) |
 
 > Role slugs align with the brief's canonical role list and the platform RBAC model resolved through
 > `PLAT-SETTINGS-1`. Onboarding maps non-primary roles to the four primary paths: Engineer/Automation
 > author → technical; Ops/SRE → admin; Brand/content → business; Viewer → business-read-only
-> (resolve-by-default 10). The **Weave super admin (platform operator)** identity provisions workspaces and
-> their first admins and ships at **MVP** (FR-045..047); it sits outside any client workspace's RBAC. The
+> (resolve-by-default 10). The **Weave super admin (platform operator)** identity provisions companies and
+> their first admins and ships at **MVP** (FR-045..047); it sits outside any client tenant's RBAC. The
 > *self-improvement* platform-operator capability (reading audit to draft/dispatch Weave-internal issues)
 > is a separate concern that remains **post-v1** alongside the Weave-product self-improvement loop.
 
@@ -545,7 +545,7 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-008 | WHEN a user pins a widget, THE SYSTEM SHALL persist it **server-side, (tenant,user)-scoped** (not in localStorage), cross-device, RBAC-scoped, and audit-visible | E1-S4 | P0 | M2 |
 | FR-009 | WHILE a pinned widget is displayed, THE SYSTEM SHALL auto-refresh it on a default 5 min interval (tunable) and on manual demand; IF the provider errors THEN THE SYSTEM SHALL keep the last render and show a stale badge | E1-S4 | P0 | M2 |
 | FR-010 | WHEN the dashboard grid renders, THE SYSTEM SHALL lay widgets out responsively across a default 1–4 columns (tunable) and SHALL allow drag-reorder | E1-S4 | P1 | M2 |
-| FR-011 | WHEN a user publishes a widget, THE SYSTEM SHALL store it in the **server-side, workspace-scoped** library with author + date; IF the user lacks author permission THEN THE SYSTEM SHALL return 403 | E1-S5 | P0 | M2 |
+| FR-011 | WHEN a user publishes a widget, THE SYSTEM SHALL store it in the **server-side, tenant-scoped** library with author + date; IF the user lacks author permission THEN THE SYSTEM SHALL return 403 | E1-S5 | P0 | M2 |
 | FR-012 | WHEN a user first loads the dashboard, THE SYSTEM SHALL present role-tailored CE-sourced starter widgets labelled "Suggested", each individually removable | E1-S6 | P0 | M2 |
 | FR-013 | WHILE the prompt bar is empty, THE SYSTEM SHALL show example prompts (default 4–6, tunable) scoped to available categories; WHEN the user has default 3 widgets (tunable) THE SYSTEM SHALL hide them | E1-S7 | P1 | M2 |
 | FR-014 | WHEN a widget renders, THE SYSTEM SHALL display a data-source footer label citing the contract(s) | E1-S0, E1-S1 | P0 | M2 |
@@ -554,10 +554,10 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-017 | WHEN the operational-health widget renders, THE SYSTEM SHALL compute error rate, retry rate, and agent-failure rate per engine from the CloudWatch metrics emitted by the structured-log/OTel pipeline (E0-S7 scaffold) plus `CE-METRICS-1` (`shacl_errors_by_severity`) — never from `PLAT-AUDIT-1`, which is tamper-evident provenance, not ops telemetry (contracts.md altitude note); WHEN a rate spikes beyond a configurable threshold (default 2× 7-day baseline, tunable) THE SYSTEM SHALL fire an alert-banner widget | E2-S10 | P1 | M2 |
 | FR-018 | WHEN the version-pin widget renders, THE SYSTEM SHALL compute lag via `CE-VERSION-1` canonical lag and mark rows amber WHERE lag ≥ default 2 and red WHERE lag ≥ default 4 (tunable) | E2-S12 | P1 | P0 when Build/Events ship |
 | FR-019 | WHEN the onboarding-progress widget renders, THE SYSTEM SHALL show progress with deep-links and auto-dismiss at 100%; WHERE Build is GA THE SYSTEM SHALL include the Build item | E2-S15 | P0 | M2 |
-| FR-020 | WHEN a user opens the workspace switcher, THE SYSTEM SHALL list accessible workspaces + the Hammerbarn demo; WHEN the user switches THE SYSTEM SHALL reload; IF the switch is unauthorized THEN THE SYSTEM SHALL return 403 with zero cross-tenant data | E3-S1 | P0 | M1 |
+| FR-020 | WHEN a user opens the company switcher, THE SYSTEM SHALL list accessible companies (tenants) + the Hammerbarn demo; WHEN the user switches THE SYSTEM SHALL reload; IF the switch is unauthorized THEN THE SYSTEM SHALL return 403 with zero cross-tenant data | E3-S1 | P0 | M1 |
 | FR-021 | WHEN a member is removed or their role changes, THE SYSTEM SHALL enforce it via a short token TTL (default ≤ 60 s) plus a per-request session-version revocation check, so the next request bearing the prior token is rejected within bounded latency | E3-S2 | P0 | M1 |
 | FR-022 | WHEN a setting is resolved, THE SYSTEM SHALL apply the `PLAT-SETTINGS-1` cascade (Company→Domain→Project, tighter-wins — the Workspace level was removed 2026-07-08; former workspace-scoped values re-home to their enclosing Domain, re-home collisions resolve tighter-wins) and return the effective value + level; IF a change loosens a parent value THEN THE SYSTEM SHALL require parent approval; the cascade SHALL cover budget/retention/classification/RBAC | E3-S3 | P0 | M1 |
-| FR-023 | WHERE a workspace uses Cognito (default) or Auth0 SAML/OIDC, THE SYSTEM SHALL authenticate via that IdP; IF the IdP has an outage THEN THE SYSTEM SHALL return a defined error and SHALL NOT fall back to an unauthenticated session | E4-S1 | P0 | M1 |
+| FR-023 | WHERE a company (tenant) uses Cognito (default) or Auth0 SAML/OIDC, THE SYSTEM SHALL authenticate via that IdP; IF the IdP has an outage THEN THE SYSTEM SHALL return a defined error and SHALL NOT fall back to an unauthenticated session | E4-S1 | P0 | M1 |
 | FR-024 | WHEN an API request is received, THE SYSTEM SHALL enforce RBAC via JWT (roles resolved via `PLAT-SETTINGS-1`); IF the role lacks permission THEN THE SYSTEM SHALL return 403 and record the denial to audit, reconciled to FR-021's single revocation latency | E4-S2 | P0 | M1 |
 | FR-025 | WHEN an agent identity acts, THE SYSTEM SHALL bind it to a canonical principal IRI via `PLAT-IDENTITY-1` in PROV-O and every `PLAT-AUDIT-1` entry; WHERE an agent accesses AWS/secrets THE SYSTEM SHALL use an **IAM role assumed by STS** (not Cognito); the registry SHALL map IAM role↔principal↔RBAC role | E4-S3 | P0 | M1 |
 | FR-026 | WHILE any screen is displayed, THE SYSTEM SHALL render the persistent top bar with 7 areas incl Compliance (Audit is a Compliance sub-view, not separate); WHERE an area is non-GA THE SYSTEM SHALL show it disabled | E5-S1 | P0 | M1 |
@@ -573,13 +573,13 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-036 | WHEN a `PLAT-AUDIT-1` entry is written, THE SYSTEM SHALL hash-chain it (prev_hash→hash) with an ed25519 signature, append-only at the DB-constraint level; IF a delete is attempted THEN THE SYSTEM SHALL reject and log it | E9-S1 | P0 | M1 |
 | FR-037 | WHEN audit is queried, THE SYSTEM SHALL filter by date/actor/type/resource/engine, paginate (default ≤ 500/page, tunable), and export JSON/NDJSON with a chain-verification procedure | E9-S1 | P0 | M1 |
 | FR-038 | WHERE audit is surfaced, THE SYSTEM SHALL expose it as a **sub-view under Compliance** (not a separate top-level area) with Compliance-role read access | E9-S1 | P0 | M1 |
-| FR-045 | WHERE a **Weave super admin (platform operator)** identity is scoped outside any single tenant's RBAC, THE SYSTEM SHALL let them create a new workspace via the UI (name, slug, parent Domain, billing plan) and create that workspace's **initial workspace-admin user**, after which the workspace admin invites their own members; THE SYSTEM SHALL enforce this via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never through tenant RBAC | E3-S4 | P0 | M1 |
-| FR-046 | WHEN a super admin opens the header workspace dropdown, THE SYSTEM SHALL list all workspaces they can operate and include an **"Add workspace"** button opening a modal that creates a workspace and adds its first admin user; WHERE the user is a regular workspace user THE SYSTEM SHALL show only their own workspace, and IF they switch to any other workspace THEN THE SYSTEM SHALL return 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | M1 |
-| FR-047 | WHERE a user is not a super admin, THE SYSTEM SHALL show only their own workspace and its dashboard (metrics, generative UI) plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data), and SHALL NOT expose any *other real workspace's* navigation, listing, or data, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | M1 |
+| FR-045 | WHERE a **Weave super admin (platform operator)** identity is scoped outside any single tenant's RBAC, THE SYSTEM SHALL let them create a new company (tenant) via the UI (name, slug, billing plan) and create that company's **initial company-admin user**, after which the company admin invites their own members; THE SYSTEM SHALL enforce this via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never through tenant RBAC | E3-S4 | P0 | M1 |
+| FR-046 | WHEN a super admin opens the header company dropdown, THE SYSTEM SHALL list all companies they can operate and include an **"Add company"** button opening a modal that creates a company and adds its first admin user; WHERE the user is a regular user THE SYSTEM SHALL show only their own company, and IF they switch to any other company THEN THE SYSTEM SHALL return 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | M1 |
+| FR-047 | WHERE a user is not a super admin, THE SYSTEM SHALL show only their own company and its dashboard (metrics, generative UI) plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data), and SHALL NOT expose any *other real tenant's* navigation, listing, or data, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | M1 |
 
 > **Platform super admin (FR-045..047):** a Weave-operator (platform-operator) role for provisioning
-> workspaces and their first admins and navigating between workspaces. It ships at **MVP** (it is how any
-> client workspace gets created and seeded); it is **not** the post-v1 *self-improvement* operator (that
+> companies and their first admins and navigating between companies. It ships at **MVP** (it is how any
+> client company gets created and seeded); it is **not** the post-v1 *self-improvement* operator (that
 > capability — signal→issue→dispatch — remains post-v1). Numbering skips FR-039..044, reserved in prose
 > for the self-improvement loop below.
 
@@ -598,7 +598,7 @@ against real telemetry (owner Architect); they are product assumptions, not cont
   data points.
 - Global search: default ≤ 300 ms after a 150 ms debounce.
 - Notification in-app delivery: default ≤ 30 s.
-- Workspace switch: default ≤ 2 s.
+- Company (tenant) switch: default ≤ 2 s.
 
 **Security posture (three-tier):**
 
@@ -724,7 +724,7 @@ in v1.
 | 3-level settings cascade Company→Domain→Project (`PLAT-SETTINGS-1`), tighter-wins | A4 as amended 2026-07-08 (Workspace level removed; workspace ≡ company/tenant per `decision_tenancy-workspace-alignment`); one cascade resolves budgets, retention, classification, RBAC. |
 | Billing meters both per-run automation and per-token AI (`PLAT-BILLING-1`) | C1; metering events never dropped (separate queue). |
 | 7 v1 connectors incl. Atlassian-grouped + Slack (`PLAT-CONNECTOR-1`) | C2/C3; Atlassian = Jira+Confluence one OAuth family; Slack platform-managed. |
-| Widget state persisted server-side (per-user pins + workspace library) | localStorage cannot be cross-device/RBAC/audit-scoped. |
+| Widget state persisted server-side (per-user pins + tenant library) | localStorage cannot be cross-device/RBAC/audit-scoped. |
 | Weave-product self-improvement loop deferred to post-v1 | The immutable audit log ships M1; the signal → issue → dispatch loop requires the loop component to exist and dispatches to the existing engineering harness when it lands (A3 scope preserved). |
 | Realtime collaborative editing is post-v1 (Explorer-owned) | D1; M1 = single-user editing + async sharing (saved views + comments); Yjs co-editing is post-v1. |
 
@@ -740,7 +740,8 @@ The Weave Platform PRD is satisfied when:
   "source engine not yet available" state rather than empty or fabricated data.
 - [ ] A generated widget pinned by a user persists **server-side** and reloads on a different device for
   the same user; it is not visible to another tenant.
-- [ ] A published workspace widget is added to a different user's dashboard from the server-side library.
+- [ ] A published tenant-library widget is added to a different user's dashboard from the server-side
+  library.
 - [ ] **Cross-tenant isolation:** a query issued in tenant A's context returns zero rows from tenant B's
   seeded data across RDF, Aurora, and S3 Vectors; an unscoped SPARQL query is rejected.
 - [ ] A non-admin user is blocked (HTTP 403) outside their role and the denial appears in `PLAT-AUDIT-1`.
@@ -857,10 +858,10 @@ CE GA (`CE-METRICS-1`) · **Priority:** Must Have · **depends_on:** EPIC-000, E
 (`CE-METRICS-1`) · **blocks:** EPIC-002 · **consumes:** CE-METRICS-1, CE-READ-1, CE-VERSION-1,
 PLAT-SETTINGS-1, PLAT-BILLING-1.
 
-**Description.** The user-facing centrepiece: a declarative generative-UI surface where a workspace member
+**Description.** The user-facing centrepiece: a declarative generative-UI surface where a company member
 describes what they want and the AI composes the best-fit widget from a finite component library and
 streams it into the dashboard grid. This epic owns the full widget lifecycle — generate, choose component
-type, refine, pin (server-side per-user), publish to the workspace library, and role-appropriate starters
+type, refine, pin (server-side per-user), publish to the tenant library, and role-appropriate starters
 — all bound to live provider metrics contracts, never to free-form code.
 
 > **Milestone.** The whole dashboard is **M2** because it depends on CE GA. At M1 the shell renders the
@@ -870,12 +871,12 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
 
 **User stories (PRD §Epic 1) — full acceptance criteria:**
 
-- **E1-S0 — Fixed CE-sourced default dashboard (M2).** As any workspace member, I want a useful default
-  home once CE is GA so the workspace surfaces live model health.
+- **E1-S0 — Fixed CE-sourced default dashboard (M2).** As any company member, I want a useful default
+  home once CE is GA so the company surfaces live model health.
   - AC (EARS): WHEN CE is GA and the dashboard loads at M2, THE SYSTEM SHALL render a **fixed, hand-composed
     set of CE-sourced widgets** (ontology health / coverage via `CE-METRICS-1`) with no prompt bar and no AI
     composition.
-  - AC (EARS): THE SYSTEM SHALL persist the fixed default **as the workspace default** across sessions and
+  - AC (EARS): THE SYSTEM SHALL persist the fixed default **as the company default** across sessions and
     devices (server-side, not localStorage), read-only-composed at M2 (members do not add/remove tiles until
     the Phase-2 lifecycle ships).
   - AC (EARS): WHEN a Phase-2 engine ships new metrics, THE SYSTEM SHALL make its widgets **available to add
@@ -893,7 +894,7 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
     SHALL NOT render blank/hallucinated.
   - AC (LLM provider down, EARS): IF the AI provider is unconfigured/unreachable THEN THE SYSTEM SHALL show
     the defined offline state (HTTP 503 as a readable message, matching prototype `LlmBar` 503), retryable.
-  - AC (budget cap mid-stream, EARS): WHEN the workspace AI budget cap (via `PLAT-SETTINGS-1`) is reached
+  - AC (budget cap mid-stream, EARS): WHEN the tenant AI budget cap (via `PLAT-SETTINGS-1`) is reached
     during streaming, THE SYSTEM SHALL halt generation with the E8-S2 cap message and roll back the partial
     widget (no partial save).
   - AC (EARS): WHEN a widget renders, THE SYSTEM SHALL show a footer label naming its data-source
@@ -919,9 +920,9 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
   (default 1–4 columns, tunable) with drag-reorder and auto-refresh (default 5 min, tunable) or on demand.
   AC (failure, EARS): IF a refresh provider error occurs THEN THE SYSTEM SHALL retain the last successful
   render with a stale-data badge + timestamp and SHALL NOT blank. *(Must)*
-- **E1-S5 — Publish a widget to the workspace library (server-side, team-shared)** *(M2)*. WHEN a
-  user publishes a widget with name + description, THE SYSTEM SHALL store it server-side, workspace-scoped,
-  and list it in the Workspace Library panel with author + publish date (mirrors Explorer Saved Views `D2`);
+- **E1-S5 — Publish a widget to the tenant library (server-side, team-shared)** *(M2)*. WHEN a
+  user publishes a widget with name + description, THE SYSTEM SHALL store it server-side, tenant-scoped,
+  and list it in the Tenant Library panel with author + publish date (mirrors Explorer Saved Views `D2`);
   WHEN another member adds it THE SYSTEM SHALL give them an independent (tenant, user) copy refreshing from
   the same contract, independently refinable. AC (failure, EARS): IF a user lacking author permission
   publishes THEN THE SYSTEM SHALL return HTTP 403 with reason. *(Must)*
@@ -948,7 +949,7 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
   provider-unavailable, LLM-503, budget-cap-mid-stream, unsatisfiable-prompt, and refresh-error each render
   their specified state — one end-to-end failure-mode sweep.
 - [ ] Persistence boundaries hold: a pinned widget is (tenant, user)-scoped and invisible to another
-  user/tenant; a published widget is workspace-scoped and addable as an independent per-user copy — one
+  user/tenant; a published widget is tenant-scoped and addable as an independent per-user copy — one
   cross-user/cross-tenant test.
 - [ ] Only MVP-eligible (CE-sourced) categories are offered as starters or example prompts; no starter or
   suggestion references a non-GA source engine.
@@ -958,7 +959,7 @@ type, refine, pin (server-side per-user), publish to the workspace library, and 
 **Technical notes.** Declarative generative-UI pattern only; the mapping rule and named-type override live
 in the tech spec. Streaming targets are configurable defaults (header/skeleton ≤ 1 s; refinement history
 10 steps; auto-refresh 5 min; grid 1–4 columns; example-prompt count 4–6, dismiss after 3 widgets), all
-tunable per workspace (owner Architect for provisional values). Pin and publish are **server-side** state
+tunable per tenant (owner Architect for provisional values). Pin and publish are **server-side** state
 (never localStorage), RBAC-scoped and audit-visible via `PLAT-AUDIT-1`. Budget caps resolve through
 `PLAT-SETTINGS-1`; the LLM 503 surfaces the prototype `LlmBar` 503 behaviour as a readable, retryable
 offline state.
@@ -1067,7 +1068,7 @@ per-story phase tags, never fragmented further.
   no role, areas with no owner, recent role changes (default 7d, tunable), and agent principals with broad
   scope. AC (failure, EARS): IF the RBAC/identity source is unavailable THEN THE SYSTEM SHALL show the
   unavailable state rather than reporting zero gaps. *(Should, MVP)*
-- **E2-S15 — Workspace onboarding progress widget** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1`
+- **E2-S15 — Company onboarding progress widget** *(MVP — CE-sourced)*. WHERE `CE-METRICS-1`
   is available, THE SYSTEM SHALL compute completion % spanning ontology populated (≥1 entity per kind) and
   first published version; the **connector-configured item SHALL appear only once connectors ship at v1.0**
   (via `PLAT-CONNECTOR-1`) and the Build-project completion item only once Build is GA. THE SYSTEM SHALL
@@ -1108,7 +1109,7 @@ relationship set). "Per kind" ranges over whatever kinds CE registers — the sh
 client-defined extensions — never a fixed count (decision A1). Onboarding-progress "ontology populated"
 counts ≥ 1 instance against the registered kinds, not a hard-coded list.
 
-### EPIC-003 — Tenancy, Workspaces & Settings Cascade
+### EPIC-003 — Tenancy, Companies & Settings Cascade
 
 **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000 ·
 **blocks:** EPIC-004, EPIC-008, EPIC-001 · **provides:** PLAT-SETTINGS-1 · **consumes:** none.
@@ -1121,11 +1122,11 @@ through which budgets, retention, data classification, and RBAC are resolved for
 
 **User stories (PRD §Epic 3) — full acceptance criteria:**
 
-- **E3-S1 — Create and switch workspaces (3-level cascade).** WHERE the 3-level cascade Company →
+- **E3-S1 — Create and switch companies (3-level cascade).** WHERE the 3-level cascade Company →
   Domain → Project (`PLAT-SETTINGS-1`, A4 as amended — workspace ≡ company/tenant) applies, WHEN a user
   switches context THE SYSTEM
   SHALL reload the app into that node's effective settings, with all data tenant-isolated at the storage
-  layer per the §2.2 isolation mechanism. WHEN a workspace (company/tenant) is created THE SYSTEM SHALL
+  layer per the §2.2 isolation mechanism. WHEN a company (tenant) is created THE SYSTEM SHALL
   require name, slug, and billing plan, and SHALL apply platform default settings (tighter-wins within the
   tenant thereafter). AC (failure, EARS):
   IF a switch targets an inaccessible context THEN THE SYSTEM SHALL return HTTP 403 with zero cross-tenant
@@ -1143,22 +1144,22 @@ through which budgets, retention, data classification, and RBAC are resolved for
   type (audit, PROV-O, model versions) within platform minimums resolves through the cascade. AC (failure,
   EARS): IF a loosening is attempted without approval THEN THE SYSTEM SHALL reject it and record it to
   `PLAT-AUDIT-1`. *(Must)*
-- **E3-S4 — Weave super admin: provision workspaces + first admins.** A **Weave super admin
+- **E3-S4 — Weave super admin: provision companies + first admins.** A **Weave super admin
   (platform operator)** — a Weave-operator identity outside any single tenant's RBAC (a dedicated Cognito
-  group minting a `PLAT-IDENTITY-1` principal) — can create a new workspace from the UI (name, slug, parent
-  Domain, billing plan; inherits parent settings, tighter-wins) and create that workspace's **initial
-  workspace-admin user**; the workspace admin then invites their own members (E3-S2). The header workspace
-  switcher lists the workspaces the super admin operates and carries an **"Add workspace"** button opening a
-  modal that does both in one flow (FR-045/FR-046). AC: a **regular workspace user sees only their own
-  workspace** in the switcher; a switch to any other workspace returns 403 with zero cross-tenant data
-  (FR-047, cross-tenant-read test). AC (failure): a non-operator attempting workspace creation or a
-  cross-workspace switch is denied 403 and the denial is recorded to `PLAT-AUDIT-1`. *(Must)*
+  group minting a `PLAT-IDENTITY-1` principal) — can create a new company (tenant) from the UI (name, slug,
+  billing plan; platform default settings apply, tighter-wins within the tenant thereafter) and create that
+  company's **initial company-admin user**; the company admin then invites their own members (E3-S2). The
+  header company switcher lists the companies the super admin operates and carries an **"Add company"**
+  button opening a modal that does both in one flow (FR-045/FR-046). AC: a **regular user sees only their
+  own company** in the switcher; a switch to any other company returns 403 with zero cross-tenant data
+  (FR-047, cross-tenant-read test). AC (failure): a non-operator attempting company creation or a
+  cross-tenant switch is denied 403 and the denial is recorded to `PLAT-AUDIT-1`. *(Must)*
 
 **Epic-level acceptance criteria:**
 
-- [ ] Workspace provisioning is operator-gated and isolated: only the Weave super admin (platform-operator
-  group, outside tenant RBAC) can create a workspace and its first admin, and the switcher shows a regular
-  user only their own workspace — a non-operator create or cross-workspace switch returns 403 recorded to
+- [ ] Company provisioning is operator-gated and isolated: only the Weave super admin (platform-operator
+  group, outside tenant RBAC) can create a company and its first admin, and the switcher shows a regular
+  user only their own company — a non-operator create or cross-tenant switch returns 403 recorded to
   `PLAT-AUDIT-1`, verified by one operator-vs-regular-user test (FR-045..047).
 
 - [ ] Tenant isolation holds at the storage layer across every backing store: a query in tenant A's
@@ -1193,7 +1194,7 @@ PROV-O record and audit entry.
 **User stories (PRD §Epic 4) — full acceptance criteria:**
 
 - **E4-S1 — Sign in with Cognito (default) or Auth0 (multi-IdP).** Default auth uses AWS Cognito
-  (email/password + hosted UI); enterprise SSO uses Auth0 SAML/OIDC configured per workspace (Google
+  (email/password + hosted UI); enterprise SSO uses Auth0 SAML/OIDC configured per company/tenant (Google
   Workspace, Okta, Azure AD). AC (failure): an IdP outage shows a defined error and does not fall back to
   an unauthenticated session. *(Must)*
 - **E4-S2 — RBAC enforced at the API boundary.** Every API request carries a Cognito JWT; the platform
@@ -1225,13 +1226,13 @@ PROV-O record and audit entry.
   appears in PROV-O and every `PLAT-AUDIT-1` entry, and maps to exactly one IAM role and one RBAC role at
   the Weave API boundary — verified by tracing one agent action end to end.
 
-**Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per workspace. RBAC at the API via
+**Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per tenant. RBAC at the API via
 JWT validation; roles control read/author/publish/admin per engine/area. `PLAT-IDENTITY-1` records IAM
 role ↔ canonical principal IRI ↔ RBAC role. The **Weave super admin (platform operator)** identity — a
-dedicated Cognito group minting a `PLAT-IDENTITY-1` principal outside any client workspace's RBAC —
-provisions workspaces and their first admins at **MVP** (FR-045..047, story E3-S4). The separate
+dedicated Cognito group minting a `PLAT-IDENTITY-1` principal outside any client tenant's RBAC —
+provisions companies and their first admins at **MVP** (FR-045..047, story E3-S4). The separate
 *self-improvement* platform-operator capability (audit-reading signal→issue→dispatch) is defined **post-v1**
-alongside the self-improvement loop; neither operator identity ever appears in a client workspace's RBAC.
+alongside the self-improvement loop; neither operator identity ever appears in a client tenant's RBAC.
 
 ### EPIC-005 — Global Navigation & Search
 
@@ -1246,7 +1247,7 @@ the platform-owned Compliance area.
 
 **User stories (PRD §Epic 5) — full acceptance criteria:**
 
-- **E5-S1 — Primary navigation (top header).** Any screen shows the top bar: [Weave logo + workspace
+- **E5-S1 — Primary navigation (top header).** Any screen shows the top bar: [Weave logo + company
   switcher] [Dashboard · Constitution · Explorer · Build · Automate · **Compliance** · Settings] [Search]
   [Notifications] [Help] [Account]; active area highlighted; left sidebar updates to the active engine.
   Audit is a **sub-view under Compliance**, not a separate top-level area — Compliance is the
@@ -1445,7 +1446,7 @@ effective cap.
   last-known totals with a staleness timestamp rather than a zero or fabricated current figure — one
   metering-delay test confirms no event loss and a visible staleness marker.
 - [ ] Caps resolve through the full 3-level cascade with tighter-wins: a cap set at any Company / Domain /
-  Workspace / Project node tracks spend against the effective cap, threshold alerts fire at configurable
+  Project node tracks spend against the effective cap, threshold alerts fire at configurable
   defaults (80% / 100%), and a cap raise takes effect within the bounded cascade latency (default ≤ 60 s) —
   verified against the same `PLAT-SETTINGS-1` resolution path EPIC-003 owns.
 
@@ -1564,7 +1565,7 @@ Cross-links to `[constitution-engine](constitution-engine.md)`, `[build-engine](
 ## 4. Roadmap
 
 **Build order:** Platform shell → Constitution → Graph Explorer → Build → Events → Onboarding. This is
-**#1** — the shell the whole loop runs in (app, navigation, workspace, Cognito, Bedrock routing, tenancy),
+**#1** — the shell the whole loop runs in (app, navigation, Cognito, Bedrock routing, tenancy),
 **not an engine**. The Constitution Engine is the first engine that runs on this shell.
 
 The platform's position is **bidirectional** — the load-bearing point:
@@ -1612,7 +1613,7 @@ cascade, in-app notifications, billing/metering + budget caps, and the immutable
 external integrations. **No upstream engine dependency; unblocks CE and every other engine.**
 Demonstrable outcome: a tenant-isolated, authenticated SPA shell with the five M1-live platform contracts
 live, exercised by the cross-tenant-isolation and audit-tamper tests. The dashboard route ships as the
-workspace home with a defined placeholder/empty state — the fixed CE-sourced tiles (E1-S0) moved to M2
+company home with a defined placeholder/empty state — the fixed CE-sourced tiles (E1-S0) moved to M2
 (2026-07-02: they consume `CE-METRICS-1`, a CE M2 contract; keeping them at M1 contradicted "no upstream
 engine dependency").
 
@@ -1621,7 +1622,7 @@ engine dependency").
 | Epic | Description | Stories | Priority |
 |------|-------------|---------|----------|
 | **EPIC-000** | **Foundation & Boilerplate — FIRST; gates everything.** Monorepo, Terraform + S3 state, Next.js shell + design system + Storybook, CI/CD + quality gates, Cognito + Bedrock connectivity, test harness, OpenAPI + OTel, local docker-compose stack, Lighthouse-100 + WCAG-AA | 9 | Must Have |
-| EPIC-003 | Tenancy, Workspaces & Settings Cascade (`PLAT-SETTINGS-1`, 3-level tighter-wins) | 3 | Must Have |
+| EPIC-003 | Tenancy, Companies & Settings Cascade (`PLAT-SETTINGS-1`, 3-level tighter-wins) | 3 | Must Have |
 | EPIC-004 | Authentication, RBAC & Agent Identity (Cognito/Auth0, JWT RBAC, `PLAT-IDENTITY-1` IAM/STS) | 3 | Must Have |
 | EPIC-005 | Global Navigation & Search (persistent top bar, Cmd+K, help/tour) | 3 | Must Have |
 | EPIC-006 | Notifications (`PLAT-NOTIFY-1`, open taxonomy, **in-app only at M1**; Slack v1.0) | 2 | Must Have |
@@ -1672,7 +1673,7 @@ engine dependency").
 |------|---------|----------|--------|
 | Spec-approval (PO/stakeholder sign-off) | **mandatory** | PO + exec sponsor | M1 start |
 | Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | M2 |
-| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Workspace admin / release approver | deploy |
+| Pre-AWS-deploy (full local pyramid + gates green → approve → dev-AWS smoke) | yes | Company admin / release approver | deploy |
 | Publish/generate | no (no artefact published at M1) | n/a | — |
 
 > Phase-boundary ceremony is load-bearing — this milestone ships auth, RBAC, audit and tenant-isolation.
@@ -1726,7 +1727,7 @@ model completeness and what Weave can generate for each role.
   (FR-015)
 - [ ] WHEN a user pins a widget THE SYSTEM SHALL persist it server-side scoped to (tenant, user) and reload
   it with live data on a different device, invisible to another tenant — pin-persistence test (FR-008)
-- [ ] WHEN a user publishes a pinned widget THE SYSTEM SHALL list it in the server-side workspace-scoped
+- [ ] WHEN a user publishes a pinned widget THE SYSTEM SHALL list it in the server-side tenant-scoped
   library so another user can add an independent copy — publish/add test (FR-011)
 - [ ] WHEN a role navigates to the role-home THE SYSTEM SHALL display capabilities appropriate to that role,
   with non-GA engine capabilities in a defined "coming soon" state, never implied available —
@@ -1742,7 +1743,7 @@ model completeness and what Weave can generate for each role.
 |------|---------|----------|--------|
 | Spec-approval | **mandatory** | PO + exec sponsor | M2 start |
 | Phase-boundary ceremony (security-review + mutation + doc-gen) | yes | Architect + security reviewer | v1.0 |
-| Pre-AWS-deploy | yes | Workspace admin / release approver | deploy |
+| Pre-AWS-deploy | yes | Company admin / release approver | deploy |
 | Publish/generate | no (widget publish is server-side state, not an external release) | n/a | — |
 
 **Phase-gate metadata:**
@@ -1812,7 +1813,7 @@ a shared component (`BE-SELFIMPROVE-1`, dispatching to the existing engineering 
 | EPIC-002 (engine-gated) | Widget Library — Build/Events/Explorer rows (S4, S7 Build, S8 automation, S9 realtime, S12) | per source-engine GA |
 | EPIC-009 (E9-S2..S4) | Weave-product self-improvement loop (signal collect → draft issue → HITL approve → dispatch) | after v1.0 + `BE-SELFIMPROVE-1` built |
 | Product usage analytics | Privacy-aware event instrumentation: who uses Weave, how much, which features, and what they do — an internal usage/adoption view. Scoped + metered under existing platform primitives; a metering/analytics contract ID is defined when built. | after v1.0 |
-| MCP server | Expose the ontology + system metrics over a Model Context Protocol server so users, agents, and external AI clients can query the ontology, generate reports, and reason over data over time. Access scoped to the caller's access token (workspace + project-level permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their workspace and the projects they can access) and reads via `CE-READ-1` / `CE-METRICS-1`. Inspiration: <https://github.com/fabio-rovai/open-ontologies>. A contract ID is defined when built. | after v1.0 |
+| MCP server | Expose the ontology + system metrics over a Model Context Protocol server so users, agents, and external AI clients can query the ontology, generate reports, and reason over data over time. Access scoped to the caller's access token (company + project-level permissions via `PLAT-IDENTITY-1` + `PLAT-SETTINGS-1`; a caller sees only their company (tenant) and the projects they can access) and reads via `CE-READ-1` / `CE-METRICS-1`. Inspiration: <https://github.com/fabio-rovai/open-ontologies>. A contract ID is defined when built. | after v1.0 |
 
 > Engine-gated stories activate incrementally as each source engine ships. The self-improvement loop
 > defines a minimal internal interface when it lands and dispatches to the existing engineering harness.
