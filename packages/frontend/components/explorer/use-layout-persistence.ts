@@ -6,6 +6,9 @@ import type { ExplorerConfig } from "@/lib/explorer/config";
 import { resetLayoutPositions, saveLayoutPosition } from "@/lib/explorer/layout-client";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
+/** Mirrors the backend's `_IRI_SCHEME_RE` (routers/layout.py). */
+const IRI_SCHEME_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
 export interface UseLayoutPersistenceOptions {
   adapter: RendererAdapter | null;
   config: ExplorerConfig;
@@ -59,6 +62,10 @@ export function useLayoutPersistence({
   useEffect(() => {
     if (!adapter) return undefined;
     return adapter.onNodeDragEnd((nodeId, position) => {
+      // Literal-object nodes (labels, string values) carry the literal text
+      // as their id, not an IRI -- the backend's _require_iri 422s those, so
+      // dragging one stays view-only instead of a doomed save+retry+toast.
+      if (!IRI_SCHEME_RE.test(nodeId)) return;
       saveWithRetry(save, config.layoutSaveRetryDelaysMs, graphId, nodeId, position).then((succeeded) => {
         if (!succeeded) setSaveFailed(true);
       });

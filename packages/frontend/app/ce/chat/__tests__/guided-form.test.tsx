@@ -92,7 +92,7 @@ describe("GuidedForm", () => {
     await fillAndSubmit("urn:weave:person:1");
 
     const link = await screen.findByRole("link", { name: /view in graph/i });
-    expect(link).toHaveAttribute("href", "/api/ontology/resource/urn:weave:process:1");
+    expect(link).toHaveAttribute("href", `/explorer?focus=${encodeURIComponent("urn:weave:process:1")}`);
   });
 
   // AC-006-10

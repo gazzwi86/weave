@@ -37,11 +37,25 @@ function newMessage(
  * `useCeChat`'s own body under the Law E function-length budget.
  */
 function useChatMessages(): [ChatMessage[], (message: ChatMessage) => void] {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadHistory());
+  // History hydrates AFTER mount: reading localStorage inside the useState
+  // initialiser makes the client's first render differ from the SSR HTML
+  // (React hydration mismatch). `hydrated` also gates the save effect so
+  // the initial empty render can't wipe the stored history.
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // SSR hydration: localStorage is browser-only, so history loads post-mount
+    // (reading it in the useState initialiser would diverge from the SSR HTML).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMessages(loadHistory());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     saveHistory(messages);
-  }, [messages]);
+  }, [messages, hydrated]);
 
   const append = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);

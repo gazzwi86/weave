@@ -19,7 +19,7 @@ export function HelpLauncher() {
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)]" />
+        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content
           aria-label="Help"
           className="fixed right-0 top-0 h-full w-full max-w-[360px] border-l border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-5)] shadow-[var(--shadow-panel)]"
@@ -31,6 +31,31 @@ export function HelpLauncher() {
             Press Cmd+K (or Ctrl+K) to search. This panel is contextual to the area you&apos;re
             viewing.
           </Dialog.Description>
+          {/* IA §6 help content — thin M1 links; per-area contextual help and
+              guided tours land with the v1.0 docs surface. */}
+          <nav aria-label="Help topics" className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+            <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+              Get started
+            </p>
+            <a href="/ce" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              Model your company — add Processes, Actors, Goals in the Constitution
+            </a>
+            <a href="/ce/query" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              Ask questions in plain language — Query the graph
+            </a>
+            <a href="/explorer" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              See the whole company — Graph Explorer
+            </a>
+            <a href="/build" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              Request an application generated from your model — Build
+            </a>
+            <a href="/audit" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              Every change, hash-chained — Audit trail
+            </a>
+            <p className="mt-[var(--space-2)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
+              Docs, keyboard shortcuts, and per-area guides arrive with the v1.0 help centre.
+            </p>
+          </nav>
           <Dialog.Close asChild>
             <button
               type="button"

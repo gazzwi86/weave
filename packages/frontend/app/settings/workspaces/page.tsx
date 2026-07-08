@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getSessionClaims } from "@/lib/auth/session-claims";
-import { PlaceholderPage } from "@/components/placeholder-page";
+
+import { WorkspacesPanel } from "./workspaces-panel";
 
 /** Admin-only provisioning surface (IA §5: create workspace + first admin).
  * The rail already hides this for non-admins; this server-side check keeps a
@@ -24,10 +25,11 @@ export default async function SettingsWorkspacesPage() {
   }
 
   return (
-    <PlaceholderPage
-      title="Workspaces"
-      tag="m1"
-      description="Provision a workspace with its first admin user and list all workspaces. The provisioning API (PLAT-EPIC-003/004) is done; this UI lands this pass."
-    />
+    <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        Workspaces
+      </h1>
+      <WorkspacesPanel />
+    </main>
   );
 }

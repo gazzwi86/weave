@@ -36,10 +36,24 @@
   --color-danger-soft: rgba(239, 68, 68, 0.1);
   --color-info: #7dd3fc;
 
-  /* color: BPMO kind fallback (dark) -- unrecognised/extension-kind grey
-   * (docs/standards/design/color.md); only fallback needed for M1, full
-   * 13-kind palette is deferred (kind->shape mapping, OQ-08). */
-  --color-kind-fallback: #64748b;
+  /* color: BPMO kind palette (dark variants, docs/standards/design/color.md
+   * OQ-08 table -- OKLCH-tuned to >=4.5:1 on navy). Token name is the kind
+   * id lowercased (see app/api/proxy/node-kinds). */
+  --color-kind-process: #e73430;
+  --color-kind-activity: #f59e0b;
+  --color-kind-event: #0ea5e9;
+  --color-kind-actor: #0d9488;
+  --color-kind-goal: #ca8a04;
+  --color-kind-policy: #db3b74;
+  --color-kind-businessdomain: #9054ff;
+  --color-kind-businesscapability: #e2307d;
+  --color-kind-system: #3272fb;
+  --color-kind-service: #0891b2;
+  --color-kind-dataasset: #16a34a;
+  --color-kind-concept: #ea580c;
+  --color-kind-field: #65a30d;
+  --color-kind-class: #d97706;
+  --color-kind-fallback: #6d7d94;
 
   /* space (8pt grid) */
   --space-1: 4px;
@@ -155,7 +169,22 @@
     --color-danger: #b91c1c;
     --color-danger-soft: rgba(185, 28, 28, 0.1);
     --color-info: #0369a1;
-    --color-kind-fallback: #6d7d94;
+    /* BPMO kind palette, light variants (color.md OQ-08 table). */
+    --color-kind-process: #dc2626;
+    --color-kind-activity: #b36100;
+    --color-kind-event: #007cbe;
+    --color-kind-actor: #008579;
+    --color-kind-goal: #a66800;
+    --color-kind-policy: #be185d;
+    --color-kind-businessdomain: #7c3aed;
+    --color-kind-businesscapability: #db2777;
+    --color-kind-system: #2563eb;
+    --color-kind-service: #0080a1;
+    --color-kind-dataasset: #008830;
+    --color-kind-concept: #d54300;
+    --color-kind-field: #498500;
+    --color-kind-class: #bb5b00;
+    --color-kind-fallback: #64748b;
   }
 }
 

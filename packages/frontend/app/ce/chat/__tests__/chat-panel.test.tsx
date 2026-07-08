@@ -63,7 +63,7 @@ describe("ChatPanel", () => {
     await waitFor(() => expect(screen.getByRole("link", { name: /urn:weave:process:p1/ })).toBeInTheDocument());
     expect(screen.getByRole("link", { name: /urn:weave:process:p1/ })).toHaveAttribute(
       "href",
-      "/api/ontology/resource/urn:weave:process:p1"
+      `/explorer?focus=${encodeURIComponent("urn:weave:process:p1")}`
     );
   });
 

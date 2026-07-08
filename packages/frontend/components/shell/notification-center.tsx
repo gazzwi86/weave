@@ -78,7 +78,7 @@ export function NotificationCenter() {
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)]" />
+        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content
           aria-label="Notifications"
           className="fixed right-0 top-0 h-full w-full max-w-[360px] border-l border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-5)] shadow-[var(--shadow-panel)]"

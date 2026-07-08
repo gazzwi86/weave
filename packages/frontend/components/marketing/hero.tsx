@@ -6,7 +6,9 @@ import { CtaLink } from "./cta-link";
 export function MarketingHeader() {
   return (
     <header className="flex items-center justify-between px-[var(--space-6)] py-[var(--space-4)]">
-      <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+      <p className="flex items-center gap-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark, no next/image optimisation needed */}
+        <img src="/logo.png" alt="" className="h-[28px] w-auto" />
         weave
       </p>
       <nav aria-label="Marketing" className="flex items-center gap-[var(--space-4)]">

@@ -134,7 +134,7 @@ function SuccessPanel({ iri, onClose }: { iri: string; onClose: () => void }) {
   return (
     <div className="flex flex-col gap-[var(--space-2)]">
       <p>Created {iri}.</p>
-      <a href={`/api/ontology/resource/${iri}`} className="underline text-[var(--color-accent-primary)]">
+      <a href={`/explorer?focus=${encodeURIComponent(iri)}`} className="underline text-[var(--color-accent-primary)]">
         View in graph
       </a>
       <Button type="button" onClick={onClose}>

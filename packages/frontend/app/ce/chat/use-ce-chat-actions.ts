@@ -32,6 +32,15 @@ async function parseIntent(text: string): Promise<ChatMessage> {
     body: JSON.stringify({ text, known_class_iris: {}, preview: true }),
   });
   const body = (await res.json()) as NlPreviewBody;
+  if (res.status === 502) {
+    // Provider down (Ollama not running / model call failed) is NOT a
+    // rephrasing problem -- telling the user to rephrase sends them in
+    // circles.
+    return newMessage(
+      "assistant",
+      "The model provider is unavailable right now -- check it's running and try again."
+    );
+  }
   if (!res.ok || !body.operations || body.operations.length === 0) {
     return newMessage(
       "assistant",

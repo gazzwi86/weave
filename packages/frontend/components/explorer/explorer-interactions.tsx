@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
@@ -35,6 +37,23 @@ function resolveGraphId(graphId: string | undefined, config: ExplorerConfig): st
   return graphId ?? config.layoutGraphId;
 }
 
+/** Deep-link seam: `/explorer?focus=<iri>` (chat entity links) centers and
+ * spotlights the named node once the canvas is live. Reads
+ * window.location directly -- one-shot on mount, no router coupling. A
+ * focus IRI that isn't on the canvas is a silent no-op (openNode guards). */
+function useFocusParam(adapter: RendererAdapter, config: ExplorerConfig, openNode: (id: string) => void) {
+  const openNodeRef = useRef(openNode);
+  useEffect(() => {
+    openNodeRef.current = openNode;
+  });
+  useEffect(() => {
+    const focus = new URLSearchParams(window.location.search).get("focus");
+    if (!focus) return;
+    adapter.centerOn(focus, config.centreAnimationMs);
+    openNodeRef.current(focus);
+  }, [adapter, config.centreAnimationMs]);
+}
+
 /** TASK-005 AC-3/AC-4/AC-5: the context menu's actions, and the confirm
  * dialog gating an over-threshold expand -- extracted so
  * ExplorerInteractions itself stays under Law E's 50-line budget. */
@@ -66,6 +85,7 @@ export function ExplorerInteractions({
   fetchDomainMembers,
 }: ExplorerInteractionsProps) {
   const { panel, openNode, close, retry } = useNodeSpotlight({ adapter, config, fetchNodeProps });
+  useFocusParam(adapter, config, openNode);
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });
   const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({
     adapter,

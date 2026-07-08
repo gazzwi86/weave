@@ -16,11 +16,25 @@ interface BackendKindEntry {
   label: string;
 }
 
-/** ponytail: every kind maps to the one design token that exists today
- * (`--color-kind-fallback` — see globals.css's own "M1 defer" note, full
- * 13-kind palette is OQ-08). Swap per-kind once those tokens land. */
+/** The 14 per-kind tokens from docs/standards/design/color.md (OQ-08 table)
+ * live in globals.css as `--color-kind-<kindid lowercased>`; anything the
+ * palette doesn't name falls back to the grey token. */
+const KNOWN_KIND_TOKENS = new Set([
+  "process", "activity", "event", "actor", "goal", "policy",
+  "businessdomain", "businesscapability", "system", "service",
+  "dataasset", "concept", "field", "class",
+]);
+
+function kindColour(id: string): string {
+  const token = id.toLowerCase();
+  return KNOWN_KIND_TOKENS.has(token)
+    ? `var(--color-kind-${token})`
+    : "var(--color-kind-fallback)";
+}
+
 function toNodeKind(entry: BackendKindEntry): NodeKind {
-  return { id: lastSegment(entry.iri), label: entry.label, colour: "var(--color-kind-fallback)" };
+  const id = lastSegment(entry.iri);
+  return { id, label: entry.label, colour: kindColour(id) };
 }
 
 /** AC-3: proxies CE-READ-1's BPMO kind catalogue (`GET /api/ontology/types`,

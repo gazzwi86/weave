@@ -28,9 +28,14 @@ function buildEdge(row: GraphRow): CytoscapeElement {
   };
 }
 
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+const WEAVE_ONTOLOGY_NS = "https://weave.io/ontology/";
+
 /** Maps one CE-READ-1 SPARQL page's rows into Cytoscape elements. Nodes are
  * deduped within this call (a subject/object pair may repeat across rows);
- * cross-page dedup is the caller's job (fetchGraph). */
+ * cross-page dedup is the caller's job (fetchGraph). The raw s/p/o rows
+ * carry no `bpmo_kind` column, so a node's kind (drives the AC-3 palette
+ * colour) is derived from its own `rdf:type <weave-class>` row. */
 export function mapRowsToElements(rows: GraphRow[]): CytoscapeElement[] {
   const nodes = new Map<string, CytoscapeElement>();
   const edges: CytoscapeElement[] = [];
@@ -39,6 +44,12 @@ export function mapRowsToElements(rows: GraphRow[]): CytoscapeElement[] {
     upsertNode(nodes, row.subject, row);
     upsertNode(nodes, row.object);
     edges.push(buildEdge(row));
+    if (row.predicate === RDF_TYPE && row.object.startsWith(WEAVE_ONTOLOGY_NS)) {
+      const node = nodes.get(row.subject);
+      if (node && node.data.bpmo_kind === undefined) {
+        node.data.bpmo_kind = row.object.slice(WEAVE_ONTOLOGY_NS.length);
+      }
+    }
   }
 
   return [...nodes.values(), ...edges];

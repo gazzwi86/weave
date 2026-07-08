@@ -56,7 +56,9 @@ function RailItem({ item, pathname, role }: {
         )}
       >
         <span>{item.label}</span>
-        <TagPill tag={item.tag} />
+        {/* A shipped surface needs no roadmap pill -- the pills exist to
+            flag what is NOT built yet (placeholders and phase tags). */}
+        {item.tag !== "built" && <TagPill tag={item.tag} />}
       </Link>
     </li>
   );

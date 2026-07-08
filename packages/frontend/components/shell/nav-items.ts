@@ -51,9 +51,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Model",
         items: [
-          { label: "Overview", href: "/ce/overview", tag: "m1" },
+          { label: "Overview", href: "/ce/overview", tag: "built" },
           { label: "Explore", href: "/explorer", tag: "built" },
-          { label: "Ontology / Types", href: "/ce/types", tag: "m1" },
+          { label: "Ontology / Types", href: "/ce/types", tag: "built" },
           { label: "Instances / Data", href: "/ce", tag: "built" },
         ],
       },
@@ -90,7 +90,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Build",
         items: [
-          { label: "Request application", href: "/build", tag: "m1" },
+          { label: "Request application", href: "/build", tag: "built" },
           { label: "Projects", tag: "v1.0" },
           { label: "Dashboard", tag: "v1.0" },
           { label: "Kanban", tag: "v1.0" },
@@ -122,8 +122,8 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Audit",
         items: [
-          { label: "Dashboard", href: "/audit", tag: "m1" },
-          { label: "View logs", href: "/audit/logs", tag: "m1" },
+          { label: "Dashboard", href: "/audit", tag: "built" },
+          { label: "View logs", href: "/audit/logs", tag: "built" },
           { label: "Compliance", href: "/compliance", tag: "built" },
         ],
       },
@@ -148,7 +148,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
-          { label: "Models & AI", href: "/settings/models", tag: "m1" },
+          { label: "Models & AI", href: "/settings/models", tag: "built" },
           { label: "Billing & budgets", href: "/billing", tag: "built" },
           { label: "Integrations", tag: "v1.0" },
         ],
@@ -156,7 +156,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Provisioning",
         items: [
-          { label: "Workspaces", href: "/settings/workspaces", tag: "m1", adminOnly: true },
+          { label: "Workspaces", href: "/settings/workspaces", tag: "built", adminOnly: true },
         ],
       },
     ],

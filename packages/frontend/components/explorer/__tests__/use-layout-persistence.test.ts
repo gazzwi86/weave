@@ -52,6 +52,26 @@ describe("useLayoutPersistence", () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith(GRAPH_ID, NODE_ID, 5, 9));
   });
 
+  it("skips saving literal nodes (id is not an IRI) without a toast", async () => {
+    const save = vi.fn(async () => undefined);
+    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    const adapter = fakeAdapter({
+      onNodeDragEnd: vi.fn((handler) => {
+        dragHandler = handler;
+        return vi.fn();
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+    );
+    act(() => dragHandler?.("Order Fulfillment", { x: 5, y: 9 }));
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(save).not.toHaveBeenCalled();
+    expect(result.current.saveFailed).toBe(false);
+  });
+
   it("retries with the configured backoff delays on failure, then succeeds without a toast", async () => {
     vi.useFakeTimers();
     const save = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce(undefined);

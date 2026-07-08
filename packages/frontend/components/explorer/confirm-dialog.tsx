@@ -24,7 +24,7 @@ export function ConfirmDialog({ open, newCount, onConfirm, onCancel }: ConfirmDi
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)]" />
+        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content aria-label="Confirm expand" className={CONTENT_CLASSES}>
           <Dialog.Title className="text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
             Load {newCount} more nodes?
