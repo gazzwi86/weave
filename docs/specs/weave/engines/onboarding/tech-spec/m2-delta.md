@@ -1,4 +1,5 @@
 ---
+type: TechSpec
 title: "Onboarding — M2 Tech-Spec Delta"
 description: "Changes-only delta over the M1 tech spec for the Onboarding M2 window: three
   legibility/trust overlays (completeness-map tour, role-home guidance, trust-mechanics tours)

@@ -1,4 +1,5 @@
 ---
+type: TechSpec
 title: "Onboarding — Spec Invariants"
 description: "Flat checklist of architectural invariants the engineer MUST honour and QA MUST
   verify (Arch Law 10). M1 set lifted from architecture.md §Invariants; M2 additions from
