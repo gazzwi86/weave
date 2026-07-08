@@ -981,7 +981,7 @@ partial — on failure.
 
 **Phase:** M1 window (parallel, not M1 exit gate) — CE/Explorer tours only, beacons on shipped
 screens, welcome modals · M2 window — completeness-map + trust-mechanics tours/beacons on the M2
-GE/CE/Platform surfaces (see §M2 window; m2 TASK-002/004) · post-v1 (Build/Events GA): Build,
+GE/CE/Platform surfaces (see §M2 window; v1 TASK-002/004) · post-v1 (Build/Events GA): Build,
 Events (Automate), Platform-Dashboard tours + post-v1 beacons/modals · **Status:** Backlog ·
 **Priority:** Must Have
 
@@ -1031,7 +1031,7 @@ all overlay strings are externalised as i18n keys.
 
 **Phase:** M1 window (parallel, not M1 exit gate) — role-path resolution + starter-widget
 mapping (CE-METRICS-1) · M2 window — "What can Weave do for you" role-home guidance +
-competency-question guidance item (depends on M2 Platform surfaces; see §M2 window; m2 TASK-003) ·
+competency-question guidance item (depends on M2 Platform surfaces; see §M2 window; v1 TASK-003) ·
 **Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·

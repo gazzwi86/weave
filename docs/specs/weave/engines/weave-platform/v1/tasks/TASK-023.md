@@ -137,7 +137,7 @@ mocked frontend. Coverage ≥ 80 %, mutation ≥ 60 % (component + binding).
 - [x] Single data source pinned (`GET /api/connectors`); no-new-endpoint rule stated
 - [x] Design tokens + a11y requirements named (ui_verify)
 - [x] Honest-state mapping to m2-delta §6 confirmed
-- [ ] TASK-006 complete (list API live) and m2 TASK-016 complete (category-binding machinery)
+- [ ] TASK-006 complete (list API live) and v1 TASK-016 complete (category-binding machinery)
 
 ## Definition of Done Checklist
 
