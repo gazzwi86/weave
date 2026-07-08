@@ -2,6 +2,31 @@
 
 **Date:** 2026-07-08 · **Status:** approved-shape, pending execution · **Owner:** Gareth + Fable orchestrator
 
+## Status update — 2026-07-08 (post-WS0 scout)
+
+**WS0 done:** tree clean, main pushed (`4034701`), harness commit governed (`Advisor-Consult: ADV-006`),
+CI-outage memory saved.
+
+**WS1 largely pre-executed by parallel sessions** (commits `696bfcb..f79adee` on main) — but not
+converged:
+
+- Step 1 north star: DONE (`weave-spec.md`).
+- Step 2 sweep: DONE, deeper than planned — 8-reviewer red team (`m2-v1-redteam-findings.md`) found
+  every M2/v1 engine spec NOT build-ready; coordinator rulings in `m2-v1-spec-decisions.md`.
+  Remediation commits (`e965064`, `678d294`, `cde7eec`) landed after — **blocker closure NOT yet
+  verified** (incl. an SSRF Blocker in Platform v1 connector URLs). Follow-ups open: conformance
+  tests, ADR-004 duplicate, PO erratum, stale `personas.md` tags.
+- Step 3: Hammerbarn DONE (`hammerbarn-content-brief.md`); M2+v1 kept as **sibling milestone dirs**
+  (not one merged milestone) — confirm intent with user; **CE+GE spec merge NOT done** — confirm
+  dropped vs not reached; fold of the 9 session-discovered needs unverified (some visibly landed:
+  tenancy drop `8f039f6`, Build grounding `9937a7f`, SHACL hub `db5cd1f`).
+- Step 4: 105 task briefs seeded in `progress.json` (74 backlog) — valid only once red-team
+  blockers confirmed closed.
+
+**Revised remaining work:** WS1-GAP session (verify blocker closure per engine; MCQ the step-3
+questions; close follow-ups) → WS2 design (unchanged, nothing done) → WS3 gate (unchanged;
+`PROGRAM-M1-SIGNOFF.md` confirmed absent on main — only a stale worktree copy exists).
+
 This plan refines the four-task prompt (Task 0 spec refinement, Task 1 spec hardening, Task 2 design
 assessment, Task 3 backlog completion, Task 4 phase gate) into three workstreams plus a step-0
 hygiene pass. Tasks 0, 1 and 3 overlapped ~70% and are **merged into one spec workstream**
