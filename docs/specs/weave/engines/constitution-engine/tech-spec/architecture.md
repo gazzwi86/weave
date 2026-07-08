@@ -224,7 +224,7 @@ CE-specific challenges as D6–D9. Program-level ADRs live in
 | D6 | A single rewriter validates every SPARQL string regardless of origin, rather than scoping per service or per caller | One validator between any SPARQL and the store means one place to test SSRF + SELECT-only + tenant scope; NL, typed, and system queries share it | Separate NL-query sanitiser and typed-query sanitiser (two code paths, two SSRF surfaces to keep in sync) | "Does the NL surface bypass the SPARQL guard?" | Exactly one SELECT-only + SERVICE-blocked validator exists; a CI test asserts the NL path routes through it (CE-READ-1, ADR-001) |
 | D7 | SHACL validation runs with `inference='none'` at M1 | Glossary term and OWL class are one punned resource (decision B1); the validation gate must not depend on OWL inference, keeping it deterministic and fast | Run SHACL with RDFS/OWL inference (fragile, slower, ties the gate to reasoner completeness) | "Is the validation gate sound without inference?" | Punning (B1) makes DL-completeness not load-bearing on the gate; `inference='none'` is grep-enforced on every SHACL call (data-model.md) |
 | D8 | Published versions are immutable named graphs; any write to a `:v{semver}` graph is rejected 405 | Downstream engines pin to a published version; silent mutation of a pinned version breaks Build artefacts and Events automations | Allow in-place edits to published versions with a changelog (defeats version pinning) | "What actually stops a published version from being mutated?" | CE-WRITE-1 targets only the draft graph; a PUT/PATCH on a version IRI is 405; `sha256_digest` in snapshot_pointer enables tamper-audit (FR-008, business-process.md) |
-| D9 | M1 ships the honest authority degrade (`coverage_gap` + deny), not full `authority()` | The base 13-kind BPMO cannot express permission/authority-level; overselling `authority()` would ground agents on absent data (ADR-002) | Return an implicit allow when no permission is modelled (silent over-permission — a security failure) | "Does M1 `authority()` lie about what it can resolve?" | Empty result never means permitted; it resolves to `coverage-gap` with explicit missing-link rows, then `deny`/route-to-human; explicit deny overrides (ADR-002, FR-036) |
+| D9 | M1 ships the honest authority degrade (`coverage_gap` + deny), not full `authority()` | The base 13-kind BPMO cannot express permission/authority-level; overselling `authority()` would ground agents on absent data (program ADR-002; extension build deferred post-v1 — ADR-013) | Return an implicit allow when no permission is modelled (silent over-permission — a security failure) | "Does M1 `authority()` lie about what it can resolve?" | Empty result never means permitted; it resolves to `coverage-gap` with explicit missing-link rows, then `deny`/route-to-human; `permit` stays unreachable (and explicit-deny override arrives) only with the post-v1 Authority Extension (program ADR-002, ADR-013, FR-036) |
 
 ## Invariants
 
@@ -256,10 +256,11 @@ All invariants are EARS-notated and each maps to at least one release-gate test.
 - **Dev/prod parity:** WHEN running in the test environment THE SYSTEM SHALL use LocalStack for AWS
   services and an in-memory pyoxigraph store for graph access — no real cloud calls in tests (Plugin
   Law F).
-- **Authority degrade (M1):** WHEN `authority(actor, action, target)` is called and the Authority
-  Extension is unpopulated THE SYSTEM SHALL return `coverage-gap` with explicit `{entity_iri,
-  missing_link}` rows and default unstated permission to `deny`/route-to-human — an empty result SHALL
-  NEVER mean permitted (ADR-002, FR-036).
+- **Authority degrade (M1/M2 standing):** WHEN `authority(actor, action, target)` is called and the
+  Authority Extension is unpopulated (always, until post-v1 — ADR-013) THE SYSTEM SHALL return
+  `coverage-gap` with explicit `{entity_iri, missing_link}` rows and default unstated permission to
+  `deny`/route-to-human — an empty result SHALL NEVER mean permitted and `decision: "permit"` SHALL
+  be unreachable (program ADR-002, ADR-013, FR-036).
 
 ## Quality Attributes
 

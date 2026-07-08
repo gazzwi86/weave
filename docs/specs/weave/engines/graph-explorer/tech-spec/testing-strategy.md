@@ -167,7 +167,7 @@ Next.js route → CE) and the **Aurora RLS boundary** (layout service → Postgr
 
 | Service | Dev/test fake | How to start |
 |---------|---------------|--------------|
-| Constitution Engine (CE-READ-1: `/api/ontology/types`, `/resource/{iri}`, `/sparql`, `/node-kinds`) | `msw` handlers returning contract-shaped fixtures pinned to `contracts.md` §CE-READ-1 | fixture per endpoint |
+| Constitution Engine (CE-READ-1: `/api/ontology/types`, `/resource/{iri}`, `/sparql` — the palette route `/api/proxy/node-kinds` is a GE-owned projection of `/api/ontology/types`, not a CE endpoint) | `msw` handlers returning contract-shaped fixtures pinned to `contracts.md` §CE-READ-1 | fixture per endpoint |
 | Aurora PostgreSQL (RLS layout table) | `pytest-postgresql` fixture (RLS policy applied in migration); Testcontainers Postgres for full-parity runs | auto-provisioned per session |
 | Cognito | fake JWKS + signed test JWTs carrying `tenant_id`, `workspace_id`, `role` claims | fixture |
 | Next.js CE-Read proxy | route handler invoked in-process; asserts JWT forwarded, no `graph=` override, `SERVICE` blocked | fixture |

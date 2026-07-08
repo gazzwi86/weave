@@ -30,7 +30,7 @@ plus E6-S1/S2 server side of [EPIC-006](../../../graph-explorer.md#epic-006--asy
 **Status:** Backlog · **Priority:** Must Have
 
 **As a** workshop facilitator
-**I want** views and comments persisted server-side, tenant/workspace scoped, with view
+**I want** views and comments persisted server-side, tenant-scoped, with view
 layouts that reproduce exactly for colleagues
 **So that** my team shares one lens on the model instead of screenshots.
 
@@ -43,13 +43,13 @@ normative in [m2-delta.md §2](../../tech-spec/m2-delta.md).
 
 | ID | Criterion (EARS) | Test Mapping |
 |----|------------------|--------------|
-| AC-1 | WHEN the migration runs, THE SYSTEM SHALL create `explorer_saved_views` and `explorer_comments` exactly per m2-delta.md §2 — including `UNIQUE (tenant_id, workspace_id, name)` as a DB constraint and the fail-closed RLS policy on both tables. | `test_migration_matches_normative_ddl`, `test_rls_policy_on_both_tables` |
+| AC-1 | WHEN the migration runs, THE SYSTEM SHALL create `explorer_saved_views` and `explorer_comments` exactly per m2-delta.md §2 — including `UNIQUE (tenant_id, name)` as a DB constraint and the fail-closed RLS policy on both tables (tenant-scoped — workspace level removed per PLAT-SETTINGS-1). | `test_migration_matches_normative_ddl`, `test_rls_policy_on_both_tables` |
 | AC-2 | WHEN `POST /api/views` saves a view, THE SYSTEM SHALL persist the definition (FilterState + overlays + domain focus + viewport, JSONB) AND snapshot current node positions into `explorer_layout_positions` under `graph_id = 'view:' || view_id` in the same transaction. | `test_view_save_snapshots_layout_same_txn` |
-| AC-3 | IF a view name collides in the workspace, THEN THE SYSTEM SHALL return `409` with the existing view id (the client prompts overwrite/rename — FR-028); overwrite = idempotent replace of definition + snapshot. | `test_name_collision_409_and_overwrite` |
-| AC-4 | WHEN `GET /api/views` lists, THE SYSTEM SHALL return all workspace views (tenant + workspace scoped); WHEN `DELETE /api/views/{id}` is called THE SYSTEM SHALL allow the creator to delete their own view and a workspace admin (PLAT-SETTINGS-1-resolved role) to delete any, deleting the view's `view:*` layout rows in the same transaction; any other caller SHALL receive `403`. | `test_delete_creator_own_admin_any_else_403`, `test_view_delete_removes_snapshot_rows` |
+| AC-3 | IF a view name collides in the tenant, THEN THE SYSTEM SHALL return `409` with the existing view id (the client prompts overwrite/rename — FR-028); overwrite = idempotent replace of definition + snapshot. | `test_name_collision_409_and_overwrite` |
+| AC-4 | WHEN `GET /api/views` lists, THE SYSTEM SHALL return all the tenant's views; WHEN `DELETE /api/views/{id}` is called THE SYSTEM SHALL allow the creator to delete their own view and a tenant admin (admin-tier role from the JWT `roles` claim — PLAT-IDENTITY-1, resolved through PLAT-SETTINGS-1) to delete any, deleting the view's `view:*` layout rows in the same transaction; any other caller SHALL receive `403`. | `test_delete_creator_own_admin_any_else_403`, `test_view_delete_removes_snapshot_rows` |
 | AC-5 | WHEN `POST /api/views/{id}/share` is called, THE SYSTEM SHALL publish a PLAT-NOTIFY-1 event to the named recipients, excluding any recipient without graph access (no cross-user leak); the response SHALL name excluded count without naming excluded identities. | `test_share_publishes_and_excludes_ineligible` |
 | AC-6 | WHEN `POST /api/comments` persists a comment (target node IRI or view id), THE SYSTEM SHALL stamp `author` from the JWT `principal_iri` claim server-side (ADR-006 pattern) and reject a client-supplied author. | `test_comment_author_from_claim_spoof_rejected` |
-| AC-7 | WHEN `PATCH /api/views/{id}/pin` toggles featured status, THE SYSTEM SHALL enforce the pin limit (default 5, tunable): exceeding it returns `409` prompting an unpin; only workspace admins may pin. | `test_pin_limit_409_admin_only` |
+| AC-7 | WHEN `PATCH /api/views/{id}/pin` toggles featured status, THE SYSTEM SHALL enforce the pin limit (default 5, tunable): exceeding it returns `409` prompting an unpin; only tenant admins may pin. | `test_pin_limit_409_admin_only` |
 | AC-8 | WHEN any read/write runs under a tenant-A JWT, THE SYSTEM SHALL return/affect zero tenant-B rows across views, comments, and `view:*` layout rows; addressing a tenant-B view id SHALL yield `404`. | `test_cross_tenant_views_comments_isolation` |
 | AC-9 | WHEN `POST /api/views` runs with a 10k-node snapshot, THE SYSTEM SHALL complete within 800 ms p95 — **measure first** (m2-delta.md §4 flag): if the bulk UPSERT cannot meet it, raise to the architect before tuning past one batching pass. | `test_view_save_p95_under_800ms_10k` |
 
@@ -65,27 +65,30 @@ normative in [m2-delta.md §2](../../tech-spec/m2-delta.md).
 # (ADR-004 conventions — GUC inside txn, asyncpg, parameterised only.)
 
 POST /api/views (body: { name, definition }):
-  claims = validate_jwt(req)                       # tenant, workspace, principal_iri, role
+  claims = validate_jwt(req)                       # tenant, principal_iri, roles
   txn:
     set_local_tenant(claims.tenant_id)
-    existing = SELECT view_id FROM explorer_saved_views WHERE ws AND name
+    existing = SELECT view_id FROM explorer_saved_views WHERE name  # RLS scopes to tenant
     if existing and not body.overwrite: return 409 { existing_view_id }      # AC-3
     view_id = upsert view row (created_by = claims.principal_iri)
     DELETE FROM explorer_layout_positions WHERE graph_id = 'view:'||view_id  # replace snapshot
     INSERT INTO explorer_layout_positions
-      SELECT tenant, ws, 'view:'||view_id, node_iri, x, y, locked=true, now()
+      SELECT tenant, 'view:'||view_id, node_iri, x, y, locked=true, now()
       FROM current canvas positions (body.positions — client sends drag-state)  # AC-2 same txn
+      # (M1 table's residual workspace_id column: fill per the M1-transition shim until the
+      #  workspace-drop refactor lands — spec key is (tenant_id, graph_id))
   return 201 { view_id }
 
 DELETE /api/views/{id}:
   txn: set_local; row = SELECT … (404 if none — RLS makes tenant-B invisible)   # AC-8
        allowed = row.created_by == claims.principal_iri
-                 OR is_workspace_admin(claims)     # PLAT-SETTINGS-1 resolution, stubbed in tests
+                 OR is_tenant_admin(claims)        # roles claim (PLAT-IDENTITY-1) resolved via
+                                                   # PLAT-SETTINGS-1 cascade, stubbed in tests
        if !allowed: return 403                                                   # AC-4
        DELETE view row; DELETE layout rows 'view:'||id                           # same txn
 
 POST /api/views/{id}/share (body: { recipients }):
-  eligible = [r for r in recipients if has_graph_access(r, claims.workspace)]    # AC-5
+  eligible = [r for r in recipients if has_graph_access(r, claims.tenant_id)]    # AC-5
   publish_plat_notify({ type: "explorer.view-shared", view_id, actor: claims.principal_iri,
                         recipients: eligible })
   return 202 { notified: len(eligible), excluded: len(recipients) - len(eligible) }
@@ -95,14 +98,14 @@ POST /api/comments (body: { target_kind, target_ref, body }):
   txn: set_local; INSERT (author = claims.principal_iri)
 
 PATCH /api/views/{id}/pin:
-  if !is_workspace_admin(claims): return 403
+  if !is_tenant_admin(claims): return 403
   txn: if pinning and COUNT(pinned)= config.pin_limit: return 409               # AC-7
        UPDATE pinned
 ```
 
 ### API Contracts
 
-New endpoints (Explorer-owned — not inter-engine contracts; tenant + workspace scoped):
+New endpoints (Explorer-owned — not inter-engine contracts; tenant-scoped):
 
 | Endpoint | Success | Errors | p95 |
 |---|---|---|---|
@@ -133,7 +136,7 @@ PLAT-NOTIFY-1: publish-only, open notification-type taxonomy
 | View layout = snapshot into layout table under `view:{id}`; no second store | m2-delta.md §2 | Snapshot + view row are one transaction; `locked=true` on snapshot rows |
 | Name uniqueness = DB constraint | m2-delta.md §2 | 409 comes from the constraint/pre-check, not app-only logic |
 | Author/creator stamped from `principal_iri`, spoof-rejected | ADR-006 | Same guard pattern as TASK-004's proxy |
-| Admin = PLAT-SETTINGS-1-resolved workspace role | FR-029 | Resolution stubbed; never trust a client-sent role |
+| Admin = tenant admin-tier role: JWT `roles` claim (PLAT-IDENTITY-1) resolved through the PLAT-SETTINGS-1 cascade | FR-029 | Resolution stubbed; never trust a client-sent role |
 | RLS + SET LOCAL per ADR-004 conventions | ADR-004-layout-persistence-backend-conventions | Handlers copy the M1 layout-service session pattern exactly |
 
 ## Test Requirements
@@ -215,8 +218,8 @@ PLAT-NOTIFY-1: publish-only, open notification-type taxonomy
   do NOT read them back from the layout table — the user may have unsaved drag state.
 - Bulk snapshot at 10k rows: use one `INSERT … VALUES` batch (or `COPY` if needed after
   measuring) — `# ponytail: single multi-VALUES insert; COPY if p95 misses`.
-- `has_graph_access(recipient)`: workspace membership via PLAT-SETTINGS-1 resolution —
-  same stub surface as `is_workspace_admin`; one helper, two call sites.
+- `has_graph_access(recipient)`: tenant membership + graph access via PLAT-SETTINGS-1
+  resolution — same stub surface as `is_tenant_admin`; one helper, two call sites.
 - 404-not-403 for cross-tenant ids: RLS already makes tenant-B rows invisible, so the natural
   "no row found" 404 is correct — do not add an existence probe.
 

@@ -65,10 +65,13 @@ the task brief that implements it, then pins the selector.
 - Optimistic edits roll back completely on `422`/timeout: no orphan node, no phantom-removed
   element — verify-by: named tests `test_add_node_rollback_on_422`,
   `test_delete_rollback_on_failure` (FR-019/020/022).
-- Concurrent same-property edit: LWW-with-version-check; second writer receives `409` + notice —
-  verify-by: named test `test_concurrent_edit_409` (E5-S3).
+- Concurrent same-property edit: GE-side since-version drift guard — save against a moved draft
+  head is blocked with a conflict notice + current server values; no-drift concurrent edits are
+  LWW (both commit as successive CE versions). CE-WRITE-1 M2 has NO conditional write / `409`;
+  no test may demand one from a CE stub (ADR-008) — verify-by: named tests
+  `test_drift_guard_blocks_save_and_shows_current`, `test_lww_when_no_drift_detected` (E5-S3).
 - Saved-view name uniqueness is a DB constraint, not app code — verify-by: Alembic migration +
-  `grep "UNIQUE (tenant_id, workspace_id, name)"`.
+  `grep "UNIQUE (tenant_id, name)"`.
 - `explorer_saved_views` and `explorer_comments` carry the same fail-closed RLS policy as the
   layout table — verify-by: Alembic migration + `grep -c "current_setting('app.current_tenant_id')"`
   ≥ 3 (one per table).
@@ -79,9 +82,11 @@ the task brief that implements it, then pins the selector.
   v1.0 — the graph_id-only key is M2-correct, not immutable.)*
 - View share excludes recipients without graph access (no cross-user leak) — verify-by: named
   test `test_share_excludes_ineligible_recipients` (E6-S1).
-- Live refresh is poll-only in M2 (CE-READ-1 since-version, default 30 s, tunable) and never
-  blocks interaction; no CE-EVENT-1 stream consumer exists in M2 — verify-by:
-  `grep -r "api/events"` in SPA source (must be empty in M2).
+- Live refresh polls the CE-EVENT-1 beta seq feed (`GET /api/events?since_seq={n}` via the GE
+  proxy, default 30 s, tunable) — draft commits arrive as `version_iri: null` rows; a `410 Gone`
+  cursor re-baselines via CE-READ-1, never a silent empty page; polling never blocks interaction.
+  No push/WebSocket consumer exists in M2 (post-v1 upgrade) — verify-by: poll client +
+  `grep "since_seq"`; `grep -ri "websocket\|EventSource"` in the poll module (must be empty).
 - Diff/version export is JSON only in M2 — verify-by: export module + `grep -ri "pdf\|csv"`
   (must be empty) (OQ-06).
 - Cross-tenant isolation release gate covers layout + views + comments + `view:*` layout rows:

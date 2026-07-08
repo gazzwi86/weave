@@ -148,7 +148,7 @@ flowchart TD
     B -->|No| C[/Redirect to login/]
     B -->|Yes| D[Decode JWT — extract tenant_id + workspace_id]
 
-    D --> E[GET /api/node-kinds<br/>fetch BPMO kind palette]
+    D --> E[GET /api/proxy/node-kinds — GE projection of<br/>CE-READ-1 /api/ontology/types — fetch BPMO kind palette]
     E --> F[GET /api/layout/positions?graph_id=X<br/>fetch saved Aurora positions]
     F --> G[GET /api/ontology/graph?graph_id=X<br/>page 1 via CE-READ-1]
 

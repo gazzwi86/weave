@@ -2,7 +2,7 @@
 type: Task Brief
 title: "Task: TASK-010 — GE-CANVAS-1 Packaging + Contract Conformance Suite"
 description: "Package the force canvas as the GraphCanvas workspace export per the ge-canvas-1.md
-  pin; implement all seven behavioural rules and the named conformance suite whose report is the
+  pin; implement all nine behavioural rules and the named conformance suite whose report is the
   Build M2 unblock evidence."
 tags: [graph-explorer, arch, task, m2]
 status: Backlog
@@ -35,7 +35,7 @@ verified behavioural semantics
 without depending on Explorer internals.
 
 Covers: FR-034 / E9-S1. **The pin is normative:**
-[ge-canvas-1.md](../../tech-spec/ge-canvas-1.md) — prop types, the seven behavioural rules,
+[ge-canvas-1.md](../../tech-spec/ge-canvas-1.md) — prop types, the nine behavioural rules,
 and the conformance test names are all defined there and LOCKED (contract-amendment process
 for any change). This brief adds implementation guidance only; on any discrepancy,
 ge-canvas-1.md wins.
@@ -45,7 +45,7 @@ ge-canvas-1.md wins.
 | ID | Criterion (EARS) | Test Mapping |
 |----|------------------|--------------|
 | AC-1 | WHEN the Explorer package builds, THE SYSTEM SHALL export `GraphCanvas` (props exactly `GraphCanvasProps` from ge-canvas-1.md) from the package public API; no other Explorer internal SHALL be importable by Build (enforced via package `exports` field). | `test_package_exports_graphcanvas_only` |
-| AC-2 | Behavioural rules 1–7 of ge-canvas-1.md SHALL each pass their named conformance test (`should render project slice when mounted with filterByIri`, `should show empty state when filterByIri matches nothing`, `should throw unsupported-mode error when mode is c4`, `should force readonly when version is pinned`, `should write back through CE-WRITE-1 when edited`, `should return zero tenant-B entities under tenant-A JWT`, `should persist embedded layout under source graph id`). | the seven named tests |
+| AC-2 | Behavioural rules 1–9 of ge-canvas-1.md SHALL each pass their named conformance test (`should render project slice when mounted with filterByIri`, `should show empty state when filterByIri matches nothing`, `should throw unsupported-mode error when mode is c4`, `should force readonly when version is pinned`, `should write back through CE-WRITE-1 when edited`, `should return zero tenant-B entities under tenant-A JWT`, `should persist embedded layout under source graph id`, `should render boundary edges as stub markers without pulling in out-of-slice nodes`, `should disable all edit affordances when readonly is true`). | the nine named tests |
 | AC-3 | WHEN the conformance suite runs in CI, THE SYSTEM SHALL emit a machine-readable conformance report (JSON: rule → test → pass/fail) as a build artefact — the M2 exit-gate evidence for the Build-M2 unblock HITL row. | `test_conformance_report_artifact_shape` |
 | AC-4 | WHEN `GraphCanvas` mounts inside a host route (not the Explorer shell), THE SYSTEM SHALL function without Explorer chrome: it SHALL carry its own empty/error/loading states and require only the host app's auth context (JWT provisioning is the host's). | `test_mounts_standalone_without_explorer_shell` |
 | AC-5 | WHERE `readonly: false` and mode/version permit editing, edits SHALL flow through the TASK-004 Edit Controller + write proxy unchanged (ADR-006 attribution included) — the component SHALL NOT own a second write path. | `test_embedded_edit_reuses_write_proxy_single_path` |
@@ -60,7 +60,7 @@ ge-canvas-1.md wins.
 package.json exports: { ".": "./src/public-api.ts" }
 public-api.ts: export { GraphCanvas, type GraphCanvasProps }   # nothing else
 
-# Component (rules 1-7 — ge-canvas-1.md is normative; sketch only)
+# Component (rules 1-9 — ge-canvas-1.md is normative; sketch only)
 function GraphCanvas({ source, filterByIri, mode, readonly, version }):
   if mode != "force": throw UnsupportedModeError(mode)          # rule 3, at mount
   effectiveReadonly = readonly OR version != undefined          # rule 4
@@ -72,13 +72,13 @@ function GraphCanvas({ source, filterByIri, mode, readonly, version }):
   return <CanvasCore adapter elements positions
             editController={effectiveReadonly ? null : sharedEditController}/>  # rule 5
 
-# Scope query (rule 1): filterByIri → CE-READ-1 SELECT restricted to the slice reachable
+# Scope query (rules 1 + 8): filterByIri → CE-READ-1 SELECT restricted to the slice reachable
 # from filterByIri via the closure predicates (TASK-009 config) at depth cap — the "project
 # slice" definition; empty result is a valid state, never an error.
 
 # Conformance report (AC-3)
 after suite: write conformance-report.json
-  [{ rule: 1..7, test: "<name>", status: "pass"|"fail" }] + { generated_at, package_version }
+  [{ rule: 1..9, test: "<name>", status: "pass"|"fail" }] + { generated_at, package_version }
 ```
 
 ### API Contracts
@@ -101,7 +101,7 @@ surface: normative in ge-canvas-1.md — reproduced nowhere else (single source)
 | Pin is LOCKED; changes are contract amendments via coordinator | ge-canvas-1.md stability rule | Implementation discrepancies resolve TOWARD the pin; if the pin is wrong, stop and escalate — do not ship a divergent surface |
 | `source` = CE graph id AND layout scope | ge-canvas-1.md prop docs | Rule-7 test enforces; flagged for Build-side reconcile (spec-review note) — if Build's intent differs, amendment lands before this task builds |
 | One write path (TASK-004 controller) | ADR-006; invariants.md | AC-5's "single call-site" grep stays true with the embedded case |
-| Project slice = closure-reachable from filterByIri | this brief (implementation semantics under rule 1) | Uses TASK-009 closure + depth cap — no bespoke "slice" predicate set |
+| Project slice semantics are contract-PINNED (contracts.md §GE-CANVAS-1): hop-depth slice; in-slice edges normal; boundary edges = stub markers on the in-slice node, out-of-slice node NOT pulled in; deterministic for fixed input+config | contracts.md §GE-CANVAS-1; ge-canvas-1.md rule 8 | Traversal uses TASK-009 closure + depth-cap config (deterministic by construction) — no bespoke "slice" predicate set; rule-8 test asserts stub markers |
 
 ## Test Requirements
 
@@ -111,7 +111,7 @@ surface: normative in ge-canvas-1.md — reproduced nowhere else (single source)
 - `should compute effectiveReadonly true when version set regardless of readonly prop`
 - `should expose only GraphCanvas via package exports (import-surface test)`
 
-### Conformance suite (exactly the 7 named tests — Playwright + CE/Platform stubs, Law F)
+### Conformance suite (exactly the 9 named tests — Playwright + CE/Platform stubs, Law F)
 
 As listed in AC-2; suite tagged `ge-canvas-1-conformance`; emits the JSON report (AC-3).
 
@@ -125,7 +125,7 @@ As listed in AC-2; suite tagged `ge-canvas-1-conformance`; emits the JSON report
 | AC | Type | Test |
 |----|------|------|
 | AC-1 | Unit | import-surface test |
-| AC-2 | Conformance | 7 named tests |
+| AC-2 | Conformance | 9 named tests |
 | AC-3 | CI check | report-shape test |
 | AC-4 | Integration | standalone-mount test |
 | AC-5 | Integration | shared-write-path test |
@@ -159,7 +159,7 @@ As listed in AC-2; suite tagged `ge-canvas-1-conformance`; emits the JSON report
 
 ## Definition of Done Checklist
 
-- [ ] All AC met; all 7 conformance tests green
+- [ ] All AC met; all 9 conformance tests green
 - [ ] Conformance report artefact published in CI (the Build-M2 gate evidence)
 - [ ] Coverage ≥ 80%; mutation ≥ 60%
 - [ ] Lint passes; complexity within thresholds

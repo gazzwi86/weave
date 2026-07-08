@@ -103,7 +103,7 @@ it('should show the plain-English operation list, not raw Turtle, by default (FR
 | FR-004/005 | WHEN a batch produces one sh:Violation THEN THE SYSTEM SHALL commit nothing and return 422 | `test_shacl_pipeline.py` | `test_violation_commits_nothing_returns_422` |
 | FR-006 | WHEN a batch commits THEN THE SYSTEM SHALL write PROV-O AND emit PLAT-AUDIT-1 | `test_prov_audit.py` | `test_commit_writes_prov_and_emits_audit` |
 | FR-008 | WHEN a write targets a published version THEN THE SYSTEM SHALL reject it 405 | `test_version_lifecycle.py` | `test_write_to_published_version_returns_405` |
-| ADR-002 | WHEN authority() is called with no Authority Extension THEN THE SYSTEM SHALL return coverage-gap + deny | `test_nl_to_select_grounding.py` | `test_authority_degrades_coverage_gap_then_deny` |
+| program ADR-002 / ADR-013 | WHEN authority() is called with no Authority Extension (always, until post-v1) THEN THE SYSTEM SHALL return coverage-gap + deny — never `decision: "permit"` | `test_nl_to_select_grounding.py` | `test_authority_degrades_coverage_gap_then_deny` |
 
 Remaining task-level ACs are mapped in each task brief's AC-to-Test Mapping table (the briefs are the
 per-task source of truth; this table carries the cross-cutting gates).

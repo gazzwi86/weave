@@ -77,8 +77,9 @@ function retrieve_slice(ctx, seed_iris):
 function dispatch_investigator(ctx, question):
   principal = identity.resolve("sandbox_investigator")       # read-only (AC-5)
   if ctx.caller_is_investigator: raise SubInvestigatorForbidden     # AC-5
-  result = agent_run(principal, tools=READ_ONLY_TOOLS, prompt=question,
-                     model="claude-sonnet-5")
+  model = routing.resolve(role="investigator")   # FR-045 — never a hardcoded model literal;
+                                                 # routing miss = halt, not silent invocation
+  result = agent_run(principal, tools=READ_ONLY_TOOLS, prompt=question, model=model)
   summary = truncate_tokens(result.summary, 500)              # AC-6
   row = repo.dep_summaries.insert(kind="investigation", pointer=result.pointer,
                                   summary=summary, tenant=ctx.tenant_id)
@@ -183,8 +184,11 @@ unit test on the dispatch guard.
 
 - `predicate_class(predicate)` is a lookup over one shipped config map (structural/associative/
   annotation IRI sets from the BPMO upper framework served by `GET /api/ontology/types` — treat
-  that endpoint as authoritative, never hand-copy the kind list per ontology-standards rule);
-  unknown predicate ⇒ annotation weight, logged once.
+  that endpoint as authoritative, never hand-copy the kind list per ontology-standards rule).
+  Structural (1.0) includes `partOf`, `dependsOn`, `governedBy`, `realizes` (American spelling —
+  the served IRI), `hasStep`, `performedBy`, `consumes`, `produces` (ADR-005). Key the map by
+  served predicate IRIs: unknown predicate ⇒ annotation weight, logged once — a hand-misspelled
+  entry silently drops to 0.1, which is why hand-copying is banned here.
 - Score container: plain dict + `heapq.nlargest(200, ...)` — no graph library; the fixture is
   300 nodes, production graphs page through `ce_client`.
 - Truncation notice in the prompt must state dropped-count and that the investigator path

@@ -41,7 +41,7 @@ numbers, zero-axe evidence.
 
 | ID | Criterion (EARS) | Test Mapping |
 |----|------------------|--------------|
-| AC-1 | WHEN the two-tenant isolation suite runs (seeded tenants A + B), THE SYSTEM SHALL demonstrate zero tenant-B rows/triples for tenant-A JWTs across EVERY M2 read surface: graph load, resource fetch, diff, versions, coverage_gap, views list, comments fetch, `view:*` layout rows; AND rejection (404) when tenant-A addresses a tenant-B view id. | `test_cross_tenant_isolation_m2` (suite) |
+| AC-1 | WHEN the two-tenant isolation suite runs (seeded tenants A + B), THE SYSTEM SHALL demonstrate zero tenant-B rows/triples for tenant-A JWTs across EVERY M2 read surface: graph load, resource fetch, diff, versions, coverage_gap, events feed (`/api/proxy/events` — zero tenant-B event rows), views list, comments fetch, `view:*` layout rows; AND rejection (404) when tenant-A addresses a tenant-B view id. | `test_cross_tenant_isolation_m2` (suite) |
 | AC-2 | WHEN the axe-core CI job runs against every M2 panel/dialog (filters, overlays legend, versions, save/library/share, comments, completeness panel, GraphCanvas states), THE SYSTEM SHALL report zero violations on non-canvas UI. | CI `axe-m2` job |
 | AC-3 | WHEN the Lighthouse CI job runs on the Explorer route with M2 panels active, THE SYSTEM SHALL meet performance ≥ 90, accessibility ≥ 95, best practices ≥ 90. | CI `lighthouse-explorer` job |
 | AC-4 | WHEN the perf-trace job runs at the 10k fixture, THE SYSTEM SHALL evidence: filter/overlay/badge apply ≤ 300 ms p95 (TASK-001/002/008), view save ≤ 800 ms p95 (TASK-006 AC-9 measurement), proxy overheads within m2-delta §4 targets. | CI `perf-m2` job |
@@ -58,7 +58,7 @@ numbers, zero-axe evidence.
 fixture: seed tenant A + B with distinguishable data across:
   RDF (CE stub graphs), explorer_layout_positions (incl. view:* rows),
   explorer_saved_views, explorer_comments
-for surface in [graphLoad, resourceFetch, diff, versions, coverageGap,
+for surface in [graphLoad, resourceFetch, diff, versions, coverageGap, eventsFeed,
                 viewsList, commentsFetch, layoutRead]:
   resultA = surface(jwtA)
   assert none of resultA references tenant-B markers
@@ -102,7 +102,7 @@ local Postgres (Law F — the "Pre-AWS-deploy" HITL is a separate later gate).
 
 ### Suite composition (this task IS tests; minimums are suite-level)
 
-- Isolation: minimum 9 assertions (8 surfaces + view-id rejection) — `test_cross_tenant_isolation_m2`
+- Isolation: minimum 10 assertions (9 surfaces + view-id rejection) — `test_cross_tenant_isolation_m2`
 - Invariants: every M2 line in invariants.md executed; every M1 line re-executed
 - Perf: 3 trace groups (client budgets, view save, proxy overheads)
 - Meta: `test_gate_bundle_completeness`, `test_no_continue_on_error_on_gate_jobs`

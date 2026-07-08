@@ -13,7 +13,7 @@ entity: constitution-engine
 epic: EPIC-012
 milestone: v1
 created: 2026-07-08
-blocked_by: [TASK-001, TASK-002]
+blocked_by: [TASK-001, TASK-002, TASK-004]
 unlocks: [TASK-008]
 adr_refs: [ADR-011]
 source: hand-authored
@@ -40,7 +40,8 @@ graph.
 
 ## Scope
 
-IN: the chunker (per-format simple splitters per ADR-011 §1: XML per-element-with-parent-context,
+IN: the chunker (per-format simple splitters per ADR-011 §1: XML per-element-with-parent-context
+— **reusing TASK-004's notation parse for ArchiMate/BPMN XML**, the "no second parser" rule,
 prose heading-based, mandatory fixed-window fallback — pin 1a), embed-on-ingest-commit via
 Bedrock Titan v2, S3 Vectors index per tenant prefix with `embedding_model_id` + `dimensions`
 metadata (pin 2a), `GET /api/corpus/search` + `GET /api/corpus/artefacts/{iri}`, the extractor's
@@ -66,6 +67,8 @@ re-embed tooling beyond the swap job stub (all deferred per ADR-011).
 ```text
 on_ingest_commit(job):                       # hook after TASK-001 marks proposals accepted
     passages = split(job.artefact)           # dispatch: xml|prose|fallback (pin 1a)
+                                             # xml = TASK-004's parsed notation model
+                                             # prose = TASK-002's heading tree — no new parser
     index = vectors.index_for(tenant)        # creates with metadata {model_id, dims} (pin 2a)
     assert index.meta.model_id == settings.embedding_model_id   # never mix
     embed_batch = bedrock.embed(model=index.meta.model_id, texts=[p.text])
@@ -117,7 +120,7 @@ Minimum: 5 unit, 5 integration, 1 E2E-adjacent (rides TASK-008's E2E).
 | Layer | Scenario (`should X when Y`) | AC |
 |---|---|---|
 | Unit | should split prose by headings to ~512 tokens with overlap + locators | AC-003-01 |
-| Unit | should split XML per element with parent context prepended | AC-003-01 |
+| Unit | should split XML per element with parent context prepended (consuming a TASK-004 parsed-model fixture — no XML parsing in this module) | AC-003-01 |
 | Unit | should fall back to fixed windows on unrecognised format (`unknown-format-still-chunks`) | AC-003-01 |
 | Unit | should assert index model_id before embedding (mismatched model raises) | AC-003-02 |
 | Unit | should build citation entries pairing iri + artefact + passage + snippet ≤ 300 chars | AC-003-05 |
@@ -131,8 +134,11 @@ Minimum: 5 unit, 5 integration, 1 E2E-adjacent (rides TASK-008's E2E).
 
 ## Dependencies
 
-- **blocked_by**: TASK-001 (artefact store, prov links), TASK-002 (structure parse the chunker
-  reuses — ADR-011 "no second parser"; source_span locators in proposals)
+- **blocked_by**: TASK-001 (artefact store, prov links), TASK-002 (prose/document structure
+  parse the chunker reuses; source_span locators in proposals), TASK-004 (**notation XML parse**
+  — the ArchiMate/BPMN per-element splitter consumes TASK-004's parsed intermediate model, NOT
+  a new XML parser; ADR-011 "no second parser" reconciled: prose parse lives in TASK-002, XML
+  parse lives in TASK-004, this task owns only chunk assembly + fallback)
 - **unlocks**: TASK-008 (epic E2E asserts a citation end-to-end)
 
 ## Cost Estimate
@@ -146,7 +152,8 @@ plumbing + NL-handler surgery + the isolation test rig on local emulators.
 - [x] Citations shape canonical in contracts.md (coordinator applied 2026-07-08)
 - [x] S3/Vectors layout + lifecycle pinned (v1-delta §5)
 - [x] Locators flow from TASK-002 (source_span requirement written into its brief)
-- [ ] TASK-001 + TASK-002 merged (DAG)
+- [ ] TASK-001 + TASK-002 + TASK-004 merged (DAG — TASK-004 supplies the XML parse the
+      per-element splitter consumes)
 - [ ] M1 program gate green (build precondition)
 
 ## DoD Checklist

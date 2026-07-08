@@ -78,9 +78,10 @@ graph exists, but the organisation cannot see itself in it, so adoption stalls.
 - Visual Editing (E5): add/edit/delete node and draw edge on canvas, all via **CE-WRITE-1** with
   SHACL validation and optimistic rollback. Draft graph only; published versions read-only.
 - Async Share & Comments (E6): "share view" via PLAT-NOTIFY-1; comments on nodes/views server-side;
-  live-refresh poll fallback over CE-READ-1. (CE-EVENT-1 live-stream upgrade activates when CE ships
-  it.)
-- Saved Views (E7): save filters/overlays/domain/viewport/layout; workspace-shared library;
+  live-refresh by polling the **CE-EVENT-1 beta seq feed** (`GET /api/events?since_seq={n}` —
+  the polled transport; draft commits arrive as `version_iri: null` rows). Push fan-out is a
+  post-v1 additive upgrade.
+- Saved Views (E7): save filters/overlays/domain/viewport/layout; tenant-shared library;
   admin-pinned featured views.
 - Version Views & Diff (E8): load a published version read-only (CE-VERSION-1/CE-READ-1); diff two
   versions overlay (CE-DIFF-1).
@@ -99,7 +100,8 @@ graph exists, but the organisation cannot see itself in it, so adoption stalls.
 - **Real-time multi-user collaboration** (Yjs CRDT) — presence, cursors, concurrent drags,
   follow-me. Deferred: costliest capability, identity/hosting-dependent; sequenced after M2 delivers
   async value.
-- **CE-EVENT-1 live-stream upgrade** of live-refresh.
+- **CE-EVENT-1 push fan-out upgrade** (SNS/WebSocket) of live-refresh — M2 already consumes
+  the seq feed by polling.
 
 #### Out of Scope
 
@@ -149,8 +151,8 @@ role (weave-platform.md §Engine persona → canonical role mapping).
 - All authoritative writes go through CE-WRITE-1 SHACL validation; canvas handle-hiding is UX only,
   never the security boundary. Role vocabulary: **ontologist** (structure), **BA** (instances),
   **viewer** (read-only) per CE-WRITE-1.
-- Saved views, layout, and comments are Explorer-owned Aurora tables (tenant + workspace scoped);
-  not inter-engine contracts.
+- Saved views, layout, and comments are Explorer-owned Aurora tables (tenant-scoped —
+  workspace ≡ company/tenant post workspace-drop); not inter-engine contracts.
 - Real-time collab (post-v1) uses Yjs; sync transport finalised at post-v1 tech spec; sync rooms
   must be tenant-scoped.
 
@@ -243,15 +245,15 @@ architect must design and benchmark them (OQ-01/OQ-04).
 | FR-018 | Domain colouring layer (mutually exclusive with type colouring v1); palette overflow cycles with legend | E4-S4 | P1 | M2 |
 | FR-019 | Double-click → quick-add node via CE-WRITE-1; `422` shows SHACL violations; CE timeout → optimistic rollback | E5-S1 | P0 | M2 |
 | FR-020 | Edgehandles drag-connect (prototype params, tunable); edge op via CE-WRITE-1; self-loop blocked; timeout → rollback | E5-S2 | P0 | M2 |
-| FR-021 | Side-panel edit of label/comment/typed props via CE-WRITE-1 (`update_node`); PROV-O + PLAT-AUDIT-1 stamp; concurrent same-prop = LWW-with-version-check, else `409` notify | E5-S3 | P0 | M2 |
-| FR-022 | Delete node/edge via CE-WRITE-1: reference warning + confirm; cascaded reification cleanup reflected from CE response; failure → nothing removed | E5-S4 | P0 | M2 |
+| FR-021 | Side-panel edit of label/comment/typed props via CE-WRITE-1 (`update_node`); PROV-O + PLAT-AUDIT-1 stamp; concurrency = GE-side since-version drift guard (save against a moved draft head blocked with conflict notice + current values; no-drift = LWW, both commit as successive CE versions — CE-WRITE-1 M2 has no conditional write/`409`; ADR-008) | E5-S3 | P0 | M2 |
+| FR-022 | Delete node/edge via CE-WRITE-1: GE first reads the FULL incident-edge set (outbound AND inbound) via CE-READ-1, warns with the reference count, then submits ONE batch of incident-edge deletes + the node delete (CE applies exactly the submitted ops — no server-side cascade); on `201` canvas removes exactly the submitted IRIs; failure → nothing removed | E5-S4 | P0 | M2 |
 | FR-023 | Async share of a Saved View → recipient notified via PLAT-NOTIFY-1; recipients lacking access excluded (no leak) | E6-S1 | P0 | M2 |
-| FR-024 | Comments on node/view persisted server-side (Explorer Aurora, tenant+workspace scoped); failed write → draft preserved + retry | E6-S2 | P0 | M2 |
-| FR-025 | Live refresh: poll CE-READ-1 (since-version, default 30 s tunable); upgrade to CE-EVENT-1 stream when CE ships it | E6-S3 | P1 | M2 (poll) / post-v1 (live stream) |
+| FR-024 | Comments on node/view persisted server-side (Explorer Aurora, tenant-scoped); failed write → draft preserved + retry | E6-S2 | P0 | M2 |
+| FR-025 | Live refresh: poll the CE-EVENT-1 beta seq feed (`GET /api/events?since_seq={n}`, default 30 s tunable; draft commits = `version_iri: null` rows; `410 Gone` → re-baseline via CE-READ-1); push fan-out upgrade post-v1 | E6-S3 | P1 | M2 (seq-feed poll) / post-v1 (push) |
 | FR-026 | Realtime co-edit + presence/cursors (Yjs, default 5 concurrent / ≤500 ms p95, tunable); CRDT room id includes tenant id, JWT tenant validated at connect | E6-S4 | Won't-M2/Must-pv1 | post-v1 |
 | FR-027 | Workshop "Follow me" (viewport-only sync) | E6-S5 | Won't-M2/Should-pv1 | post-v1 |
 | FR-028 | Save view (filters, overlays, domain focus, viewport, **server-side layout**); name required; collision → overwrite/rename prompt | E7-S1 | P0 | M2 |
-| FR-029 | Workspace-shared view library; creator deletes own, workspace admin (PLAT-SETTINGS-1) deletes any; missing entities flagged | E7-S2 | P0 | M2 |
+| FR-029 | Tenant-shared view library; creator deletes own, tenant admin (roles claim via PLAT-IDENTITY-1, resolved through PLAT-SETTINGS-1) deletes any; missing entities flagged | E7-S2 | P0 | M2 |
 | FR-030 | Featured pinned views (default 5 tunable, admin-pinned); limit → unpin prompt | E7-S3 | P1 | M2 |
 | FR-031 | Versions panel lists versions via CE-VERSION-1; select loads via CE-READ-1 read-only; default canvas = **draft**; `latest` = newest published | E8-S1 | P0 | M2 |
 | FR-032 | Version compare applies CE-DIFF-1 diff overlay; JSON summary export (PDF/CSV → OQ-06) | E8-S2 | P0 | M2 |
@@ -291,8 +293,8 @@ architect must design and benchmark them (OQ-01/OQ-04).
 
 - Edit flows are optimistic with rollback on CE-WRITE-1 error/timeout (default 10 s, tunable):
   add/edge/delete never leave an orphan or phantom-removed element.
-- Live refresh degrades from CE-EVENT-1 (post-v1) to polling CE-READ-1 (default 30 s) without
-  blocking the user.
+- Live refresh polls the CE-EVENT-1 seq feed (default 30 s) without blocking the user; an
+  aged-out cursor (`410 Gone`) re-baselines via CE-READ-1 — never a silent empty page.
 - Layout/view/comment writes retry with backoff; never silently dropped.
 
 **Observability**
@@ -312,7 +314,7 @@ non-canvas UI in CI.
 **Isolation & data safety**
 
 All CE reads/writes are tenant-scoped via CE's named-graph + query-rewriting that rejects any
-unscoped query. Explorer-owned Aurora tables carry `tenant_id` + `workspace_id` on every row.
+unscoped query. Explorer-owned Aurora tables carry `tenant_id` on every row (fail-closed RLS).
 
 **Required test:** WHERE a tenant-A JWT is presented, WHEN any Explorer read is issued (graph load,
 Saved View list, comment fetch, diff) THE SYSTEM SHALL return **zero tenant-B rows/triples**; IF an
@@ -328,13 +330,13 @@ attempt is made to address a tenant-B view id or room (post-v1) THEN THE SYSTEM 
 
 | Provider | Contract | Used for | Milestone |
 |---|---|---|---|
-| Constitution Engine | CE-READ-1 (`/api/ontology/types|resource|versions`, `/api/sparql` SELECT/paginated, `/api/node-kinds`) | Graph load, palette, spotlight props, impact traversal, version load, `coverage_gap` query | M1 |
+| Constitution Engine | CE-READ-1 (`/api/ontology/types|resource|versions`, `/api/sparql` SELECT/paginated) | Graph load, palette (GE's `/api/proxy/node-kinds` route is a GE-owned projection of `/api/ontology/types` — CE serves no `/api/node-kinds`), spotlight props, impact traversal, version load, `coverage_gap` query | M1 |
 | Constitution Engine | CE-WRITE-1 (`POST /api/operations/apply`) | All node/edge add/update/delete; authz boundary; Build canvas write-back | M2 |
 | Constitution Engine | CE-DIFF-1 (`/api/ontology/diff?from&to`) | Diff overlay incl. edge mods | M2 |
 | Constitution Engine | CE-VERSION-1 (`/api/ontology/versions`) | Version list + lag for Versions panel | M2 |
-| Constitution Engine | CE-EVENT-1 (graph-change stream) | Live in-place refresh upgrade (post-v1 only; M2 ships poll fallback) | post-v1 |
+| Constitution Engine | CE-EVENT-1 (beta seq feed `GET /api/events?since_seq={n}`) | Live in-place refresh — M2 polls the seq feed (draft rows `version_iri: null`; `410` → re-baseline via CE-READ-1); push fan-out post-v1 | M2 (poll) / post-v1 (push) |
 | Platform | PLAT-NOTIFY-1 | Share notifications | M2 |
-| Platform | PLAT-SETTINGS-1 | Workspace-admin RBAC; tenant scope of views/comments/layout | M1 |
+| Platform | PLAT-SETTINGS-1 | Tenant-admin RBAC (three-level cascade Company → Domain → Project); tenant scope of views/comments/layout | M1 |
 | Platform | PLAT-IDENTITY-1 | Actor principal IRI for agent-initiated writes only | M2 |
 | Platform | PLAT-AUDIT-1 | Read-only: correlate edit audit `seq` | M2 |
 
@@ -356,12 +358,12 @@ attempt is made to address a tenant-B view id or room (post-v1) THEN THE SYSTEM 
 | OQ-03 | Whole-version graph retrieval at scale: dedicated CE bulk/CONSTRUCT endpoint vs paginated CE-READ-1 SELECT. Cross-engine dependency on CE. | CE + Architect |
 | OQ-04 | Viewport culling + lazy-loading design + benchmark (net-new). Tied to OQ-01. | Architect |
 | OQ-05 | WebGL escape hatch if 10k target unmet (sigma.js / G6). **Go/no-go at M1 SPIKE sign-off; Architect owns decision.** | Architect |
-| OQ-06 | Diff/version export format beyond JSON (PDF/CSV); whether export is a CE-owned report endpoint. | Architect + Compliance |
+| OQ-06 | **Resolved (M2):** JSON-only export in M2; PDF/CSV deferred post-v1, revisit on compliance demand; no CE report endpoint requested — see tech-spec/m2-delta.md §1. | Architect + Compliance |
 | OQ-07 | post-v1: "Follow me" transport: shared Yjs vs separate broadcast channel. | Architect |
 | OQ-08 | Kind→shape and relationship-type→stroke visual mapping (net-new design; beyond colour-only prototype). | PO + Design |
-| OQ-09 | **Exact closure of impact traversal predicates** across shipped BPMO relationship types. **Resolve against CE data-model before building E2-S3.** Must not be pre-judged here. | Architect + CE |
+| OQ-09 | **Resolved (M2, ADR-005):** 13-entry directed closure (incl. `hasField`, now in the contracts.md CE-READ-1 relationship list), shipped as config with a boot-time drift guard against `GET /api/ontology/types`. | Architect + CE |
 | OQ-10 | ODRL policy enforcement not in v1; PII/sensitive uses SHACL + data-classification properties. Whether any overlay must surface data-classification deferred. | Architect |
-| OQ-11 | Whether human-initiated CE-WRITE-1 edits should be attributed to a PLAT-IDENTITY-1 principal IRI (vs raw Cognito identity) in PROV-O / audit. | Architect + Platform |
+| OQ-11 | **Resolved (M2, ADR-006):** `actor` = JWT `principal_iri` claim (PLAT-IDENTITY-1), injected proxy-side; never raw Cognito identity, never client-supplied. | Architect + Platform |
 
 ### 2.5 Key design decisions
 
@@ -399,7 +401,7 @@ The Graph Explorer PRD is satisfied when:
 - [ ] **M2:** Diff overlay shows correct added/removed/**modified (incl. edges)** between two
   published versions via CE-DIFF-1.
 - [ ] **M2:** Saved View with filters + overlays + server-side layout is saved, shared via
-  PLAT-NOTIFY-1, and reproduced for a different workspace user.
+  PLAT-NOTIFY-1, and reproduced for a different user in the same tenant.
 - [ ] **M2:** Compliance analyst views graph in a specific historical published version, read-only.
 - [ ] **M2:** Model-completeness map correctly overlays gap indicators from `coverage_gap` query.
 - [ ] **M2:** Build Engine mounts GE-CANVAS-1 (`force` mode only at M2) and writes a project-arch
@@ -464,6 +466,9 @@ harness spec) against Cytoscape + fcose at 1k / 5k / 10k nodes. Deliver a benchm
 - **Owner:** Architect. **Blocks:** E1-S1 performance AC, all 10k NFRs.
 - **ALSO (layout schema):** Design and approve the Explorer-owned Aurora layout-schema
   (tenant_id, workspace_id, graph_id, node_iri, position_x, position_y, locked). Blocks E1-S5.
+  *(M1-shipped column set; `workspace_id` is residual post workspace-drop — the rename is the
+  tracked refactor per contracts.md §PLAT-SETTINGS-1 "M1 transition". M2 specs key on
+  `(tenant_id, graph_id)`.)*
 
 **E1-S1: View the whole company graph on load**
 
@@ -472,7 +477,9 @@ harness spec) against Cytoscape + fcose at 1k / 5k / 10k nodes. Deliver a benchm
   force canvas (fcose params at tech spec; randomize/auto-layout runs only for nodes lacking saved
   positions).
 - **AC:** WHERE the graph is loaded, WHEN it is rendered THE SYSTEM SHALL colour each node by its CE
-  BPMO kind (palette served by CE `/api/node-kinds` via CE-READ-1; client palette fallback only). The
+  BPMO kind (palette derived from CE-READ-1 `GET /api/ontology/types` via the GE-owned
+  `/api/proxy/node-kinds` projection route — CE serves no `/api/node-kinds` endpoint; client
+  palette fallback only). The
   palette SHALL cover every BPMO kind with grey fallback for unrecognised/extension kinds, `Process`
   SHALL take a prominent hue, and node shape SHALL be a single ellipse in v1 (kind→shape deferred,
   OQ-08).
@@ -742,23 +749,33 @@ optimistic rollback. Published versions are read-only.
 
 - **AC:** WHERE a BA / ontologist edits a node's label/comment/typed props in the side panel, WHEN it
   is saved THE SYSTEM SHALL call CE-WRITE-1 (`update_node`) and CE SHALL write a PROV-O + PLAT-AUDIT-1
-  stamp (actor = editing user's Cognito identity).
-- **AC:** WHERE two users edit the same property concurrently THE SYSTEM SHALL apply
-  LWW-with-version-check and the second writer SHALL receive `409` and a conflict notice.
+  stamp (actor = the JWT `principal_iri` claim, injected proxy-side — ADR-006; supersedes the
+  earlier "Cognito identity" wording).
+- **AC:** WHERE the draft head has advanced since an edit began, WHEN save is attempted THE SYSTEM
+  SHALL block the commit and show a conflict notice with the current server values (GE-side
+  since-version drift guard — ADR-008); WHERE no drift is detected, concurrent edits of the same
+  property SHALL resolve last-write-wins with BOTH commits succeeding as successive CE versions
+  (CE-WRITE-1 M2 has no conditional write / `409`).
 
 **E5-S4: Delete node / edge**
 
-- **AC:** WHERE a delete action is taken, WHEN it is confirmed (after a reference warning) THE SYSTEM
-  SHALL call CE-WRITE-1 and reflect the cascaded reification/annotation cleanup on canvas from the CE
-  response.
+- **AC:** WHERE a delete action is taken THE SYSTEM SHALL first read the node's FULL incident-edge
+  set — outbound AND inbound edges — via CE-READ-1, warn with the total reference count, and on
+  confirm submit ONE CE-WRITE-1 batch containing every incident-edge delete plus the node delete
+  (CE applies exactly the submitted ops — no server-side cascade; a batch that leaves dangling
+  references `422`s whole).
+- **AC:** WHEN the batch returns `201` THE SYSTEM SHALL remove from canvas exactly the submitted
+  IRIs — nothing more, nothing inferred.
 - **AC:** IF CE-WRITE-1 fails THEN THE SYSTEM SHALL remove nothing from canvas.
 
 **Epic-level acceptance criteria (EARS)**
 
 - [ ] WHEN a BA double-clicks to add a node THE SYSTEM SHALL commit via CE-WRITE-1, surface `422`
   as human-readable SHACL violation, and roll back on timeout — verified by E5-S1 integration test.
-- [ ] WHEN two users concurrently edit the same property THE SYSTEM SHALL apply LWW and notify the
-  second writer via `409` — verified by concurrency test.
+- [ ] WHEN a save is attempted against a moved draft head THE SYSTEM SHALL block it with a
+  conflict notice + current server values; no-drift concurrent edits are LWW with both commits
+  succeeding (ADR-008) — verified by `test_drift_guard_blocks_save_and_shows_current` and
+  `test_lww_when_no_drift_detected`.
 - [ ] All write paths carry PROV-O attribution and PLAT-AUDIT-1 stamp — verified by audit log check.
 
 ---
@@ -766,9 +783,9 @@ optimistic rollback. Published versions are read-only.
 ### EPIC-006 — Async Share & Comments · M2
 
 **Milestone:** M2 (async share + comments + live-refresh poll) ·
-post-v1 (realtime co-edit, follow-me, CE-EVENT-1 live-stream) ·
-**Consumes:** PLAT-NOTIFY-1, CE-READ-1 (poll), CE-EVENT-1 (post-v1) ·
-**Blocked by:** EPIC-001, EPIC-007
+post-v1 (realtime co-edit, follow-me, CE-EVENT-1 push fan-out) ·
+**Consumes:** PLAT-NOTIFY-1, CE-EVENT-1 (M2 seq-feed poll; push post-v1), CE-READ-1
+(re-baseline) · **Blocked by:** EPIC-001, EPIC-007
 
 M2 stories ship async collaboration (S1–S3). Post-v1 stories (S4–S5) are stubs here.
 
@@ -778,7 +795,7 @@ M2 stories ship async collaboration (S1–S3). Post-v1 stories (S4–S5) are stu
 |---|---|---|---|
 | E6-S1 | Share a saved view | Must Have | M2 |
 | E6-S2 | Comment on a node or view | Must Have | M2 |
-| E6-S3 | Live-refresh (poll fallback) | Should Have | M2 |
+| E6-S3 | Live-refresh (seq-feed poll) | Should Have | M2 |
 | E6-S4 | Realtime co-edit + presence (Yjs) | Won't-M2 / Must-pv1 | post-v1 |
 | E6-S5 | Workshop "Follow me" | Won't-M2 / Should-pv1 | post-v1 |
 
@@ -790,15 +807,18 @@ M2 stories ship async collaboration (S1–S3). Post-v1 stories (S4–S5) are stu
 **E6-S2: Comment on a node or view**
 
 - **AC:** WHEN a comment is submitted on a node or view THE SYSTEM SHALL persist it server-side
-  (Explorer Aurora, tenant + workspace scoped); IF the write fails THEN THE SYSTEM SHALL preserve the
+  (Explorer Aurora, tenant-scoped); IF the write fails THEN THE SYSTEM SHALL preserve the
   draft and retry.
 
-**E6-S3: Live-refresh (poll fallback)**
+**E6-S3: Live-refresh (seq-feed poll)**
 
-- **AC:** WHILE the Explorer is open THE SYSTEM SHALL poll CE-READ-1 (`since-version`, default 30 s,
-  tunable) for graph changes and reconcile them in place.
-- **AC:** WHEN CE-EVENT-1 becomes available (post-v1) THE SYSTEM SHALL replace the polling fallback
-  with the event stream, keeping the user experience equivalent.
+- **AC:** WHILE the Explorer is open THE SYSTEM SHALL poll the CE-EVENT-1 beta seq feed
+  (`GET /api/events?since_seq={n}`, default 30 s, tunable) for graph changes — including draft
+  commits (`version_iri: null` rows) — and reconcile them in place.
+- **AC:** IF the seq cursor has aged out (`410 Gone`) THEN THE SYSTEM SHALL re-baseline via
+  CE-READ-1 (full reload) — never a silent empty page.
+- **AC:** WHEN push fan-out ships (post-v1) THE SYSTEM SHALL replace the poll loop with the push
+  transport, keeping the user experience equivalent.
 
 **E6-S4/S5 (post-v1 stubs):** Yjs CRDT realtime co-edit + presence/cursors; workshop follow-me.
 Dependencies: OQ-02/OQ-07 resolved; CE-EVENT-1 shipped; post-v1 tech spec approved.
@@ -817,7 +837,7 @@ Server-side, team-shared named views (filters, overlays, domain focus, viewport,
 | Task | Title | Priority |
 |---|---|---|
 | E7-S1 | Save a view | Must Have |
-| E7-S2 | Workspace-shared view library | Must Have |
+| E7-S2 | Tenant-shared view library | Must Have |
 | E7-S3 | Featured pinned views | Should Have |
 
 **E7-S1: Save a view**
@@ -826,11 +846,12 @@ Server-side, team-shared named views (filters, overlays, domain focus, viewport,
   **server-side layout** D2) THE SYSTEM SHALL persist it with a required name; IF the name collides
   THEN THE SYSTEM SHALL prompt to overwrite or rename.
 
-**E7-S2: Workspace-shared view library**
+**E7-S2: Tenant-shared view library**
 
-- **AC:** WHERE the shared library exists, WHEN it is opened THE SYSTEM SHALL let workspace members
-  see all views scoped to their tenant + workspace; a creator SHALL be able to delete their own and a
-  workspace admin (PLAT-SETTINGS-1) SHALL be able to delete any.
+- **AC:** WHERE the shared library exists, WHEN it is opened THE SYSTEM SHALL let tenant members
+  see all views scoped to their tenant; a creator SHALL be able to delete their own and a
+  tenant admin (roles claim via PLAT-IDENTITY-1, resolved through PLAT-SETTINGS-1) SHALL be able
+  to delete any.
 - **AC:** IF a saved view references now-deleted entities THEN THE SYSTEM SHALL flag them on load.
 
 **E7-S3: Featured pinned views**
@@ -986,8 +1007,9 @@ Explorer **#3** — the visualise half of the model→generate thin loop. M1 Exp
 CE-READ-1 (and Platform auth + PLAT-SETTINGS-1). M2 adds CE-WRITE-1, CE-DIFF-1, CE-VERSION-1,
 PLAT-NOTIFY-1. Explorer provides GE-CANVAS-1 (force, M2/v1.0) → unblocks Build #4.
 
-**CE-EVENT-1 note:** M2 ships the CE-READ-1 poll fallback for live-refresh; the CE-EVENT-1
-live-stream upgrade is a post-v1 dependency (CE owns it; Explorer activates when CE ships it).
+**CE-EVENT-1 note:** M2 polls CE-EVENT-1's beta seq feed (`GET /api/events?since_seq={n}`) for
+live-refresh — the seq feed IS the polled transport; the push fan-out upgrade is post-v1 (CE
+owns it; Explorer swaps the poll loop for push when it ships).
 
 ### Milestone gantt
 
@@ -1081,7 +1103,7 @@ completeness map; GE-CANVAS-1 force mode published to Build.
 - [ ] WHEN the diff overlay is applied THE SYSTEM SHALL call CE-DIFF-1 and render
   added/removed/modified (incl. edges) — verified by E4-S2/E8-S2 test.
 - [ ] WHEN a Saved View is shared THE SYSTEM SHALL notify eligible recipients via PLAT-NOTIFY-1
-  and reproduce the same server-side layout for a different workspace user.
+  and reproduce the same server-side layout for a different user in the same tenant.
 - [ ] WHEN a BA enables the completeness overlay THE SYSTEM SHALL call `coverage_gap` and overlay
   gap indicators — verified by E10-S1 integration test.
 - [ ] WHEN Build mounts GE-CANVAS-1 (`mode:"force"`) THE SYSTEM SHALL render the project slice
@@ -1118,7 +1140,8 @@ shipped; post-v1 PRD + tech spec (CRDT sync transport, tenant-scoped rooms, c4 r
 - [ ] WHEN a client connects to a CRDT sync room THE SYSTEM SHALL validate JWT tenant claim and
   reject a tenant mismatch at connect.
 - [ ] WHEN sync drops and reconnects THE SYSTEM SHALL converge with no lost updates.
-- [ ] WHEN CE-EVENT-1 emits a change THE SYSTEM SHALL reconcile in place (replacing poll fallback).
+- [ ] WHEN CE-EVENT-1 push fan-out emits a change THE SYSTEM SHALL reconcile in place (replacing
+  the M2 seq-feed poll loop).
 - [ ] WHEN Build mounts GE-CANVAS-1 (`mode:"c4"`) THE SYSTEM SHALL render the C4 structured view.
 - [ ] **Human sign-off recorded.**
 

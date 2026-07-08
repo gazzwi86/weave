@@ -23,7 +23,8 @@ everything not restated here. Contract shapes stay canonical in
 [`contracts.md`](../../../contracts.md) — this delta cites, never redefines.
 Decisions: [ADR-005](../decisions/ADR-005-impact-traversal-predicate-closure.md) (predicate
 closure), [ADR-006](../decisions/ADR-006-edit-attribution-principal-iri.md) (edit attribution),
-[GE-CANVAS-1 pin](ge-canvas-1.md) (Build M2 gate surface).
+[ADR-008](../decisions/ADR-008-m2-concurrency-client-drift-guard.md) (M2 concurrency = client
+drift guard), [GE-CANVAS-1 pin](ge-canvas-1.md) (Build M2 gate surface).
 
 ## 1. Open questions closed at M2
 
@@ -41,10 +42,16 @@ Two new GE-owned tables. Both: `ENABLE ROW LEVEL SECURITY` + the identical fail-
 (`tenant_id = current_setting('app.current_tenant_id')::uuid`), `SET LOCAL` inside every
 transaction, Alembic migrations, parameterised queries only.
 
+> **Tenancy note (workspace level removed, 2026-07-08).** Workspace ≡ company/tenant per the
+> PLAT-SETTINGS-1 three-level cascade (`Company → Domain → Project`); the former
+> "workspace-shared" library is **tenant-shared**. New M2 tables therefore carry `tenant_id`
+> only. The M1 `explorer_layout_positions` table still carries a residual `workspace_id`
+> column — M2 briefs test against this spec, not that column; the rename lands with the tracked
+> workspace-drop refactor (contracts.md §PLAT-SETTINGS-1 "M1 transition").
+
 ```sql
 CREATE TABLE explorer_saved_views (
     tenant_id     UUID        NOT NULL,
-    workspace_id  UUID        NOT NULL,
     view_id       UUID        NOT NULL DEFAULT gen_random_uuid(),
     name          TEXT        NOT NULL,
     created_by    TEXT        NOT NULL,  -- principal IRI (ADR-006)
@@ -52,24 +59,22 @@ CREATE TABLE explorer_saved_views (
     pinned        BOOLEAN     NOT NULL DEFAULT FALSE,  -- featured views (FR-030)
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (tenant_id, workspace_id, view_id),
-    UNIQUE (tenant_id, workspace_id, name)   -- FR-028 collision → overwrite/rename prompt
+    PRIMARY KEY (tenant_id, view_id),
+    UNIQUE (tenant_id, name)   -- FR-028 collision → overwrite/rename prompt
 );
 
 CREATE TABLE explorer_comments (
     tenant_id     UUID        NOT NULL,
-    workspace_id  UUID        NOT NULL,
     comment_id    UUID        NOT NULL DEFAULT gen_random_uuid(),
     target_kind   TEXT        NOT NULL CHECK (target_kind IN ('node','view')),
     target_ref    TEXT        NOT NULL,  -- node IRI or view_id
     author        TEXT        NOT NULL,  -- principal IRI (ADR-006)
     body          TEXT        NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (tenant_id, workspace_id, comment_id)
+    PRIMARY KEY (tenant_id, comment_id)
 );
 
-CREATE INDEX idx_views_ws     ON explorer_saved_views (tenant_id, workspace_id);
-CREATE INDEX idx_comments_tgt ON explorer_comments (tenant_id, workspace_id, target_kind, target_ref);
+CREATE INDEX idx_comments_tgt ON explorer_comments (tenant_id, target_kind, target_ref);
 ```
 
 **Saved-view layout = layout-table reuse, not a new store.** Saving a view snapshots the
@@ -78,9 +83,10 @@ current node positions into `explorer_layout_positions` under
 these rows). Loading a shared view applies that snapshot — same service, same RLS, no second
 positions store. Deleting a view deletes its `view:*` layout rows in the same transaction.
 
-**Deletion rules (FR-029):** creator deletes own view; workspace admin (PLAT-SETTINGS-1
-resolved role) deletes any. Enforced in the persistence service, asserted by test — RLS handles
-tenancy, not intra-workspace authorisation.
+**Deletion rules (FR-029):** creator deletes own view; a tenant admin-tier role (JWT `roles`
+claim per PLAT-IDENTITY-1, precedence resolved through the PLAT-SETTINGS-1 cascade) deletes
+any. Enforced in the persistence service, asserted by test — RLS handles tenancy, not
+intra-tenant authorisation.
 
 ## 3. Service & proxy delta
 
@@ -94,7 +100,7 @@ forwards. No new runtime component.
 | `GET /api/proxy/ontology/diff` | CE-DIFF-1 | E4-S2 / E8-S2 diff overlay; consumers derive node/edge grouping client-side (CE ADR-002 flat-triple shape). |
 | `GET /api/proxy/ontology/versions` | CE-VERSION-1 | E8-S1 versions panel; version-lag per CE-VERSION-1 canonical rule. |
 | `coverage_gap` queries | CE-READ-1 (existing sparql proxy) | E10 — no new proxy route. |
-| Poll live-refresh | CE-READ-1 since-version (existing proxy) | Default 30 s, tunable; degrades without blocking (FR-025). CE-EVENT-1 stream upgrade is post-v1. |
+| `GET /api/proxy/events` | CE-EVENT-1 beta seq feed (`GET /api/events?since_seq={n}&limit={m}`) | Poll live-refresh (FR-025): default 30 s, tunable; draft commits = `version_iri: null` rows; `410 Gone` cursor → re-baseline via CE-READ-1. The seq feed IS the polled transport — there is no "since-version" filter on CE-READ-1. Push fan-out upgrade is post-v1. |
 | `GET/POST/DELETE /api/views`, `POST /api/views/{id}/share` | Persistence service + PLAT-NOTIFY-1 | Share publishes a notification event; recipients without graph access excluded (E6-S1). |
 | `GET/POST/DELETE /api/comments` | Persistence service | E6-S2. |
 
@@ -103,6 +109,7 @@ forwards. No new runtime component.
 | Endpoint | p95 target |
 |---|---|
 | `POST /api/proxy/operations/apply` | ≤ 100 ms proxy overhead on top of CE's ≤ 800 ms write budget |
+| `GET /api/proxy/events` | ≤ 100 ms overhead on CE seq-feed response |
 | `GET /api/proxy/ontology/diff` | ≤ 100 ms overhead on CE diff response |
 | `GET /api/proxy/ontology/versions` | ≤ 200 ms end-to-end |
 | `GET /api/views` (list) · `GET /api/comments` | ≤ 300 ms |
@@ -153,11 +160,15 @@ through the adapter interface; overlays are adapter operations, not direct rende
 
 ## 7. Testing delta (extends testing-strategy.md)
 
-- **Concurrency:** E5-S3 LWW-with-version-check — two-writer test asserting second writer gets
-  `409` + notice.
+- **Concurrency (ADR-008):** E5-S3 GE-side drift guard — two-writer test asserting the second
+  writer's save is blocked with the conflict notice + current server values when the draft head
+  moved (`test_drift_guard_blocks_save_and_shows_current`), and that no-drift concurrent edits
+  are LWW with both commits succeeding as successive CE versions
+  (`test_lww_when_no_drift_detected`). CE-WRITE-1 M2 has no conditional write — no test demands
+  a concurrency `409` from a CE stub.
 - **Rollback:** CE-WRITE-1 timeout (10 s default) and `422` paths for add-node, add-edge,
   delete — no orphan / no phantom-removal assertions (FR-019/020/022).
-- **GE-CANVAS-1 conformance suite:** the 7 named tests in [ge-canvas-1.md](ge-canvas-1.md);
+- **GE-CANVAS-1 conformance suite:** the 9 named tests in [ge-canvas-1.md](ge-canvas-1.md);
   report is an M2 exit-gate artefact.
 - **Cross-tenant isolation (release gate) extended:** seeded two-tenant fixture now also covers
   `explorer_saved_views`, `explorer_comments`, and `view:*` layout rows — zero tenant-B rows on

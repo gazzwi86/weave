@@ -57,7 +57,7 @@ blocks regardless of the aggregate score
 ### Pseudocode
 
 ```
-function brand_gate(run, workspace):                    # registered 6th in SAFETY_GATES
+function brand_gate(run):                               # registered 6th in SAFETY_GATES
   try:
     tokens = ce_client.get("/api/brand/tokens")         # closed core; extensions ignored here
     rules  = ce_client.get("/api/brand/voice-rules")

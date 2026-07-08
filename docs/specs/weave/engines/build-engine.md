@@ -31,7 +31,7 @@ milestone_split: M1/M2/v1.0/post-v1
 ### Mission Statement
 
 The Build Engine is the place where a company turns its knowledge graph into working software.
-Within the company workspace, teams spin up projects, co-author specifications with AI agents, and
+Within the company, teams spin up projects, co-author specifications with AI agents, and
 generate and ship artefacts that run genuine business processes — grounded in the company's
 ontology, vocabulary, brand, and governance constraints. Every generated artefact is traceable back
 to the graph elements and spec it came from; when the model changes, the affected artefacts are
@@ -48,7 +48,7 @@ known.
 - **Spec, planning, and delivery are disconnected from the model.** Specification, kanban, and
   running code live in separate tools; context is re-gathered at every hand-off.
 - **Agent-driven delivery is ungoverned.** No shared place to cap spend, manage secrets, classify
-  data, or inherit company → domain → workspace → project policy.
+  data, or inherit company → domain → project policy.
 
 The people who feel this most are **engineers and architects** asked to deliver consistently,
 **product owners** iterating on several specs at once, and **operations owners** who wait on them.
@@ -85,7 +85,7 @@ but humans still hand-build everything that runs it.
 | Repo bootstrap | First step of a run: create a NEW external repo per project (GitHub/GitLab, configured), write boilerplate/harness, then implement (FR-061; rich scaffold + gate FR-062) |
 | Dark-factory execution | PLAN → DELEGATE → ASSESS → CODIFY loop; bounded turn cap; resumable state spine |
 | Artefact generation | Stack-agnostic generation from approved spec + client company/project standards (decision B8; M1 demo default Next.js + FastAPI); safety gates before commit; deploy + demo |
-| Company/project standards | Workspace + project coding/architecture/stack standards (family of `docs/standards/`), governed by `Policy` via `CE-READ-1`, consumed by generation (FR-063/FR-064) |
+| Company/project standards | Company + project coding/architecture/stack standards (family of `docs/standards/`), governed by `Policy` via `CE-READ-1`, consumed by generation (FR-063/FR-064) |
 | Direct project prompt | Prompt box on a project → agent run → PRs to code/specs/backlog (FR-065), role-gated (FR-060) |
 | Graph sync | Write-back via `CE-WRITE-1` (`BE-ARTEFACT-1`); staleness from `CE-VERSION-1` |
 | Quality gates | DoR, DoD, full QA suite (M2), phase-gate ceremony (M2), spec-coverage audit (M2) |
@@ -133,12 +133,14 @@ but humans still hand-build everything that runs it.
   project standards require (decision B8, FR-063/FR-064). The M1 thin-proof uses Next.js + FastAPI as a
   demo default only.
 - Source control: generated output lives in a NEW external repo per project (GitHub/GitLab, configured);
-  provider + token are a project/workspace setting with the token in Secrets Manager (B9, FR-061) —
+  provider + token are a project/domain setting (`PLAT-SETTINGS-1` three-level cascade) with the
+  token in Secrets Manager (B9, FR-061) —
   distinct from the 7 `PLAT-CONNECTOR-1` data connectors.
 - Secrets: AWS Secrets Manager only — never hardcoded, never in `.env`.
 - Large-graph retrieval: A 200-node context cap is a known limit. Retrieval/ranking strategy
-  (relevance scoring of BPMO subgraph before prompt assembly) is a required tech-spec task;
-  until implemented, the 200-node cap is a documented constraint (OQ-11).
+  (relevance scoring of BPMO subgraph before prompt assembly) is resolved at M2 by ADR-005
+  (deterministic seed + weighted k-hop); until M2 lands, the 200-node cap is a documented
+  constraint (OQ-11, closed M2).
 - Multi-tenant isolation: state spine, summaries, and investigator outputs are RLS-isolated;
   mechanism deferred to OQ-06.
 - Agent SDK: Anthropic Agent SDK (Python primary); confirmed model IDs only
@@ -169,7 +171,7 @@ but humans still hand-build everything that runs it.
 | B6 | CE owns `CE-FUNCTION-1` (ontology-bound function registry); Build generates SDK bindings; Events references by `fn_iri` | Resolves OQ-12 / EA-OQ-13. See [contracts](../contracts.md) §CE-FUNCTION-1. Decision made; build in M2/v1.0 |
 | B7 | Brand-conformance gate (CE-BRAND-1) is M2, not M1 | Formula requires full VoiceRules SHACL catalogue; thin-proof loop ships without it |
 | B8 | **Build Engine is stack-agnostic** — the *generated* stack is driven by the client company's + project's standards (FR-063/FR-064), never fixed to Weave's own stack | Weave's own stack (Next.js 15 / FastAPI / Cognito / Bedrock / `uv`) constrains **building the Build Engine itself**, not what it generates; the engine builds whatever the target spec + client standards require. The M1 thin-proof uses Next.js + FastAPI as a **demo default**, not a constraint on output |
-| B9 | **Generated output lives in a NEW external repo per project** (GitHub/GitLab, configured); repo bootstrap is the **first step of a run** | Client-owned, forkable, portable code (consistent with `BE-SDK-1` ownership); source control is a project/workspace setting + Secrets-Manager token, distinct from the 7 `PLAT-CONNECTOR-1` data connectors and not connector-gated |
+| B9 | **Generated output lives in a NEW external repo per project** (GitHub/GitLab, configured); repo bootstrap is the **first step of a run** | Client-owned, forkable, portable code (consistent with `BE-SDK-1` ownership); source control is a project/domain setting + Secrets-Manager token, distinct from the 7 `PLAT-CONNECTOR-1` data connectors and not connector-gated |
 
 ### Navigation
 
@@ -227,10 +229,10 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-005 | Stakeholder sign-off: resolve from graph via `CE-READ-1`; spec locked on submit; Approve → auto-project create | E1-S4 | Must | M1 |
 | FR-006 | Project grid: status cards with phase, budget, owner, demo status; filter + name search | E2-S1 | Must | v1.0 |
 | FR-007 | Auto-create project from approved request with pinned CE version (`CE-VERSION-1`) and budget cascade | E2-S2 | Must | v1.0 *¹ |
-| FR-008 | Budget-cap cascade (Company→Domain→Workspace→Project, tighter-wins; `PLAT-SETTINGS-1`); breach halts at checkpoint | E2-S3 | Must | v1.0 |
-| FR-009 | Model-tier gating per project (standard/fast/premium/experimental); default from workspace policy | E2-S3 | Must | v1.0 |
+| FR-008 | Budget-cap cascade (Company→Domain→Project, tighter-wins; `PLAT-SETTINGS-1`); breach halts at checkpoint | E2-S3 | Must | v1.0 |
+| FR-009 | Model-tier gating per project (standard/fast/premium/experimental); default from domain policy (`PLAT-SETTINGS-1`) | E2-S3 | Must | v1.0 |
 | FR-010 | Project **external-space bindings**: project settings bind the project to specific external boards/spaces — **Confluence space, Jira board/project, ServiceNow** — by reference via `PLAT-CONNECTOR-1` (no connector credential stored in Build), so agents pull from / push to the right spaces. **Connector-dependent: rides the connector timeline (connectors deferred to v1.0), so bindings land at v1.0** | E2-S5 | Must | v1.0 (connector-gated) |
-| FR-060 | Project **contributors & roles**: a project supports adding contributors with per-project roles — project **admin** (manage project settings, contributors, external bindings, backlog) and **editor** (author specs/backlog, run generation); **all workspace users can read any project**; a **workspace admin/owner can edit any project, its specs, and its backlog** (full-control role, all engines); roles resolve via `PLAT-SETTINGS-1` and are enforced at the API boundary (`PLAT-IDENTITY-1`). The **role model is defined now**; the settings/contributors UI ships with the Project Registry (v1.0) | E2-S4 | Must | v1.0 (role model defined now) |
+| FR-060 | Project **contributors & roles**: a project supports adding contributors with per-project roles — project **admin** (manage project settings, contributors, external bindings, backlog) and **editor** (author specs/backlog, run generation); **all company (tenant) users can read any project**; a **company/domain admin/owner can edit any project, its specs, and its backlog** (full-control overlay from the `PLAT-IDENTITY-1` JWT `roles` claim — tenant + project/domain-scoped grants; workspace level dropped 2026-07-08); roles resolve via `PLAT-SETTINGS-1` and are enforced at the API boundary (`PLAT-IDENTITY-1`). The **role model is defined now**; the settings/contributors UI ships with the Project Registry (v1.0) | E2-S4 | Must | v1.0 (role model defined now) |
 | FR-011 | Secrets: AWS Secrets Manager references only; secret-scan gate (FR-029) blocks plaintext in generated code | E2-S3 | Must | v1.0 |
 | FR-012 | Ontology pin upgrade: `CE-DIFF-1` diff of nodes+edges since pin; explicit confirmation required | E2-S3 | Must | v1.0 |
 | FR-013 | Project Dashboard: demo-readiness, budget, forecast, tasks-in-flight, blockers, git ribbon; per-tile fail isolation | E3-S1 | Must | v1.0 |
@@ -280,11 +282,11 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-057 | Reality-drift detection: spec claims vs code graph; Confirmed/Contradicted/Unverifiable table; never auto-resolves contradictions | E12-S8 | Should | post-v1 |
 | FR-058 | Durable per-project memory store: committed decisions/conventions injected into agent context across sessions | E11-S6 | Could | post-v1 |
 | FR-059 | `BE-SDK-1` typed client SDK: SHACL node shape → typed class, declared properties → typed fields, named SPARQL SELECT → typed query method; emits TypeScript/npm + Python/pip + standalone OpenAPI 3.1; **includes one typed SDK method per `CE-FUNCTION-1` ontology-bound function** (Build generates from CE-owned registry, does not define functions); versioned to pinned CE version; `BE-ARTEFACT-1` provenance; atomic (unreachable `CE-READ-1` or unresolvable shapes = fail, no partial package); client-owned/forkable; regenerable on `CE-DIFF-1` delta | E8-S5 | Should | M2 |
-| FR-061 | **External repo bootstrap = first step of a dark-factory run.** Generated output lives in a **NEW repository per project on the configured source-control provider (GitHub or GitLab)**, never inside Weave. On run start THE SYSTEM SHALL: create the repo on the configured provider, then write the project boilerplate/harness (spec-driven setup mirroring this repo's `.claude` harness) — and only then implement against the given spec. Source-control **provider + auth token are a project/workspace setting** (`PLAT-SETTINGS-1` for config; token in **AWS Secrets Manager only**) — **source control is NOT one of the 7 `PLAT-CONNECTOR-1` data connectors and is NOT connector-gated to v1.0**. Generated commits/PRs (FR-033, FR-035) target this repo. | E11-S7 | Must | M1 (create repo + push output) |
+| FR-061 | **External repo bootstrap = first step of a dark-factory run.** Generated output lives in a **NEW repository per project on the configured source-control provider (GitHub or GitLab)**, never inside Weave. On run start THE SYSTEM SHALL: create the repo on the configured provider, then write the project boilerplate/harness (spec-driven setup mirroring this repo's `.claude` harness) — and only then implement against the given spec. Source-control **provider + auth token are a project/domain setting** (`PLAT-SETTINGS-1` for config; token in **AWS Secrets Manager only**) — **source control is NOT one of the 7 `PLAT-CONNECTOR-1` data connectors and is NOT connector-gated to v1.0**. Generated commits/PRs (FR-033, FR-035) target this repo. | E11-S7 | Must | M1 (create repo + push output) |
 | FR-062 | **Rich repo scaffolding + environment-verification gate** — branch-protection rules, full CI, secrets wiring, and the complete `.claude`-style harness/boilerplate are set up on the bootstrapped repo, behind the first-run environment-verification HITL gate. Extends FR-050 (the M1 create-and-push of FR-061 is the floor; the rich scaffold + gate is the M2 increment). | E11-S6/S7 | Should | M2 |
-| FR-063 | **Company/workspace-level standards catalogue** — coding standards, architecture patterns, and preferred stacks are authored and stored for a workspace (same family as this repo's `docs/standards/`, extended beyond brand/design) and **consumed by every build project in that workspace** (at generation, E8-S1) to drive the generated stack. Standards are **governed by `Policy` entities read via `CE-READ-1`** (`governedBy`) so agents reason over them; brand/voice remains `CE-BRAND-1`. The generated stack is chosen from these standards — **the Build Engine is stack-agnostic (decision B8)**, not fixed to Weave's own stack. | E2-S7 | Must | M2 |
-| FR-064 | **Project-level standards** extend/override the company/workspace standards for a specific project (tighter-wins, aligned to the `PLAT-SETTINGS-1` cascade); the effective standard set (company ⊕ project) grounds generation (E8-S1) for that project. Also linked to `Policy` via `CE-READ-1`. | E2-S7 | Must | M2 |
-| FR-065 | **Direct project prompt interface** — a prompt box scoped to a build project lets a user instruct the agent to make changes (e.g. "fix this inaccuracy", "change how the UI looks", "change what this API returns / the error message it throws"). The agent runs (reusing the dark-factory run lifecycle) with visible run status, and produces **PRs/amendments to the project's code, specs, AND backlog** as appropriate, opened against the project's external repo (FR-061). **Permission-gated:** project **editors and admins** (and workspace admin/owner) may prompt; **readers cannot** (FR-060 role model); an unauthorised prompt returns 403 + `PLAT-AUDIT-1`. | E3-S3 | Should | v1.0 |
+| FR-063 | **Company-level standards catalogue** *(workspace level dropped 2026-07-08 — catalogue re-homes to company scope)* — coding standards, architecture patterns, and preferred stacks are authored and stored at company scope (same family as this repo's `docs/standards/`, extended beyond brand/design) and **consumed by every build project in the company** (at generation, E8-S1) to drive the generated stack. Standards are **governed by `Policy` entities read via `CE-READ-1`** (`governedBy`) so agents reason over them; brand/voice remains `CE-BRAND-1`. The generated stack is chosen from these standards — **the Build Engine is stack-agnostic (decision B8)**, not fixed to Weave's own stack. | E2-S7 | Must | M2 |
+| FR-064 | **Project-level standards** extend/override the company standards for a specific project (tighter-wins, aligned to the `PLAT-SETTINGS-1` cascade); the effective standard set (company ⊕ project) grounds generation (E8-S1) for that project. Also linked to `Policy` via `CE-READ-1`. | E2-S7 | Must | M2 |
+| FR-065 | **Direct project prompt interface** — a prompt box scoped to a build project lets a user instruct the agent to make changes (e.g. "fix this inaccuracy", "change how the UI looks", "change what this API returns / the error message it throws"). The agent runs (reusing the dark-factory run lifecycle) with visible run status, and produces **PRs/amendments to the project's code, specs, AND backlog** as appropriate, opened against the project's external repo (FR-061). **Permission-gated:** project **editors and admins** (and company/domain admin/owner) may prompt; **readers cannot** (FR-060 role model); an unauthorised prompt returns 403 + `PLAT-AUDIT-1`. | E3-S3 | Should | v1.0 |
 
 *¹ M1 requires a **minimal project bootstrap** (backend record: project IRI + pinned CE version, no UI) to allow E11 dark factory to run against a `project_iri`. Full Registry grid and settings UI (FR-006 through FR-012) land in v1.0. See §3 E2 notes.
 
@@ -354,13 +356,13 @@ Build **provides**:
 | OQ-02 | Runtime orchestration architecture (DAG engine or harness-driven loop?) | Open — tech-spec task |
 | OQ-03 | Workflow-as-code representation for the dark factory | Open |
 | OQ-04 | Agent sandboxing and code-execution isolation | Open — tech-spec task |
-| OQ-05 | Per-task cost attribution across provider tiers | Open |
+| OQ-05 | Per-task cost attribution across provider tiers | **CLOSED (v1.0)** — Build-local `cost_events` rollup, "estimated" label; PLAT-BILLING-1 stays invoicing SoR. ADR-008 / v1-delta §1 |
 | OQ-06 | Multi-tenant RLS isolation mechanism for state spine and summaries | Open — tech-spec task |
-| OQ-07 | Git strategy: branch-per-task vs sequential commits | Open |
-| OQ-08 | Template library: schema and governance | Open |
+| OQ-07 | Git strategy: branch-per-task vs sequential commits | **CLOSED (v1.0)** — answered by M1 practice: runs record `branch` + `commit_sha`; git ribbon reads those rows. v1-delta §1 |
+| OQ-08 | Template library: schema and governance | Open — deferred; no story consumes it through v1.0 |
 | OQ-09 | Policy-as-code spec format | Open |
-| OQ-10 | AI writing rules spec format for VoiceRules | Open |
-| OQ-11 | Large-graph context cap: 200-node limit is a **known constraint**. Retrieval/ranking strategy — relevance scoring of BPMO subgraph before prompt assembly — is a **required tech-spec task**. Isolated investigator runs (FR-051) are a partial mitigation. | Named; tech-spec task required |
+| OQ-10 | AI writing rules spec format for VoiceRules | **CLOSED (M2)** — format is contracts.md §CE-BRAND-1 (`{id, severity, assertion}`); no Build-side format. m2-delta §1 |
+| OQ-11 | Large-graph context cap: 200-node limit is a **known constraint**. Retrieval/ranking strategy — relevance scoring of BPMO subgraph before prompt assembly — is a **required tech-spec task**. Isolated investigator runs (FR-051) are a partial mitigation. | **CLOSED (M2)** — deterministic seed + weighted k-hop under the cap; FR-051 investigator overflow. ADR-005 / m2-delta §1 |
 | OQ-12 | CE-FUNCTION-1 ownership | **RESOLVED**: CE owns ontology-bound function registry (definition, versioning, grounding patterns); Build generates `BE-SDK-1` typed bindings; Events references by `fn_iri`. See [contracts](../contracts.md) §CE-FUNCTION-1. |
 
 ### 2.5 Key Design Decisions
@@ -439,7 +441,7 @@ FR-061/B9), E2-S7 (company/project standards, FR-063/FR-064) — all Must Have.
 **Acceptance criteria (EARS)**
 
 - WHEN a project is created, THE SYSTEM SHALL pin the newest published CE version via `CE-VERSION-1`
-  and resolve governance through the Company→Domain→Workspace→Project cascade (tighter-wins) with
+  and resolve governance through the Company→Domain→Project cascade (tighter-wins) with
   no window where the project exists ungoverned.
 - WHEN the binding cap is breached mid-run, THE SYSTEM SHALL halt in-flight agent steps at the
   next safe checkpoint and fire a `PLAT-NOTIFY-1` budget event — partial work commits only if it
@@ -450,8 +452,9 @@ FR-061/B9), E2-S7 (company/project standards, FR-063/FR-064) — all Must Have.
 - **(E2-S4 — contributors & roles, FR-060)** WHEN a contributor is added to a project, THE SYSTEM
   SHALL assign a per-project role — **admin** (project settings, contributors, external bindings,
   backlog) or **editor** (author specs/backlog, run generation) — resolved via `PLAT-SETTINGS-1` and
-  enforced at the API boundary (`PLAT-IDENTITY-1`); **all workspace users can read any project**, and a
-  **workspace admin/owner can edit any project, its specs, and its backlog**. WHEN a user without the
+  enforced at the API boundary (`PLAT-IDENTITY-1` JWT `roles` claim); **all company (tenant) users can
+  read any project**, and a **company/domain admin/owner can edit any project, its specs, and its
+  backlog**. WHEN a user without the
   required project role attempts an edit, THE SYSTEM SHALL return 403 and record the denial to
   `PLAT-AUDIT-1`. *(Role model defined now; contributors UI ships with the Registry at v1.0.)*
 - **(E2-S5 — external-space bindings, FR-010)** WHEN a project is bound to an external space
@@ -459,16 +462,16 @@ FR-061/B9), E2-S7 (company/project standards, FR-063/FR-064) — all Must Have.
   reference via `PLAT-CONNECTOR-1` (no credential in Build) so agents pull from / push to the bound
   space; **because managed connectors are deferred to v1.0, external-space bindings land at v1.0** —
   until then the project settings surface the binding slots as "available when connectors ship".
-- **(E2-S6 — source-control provider config, FR-061/B9)** WHEN a project/workspace is configured,
+- **(E2-S6 — source-control provider config, FR-061/B9)** WHEN a project (or its domain) is configured,
   THE SYSTEM SHALL capture the **source-control provider (GitHub or GitLab)** and its auth token,
   storing config via `PLAT-SETTINGS-1` and the **token in AWS Secrets Manager only** (never in Build,
   never displayed after entry). This is **distinct from the 7 `PLAT-CONNECTOR-1` data connectors and is
   NOT connector-gated** — it is available at M1 so the dark factory can bootstrap the project repo
   (FR-061). AC (failure): an invalid/absent token fails the run's repo-bootstrap step closed with a
   named error; no token value is logged.
-- **(E2-S7 — company/project standards, FR-063/FR-064)** WHEN a workspace authors standards (coding
+- **(E2-S7 — company/project standards, FR-063/FR-064)** WHEN a company authors standards (coding
   standards, architecture patterns, preferred stacks — the `docs/standards/` family extended beyond
-  brand/design), THE SYSTEM SHALL make them available to **every build project in that workspace**, and
+  brand/design), THE SYSTEM SHALL make them available to **every build project in the company**, and
   a project MAY define project-level standards that **extend/override** them (tighter-wins, aligned to
   the `PLAT-SETTINGS-1` cascade). Standards are **governed by `Policy` entities read via `CE-READ-1`**
   (`governedBy`) so agents reason over them; the effective set (company ⊕ project) drives the generated
@@ -496,7 +499,7 @@ E3-S3 (direct project prompt, FR-065, Should Have → v1.0).
 - WHEN any dashboard tile's data source errors, THE SYSTEM SHALL render that tile in a localized
   error state while the rest of the dashboard continues to render — a single upstream outage never
   blanks the page.
-- **(E3-S3 — direct project prompt, FR-065)** WHEN a project **editor or admin** (or workspace
+- **(E3-S3 — direct project prompt, FR-065)** WHEN a project **editor or admin** (or company/domain
   admin/owner) submits a prompt on a project (e.g. "fix this inaccuracy", "change how the UI looks",
   "change what this API returns / the error message it throws"), THE SYSTEM SHALL run the dark-factory
   lifecycle scoped to that project with visible run status, and produce **PRs/amendments to the
@@ -844,7 +847,7 @@ flowchart LR
 |---|---|---|
 | **M1 — Thin Proof** | Model → generate → write-back loop on Hammerbarn pre-seed demo, output pushed to a newly-created external repo | E1 Request Studio · E6 Spec Lifecycle + Run Modes · E11-S1–S5 Dark-Factory core + **E11-S7 Repo bootstrap (create repo + push, FR-061)** · E8-S1 App generation (stack-agnostic; demo-default stack) + S4 Deploy/demo · E9-S1 Write-back · E12-S1 DoR + S2 DoD + S6 Pre-scaffold; task-brief schema (FR-018) · E2-S6 source-control config |
 | **M2 — Legibility + Trust** | Brand conformance; SDK; quality ceremonies; orchestrator hardening; stack-driving standards | E8-S3 Anatomy/wiki · E8-S5 BE-SDK-1 (incl. CE-FUNCTION-1 bindings) · E8-S1 CE-BRAND-1 gate · **E2-S7 company/project standards (FR-063/FR-064)** · E11-S6 preflight + **rich repo scaffold/env-verification gate (FR-062)**/self-verify/investigator · E12-S3 Full QA · E12-S4 Coverage audit · E12-S5 Phase-gate ceremony · E9-S2 Staleness · E8-S4 Release plan |
-| **v1.0 — Lighthouse** | Full PM surfaces for concurrent production projects | E2 Project Registry + settings (incl. E2-S4 roles, E2-S5 external bindings) · E3 Project Dashboard + **E3-S3 direct project prompt (FR-065)** · E4 Kanban · E5 Task Brief/Detail UI (5-tab panel) · E7 Decision Log (E12 fully covered M1+M2; S7/S8 post-v1) |
+| **v1.0 — Lighthouse** | Full PM surfaces for concurrent production projects | E2 Project Registry + settings (incl. E2-S4 roles, E2-S5 external bindings, E2-S6 source-control provider config UI) · E3 Project Dashboard + **E3-S3 direct project prompt (FR-065)** · E4 Kanban · E5 Task Brief/Detail UI (5-tab panel) · E7 Decision Log (E12 fully covered M1+M2; S7/S8 post-v1) |
 | **post-v1** | Self-healing; agent generation; pipeline generation | E10 Self-healing (BE-SELFIMPROVE-1) · E8-S2 Agent generation · E8-S3 FR-032 project-ontology embed · Pipeline generation · E3-S2 Quick actions · E12-S7 Cross-task propagation · E12-S8 Reality-drift · FR-058 Durable memory |
 
 ### M1 Exit Criteria
@@ -863,8 +866,10 @@ flowchart LR
 
 1. CE-BRAND-1 conformance gate runs on generated output; score ≥ 0.90 and zero critical rule
    failures required to commit. Formula verified from [contracts](../contracts.md) §CE-BRAND-1.
-2. `BE-SDK-1` generated and published (TypeScript/npm + Python/pip + OpenAPI 3.1) with ≥ 1
-   CE-FUNCTION-1 typed binding per CE-owned function in the registry.
+2. `BE-SDK-1` generated as **portable source committed to the project repo** (TypeScript npm-format
+   package + Python pip-format package + standalone OpenAPI 3.1 — **no registry publish**, ADR-006)
+   with ≥ 1 CE-FUNCTION-1 typed binding per CE-owned function in the registry; verified mechanically
+   by `tsc --noEmit` + `mypy --strict` + OpenAPI 3.1 lint passing over the committed source.
 3. Phase-gate ceremony (E12-S5) completes at least one phase boundary with a web HITL sign-off
    under no-self-approval invariant.
 4. Anatomy/wiki (E8-S3) auto-indexes a project repo and agents load it before each task.

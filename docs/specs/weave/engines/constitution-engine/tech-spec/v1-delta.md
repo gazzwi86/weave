@@ -107,8 +107,10 @@ m2-delta §1.
 
 Reference basis: ArchiMEO / archimate2rdf (reference only, not a dependency — epic technical
 note). Unmapped types default to **`Concept`, flagged for review, never silently dropped**
-(tunable per workspace via PLAT-SETTINGS-1). Both tables are shipped as data (a versioned
-mapping file), not code branches.
+(tunable per tenant/domain via the PLAT-SETTINGS-1 cascade). Both tables are shipped as data
+(a versioned mapping file), not code branches. Relationship rows are emitted **only within the
+target predicate's domain/range** (data-model.md §BPMO Relationship Predicates); an
+out-of-domain endpoint pair is skipped + listed as flagged — no edge emitted, no silent drop.
 
 **BPMN (BBO) → BPMO:**
 
@@ -119,8 +121,8 @@ mapping file), not code branches.
 | `startEvent`, `endEvent`, `intermediate*Event`, `boundaryEvent` | `Event` (start events also `triggeredBy` on the process) |
 | `lane`, `pool`/`participant` | `Actor` (lane-contained activities get `performedBy`) |
 | `dataObject`, `dataStore`, `dataInput`, `dataOutput` | `DataAsset` (associations → `consumes`/`produces` by direction) |
-| `sequenceFlow` | ordering within `hasStep` (no distinct edge kind) |
-| `messageFlow` | `dependsOn` between the connected elements' mapped resources |
+| `sequenceFlow` | `weave:precedes` — `sequenceFlow(a→b)` between mapped Activities emits `a weave:precedes b` (step-ordering predicate, data-model.md; BPMN order preserved edge-for-edge). `hasStep` is containment (Process→Activity), NOT ordering. Gateway-adjacent flows bridge through the gateway or skip + flag |
+| `messageFlow` | `dependsOn` ONLY when the mapped endpoints fall within its domain/range (consumer ∈ {Process, Service} → provider ∈ {Service, System}); any other pair (e.g. pool/participant Actor↔Actor) is skipped + flagged — never an Actor-domain `dependsOn` edge |
 | `exclusiveGateway`, `parallelGateway`, other gateways | unmapped → `Concept` flagged (control-flow logic has no BPMO kind; branch conditions land in the activity description) |
 
 **ArchiMate 3 (Exchange Format) → BPMO:**
@@ -141,9 +143,9 @@ mapping file), not code branches.
 | ArchiMate relationship | BPMO predicate |
 |---|---|
 | `Assignment` (actor→process/function) | `performedBy` (inverse direction) |
-| `Serving` — **split by endpoint kinds** (Fable ontology review 2026-07-08; data-model.md:248 gives `runsOn` ArchiMate provenance = Serving): tech-node/System serving a Service ⟹ hosting, emit **`service runsOn system`**; all other pairs ⟹ consumer `dependsOn` provider | `runsOn` / `dependsOn` |
+| `Serving` — **split by endpoint kinds** (Fable ontology review 2026-07-08; data-model.md:248 gives `runsOn` ArchiMate provenance = Serving): tech-node/System serving a Service ⟹ hosting, emit **`service runsOn system`**; other pairs emit consumer `dependsOn` provider **only within `dependsOn`'s domain/range** (consumer ∈ {Process, Service} → provider ∈ {Service, System}); Actor-domain and other out-of-domain pairs are **skipped + flagged** (no catch-all) | `runsOn` / `dependsOn` (domain-guarded) |
 | `Realization` — process→capability ⟹ `realizes` (data-model.md:244); component→service ⟹ hosting, emit **`service runsOn system`** (hosted thing is the subject — never system-as-subject) | `realizes` / `runsOn` |
-| `Access` | `accesses` (service/system→DataAsset; read/write mode in description) |
+| `Access` — behaviour→data, split by `accessType`: read ⟹ `consumes`, write ⟹ `produces`, readWrite/unspecified ⟹ both — Process/Activity→DataAsset domain (data-model.md:241–242 give consumes/produces ArchiMate provenance = Access). **Never emitted as `accesses`** (whose domain is Service→DataAsset, modelled directly, not imported); an Access whose source does not map to Process/Activity is skipped + flagged | `consumes` / `produces` |
 | `Composition`, `Aggregation` | `partOf` |
 | `Triggering` (event→process) | `triggeredBy` |
 | `Influence`, `Association`, others | unmapped → `describes` with flag |

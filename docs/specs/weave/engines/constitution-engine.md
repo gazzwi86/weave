@@ -261,8 +261,9 @@ Per-persona feed/consume detail lives in the program persona map, [`../personas.
 - Standards are mandatory, not negotiable: OWL 2 DL ontology, Turtle serialisation, SHACL validation,
   SPARQL 1.1 (SELECT-only query surface; writes via the validated operations API, not raw SPARQL
   Update), PROV-O provenance, SKOS for the glossary. M1 PII/sensitive handling uses SHACL plus
-  data-classification properties; ODRL 2.2 enters at M2 as the authority-extension vocabulary
-  (ADR-002 — the single-source-of-truth authority model), not a later undecided stack question.
+  data-classification properties (M2 likewise); ODRL 2.2 is the confirmed authority-extension
+  vocabulary (program ADR-002 — the single-source-of-truth authority model); the extension module's
+  build is deferred post-v1 (CE ADR-013; OQ-AUTH-1 deferred).
 - RDF store is Oxigraph in dev/test; the production store (Neptune vs Jena Fuseki) is deferred to this
   engine's tech spec and must support SPARQL 1.1 and the expected scale.
 - Natural-language authoring relies on the platform AI layer (Anthropic models via Bedrock); NL→RDF
@@ -360,7 +361,7 @@ writes back through CE-WRITE-1); (5) the immutable cross-engine audit log as an 
 (Platform PLAT-AUDIT-1; this engine emits to it — CE PROV-O is the semantic-model provenance and also
 writes a PLAT-AUDIT-1 entry); (6) designing brand/creative assets; (7) enforcing constraints at
 generation time (downstream engines enforce); (8) choosing the production RDF store (tech spec);
-(9) ODRL policy enforcement enters at M2 as the authority-extension vocabulary (ADR-002); M1 uses SHACL + data-classification; (10) process
+(9) the ODRL Authority Extension is deferred post-v1 (program ADR-002 fixes the vocabulary; CE ADR-013 the phasing); M1/M2 use SHACL + data-classification; (10) process
 mining/discovery, conformance checking, and a PQL (engine *ingests* OCEL 2.0 event data, OQ-14, as
 modellable data, builds no discovery/conformance algorithms or PQL; heavy mining integrated/partnered);
 (11) query-time live federation of external data (current ingestion is a **materialised copy** via
@@ -385,7 +386,7 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-012 | CE-WRITE-1: `POST /api/operations/apply` accepts `{operations,actor,target}`, validates on clone, returns `201{activity_iri,applied_count,version_iri}` or `422{violations}`; duplicate-IRI reconciled; idempotency key supported. AC: dup create reuses node; malformed Op → 400. | E10-S2, E6-S1 | P0 | MVP |
 | FR-013 | CE-DIFF-1: `GET /api/ontology/diff?from=&to=` returns server-computed added/removed/**modified nodes AND edges**. AC: an edge-only change appears in `modified`. | E9-S3 | P0 | MVP |
 | FR-014 | CE-VERSION-1: `GET /api/ontology/versions` is the single source for latest; canonical **version-lag** = count of published versions strictly between a pin and `is_latest`; "stale" default threshold lag ≥ 2 (tunable). AC: consumers read lag, never recompute. | E9-S2 | P0 | MVP |
-| FR-015 | CE-EVENT-1: emit graph-change events `{change_type,entity_iri,version_iri,actor,ts}` (change_type ∈ added\|updated\|deleted\|constraint-violated); transport deferred (OQ-12). AC: a commit produces one event; consumers may degrade to polling CE-READ-1 by since-version. | E9-S1 | P1 | MVP (Should-Have for Events consumers) |
+| FR-015 | CE-EVENT-1: emit graph-change events `{change_type,entity_iri,version_iri,last_published_version,actor,ts}` (change_type ∈ added\|updated\|deleted\|constraint-violated; draft commits carry `version_iri:null` + `last_published_version`). Beta transport = **M2** transactional change-feed, `GET /api/events?since_seq={n}&limit={m}` (ADR-008; OQ-12 resolved). AC: a commit produces one event; the seq feed IS the polled transport — an aged-out cursor gets 410 and re-baselines via CE-READ-1. | E9-S1 | P1 | M2 (Should-Have for Events consumers; beta) |
 | FR-016 | CE-BRAND-1: `GET /api/brand/tokens` (flattened design-token JSON) + `GET /api/brand/voice-rules` (machine-evaluable). AC: tokens consumable without parsing RDF; a brand individual failing its shape never appears in tokens. | E4-S1, E4-S2 | P0 | MVP |
 | FR-017 | CE-METRICS-1: `GET /api/metrics/ontology` → `{entity_count_by_kind, latest_version, draft_published_delta, shacl_errors_by_severity, owl_inconsistencies}`. AC: Platform Dashboard binds to it; values match graph state. | E5-S3 | P1 | MVP |
 | FR-018 | NL query: NL → AI-generated **SPARQL SELECT** → executed results, generated SPARQL shown (collapsed); cannot-construct → clarifying question, never hallucination; AI-unavailable → 503 while SPARQL editor stays live. AC: 503 path keeps editor functional. | E7-S1 | P0 | MVP |
@@ -396,8 +397,8 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-023 | Glossary search matches `prefLabel`/`altLabel`/`definition`; no-match → empty-state with create affordance. AC: empty search not an error. | E3-S3 | P0 | MVP |
 | FR-024 | Brand & Voice screen stores brand individuals + VoiceRules with versioning + PROV-O; AI extraction from pasted styleguide, with form fallback when AI unavailable. AC: form path works at 503. | E4-S1, E4-S2 | P0 | MVP |
 | FR-025 | Governance screen: SHACL shapes stored in the **authoring tenant's** shapes graph (never global) with PROV-O; browsable by target class; shape change invalidates validation cache across all workers/instances. AC: cross-tenant shape-leak test passes. | E5-S1, E5-S3 | P0 | MVP; PLAT-SETTINGS-1 |
-| FR-026 | Self-audit gap queries available from Governance screen; PII/sensitive handling via SHACL + data-classification properties in M1 (ODRL authority extension enters at M2 per ADR-002); schedulable; failed run → PLAT-NOTIFY-1. AC: gap query lists uncovered entities. | E5-S2 | P1 | MVP; PLAT-NOTIFY-1 |
-| FR-027 | `GET /api/validate` returns a full SHACL report (JSON-LD/Turtle) incl. violations/warnings/info, tenant-scoped; bad version → 404; no JWT → 401. AC: report enumerates all severities. | E6-S3 | P0 | MVP |
+| FR-026 | Self-audit gap queries available from Governance screen; PII/sensitive handling via SHACL + data-classification properties in M1/M2 (ODRL authority extension deferred post-v1 per CE ADR-013); schedulable; failed run → PLAT-NOTIFY-1. AC: gap query lists uncovered entities. | E5-S2 | P1 | MVP; PLAT-NOTIFY-1 |
+| FR-027 | `GET /api/validate` returns a full SHACL report (JSON-LD/Turtle) incl. violations/warnings/info, tenant-scoped; bad version → 404; no JWT → 401. AC: report enumerates all severities. | E6-S3 | P0 | MVP; ships M2 (M1→M2 move — delivered with the EPIC-005 rules screen, m2/tasks/TASK-006) |
 | FR-028 | OWL inferred triples materialised **per published version** (e.g. `urn:weave:g:tenant:{id}:v1.2.0:inferred`) at publish; pinned reads include/exclude inferred deterministically per version; reasoner-timeout (default 30s, tunable) → no partial graph. AC: v1.2 read excludes v1.3 inferences. | E8-S1, E1-S4 | P1 | MVP; gated on OQ-01 |
 | FR-029 | Inferred triples labelled as inferred in query results and instance views. AC: asserted vs inferred distinguishable in output. | E8-S1 | P1 | MVP |
 | FR-030 | Bulk-populate: CSV/table upload with AI column-to-property mapping + xsd datatype inference sampling ≥ N rows (default 20, tunable, not 1) shown for human correction before commit; rows failing SHACL flagged + skipped with reason; passing rows commit. AC: skipped-row reason surfaced. | E2-S3 | P1 | MVP |
@@ -405,8 +406,8 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-032 | All REST + SPARQL endpoints require a Cognito JWT / service principal and are tenant-scoped + rate-limited; secrets via AWS Secrets Manager only. AC: no-JWT → 401; over-limit → 429. | E10-S1 | P0 | MVP |
 | FR-033 | Import initial model from pasted document/text via chat (AI proposes classes + properties; reject-individual + ask-alternative without restart; per-proposal commit); AI-unavailable → 503 + forms fallback. AC: granular history; 503 path documented. | E1-S3 | P0 | MVP |
 | FR-034 | Edit uses **partial-update** semantics: only named properties retracted/asserted; all others (position, colour, domain…) preserved. AC: an edit omitting position never wipes position. | E2-S2 | P0 | MVP |
-| FR-035 | Saved queries are **server-side, workspace-scoped**, visible to all members; promotable to saved view. AC: a colleague in the same workspace re-runs a saved query. | E7-S3 | P2 | MVP |
-| FR-036 | Agent-grounding: built-in agent-authority SPARQL SELECTs over CE-READ-1 answer "what may an agent do, on which systems/data/process, who to escalate to" from modelled `governedBy`/`performedBy`/`accesses` links; absent permission defaults to **deny / route-to-human** (default, tunable); explicit deny overrides inferred authority; a missing required link returns an explicit coverage-gap row, never an empty "permitted". AC: a process with no `performedBy` yields a coverage-gap row; an unstated permission resolves to deny. | E7-S4 | P1 | MVP (read-side over CE-READ-1; no new contract) |
+| FR-035 | Saved queries are **server-side, domain-scoped** (PLAT-SETTINGS-1 cascade — workspace level removed 2026-07-08), visible to all domain members; promotable to saved view. AC: a colleague in the same domain re-runs a saved query. | E7-S3 | P2 | MVP |
+| FR-036 | Agent-grounding: built-in agent-authority SPARQL SELECTs over CE-READ-1 answer "what may an agent do, on which systems/data/process, who to escalate to" from modelled `governedBy`/`performedBy`/`accesses` links; absent permission defaults to **deny / route-to-human** (default, tunable via PLAT-SETTINGS-1); with no Authority Extension populated the surface never returns permit — explicit-deny override lands with the post-v1 extension (ADR-013); a missing required link returns an explicit coverage-gap row `{entity_iri, missing_link}`, never an empty "permitted". AC: a process with no `performedBy` yields a coverage-gap row; an unstated permission resolves to deny. | E7-S4 | P1 | MVP (read-side over CE-READ-1; no new contract) |
 | FR-037 | Ship a small **framework competency-question set** (e.g. consumes/produces/runs-on/performed-by/governed-by per process) runnable against any client graph; client onboarding MUST declare **2–5** domain competency questions; both are runnable as a test. AC: framework CQs return for the seeded graph; a client with <2 declared CQs is flagged at onboarding. | (CQ) | P1 | MVP |
 | FR-038 | Conversational document ingest: an uploaded document → agent-extracted BPMO candidates proposed **through the chat panel, linked to existing resources** (reuse propose-mutations + find-existing-node reconciliation); per-proposal human accept/reject; SHACL prospective pre-flight on a throwaway clone; commit via CE-WRITE-1 with PROV-O (LLM extractor + human approver + source doc as `prov:used`); low-confidence (default 0.6, tunable) flagged; AI-unavailable → 503 with no partial commit; `sh:Violation` → 422. AC: a re-mention of an existing entity reuses it, not duplicates; 503 path commits nothing. | E12-S1 | P1 | Post-MVP (prioritized) |
 | FR-039 | Structured model import (ArchiMate Exchange Format + BPMN/BBO) → RDF via CE-WRITE-1 with per-notation SHACL well-formedness; element-type→BPMO-kind mapping; unmapped elements default to **Concept** (tunable) and are listed, not dropped; a file failing well-formedness is rejected with per-element reasons; a partially-valid file commits valid elements and reports skips. The ArchiMate→RDF basis follows published prior art (**ArchiMEO** ontology / **archimate2rdf**) as a *reference*, not a tooling dependency. AC: a BPMN task lands as Activity; a malformed file commits nothing. | E12-S2 | P2 | Post-MVP (prioritized) |
@@ -480,13 +481,14 @@ available operation for any principal, including admin (FR-006 append-only invar
 - Secrets: all credentials (database, Cognito, AI provider keys) via **AWS Secrets Manager** only;
   never in env files or source.
 - PII / sensitive data: classify via SHACL + data-classification properties; surface gaps in
-  self-audit queries (FR-026). **ODRL enters at M2 as the authority-extension vocabulary** (ADR-002; OQ-09 resolved).
+  self-audit queries (FR-026). **The ODRL authority extension is deferred post-v1** (program ADR-002 fixes the vocabulary; CE ADR-013 the phasing; OQ-09 resolved, OQ-AUTH-1 deferred).
 
 **Reliability**
 
 - The single mutation pipeline is all-or-nothing on the clone: a batch with any `sh:Violation`
   commits nothing (FR-004).
-- CE-EVENT-1 consumers degrade to **polling** CE-READ-1 by since-version if the stream is not ready
+- CE-EVENT-1 is itself a polled, transactional seq feed (M2 beta, ADR-008) — there is no separate
+  since-version fallback; an aged-out cursor gets `410 Gone` and re-baselines via CE-READ-1
   (FR-015); change-event delivery is at-least-once with idempotent consumers.
 - PLAT-AUDIT-1 emit is retried on failure and the discrepancy logged; a commit is never recorded as
   audited when its audit emit failed (FR-006).
@@ -551,11 +553,11 @@ exact version tags.
 
 | Contract | Consumers | Intent (full shape in ../contracts.md) | Stability |
 |---|---|---|---|
-| **CE-READ-1** — Versioned read interface | Explorer, Build, Events, Platform, Onboarding | `GET /api/ontology/types` → the 13 BPMO framework kinds + relationship-types + client extensions; `/resource/{iri}` → entity + properties + edges; `/versions` → `[{version_iri, semver, published_at, is_latest}]`; `GET /api/sparql?version=<iri\|latest>&page=<n>` — SPARQL 1.1 **SELECT-only**, `SERVICE` blocked (SSRF), **paginated** (no silent cap), `version=latest` = newest published. **M1 additions** (full shape in [contracts](../contracts.md) §1): `POST /api/query/nl` NL→SELECT surface (`{question}` → `{sparql, rows, columns, grounded_iris}`); named agent-authority SELECT patterns (`authority(actor, action, target)`, `escalation(process)`, `coverage_gap(process)` ported from obpm `mi-agent-model.ttl`); `automatable` SHACL-shaped boolean on Activity/Process (default `false` = route-to-human; safety hinge for Events EA-AUTOMATION-1). Full `authority`/`escalation` executable patterns = M2. | stable |
+| **CE-READ-1** — Versioned read interface | Explorer, Build, Events, Platform, Onboarding | `GET /api/ontology/types` → the 13 BPMO framework kinds + relationship-types + client extensions; `/resource/{iri}` → entity + properties + edges; `/versions` → `[{version_iri, semver, published_at, is_latest}]`; `GET /api/sparql?version=<iri\|latest>&page=<n>` — SPARQL 1.1 **SELECT-only**, `SERVICE` blocked (SSRF), **paginated** (no silent cap), `version=latest` = newest published. **M1 additions** (full shape in [contracts](../contracts.md) §1): `POST /api/query/nl` NL→SELECT surface (`{question}` → `{sparql, rows, columns, grounded_iris}`); named agent-authority SELECT patterns (`authority(actor, action, target)`, `escalation(process)`, `coverage_gap(kind, required_links[])` — default invocation `(Process, [performedBy, governedBy])`, rows `{entity_iri, missing_link}` — ported from obpm `mi-agent-model.ttl`); `automatable` SHACL-shaped boolean on Activity/Process (default `false` = route-to-human; safety hinge for Events EA-AUTOMATION-1). Base-links `authority`/`escalation` executable patterns = M2 (ADR-013 descope — `decision` never `permit`); extension-resolved authority = post-v1. | stable |
 | **CE-WRITE-1** — Validated-operations write API | Build, Events, Platform ingestion, Explorer | `POST /api/operations/apply` · Request `{operations:[Op], actor:<principal IRI>, target:"draft"\|<version_iri>}`; `Op ∈ add_node\|update_node\|add_edge\|delete_node\|delete_edge` (new nodes carry a local `ref` resolved to IRIs in-batch; dedup = case-insensitive `label`+`kind` reuse). Applied on a **throwaway clone**, SHACL-validated, commits only if no `sh:Violation` (Warning/Info advisory); writes a PROV-O activity attributed to `actor`. Response `201{activity_iri,applied_count,version_iri}` OR `422{violations:[{focus_node,path,severity,message}]}`. Idempotency key supported; duplicate-IRI create reconciled. **Only** mutation entry point. | stable |
 | **CE-DIFF-1** — Version diff | Explorer (diff overlay), Build (artefact staleness) | `GET /api/ontology/diff?from=<version_iri>&to=<version_iri>` → `{added:[Node\|Edge], removed:[Node\|Edge], modified:[{ref,kind,before,after}]}` — includes **edge** modifications (server-side). | stable |
 | **CE-VERSION-1** — Version metadata + canonical lag | Build, Events, Explorer, Platform | `GET /api/ontology/versions` is the single source for "latest". **Canonical version-lag** = count of published versions strictly between a consumer's pin and `is_latest`; consumers never re-implement it. "Stale" default threshold = lag ≥ 2 (configurable). | stable |
-| **CE-EVENT-1** — Graph-change event stream | Events (graph-change triggers — **Should Have**, degrade to polling CE-READ-1 by since-version), Platform (live activity / draft-vs-published delta widgets) | Events `{change_type:"added"\|"updated"\|"deleted"\|"constraint-violated", entity_iri, version_iri, actor, ts}`. Transport (SNS / WebSocket / change-feed) deferred to tech-spec (OQ-12). | beta |
+| **CE-EVENT-1** — Graph-change event stream **· Milestone: M2 (beta)** | Events (graph-change triggers — **Should Have**), Platform (live activity / draft-vs-published delta widgets) | Events `{change_type:"added"\|"updated"\|"deleted"\|"constraint-violated", entity_iri, version_iri, last_published_version, actor, ts}` — publish events carry a real CE-VERSION-1 `version_iri`; draft commits carry `version_iri:null` + `last_published_version`. Beta transport (ADR-008; OQ-12 resolved): transactional change-feed polled via `GET /api/events?since_seq={n}&limit={m}` (per-tenant monotonic `seq`; aged cursor → `410 Gone` → re-baseline via CE-READ-1 — the seq feed IS the polled transport, no separate since-version fallback). | beta |
 | **CE-BRAND-1** — Brand → design-token projection + VoiceRule contract **· Milestone: M2** | Build (compliant-by-construction generation; conformance gate before code ships) | `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…) projected from RDF brand individuals; `GET /api/brand/voice-rules` → machine-evaluable VoiceRules (each a checkable assertion). **Conformance formula** (full shape in [contracts](../contracts.md) §1): `score = normal_rules_passed / total_normal_rules`; any failed `critical` rule = hard fail regardless; pass bar = `score ≥ 0.90` AND zero critical failures. | stable |
 | **CE-METRICS-1** — Aggregate metrics for the Dashboard | Platform Generative Dashboard (CE-sourced widgets = MVP-eligible set) | `GET /api/metrics/ontology` → `{entity_count_by_kind, latest_version, draft_published_delta, shacl_errors_by_severity, owl_inconsistencies}`. | stable |
 | **CE-FUNCTION-1** — Ontology-bound function registry **· NEW · Milestone: M2 (definition) / v1.0 (full)** | Build (typed SDK bindings), Events (action references by `fn_iri`), Build/Events agents (tool calls) | Registry of named, typed, graph-aware logic units bound to CE object-kinds. CE owns definition + versioning; Build generates typed bindings; Events references by `fn_iri`. `GET /api/functions` → list; `GET /api/functions/{iri}` → shape. Full shape in [contracts](../contracts.md) §1. **Decision made (M1); built M2/v1.0. Resolves Build-OQ-12 / EA-OQ-13 (function-registry ownership).** | alpha |
@@ -572,16 +574,17 @@ exact version tags.
 | OQ-06 | *(Resolved by CE-BRAND-1)* Brand/voice serialised as a flattened design-token JSON projection + machine-evaluable VoiceRules over the RDF. | — |
 | OQ-07 | RBAC **enforcement layer**: FastAPI middleware vs attribute-level SHACL (the policy matrix itself is fixed in FR-031/§2.2). | Architect |
 | OQ-08 | Authoring conversation history: v1 is session-only; at what phase does server-side persistence become a requirement? | PO |
-| OQ-09 | *(Resolved by ADR-002)* ODRL 2.2 enters at M2 as the canonical authority-extension vocabulary (the SSOT authority model); M1 PII/sensitive handling uses SHACL + data-classification. | — |
+| OQ-09 | *(Resolved by program ADR-002 + CE ADR-013)* ODRL 2.2 is the canonical authority-extension vocabulary (the SSOT authority model); the extension module builds **post-v1**. M1/M2 PII/sensitive handling uses SHACL + data-classification. | — |
 | OQ-10 | Expand the query surface beyond SELECT (CONSTRUCT/ASK/DESCRIBE) post-v1, with SSRF mitigation if `SERVICE` is ever re-enabled. | Architect |
 | OQ-11 | Should published versions carry advisory released/deprecated lifecycle states + a single-active-release pointer? (Must NOT redefine `latest` = newest published, decision B2.) | Architect + PO |
-| OQ-12 | CE-EVENT-1 transport: SNS fan-out vs WebSocket vs change-feed. **Status (M1): beta. Polling fallback via CE-READ-1 since-version (FR-015) is the M1 degradation path. Events Engine is post-v1; no M1 dependency.** | Architect |
+| OQ-12 | *(Resolved by ADR-008)* CE-EVENT-1 beta transport = tenant-scoped transactional change-feed polled via `GET /api/events?since_seq={n}&limit={m}` (**M2**; per-tenant monotonic seq; aged cursor → 410 → re-baseline via CE-READ-1). Push fan-out is a post-v1 additive upgrade. Events Engine is post-v1; no M1 dependency. | — |
 | OQ-13 | *(Perf)* Confirm NFR Performance thresholds by load test; re-derive the SHACL "shapes-graph size" figure. **Closed by SPIKE-CE-PERF-1 in Phase-1 tech spec (see §2.2).** | Architect |
 | OQ-14 | **OCEL 2.0** as the named event-layer candidate for ingesting observed-behaviour event data (object-centric event logs). Confirm the ingest mapping; NOT a process-mining engine (Non-Goal #10). | Architect |
 | OQ-15 | Opt-in extension patterns: **REA (ISO 15944-4)** economic-exchange, **gUFO** foundational typing, **OWL-Time** temporal modelling — which ship as documented extension patterns vs. stay design-only behind the curtain? | Architect + PO |
 | OQ-16 | UFO / OntoUML rigour as **internal discipline** advised via `sh:Warning` / `sh:Info` (never user-exposed as hard rules) — how deep to enforce-vs-advise? | Architect + PO |
 | OQ-17 | Virtual-graph **SPARQL→SQL federation** (query-time live external data) vs. the v1 materialised-copy import — pending ADR. Clarifies the Non-Goal #11 boundary. | Architect |
 | OQ-18 | Ingest extraction-confidence and reconciliation-similarity defaults (0.6 / 0.85) — confirm and tune against real client documents. | PO |
+| OQ-AUTH-1 | Ship the canonical Authority Extension module vs document the client extension pattern (ODRL Permission / authorityLevel / HITLTrigger / dataClassification SKOS). **Deferred post-v1** (CE ADR-013); M2 `authority()` ships base-links deny-default + `coverage_gap` only — `decision` never `permit`. | Architect |
 
 **Decided 2026-07-02 — NL grounding context caps (single source; task briefs defer to this table):**
 
@@ -880,7 +883,7 @@ with live violation coverage. Scheduled self-audit gap queries (E5-S2) are carve
   FR-026).
   - AC: built-in gap-detection SPARQL SELECT queries available from the Governance screen; results list
     affected entities with links; a self-audit can be scheduled and results surfaced in the dashboard;
-    PII/sensitive handling uses SHACL + data-classification properties in M1 (ODRL authority extension enters at M2 per ADR-002).
+    PII/sensitive handling uses SHACL + data-classification properties in M1/M2 (ODRL authority extension deferred post-v1 per CE ADR-013).
   - AC (failure): a scheduled self-audit that fails to run emits a PLAT-NOTIFY-1 notification rather than
     failing silently.
 
@@ -900,7 +903,7 @@ unless this property is explicitly set `true` by a governance owner. **CE owns; 
 shares the same isolation mechanism (named-graph + fail-closed query-rewriting per ADR-001) as
 instance data; the shape-leak test is a required security-review sub-gate this phase. Cache invalidation
 must be **external** (shared, e.g. Redis/ElastiCache) so a shape edited on one worker is honoured by all.
-PII/sensitive handling uses SHACL + data-classification properties in M1; the ODRL authority extension enters at M2 (ADR-002, OQ-09 resolved). Severity
+PII/sensitive handling uses SHACL + data-classification properties in M1/M2; the ODRL authority extension is deferred post-v1 (program ADR-002 vocabulary; CE ADR-013 phasing; OQ-09 resolved). Severity
 handling aligns with EPIC-006: `sh:Violation` blocks; `sh:Warning`/`sh:Info` advisory.
 
 ### EPIC-006 — SHACL Validation (Cross-Cutting)
@@ -930,7 +933,8 @@ validation endpoint. No other content area may write except through this gate.
     plain-English explanation.
   - AC (failure): if the AI "fix this" helper is unavailable, the raw structured violation (focus node,
     path, severity, message) is still shown so the user can fix it manually.
-- **TASK-003 / E6-S3 — Standalone validation endpoint** (Must).
+- **TASK-003 / E6-S3 — Standalone validation endpoint** (Must; **ships M2** — moved M1→M2 and
+  delivered under EPIC-005's rules-screen task, m2/tasks/TASK-006; re-parent recorded there).
   - AC: `GET /api/validate` returns a SHACL validation report (JSON-LD or Turtle) listing violations,
     warnings, info, scoped to the caller's tenant.
   - AC (failure): a request for a non-existent version → 404; a request without a valid JWT → 401.
@@ -958,7 +962,8 @@ Two query surfaces over the graph plus agent-grounding, delivered in two milesto
 NL→SELECT question box (`POST /api/query/nl` per CE-READ-1) + raw SPARQL editor (SELECT-only,
 `SERVICE`-blocked, paginated, decision B3) + **`coverage_gap(process)` SELECT** — returns explicit gap
 rows even on a sparse Hammerbarn M1 demo graph; this is the CE-side feed for the M2 completeness-map UI.
-**M2:** full `authority(actor, action, target)` and `escalation(process)` executable patterns (E7-S4),
+**M2:** `authority(actor, action, target)` and `escalation(process)` executable patterns (E7-S4) at the
+base-links descope (ADR-013) — deny-default + coverage_gap, `decision` never "permit"; query skeletons
 ported from obpm `mi-agent-model.ttl`, requiring a populated graph. Both query surfaces degrade gracefully
 when the AI is offline. Server-side saved/shared queries (E7-S3) are carried to Phase 4.
 
@@ -987,8 +992,9 @@ when the AI is offline. Server-side saved/shared queries (E7-S3) are carried to 
     SHALL return the answer from the modelled `governedBy` / `performedBy` / `accesses` relationships and
     policy/constraint individuals — no answer invented where the graph is silent.
   - AC (default, tunable): where the graph does not state a permission, the answer defaults to **deny /
-    route-to-human** (tunable per workspace); an explicit deny in the model overrides any inferred
-    authority.
+    route-to-human** (tunable per tenant/domain via the PLAT-SETTINGS-1 cascade); with no Authority
+    Extension populated (M2 — ADR-013) the answer is never "permit"; explicit-deny override arrives
+    with the post-v1 extension.
   - AC (failure): if the graph is missing the links a query needs (e.g. a process with no `performedBy`),
     the query returns an explicit "coverage gap" row for that entity rather than an empty result that
     could be read as "permitted".
@@ -996,7 +1002,8 @@ when the AI is offline. Server-side saved/shared queries (E7-S3) are carried to 
     Events & Actions Engine remains responsible for what an agent actually does at run time.
 - **TASK-004 / E7-S3 — Save and share queries (server-side, team-shared)** (Should per PRD story;
   roadmap carry table labels it Could — PRD story value governs; **carried to Phase 4**, FR-035).
-  - AC: saved queries are **server-side and workspace-scoped**, visible to all workspace members; a saved
+  - AC: saved queries are **server-side and domain-scoped** (PLAT-SETTINGS-1 cascade — workspace
+    level removed 2026-07-08), visible to all domain members; a saved
     query can be promoted to a saved view.
   - AC (failure): a saved query referencing a now-deleted prefix or version still loads; execution
     surfaces the resolution error rather than silently returning empty.
@@ -1006,7 +1013,7 @@ UPDATE/`SERVICE` rejected before execution (typed or NL-generated); results pagi
 path shows generated SPARQL (collapsed) + clarifying question on failure; AI unavailable → 503 + raw
 editor stays live. Editor pre-loads standard prefixes; renders SELECT bindings as table. **M1:**
 `coverage_gap(process)` SELECT returns explicit gap rows even on sparse graph (never empty "permitted").
-**M2 (E7-S4):** full `authority`/`escalation` patterns; deny/route-to-human default tunable.
+**M2 (E7-S4):** base-links `authority`/`escalation` patterns (ADR-013 descope; permit unreachable); deny/route-to-human default tunable.
 
 **Technical notes:** The SELECT-only / `SERVICE`-blocked / paginated sanitizer is the **same** guardrail
 as CE-READ-1 (B3, grounded in prototype sanitizer `store.py:581-603`) — share one implementation, do not
@@ -1064,7 +1071,9 @@ named-graph versioning, inferred-triple labelling, PROV-O.
 
 **Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006,
 PLAT-AUDIT-1, PLAT-IDENTITY-1 · **blocks:** EPIC-001, EPIC-008 · **provides:** CE-DIFF-1,
-CE-VERSION-1, CE-EVENT-1 · **consumes:** PLAT-AUDIT-1, PLAT-IDENTITY-1
+CE-VERSION-1 · **provides (M2, beta):** CE-EVENT-1 (transactional change-feed transport lands M2
+per ADR-008 — M1 does NOT provide CE-EVENT-1; m2/tasks/TASK-008) · **consumes:** PLAT-AUDIT-1,
+PLAT-IDENTITY-1
 
 Makes every change auditable and the model versionable: every committed batch produces an append-only
 PROV-O activity (recording human-vs-AI authorship) and emits the same event to PLAT-AUDIT-1, and the
@@ -1218,9 +1227,11 @@ mutation entry point (CE-WRITE-1) with PROV-O attribution and reuses the propose
 find-existing-node reconciliation flow — none introduces a second mutation path. This is user-supplied,
 **materialised-copy** import, distinct from the platform's live managed connectors (PLAT-CONNECTOR-1).
 
-**User stories**
+**User stories** *(task IDs resynced 2026-07-08 after the v1 spine insert: v1 TASK-001 = shared
+ingest spine, v1 TASK-003 = document corpus store E12-S6/S7, v1 TASK-008 = import page + epic close —
+story→task refs below name the v1 task files)*
 
-- **TASK-001 / E12-S1 — Agent-driven conversational document ingest [USER PRIORITY]** (Must-within-epic,
+- **v1 TASK-002 / E12-S1 — Agent-driven conversational document ingest [USER PRIORITY]** (Must-within-epic,
   FR-038). Upload an existing enterprise document (BPM, policy, runbook, process doc) and have an agent
   propose, through the chat panel, additions linked to what the graph already holds.
   - AC (EARS): WHEN the agent processes an uploaded document, THE SYSTEM SHALL extract candidate entities +
@@ -1233,12 +1244,12 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
     PROV-O activity attributing the LLM as the extracting agent, the human as the approver, plus the
     source document as `prov:used`.
   - AC (default, tunable): a proposal whose confidence is below a threshold (default 0.6, tunable per
-    workspace) is flagged "low confidence" for explicit review rather than pre-selected for accept.
+    tenant/domain) is flagged "low confidence" for explicit review rather than pre-selected for accept.
   - AC (failure — AI unavailable): the upload surface returns 503 with a clear message; no partial
     extraction is committed; the user can still author via forms/chat once the provider returns.
   - AC (failure — invalid): a proposal that would produce a `sh:Violation` is blocked at commit (422) with
     the violation shown against the proposal; the graph is unchanged.
-- **TASK-002 / E12-S2 — Structured model import (ArchiMate Exchange Format + BPMN)** (Should, FR-039).
+- **v1 TASK-004 / E12-S2 — Structured model import (ArchiMate Exchange Format + BPMN)** (Should, FR-039).
   - AC (EARS): WHEN a well-formed ArchiMate Exchange Format or BPMN (BBO) file is imported, THE SYSTEM
     SHALL convert it to RDF and materialise it through CE-WRITE-1 with a per-notation SHACL
     well-formedness shape checked before commit, mapping ArchiMate/BPMN element types to BPMO
@@ -1248,14 +1259,14 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
   - AC (failure): a file failing the per-notation well-formedness SHACL shape is rejected with a per-element
     reason; nothing committed; a partially-valid file commits only the valid elements and reports the
     skipped ones.
-- **TASK-003 / E12-S3 — AI diagram / image-to-data** (Should, FR-040).
+- **v1 TASK-005 / E12-S3 — AI diagram / image-to-data** (Should, FR-040).
   - AC (EARS): WHEN the vision model processes an uploaded image, THE SYSTEM SHALL propose
     BPMO entities + relationships through the same per-proposal review + CE-WRITE-1 commit flow as E12-S1.
   - AC (default, tunable): extraction confidence below a threshold (default 0.6, tunable) flags the
     proposal for explicit review.
   - AC (failure): if the vision model cannot parse the image (unreadable / unsupported), the surface
     returns a clear error and proposes nothing; no partial commit.
-- **TASK-004 / E12-S4 — Structured-data import (R2RML + RML)** (Should, FR-041).
+- **v1 TASK-006 / E12-S4 — Structured-data import (R2RML + RML)** (Should, FR-041).
   - AC (EARS): WHEN the import runs over a source dataset and a mapping, THE SYSTEM SHALL materialise
     RDF committed through CE-WRITE-1 (materialised copy, not a live virtual graph),
     SHACL-validated per row, with PROV-O attribution naming the source.
@@ -1266,7 +1277,7 @@ find-existing-node reconciliation flow — none introduces a second mutation pat
     untouched.
   - Note: materialised-copy import, explicitly NOT query-time SPARQL→SQL federation (OQ-17) and distinct
     from the platform's live connectors (Non-Goal #4).
-- **TASK-005 / E12-S5 — SKOS cross-notation reconciliation** (Should, FR-042).
+- **v1 TASK-007 / E12-S5 — SKOS cross-notation reconciliation** (Should, FR-042).
   - AC (EARS): WHEN reconciliation runs over entities ingested from multiple notations that denote the
     same concept, THE SYSTEM SHALL collapse them to **one canonical resource** via the same
     find-existing-node reconciliation flow (same-label + same-kind reuse), so the concept is one punned
@@ -1300,7 +1311,7 @@ Concept (tunable)** and are listed for review, never silently dropped. **Event-l
 observed-behaviour data (OCEL 2.0, OQ-14) as modellable data only — this epic builds **no** process-mining
 / discovery / conformance engine and no PQL (Non-Goal #10). **Cross-notation reconciliation (E12-S5)**
 collapses duplicates to **one punned `owl:Class` + `skos:Concept`** (B1 — no separate cross-notation
-linking property). Confidence/similarity defaults (0.6 / 0.85) tunable per workspace via PLAT-SETTINGS-1,
+linking property). Confidence/similarity defaults (0.6 / 0.85) tunable per tenant/domain via PLAT-SETTINGS-1,
 pending confirmation against real client documents (OQ-18). Standards: CE-WRITE-1 (clone-then-validate),
 PROV-O (`prov:used`), SHACL (per-notation well-formedness + per-row), ArchiMate 3 / BPMN, W3C R2RML + RML,
 SKOS, OCEL 2.0.
@@ -1491,8 +1502,9 @@ confirmed for tenant-scoped shapes (FR-025).
 - [ ] WHEN a caller issues a built-in agent-authority SELECT over CE-READ-1 THE SYSTEM SHALL answer "what
   may an agent do, on which systems/data/process, who to escalate to" from the modelled
   `governedBy`/`performedBy`/`accesses` links — an **unstated** permission resolves to **deny /
-  route-to-human** (default, tunable), an **explicit deny** overrides inferred authority, and a **missing
-  required link** (e.g. a process with no `performedBy`) returns an explicit **coverage-gap row**, never an
+  route-to-human** (default, tunable), `decision: "permit"` is **unreachable** (base-links descope,
+  ADR-013 — explicit-deny override is post-v1), and a **missing required link** (e.g. a process with no
+  `performedBy`) returns explicit **coverage-gap rows** `{entity_iri, missing_link}`, never an
   empty result read as "permitted" — verified by an agent-grounding test, no new contract minted (FR-036,
   E7-S4). The shipped **framework competency-question set** SHALL return for the seeded graph and a client
   with < 2 declared domain competency questions SHALL be flagged at onboarding (FR-037).
@@ -1599,7 +1611,7 @@ tractable at 500k triples). It is not on the MVP thin loop.
 inference materialisation Should; 2; Must/Should; not MVP); EPIC-001 (carry) E1-S4 — reasoning surfaces
 inferences (Should; OQ-01; 1); EPIC-002 (carry) E2-S3 — bulk-populate via CSV/table with datatype
 inference (FR-030; Should; 1); EPIC-005 (carry) E5-S2 — scheduled self-audit gap queries + PLAT-NOTIFY-1
-on failure (FR-026; Should; 1); EPIC-007 (carry) E7-S3 — server-side, workspace-scoped saved queries
+on failure (FR-026; Should; 1); EPIC-007 (carry) E7-S3 — server-side, domain-scoped saved queries
 (FR-035; Could; 1); EPIC-011 (carry) E11-S4 — server-side conversation persistence (OQ-08; Should; 1).
 
 > EPIC-007's E7-S4 (agent-grounding, FR-036) is **not** carried here — it ships in Phase 2 as read-side
@@ -1654,10 +1666,10 @@ all_exit_criteria_met` · `approver: eng-lead` · `blocks: ga`.
 | Gate 3 | Phase 3 (cold-start ingest) | All Phase-3 EARS exit criteria met (conversational/structured/image/structured-data ingest + cross-notation reconciliation, all via CE-WRITE-1 with PROV-O, no second mutation path) + per-proposal HITL + human sign-off | Eng lead + Ontology lead |
 | Gate 4 | Phase 4 (reasoning + deferred) | All Phase-4 EARS exit criteria met (OQ-01-resolved reasoning, per-version inference, bulk-populate) + human sign-off | Eng lead + Ontology lead |
 
-> Gate configuration is per project/workspace. Only **spec-approval** is globally mandatory across all
+> Gate configuration is per project/domain (PLAT-SETTINGS-1 cascade). Only **spec-approval** is globally mandatory across all
 > four phases; phase-boundary, pre-AWS-deploy, and publish/generate gates are activated per the tables
 > above for this engine. All numeric thresholds (coverage ≥ 80%, mutation ≥ 60%, page sizes, reasoner
-> budget, sampling N, conformance ≥ 90%) are **default X, tunable** per workspace via PLAT-SETTINGS-1.
+> budget, sampling N, conformance ≥ 90%) are **default X, tunable** per tenant/domain via the PLAT-SETTINGS-1 cascade.
 
 ---
 

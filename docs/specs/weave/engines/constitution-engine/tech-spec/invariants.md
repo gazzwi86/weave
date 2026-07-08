@@ -54,8 +54,11 @@ Engineer MUST honour; QA MUST verify. One line each; `verify-by:` = where to loo
 - Shapes-graph commits bump the per-tenant version hash; validation cache keys on
   `(tenant, shapes_version_hash)` — verify-by: grep cache key construction; two-process
   invalidation test green.
-- Unstated agent authority resolves to deny / route-to-human; verdict rows always carry `source`
-  — verify-by: TASK-010 deny-default test; grep verdict row model for the `source` field.
+- Unstated agent authority resolves to deny / route-to-human; authority responses use the
+  CE-READ-1 `{ rows, decision: "permit"|"deny"|"coverage-gap" }` convention and `"permit"` is
+  unreachable in M2 (ADR-013); gap rows are `{entity_iri, missing_link}`; rows carry `source`
+  detail — verify-by: TASK-010 deny-default + permit-unreachable tests; grep the response model
+  for `decision` and rows for `source`.
 - Authority/escalation patterns route through the shared B3 sanitizer (no second sanitizer) —
   verify-by: grep pattern-execution path for the sanitizer import.
 - Brand-token payload = closed core (`color`/`typography`/`spacing`/`radius`) + `extensions`

@@ -37,8 +37,13 @@ result pinned on the canvas while I pan, zoom, and filter
 
 Covers: FR-017 and the config/drift-guard obligations of
 [ADR-005](../../decisions/ADR-005-impact-traversal-predicate-closure.md).
-The traversal query itself is M1 TASK-005 work (now unblocked by ADR-005); this task ships the
-**config value + guard** and the **M2 pinning overlay** on top of it.
+**Scope correction (2026-07-08 red-team):** M1 TASK-005 closed **without** its OQ-09-gated
+AC-6/AC-7 — no traversal client exists in the shipped M1 code. This task therefore OWNS the
+traversal client too: the property-path SELECT walk (M1 TASK-005 AC-6/AC-7, incl. their named
+tests `test_impact_traversal_loads_predicate_closure_from_config`,
+`test_impact_traversal_depth_cap_applied`, `test_traversal_highlights_on_canvas_nodes`,
+`test_traversal_badges_beyond_cap`), the **config value + guard**, and the **M2 pinning
+overlay** on top.
 
 ## Acceptance Criteria
 
@@ -61,7 +66,10 @@ The traversal query itself is M1 TASK-005 work (now unblocked by ADR-005); this 
 config.oq09_predicate_closure = [ { predicate, orientation } × 13 ]   # copy ADR-005 table
 
 # Drift guard (AC-2) — runs in canvas boot sequence after palette fetch
-async function validateClosure(types = await GET /api/proxy/node-kinds + relationship types):
+async function validateClosure(types = await GET /api/ontology/types via proxy):  # CE-READ-1
+  # (NOT the node-kinds palette projection — relationship types live on /api/ontology/types;
+  #  contracts.md CE-READ-1 serves every closure predicate incl. hasField, so a conformant CE
+  #  never trips this guard on the shipped 13-entry closure)
   known = Set(types.relationships.map(r => r.iri))
   bad = closure.filter(e => !known.has(e.predicate))
   if bad.nonEmpty():
@@ -91,8 +99,11 @@ impactPath(closure)     = alternation(e => e.orientation == "forward" ? inverse(
 ### API Contracts
 
 No new endpoints. Traversal SELECT goes through the existing M1 sparql proxy (CE-READ-1,
-property-path SELECT, depth cap per FR-010). Types resolution reuses the M1 boot palette fetch
-(`/api/proxy/node-kinds` + types) — one fetch, guard reads its result.
+property-path SELECT, depth cap per FR-010). Types resolution uses CE-READ-1
+`GET /api/ontology/types` via the proxy (the authoritative kinds + relationship list — the
+`/api/proxy/node-kinds` palette route is a GE-owned projection of it and omits relationship
+types); one boot fetch, the guard reads its result. The contracts.md CE-READ-1 relationship
+list includes `hasField`, so the shipped closure resolves clean against a conformant CE.
 
 ### Diagram References
 
@@ -144,9 +155,9 @@ property-path SELECT, depth cap per FR-010). Types resolution reuses the M1 boot
 ## Dependencies
 
 - **blocked_by:** [TASK-002 (overlay engine + channels)]
-- **unlocks:** TASK-011; also unblocks M1 TASK-005 AC-6/AC-7 execution (closure now real)
-- **External:** M1 traversal client (TASK-005 m1) merged or co-developed — the walk composer
-  is shared code; fixture graph with known dependency chains (Policy→Process→DataAsset→Field).
+- **unlocks:** TASK-011; delivers the orphaned M1 TASK-005 AC-6/AC-7 (traversal client —
+  see scope correction above; M1 TASK-005 is `done` in progress.json without them)
+- **External:** fixture graph with known dependency chains (Policy→Process→DataAsset→Field).
 
 ## Cost Estimate
 

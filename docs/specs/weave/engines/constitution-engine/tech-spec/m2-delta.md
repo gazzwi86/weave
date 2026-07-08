@@ -136,20 +136,28 @@ Aurora table `graph_change_events` (tenant RLS, same pattern as `ontology_versio
   draft_published_delta, shacl_errors_by_severity, owl_inconsistencies`). Implementation: SPARQL
   aggregate SELECTs + Aurora version rows, cached 60 s per tenant (stale metrics are harmless;
   the dashboard is not a consistency surface). `owl_inconsistencies` reports the publish-time
-  reasoner result already stored with the version — no live reasoning (OWL reasoning post-v1).
+  reasoner result stored with the version — no live reasoning. **Until the post-v1 reasoner
+  ships (EPIC-008) no producer for this metric exists**: serve an explicit
+  `{ "pending": true }`-style not-computed marker (same honesty rule contracts.md pins for
+  `shacl_errors_by_severity`) — never zeros, which would read as "no inconsistencies".
 - `GET /api/validate` (FR-027) → full tenant-scoped SHACL report (violations/warnings/info) for a
   named version or draft; bad version ⟹ 404; no JWT ⟹ 401.
 
-## 8. Agent-grounding authority patterns (E7-S4, FR-036-full)
+## 8. Agent-grounding authority patterns (E7-S4 — M2 base-links descope, ADR-013)
 
 - Two shipped, parameterised, named SELECT patterns over CE-READ-1 (no new contract):
-  `authority(actor, action, target)` and `escalation(process)`, ported from obpm
-  `mi-agent-model.ttl`, answering from `governedBy` / `performedBy` / `accesses` links and
-  policy/constraint individuals.
-- Safety semantics (load-bearing): unstated permission ⟹ **deny / route-to-human** (default,
-  tunable per workspace via PLAT-SETTINGS-1); explicit deny overrides inferred authority; missing
-  required link ⟹ explicit **coverage-gap row**, never an empty result readable as "permitted".
-  Same fail-closed family as M1's `coverage_gap(process)` — extend that implementation, do not
+  `authority(actor, action, target)` and `escalation(process)` (query skeletons ported from obpm
+  `mi-agent-model.ttl`), answering from the **base links only** — `governedBy` / `performedBy` /
+  `accesses` — and Policy individuals. **No ODRL/Authority-Extension resolution in M2**
+  ([ADR-013](../decisions/ADR-013.md)): permission chains, explicit-deny override,
+  `authorityLevel`, and escalation deadlines are post-v1.
+- Safety semantics (load-bearing): responses use the CE-READ-1 convention
+  `{ rows, decision: "permit"|"deny"|"coverage-gap" }`; unstated permission ⟹ **deny /
+  route-to-human** (default, tunable per tenant/domain via the PLAT-SETTINGS-1 cascade); missing
+  required link ⟹ explicit coverage-gap rows `{ entity_iri, missing_link }`, never an empty
+  result readable as "permitted". **In M2 `decision` is never `"permit"`** — the base BPMO
+  cannot express a permission. Same fail-closed family as M1's `coverage_gap` (default
+  invocation `(Process, [performedBy, governedBy])`) — extend that implementation, do not
   fork it.
 - Patterns run through the existing SELECT-only/`SERVICE`-blocked/paginated sanitizer (B3) —
   one guardrail, shared.
@@ -220,7 +228,8 @@ flowchart LR
   `version_iri`.
 - Tenant shapes are loaded only from `urn:weave:g:tenant:{id}:shapes` + framework graph —
   verify-by: grep the validation loader for the shapes-graph IRI template.
-- Unstated authority resolves to deny/route-to-human — verify-by: authority-pattern test asserting
-  the deny default on an unmodelled permission.
+- Unstated authority resolves to deny/route-to-human; authority responses use the CE-READ-1
+  `{ rows, decision }` convention and `decision: "permit"` is unreachable in M2 (ADR-013) —
+  verify-by: deny-default test on an unmodelled permission + permit-unreachable branch test.
 - `graph_change_events` has no UPDATE/DELETE grant — verify-by: grep the migration for the grant/
   trigger statements.

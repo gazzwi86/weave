@@ -40,15 +40,23 @@ and all — ADR-001-render-engine invariants apply unchanged inside the embedded
 ```ts
 export type GraphCanvasProps = {
   /** CE graph/view identifier. Also the layout scope: layout rows persist under
-   *  (tenant, workspace, graph_id = source) in explorer_layout_positions.
+   *  (tenant, graph_id = source) in explorer_layout_positions (spec key post workspace-drop;
+   *  the M1 table's residual workspace_id column is the tracked refactor —
+   *  contracts.md §PLAT-SETTINGS-1 M1 transition).
    *  PENDING AMENDMENT (Build v1.0, FR-032): when Build embeds force mode, layout scope
    *  becomes (source, filterByIri) so a project-scoped embed does not share layout rows
    *  with the main Explorer canvas. No M2 behaviour change (Explorer is the sole consumer);
    *  do not hard-code "layout is keyed on graph_id alone" as immutable. */
   source: string;
 
-  /** Optional scoping IRI (Build passes the project IRI). The canvas renders only the
-   *  slice reachable per the scoping query; no match ⇒ empty-state, never an error. */
+  /** Optional scoping IRI (Build passes the project IRI). Slice semantics are PINNED in
+   *  contracts.md §GE-CANVAS-1: the slice = the node named by filterByIri plus the nodes
+   *  reachable within the configured hop depth. An edge with BOTH endpoints in-slice renders
+   *  normally; a boundary edge (one endpoint outside) renders as a STUB MARKER on the
+   *  in-slice node — a "connects outward" affordance; the out-of-slice node is NOT pulled
+   *  in. Slice membership is a pure function of (filterByIri, hop-depth config, graph
+   *  state): two conformant builds return the SAME slice for the same input. No match ⇒
+   *  empty-state, never an error. */
   filterByIri?: string;
 
   /** M2 accepts ONLY "force". Passing "c4" (or any other value) throws a descriptive
@@ -80,6 +88,8 @@ only when Build asks, via contract amendment.
 | 5 | `readonly:false` edits commit ONLY through CE-WRITE-1 with ADR-006 principal-IRI attribution; SHACL `422` and timeout-rollback behaviour identical to the full Explorer (FR-019–022) | `should write back through CE-WRITE-1 when edited` |
 | 6 | Mounted under tenant-A context ⇒ zero tenant-B entities regardless of `filterByIri` (isolation inherited from CE rewriter + proxy; the component adds no bypass) | `should return zero tenant-B entities under tenant-A JWT` |
 | 7 | Layout drags in an embedded canvas persist server-side under `graph_id = source` — same layout service, same RLS (no Build-local layout store) | `should persist embedded layout under source graph id` |
+| 8 | `filterByIri` slice matches the contracts.md pin: in-slice edges render normally; boundary edges render as stub markers on the in-slice node, the out-of-slice node is not pulled in; the slice is deterministic for a fixed (input, config, graph) | `should render boundary edges as stub markers without pulling in out-of-slice nodes` |
+| 9 | `readonly: true` disables EVERY edit affordance (quick-add, edgehandles, side-panel edit, delete) even on the draft graph with no `version` set | `should disable all edit affordances when readonly is true` |
 
 The suite is the **GE-CANVAS-1 contract conformance suite** (Playwright + CE/Platform stubs,
 Law F — no real cloud). Its report is an M2 exit-gate measurable artefact

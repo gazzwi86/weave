@@ -137,14 +137,19 @@ not a new table.
 ## 4. Aurora delta (extends data-model.md — same RLS + repo-layer pattern)
 
 One new table (ADR-007) and two column adds. No other schema change; ceremony/QA/audit/brand/
-breaking-ack results all reuse `gate_results` (open `gate` enum — new kinds: `brand`,
-`qa_full`, `coverage_audit`, `ceremony_security`, `ceremony_summary`, `preflight`,
-`env_verification`, `sdk_breaking_ack`).
+breaking-ack results all reuse `gate_results` (open `gate` enum — new M2 kinds: `brand`,
+`qa_full` plus one `qa_{category}` row per FR-054 category (`qa_ac_test_mapping`, `qa_coverage`,
+`qa_complexity`, `qa_lint`, `qa_a11y`, `qa_perf`, `qa_browser_backend`, `qa_delta_mutation`,
+`qa_edge_case_extension`), `coverage_audit`, `ceremony_security`, `ceremony_mutation`,
+`ceremony_summary`, `preflight`, `env_verification`, `sdk_breaking_ack`; the M1 `pre_scaffold`
+kind gains the `BLOCKED` result value).
+
+*Workspace drop (2026-07-08, PLAT-SETTINGS-1):* no `workspace_id` column — the catalogue
+re-homes to company (tenant) scope; override axis is company → project only (ADR-007 amendment).
 
 ```sql
 CREATE TABLE standards_documents (
     tenant_id     UUID        NOT NULL,
-    workspace_id  UUID        NOT NULL,
     standard_id   UUID        NOT NULL DEFAULT gen_random_uuid(),
     scope         TEXT        NOT NULL CHECK (scope IN ('company','project')),
     project_id    UUID,       -- NULL unless scope='project'
@@ -159,11 +164,11 @@ CREATE TABLE standards_documents (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, standard_id),
-    UNIQUE (tenant_id, workspace_id, scope, project_id, standard_key)
+    UNIQUE (tenant_id, scope, project_id, standard_key)
 );
 
 CREATE INDEX idx_standards_effective
-    ON standards_documents (tenant_id, workspace_id, status, scope, project_id);
+    ON standards_documents (tenant_id, status, scope, project_id);
 
 -- projects: SDK regeneration bookkeeping (ADR-006 breaking-span diff)
 ALTER TABLE projects ADD COLUMN last_sdk_version_iri TEXT;      -- CE version of last emitted SDK
@@ -183,10 +188,13 @@ Pydantic IR → Jinja2 emitters (`typescript/`, `python/`, `openapi/`) → valid
 - Core mapping: node shape → class; property constraint → typed field (datatype + cardinality;
   `sh:or` → union type; unmappable constraint ⇒ named generation error, never silent `Any`);
   named SPARQL SELECT → typed query method; function JSON Schema → typed method raising
-  `NotExecutableUntilV1(fn_iri)` (CE ADR-009: execution is v1.0).
+  `NotExecutableUntilPostV1(fn_iri)` (CE ADR-009: execution is post-v1).
 - Version `{ce_version_tag}+build.{n}`; BE-ARTEFACT-1 provenance header on every file.
-- `breaking:true` in the CE-DIFF-1 span since `projects.last_sdk_version_iri` ⇒ halt to HITL;
-  ack row in `gate_results` (`sdk_breaking_ack`) with approver principal + acked version IRIs.
+- Breaking-span check: `any(versions[].breaking)` over the CE-DIFF-1 span
+  `projects.last_sdk_version_iri → requested pin` ⇒ halt to HITL; ack row in `gate_results`
+  (`sdk_breaking_ack`) with approver principal + acked version IRIs. CE computes `breaking` at
+  publish time covering BOTH function-signature AND shape/kind surface changes — Build reads the
+  flag and MUST NOT re-derive breakingness from SHACL diffs or the function list (ADR-006 §5).
 
 ## 6. Retrieval + investigator (ADR-005 — summary)
 

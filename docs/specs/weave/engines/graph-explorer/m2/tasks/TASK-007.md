@@ -2,7 +2,8 @@
 type: Task Brief
 title: "Task: TASK-007 — Saved Views UI + Share + Comments + Live-Refresh Poll"
 description: "Views panel (save/load/library/featured pins), share flow via the persistence
-  service, comments panel on nodes and views, and the CE-READ-1 since-version poll fallback."
+  service, comments panel on nodes and views, and the live-refresh poll of the CE-EVENT-1 beta
+  seq feed (GET /api/events?since_seq={n})."
 tags: [graph-explorer, arch, task, m2]
 status: Backlog
 priority: Must Have
@@ -44,10 +45,10 @@ All server behaviour is TASK-006's; this task is panels + canvas wiring + poll l
 | AC-1 | WHEN a user saves a view, THE SYSTEM SHALL capture FilterState (TASK-001), active overlays (TASK-002/003), domain focus, viewport, and current node positions, require a name, and POST to `/api/views`; ON `409` collision THE SYSTEM SHALL prompt overwrite / rename. | `test_save_captures_full_state_and_handles_collision` |
 | AC-2 | WHEN a saved view is opened (own, library, or via share link), THE SYSTEM SHALL reproduce the canvas exactly: filters, overlays, domain focus, viewport, and the snapshot layout (`view:{id}` positions applied before fcose). | `test_open_view_reproduces_state_and_layout` |
 | AC-3 | IF a saved view references entities that no longer exist in the draft graph, THEN THE SYSTEM SHALL load the view, flag the missing entities in a notice ("N entities in this view no longer exist"), and render the rest. | `test_missing_entities_flagged_on_load` |
-| AC-4 | WHEN the library panel opens, THE SYSTEM SHALL list workspace views with featured (pinned) views shown first; delete SHALL be offered only where the API allows (creator's own; admin any) and confirmed before call. | `test_library_featured_first_delete_affordance_matrix` |
-| AC-5 | WHEN a user shares a view, THE SYSTEM SHALL let them pick workspace recipients, call the share endpoint, and show "notified N (M excluded)" from the response — never the excluded identities. | `test_share_flow_shows_counts_not_identities` |
+| AC-4 | WHEN the library panel opens, THE SYSTEM SHALL list the tenant's views with featured (pinned) views shown first; delete SHALL be offered only where the API allows (creator's own; tenant admin any) and confirmed before call. | `test_library_featured_first_delete_affordance_matrix` |
+| AC-5 | WHEN a user shares a view, THE SYSTEM SHALL let them pick recipients from the tenant member list, call the share endpoint, and show "notified N (M excluded)" from the response — never the excluded identities. | `test_share_flow_shows_counts_not_identities` |
 | AC-6 | WHEN a comment is submitted on a node or view, THE SYSTEM SHALL persist via `/api/comments` and render it in the comments panel (author display name, relative time); comments on the spotlighted node SHALL be reachable from the side panel. | `test_comment_submit_and_render_on_node_and_view` |
-| AC-7 | WHILE the draft canvas is open, THE SYSTEM SHALL poll CE-READ-1 since-version (default 30 s, tunable) and, on change, refresh in place WITHOUT blocking interaction or discarding unsaved drag state; polling SHALL pause while a published version or diff is displayed. | `test_poll_refresh_nonblocking_preserves_drag`, `test_poll_paused_on_version_view` |
+| AC-7 | WHILE the draft canvas is open, THE SYSTEM SHALL poll the CE-EVENT-1 beta seq feed via `GET /api/proxy/events?since_seq={cursor}` (default 30 s, tunable) — draft commits arrive as `version_iri: null` rows — and, on new events, refresh the affected elements in place WITHOUT blocking interaction or discarding unsaved drag state; IF the cursor is aged out (`410 Gone`) THEN THE SYSTEM SHALL re-baseline via a full CE-READ-1 reload (never a silent empty page); polling SHALL pause while a published version or diff is displayed. | `test_poll_refresh_nonblocking_preserves_drag`, `test_poll_410_rebaselines_via_ce_read`, `test_poll_paused_on_version_view` |
 | AC-8 | WHERE panels render, THE SYSTEM SHALL produce zero axe-core violations and be keyboard-operable (save dialog, library, share picker, comment composer). | `test_panels_axe_clean_keyboard` |
 
 ## Implementation
@@ -74,19 +75,29 @@ function openView(view):
   applyFilterState(d.filterState); overlayEngine.activateAll(d.activeOverlayIds)
   adapter.setViewport(d.viewport)
 
-# Poll refresh (AC-7)
+# Poll refresh (AC-7) — CE-EVENT-1 beta seq feed (contracts.md: the seq feed IS the polled
+# transport; there is NO "since-version" filter on CE-READ-1)
+cursor = latest_seq from initial GET /api/proxy/events?since_seq=0&limit=1  # baseline at load
 loop every config.poll_interval_ms while canvasCtx.mode == "draft":
-  head = GET /api/proxy/sparql (since-version check — CE-READ-1 latest draft state)
-  if head.version != loadedVersion:
+  resp = GET /api/proxy/events?since_seq={cursor}
+  if resp.status == 410:                       # cursor aged out (30-day retention)
+    reloadGraph(draft); cursor = resp.latest_seq ?? re-baseline call   # CE-READ-1 re-baseline
+    continue
+  cursor = resp.latest_seq
+  changed = resp.events.map(e => e.entity_iri)          # draft rows have version_iri: null
+  if changed.nonEmpty():
     delta = reload changed elements (paginated loader)
     adapter.mergeInPlace(delta, preserve = unsavedDragPositions)    # never a full blank reload
+    ctx.draftHead = latest draft-commit marker           # narrows TASK-005's drift window
 ```
 
 ### API Contracts
 
 Consumes TASK-006 endpoints (shapes + errors there) and the M1 layout endpoint with the
-`view:{id}` scope. Poll uses the existing CE-READ-1 proxy — no new routes. On poll CE error:
-keep current canvas, retry next tick (never an error takeover — FR-025 "without blocking").
+`view:{id}` scope. Poll uses `GET /api/proxy/events` → CE-EVENT-1 seq feed (m2-delta.md §3;
+event shape + `410` semantics are contracts.md §CE-EVENT-1 — cited, not restated). On poll CE
+error (non-410): keep current canvas, retry next tick (never an error takeover — FR-025
+"without blocking").
 
 ### Diagram References
 
@@ -100,7 +111,7 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
 | Decision | Reference | Impact |
 |----------|-----------|--------|
 | Saved view = definition JSONB + layout snapshot rows | m2-delta.md §2 | FilterState must serialise verbatim (TASK-001 DoD guarantees it) |
-| Live refresh = poll fallback only in M2; CE-EVENT-1 post-v1 | contracts.md CE-EVENT-1; invariants.md | No `/api/events` consumer anywhere — invariant grep |
+| Live refresh = poll of the CE-EVENT-1 beta seq feed; push fan-out post-v1 | contracts.md CE-EVENT-1; invariants.md | The seq feed IS the polled transport — no bespoke "since-version" read invented; no push/WebSocket consumer in M2 (invariant grep) |
 | Share reveals counts, never excluded identities | FR-023/E6-S1 | UI renders response numbers only |
 | Poll pauses on version/diff view | FR-025 + TASK-003 mode flag | One subscription to canvas-mode; no second flag |
 
@@ -111,6 +122,7 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
 - `should serialise full canvas state into save body`
 - `should compute missing-entity set on view open`
 - `should merge poll delta preserving unsaved drag positions`
+- `should re-baseline via full reload when the events cursor returns 410`
 - `should pause poll when canvas mode is version or diff`
 
 ### Integration (minimum 3)
@@ -121,7 +133,7 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
 
 ### E2E (minimum 2, Playwright — Law B)
 
-- `should save a view as user A and reproduce identical canvas as user B in the same workspace`
+- `should save a view as user A and reproduce identical canvas as user B in the same tenant`
 - `should comment on a spotlighted node and see it appear for another session`
 
 ### AC-to-Test Mapping
@@ -134,7 +146,7 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
 | AC-4 | Integration | library matrix test |
 | AC-5 | Unit | counts-not-identities test |
 | AC-6 | Integration + E2E | comment tests |
-| AC-7 | Unit | poll merge + pause tests |
+| AC-7 | Unit | poll merge + 410 re-baseline + pause tests |
 | AC-8 | CI axe + E2E | keyboard panels |
 
 ## Dependencies
@@ -142,7 +154,8 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
 - **blocked_by:** [TASK-001 (FilterState + panel shell), TASK-006 (all endpoints)]
 - **unlocks:** TASK-011
 - **External:** TASK-002/003 overlay ids must be stable strings (they are — engine
-  registration ids); CE-READ-1 stub with version-advance fixture for poll tests.
+  registration ids); CE-EVENT-1 seq-feed stub with advancing `seq`, `version_iri: null` draft
+  rows, and a `410` fixture for the re-baseline test.
 
 ## Cost Estimate
 
@@ -181,12 +194,12 @@ keep current canvas, retry next tick (never an error takeover — FR-025 "withou
   positions and only layout genuinely new nodes (`ponytail:` full incremental layout only if
   new-node clustering looks bad).
 - Author display name: the comments API returns principal IRIs; resolve display names from the
-  workspace member list already available to the SPA shell — never render a raw principal IRI
+  tenant member list already available to the SPA shell — never render a raw principal IRI
   (M1 IRI-hiding rule extends here).
 - Relative timestamps: use the platform-standard util (SPA shell has one); no new date lib
   (Law A / ladder rung 2).
-- Share picker lists workspace members (PLAT-SETTINGS-1-backed member list from the shell);
-  eligibility is SERVER-decided — the picker does not pre-filter beyond workspace membership.
+- Share picker lists tenant members (PLAT-SETTINGS-1-backed member list from the shell);
+  eligibility is SERVER-decided — the picker does not pre-filter beyond tenant membership.
 
 ---
 

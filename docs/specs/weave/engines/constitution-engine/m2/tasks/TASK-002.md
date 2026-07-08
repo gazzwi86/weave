@@ -23,7 +23,7 @@ owner: gazzwi86
 coverage: "n/a"
 ---
 
-Engine spec: [constitution-engine.md](../../../constitution-engine.md) (EPIC-003 E3-S3, FR-024)
+Engine spec: [constitution-engine.md](../../../constitution-engine.md) (EPIC-003 E3-S3, FR-023)
 Contracts: [contracts.md](../../../../contracts.md) · M2 delta: [m2-delta.md](../../tech-spec/m2-delta.md)
 
 ## Story
@@ -43,7 +43,7 @@ Backend model/shape is TASK-001. This is a UI-bearing task: design tokens + `ui_
 |---|---|
 | AC-002-01 | WHEN a user searches the glossary THE SYSTEM SHALL match case-insensitively across `skos:prefLabel`, `skos:altLabel`, and `skos:definition`, returning label, definition snippet, and the term's OWL role. |
 | AC-002-02 | WHEN a search has no match THE SYSTEM SHALL show an empty-state with a "create term" affordance that feeds the SAME CE-WRITE-1 pipeline as E3-S1 — no separate creation path. |
-| AC-002-03 | WHEN a user browses terms THE SYSTEM SHALL list them paginated (50/page, cursor), ordered by prefLabel, each showing broader/narrower links as navigable chips. |
+| AC-002-03 | WHEN a user browses terms THE SYSTEM SHALL list them paginated (50/page via the CE-READ-1 `page=` parameter — the contract's pagination, not a bespoke cursor), ordered by prefLabel, each showing broader/narrower links as navigable chips. |
 | AC-002-04 | WHEN a user creates a term via form or chat THE SYSTEM SHALL surface a 422 SHACL violation (e.g. duplicate prefLabel language) as a plain-language, field-anchored message. |
 | AC-002-05 | WHEN the AI/chat surface is unavailable THE SYSTEM SHALL keep the form path fully functional (503 only on the chat surface). |
 | AC-002-06 | WHEN the glossary page renders THE SYSTEM SHALL meet Lighthouse performance ≥ 90 and accessibility ≥ 95 (m2-delta.md §9) and use only `docs/standards/design/` tokens. |
@@ -55,7 +55,7 @@ GlossaryPage:
     search(q) -> SPARQL SELECT (via existing CE-READ-1 proxy route):
         FILTER CONTAINS(LCASE(?prefLabel|?altLabel|?definition), LCASE(q))
         -> rows {iri, prefLabel, definitionSnippet, owlRole}
-    browse(cursor) -> same SELECT sans filter, ORDER BY ?prefLabel, LIMIT 50 OFFSET cursor
+    browse(page) -> same SELECT sans filter, ORDER BY ?prefLabel, page=n (CE-READ-1 pagination)
     emptyState(q) -> CreateTermForm(prefill=q)
     CreateTermForm.submit -> TASK-001 op batch via POST /api/operations/apply
         on 422 -> map violation path -> field error (reuse M1 SHACL-message mapper)
@@ -79,7 +79,7 @@ GlossaryPage:
 | Decision | Rationale | Source |
 |---|---|---|
 | Empty-state create feeds the E3-S1 pipeline | One creation path; a search-page fork would bypass SHACL/PROV-O framing | EPIC-003 technical notes |
-| Search over three SKOS properties in one SELECT | prefLabel/altLabel/definition is the FR-024 contract; no search index at M2 scale | FR-024 · ponytail: SPARQL CONTAINS now, search index when corpus size hurts |
+| Search over three SKOS properties in one SELECT | prefLabel/altLabel/definition is the FR-023 requirement; no search index at M2 scale | FR-023 · ponytail: SPARQL CONTAINS now, search index when corpus size hurts |
 | Reuse M1 SHACL-violation → field-message mapper | Same 422 shape as every CE-WRITE-1 error; do not fork message handling | M1 TASK-005/006 pattern |
 
 ## Test Requirements
@@ -91,7 +91,7 @@ Minimum: 3 unit, 2 integration, 2 E2E.
 | Unit | should build search SELECT matching three SKOS properties case-insensitively | AC-002-01 |
 | Unit | should render empty-state with create affordance when zero rows | AC-002-02 |
 | Unit | should map a prefLabel uniqueLang violation to the language field error | AC-002-04 |
-| Integration | should paginate browse at 50 with cursor and prefLabel ordering | AC-002-03 |
+| Integration | should paginate browse at 50 via CE-READ-1 page= with prefLabel ordering | AC-002-03 |
 | Integration | should keep form path live when chat surface returns 503 | AC-002-05 |
 | E2E | should search "obligation", open term, navigate a broader chip | AC-002-01, AC-002-03 |
 | E2E | should search a missing term, create it from empty-state, find it in browse (backend state asserted) | AC-002-02 |

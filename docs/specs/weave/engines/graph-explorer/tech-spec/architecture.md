@@ -52,14 +52,14 @@ C4Context
     System(explorer, "Graph Explorer (SPA module)", "Force-directed canvas onto the company graph; reads via CE-READ-1; owns only its Aurora layout table")
 
     System_Ext(ce, "Constitution Engine", "Graph/ontology hub; owns the RDF store. M1: CE-READ-1. M2: CE-WRITE-1 / CE-DIFF-1 / CE-VERSION-1")
-    System_Ext(platform, "Weave Platform", "PLAT-SETTINGS-1 (workspace RBAC + tenant scope) and PLAT-IDENTITY-1 at M1; PLAT-NOTIFY-1 (share) at M2")
-    System_Ext(cognito, "AWS Cognito", "Human identity provider; JWT with tenant_id + workspace_id + role claims")
+    System_Ext(platform, "Weave Platform", "PLAT-SETTINGS-1 (tenant RBAC via the Company→Domain→Project cascade) and PLAT-IDENTITY-1 at M1; PLAT-NOTIFY-1 (share) at M2")
+    System_Ext(cognito, "AWS Cognito", "Human identity provider; JWT with tenant_id + role + principal_iri claims (no workspace_id claim — ADR-004)")
     ContainerDb_Ext(aurora, "Aurora PostgreSQL", "Sole GE-owned store: explorer_layout_positions (tenant-scoped, RLS)")
 
     Rel(analyst, explorer, "Explores, spotlights, searches, drills in", "HTTPS")
     Rel(steward, explorer, "Impact trace; visual editing (M2)", "HTTPS")
     Rel(explorer, ce, "Reads graph, palette, resource detail, traversal (CE-READ-1)", "HTTPS / REST")
-    Rel(explorer, platform, "Resolves workspace RBAC + tenant scope; actor IRI", "HTTPS / REST")
+    Rel(explorer, platform, "Resolves tenant RBAC + scope (PLAT-SETTINGS-1 cascade); actor IRI", "HTTPS / REST")
     Rel(explorer, cognito, "Validates JWT (via proxy)", "HTTPS")
     Rel(explorer, aurora, "Persists / restores layout positions (RLS)", "TLS")
 ```
@@ -81,13 +81,13 @@ C4Container
 
     Container_Boundary(explorer, "Graph Explorer") {
         Container(canvas, "SPA Canvas Module", "Next.js 15 / TS strict / Cytoscape.js + fcose", "Force canvas, spotlight, search, drill-in; renderer behind an adapter (sigma.js/G6 WebGL escape hatch, ADR-001)")
-        Container(proxy, "CE-Read Proxy", "Next.js API routes (Node)", "Server-side forward of CE-READ-1: /api/proxy/sparql, /api/proxy/node-kinds, /api/proxy/ontology/resource; attaches JWT, blocks SERVICE/SSRF")
+        Container(proxy, "CE-Read Proxy", "Next.js API routes (Node)", "Server-side forward of CE-READ-1: /api/proxy/sparql, /api/proxy/ontology/resource, plus /api/proxy/node-kinds (GE-owned projection of /api/ontology/types — not a CE endpoint); attaches JWT, blocks SERVICE/SSRF")
         Container(layout_api, "Layout Persistence Service", "FastAPI / Python 3.12 / SQLAlchemy async", "/api/layout/positions GET/POST/DELETE; RLS via SET LOCAL app.current_tenant_id")
     }
 
     Container_Boundary(aws, "AWS") {
         ContainerDb(aurora, "Aurora PostgreSQL", "Serverless v2 + asyncpg", "explorer_layout_positions; RLS policy tenant_id = current_setting('app.current_tenant_id')")
-        Container(cognito, "AWS Cognito", "AWS Cognito", "JWT issuance; tenant_id + workspace_id + role claims")
+        Container(cognito, "AWS Cognito", "AWS Cognito", "JWT issuance; tenant_id + role + principal_iri claims (no workspace_id claim — ADR-004)")
     }
 
     System_Ext(ce, "Constitution Engine", "Owns the ontology/business graph surface")
@@ -105,7 +105,7 @@ C4Container
     Rel(rewriter, rdf, "Tenant-scoped SPARQL (GRAPH-pinned)", "HTTP dev / HTTPS prod")
     Rel(layout_api, cognito, "JWT validation (JWKS)", "HTTPS")
     Rel(layout_api, aurora, "Parameterised UPSERT / SELECT / DELETE (RLS)", "TLS")
-    Rel(canvas, platform, "Workspace RBAC + tenant scope (PLAT-SETTINGS-1); actor IRI (PLAT-IDENTITY-1)", "HTTPS / REST")
+    Rel(canvas, platform, "Tenant RBAC + scope (PLAT-SETTINGS-1 cascade); actor IRI (PLAT-IDENTITY-1)", "HTTPS / REST")
 ```
 
 Container notes:

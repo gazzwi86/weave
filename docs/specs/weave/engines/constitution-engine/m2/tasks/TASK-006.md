@@ -2,8 +2,8 @@
 type: Task
 title: "Task: TASK-006 — Rules & Policies Screen + Full Validation Report API"
 description: "Browse all modelled rules with live violation coverage and a 'validation pending'
-  state (E5-S2 browse half), plus GET /api/validate returning the full tenant-scoped SHACL report
-  (FR-027)."
+  state (E5-S3), plus GET /api/validate returning the full tenant-scoped SHACL report
+  (FR-027 / E6-S3 — moved M1→M2, delivered under EPIC-005)."
 tags: [constitution-engine, arch, task, milestone-M2]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
@@ -36,9 +36,13 @@ to an auditor from the screen, not from tribal knowledge.
 
 ## Scope
 
-Rules & Policies screen (rule list + per-rule violation coverage + severity display incl.
-`sh:Info`) and the `GET /api/validate` full-report endpoint (FR-027). Scheduled self-audit
-(E5-S2 scheduling + PLAT-NOTIFY-1) is Phase 4 — OUT. UI-bearing: tokens + `ui_verify` apply.
+Rules & Policies screen — EPIC-005 story **E5-S3** (rule list + per-rule violation coverage +
+severity display incl. `sh:Info`) — and the `GET /api/validate` full-report endpoint (FR-027).
+**Provenance note:** `GET /api/validate` is PO story **E6-S3** (EPIC-006, originally an M1
+Must); it ships **M2**, re-parented into this EPIC-005 rules-screen delivery — the M1→M2 move
+and the EPIC-006→EPIC-005 re-parent are recorded in the engine spec (FR-027 phase column and
+the EPIC-006 E6-S3 story note). Scheduled self-audit (E5-S2 + PLAT-NOTIFY-1) is Phase 4 — OUT.
+UI-bearing: tokens + `ui_verify` apply.
 
 ## Acceptance Criteria
 
@@ -87,7 +91,7 @@ RulesPage:
 
 | Decision | Rationale | Source |
 |---|---|---|
-| "Validation pending" keyed on draft hash | The report is stamped with the shapes+data state it ran against; mismatch = pending. Honest-state is an epic AC ("never stale or empty coverage") | EPIC-005 E5-S2 AC (failure), m2-delta §3 |
+| "Validation pending" keyed on draft hash | The report is stamped with the shapes+data state it ran against; mismatch = pending. Honest-state is an epic AC ("never stale or empty coverage") | EPIC-005 E5-S3 AC (failure), m2-delta §3 |
 | Whole-graph validation is on-demand (this endpoint), not continuous | Per-commit validation already gates writes; a background revalidator is Phase 4 (scheduled self-audit). On-demand keeps M2 lean | roadmap carry, ponytail: add scheduling in Phase 4 only |
 | `sh:Info` displayed, not hidden | EPIC-005 AC names Info explicitly; auditors read advisory severity too | EPIC-005 E5-S2 AC |
 

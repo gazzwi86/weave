@@ -391,17 +391,19 @@ stateDiagram-v2
 
 ---
 
-## Deferred (M2+)
+## Deferred (M2 and later)
 
 The following flows are **explicitly out of scope for M1.** They extend the degrade paths defined
-above and require the Authority Extension module (ADR-002 M2 phase).
+above. Flows requiring the Authority Extension module (program ADR-002 vocabulary) are
+**post-v1** — the extension's build is deferred per [ADR-013](../decisions/ADR-013.md); M2 ships
+only the base-links deny-default surface (m2/tasks/TASK-010).
 
-| Flow | M1 anchor | M2+ addition |
+| Flow | M1 anchor | Later addition (phase) |
 |---|---|---|
-| Full `authority()` evaluation | `decision: coverage-gap + deny` (all cases) | Resolve Actor →holdsRole→ Role →(assignee of)→ Permission; evaluate ODRL constraints |
-| `escalation()` with deadlines | `escalation()` SELECT returns open gaps | `escalatesTo`, `escalationDeadline` ODRL Duty evaluation; CE-EVENT-1 fires on overdue |
-| HITL approval routing | Route-to-human on deny (synchronous block) | Event-driven: ODRL Duty "obtain human approval" triggers workflow; automatable=true gate |
-| `authorityLevel` ordered scheme | Not evaluated (no ordered collection present) | `skos:OrderedCollection` read ≺ author ≺ publish ≺ admin; RBAC boundary reads ontology level |
+| Full `authority()` evaluation | `decision: coverage-gap + deny` (all cases) | **post-v1 (ADR-013):** resolve Actor →holdsRole→ Role →(assignee of)→ Permission; evaluate ODRL constraints. M2 ships only base-links deny-default (TASK-010) |
+| `escalation()` with deadlines | `escalation()` SELECT returns open gaps | **post-v1 (ADR-013):** `escalatesTo`, `escalationDeadline` ODRL Duty evaluation; CE-EVENT-1 fires on overdue. M2 ships base `escalation()` (Actor only, no deadlines) |
+| HITL approval routing | Route-to-human on deny (synchronous block) | **post-v1 (ADR-013):** event-driven ODRL Duty "obtain human approval" triggers workflow; `automatable=true` gate (the flag itself ships M2, SS-EA-4) |
+| `authorityLevel` ordered scheme | Not evaluated (no ordered collection present) | **post-v1 (ADR-013):** `skos:OrderedCollection` read ≺ author ≺ publish ≺ admin; RBAC boundary reads ontology level |
 | NL mutation (AI-proposed writes) | LLM generates SELECT only (read path) | LLM-proposed write ops submitted to CE-WRITE-1 with human-in-loop approval PROV-O duty |
 | Inferred named graph population | Inferred graph IRI defined; graph not populated | At publish time: run OWL reasoning; materialise inferred triples; label with `prov:wasDerivedFrom` |
 | CE-BRAND-1 brand conformance | Brand individuals storable via CE-WRITE-1 | `GET /api/brand/tokens` projection; VoiceRule conformance gate; CE-METRICS-1 brand score |

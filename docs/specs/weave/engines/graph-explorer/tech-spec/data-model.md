@@ -151,8 +151,10 @@ GE must not maintain a parallel copy of this list.
 
 Visual representation (colour, shape, icon) for each kind is defined in
 [data-viz.md](../../../../../standards/design/data-viz.md).
-GE reads `GET /api/node-kinds` at canvas boot to get `[{id, label, colour}]` from CE; it falls
-back to `#9CA3AF` grey for any `bpmo_kind` not in the palette response.
+GE reads its own `GET /api/proxy/node-kinds` route at canvas boot to get `[{id, label,
+colour}]` — a GE-owned projection of CE-READ-1 `GET /api/ontology/types` (CE serves no
+`/api/node-kinds` endpoint); it falls back to `#9CA3AF` grey for any `bpmo_kind` not in the
+palette response.
 
 ### BPMO kind quick-reference (informational — CE is authoritative)
 
@@ -258,7 +260,7 @@ CREATE POLICY tenant_isolation ON explorer_layout_positions
 | Column | Rationale |
 |---|---|
 | `tenant_id` | RLS anchor; set via `SET LOCAL app.current_tenant_id` per-transaction |
-| `workspace_id` | Layout is per-user workspace, not global per tenant |
+| `workspace_id` | **Residual (workspace level removed 2026-07-08, workspace ≡ tenant)** — M1-shipped column; rename is the tracked workspace-drop refactor (contracts.md §PLAT-SETTINGS-1 M1 transition); M2 specs key on `(tenant_id, graph_id)` |
 | `graph_id` | TEXT (not FK) — references the CE graph or view by opaque ID |
 | `node_iri` | TEXT, not VARCHAR — IRIs have no defined upper bound |
 | `locked` | DB default FALSE; the M1 API does not expose a write path for this field (M2 Saved Views only) |

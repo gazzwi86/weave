@@ -237,6 +237,7 @@ All predicates are `owl:ObjectProperty` declarations in `urn:weave:g:framework`.
 | Predicate IRI | Domain | Range | Inverse | ArchiMate rel |
 |---|---|---|---|---|
 | `weave:hasStep` | `weave:Process` | `weave:Activity` | `weave:stepOf` | Composition |
+| `weave:precedes` *(added v1 — E12-S2 step ordering)* | `weave:Activity` | `weave:Activity` | `weave:follows` | Flow (BPMN `sequenceFlow`) |
 | `weave:performedBy` | `weave:Process` or `weave:Activity` | `weave:Actor` | `weave:performs` | Assignment |
 | `weave:consumes` | `weave:Process` or `weave:Activity` | `weave:DataAsset` | `weave:consumedBy` | Access |
 | `weave:produces` | `weave:Process` or `weave:Activity` | `weave:DataAsset` | `weave:producedBy` | Access |
@@ -246,7 +247,7 @@ All predicates are `owl:ObjectProperty` declarations in `urn:weave:g:framework`.
 | `weave:inDomain` | `weave:BusinessCapability` or `weave:Actor` | `weave:BusinessDomain` | `weave:hasMember` | Association |
 | `weave:governedBy` | `weave:Process` or `weave:DataAsset` or `weave:Activity` | `weave:Policy` | `weave:governs` | Association |
 | `weave:runsOn` | `weave:Service` | `weave:System` | `weave:hosts` | Serving |
-| `weave:accesses` | `weave:Service` | `weave:DataAsset` | `weave:accessedBy` | Access |
+| `weave:accesses` | `weave:Service` | `weave:DataAsset` | `weave:accessedBy` | — (modelled directly; ArchiMate `Access` imports map to consumes/produces — v1-delta §3) |
 | `weave:dependsOn` | `weave:Process` or `weave:Service` | `weave:Service` or `weave:System` | — | Association |
 | `weave:hasField` | `weave:DataAsset` | `weave:Field` | `weave:fieldOf` | Composition |
 | `weave:hasCapability` | `weave:BusinessDomain` | `weave:BusinessCapability` | `weave:inDomain` | Aggregation |
@@ -486,22 +487,26 @@ weave:Actor —weave:holdsRole→ weave:Role —(odrl:assignee of)→ odrl:Permi
 
 Clients populate `Actor` and `Role` instances in their tenant graph. The full ODRL permission chain
 (`odrl:Permission`, `odrl:action`, `odrl:target`, `odrl:constraint`) is the Authority Extension
-module, which is M2. The M1 binding points (where the extension plugs in) are defined here; the
-module itself is in the Deferred section.
+module — **deferred post-v1** ([ADR-013](../decisions/ADR-013.md); program ADR-002 fixes the
+vocabulary direction, its M2 build phasing is superseded). The binding points (where the extension
+plugs in) are defined here; the module itself is in the Deferred section.
 
-### M1 honest authority degrade
+### Honest authority degrade (M1/M2 standing behaviour)
 
-When the Authority Extension is not populated (M1 default), `authority(actor, action, target)` degrades:
+While the Authority Extension is not populated (always, until post-v1 — ADR-013),
+`authority(actor, action, target)` degrades:
 
 1. It returns `decision: "coverage-gap"` with explicit `{ entity_iri, missing_link }` rows for every
    required link that is absent in the graph.
 2. Unstated permission resolves to `decision: "deny"` / route-to-human.
-3. Explicit deny in the graph overrides any inferred authority.
+3. `decision: "permit"` is unreachable — the base BPMO cannot express a permission. (Explicit-deny
+   override arrives with the post-v1 extension's `odrl:Prohibition`; until then it is vacuous.)
 4. An empty result NEVER means "permitted" — the API contract guarantees a `coverage-gap` or `deny`.
 
-The `coverage_gap(process)` SELECT ships M1. Full `authority()` / `escalation()` executable patterns
-are M2 (require populated Role/Permission instances). Reference: [CE-READ-1 — contracts.md §authority
-scope](../../../../contracts.md).
+The `coverage_gap` SELECT ships M1 (default invocation `(Process, [performedBy, governedBy])`, per
+CE-READ-1). M2 ships base-links `authority()` / `escalation()` at this degrade (m2/tasks/TASK-010);
+extension-resolved authority (Role/Permission chains, deadlines) is post-v1 (ADR-013). Reference:
+[CE-READ-1 — contracts.md §authority scope](../../../../contracts.md).
 
 ---
 
@@ -579,9 +584,9 @@ defined above but are not implemented until M2 or later.
 
 | Entity / capability | Placeholder in M1 | M2+ specification |
 |---|---|---|
-| **ODRL Permission / Prohibition / Duty module** (Authority Extension) | `Actor→holdsRole→Role` split exists; `odrl:assignee` binding point defined | Full ODRL 2.2 permission/duty graph; `authority()` executable |
-| **`authorityLevel` SKOS ordered collection** | `weave:DataClassificationScheme` exists | `skos:OrderedCollection` of `read ≺ author ≺ publish ≺ admin`; RBAC boundary reads ontology-derived levels |
-| **HITL triggers / escalation deadlines** | `weave:automatable` boolean + `escalation()` SELECT | `odrl:Duty` "obtain human approval"; `escalatesTo`, `escalationDeadline`, `triggeredByStep` properties |
+| **ODRL Permission / Prohibition / Duty module** (Authority Extension) — **post-v1, ADR-013** | `Actor→holdsRole→Role` split exists; `odrl:assignee` binding point defined | Full ODRL 2.2 permission/duty graph; extension-resolved `authority()` (permit reachable, explicit-deny override) |
+| **`authorityLevel` SKOS ordered collection** — **post-v1, ADR-013** | `weave:DataClassificationScheme` exists | `skos:OrderedCollection` of `read ≺ author ≺ publish ≺ admin`; RBAC boundary reads ontology-derived levels |
+| **HITL triggers / escalation deadlines** — **post-v1, ADR-013** | `weave:automatable` boolean + `escalation()` SELECT | `odrl:Duty` "obtain human approval"; `escalatesTo`, `escalationDeadline`, `triggeredByStep` properties |
 | **OWL inference materialisation** | Consistency check at publish (FR-007, M1) | Per-version inferred named graphs; inferred triples labelled as `prov:wasDerivedFrom` |
 | **CE-BRAND-1 brand individuals** | Brand content storable via CE-WRITE-1 | `GET /api/brand/tokens` projection + `VoiceRule` conformance gate |
 | **CE-FUNCTION-1 function registry** | Registry schema defined in contracts.md | Populated + queryable; typed SDK bindings generated |

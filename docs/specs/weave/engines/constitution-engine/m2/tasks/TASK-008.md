@@ -139,10 +139,12 @@ an existing txn, one read endpoint; the care is in the rejection-path and RLS te
 
 - The commit function is the single mutation entry point (FR-003) — the insert goes there once;
   do NOT add per-router emission.
-- `seq`: use a per-tenant sequence via `INSERT ... SELECT COALESCE(MAX(seq),0)+1` under the
-  txn's isolation, or a Postgres sequence per tenant is overkill — one global bigserial +
-  ordering per tenant also satisfies "per-tenant monotonic" and is simpler.
-  <!-- ponytail: global bigserial, per-tenant gap-free numbering only if a consumer ever needs it -->
+- `seq`: use **one global bigserial** — ordering filtered per tenant satisfies "per-tenant
+  monotonic" and is race-free. Do NOT use `INSERT ... SELECT COALESCE(MAX(seq),0)+1`: two
+  concurrent commit transactions read the same MAX and collide (or deadlock under the PK) unless
+  the tenant row is exclusively locked, which serialises all writes for the tenant.
+  <!-- ponytail: global bigserial (gaps allowed); per-tenant gap-free numbering only if a
+       consumer ever needs it -->
 - Retention enforcement: a scheduled delete is Phase-4-adjacent; at M2 compute
   `min_retained_seq` from `ts > now()-retention` in the 410 check — rows age out logically
   before physically.

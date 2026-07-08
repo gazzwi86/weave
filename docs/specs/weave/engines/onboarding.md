@@ -979,8 +979,10 @@ partial — on failure.
 ### EPIC-002 — Guided Tours & Contextual Overlays
 
 **Phase:** M1 window (parallel, not M1 exit gate) — CE/Explorer tours only, beacons on shipped
-screens, welcome modals · post-v1 (Build/Events GA): Build, Events (Automate), Platform-Dashboard
-tours + post-v1 beacons/modals · **Status:** Backlog · **Priority:** Must Have
+screens, welcome modals · M2 window — completeness-map + trust-mechanics tours/beacons on the M2
+GE/CE/Platform surfaces (see §M2 window; m2 TASK-002/004) · post-v1 (Build/Events GA): Build,
+Events (Automate), Platform-Dashboard tours + post-v1 beacons/modals · **Status:** Backlog ·
+**Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, EPIC-003, GE-CANVAS-1]` · `blocks: []` · `provides: []` ·
@@ -1026,9 +1028,10 @@ all overlay strings are externalised as i18n keys.
 
 ### EPIC-003 — Role-Tailored Onboarding Paths
 
-**Phase:** M1 window (parallel, not M1 exit gate) — M1-complete · role-path resolution + starter-widget
-mapping (CE-METRICS-1) · note: "What can Weave do for you" role-home guidance surface = M2 (depends on
-M2 Platform/CE features) · **Status:** Backlog · **Priority:** Must Have
+**Phase:** M1 window (parallel, not M1 exit gate) — role-path resolution + starter-widget
+mapping (CE-METRICS-1) · M2 window — "What can Weave do for you" role-home guidance +
+competency-question guidance item (depends on M2 Platform surfaces; see §M2 window; m2 TASK-003) ·
+**Status:** Backlog · **Priority:** Must Have
 
 **Frontmatter:** `phase: 1` · `priority: must` · `mvp: false` ·
 `depends_on: [EPIC-001, PLAT-IDENTITY-1, PLAT-SETTINGS-1, CE-METRICS-1]` ·
@@ -1403,7 +1406,8 @@ not-yet-GA engines are **feature-flagged off**, not broken.
 
 > "M1 window (parallel)?" = deliverable in the M1 window, in parallel, off the critical path — **not**
 > an M1 exit gate. "CE+Explorer only" marks straddle epics (1, 2, 4): only their CE/Explorer portions
-> ship here; Build/Events portions are post-v1. Epics 3, 5, 6, 7, 8 are M1-complete.
+> ship here; Build/Events portions are post-v1. Epics 5, 6, 7, 8 are M1-complete; EPIC-002 and
+> EPIC-003 also carry an M2 slice (see §M2 window).
 
 **Entry criteria (Definition of Ready):**
 
@@ -1486,12 +1490,15 @@ post-v1 gate or ships as a v1-interim feature release, depending on ship order.
 
 | Onboarding feature | Surface it points at | Epic |
 |---|---|---|
-| Model-completeness map tour + beacons | CE M2: model-completeness map (authors see gaps) | EPIC-002 |
-| "What can Weave do for you" role-home guidance | M2 Platform: role-tailored home surface | EPIC-003 |
-| Provenance + confidence-signal UI tours | M2 CE/Explorer: trust-mechanics surfaces | EPIC-002 |
+| Model-completeness map tour + beacons | GE M2: Explorer completeness overlay (GE TASK-008) + Platform M2: role-home completeness tile (Platform TASK-017); data is CE-served (`coverage_gap` / CE-METRICS-1) | EPIC-002 |
+| "What can Weave do for you" role-home guidance | M2 Platform: role-tailored home surface (Platform TASK-017) | EPIC-003 |
+| Provenance + confidence-signal UI tours | M2 GE (versions/diff, filters, overlays) + CE (rules & policies screen): trust-mechanics surfaces | EPIC-002 |
+| Competency-question guidance (manual checklist item + tile beacon) | Rendered by onboarding itself; deep-links the onboarding training article (no CE count/authoring surface exists — see m2 tech-spec delta OQ-M2-1) | EPIC-003 |
 
-**Dependency:** gated on M2 CE/Explorer/Platform M2 feature set being in implementation. See
-`../weave-spec.md §M2` and [../contracts.md](../contracts.md) for M2 contract scope.
+**Dependency:** gated on the M2 CE/Explorer/Platform feature set being in implementation. See
+`../weave-spec.md §M2` and [../contracts.md](../contracts.md) for M2 contract scope. Tasks:
+`onboarding/m2/tasks/` (TASK-001–005); delta spec: `onboarding/tech-spec/m2-delta.md`
+(red-team remediated 2026-07-08 — per-anchor shipped signal ADR-008; competency flag manual).
 
 ### post-v1: Full Hammerbarn demo — Build & Events seed, tours, and exercises (Build+Events GA)
 
@@ -1511,7 +1518,8 @@ beacons / welcome modals turn on; and the engine-gated exercises (BE-01, AE-01) 
 | EPIC-004 | Hands-On Exercises — BE-01 (open Kitchen Designer project) and AE-01 (draft a Slack-notify automation) | 1 (E4-S1 BE-01, AE-01) | Must Have (at GA) | no |
 
 > Only the three straddle epics (1, 2, 4) continue into post-v1 — their engine-gated story subsets.
-> Epics 3, 5, 6, 7, 8 completed in M1 window.
+> Epics 5, 6, 7, 8 completed in the M1 window; EPIC-002/003 carry an M2 slice (§M2 window) that
+> completes before post-v1.
 
 **Entry criteria (Definition of Ready):**
 

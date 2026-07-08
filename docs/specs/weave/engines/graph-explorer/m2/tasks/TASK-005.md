@@ -13,7 +13,7 @@ milestone: M2
 created: 2026-07-08
 blocked_by: [TASK-004]
 unlocks: [TASK-011]
-adr_refs: [ADR-001-render-engine, ADR-006-edit-attribution-principal-iri]
+adr_refs: [ADR-001-render-engine, ADR-006-edit-attribution-principal-iri, ADR-008-m2-concurrency-client-drift-guard]
 timestamp: 2026-07-08T00:00:00Z
 source: hand-authored
 confirmed_by: none
@@ -41,8 +41,9 @@ Reuses TASK-004's Edit Controller and write proxy — this task adds `update_nod
 > **Contract reality (pinned 2026-07-08, coordinator-confirmed):** CE-WRITE-1 returns ONLY
 > `201 {activity_iri, applied_count, version_iri}` or `422 {violations}`. There is **no
 > expected_version / 409 conditional write** and **no cascade beyond the submitted ops**.
-> FR-021's "LWW-with-version-check, else 409 notify" is therefore implemented as a **GE-side
-> optimistic drift guard** with 409-style UX. CE-WRITE-1 now records a **planned additive v1
+> FR-021's original "LWW-with-version-check, else 409 notify" wording (since reworded in
+> graph-explorer.md, ADR-008) is therefore implemented as a **GE-side optimistic drift guard**
+> with conflict-notice UX. CE-WRITE-1 now records a **planned additive v1
 > enhancement** — optional `expected_version` → `409 {current_version_iri}` — as the true
 > server-side lost-update protection; cite it as the v1 upgrade path, do NOT depend on it or
 > invent a bespoke guard for M2.
@@ -55,7 +56,7 @@ Reuses TASK-004's Edit Controller and write proxy — this task adds `update_nod
 | AC-2 | WHEN edit mode opens, THE SYSTEM SHALL capture the current draft head (`version_iri` from the last CE-WRITE-1 response or graph-load state); WHEN save is attempted AND the draft head has advanced since capture, THE SYSTEM SHALL show a "graph changed since you started — review current values / reload" conflict notice with the current server value, and SHALL NOT commit until the user confirms against the fresh base. | `test_drift_guard_blocks_save_and_shows_current` |
 | AC-3 | WHERE no drift is detected, concurrent edits to the same property resolve last-write-wins (both commits succeed as successive CE versions); the drift guard is best-effort protection, and its window SHALL be minimised by re-checking at save time (not only at edit-start). | `test_lww_when_no_drift_detected` |
 | AC-4 | IF `update_node` returns `422`, THEN THE SYSTEM SHALL keep the panel in edit mode, show the SHACL violations human-readably, and leave the canvas element unchanged. | `test_update_422_keeps_edit_mode_canvas_unchanged` |
-| AC-5 | WHEN delete is invoked on a node, THE SYSTEM SHALL first fetch the node's FULL incident-edge set via CE-READ-1 (`GET /api/proxy/ontology/resource/{iri}`) — not just edges in the loaded slice — show a warning naming the total reference count, and on confirm submit ONE batch containing a `delete_edge` op for every incident edge plus `delete_node` (CE enforces referential integrity via SHACL: a batch leaving dangling edges 422s whole). | `test_delete_batch_includes_incident_edges`, `test_delete_gathers_offslice_edges_via_ce_read` |
+| AC-5 | WHEN delete is invoked on a node, THE SYSTEM SHALL first gather the node's FULL incident-edge set — **outbound AND inbound edges** — via CE-READ-1 (`GET /api/proxy/ontology/resource/{iri}`; IF that response carries outbound edges only, THE SYSTEM SHALL additionally fetch inbound edges via a `SELECT ?s ?p WHERE { ?s ?p <iri> }` on the existing sparql proxy) — not just edges in the loaded slice — show a warning naming the total reference count, and on confirm submit ONE batch containing a `delete_edge` op for every incident edge plus `delete_node` (CE enforces referential integrity via SHACL: a batch leaving dangling edges 422s whole). | `test_delete_batch_includes_incident_edges`, `test_delete_batch_includes_inbound_edges`, `test_delete_gathers_offslice_edges_via_ce_read` |
 | AC-6 | WHEN a delete batch returns `201`, THE SYSTEM SHALL remove from the canvas exactly the IRIs of the ops GE submitted — nothing more, nothing inferred. | `test_delete_removes_exactly_submitted_ops` |
 | AC-7 | IF a delete fails (`422`/timeout/5xx), THEN THE SYSTEM SHALL remove nothing from the canvas (no phantom-removal) and show a retry notice. | `test_delete_failure_removes_nothing` |
 | AC-8 | WHERE the canvas is version-pinned or the JWT role is `viewer`, THE SYSTEM SHALL render no edit/delete affordances in the side panel; the server SHALL independently reject the write. | `test_panel_readonly_for_viewer_and_versions` |
@@ -89,8 +90,12 @@ async function savePanelEdits(node, edits, ctx):
 # Delete (AC-5..7) — GE composes the FULL batch; CE does not cascade
 function requestDelete(el, adapter):
   incident = el.isNode
-    ? (await fetchNodeProps(el.iri)).edges        # CE-READ-1 — the FULL set; loaded slice may
-                                                  # miss off-canvas edges (filters, pagination)
+    ? union((await fetchNodeProps(el.iri)).edges,        # CE-READ-1 — FULL set; loaded slice may
+            await fetchInboundEdges(el.iri))             # miss off-canvas edges (filters,
+                                                         # pagination). Inbound (?s ?p <iri>) via
+                                                         # the sparql proxy IF resource/{iri} is
+                                                         # outbound-only — AC-5; dedupe by
+                                                         # (source, predicate, target)
     : []
   ok = await confirmDialog(incident.length > 0
         ? `Deleting removes ${incident.length} connection(s). Continue?` : "Delete?")
@@ -128,7 +133,7 @@ versions-family head check at save time.
 
 | Decision | Reference | Impact |
 |----------|-----------|--------|
-| Concurrency = GE-side optimistic drift guard for M2; server-side guard is CE-WRITE-1's planned additive v1 `expected_version` → `409 {current_version_iri}` | contracts.md CE-WRITE-1 (pinned 2026-07-08) | FR-021's "409" is UX language in M2; at v1, swap the drift re-check for the real conditional write — no bespoke guard meanwhile |
+| Concurrency = GE-side optimistic drift guard for M2; server-side guard is CE-WRITE-1's planned additive v1 `expected_version` → `409 {current_version_iri}` | ADR-008; contracts.md CE-WRITE-1 (pinned 2026-07-08) | FR-021's "409" is UX language in M2; at v1, swap the drift re-check for the real conditional write — no bespoke guard meanwhile |
 | Delete batch composed by GE from the FULL CE-READ-1 incident set; CE validates referential integrity, never cascades | contracts.md CE-WRITE-1 | A batch missing an off-slice edge 422s whole — the pre-delete read is correctness, not optimisation. Canvas removals = submitted op IRIs ∩ loaded elements |
 | Actor attribution proxy-side | ADR-006 | Client code never touches actor |
 | Handle-hiding is UX, not security | graph-explorer.md §2.2 | AC-8 dual assertion, same as TASK-004 AC-7 |
@@ -140,6 +145,7 @@ versions-family head check at save time.
 - `should block save and show server values when draft head advanced since edit-start`
 - `should commit last-write-wins when no drift detected at save time`
 - `should compose delete batch of node plus all incident edges from the CE-READ-1 fetch`
+- `should include inbound edges (edges pointing AT the node) in the delete batch`
 - `should include off-slice incident edges (CE fetch returns more edges than loaded) in the batch`
 - `should remove exactly the submitted op IRIs from canvas on 201`
 - `should stay in edit mode with humanised violations on 422`

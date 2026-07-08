@@ -1,6 +1,6 @@
 ---
 type: Decision
-title: "ADR-004: Drill-in design choices — neighbour reuse, expanded-state tracking, config-literal defaults"
+title: "ADR-007: Drill-in design choices — neighbour reuse, expanded-state tracking, config-literal defaults"
 description: "Engine-local decisions made while implementing TASK-005 (domain focus, neighbour
   expand/collapse) that the task brief's AC/pseudocode left open: reusing the side panel's
   already-fetched neighbours instead of a second CE-READ-1 call, tracking expanded-neighbour ids on
@@ -10,7 +10,7 @@ description: "Engine-local decisions made while implementing TASK-005 (domain fo
 tags: [decision, adr, graph-explorer, drill-in, task-005, m1]
 status: Accepted
 timestamp: 2026-07-05T00:00:00Z
-resource: docs/specs/weave/engines/graph-explorer/decisions/ADR-004-drill-in-design-choices.md
+resource: docs/specs/weave/engines/graph-explorer/decisions/ADR-007-drill-in-design-choices.md
 source: hand-authored
 confirmed_by: none
 confirmed_on: null
@@ -20,7 +20,7 @@ owner: gazzwi86
 coverage: graph-explorer
 ---
 
-# ADR-004: Drill-in design choices (TASK-005)
+# ADR-007: Drill-in design choices (TASK-005)
 
 **Scope:** [Graph Explorer](../../graph-explorer.md) M1, TASK-005 (domain focus, neighbour
 expand/collapse; impact traversal is OQ-09-gated and out of scope for this ADR).

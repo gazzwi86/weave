@@ -12,7 +12,7 @@ entity: build-engine
 epic: EPIC-008
 milestone: M2
 created: 2026-07-08
-blocked_by: [TASK-004]
+blocked_by: [TASK-004, TASK-001]
 unlocks: []
 adr_refs: [ADR-006]
 source: hand-authored
@@ -47,7 +47,7 @@ a human acknowledges, and get a versioned, provenance-stamped package in my repo
 | ID | Criterion (EARS) | Test Mapping |
 |---|---|---|
 | AC-1 | WHEN `POST /api/projects/{id}/sdk-generations` is called, THE SYSTEM SHALL enqueue a generation against the project's pinned CE version and return `202 {generation_id, status:"queued"}` | `should enqueue generation and return 202` |
-| AC-2 | WHEN the CE-DIFF-1 span between `projects.last_sdk_version_iri` and the requested pin contains any `breaking: true` version, THE SYSTEM SHALL halt before the pipeline runs and fire the existing HITL gate naming the breaking version IRIs | `should refuse sdk regeneration across breaking version without ack` |
+| AC-2 | WHEN the CE-DIFF-1 response's ordered `versions[]` span between `projects.last_sdk_version_iri` and the requested pin contains any `breaking: true` entry (`any(versions[].breaking)` — CE computes `breaking` at publish, covering BOTH function-signature AND shape/kind surface changes), THE SYSTEM SHALL halt before the pipeline runs and fire the existing HITL gate naming the breaking version IRIs; Build SHALL NOT re-derive breakingness from the diff's triples or the function list | `should refuse sdk regeneration across breaking version without ack` |
 | AC-3 | WHEN a human approver (non-self, D9) acknowledges, THE SYSTEM SHALL persist a `gate_results` row `gate: "sdk_breaking_ack"` with approver principal IRI + acked version IRIs, then run the pipeline | `should persist ack row and proceed after approval` |
 | AC-4 | WHEN generation is a project's first (no `last_sdk_version_iri`), THE SYSTEM SHALL skip the breaking check entirely | `should skip breaking check on first generation` |
 | AC-5 | WHEN the pipeline succeeds, THE SYSTEM SHALL stamp every generated file with the BE-ARTEFACT-1 provenance header (spec ID, pinned CE version, referenced entity IRIs), set package version `{ce_version_tag}+build.{n}`, commit via one `ScmDriver.commit_workspace`, and update `projects.last_sdk_version_iri` + increment `sdk_generation_count` in the same transaction | `should stamp provenance and commit atomically` |
@@ -73,7 +73,8 @@ function run_generation(gen_id):
 
   if project.last_sdk_version_iri:                               # AC-4
     span = ce_client.diff(from=project.last_sdk_version_iri, to=pin)   # CE-DIFF-1
-    breaking = [v for v in span.versions if v.breaking]
+    breaking = [v for v in span.versions if v.breaking]          # CE's flag is the ONLY signal —
+    # never inspect span.added/removed/modified or /api/functions to decide breakingness (AC-2)
     if breaking:
       update(gen, status="breaking_hold")
       fire_hitl_gate("sdk_breaking_ack", versions=breaking)      # M1 gate machinery — AC-2
@@ -174,10 +175,11 @@ tsc/mypy pass (TASK-004) → committed to SCM stub with provenance (this task).
 
 ## Dependencies
 
-- **blocked_by:** [TASK-004]
+- **blocked_by:** [TASK-004] (pipeline), [TASK-001] (owns the m2-delta §4 migration carrying
+  `projects.last_sdk_version_iri` + `sdk_generation_count` — this task creates NO migration)
 - **unlocks:** []
-- **External prerequisites:** CE-DIFF-1 (M1, live); M1 HITL gate machinery + ScmDriver;
-  migration slot for `projects` columns (shares m2-delta §4 migration with TASK-001)
+- **External prerequisites:** CE-DIFF-1 with the `versions[]` breaking-span (live); M1 HITL
+  gate machinery + ScmDriver
 
 ## Cost Estimate
 
@@ -194,7 +196,7 @@ tsc/mypy pass (TASK-004) → committed to SCM stub with provenance (this task).
 - [x] Diagram references included
 - [x] Design decisions noted (ADR-006)
 - [x] Test scenarios specified with types and counts
-- [x] Dependencies defined (TASK-004 pipeline is the only blocker)
+- [x] Dependencies defined (TASK-004 pipeline + TASK-001 migration)
 - [x] Cost estimate provided
 
 ## Definition of Done Checklist

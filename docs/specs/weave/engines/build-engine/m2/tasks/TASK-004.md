@@ -50,7 +50,7 @@ instead of hand-written SPARQL/HTTP
 | AC-1 | WHEN the pipeline runs twice against the same pinned fixture inputs, THE SYSTEM SHALL emit byte-identical output (excluding the provenance timestamp placeholder) | `should emit identical SDK for identical pinned inputs` |
 | AC-2 | WHEN a SHACL node shape is fetched, THE SYSTEM SHALL map it to one typed class per language with typed fields carrying datatype and cardinality from the shape's property constraints (`sh:or` → union type) | `should map node shape to typed class with cardinality` |
 | AC-3 | WHEN a SHACL constraint cannot be mapped, THE SYSTEM SHALL fail generation with an error naming the shape and constraint — never emit a silent `Any`/`unknown` fallback | `should fail naming shape on unmappable constraint` |
-| AC-4 | WHEN the function registry is fetched, THE SYSTEM SHALL emit one typed method per `CE-FUNCTION-1` function from its derived JSON Schema, whose body raises `NotExecutableUntilV1(fn_iri)` | `should generate one typed method per registry function` |
+| AC-4 | WHEN the function registry is fetched, THE SYSTEM SHALL emit one typed method per `CE-FUNCTION-1` function from its derived JSON Schema, whose body raises `NotExecutableUntilPostV1(fn_iri)` (execution is post-v1, CE ADR-009) | `should generate one typed method per registry function` |
 | AC-5 | WHEN CE-BRAND-1 tokens are fetched, THE SYSTEM SHALL emit typed theme constants from the closed core only (`color`, `typography`, `spacing`, `radius`); `extensions` pass through as an untyped map | `should type closed-core tokens only` |
 | AC-6 | WHEN any fetch fails (CE-READ-1 unreachable, shape unresolvable, function endpoint down), THE SYSTEM SHALL fail atomically before emit with the failing input named — no partial staging output | `should fail atomically naming unreachable input` |
 | AC-7 | WHEN emit completes, THE SYSTEM SHALL run validators (tsc --noEmit, mypy --strict, OpenAPI 3.1 schema lint) over the staging dir and fail generation on any validator error | `should fail generation when emitted TS does not compile` |
@@ -96,10 +96,17 @@ Mapping table (IR core — the authoritative subset; extend only via named error
 |---|---|---|
 | `sh:NodeShape` | `class` / `interface` | Pydantic `BaseModel` |
 | `sh:datatype xsd:string/int/boolean/dateTime` | `string/number/boolean/string(ISO)` | `str/int/bool/datetime` |
+| `sh:datatype xsd:decimal/double` | `number` | `Decimal` / `float` |
+| `sh:datatype xsd:date` | `string(ISO date)` | `date` |
+| `sh:datatype xsd:anyURI` | `string` | `AnyUrl` (Pydantic) |
+| `sh:minCount 1` + `sh:maxCount 1` (required single-valued — the most common shape) | `T` (required) | `T` (required field) |
 | `sh:maxCount 1` absent | `T[]` | `list[T]` |
-| `sh:minCount 0` | optional `?` | `T \| None` |
+| `sh:minCount 0` (or absent) + `sh:maxCount 1` | optional `?` | `T \| None` |
+| `sh:minCount 1`, `sh:maxCount` absent | non-empty `T[]` (runtime min-length check) | `list[T]` + `Field(min_length=1)` |
 | `sh:or (A B)` | `A \| B` | `A \| B` |
-| `sh:node <Shape>` | reference type | reference type |
+| `sh:in (v1 v2 ...)` | literal union `"v1" \| "v2"` | `Literal["v1", "v2"]` |
+| `sh:node <Shape>` / `sh:class <Kind>` | reference type | reference type |
+| `sh:pattern` | `string` + runtime regex validation | `str` + `Field(pattern=...)` |
 | anything else | `UnmappableConstraint` error | `UnmappableConstraint` error |
 
 ### API Contracts
@@ -124,14 +131,16 @@ end-to-end (m2-delta §7).
 | Zero LLM in emit path | [ADR-006](../../decisions/ADR-006.md) §1 | Plain Python; invariants.md verify-by greps for anthropic/bedrock — keep them out of the package |
 | One IR, three emitters | [ADR-006](../../decisions/ADR-006.md) §2 | All mapping logic in `map_*`; emitters are dumb templates |
 | Unmappable ⇒ named error | [ADR-006](../../decisions/ADR-006.md) / m2-delta §5 | No `Any` fallback branch anywhere in the mapper |
-| Function methods raise `NotExecutableUntilV1` | CE ADR-009 (M2 = definition surface) | Bodies raise typed error with fn_iri; do NOT implement invocation |
+| Function methods raise `NotExecutableUntilPostV1` | CE ADR-009 (M2 = definition surface; execution is post-v1) | Bodies raise typed error with fn_iri; do NOT implement invocation |
 | Validators are part of generation | [ADR-006](../../decisions/ADR-006.md) §3 | A validator failure is a generation failure, not a warning |
 
 ## Test Requirements
 
-### Unit Tests (minimum 6)
+### Unit Tests (minimum 8)
 
 - `should map node shape to typed class with cardinality`
+- `should map required single-valued property to required field` (minCount 1 + maxCount 1)
+- `should map sh:in to literal union`
 - `should fail naming shape on unmappable constraint`
 - `should type closed-core tokens only`
 - `should map sh:or to union type`

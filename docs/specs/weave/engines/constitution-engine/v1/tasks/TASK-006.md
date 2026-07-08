@@ -51,14 +51,15 @@ no DSN field), visual mapping editor (deferred), query-time federation (ADR-010)
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-006-01 | WHEN an import runs over an uploaded source + mapping THE SYSTEM SHALL materialise RDF committed through CE-WRITE-1 (batched), SHACL-validated per row, with PROV-O naming the source dataset AND the mapping via `prov:used`. |
-| AC-006-02 | WHEN rows fail SHACL THE SYSTEM SHALL skip them with a per-row reason and commit the rest (`failing-rows-skip-and-report`), reporting a committed-vs-skipped summary consistent with the bulk-CSV flow (FR-030). |
+| AC-006-01 | WHEN an import runs over an uploaded source + mapping THE SYSTEM SHALL materialise RDF committed through CE-WRITE-1 (batched), SHACL-validated, with PROV-O naming the source dataset AND the mapping via `prov:used`. |
+| AC-006-02 | WHEN rows fail SHACL THE SYSTEM SHALL skip them with a per-row reason (violations mapped back to source rows) and commit the rest (`failing-rows-skip-and-report`), reporting a committed-vs-skipped summary consistent with the bulk-CSV flow (FR-030). Skip granularity is the FK-connected proposal batch (AC-006-09); the summary counts every source row inside a skipped batch, each with its reason. |
 | AC-006-03 | WHEN the mapping is malformed THE SYSTEM SHALL reject it before any commit with a clear error; the store is untouched. |
 | AC-006-04 | WHEN datatype inference runs THE SYSTEM SHALL sample ≥ N rows (default 20, from settings) before typing a column. |
 | AC-006-05 | WHEN a mapping config is submitted THE SYSTEM SHALL accept only uploaded-dump source references — no DSN/connection-string field exists in the schema (ADR-012; invariants delta). |
 | AC-006-06 | WHEN an OCEL 2.0 JSON log is imported with the shipped reference mapping THE SYSTEM SHALL land events as `Event` individuals and object types as their mapped BPMO kinds, unmapped→Concept flagged (ADR-010) — no process-mining output of any kind. |
 | AC-006-07 | WHEN mapped rows re-mention existing entities THE SYSTEM SHALL reuse via find-existing-node (CE-WRITE-1 dedup also backstops at commit). |
 | AC-006-08 | WHEN the AI provider is down THE SYSTEM SHALL still run this import end-to-end (deterministic lane). |
+| AC-006-09 | WHEN mapped rows reference each other across tables (cross-table FK edges) THE SYSTEM SHALL batch the FK-connected rows into ONE CE-WRITE-1 op-batch, with new nodes carrying local `ref`s and FK edges targeting those `ref`s so they resolve **in-batch** (CE-WRITE-1 multi-op semantics) — no FK edge may dangle and 422 because its target lives in a sibling proposal (`fk-edges-resolve-in-batch`). Circular FK groups are handled two-pass **within the batch**: all `add_node` ops first, then all `add_edge` ops. |
 
 ## Pseudocode
 
@@ -69,14 +70,27 @@ class RmlExtractor(Extractor):               # kind='dataset'; job carries mappi
         try: config = morph_kgc_config(source=local_path(job.artefact), mapping=mapping)
         except MappingError as e: fail_job(str(e))            # before any commit
         triples = morph_kgc.materialize(config)               # in-process
-        for row_group in group_by_subject(triples):           # one proposal per subject row
-            kind = kind_of(row_group) or (settings.unmapped_default, flag=True)
-            yield Candidate(ops=to_ops(row_group), confidence=1.0,
-                            matches=find_existing_node(label(row_group), kind),
-                            reason=row_reason_if_flagged)
-# per-row SHACL happens at accept via the normal prospective validation; the job-level
-# "commit rest, skip failures" runs accepts in bulk mode: each subject-group is its own
-# proposal, so a failing row 422s alone and the summary counts it as skipped.
+        # Group subjects, then merge subject-groups that reference each other into
+        # FK-connected components — cross-table FK edges must resolve IN one batch:
+        groups     = group_by_subject(triples)
+        components = connected_components(groups,             # union-find over
+                          edges=cross_subject_references)     # subject->subject objects
+        for comp in components:                               # ONE proposal per component
+            node_ops = [add_node(ref=local_ref(g), kind=kind_of(g) or
+                            (settings.unmapped_default, flag=True), props=...)
+                        for g in comp.groups]                 # pass 1: ALL nodes (refs)
+            edge_ops = [add_edge(src_ref, pred, dst_ref_or_iri)
+                        for e in comp.edges]                  # pass 2: ALL edges — refs
+                                                              # resolve in-batch, so circular
+                                                              # FKs cannot dangle
+            yield Candidate(ops=node_ops + edge_ops, confidence=1.0,
+                            matches=find_existing_node_per_group(comp),
+                            reason=row_reasons_if_flagged(comp))
+# SHACL happens at accept via the normal prospective validation; "commit rest, skip
+# failures" runs accepts in bulk mode: each FK-connected component is its own proposal,
+# so a failing component 422s alone and the summary counts its rows as skipped (with the
+# violations mapped back to source rows). Rows with no cross-references remain singleton
+# components — per-row granularity is preserved where no FK couples them.
 ```
 
 ## API Contracts
@@ -96,7 +110,7 @@ both are ordinary corpus artefacts). Mutation: **CE-WRITE-1** only.
 
 | Decision | Rationale | Source |
 |---|---|---|
-| One proposal per subject row-group | Makes "skip failing rows, commit rest" fall out of the per-proposal 422 path — no bespoke partial-commit machinery | FR-041 AC + TASK-001 spine |
+| One proposal per **FK-connected component** (nodes-then-edges, local `ref`s) | One-proposal-per-row dangles cross-table FK edges (target row = sibling proposal ⟹ 422 on every FK edge). CE-WRITE-1 pins that `ref`s resolve within the SAME batch, so batching the component makes FK edges resolve by construction; two-pass ordering inside the batch handles circular FKs. Skip-and-report still falls out of the per-proposal 422 path at component granularity | Red-team blocker fix 2026-07-08; contracts.md CE-WRITE-1 (`ref` in-batch resolution); FR-041 AC + TASK-001 spine |
 | morph-kgc in-process, no sidecar | Only Python engine covering R2RML+RML; Law A/E | ADR-012 |
 | Dumps-only source schema | No live credentials in CE; live sources are PLAT-CONNECTOR-1 | ADR-012 |
 | OCEL ships as a reference mapping file, not code | Data not code — amendable like the TASK-004 tables; per-qualifier gaps land as flagged rows | ADR-010 |
@@ -108,10 +122,12 @@ Minimum: 4 unit, 5 integration.
 | Layer | Scenario (`should X when Y`) | AC |
 |---|---|---|
 | Unit | should reject malformed mapping before materialisation | AC-006-03 |
-| Unit | should group triples by subject into per-row proposals | AC-006-01/02 |
+| Unit | should group subjects into FK-connected components (union-find over cross-subject refs) | AC-006-09 |
+| Unit | should order component ops all-nodes-then-all-edges with local refs (circular FK fixture) | AC-006-09 |
 | Unit | should sample ≥ N rows (from settings) for datatype inference | AC-006-04 |
 | Unit | should reject config containing any connection-string-shaped source (schema-level) | AC-006-05 |
 | Integration | CSV fixture + RML mapping → committed rows with prov:used naming source AND mapping | AC-006-01 |
+| Integration | two-table SQLite fixture with cross-table FKs (incl. one circular pair) → all FK edges land, zero dangling-reference 422s (`fk-edges-resolve-in-batch`) | AC-006-09 |
 | Integration | fixture with 2 SHACL-failing rows → rest commit, summary counts skips with reasons (`failing-rows-skip-and-report`) | AC-006-02 |
 | Integration | malformed mapping → store untouched (graph diff empty) | AC-006-03 |
 | Integration | OCEL 2.0 sample log + shipped mapping → Event individuals + flagged unmapped object types | AC-006-06 |
@@ -137,7 +153,8 @@ proposal shaping + the OCEL reference mapping authoring + fixture matrix (CSV/SQ
 
 ## DoD Checklist
 
-- [ ] All ACs pass; named test verbatim: `failing-rows-skip-and-report`
+- [ ] All ACs pass; named tests verbatim: `failing-rows-skip-and-report`,
+      `fk-edges-resolve-in-batch`
 - [ ] No DSN field anywhere in config schema (invariant verify-by green)
 - [ ] OCEL reference mapping shipped + documented as the worked example
 - [ ] Coverage ≥ 80%, mutation ≥ 60%; Law E budgets
@@ -149,7 +166,13 @@ proposal shaping + the OCEL reference mapping authoring + fixture matrix (CSV/SQ
   slices. <!-- ponytail: no streaming/chunked import; revisit if real dumps exceed the cap -->
 - The "bulk accept" UX for thousands of row-proposals: accept-all-unflagged is a client loop
   over TASK-001 accepts in v1 (per-proposal HITL stays intact — flagged rows always need
-  explicit clicks).
+  explicit clicks). A proposal is now a component, so a "row" card may carry several rows —
+  render the component's rows in one card, flags per row.
+- Component sizing: cap component merging at the FK edges the mapping actually emits — do not
+  union the whole dataset into one mega-batch via a hub table; if a hub row (e.g. a shared
+  lookup value) links everything, dedupe it to an existing node first (`find_existing_node`)
+  so it stops being a new-`ref` connector. <!-- ponytail: union-find + hub-dedupe; smarter
+  partitioning only if real dumps produce oversized batches -->
 - Pitfall: morph-kgc output IRIs come from the mapping's templates — run them through the IRI
   conventions check (semantic-web standards) before proposing; bad templates should read as
   per-row skip reasons, not 500s.

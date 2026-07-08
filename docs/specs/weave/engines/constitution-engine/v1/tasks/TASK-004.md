@@ -13,7 +13,7 @@ epic: EPIC-012
 milestone: v1
 created: 2026-07-08
 blocked_by: [TASK-001]
-unlocks: [TASK-007, TASK-008]
+unlocks: [TASK-003, TASK-007, TASK-008]
 adr_refs: [ADR-010]
 source: hand-authored
 confirmed_by: "none"
@@ -53,7 +53,7 @@ down. OUT: diagram images (TASK-005), cross-notation merge (TASK-007), any visua
 | AC-004-02 | WHEN an element type has no mapping THE SYSTEM SHALL import it as the configured default kind (`Concept`), flag it for review, and list it — never silently drop. |
 | AC-004-03 | WHEN a file fails its notation's well-formedness SHACL shape THE SYSTEM SHALL reject the whole file before any commit with per-element reasons (`malformed-file-commits-nothing`). |
 | AC-004-04 | WHEN a well-formed file contains elements that fail tenant SHACL at commit THE SYSTEM SHALL commit the valid elements and report skipped ones with reasons (skip-and-report, per FR-039). |
-| AC-004-05 | WHEN relationships are converted THE SYSTEM SHALL map them per the relationship table (Assignment→performedBy, Composition→partOf, Triggering→triggeredBy, …; BPMN lane containment→performedBy; sequence flow→hasStep ordering) with unmapped relationships imported as `describes` + flag. |
+| AC-004-05 | WHEN relationships are converted THE SYSTEM SHALL map them per the relationship table (v1-delta §3 canonical): Assignment→`performedBy`; Composition/Aggregation→`partOf`; Triggering→`triggeredBy`; **Access→`consumes`/`produces` by accessType** (read→consumes, write→produces, readWrite→both; Process/Activity→DataAsset domain — never `accesses`); **Serving within `dependsOn`'s domain only** (consumer∈{Process,Service} dependsOn provider∈{Service,System}; System-serves-Service⟹`service runsOn system`; any other endpoint pair — e.g. Actor-domain — is SKIPPED + listed, no edge emitted); BPMN lane containment→`performedBy`; process containment→`hasStep`; **`sequenceFlow(a→b)` between mapped Activities→`a weave:precedes b`** (step-ordering predicate; BPMN order preserved edge-for-edge); `messageFlow`→`dependsOn` only when its mapped endpoints fall within `dependsOn`'s domain, else skipped + listed; remaining unmapped relationships imported as `describes` + flag. |
 | AC-004-06 | WHEN converted elements re-mention existing graph entities THE SYSTEM SHALL link via find-existing-node (same-label + same-kind), not duplicate — same rule as every ingest path. |
 | AC-004-07 | WHEN the AI provider is down THE SYSTEM SHALL still run these imports end-to-end (deterministic path — no LLM dependency). |
 | AC-004-08 | WHEN mapping produces provenance THE SYSTEM SHALL attribute the converter (not an LLM) as extracting agent, human as approver, file as `prov:used`. |
@@ -108,7 +108,10 @@ Minimum: 5 unit, 4 integration.
 |---|---|---|
 | Unit | should map BPMN task→Activity (`BPMN-task-maps-to-Activity`) + table-driven test over every mapping-row group (both notations) | AC-004-01/05 |
 | Unit | should map unmapped element to Concept with flag + review reason | AC-004-02 |
-| Unit | should order lane-contained activities with performedBy + hasStep | AC-004-05 |
+| Unit | should emit performedBy for lane-contained activities and hasStep for process containment | AC-004-05 |
+| Unit | should emit `a weave:precedes b` for every sequenceFlow(a→b) between mapped Activities, preserving BPMN order (fixture: 4-step linear flow → 3 precedes edges in file order) | AC-004-05 |
+| Unit | should map Access by accessType: read→consumes, write→produces, readWrite→both (Process/Activity→DataAsset) — never `accesses` | AC-004-05 |
+| Unit | should skip + list a Serving/messageFlow whose endpoints fall outside dependsOn's domain (e.g. Service serving a BusinessActor) — no edge emitted, no silent drop | AC-004-05 |
 | Unit | should split Serving by endpoint kinds — System-serves-Service emits `service runsOn system` (subject = the service, never inverted); other pairs emit consumer `dependsOn` provider (`serving-split-direction-canary`, Fable review 2026-07-08) | AC-004-05 |
 | Unit | should emit `service runsOn system` for component-realizes-service (hosted-as-subject canary) | AC-004-05 |
 | Unit | should parse Exchange XML with external-entity resolution disabled (defusedxml) | AC-004-01 |
@@ -121,7 +124,9 @@ Minimum: 5 unit, 4 integration.
 ## Dependencies
 
 - **blocked_by**: TASK-001 (spine)
-- **unlocks**: TASK-007 (cross-notation reconciliation needs ≥ 2 notations landing), TASK-008
+- **unlocks**: TASK-003 (its corpus chunker reuses this task's notation XML parse — ADR-011
+  "no second parser"), TASK-007 (cross-notation reconciliation needs ≥ 2 notations landing),
+  TASK-008
 
 ## Cost Estimate
 
@@ -155,6 +160,10 @@ two SHACL shapes; table-driven tests keep the mapping surface cheap.
   authoring.
 - Pitfall: BPMN subProcess is both a Process and a step of its parent — emit `partOf` + parent
   `hasStep`, don't pick one.
+- Pitfall: `weave:precedes` is Activity→Activity only. A sequenceFlow into/out of a gateway has
+  no Activity endpoint on one side — bridge through the gateway (connect its incoming Activities
+  to its outgoing Activities) or, where branch semantics would be lost, skip + list; never emit
+  precedes to a Concept-flagged gateway node.
 - Pitfall: mapping file rows may be amended post-Fable-review — tests must be table-driven off
   the mapping file itself, not literal expectations duplicated in test code (except the named
   `BPMN-task-maps-to-Activity` canary).
