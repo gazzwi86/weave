@@ -135,14 +135,26 @@ depend on. CE owns and publishes ALL of the following.
 
 ### CE-EVENT-1 — Graph-change event stream
 - CE emits change events: `{ change_type: "added"|"updated"|"deleted"|"constraint-violated",
-  entity_iri, version_iri, actor, ts }`.
-- Transport (SNS / WebSocket / change-feed) deferred to tech-spec.
+  entity_iri, version_iri, last_published_version, actor, ts }`. **Publish events carry the real
+  CE-VERSION-1 `version_iri`; draft-commit events carry `version_iri: null` plus
+  `last_published_version`** (the last published CE-VERSION-1 IRI, or null if never published) —
+  version IRIs and graph IRIs are different namespaces; a consumer dereferencing `version_iri`
+  must never receive a draft graph IRI.
+- **Beta transport (M2, ADR-008):** tenant-scoped transactional change-feed — one event row written
+  in the same transaction as the commit, read via `GET /api/events?since_seq={n}&limit={m}` (ordered,
+  plus `latest_seq`; per-tenant monotonic `seq` is additive to the event shape). Retention 30 days
+  (default, tunable via PLAT-SETTINGS-1); an aged-out cursor gets `410 Gone` and re-baselines via
+  CE-READ-1 — never a silent empty page. Push fan-out (SNS/WebSocket) is a post-v1 additive upgrade
+  reading this feed as its outbox.
 - Consumers: Events (graph-change triggers — **Should Have**, degrade to polling CE-READ-1 with a
   since-version if the stream isn't ready), Platform (live activity/“draft-vs-published delta” widgets).
 
 ### CE-BRAND-1 — Brand → design-token projection + VoiceRule contract
-- `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…)
-  projected from the RDF brand individuals — so Build can consume tokens without parsing RDF.
+- `GET /api/brand/tokens` → flattened design-token JSON projected from the RDF brand individuals —
+  so Build can consume tokens without parsing RDF. **Shape = closed core + extensions:** closed
+  core `{ color, typography (fontFamily + scale), spacing, radius }` is the stable Build-codegen
+  target (adding a core field = contract amendment); `extensions` is an open namespaced map that
+  passes through untyped. Build M2 codegens only the closed core.
 - `GET /api/brand/voice-rules` → machine-evaluable VoiceRules. Each rule declares
   `{ id, severity: "critical"|"normal", assertion }` where `assertion` is mechanically checkable.
 - **Conformance score (defined, so it is a buildable gate):**
@@ -164,8 +176,30 @@ depend on. CE owns and publishes ALL of the following.
   units bound to a CE object-kind (e.g. `reorderStock(System, DataAsset) → Activity`). One
   definition, one owner, one version lineage — so Build and Events cannot diverge into conflicting
   primitives. **Decision made now; built in M2/v1.0** (not M1).
-- `GET /api/functions` → `[{ fn_iri, name, bound_kind, signature, version_iri }]`;
-  `GET /api/functions/{iri}` → full signature + grounding entity IRIs.
+- **Typing model (ADR-009):** a function is a `weave:Function` individual in the tenant's graph;
+  each parameter and the return reference a **BPMO kind IRI** (per `GET /api/ontology/types`,
+  CE-READ-1) plus an optional `sh:NodeShape` constraining accepted nodes. Written via CE-WRITE-1
+  (single mutation entry point — SHACL + PROV-O apply). **RDF is the single source of truth**; CE
+  derives a **JSON-Schema projection** per signature (CE-BRAND-1 pattern: derived on read/commit,
+  never hand-edited, never allowed to diverge — guarded by a projection round-trip contract test).
+  Build codegen and agent tool schemas consume the JSON Schema; SPARQL consumers query the RDF.
+- `GET /api/functions` →
+  `[{ fn_iri, name, bound_kind, signature, version_iri, status, breaking }]`;
+  `GET /api/functions/{iri}` → full RDF-level signature (kind/shape IRIs) + grounding entity IRIs
+  + the derived JSON Schema.
+- **Versioning (ADR-009):** functions version **with the graph** — `version_iri` IS the
+  CE-VERSION-1 version IRI; no per-function lineage. A published signature is **immutable
+  in-place**: a signature change lands as a new graph version with `breaking: true`
+  (param added/removed/retyped or return changed = breaking; label/description = not; an unstated
+  change class defaults to breaking). `breaking: true` on a version means **that version introduced
+  a breaking change vs the previous published version**. Build SDK codegen refuses to regenerate across
+  `breaking: true` without explicit human acknowledgement. `status: "active" | "deprecated"` —
+  Events must not bind **new** automations to a deprecated function; existing references resolve.
+- **Milestone split (ADR-009, pinned):** **M2 = the CE surface complete** — definition + revision
+  via CE-WRITE-1, both `GET` endpoints incl. derived JSON Schema, breaking/deprecation semantics
+  live; Build *starts* typed-binding codegen against this surface. **v1.0 = execution** —
+  invocation semantics, implementation residence, runtime binding, SDK generation at scale.
+  Nothing about *executing* a function is M2.
 - Consumers: **Build** generates a typed binding into `BE-SDK-1` (one SDK method per function);
   **Events** references a function by `fn_iri` as an `EA-AUTOMATION-1` action; **Build/Events
   agents** invoke it as a tool. None of them defines or versions it — they all read CE.
