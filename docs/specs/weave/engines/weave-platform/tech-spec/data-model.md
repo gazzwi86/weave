@@ -481,8 +481,11 @@ credential/config payload is validated before storage — HTTPS only, hostname m
 connector type's allowed-domain suffix list (e.g. `*.snowflakecomputing.com`,
 `*.atlassian.net`, `*.service-now.com`, `*.azuredatabricks.net`/`*.cloud.databricks.com`,
 `*.dfs.core.windows.net`, `slack.com`), and its resolved IPs must not fall in loopback,
-link-local (incl. `169.254.169.254`), RFC-1918, CGNAT, or IPv6 ULA/link-local ranges.
-Runtime connections re-validate and pin the resolved IP (DNS-rebind aware). Test/dev
+link-local (incl. `169.254.169.254`), RFC-1918, CGNAT, or IPv6 ULA/link-local ranges. Before
+that check, the resolved address MUST be canonicalised — IPv4-mapped IPv6 literals (e.g.
+`::ffff:169.254.169.254`) unwrap to IPv4 form, and non-canonical encodings (decimal, octal,
+hex) are rejected outright rather than parsed. Runtime connections re-validate and pin the
+resolved IP (DNS-rebind aware). Test/dev
 fixture endpoints are permitted only via an explicit `connectors.allow_private_endpoints`
 settings flag (default **off**; never on in production). See v1-delta §2a and TASK-006/018.
 
@@ -539,7 +542,7 @@ regardless of preference (see TASK-007 §Invariants).
 | `tenant_id` | UUID | FK → tenants, NOT NULL | RLS anchor |
 | `principal_iri` | varchar | NOT NULL | user principal |
 | `event_type_pattern` | varchar | NOT NULL | exact or glob; e.g. `security.*` |
-| `channel_prefs` | jsonb | NOT NULL | e.g. `{ "slack": true, "email": false }` |
+| `channel_prefs` | jsonb | NOT NULL | e.g. `{ "slack": true, "email": false }`. The `email` key exists in the schema now but has no delivery mechanism until SES ships — **post-v1** (2026-07-08 product ruling). Until then the email toggle is hidden/disabled in the UI, never silently ignored; v1 delivery is in-app + Slack only (PLAT-NOTIFY-1). |
 
 ### Metering Record
 

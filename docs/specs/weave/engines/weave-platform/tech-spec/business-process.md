@@ -1,7 +1,7 @@
 ---
 type: TechSpec
 title: "Weave Platform — Business Process (M1)"
-description: "Core M1 flows, connector lifecycle state machine, and sequence diagrams for the Weave Platform shell: login, workspace switch, settings cascade, RBAC enforcement, revocation, connector OAuth, and audit-export with tenant-scope gate."
+description: "Core M1 flows, connector lifecycle state machine, and sequence diagrams for the Weave Platform shell: login, company switch, settings cascade, RBAC enforcement, revocation, connector OAuth, and audit-export with tenant-scope gate."
 tags: [weave-platform, arch, tech-spec, m1, business-process]
 status: Draft
 timestamp: 2026-07-01T00:00:00Z
@@ -70,32 +70,36 @@ flowchart TD
   request payload.
 - OTel span attributes must not include `email` or any PII.
 
-## Flow 2: Workspace Switch
+## Flow 2: Company Switch
 
-A workspace switch updates the RBAC context, not the isolation boundary. The tenant
-named graph stays constant across workspaces for the same tenant. A switch to a workspace
-in a different tenant is rejected with 403 and zero cross-tenant data in the response body.
+*(Formerly "Workspace Switch" — pre-2026-07-08 model had workspaces nested inside a tenant.
+Workspace ≡ company/tenant under the settled model (tenancy realignment decision, 2026-07-08),
+so a switch now moves the isolation boundary itself, not just the RBAC context.)*
+
+A company switch changes the active tenant context. Only a principal with an active role
+binding in the target company may switch to it; the Weave super admin (platform operator,
+outside tenant RBAC) is the only principal expected to hold bindings across more than one
+company, for provisioning purposes — regular users see and switch into their own company
+alone.
 
 ```mermaid
 flowchart TD
-    A(["User: switch to workspace W"]) --> B["Next.js: update workspace_id in session<br/>send PATCH /api/session/workspace"]
+    A(["User: switch to company C"]) --> B["Next.js: send PATCH /api/session/company"]
     B --> C["Backend: verify JWT + session_version<br/>(Redis check)"]
     C -->|Invalid token| D["401 Unauthorized"]
-    C -->|Valid| E["Lookup role_binding:<br/>principal_iri + workspace W + tenant_id"]
-    E -->|No active binding| F["403 Forbidden<br/>body: empty (zero cross-tenant data)<br/>audit: rbac.workspace_switch_denied"]
-    E -->|Binding found| G{workspace.tenant_id<br/>== ctx.tenant_id?}
-    G -->|No — cross-tenant attempt| H["403 Forbidden<br/>audit: security.cross_tenant_attempt<br/>notify: security.* channel"]
-    G -->|Yes| I["Update session: new workspace_id<br/>named graph unchanged — still<br/>urn:weave:g:tenant:{tenant_id}"]
-    I --> J(["Workspace switched"])
+    C -->|Valid| E["Lookup role_binding:<br/>principal_iri + tenant_id = C"]
+    E -->|No active binding| F["403 Forbidden<br/>body: empty (zero cross-tenant data)<br/>audit: rbac.company_switch_denied"]
+    E -->|Binding found| G["Update session: tenant_id = C<br/>active named graph:<br/>urn:weave:g:tenant:{C}"]
+    G --> H(["Company switched"])
 ```
 
-**Invariant:** the named-graph isolation boundary is the **tenant**, not the workspace.
-A workspace switch never changes the active `FROM` clause graph scope. Zero cross-tenant
-data is returned on any rejection path — the response body is empty, not filtered.
+**Invariant:** the named-graph isolation boundary moves WITH the switch — workspace ≡ company,
+so there is no longer a "same tenant, different workspace" case. A switch to a company with no
+active role binding is rejected with 403 and zero cross-tenant data in the response body.
 
 ## Flow 3: Settings-Cascade Resolution
 
-The four cascade levels (Company → Domain → Workspace → Project) are resolved by
+The three cascade levels (Company → Domain → Project) are resolved by
 walking from the tightest scope outward; the first non-null value wins. This implements
 [PLAT-SETTINGS-1](../../../../contracts.md). Billing caps use the same cascade logic via
 [PLAT-BILLING-1](../../../../contracts.md).
@@ -105,9 +109,7 @@ flowchart TD
     A(["resolve(key K, project P)"]) --> B["Query setting_values WHERE<br/>tenant_id = ctx.tenant_id AND key = K<br/>ORDER BY tighter_rank ASC"]
     B --> C{Project-level value<br/>exists for P?}
     C -->|Yes| R1(["Return project value<br/>resolved_at: project"])
-    C -->|No| D{Workspace-level value<br/>exists?}
-    D -->|Yes| R2(["Return workspace value<br/>resolved_at: workspace"])
-    D -->|No| E{Domain-level value<br/>exists?}
+    C -->|No| E{Domain-level value<br/>exists?}
     E -->|Yes| R3(["Return domain value<br/>resolved_at: domain"])
     E -->|No| F{Company-level value<br/>exists?}
     F -->|Yes| R4(["Return company value<br/>resolved_at: company"])
@@ -116,9 +118,9 @@ flowchart TD
 
 **Invariants:**
 
-- All four levels are queried in one Aurora call (single `WHERE tenant_id = ctx.tenant_id`
+- All three levels are queried in one Aurora call (single `WHERE tenant_id = ctx.tenant_id`
   with `ORDER BY tighter_rank ASC` and `LIMIT 1`).
-- `tighter_rank`: 0 = project (tightest) … 3 = company; `LIMIT 1` returns the winner.
+- `tighter_rank`: 0 = project (tightest) … 2 = company; `LIMIT 1` returns the winner.
 - Budget-cap cascade: same logic with `cap_type` and `period` as additional dimensions.
 - An 80% consumed threshold emits a warning notification (PLAT-BILLING-1); 100% rejects
   the triggering call synchronously before the metering record is written.
@@ -133,8 +135,8 @@ for the `require(level, area)` contract and the authority-level rank table.
 
 ```mermaid
 flowchart TD
-    A(["API request"]) --> B["RBAC middleware: extract<br/>principal_iri, workspace_id, area"]
-    B --> C["Lookup active role_binding:<br/>tenant_id + workspace_id + principal_iri<br/>AND revoked_at IS NULL"]
+    A(["API request"]) --> B["RBAC middleware: extract<br/>principal_iri, scope_level, scope_id, area"]
+    B --> C["Lookup active role_binding:<br/>tenant_id + scope_level + scope_id + principal_iri<br/>AND revoked_at IS NULL"]
     C -->|No active binding| D{event_type<br/>∈ security.*?}
     C -->|Binding found| E["Compare rank:<br/>binding.authority_level vs required"]
     E -->|Insufficient rank| D
@@ -386,5 +388,5 @@ The following flows and interactions are post-M1 and must not be built into M1 P
 | Full ODRL Permission evaluation in RBAC middleware | ADR-002 M2 authority module |
 | Multi-user CRDT conflict resolution (Graph Explorer collab) | Explorer Phase 2 |
 | Per-user dashboard pin flows (drag/drop, persist) | FR-008 is M2 |
-| Workspace widget library management | FR-011 is M2 |
+| Company widget library management (formerly "Workspace widget library management" — workspace ≡ company since 2026-07-08) | FR-011 is M2 |
 | AI agent authority escalation (HITL Duty + automatable flag) | ADR-002 M2 |

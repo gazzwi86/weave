@@ -222,6 +222,7 @@ For the full master list of confirmed architecture decisions, see `CLAUDE.md § 
 | Weave ships a process-centric upper ontology (framework, not taxonomy); clients build their own vocabulary on top | The ArchiMate-3-aligned **BPMO framework** — Process at the centre, linked to activities, events, actors, systems, services, data assets, capabilities, domains, goals, and policies, plus SHACL/PROV/SKOS scaffolding; "Weave provides the grammar; the company writes the sentences" (A1). Canonical kind/relationship set: `constitution-engine` brief + `CE-READ-1` | 2026-06-30 |
 | Fully commercial, closed source | No OSS core; protect the platform IP and the engagement business | 2026-06-24 |
 | Pricing: hybrid — company-tier (tenant) subscription + usage on generation/automation | Avoids per-seat friction so the graph spreads org-wide (ops-first), while capturing value where it is created (Build Engine generations, agent/automation runs) | 2026-06-26 |
+| Billing dollar rate card is **post-v1** — v1 billing surfaces raw usage counts (tokens, runs) only, no cost figures | The per-metric price table (turning tokens/runs into a dollar cost) is a pricing decision, not yet made; shipping counts-only avoids promising numbers the business hasn't set. The `cost` field semantics in `PLAT-BILLING-1` are pending a coordinator-owned contract note, landing separately | 2026-07-08 |
 | Differentiate on loop-closure + authoring + the "business brain", NOT on the semantic substrate | RDF/OWL/SHACL/SPARQL are commodity (mature triple stores plus open source); storage and standards conformance are not a moat. The defensible value is generation/automation closure, whole-business NL+forms authoring over a shipped ontology, and the business brain that grounds agents within the model's bounds | 2026-06-30 |
 
 #### Competitive landscape & closing window
@@ -297,7 +298,7 @@ in the dashboard grid.
 - There is no "dashboard configuration" form. The user types a prompt and a widget appears.
 - Widgets are data-live: they query engine APIs at render time (and optionally poll for updates).
 - The AI chooses the appropriate visualisation for the data — a compliance contravention count becomes a
-  severity-bucketed bar chart; a token-spend trend becomes a line chart; a list of active proposals
+  severity-bucketed bar chart; a token-usage trend becomes a line chart; a list of active proposals
   renders as a ranked card stack.
 - Generated widgets are saveable and shareable: once a user creates a useful widget, they pin it to their
   dashboard and can publish it to a tenant-shared library.
@@ -315,7 +316,7 @@ in the dashboard grid.
 |---|---|
 | Ontology health | Entity counts by kind (spanning the BPMO kinds, via `entity_count_by_kind`), latest published version, draft vs published delta, SHACL validation error count |
 | Graph completeness | Model coverage % (domains/capabilities/systems populated vs blank), knowledge gaps (entities missing required properties), unmapped instance count |
-| Token & AI spend | Usage by engine / user / project, cost trend (7d/30d), budget burn vs cap, per-engine cost breakdown |
+| Token & AI usage | Usage by engine / user / project, usage-count trend (7d/30d), budget burn vs cap, per-engine token/run breakdown (dollar cost trend is **post-v1**, pending the rate card) |
 | Active projects | Project count by phase, recent activity, budget burn, artefacts shipped, success/failure rate |
 | Compliance status | Active SHACL contraventions by severity and domain, policy coverage gaps, self-audit query results |
 | Ontology & project issues | Validation warnings, unsatisfiable OWL classes, entities with no owner, version pin mismatches |
@@ -564,11 +565,11 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-027 | WHEN a user invokes global search (Cmd+K), THE SYSTEM SHALL return grouped results with `:type` filtering within a default 300 ms / 150 ms debounce (provisional) and SHALL omit non-GA engine groups; IF the index is down THEN THE SYSTEM SHALL return a defined error | E5-S2 | P0 | M1 |
 | FR-028 | WHEN a user opens the help launcher, THE SYSTEM SHALL provide docs search, a role-tailored tour (4 primary paths), shortcuts, and a docs link | E5-S3 | P1 | M1 |
 | FR-029 | WHEN an engine publishes a notification, THE SYSTEM SHALL deliver it through `PLAT-NOTIFY-1` with an **open type taxonomy** (not a fixed enum), **in-app at M1** and **Slack on the connector timeline (v1.0, via `PLAT-CONNECTOR-1`)**, with deep-link and mark-all-read; IF a channel fails THEN THE SYSTEM SHALL still deliver in-app and log it; default 30 s delivery (provisional) | E6-S1 | P0 | M1 (in-app); v1.0 (Slack) |
-| FR-030 | WHEN a user sets notification preferences, THE SYSTEM SHALL let them toggle each registered type and set an email-digest cadence | E6-S2 | P1 | M1 |
+| FR-030 | WHEN a user sets notification preferences, THE SYSTEM SHALL let them toggle each registered type; WHERE the email channel is not yet available (SES delivery is **post-v1**, 2026-07-08 product ruling) THE SYSTEM SHALL hide the email-digest-cadence control rather than show it and silently drop the preference | E6-S2 | P1 | M1 (toggle); post-v1 (email delivery) |
 | FR-031 | WHEN an admin configures a connector, THE SYSTEM SHALL support the 7 connectors (Snowflake·Databricks·AWS·Azure Data Lake·Atlassian[Jira+Confluence]·ServiceNow·Slack), store credentials in **AWS Secrets Manager only**, and capture sync direction+frequency; IF a credential is invalid THEN THE SYSTEM SHALL fail closed and SHALL NOT log the secret | E7-S1 | P0 | v1.0 |
 | FR-032 | WHEN the `PLAT-CONNECTOR-1` health API is read, THE SYSTEM SHALL return status, last_sync, last_error, error_count; WHEN a connector is degraded/disconnected THE SYSTEM SHALL emit a `PLAT-NOTIFY-1` event | E7-S2 | P0 | v1.0 |
 | FR-033 | WHEN connector data is ingested, THE SYSTEM SHALL write it to the graph via `CE-WRITE-1` under a connector-scoped principal; WHEN writing back THE SYSTEM SHALL use an idempotency key with bounded retry (default 3, tunable) and conflict-reject; IF a write-back fails THEN THE SYSTEM SHALL emit `PLAT-NOTIFY-1` + `PLAT-AUDIT-1` | E7-S3 | P0 | v1.0 (ingest); bidirectional per OQ-07 |
-| FR-034 | WHEN the usage screen renders, THE SYSTEM SHALL read the `PLAT-BILLING-1` read surface (`GET /api/billing/usage?group_by=engine\|user\|project&from=&to=&granularity=day` → `{ rows: [{ key, tokens, runs, cost }], as_of }`) showing per-token + per-run dimensions with a per-engine breakdown at a default < 5 min lag (provisional) and SHALL never drop metering (separate queue); IF metering is delayed THEN THE SYSTEM SHALL show last-known totals with the `as_of` staleness timestamp | E8-S1 | P0 | M1 (token); per-run when Events ships |
+| FR-034 | WHEN the usage screen renders, THE SYSTEM SHALL read the `PLAT-BILLING-1` read surface (`GET /api/billing/usage?group_by=engine\|user\|project&from=&to=&granularity=day` → `{ rows: [{ key, tokens, runs, cost }], as_of }`) showing per-token + per-run **counts only** (`cost` is `null` until the post-v1 rate card — per the PLAT-BILLING-1 contract shape) with a per-engine breakdown at a default < 5 min lag (provisional) and SHALL never drop metering (separate queue); IF metering is delayed THEN THE SYSTEM SHALL show last-known totals with the `as_of` staleness timestamp. A `cost` field (dollar conversion) is **post-v1**, pending the rate-card contract note; v1 surfaces raw counts only | E8-S1 | P0 | M1 (token); per-run when Events ships |
 | FR-035 | WHEN AI spend is evaluated, THE SYSTEM SHALL resolve the budget cap via the `PLAT-SETTINGS-1` cascade (3-level Company→Domain→Project, tighter-wins) and alert at default 80%/100% (tunable); WHEN spend reaches 100% THE SYSTEM SHALL hard-reject **before any AI API call**; WHILE metering lags THE SYSTEM SHALL fail closed (caps live in `PLAT-SETTINGS-1` — `PLAT-BILLING-1` has no budget endpoints) | E8-S2 | P0 | M1 |
 | FR-036 | WHEN a `PLAT-AUDIT-1` entry is written, THE SYSTEM SHALL hash-chain it (prev_hash→hash) with an ed25519 signature, append-only at the DB-constraint level; IF a delete is attempted THEN THE SYSTEM SHALL reject and log it | E9-S1 | P0 | M1 |
 | FR-037 | WHEN audit is queried, THE SYSTEM SHALL filter by date/actor/type/resource/engine, paginate (default ≤ 500/page, tunable), and export JSON/NDJSON with a chain-verification procedure | E9-S1 | P0 | M1 |
@@ -576,6 +577,7 @@ tenancy/settings cascade and metering (`PLAT-CONNECTOR-1`, `PLAT-SETTINGS-1`, `P
 | FR-045 | WHERE a **Weave super admin (platform operator)** identity is scoped outside any single tenant's RBAC, THE SYSTEM SHALL let them create a new company (tenant) via the UI (name, slug, billing plan) and create that company's **initial company-admin user**, after which the company admin invites their own members; THE SYSTEM SHALL enforce this via a dedicated Cognito group + `PLAT-IDENTITY-1` principal, never through tenant RBAC | E3-S4 | P0 | M1 |
 | FR-046 | WHEN a super admin opens the header company dropdown, THE SYSTEM SHALL list all companies they can operate and include an **"Add company"** button opening a modal that creates a company and adds its first admin user; WHERE the user is a regular user THE SYSTEM SHALL show only their own company, and IF they switch to any other company THEN THE SYSTEM SHALL return 403 with zero cross-tenant data (extends FR-020) | E3-S4 | P0 | M1 |
 | FR-047 | WHERE a user is not a super admin, THE SYSTEM SHALL show only their own company and its dashboard (metrics, generative UI) plus their own per-user Hammerbarn demo sandbox (a personal copy, not another tenant's data), and SHALL NOT expose any *other real tenant's* navigation, listing, or data, verified by the cross-tenant-read test (§2.2) | E3-S4 | P0 | M1 |
+| FR-048 | WHEN a company's ontology version is published, THE SYSTEM SHALL notify all active members of that company **except the publishing principal**, via `PLAT-NOTIFY-1` emitting event `ontology.version.published`, delivered in-app at M1 (tenancy realignment decision, 2026-07-08) | E6-S1 | P0 | M2 |
 
 > **Platform super admin (FR-045..047):** a Weave-operator (platform-operator) role for provisioning
 > companies and their first admins and navigating between companies. It ships at **MVP** (it is how any
@@ -966,9 +968,9 @@ offline state.
 
 ### EPIC-002 — Widget Library (engine-sourced data categories, milestone-gated)
 
-**Milestone:** **M2** (CE-sourced stories: S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) /
+**Milestone:** **M2** (CE-sourced stories: S1, S2, S3, S5, S7-CE, S10, S11, S13, S14, S15) /
 **v1.0** (S8 connector-health rows — connectors deferred to v1.0) /
-**post-v1** (engine-gated: S3 per-run, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
+**post-v1** (engine-gated: S3 per-run dimension, S4, S7 Build rows, S8 automation rows, S9 realtime sub-widgets, S12)
 · **Priority:** Must Have (CE-sourced) / P0 when source engine ships (engine-gated)
 · **depends_on:** EPIC-000, EPIC-001, EPIC-004, EPIC-009, CE-METRICS-1, CE-READ-1, CE-DIFF-1,
 CE-VERSION-1, CE-EVENT-1 (+ EPIC-007 for S8 connector-health rows, v1.0) · **blocks:** none ·
@@ -993,15 +995,16 @@ per-story phase tags, never fragmented further.
   (SHACL warnings), capabilities with no owner, and domains with zero instances, WHEN a user prompts "show
   me knowledge gaps" THE SYSTEM SHALL resolve it to a bound widget. AC (failure, EARS): IF a contract errors
   THEN THE SYSTEM SHALL show the unavailable state. *(Must, MVP)*
-- **E2-S3 — AI/token spend widgets** *(P0 when metering live; CE-portion at MVP)*. WHERE the
+- **E2-S3 — AI/token usage widgets** *(P0 when metering live; CE-portion at MVP)*. WHERE the
   `PLAT-BILLING-1` read surface (`GET /api/billing/usage?group_by=engine|user|project&from=&to=&granularity=day`
-  → `{ rows: [{ key, tokens, runs, cost }], as_of }`) provides spend 7d/30d by engine/user/project,
+  → `{ rows: [{ key, tokens, runs, cost }], as_of }`, `cost` null until the post-v1 rate card) provides usage counts 7d/30d by engine/user/project,
   budget burn vs cap (via `PLAT-SETTINGS-1` — caps are settings, not billing endpoints), and a
-  `granularity=day` cost trend, THE SYSTEM SHALL render the spend widgets and
+  `granularity=day` usage-count trend, THE SYSTEM SHALL render the usage widgets and
   SHALL fire a burn-rate alert WHEN projected burn exceeds a configurable threshold (default 90% projected,
-  tunable). AC (failure, EARS): IF the metering pipeline gaps THEN THE SYSTEM SHALL show "metering delayed"
-  with a last-known timestamp (events never dropped — separate queue per `PLAT-BILLING-1`). *(Must — token
-  at MVP; per-run automation dimension P0 when Events ships)*
+  tunable). A dollar cost trend/breakdown is **post-v1** — the `cost` field and rate card are pending the
+  coordinator's separate contract note. AC (failure, EARS): IF the metering pipeline gaps THEN THE SYSTEM
+  SHALL show "metering delayed" with a last-known timestamp (events never dropped — separate queue per
+  `PLAT-BILLING-1`). *(Must — token at MVP; per-run automation dimension P0 when Events ships)*
 - **E2-S4 — Active project pipeline widgets** *(P0 when Build Engine ships)*. WHERE Build is GA
   with project metrics, THE SYSTEM SHALL render project count by phase, projects at risk, artefacts
   shipped, and agent success/failure rate. AC (failure, EARS): WHERE Build is not GA THE SYSTEM SHALL
@@ -1226,7 +1229,11 @@ PROV-O record and audit entry.
   appears in PROV-O and every `PLAT-AUDIT-1` entry, and maps to exactly one IAM role and one RBAC role at
   the Weave API boundary — verified by tracing one agent action end to end.
 
-**Technical notes.** Cognito is the default human IdP; Auth0 SAML/OIDC per tenant. RBAC at the API via
+**Technical notes.** The 10 canonical in-tenant roles + the Weave super admin, enumerated in
+[§Roles & Access](#roles--access) above, are the **normative** RBAC role set — `PLAT-SETTINGS-1`
+resolves every role binding against that same list (tenancy realignment decision, 2026-07-08: "spec's
+10-role matrix + project-scoped grants"); there is no separate role taxonomy on the contract side.
+Cognito is the default human IdP; Auth0 SAML/OIDC per tenant. RBAC at the API via
 JWT validation; roles control read/author/publish/admin per engine/area. `PLAT-IDENTITY-1` records IAM
 role ↔ canonical principal IRI ↔ RBAC role. The **Weave super admin (platform operator)** identity — a
 dedicated Cognito group minting a `PLAT-IDENTITY-1` principal outside any client tenant's RBAC —
@@ -1303,15 +1310,19 @@ additional channel (Slack) plugs in when `PLAT-CONNECTOR-1` ships.
   type taxonomy — not a fixed enum); **in-app delivery ships at M1** and **Slack delivery lands at v1.0 via
   `PLAT-CONNECTOR-1`**. Covered types include: budget, HIGH SHACL violation, build state, HITL-gate fired,
   automation-failure, connector-degraded, onboarding-activation, version-pin mismatch, ops-health spike.
+  WHEN a company's ontology version is published THE SYSTEM SHALL notify all active members of that
+  company **except the publishing principal**, event `ontology.version.published`, in-app at M1
+  (tenancy realignment decision, 2026-07-08; see FR-048).
   WHEN a notification is clicked THE SYSTEM SHALL deep-link to the relevant screen; WHEN "mark all read" is
   selected THE SYSTEM SHALL clear the badge; the in-app delivery target is a configurable default (default
   30 s, **provisional**, owner Architect). AC (failure, EARS): IF a delivery channel fails (e.g. Slack
   token invalid, once Slack is live) THEN THE SYSTEM SHALL still deliver the notification in-app and record
   the channel failure itself. *(Must — in-app M1; Slack v1.0)*
-- **E6-S2 — Notification preferences.** Settings → Notifications gives per-user toggles per registered type
-  + email digest (none/daily/weekly). AC (failure): a preference write failure retains the prior preference
-  and shows an error; a missing preference defaults to "on" so no critical alert is silently muted.
-  *(Should)*
+- **E6-S2 — Notification preferences.** Settings → Notifications gives per-user toggles per registered type;
+  the email-digest cadence control (none/daily/weekly) is **hidden until SES ships (post-v1, 2026-07-08
+  product ruling)** — v1 has no email channel, so the control is not shown rather than shown-but-inert.
+  AC (failure): a preference write failure retains the prior preference and shows an error; a missing
+  preference defaults to "on" so no critical alert is silently muted. *(Should)*
 
 **Epic-level acceptance criteria:**
 
@@ -1329,8 +1340,10 @@ additional channel (Slack) plugs in when `PLAT-CONNECTOR-1` ships.
 **Technical notes.** `PLAT-NOTIFY-1` is one service with an open type taxonomy. **In-app delivery ships at
 M1; Slack delivery lands at v1.0 via `PLAT-CONNECTOR-1`** (connectors are deferred to v1.0), so M1 has no
 hard dependency on EPIC-007 — the channel plugs in when connectors ship. In-app delivery target default
-30 s is provisional (owner Architect). Per-user preferences honour a toggle per registered type plus email
-digest cadence; a failed preference write retains the prior preference. Once connectors are live, a
+30 s is provisional (owner Architect). Per-user preferences honour a toggle per registered type; the email
+digest cadence field exists in the schema but is hidden in the UI until SES ships (**post-v1**, 2026-07-08
+product ruling) — v1 delivery is in-app + Slack only. A failed preference write retains the prior
+preference. Once connectors are live, a
 degraded/disconnected connector (EPIC-007) is a primary publisher.
 
 ### EPIC-007 — Managed Connectors (PLAT-CONNECTOR-1)
@@ -1421,11 +1434,12 @@ effective cap.
 **User stories (PRD §Epic 8) — full acceptance criteria:**
 
 - **E8-S1 — Usage dashboard in Settings.** WHEN Settings → Billing renders THE SYSTEM SHALL
-  show `PLAT-BILLING-1` cycle spend across both dimensions (per-run automation + per-token AI), per-engine
-  token breakdown, per-run automation count, plan tier, and renewal date, updating with a configurable lag
-  (default < 5 min, **provisional**, owner Architect). AC (failure, EARS): IF metering is delayed THEN THE
-  SYSTEM SHALL show last-known totals with a staleness timestamp; metering events SHALL never be dropped
-  (separate queue from run outcome). *(Must)*
+  show `PLAT-BILLING-1` cycle usage **counts** across both dimensions (per-run automation + per-token AI —
+  no dollar figures at v1; the rate card converting counts to cost is **post-v1**, 2026-07-08 product
+  ruling), per-engine token breakdown, per-run automation count, plan tier, and renewal date, updating with
+  a configurable lag (default < 5 min, **provisional**, owner Architect). AC (failure, EARS): IF metering is
+  delayed THEN THE SYSTEM SHALL show last-known totals with a staleness timestamp; metering events SHALL
+  never be dropped (separate queue from run outcome). *(Must)*
 - **E8-S2 — Set and enforce budget caps (cascade-resolved).** A cap set at any cascade node
   (`PLAT-SETTINGS-1`, tighter-wins; the full Company/Domain/Project cascade per A4 as amended)
   tracks spend against the effective cap; notifications fire at configurable thresholds (default 80% and
@@ -1453,10 +1467,10 @@ effective cap.
 **Technical notes.** `PLAT-BILLING-1` meters two dimensions: per-token AI generation (available at MVP,
 including dashboard generation) and per-run automation (lights up when Events ships). Hard enforcement
 rejects before any AI API call at 100% of the effective cap; fail-closed under metering lag using the most
-recent committed meter. Usage screen shows cycle spend, per-engine token breakdown, per-run automation
-count, plan tier, renewal date; update lag default < 5 min is provisional (owner Architect). Per-spec/
-per-PR caps, model-tier gating, and cost-estimate-before-generation gating are explicitly Build-Engine
-generation-loop scope, not platform v1.
+recent committed meter. Usage screen shows cycle usage counts (not dollar spend — the rate card is
+**post-v1**), per-engine token breakdown, per-run automation count, plan tier, renewal date; update lag
+default < 5 min is provisional (owner Architect). Per-spec/per-PR caps, model-tier gating, and
+cost-estimate-before-generation gating are explicitly Build-Engine generation-loop scope, not platform v1.
 
 ### EPIC-009 — Immutable Audit (PLAT-AUDIT-1)
 
@@ -1703,7 +1717,7 @@ model completeness and what Weave can generate for each role.
 | Epic | Description | Stories | Priority |
 |------|-------------|---------|----------|
 | EPIC-001 (E1-S0..S7) | Dashboard — fixed CE-sourced default tiles (E1-S0, moved from M1 2026-07-02) + Generative surface: prompt, refine, pin, publish, starters (needs CE GA) | 8 | Must Have |
-| EPIC-002 (CE-sourced) | Widget Library — CE-sourced stories (S1, S2, S5, S7-CE, S10, S11, S13, S14, S15) | 9 of 15 | Must Have / Should Have |
+| EPIC-002 (CE-sourced) | Widget Library — CE-sourced stories (S1, S2, S3, S5, S7-CE, S10, S11, S13, S14, S15) | 10 of 15 | Must Have / Should Have |
 | EPIC-010 | "What can Weave do for you?" role-home (legibility, CE-sourced) | 3 | Must Have |
 
 **Entry criteria:**

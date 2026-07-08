@@ -42,9 +42,12 @@ never an assumption.
 E7-S4 **at the M2 descope (ADR-013)**: `authority(actor, action, target)` and
 `escalation(process)` parameterised SELECT patterns resolving from **base BPMO links only**
 (`performedBy` / `governedBy` / `accesses`), the tenant/domain-tunable deny-default,
-`coverage_gap(kind, required_links[])` rows, and the framework competency-question set (FR-037)
-with the < 2-domain-questions onboarding flag. Read-side over CE-READ-1 — **no new contract
-minted**. Runtime enforcement is Events & Actions' job, not CE's.
+`coverage_gap(kind, required_links[])` rows, and the framework competency-question set (FR-037).
+The "< 2 declared domain questions" onboarding flag is **descoped to post-v1** (mirrors the
+authority descope, ADR-013): no CE query/shape backs a countable "declared domain competency
+question" individual in M2, so Onboarding ships it as a manual self-mark checklist item, not a
+CE-sourced count (OQ-M2-1). Read-side over CE-READ-1 — **no new contract minted**. Runtime
+enforcement is Events & Actions' job, not CE's.
 
 **OUT (post-v1, ADR-013):** ODRL Authority-Extension resolution — `Permission` chains,
 explicit-deny (`odrl:Prohibition`) override, `authorityLevel`, HITL triggers, escalation
@@ -62,7 +65,7 @@ post-v1.
 | AC-010-04 | WHEN a required link is missing THE SYSTEM SHALL return explicit coverage-gap rows shaped `{ entity_iri, missing_link }` (one row per absent link, per CE-READ-1), with `coverage_gap(kind, required_links[])` supporting the default invocation `(Process, [performedBy, governedBy])` — never an empty result readable as "permitted". |
 | AC-010-05 | WHEN `escalation(process)` runs THE SYSTEM SHALL return the escalation Actor(s) from the process's modelled links, with a coverage-gap row when unmodelled. (Deadline evaluation — `escalationDeadline` — is post-v1 Authority Extension; no deadline column is served in M2.) |
 | AC-010-06 | WHEN the patterns execute THE SYSTEM SHALL pass through the same B3 sanitizer as every CE-READ-1 SELECT (SELECT-only, `SERVICE`-blocked, paginated) — extending the M1 `coverage_gap` implementation, not forking it. |
-| AC-010-07 | WHEN the framework competency-question set runs against the seeded graph THE SYSTEM SHALL return non-empty results for every framework question (FR-037), and a tenant with < 2 declared domain competency questions SHALL be flagged at onboarding. |
+| AC-010-07 | WHEN the framework competency-question set runs against the seeded graph THE SYSTEM SHALL return non-empty results for every framework question (FR-037). Per-tenant "< 2 declared domain questions" flagging is **post-v1** — no CE query or shape backs a countable declared-question individual in M2; Onboarding renders the flag as a manual self-mark checklist item (OQ-M2-1), not a CE-sourced count. |
 | AC-010-08 | WHEN patterns run THE SYSTEM SHALL meet p95 ≤ 500 ms at the 100k store (m2-delta §9). |
 
 ## Pseudocode
@@ -124,7 +127,6 @@ Minimum: 4 unit, 4 integration, 1 E2E-style seeded scenario.
 | Integration | should answer the three FR-036 example questions on the seeded Hammerbarn graph from base links only | AC-010-01, AC-010-05 |
 | Integration | should route patterns through the shared B3 sanitizer (SERVICE-bearing param rejected) | AC-010-06 |
 | Integration | should return non-empty results for every framework competency question on the seed | AC-010-07 |
-| Integration | should flag a tenant with < 2 domain competency questions | AC-010-07 |
 | Perf | locust: authority pattern p95 ≤ 500 ms @ 100k | AC-010-08 |
 | Scenario | seeded agent asks "may I execute Activity X alone" — unmodelled ⟹ deny/route-to-human end-to-end | AC-010-01/02/04 |
 
@@ -166,8 +168,8 @@ deny post-processor + question set; the descope removes the ODRL resolution work
 - The deny-default synthesis is the security floor: write its test FIRST (TDD), it is the one
   behaviour that must never regress.
 - Competency questions: ship as named queries in the same server-side store as
-  `coverage_gap`/`authority`; the onboarding flag is a count check, not new UI (Onboarding
-  engine renders it).
+  `coverage_gap`/`authority`. The "< 2 declared" onboarding flag is **not CE's job in M2** — it
+  ships as an Onboarding-rendered manual self-mark checklist item (OQ-M2-1), not a CE count query.
 - Pitfall: "action" granularity — actions are modelled verbs on links (`performedBy`,
   `accesses`), not free strings; validate the action parameter against the relationship
   predicate list from `GET /api/ontology/types`.

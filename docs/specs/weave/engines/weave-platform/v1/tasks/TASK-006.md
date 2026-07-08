@@ -41,7 +41,7 @@ adr_refs: [ADR-016, ADR-017]
 | AC-7 | WHEN connector credentials are rotated (PUT called again), THE SYSTEM SHALL update the Secrets Manager value without deleting and re-creating the secret (to preserve IAM resource policies), and emit a PLAT-AUDIT-1 event. | integration: `test_connector_credential_rotation` |
 | AC-8 | WHEN a connector is configured, THE SYSTEM SHALL capture and persist `sync_direction` (`read\|write\|bidirectional`), `sync_frequency` (interval), and the instance `handle` (default = `connector_type`; UNIQUE per tenant; **rejected with 400 if it contains a colon** — it prefixes `weave:externalId`, parsed first-colon-only) on the **unified `connector_configs` row (data-model.md canonical schema)**; `next_sync_at` is set at authorization (E7-S1/FR-031 — these fields feed the ADR-016 poller and ADR-017 allowlist and were previously uncaptured). | integration: `test_config_captures_sync_fields_and_handle` |
 | AC-9 | WHEN `sync_direction` is `write` or `bidirectional` for a connector NOT in the ADR-017 allowlist (`atlassian`, `servicenow`), THE SYSTEM SHALL reject the save with 422 `{"error":"unsupported_writeback","allowlist":["atlassian","servicenow"]}`. | unit: `test_write_direction_rejected_off_allowlist` |
-| AC-10 | WHEN a tenant-supplied host/account/instance URL is present in the config payload, THE SYSTEM SHALL validate it through the shared `ssrf_guard` (v1-delta §2a): HTTPS only, hostname within the connector type's allowed-domain suffix list, resolved IPs outside loopback/link-local (incl. `169.254.169.254`)/RFC-1918/CGNAT/IPv6-ULA ranges; violations → 422 `{"error":"endpoint_not_allowed"}` and the connector marked `disconnected`. Private endpoints are reachable ONLY under the `connectors.allow_private_endpoints` settings flag (test/dev; default off). | unit: `test_ssrf_guard_rejects_private_and_metadata_endpoints` (parametrised) |
+| AC-10 | WHEN a tenant-supplied host/account/instance URL is present in the config payload, THE SYSTEM SHALL validate it through the shared `ssrf_guard` (v1-delta §2a): HTTPS only, hostname within the connector type's allowed-domain suffix list, resolved IPs outside loopback/link-local (incl. `169.254.169.254`)/RFC-1918/CGNAT/IPv6-ULA ranges; violations → 422 `{"error":"endpoint_not_allowed"}` and the connector marked `disconnected`. Before the denylist check, the resolved address MUST be canonicalised — IPv4-mapped IPv6 literals (e.g. `::ffff:169.254.169.254`) unwrap to IPv4 form, and non-canonical encodings (decimal, octal, hex) are rejected outright rather than parsed. Private endpoints are reachable ONLY under the `connectors.allow_private_endpoints` settings flag (test/dev; default off). | unit: `test_ssrf_guard_rejects_private_and_metadata_endpoints` (parametrised); `test_ssrf_rejects_non_canonical_ip_encodings` (`::ffff:169.254.169.254`, decimal-encoded metadata IP) |
 
 ## Implementation
 
@@ -248,7 +248,7 @@ sequenceDiagram
 | AC-7 | Integration | `test_connector_credential_rotation` |
 | AC-8 | Integration | `test_config_captures_sync_fields_and_handle` |
 | AC-9 | Unit | `test_write_direction_rejected_off_allowlist` |
-| AC-10 | Unit | `test_ssrf_guard_rejects_private_and_metadata_endpoints` |
+| AC-10 | Unit | `test_ssrf_guard_rejects_private_and_metadata_endpoints`, `test_ssrf_rejects_non_canonical_ip_encodings` |
 
 ## Dependencies
 

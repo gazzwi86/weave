@@ -408,13 +408,13 @@ connector-driven live path is Platform / PLAT-CONNECTOR-1).
 | FR-034 | Edit uses **partial-update** semantics: only named properties retracted/asserted; all others (position, colour, domain…) preserved. AC: an edit omitting position never wipes position. | E2-S2 | P0 | MVP |
 | FR-035 | Saved queries are **server-side, domain-scoped** (PLAT-SETTINGS-1 cascade — workspace level removed 2026-07-08), visible to all domain members; promotable to saved view. AC: a colleague in the same domain re-runs a saved query. | E7-S3 | P2 | MVP |
 | FR-036 | Agent-grounding: built-in agent-authority SPARQL SELECTs over CE-READ-1 answer "what may an agent do, on which systems/data/process, who to escalate to" from modelled `governedBy`/`performedBy`/`accesses` links; absent permission defaults to **deny / route-to-human** (default, tunable via PLAT-SETTINGS-1); with no Authority Extension populated the surface never returns permit — explicit-deny override lands with the post-v1 extension (ADR-013); a missing required link returns an explicit coverage-gap row `{entity_iri, missing_link}`, never an empty "permitted". AC: a process with no `performedBy` yields a coverage-gap row; an unstated permission resolves to deny. | E7-S4 | P1 | MVP (read-side over CE-READ-1; no new contract) |
-| FR-037 | Ship a small **framework competency-question set** (e.g. consumes/produces/runs-on/performed-by/governed-by per process) runnable against any client graph; client onboarding MUST declare **2–5** domain competency questions; both are runnable as a test. AC: framework CQs return for the seeded graph; a client with <2 declared CQs is flagged at onboarding. | (CQ) | P1 | MVP |
+| FR-037 | Ship a small **framework competency-question set** (e.g. consumes/produces/runs-on/performed-by/governed-by per process) runnable against any client graph; client onboarding MUST declare **2–5** domain competency questions; both are runnable as a test. AC: framework CQs return for the seeded graph. The "<2 declared domain questions" flag is an **Onboarding-owned manual self-mark checklist item** (post-v1 for a CE-sourced auto-count — no CE query/shape backs a countable declared-question individual in M2; OQ-M2-1). | (CQ) | P1 | MVP |
 | FR-038 | Conversational document ingest: an uploaded document → agent-extracted BPMO candidates proposed **through the chat panel, linked to existing resources** (reuse propose-mutations + find-existing-node reconciliation); per-proposal human accept/reject; SHACL prospective pre-flight on a throwaway clone; commit via CE-WRITE-1 with PROV-O (LLM extractor + human approver + source doc as `prov:used`); low-confidence (default 0.6, tunable) flagged; AI-unavailable → 503 with no partial commit; `sh:Violation` → 422. AC: a re-mention of an existing entity reuses it, not duplicates; 503 path commits nothing. | E12-S1 | P1 | Post-MVP (prioritized) |
 | FR-039 | Structured model import (ArchiMate Exchange Format + BPMN/BBO) → RDF via CE-WRITE-1 with per-notation SHACL well-formedness; element-type→BPMO-kind mapping; unmapped elements default to **Concept** (tunable) and are listed, not dropped; a file failing well-formedness is rejected with per-element reasons; a partially-valid file commits valid elements and reports skips. The ArchiMate→RDF basis follows published prior art (**ArchiMEO** ontology / **archimate2rdf**) as a *reference*, not a tooling dependency. AC: a BPMN task lands as Activity; a malformed file commits nothing. | E12-S2 | P2 | Post-MVP (prioritized) |
 | FR-040 | AI diagram/image-to-data: a vision model extracts BPMO entities/relationships from an uploaded image, proposed through the same per-proposal review + CE-WRITE-1 commit as FR-038; confidence below threshold (default 0.6, tunable) flagged; unreadable image → clear error, no partial commit. AC: extraction routes through CE-WRITE-1; unreadable input proposes nothing. | E12-S3 | P2 | Post-MVP (prioritized) |
 | FR-041 | Structured-data import via W3C **R2RML** (relational/CMDB) + **RML** (CSV/JSON/XML) materialised through CE-WRITE-1 (materialised copy, NOT query-time federation — OQ-17); per-row SHACL with skip-and-report; datatype inference samples ≥ N rows (default 20, tunable); malformed mapping rejected before any commit; the R2RML/RML mapping layer (mapping authoring, storage, execution engine) is detailed in the CE data-model / ingest tech-spec note. AC: failing rows skipped with reason, rest commit; malformed mapping leaves store untouched. | E12-S4 | P2 | Post-MVP (prioritized); distinct from PLAT-CONNECTOR-1 |
 | FR-042 | SKOS cross-notation reconciliation: entities denoting one concept across notations collapse to **one canonical punned resource** (`owl:Class` + `skos:Concept`, decision B1 — no separate cross-notation linking property) via the find-existing-node reconciliation flow; merge proposed above similarity threshold (default 0.85, tunable) for human confirm, never auto-merged below; a merge that would violate SHACL is blocked and surfaced. AC: cross-notation duplicates collapse to one concept on confirm; sub-threshold pairs are not merged. | E12-S5 | P2 | Post-MVP (prioritized) |
-| FR-043 | **Document corpus companion store** (per ADR-003): every artefact ingested via EPIC-012 is retained in S3 with embeddings in **S3 Vectors**, tenant-prefixed per **ADR-001**; each retained artefact is linked to the graph entities extracted from it via `prov:used`. Extraction agents and NL query (CE-READ-1) MAY retrieve source passages so an answer cites **both** the grounded graph IRIs **and** the source text it rests on. **Strictly read-side** — retrieval never mutates the graph; CE-WRITE-1 remains the sole mutation path (CI-asserted, per PRD §10 risk). AC: an ingested document is retrievable after commit and its passages resolve to the entities it produced; no corpus-retrieval path can write to the graph. | E12-S6 | P1 | Post-MVP (prioritized); v1.0; ADR-003 |
+| FR-043 | **Document corpus companion store** (per [ADR-003](../decisions/ADR-003-document-corpus.md)): every artefact ingested via EPIC-012 is retained in S3 with embeddings in **S3 Vectors**, tenant-prefixed per **ADR-001**; each retained artefact is linked to the graph entities extracted from it via `prov:used`. Extraction agents and NL query (CE-READ-1) MAY retrieve source passages so an answer cites **both** the grounded graph IRIs **and** the source text it rests on. **Strictly read-side** — retrieval never mutates the graph; CE-WRITE-1 remains the sole mutation path (CI-asserted, per PRD §10 risk). AC: an ingested document is retrievable after commit and its passages resolve to the entities it produced; no corpus-retrieval path can write to the graph. | E12-S6 | P1 | Post-MVP (prioritized); v1.0; [ADR-003](../decisions/ADR-003-document-corpus.md) |
 | FR-044 | **Pre-ingestion context capture**: a lightweight metadata step on upload captures source system, owner, date-of-truth, sensitivity, and free-text business context, stored as PROV-O / annotation properties on the ingest `prov:Activity`; the extractor prompt consumes it to improve extraction. AC: uploaded context is persisted on the ingest activity and demonstrably reaches the extractor prompt; skipping the step still permits ingest with system-captured provenance only. | E12-S7 | P2 | Post-MVP (prioritized); v1.0 |
 
 **Recorded candidates (not committed — personas.md §4.3/§4.7):** (a) **SME interview loop** —
@@ -560,7 +560,7 @@ exact version tags.
 | **CE-EVENT-1** — Graph-change event stream **· Milestone: M2 (beta)** | Events (graph-change triggers — **Should Have**), Platform (live activity / draft-vs-published delta widgets) | Events `{change_type:"added"\|"updated"\|"deleted"\|"constraint-violated", entity_iri, version_iri, last_published_version, actor, ts}` — publish events carry a real CE-VERSION-1 `version_iri`; draft commits carry `version_iri:null` + `last_published_version`. Beta transport (ADR-008; OQ-12 resolved): transactional change-feed polled via `GET /api/events?since_seq={n}&limit={m}` (per-tenant monotonic `seq`; aged cursor → `410 Gone` → re-baseline via CE-READ-1 — the seq feed IS the polled transport, no separate since-version fallback). | beta |
 | **CE-BRAND-1** — Brand → design-token projection + VoiceRule contract **· Milestone: M2** | Build (compliant-by-construction generation; conformance gate before code ships) | `GET /api/brand/tokens` → flattened design-token JSON (colour, type scale, spacing, radii…) projected from RDF brand individuals; `GET /api/brand/voice-rules` → machine-evaluable VoiceRules (each a checkable assertion). **Conformance formula** (full shape in [contracts](../contracts.md) §1): `score = normal_rules_passed / total_normal_rules`; any failed `critical` rule = hard fail regardless; pass bar = `score ≥ 0.90` AND zero critical failures. | stable |
 | **CE-METRICS-1** — Aggregate metrics for the Dashboard | Platform Generative Dashboard (CE-sourced widgets = MVP-eligible set) | `GET /api/metrics/ontology` → `{entity_count_by_kind, latest_version, draft_published_delta, shacl_errors_by_severity, owl_inconsistencies}`. | stable |
-| **CE-FUNCTION-1** — Ontology-bound function registry **· NEW · Milestone: M2 (definition) / v1.0 (full)** | Build (typed SDK bindings), Events (action references by `fn_iri`), Build/Events agents (tool calls) | Registry of named, typed, graph-aware logic units bound to CE object-kinds. CE owns definition + versioning; Build generates typed bindings; Events references by `fn_iri`. `GET /api/functions` → list; `GET /api/functions/{iri}` → shape. Full shape in [contracts](../contracts.md) §1. **Decision made (M1); built M2/v1.0. Resolves Build-OQ-12 / EA-OQ-13 (function-registry ownership).** | alpha |
+| **CE-FUNCTION-1** — Ontology-bound function registry **· NEW · Milestone: M2 (definition) / post-v1 (execution)** | Build (typed SDK bindings), Events (action references by `fn_iri`), Build/Events agents (tool calls) | Registry of named, typed, graph-aware logic units bound to CE object-kinds. CE owns definition + versioning; Build generates typed bindings; Events references by `fn_iri`. `GET /api/functions` → list; `GET /api/functions/{iri}` → shape. Full shape in [contracts](../contracts.md) §1. **Decision made (M1); definition surface built M2, execution deferred to post-v1 (2026-07-08). Resolves Build-OQ-12 / EA-OQ-13 (function-registry ownership).** | alpha |
 
 ### 2.4 Open questions (for tech spec)
 
@@ -1125,8 +1125,10 @@ named-graph versioning (semver version IRIs), DCTERMS, append-only audit.
 
 **Phase:** 1 (MVP) · **Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-006,
 PLAT-IDENTITY-1, PLAT-SETTINGS-1 · **blocks:** EPIC-001, EPIC-002, EPIC-003, EPIC-004, EPIC-005,
-EPIC-007, EPIC-012 · **provides:** CE-READ-1, CE-WRITE-1 · **provides (M2/v1.0):** CE-FUNCTION-1 ·
-**consumes:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
+EPIC-007, EPIC-012 · **provides:** CE-READ-1, CE-WRITE-1 · **provides (M2 definition / post-v1
+execution):** CE-FUNCTION-1 · **provides (M2 addition):** kind-level `description` field on
+`GET /api/ontology/types`, sourced from each framework kind's `skos:definition` (m2/tasks/TASK-011)
+· **consumes:** PLAT-IDENTITY-1, PLAT-SETTINGS-1
 
 Exposes the two core contract-hub interfaces every downstream engine depends on: CE-READ-1, a versioned,
 SELECT-only, `SERVICE`-blocked, paginated, tenant-scoped read interface; and CE-WRITE-1, the single
@@ -1165,6 +1167,13 @@ re-implement query-safety or clone-validation here. `Op ∈ add_node | update_no
 SELECT-only/`SERVICE`-blocked/paginated sanitizer shared with EPIC-007's editor (B3) — one guardrail.
 Both contracts marked **stable** in §2.3; exact OpenAPI shapes fixed in the Phase-1 tech spec. Standards:
 OpenAPI 3.1, SPARQL 1.1 SELECT, SHACL, PROV-O, Cognito JWT.
+
+- **TASK-011 / M2 addition — Kind-level descriptions via `skos:definition`** (Should). Each of the
+  13 framework BPMO kinds carries a plain-language `skos:definition` in the shipped Turtle;
+  `GET /api/ontology/types` (CE-READ-1) exposes it as a `description` field per kind, for GE
+  right-panel and CE authoring-surface consumption. Framework kinds only — client extension kinds'
+  descriptions remain the EPIC-003 glossary path. No new endpoint; contract amendment pending,
+  coordinator-owned.
 
 ### EPIC-011 — Authoring Surfaces — Chat AND Forms (Cross-Cutting)
 
@@ -1464,7 +1473,8 @@ EPIC-004 (Brand & Voice Standards — governed individuals + VoiceRules; CE-BRAN
 2; Must/Should); EPIC-005 (Governance & Compliance Rules — tenant-scoped SHACL shapes + automatable
 property; *E5-S2 self-audit → Phase 4*; 2; Must); **EPIC-007-S4** (Full agent-grounding authority
 contract — `authority`/`escalation` SELECTs; M2; Should); **CE-FUNCTION-1 BUILD** (registry definition
-layer; function versioning; Build SDK binding generation start; builds across M2/v1.0).
+layer; function versioning; Build SDK binding generation start; definition surface builds M2,
+execution deferred post-v1).
 
 > M2 FR coverage: FR-016 (CE-BRAND-1 + conformance formula), FR-017 (CE-METRICS-1), FR-022–FR-025,
 > FR-027, **FR-036-full** (authority/escalation patterns, read-side CE-READ-1 — no new contract),
@@ -1506,8 +1516,10 @@ confirmed for tenant-scoped shapes (FR-025).
   ADR-013 — explicit-deny override is post-v1), and a **missing required link** (e.g. a process with no
   `performedBy`) returns explicit **coverage-gap rows** `{entity_iri, missing_link}`, never an
   empty result read as "permitted" — verified by an agent-grounding test, no new contract minted (FR-036,
-  E7-S4). The shipped **framework competency-question set** SHALL return for the seeded graph and a client
-  with < 2 declared domain competency questions SHALL be flagged at onboarding (FR-037).
+  E7-S4). The shipped **framework competency-question set** SHALL return for the seeded graph (FR-037).
+  The "< 2 declared domain competency questions" flag is an **Onboarding-owned manual self-mark**
+  checklist item — no CE query or shape backs an automated count in M2; auto-clear from a CE-sourced
+  count is a post-v1 upgrade (OQ-M2-1).
 - [ ] Coverage ≥ 80% (default, tunable) · mutation ≥ 60% (default, tunable) · 0 blocking bugs.
 - [ ] **Measurable artefact:** all seven `CE-*` contracts exposed at the §2.3 shapes; one tenant-scoped
   governance shape enforced on a later edit; one brand token consumed by a CE-BRAND-1 contract test.

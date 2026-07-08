@@ -40,7 +40,7 @@ integration layer (fast, per-push) and the E2E layer (assembled-app proof, merge
 
 ```text
 packages/backend/tests/unit/
-├── test_settings_cascade.py     # tighter-wins precedence, 4-level resolution
+├── test_settings_cascade.py     # tighter-wins precedence, 3-level resolution (Company→Domain→Project)
 ├── test_rbac_enforcer.py        # action-level decisions, deny → audit
 ├── test_audit_chain.py          # prev_hash→hash linking, ed25519 sign/verify
 ├── test_billing_budget.py       # cap arithmetic, fail-closed under lag
@@ -73,7 +73,7 @@ async def test_resolve_setting_returns_tighter_project_value(client: AsyncClient
 packages/frontend/src/
 └── <feature>/
     └── __tests__/
-        ├── WorkspaceSwitcher.test.tsx   # tenant list scoping, super-admin add button
+        ├── CompanySwitcher.test.tsx     # tenant list scoping, super-admin add button
         ├── NotificationCentre.test.tsx  # unread badge, channel_unavailable rendering
         ├── DashboardShell.test.tsx      # M1 placeholder empty state (no CE dependency)
         └── settingsCascade.test.ts      # pure resolution display logic
@@ -149,7 +149,7 @@ packages/backend/tests/integration/
 ├── test_isolation_rls.py        # two seeded tenants; cross-read returns zero rows (release gate)
 ├── test_billing_metering.py     # meter queue separate from run outcome; fail-closed under lag
 ├── test_notify_delivery.py      # in-app persistence before channel attempt
-├── test_query_rewriter.py       # unscoped SPARQL → 400 unscoped_query_rejected; GRAPH pinned to session workspace
+├── test_query_rewriter.py       # unscoped SPARQL → 400 unscoped_query_rejected; GRAPH pinned to session tenant
 └── test_ce_client_contracts.py  # version pinning, unavailable-state propagation
 ```
 
@@ -201,7 +201,7 @@ tests/e2e/
 │   ├── auth.fixture.ts           # authenticated page per role (admin, viewer, super-admin)
 │   └── seed.fixture.ts           # two-tenant seed for isolation journeys
 ├── shell-navigation.spec.ts      # primary nav, disabled-not-hidden engine areas, sidebar collapse
-├── workspace-switch.spec.ts      # switcher + ≤2s timing assertion; super-admin add-workspace
+├── company-switch.spec.ts        # switcher + ≤2s timing assertion; super-admin add-company
 ├── auth-guard.spec.ts            # unauthenticated redirect; revoked-session rejection
 ├── isolation.spec.ts             # tenant A UI never renders tenant B data (release gate)
 ├── notifications.spec.ts         # in-app delivery; security.* always delivered
@@ -214,10 +214,10 @@ tests/e2e/
 | FR-047 | WHEN a tenant-A user browses any screen THEN THE SYSTEM SHALL render zero tenant-B artefacts | `isolation.spec.ts` | Planned |
 | §2.2 revocation | WHEN an admin revokes a signed-in member THEN THE SYSTEM SHALL reject that member's next navigation within the bounded latency | `auth-guard.spec.ts` | Planned |
 | M1 exit | WHEN the M1 shell loads THEN THE SYSTEM SHALL render the placeholder dashboard empty state without querying CE | `dashboard-shell.spec.ts` | Planned |
-| §2.2 perf | WHEN a user switches workspace THEN THE SYSTEM SHALL complete the switch within 2 s (p95, default) | `workspace-switch.spec.ts` | Planned |
+| §2.2 perf | WHEN a user switches company THEN THE SYSTEM SHALL complete the switch within 2 s (p95, default) | `company-switch.spec.ts` | Planned |
 | PRD Nav | WHEN an engine is not yet GA THEN THE SYSTEM SHALL render its nav area disabled, not hidden | `shell-navigation.spec.ts` | Planned |
 
-Minimum scenarios (always required): happy path (sign in → shell → switch workspace →
+Minimum scenarios (always required): happy path (sign in → shell → switch company →
 settings), auth guard (unauthenticated → login redirect), error state (API 500 → graceful
 error, no blank shell). Accessibility: axe-core assertions run inside the E2E suite on the
 WCAG-gated screens (prompt bar M2, notification centre, settings, Compliance/Audit) —
@@ -278,7 +278,7 @@ class PlatformUser(HttpUser):
 
     @task(3)
     def resolve_setting(self):
-        self.client.get("/api/settings/budget_cap?scope=workspace:w1")
+        self.client.get("/api/settings/budget_cap?scope=company:c1")
 
     @task(1)
     def emit_audit(self):
@@ -293,7 +293,7 @@ class PlatformUser(HttpUser):
 | Initial JS bundle (gzipped) | ≤ 200KB |
 
 Lighthouse runs on every PR modifying a page component or layout; the ≤ 2 s dashboard
-initial load and ≤ 2 s workspace switch (PRD §2.2) are asserted as Playwright timing
+initial load and ≤ 2 s company switch (PRD §2.2) are asserted as Playwright timing
 checks in the E2E lane, with locust guarding the API-side latency budget.
 
 ---

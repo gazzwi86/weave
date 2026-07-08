@@ -150,11 +150,18 @@ One shared `ssrf_guard` module (Connector Service + all drivers) enforces:
    `*.dfs.core.windows.net` · Slack `slack.com` · AWS = SDK endpoints only, no free-form
    URL); resolved A/AAAA records must not fall in loopback, link-local
    (incl. `169.254.169.254`), RFC-1918, CGNAT `100.64/10`, or IPv6 ULA/link-local ranges.
-   Violations → 422 `{"error": "endpoint_not_allowed"}`, connector `disconnected`.
+   **Before the denylist check, the resolved address MUST be canonicalised:** IPv4-mapped
+   IPv6 literals (e.g. `::ffff:169.254.169.254`) unwrap to their IPv4 form, and
+   non-canonical IP encodings (decimal, e.g. `2852039166`; octal, e.g. `0251.0376.169.254`;
+   hex) are rejected outright rather than parsed — the denylist only ever compares
+   canonical dotted-quad/colon-hex forms. Violations → 422
+   `{"error": "endpoint_not_allowed"}`, connector `disconnected`.
 2. **Connect-time re-validation, DNS-rebind aware** (TASK-018): re-resolve at connection,
    pin the validated IP for the socket (or re-check per connection), block-listed IP at
    connect ⟹ abort + audit `security.connector_ssrf_blocked`; HTTP redirects are not
-   followed cross-host without re-validation.
+   followed cross-host without re-validation. The same canonicalisation rule (item 1)
+   applies here — it lives once in the shared `ssrf_guard` module, not duplicated per call
+   site.
 3. **Test/dev escape:** the compose-stack fixture servers live on private IPs; they are
    reachable only when the `connectors.allow_private_endpoints` settings flag is on
    (default **off**; the deploy config never sets it in production — invariant §8).
@@ -271,6 +278,9 @@ mutation ≥ 60 % hold):
 - `test_ssrf_config_rejects_private_and_metadata_ranges` /
   `test_ssrf_connect_rebind_blocked` (§2a; parametrised over 169.254.169.254, RFC-1918,
   loopback, ULA; fixture-server escape flag covered)
+- `test_ssrf_rejects_non_canonical_ip_encodings` (§2a; asserts both `::ffff:169.254.169.254`
+  and a decimal-encoded metadata IP, e.g. `2852039166`, are refused — canonicalisation
+  runs before the denylist check, not a string-match bypass)
 - `test_writeback_reissue_after_drift_not_suppressed` (marker-scoped key, §2)
 - `test_writeback_drift_rejected_notified_audited` / `test_writeback_retry_bounded_3`
 - `test_writeback_direction_rejected_for_nonallowlisted_connector` (ADR-017)
@@ -297,6 +307,10 @@ mutation ≥ 60 % hold):
 - One shared SSRF guard, applied at config save and at driver connect —
   verify-by: `grep -rn "ssrf_guard" packages/backend/src/**/connectors` (config handler +
   driver transport both import it)
+- SSRF denylist check runs only after IP canonicalisation (no raw string match against
+  decimal/octal/hex forms or unwrapped IPv4-mapped IPv6) — verify-by:
+  `grep -n "canonicalis" packages/backend/src/**/connectors/ssrf_guard*` present, and the
+  denylist comparison function's only caller is the canonicalised-address return value
 - `connectors.allow_private_endpoints` never set in production deploy config —
   verify-by: `grep -rn "allow_private_endpoints" infra/ .github/workflows` → test/compose only
 - Ingestion idempotency key contains no `sync_run_id` — verify-by:

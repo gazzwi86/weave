@@ -81,7 +81,7 @@ Within 12 months, success for Onboarding looks like:
   than stalling on the blank slate.
 - **Onboarding is tailored to role and access.** Different roles and identities — with different
   access rights — get a context-specific onboarding experience: a business analyst, an architect, a
-  compliance officer, and a workspace admin each see guidance, exercises, and a first-outcome path
+  compliance officer, and a tenant admin each see guidance, exercises, and a first-outcome path
   suited to what they can and need to do, rather than one generic tour.
 - **Onboarding is measurable and improvable.** Completion of tours, exercises, and the activation
   milestone is tracked (by role), so onboarding effectiveness can be measured and improved over
@@ -580,7 +580,8 @@ always have a clear next step.
   description, and a "Do it now" deep-link.
 - **AC:** WHEN all items are complete and 100% is reached THE SYSTEM SHALL play a celebration moment
   and relabel the widget "Onboarding complete"; the widget **auto-dismisses after a default 7 days,
-  tunable per workspace** (decision E4 — config-driven, not hard-coded).
+  tunable per tenant (settings cascade: company → domain → project)** (decision E4 — config-driven,
+  not hard-coded).
 - **AC:** WHEN the user opens Help launcher → "Show onboarding checklist" on a dismissed checklist
   THE SYSTEM SHALL restore it.
 - **AC (failure mode):** IF a checklist item's engine has not shipped, WHEN it is rendered THEN THE
@@ -680,7 +681,7 @@ onboarding.
   tenant_id, user_principal_iri, anonymised_cohort_key, ts_first_signin, ts_event }`.
   `user_principal_iri` is retained **per-tenant only** (raw); cross-workspace aggregation (E8-S2) uses
   only `anonymised_cohort_key` (a non-reversible hash; no tenant-identifiable fields).
-- **AC:** WHEN the analytics view is accessed, THE SYSTEM SHALL restrict it to workspace admins (RBAC
+- **AC:** WHEN the analytics view is accessed, THE SYSTEM SHALL restrict it to tenant admins (RBAC
   via PLAT-SETTINGS-1) and SHALL audit access attempts via PLAT-AUDIT-1.
 - **AC:** WHEN an event is emitted, THE SYSTEM SHALL reflect it in the dashboard within a **default 5
   min, tunable** freshness target.
@@ -722,7 +723,7 @@ cross-workspace cohort data so that we can improve onboarding globally.
 | FR-017 | Exercise completion checked against a named signal (SPARQL ASK over sandbox graph via CE-READ-1, CE-WRITE-1 commit, GE-CANVAS-1 state, or analytics nav event). Failure: gated/unavailable exercise hidden/disabled + explanation | E4-S1 | P0 | MVP · CE-READ-1, CE-WRITE-1, GE-CANVAS-1 |
 | FR-018 | Exercise progress reflected in checklist with timestamp; write failure → retry, last-persisted state | E4-S2 | P1 | MVP |
 | FR-019 | Onboarding checklist widget on Dashboard: role-configurable items, progress bar, "Do it now" deep-links. Failure: not-GA item → locked + prereq note | E5-S1 | P0 | MVP · Platform Dashboard, PLAT-SETTINGS-1 |
-| FR-020 | Checklist 100% → celebration + relabel; auto-dismiss after default 7 days tunable per workspace (config-driven) | E5-S1 | P0 | MVP |
+| FR-020 | Checklist 100% → celebration + relabel; auto-dismiss after default 7 days tunable per tenant (settings cascade: company → domain → project; config-driven) | E5-S1 | P0 | MVP |
 | FR-021 | Checklist dismissible; restorable from Help launcher | E5-S1 | P0 | MVP |
 | FR-022 | Activation auto-detected: Business/Technical via CE-EVENT-1 (degrade to CE-READ-1 poll, Must Have); Compliance via CE-READ-1 governance/SHACL view (Must Have); Admin **Should Have** — manual self-mark ("pending platform signal" badge) until Platform contracts a member-management signal (OQ-08 uncontracted); do not over-claim PLAT-IDENTITY-1. Idempotent exactly-once per (tenant,user,milestone); publishes onboarding-activation to PLAT-NOTIFY-1. Failure: engine unavailable → milestone locked, no mis-fire | E5-S2 | P0 (Business/Tech/Compliance) · P1 (Admin, OQ-08) | M1 window (Business/Tech/Compliance via CE); Admin when OQ-08 contracted · CE-EVENT-1, CE-READ-1, PLAT-NOTIFY-1 |
 | FR-023 | Training library: placeholder video cards + written walkthroughs; searchable (default ≤300 ms tunable). Failure: video load fail → placeholder/error state | E6-S1 | P0 | MVP · S3/CloudFront (OQ-04) |
@@ -732,7 +733,7 @@ cross-workspace cohort data so that we can improve onboarding globally.
 | FR-027 | Help launcher keyboard shortcut (Shift+?); Escape closes | E7-S1 | P0 | MVP |
 | FR-028 | Contextual help: 2–4 screen-specific links; hidden if none | E7-S2 | P1 | MVP |
 | FR-029 | Onboarding analytics by role; defined event schema with per-tenant raw user IRI + non-reversible cohort key; default 7-day window + 5-min freshness tunable; delivery failure → durable retry | E8-S1 | P1 | MVP · PLAT-IDENTITY-1, PLAT-AUDIT-1 |
-| FR-030 | Analytics restricted to workspace admins (PLAT-SETTINGS-1 RBAC); access audited via PLAT-AUDIT-1; cohort aggregation no-PII with k-anonymity (default k=20 tunable) | E8-S1/E8-S2 | P1 | MVP · PLAT-SETTINGS-1, PLAT-AUDIT-1 |
+| FR-030 | Analytics restricted to tenant admins (PLAT-SETTINGS-1 RBAC); access audited via PLAT-AUDIT-1; cohort aggregation no-PII with k-anonymity (default k=20 tunable) | E8-S1/E8-S2 | P1 | MVP · PLAT-SETTINGS-1, PLAT-AUDIT-1 |
 
 > Every FR is phased and tagged with the engine(s) it cannot ship before. "P0→" / "P2" mark
 > post-v1 (Build/Events GA) items. Activation targets are measure-and-report baselines, not GA gates
@@ -1158,7 +1159,8 @@ detection, idempotent) — both Backlog / Must Have.
   CE-READ-1 with a since-version, and a milestone whose engine is unavailable stays **locked** rather
   than mis-firing.
 - [ ] Checklist items whose engine has not shipped are shown locked with a prerequisite note; the
-  checklist auto-dismisses after a default 7 days (tunable per workspace) and is restorable from the
+  checklist auto-dismisses after a default 7 days (tunable per tenant via the settings cascade:
+  company → domain → project) and is restorable from the
   Help launcher.
 
 **Dependencies.** *Blocked by:* Platform Dashboard (hosts the checklist widget); PLAT-SETTINGS-1
@@ -1272,7 +1274,7 @@ Should Have
 
 **Description.** Delivers role-segmented onboarding analytics — tour, exercise, checklist, and
 activation completion rates by role, plus time-to-activation and per-tour drop-off — exposed to
-workspace admins, and an anonymised cross-workspace cohort view for the Weave product team. The
+tenant admins, and an anonymised cross-tenant cohort view for the Weave product team. The
 defined event schema retains the per-tenant raw user IRI inside the tenant boundary while cohort
 aggregation uses only a non-reversible cohort key, so the two views never leak into each other.
 
@@ -1288,7 +1290,7 @@ aggregation uses only a non-reversible cohort key, so the two views never leak i
 - [ ] Sub-k cohorts are suppressed (default k = 20, tunable) to prevent re-identification, and the
   per-tenant user IRI never leaves the tenant boundary — verified by a no-PII / k-anonymity check over
   the cohort export.
-- [ ] The admin analytics view is restricted to workspace admins (RBAC via PLAT-SETTINGS-1) and every
+- [ ] The admin analytics view is restricted to tenant admins (RBAC via PLAT-SETTINGS-1) and every
   access attempt is audited via PLAT-AUDIT-1.
 - [ ] Analytics delivery is resilient: an event delivery failure is retried via a durable queue, the
   dashboard reflects events within a default ≤ 5 min (tunable) freshness target, and

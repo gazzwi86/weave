@@ -39,8 +39,8 @@ shell; CE-sourced tiles activate at M2 with `CE-METRICS-1`.
 C4Context
     title System Context — Weave Platform Shell
 
-    Person(tenant_user, "Tenant user", "10 in-tenant roles: workspace admin, architect, analyst, engineer, compliance, viewer, …")
-    Person(super_admin, "Weave super admin", "Platform operator, outside tenant RBAC; provisions workspaces + first admins")
+    Person(tenant_user, "Tenant user", "10 in-tenant roles: company admin, architect, analyst, engineer, compliance, viewer, …")
+    Person(super_admin, "Weave super admin", "Platform operator, outside tenant RBAC; provisions companies + first admins")
     Person_Ext(agent_principal, "Agent principal", "Non-human identity (Build/Events/NL agents); STS path, registered in PLAT-IDENTITY-1")
 
     System(platform, "Weave Platform Shell", "SPA chrome + six PLAT-* cross-cutting services: tenancy/settings cascade, identity, audit, notifications, billing, connectors")
@@ -54,7 +54,7 @@ C4Context
     System_Ext(connectors, "Connector SaaS (v1.0)", "Snowflake · Databricks · AWS · Azure DL · Atlassian · ServiceNow · Slack")
 
     Rel(tenant_user, platform, "Uses shell, dashboard, search, settings", "HTTPS")
-    Rel(super_admin, platform, "Provisions workspaces + first admins", "HTTPS")
+    Rel(super_admin, platform, "Provisions companies + first admins", "HTTPS")
     Rel(agent_principal, platform, "Emits audit/meter events; resolves settings", "HTTPS / REST")
     Rel(platform, cognito, "Validates JWT; JWKS", "HTTPS")
     Rel(platform, sts, "Verifies agent role sessions", "AWS SDK")
@@ -90,7 +90,7 @@ C4Container
     }
 
     Container_Boundary(aws, "AWS") {
-        ContainerDb(pg, "Relational DB", "Aurora PostgreSQL Serverless v2", "Tenants, workspaces, settings cascade, role bindings, audit chain, notifications, metering (16-entity ERD in data-model.md); RLS on tenant_id")
+        ContainerDb(pg, "Relational DB", "Aurora PostgreSQL Serverless v2", "Tenants, domains, projects, settings cascade, role bindings, audit chain, notifications, metering (16-entity ERD in data-model.md); RLS on tenant_id")
         ContainerDb(cache, "Cache", "ElastiCache Redis 7", "Resolved-settings cache, session-version revocation list, search result cache")
         ContainerDb(vector, "Vector Store", "AWS S3 Vectors", "Tenant-prefixed embeddings for global search")
         Container(agentcore, "AgentCore Runtime", "AWS Bedrock AgentCore", "Agent execution, memory, identity; Anthropic models")
@@ -104,7 +104,7 @@ C4Container
     System_Ext(engines, "Build · Events · Explorer", "Peer engines")
 
     Rel(tenant_user, spa, "Uses", "HTTPS")
-    Rel(super_admin, spa, "Provisions workspaces", "HTTPS")
+    Rel(super_admin, spa, "Provisions companies", "HTTPS")
     Rel(spa, api, "REST", "HTTPS / OpenAPI 3.1")
     Rel(api, auth, "JWT validation (JWKS)", "HTTPS")
     Rel(api, pg, "SQL (RLS tenant_id)", "TLS")
@@ -151,7 +151,7 @@ C4Component
     Container_Boundary(api, "Platform API") {
         Component(auth_mw, "Auth Middleware", "FastAPI dependency", "Cognito JWKS verify (human) / STS session verify (agent); session-version revocation check; resolves principal IRI")
         Component(rbac, "RBAC Enforcer", "FastAPI dependency", "Role bindings → action level (read/author/publish/admin); denial → 403 + audit entry")
-        Component(settings_svc, "Settings Service", "PLAT-SETTINGS-1", "4-level cascade Company→Domain→Workspace→Project, tighter-wins; effective-value resolution API")
+        Component(settings_svc, "Settings Service", "PLAT-SETTINGS-1", "3-level cascade Company→Domain→Project, tighter-wins; effective-value resolution API (Workspace level removed 2026-07-08 — workspace ≡ company)")
         Component(identity_svc, "Identity Registry", "PLAT-IDENTITY-1", "Mints/scopes agent principal IRIs incl. per-automation; maps IAM role ↔ principal")
         Component(audit_svc, "Audit Service", "PLAT-AUDIT-1", "Append-only hash chain (prev_hash→hash) + ed25519 signing; query + NDJSON export with verification metadata")
         Component(notify_svc, "Notification Service", "PLAT-NOTIFY-1", "Open type taxonomy; in-app delivery (M1), Slack leg short-circuits to channel_unavailable until v1.0")
@@ -205,14 +205,14 @@ D1–D5, entity-specific challenges as D6–D9. Program-level ADRs live in
 
 | # | Decision | Rationale | Alternatives Rejected | Critic Challenge | Response |
 |---|----------|-----------|----------------------|-----------------|---------|
-| D1 | Split graph boundary: platform-owned graphs (tenancy, principals, framework vocab — ADR-001) reached only via the platform's tenant query rewriter; ALL ontology/business graph access via CE contracts | CE is the graph hub (weave-spec §1.2), but the tenant boundary itself is platform-owned — the named graph IS the RDF tenant boundary (data-model.md), so the platform must mint and scope those graphs | Zero platform SPARQL (breaks TASK-003/TASK-005: named-graph minting, scoped search); platform reading business graphs directly (duplicates CE's enforcement) | "Why is the RDF store boundary drawn here and not fully inside CE?" | One rewriter is the single platform-side choke point — unscoped queries rejected 400, GRAPH pinned to the session workspace; business-graph reads still go through CE so ontology enforcement lives in exactly one codebase. |
+| D1 | Split graph boundary: platform-owned graphs (tenancy, principals, framework vocab — ADR-001) reached only via the platform's tenant query rewriter; ALL ontology/business graph access via CE contracts | CE is the graph hub (weave-spec §1.2), but the tenant boundary itself is platform-owned — the named graph IS the RDF tenant boundary (data-model.md), so the platform must mint and scope those graphs | Zero platform SPARQL (breaks TASK-003/TASK-005: named-graph minting, scoped search); platform reading business graphs directly (duplicates CE's enforcement) | "Why is the RDF store boundary drawn here and not fully inside CE?" | One rewriter is the single platform-side choke point — unscoped queries rejected 400, GRAPH pinned to the session tenant; business-graph reads still go through CE so ontology enforcement lives in exactly one codebase. |
 | D2 | Audit writes are synchronous inserts with a DB-level append-only constraint; hash chain computed in-transaction | Chain integrity must survive process death; a Lambda dying mid-request must not leave a half-linked chain | Async queue then batch-append (higher throughput, but a crash window between accept and append breaks "no event unlogged") | "What happens to in-flight writes if a Lambda cold-starts or dies mid-request?" | The audit insert commits in the same transaction as the business write where possible, else write-audit-first; a dropped request before commit leaves no partial row (transactional), and `seq` comes from the DB, not the app, so no gap/dup on retry. |
 | D3 | Multi-tenancy enforced at BOTH the API layer (repo-layer base filter) and the store layer (Aurora RLS; named-graph + query-rewrite CE-side; S3 Vectors tenant prefix) | Defence in depth: the cross-tenant-read test (PRD §2.2) must pass even if one layer regresses | API-layer-only (simpler, but one missed filter = breach); store-layer-only (RLS bypass via superuser connections) | "Where does multi-tenancy enforcement happen — API, store, or both?" | Both, deliberately redundant. The repo layer is the single choke point in code; RLS is the backstop the M1 release-gate isolation test exercises (data-model.md §Isolation Invariants). |
 | D4 | Model Router is its own container with pre-call budget enforcement via PLAT-BILLING-1 | An agent consuming unbounded tokens is a platform-wide cost incident; enforcement must sit in front of every model call, not inside each engine | Per-engine budget checks (N implementations, N bypass bugs) | "Does the agent container have a blast radius if it consumes unbounded tokens on AgentCore?" | Bounded: PLAT-BILLING-1 rejects before the AI call at 100% of the cascade-resolved cap (fails closed under metering lag, PRD §2.2 Reliability). Worst case is denial of AI service, never uncapped spend. |
 | D5 | Dev/test runs Oxigraph + LocalStack; prod store (Neptune vs Fuseki) deferred to CE tech spec | Plugin Law F (no real cloud in tests) and the store choice is CE's to make — platform code is store-agnostic by construction (contract client only) | Pinning Neptune now (locks CE's decision from the wrong side) | "What is the fallback if Neptune is unavailable and only Oxigraph dev is running?" | Platform degrades gracefully by design: CE-METRICS-1/READ-1 errors render each widget's defined unavailable state (FR-000 behaviour), never a blank shell; no platform feature hard-depends on the prod store identity. |
 | D6 | One Platform API deployable for all six PLAT-* services (M1) | Leanest thing that works; the services share the auth/RBAC/repo spine, and M1 load is one pilot tenant | Six microservices (premature; multiplies cold starts, IAM roles, and deploy surfaces) | "Won't audit + billing hot paths starve settings reads in one process?" | Lambda concurrency scales per-request, not per-process; if a hot path emerges, the service groups are router-level modules that can split into their own deployables without code rewrites (noted upgrade path). |
-| D7 | Settings resolution cached in Redis with revocation via session-version check per request | Cascade resolution touches ≤ 4 rows but runs on every request; caching is mandatory for the ≤ 2 s workspace-switch NFR | No cache (simpler, misses NFR); long-TTL JWT claims (revocation latency breaches the ≤ 60 s bound) | "Stale cache: a tightened budget cap not yet visible while spend continues?" | Budget checks read through PLAT-BILLING-1 against the effective cap with cache TTL ≤ the enforcement granularity; cap changes bust the cache key on write (write-through invalidation). |
-| D8 | Super admin is a Cognito group + PLAT-IDENTITY-1 principal, outside tenant RBAC, provisioning-only | Workspace creation needs an out-of-band identity, but it must not become a god-mode read path into tenant data | Tenant-RBAC "global admin" role (breaks hard isolation FR-047) | "Can a compromised super admin read tenant business data?" | No read grants exist to compromise: the principal's role scope covers workspace/user provisioning APIs only; every provisioning act writes PLAT-AUDIT-1; tenant-data endpoints reject the group outright. |
+| D7 | Settings resolution cached in Redis with revocation via session-version check per request | Cascade resolution touches ≤ 3 rows but runs on every request; caching is mandatory for the ≤ 2 s company-switch NFR | No cache (simpler, misses NFR); long-TTL JWT claims (revocation latency breaches the ≤ 60 s bound) | "Stale cache: a tightened budget cap not yet visible while spend continues?" | Budget checks read through PLAT-BILLING-1 against the effective cap with cache TTL ≤ the enforcement granularity; cap changes bust the cache key on write (write-through invalidation). |
+| D8 | Super admin is a Cognito group + PLAT-IDENTITY-1 principal, outside tenant RBAC, provisioning-only | Company creation needs an out-of-band identity, but it must not become a god-mode read path into tenant data | Tenant-RBAC "global admin" role (breaks hard isolation FR-047) | "Can a compromised super admin read tenant business data?" | No read grants exist to compromise: the principal's role scope covers company/user provisioning APIs only; every provisioning act writes PLAT-AUDIT-1; tenant-data endpoints reject the group outright. |
 | D9 | SPA is one Next.js app owning chrome; engines mount surfaces inside it | Brief out-of-scope explicitly bans micro-frontends; a single app keeps the IA stable (disabled-not-hidden areas) | MFE-per-engine (independent deploys, but brief-banned and heavier ops) | "Does one SPA couple engine release cadence?" | Engine surfaces are route-group modules behind the stable primary nav; an engine shipping later renders its area disabled (PRD Navigation note) — release coupling is at the repo level Weave already accepts (monorepo, Law D stacked PRs). |
 
 ## Invariants
@@ -261,7 +261,7 @@ Targets are the PRD §2.2 configurable defaults (provisional, not contractual SL
 |-----------|--------|-------------|----------------|
 | Dashboard initial load (M1 shell; M2 CE tiles) | ≤ 2 s p95 | Playwright + Lighthouse in CI | First-screen credibility of the whole product |
 | Global search | ≤ 300 ms after 150 ms debounce | Locust + browser trace in CI | Search abandoned; nav falls back to clicking |
-| Workspace switch | ≤ 2 s p95 | Playwright timing assertion | Multi-workspace operators (super admin) blocked |
+| Company switch | ≤ 2 s p95 | Playwright timing assertion | Multi-company operators (super admin) blocked |
 | In-app notification delivery | ≤ 30 s | Delivery-receipt CloudWatch events | Budget/HITL alerts arrive too late to act |
 | Revocation latency | next request after revoke rejected; token TTL ≤ 60 s | Integration test with seeded revocation | Security posture claim (mid-market baseline) fails |
 | Audit chain verification | full-chain verify passes on export; tamper detected at named row | Tamper test in CI (PRD §2.6) | Non-repudiation claim collapses |

@@ -48,7 +48,7 @@ onboarding supplies the widget). Restore entry point surfaces in TASK-013.
 | AC-010-01 | WHEN the Dashboard renders THE SYSTEM SHALL show the checklist with the user's path-configured items, each with checkbox state, label, "Why this matters", and a "Do it now" deep-link (FR-019). |
 | AC-010-02 | WHEN a tracked signal exists (first demo visit, tour completion, exercise completion, activation row) THE SYSTEM SHALL show the matching item complete with timestamp — detection and widget can never disagree because both read the same state rows (EPIC-005 epic AC). |
 | AC-010-03 | IF an item's engine has not shipped THEN THE SYSTEM SHALL show it locked with a prerequisite note (FR-019); the Admin invite item SHALL show the "pending platform signal" badge and support manual self-mark (`source=manual`, OQ-08). |
-| AC-010-04 | WHEN all items complete THE SYSTEM SHALL show the celebration state and relabel; the widget SHALL auto-dismiss after a default 7 days (tunable per workspace via the settings cascade) — config-driven, not hard-coded (FR-020). |
+| AC-010-04 | WHEN all items complete THE SYSTEM SHALL show the celebration state and relabel; the widget SHALL auto-dismiss after a default 7 days (tunable per tenant via the settings cascade: company → domain → project) — config-driven, not hard-coded (FR-020). |
 | AC-010-05 | WHEN the user dismisses the checklist THE SYSTEM SHALL persist the dismissal and the widget SHALL be restorable from the Help launcher (FR-021). |
 | AC-010-06 | WHEN the widget renders THE SYSTEM SHALL be axe-clean, keyboard-operable, i18n/tokens throughout. |
 

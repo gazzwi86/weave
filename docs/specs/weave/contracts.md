@@ -51,6 +51,10 @@ depend on. CE owns and publishes ALL of the following.
     (Process/DataAsset→Policy), `describes`, `partOf`, and SKOS `broader`/`narrower`/`related`.
     The shipped BPMO data-model table (CE tech spec) is the source; `/api/ontology/types` serves
     every relationship above **including `hasField`**.
+  - **Kind descriptions (added 2026-07-08):** every framework kind carries a `skos:definition`
+    (plain-language description) in the shipped ontology, surfaced as a `description` field per
+    kind in this response. Consumers (GE side panel, CE authoring surfaces) render it rather than
+    hand-copying glossary text. Authored + exposed by CE M2 TASK-011.
   - This is a **framework, not a populated taxonomy** (decision A1): clients extend it with
     their own domain kinds/relationships. Aligned to ArchiMate 3; REA + UFO inform the design
     behind the curtain. Kind/relationship names and cardinalities are finalised in the CE
@@ -288,6 +292,11 @@ depend on. CE owns and publishes ALL of the following.
   enum). Engines publish notification events; delivery in-app + Slack. Covers budget, SHACL
   violations, self-improvement, build state, HITL-gate fired, automation-failure, connector-degraded,
   onboarding-activation, etc. Resolves Events OQ-05 (= reuse platform).
+- **Email channel (SES) is post-v1** (user ruling 2026-07-08). The email-digest preference exists in
+  the data model but is UI-gated (hidden/disabled) until the channel ships — never silently ignored.
+- **Publish notification (2026-07-08):** CE version publish emits `ontology.version.published`;
+  the service notifies **all active tenant members except the publisher** (in-app bell; email
+  follows the channel above post-v1).
 
 ### PLAT-IDENTITY-1 — Principal registry (human + agent)
 - One registry mints/scopes canonical principal IRIs for **all actors**, human and agent.
@@ -308,6 +317,10 @@ depend on. CE owns and publishes ALL of the following.
   resolves through **PLAT-SETTINGS-1** (the cascade owns precedence). Every mutation gate (e.g.
   Build's publish/apply guards, GE canvas edits) reads THIS surface — it never invents a bespoke
   role lookup. *(Post workspace-drop the overlay is project/domain-role, not workspace-role.)*
+- **Role vocabulary:** the normative enumeration is weave-platform.md §"Canonical human roles" —
+  **10 in-tenant roles + the Weave super admin**, with project-scoped grants for non-senior users
+  (tenancy realignment decision, 2026-07-08). This contract does not restate the table; engines
+  cite it, never invent role names.
 
 ### PLAT-CONNECTOR-1 — Managed connector contract
 - v1 integrations (**7**): Snowflake · Databricks · AWS · Azure Data Lake ·
@@ -359,6 +372,9 @@ depend on. CE owns and publishes ALL of the following.
   live). `granularity=day` gives the trend series. This ONE endpoint serves the dashboard spend
   widget (E2-S3), the FR-034 breakdown, and Build's per-project cost. **No budget/cap endpoints
   here** — caps resolve via PLAT-SETTINGS-1 (FR-035).
+- **`cost` semantics (2026-07-08):** the dollar-conversion rate card is **post-v1** (user ruling).
+  Until it ships, `cost` is `null` and consumers render the counts (`tokens`, `runs`) — never a
+  fabricated dollar figure. Rate card lands with the post-v1 billing work.
 
 ---
 

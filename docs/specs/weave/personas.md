@@ -172,10 +172,10 @@ in /po).
   lineage-diagram semantics beyond consumes/produces edges]`
 - Data provenance descriptions `[SPECCED — PROV-O spine FR-006, MVP]`
 - Data classification frameworks
-  `[PARTIAL — dataClassification SKOS scheme exists in the Authority Extension (ADR-002, M2); no
+  `[PARTIAL — dataClassification SKOS scheme exists in the Authority Extension (ADR-013, post-v1); no
   ingestion path for a client's own framework document]`
 - Identities (human + system) and their RBAC to data/DBs/schemas
-  `[PARTIAL — the ontology models Actor/Role/Permission (ONT-4, M1→M2 ODRL); describing *external*
+  `[PARTIAL — the ontology models Actor/Role/Permission (ONT-4, M1→post-v1 ODRL); describing *external*
   system RBAC as graph content has no dedicated path — it's generic instance authoring]`
 - Raw example data `[GAP — sample-data ingestion for grounding/validation is not specced]`
 - Semantic-layer architecture, access tokens `[GAP — not specced; tokens must stay in Secrets
@@ -192,7 +192,7 @@ data products/pipelines `[SPECCED — Build, pipelines post-v1]`.
   `[SPECCED — governance SHACL shapes FR-025 + author-shapes RBAC, MVP]`
 - NL expectations/logic/rules → shapes via the chat loop `[SPECCED — FR-033 path, MVP]`
 - Identity and access rules `[PARTIAL — platform RBAC is fixed policy (FR-031); *modelled* authority
-  rules arrive with ODRL Authority Extension, M2]`
+  rules arrive with ODRL Authority Extension, post-v1 (ADR-013)]`
 - Risk registers, risk maps/heatmaps, cause-and-effect diagrams, assessments, incident reports,
   playbooks `[PARTIAL — ingestible only via the generic document/vision paths FR-038/FR-040; risk
   artefacts are not named source types and there is no Risk kind in the BPMO 13; §4.7]`
