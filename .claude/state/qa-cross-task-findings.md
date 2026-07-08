@@ -64,8 +64,8 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 ## XT-004 — ui_verify Lighthouse can't reach auth-gated routes (harness gap)
 
 - **Severity:** Major · **Status:** OPEN (harness change — needs advisor consult + HITL per governance)
-- **Affects:** every auth-gated UI route in every epic (surfaced by GE-TASK-002 on `/explorer`).
-- **Found by:** GE-TASK-002 QA (read `.lighthouse.json` directly — `finalUrl` was
+- **Affects:** every auth-gated UI route in every epic (surfaced by CE-TASK-010 on `/explorer`).
+- **Found by:** CE-TASK-010 QA (read `.lighthouse.json` directly — `finalUrl` was
   `/auth/login?return_to=%2Fexplorer`, not `/explorer`).
 - **Symptom:** `ui_verify.sh`'s Lighthouse step has no scripted login, so for any auth-gated route it
   measures the sign-in redirect page, not the real target — Lighthouse-100 conformance on authenticated
@@ -81,8 +81,8 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 ## XT-005 — Explorer kind→shape pairing deferred (WCAG 1.4.1)
 
 - **Severity:** Minor (deferred) · **Status:** OPEN (brief-sanctioned deferral)
-- **Affects:** GE-TASK-002 (single ellipse in M1), GE-TASK-003/004/005 (richer node rendering).
-- **Found by:** GE-TASK-002 QA.
+- **Affects:** CE-TASK-010 (single ellipse in M1), CE-TASK-011/CE-TASK-012/CE-TASK-013 (richer node rendering).
+- **Found by:** CE-TASK-010 QA.
 - **Symptom:** node meaning is conveyed by colour only (single ellipse shape), so WCAG 1.4.1 ("meaning
   never colour-only") is not met. Explicitly deferred by the brief's Design Decision table (OQ-08:
   single ellipse in M1) — NOT a TASK-002 defect.

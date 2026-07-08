@@ -273,7 +273,7 @@ global context plus a left sidebar for within-area navigation.
 |---|---|---|
 | Dashboard | platform | Home — generative company intelligence; AI-composed widgets on demand |
 | Constitution | constitution-engine | The model — ontology, glossary, brand, governance, org chart, versions |
-| Explorer | graph-explorer | Visual, collaborative graph canvas |
+| Explorer | constitution-engine (§5–§8, Graph Explorer) | Visual, collaborative graph canvas |
 | Build | build-engine | Projects — spec → generate → ship |
 | Automate | events-actions-engine | Event-driven automations |
 | Compliance | cross-cutting | Conformance checks + audit / decision logs |
@@ -346,7 +346,7 @@ in the dashboard grid.
 #### Secondary navigation
 
 Each engine's left-sidebar secondary navigation is defined in its own brief's Navigation section:
-`constitution-engine`, `graph-explorer`, `build-engine`, `events-actions-engine`.
+`constitution-engine` (Constitution §2, Explorer §5), `build-engine`, `events-actions-engine`.
 
 ### Roles & Access
 

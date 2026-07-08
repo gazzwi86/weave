@@ -395,7 +395,7 @@ depend on. CE owns and publishes ALL of the following.
   is asserted by the ge-canvas-1 conformance suite (no "both pass, different slice" ambiguity). This
   aligns with CE-WRITE-1's incident-edge rule (a deleting client already reads incident edges first).
 - **M2 pin:** force mode only; exact prop types, behavioural semantics, and the conformance suite are
-  pinned in `engines/graph-explorer/tech-spec/ge-canvas-1.md` — prop-surface changes after Build M2
+  pinned in `engines/constitution-engine/tech-spec/ge-canvas-1.md` — prop-surface changes after Build M2
   decomposition are contract amendments. c4 mode post-v1.
 
 ---

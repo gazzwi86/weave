@@ -4,11 +4,9 @@
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
-    "graph-explorer/phase-1",
     "build-engine/phase-1",
     "build-engine-v1/phase-1",
     "constitution-engine-v1/phase-1",
-    "graph-explorer-v1/phase-1",
     "onboarding-v1/phase-1",
     "weave-platform-v1/phase-1"
   ],
@@ -84,13 +82,13 @@
       "status": "done"
     },
     {
-      "id": "GE-EPIC-001",
-      "title": "GE-EPIC-001",
+      "id": "CE-EPIC-013",
+      "title": "CE-EPIC-013",
       "status": "done"
     },
     {
-      "id": "GE-EPIC-002",
-      "title": "GE-EPIC-002",
+      "id": "CE-EPIC-014",
+      "title": "CE-EPIC-014",
       "status": "done"
     },
     {
@@ -189,42 +187,42 @@
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-003",
+      "id": "CE-V1-EPIC-015",
       "title": "Filters & Layers \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-004",
+      "id": "CE-V1-EPIC-016",
       "title": "Visual Overlays \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-008",
+      "id": "CE-V1-EPIC-020",
       "title": "Version Views & Diff \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-005",
+      "id": "CE-V1-EPIC-017",
       "title": "Visual Editing on the Canvas \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-007",
+      "id": "CE-V1-EPIC-019",
       "title": "Saved Views & Layout \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-006",
+      "id": "CE-V1-EPIC-018",
       "title": "Async Share & Comments \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-010",
+      "id": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map \u00b7 M2 (new)",
       "status": "backlog"
     },
     {
-      "id": "GE-V1-EPIC-009",
+      "id": "CE-V1-EPIC-021",
       "title": "Embeddable Canvas Component GE-CANVAS-1 \u00b7 force mode M2, c4 mode post-v1",
       "status": "backlog"
     },
@@ -473,60 +471,60 @@
       "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-008.md"
     },
     {
-      "id": "GE-TASK-001",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-009",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "SPIKE: Cytoscape 10k-node Benchmark + Aurora Layout Schema Design",
       "status": "done",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-001.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-009.md",
       "retry_count": 0
     },
     {
-      "id": "GE-TASK-002",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-010",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Whole-Company Force Canvas + Navigation",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-001"
+        "CE-TASK-009"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-002.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-010.md"
     },
     {
-      "id": "GE-TASK-003",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-011",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Node Spotlight + Search Overlay",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-002"
+        "CE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-003.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-011.md"
     },
     {
-      "id": "GE-TASK-004",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-012",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Server-Side Layout Persistence",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-001",
-        "GE-TASK-002"
+        "CE-TASK-009",
+        "CE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-004.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-012.md"
     },
     {
-      "id": "GE-TASK-005",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-002",
+      "id": "CE-TASK-013",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-014",
       "title": "Drill-In: Domain Focus, Neighbourhood Expand/Collapse, Impact Traversal",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-002",
-        "GE-TASK-003"
+        "CE-TASK-010",
+        "CE-TASK-011"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-005.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-013.md"
     },
     {
       "id": "BE-TASK-001",
@@ -1064,135 +1062,135 @@
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-001",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-003",
+      "id": "CE-V1-TASK-020",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-015",
       "title": "Filters & Layers Panel (entity, relationship, property, governed-content)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-001.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-020.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-002",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-004",
+      "id": "CE-V1-TASK-021",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "Overlay Engine + Heatmap + Domain Colouring",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-001"
+        "CE-V1-TASK-020"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-002.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-021.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-003",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-008",
+      "id": "CE-V1-TASK-022",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-020",
       "title": "Versions Panel + Diff Overlay (CE-VERSION-1 / CE-DIFF-1)",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-003.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-022.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-004",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-005",
+      "id": "CE-V1-TASK-023",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-004.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-005",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-005",
+      "id": "CE-V1-TASK-024",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-017",
       "title": "Side-Panel Property Edit + Delete Node/Edge + Concurrency Guard",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-004"
+        "CE-V1-TASK-023"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-005.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-024.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-006",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-007",
+      "id": "CE-V1-TASK-025",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-019",
       "title": "Explorer Persistence Service: Saved Views + Comments (Aurora)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-006.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-025.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-007",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-006",
+      "id": "CE-V1-TASK-026",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-018",
       "title": "Saved Views UI + Share + Comments + Live-Refresh Poll",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-001",
-        "GE-V1-TASK-006"
+        "CE-V1-TASK-020",
+        "CE-V1-TASK-025"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-007.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-026.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-008",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-010",
+      "id": "CE-V1-TASK-027",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map (coverage_gap overlay)",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-008.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-027.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-009",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-004",
+      "id": "CE-V1-TASK-028",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "Closure Config Wiring + Drift Guard + Pinned Impact Overlay",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-009.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-028.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-010",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-009",
+      "id": "CE-V1-TASK-029",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-021",
       "title": "GE-CANVAS-1 Packaging + Contract Conformance Suite",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-004"
+        "CE-V1-TASK-023"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-010.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-029.md",
       "retry_count": 0
     },
     {
-      "id": "GE-V1-TASK-011",
-      "engine": "graph-explorer-v1",
-      "epic": "GE-V1-EPIC-004",
+      "id": "CE-V1-TASK-030",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "M2 Release-Gate Suite (isolation, a11y, perf, invariants)",
       "status": "backlog",
       "blocked_by": [
-        "GE-V1-TASK-003",
-        "GE-V1-TASK-005",
-        "GE-V1-TASK-007",
-        "GE-V1-TASK-008",
-        "GE-V1-TASK-009",
-        "GE-V1-TASK-010"
+        "CE-V1-TASK-022",
+        "CE-V1-TASK-024",
+        "CE-V1-TASK-026",
+        "CE-V1-TASK-027",
+        "CE-V1-TASK-028",
+        "CE-V1-TASK-029"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/v1/tasks/TASK-011.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-030.md",
       "retry_count": 0
     },
     {

@@ -435,7 +435,7 @@ Each engine's full spec is a consolidated document under [`engines/`](engines/),
 |---|--------|------------------|------|----------------|
 | 1 | **Weave Platform** (shell) | foundation: app/nav/auth/tenancy/audit/notify/billing/connectors | [`engines/weave-platform.md`](engines/weave-platform.md) | six `PLAT-*` |
 | 2 | **Constitution Engine** | *model* — ontology/graph hub | [`engines/constitution-engine.md`](engines/constitution-engine.md) | `CE-READ-1` · `CE-WRITE-1` · `CE-DIFF-1` · `CE-VERSION-1` · `CE-BRAND-1` · `CE-METRICS-1` · `CE-EVENT-1` · `CE-FUNCTION-1` |
-| 3 | **Graph Explorer** | *visualise* | [`engines/graph-explorer.md`](engines/graph-explorer.md) | `GE-CANVAS-1` |
+| 3 | **Graph Explorer** | *visualise* | [`engines/constitution-engine.md` §5–§8](engines/constitution-engine.md#5-graph-explorer--brief) — merged into the CE spec 2026-07-08 | `GE-CANVAS-1` |
 | 4 | **Build Engine** | *generate* (dark factory) | [`engines/build-engine.md`](engines/build-engine.md) | `BE-ARTEFACT-1` · `BE-SELFIMPROVE-1` · `BE-SDK-1` |
 | 5 | **Events & Actions** | *automate* (post-v1) | [`engines/events-actions-engine.md`](engines/events-actions-engine.md) | `EA-AUTOMATION-1` |
 | 6 | **Onboarding** | terminal consumer / Hammerbarn seed | [`engines/onboarding.md`](engines/onboarding.md) | none |

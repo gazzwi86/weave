@@ -24,7 +24,7 @@ milestone_split: M1/M2/v1.0/post-v1
 > describes the business. Build is the GENERATE half of the Weave loop and owns the
 > `BE-ARTEFACT-1`, `BE-SELFIMPROVE-1`, and `BE-SDK-1` contracts.
 
-[weave-spec](../weave-spec.md) · [contracts](../contracts.md) · [constitution-engine](constitution-engine.md) · [graph-explorer](graph-explorer.md)
+[weave-spec](../weave-spec.md) · [contracts](../contracts.md) · [constitution-engine](constitution-engine.md) · [graph-explorer (CE §5–§8)](constitution-engine.md#5-graph-explorer--brief)
 
 ## 1. Brief
 

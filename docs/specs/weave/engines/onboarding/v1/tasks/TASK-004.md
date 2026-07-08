@@ -25,7 +25,7 @@ coverage: n/a
 ---
 
 Engine spec: [onboarding.md](../../../onboarding.md) §M2 window row 3 · Delta:
-[m2-delta.md](../../tech-spec/m2-delta.md) §2–§3 · Owning surfaces: GE v1 TASK-001 (filters),
+[m2-delta.md](../../tech-spec/m2-delta.md) §2–§3 · Owning surfaces: CE v1 TASK-020 (filters),
 TASK-002 (overlay engine), TASK-003 (versions + diff); CE v1 TASK-006 (rules & policies screen).
 
 ## Story
@@ -108,7 +108,7 @@ Minimum: 3 unit, 1 integration, 2 E2E.
 
 - **blocked_by**: TASK-001 (config + anchors + copy)
 - **unlocks**: TASK-005
-- **External (DoR, not DAG):** GE v1 TASK-001/002/003 merged (filters, overlays, versions);
+- **External (DoR, not DAG):** CE v1 TASK-020/021/022 merged (filters, overlays, versions);
   CE v1 TASK-006 merged (rules screen). Anchors stay `shipped: false` until planted here, so
   each tour gates off independently until its surface set lands (ADR-008). The GE tour's
   overlay-controls step additionally needs TASK-002's `ge.overlay.controls` flip.
@@ -121,7 +121,7 @@ Minimum: 3 unit, 1 integration, 2 E2E.
 ## DoR Checklist
 
 - [ ] TASK-001 merged (anchors + both tour configs green in CI)
-- [ ] GE v1 TASK-001/002/003 and CE v1 TASK-006 merged, or tours explicitly left unshipped
+- [ ] CE v1 TASK-020/021/022 and CE v1 TASK-006 merged, or tours explicitly left unshipped
       (`shipped: false`)
 - [ ] CE rules-screen anchor placement sanity-checked against the built screen (ids inferred from CE TASK-006 prose — m2-delta §3 caveat)
 - [ ] Role-tagging for rules-policies (Compliance + Technical proactive) confirmed with PO copy

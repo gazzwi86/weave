@@ -39,9 +39,9 @@ scope.
 
 | Overlay | Owning surface (committed brief) | Data the surface renders | Onboarding consumes |
 |---|---|---|---|
-| Model-completeness map tour + beacons (EPIC-002) | GE v1 TASK-008 completeness overlay (Explorer); Platform v1 TASK-017 role-home completeness tile | GE overlay: `CE-READ-1` `coverage_gap` rows only; Platform tile: `CE-METRICS-1` + `coverage_gap` | Anchors on the owning panels only (§3); no data reads of its own |
+| Model-completeness map tour + beacons (EPIC-002) | CE v1 TASK-027 completeness overlay (Explorer); Platform v1 TASK-017 role-home completeness tile | GE overlay: `CE-READ-1` `coverage_gap` rows only; Platform tile: `CE-METRICS-1` + `coverage_gap` | Anchors on the owning panels only (§3); no data reads of its own |
 | "What can Weave do for you" role-home guidance (EPIC-003) | Platform v1 TASK-017 role-home route (EPIC-010) | `CE-METRICS-1`, availability registry, M1 RBAC role matrix | Resolved role path (M1 TASK-006) selects the guidance variant |
-| Trust-mechanics tours (EPIC-002) | GE v1 TASK-003 (versions panel + diff), TASK-002 (overlay engine: heatmap/domain colour), TASK-001 (governed-content filters); CE v1 TASK-006 (rules & policies screen + full validation report) | `CE-VERSION-1`/`CE-DIFF-1`, `GET /api/validate` | Anchors only |
+| Trust-mechanics tours (EPIC-002) | CE v1 TASK-022 (versions panel + diff), TASK-002 (overlay engine: heatmap/domain colour), TASK-001 (governed-content filters); CE v1 TASK-006 (rules & policies screen + full validation report) | `CE-VERSION-1`/`CE-DIFF-1`, `GET /api/validate` | Anchors only |
 | Competency-question guidance (EPIC-003) | Rendered by onboarding itself: manual checklist item + role-home-tile beacon | None — no CE read (§5; OQ-M2-1 amended) | Item state via the M1 checklist API; beacon keys off the same state |
 
 Explicit non-scope: Build M2 is API-only (SDK, ceremonies — UI lands v1.0) → no Build overlay
@@ -69,16 +69,16 @@ plants the `data-tour-id` attribute; exactly one planting owner per anchor.
 | `plat.role-home.completeness-map` | Platform — completeness-map tile (TASK-017; also the competency-guidance beacon target; consumed by TASK-002's tile beacon) | TASK-003 |
 | `plat.role-home.next-action` | Platform — next-action banner (TASK-017) | TASK-003 |
 | `plat.role-home.summary-tiles` | Platform — modelled-summary tile grid (TASK-017) | TASK-003 |
-| `ge.overlay.controls` | GE — overlay panel section listing overlay toggles (GE TASK-002 within the TASK-001 panel shell; shared by completeness + trust tours) | TASK-002 |
-| `ge.overlay.completeness-legend` | GE — coverage-gap legend (GE TASK-008; renders while overlay active) | TASK-002 |
-| `ge.versions.panel` | GE — versions panel incl. version selection + compare/diff affordance (GE TASK-003) | TASK-004 |
-| `ge.filters.governed-content` | GE — governed-content filter group (GE TASK-001) | TASK-004 |
+| `ge.overlay.controls` | GE — overlay panel section listing overlay toggles (CE v1 TASK-021 within the TASK-001 panel shell; shared by completeness + trust tours) | TASK-002 |
+| `ge.overlay.completeness-legend` | GE — coverage-gap legend (CE v1 TASK-027; renders while overlay active) | TASK-002 |
+| `ge.versions.panel` | GE — versions panel incl. version selection + compare/diff affordance (CE v1 TASK-022) | TASK-004 |
+| `ge.filters.governed-content` | GE — governed-content filter group (CE v1 TASK-020) | TASK-004 |
 | `ce.rules.shape-list` | CE — rules & policies shape list (CE TASK-006) | TASK-004 |
 | `ce.rules.violation-report` | CE — per-rule violation coverage (severity + counts + expandable violating-entity list, CE TASK-006 AC-006-03/05) | TASK-004 |
 
-**Re-anchoring note (red-team fix).** Removed: `ge.overlay.completeness-toggle` (GE TASK-002
+**Re-anchoring note (red-team fix).** Removed: `ge.overlay.completeness-toggle` (CE v1 TASK-021
 renders overlay toggles as generated rows, not a discrete completeness element — completeness
-tour/beacon re-anchored to `ge.overlay.controls`); `ge.versions.diff-toggle` (GE TASK-003
+tour/beacon re-anchored to `ge.overlay.controls`); `ge.versions.diff-toggle` (CE v1 TASK-022
 activates diff by selecting two versions inside the versions panel; no toggle element —
 re-anchored to `ge.versions.panel`); `ce.rules.run-report` (CE TASK-006 auto-runs the report
 with a "validation pending" state; no run-report control exists — the rules tour steps

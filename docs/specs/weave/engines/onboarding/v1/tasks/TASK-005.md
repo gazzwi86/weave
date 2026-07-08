@@ -108,7 +108,7 @@ for suite utilities (fixture builders).
 - **blocked_by**: TASK-002, TASK-003, TASK-004 (surfaces wired, anchors shipped)
 - **unlocks**: none (terminal — v1-interim release evidence)
 - **External (DoR, not DAG):** all owning M2 surfaces merged (Platform TASK-010 + TASK-017,
-  GE TASK-001/002/003/008, CE TASK-006) — this suite runs against real components with every
+  CE v1 TASK-020/021/022/027, CE TASK-006) — this suite runs against real components with every
   M2 anchor `shipped: true` (AC-005-07 enforces it). CE TASK-010 is NOT a dependency (no
   count query is consumed anywhere in this window).
 

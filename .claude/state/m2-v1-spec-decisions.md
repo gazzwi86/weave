@@ -74,7 +74,8 @@ changes and PO-artifact contradictions. Fable advisor consulted on consequential
       6 contracts.md deltas. **Pre-commit: diff each stream's cited contract IDs vs final
       contracts.md** (Fable mitigation — Build read contracts at spawn, before later serial edits).
 - [ ] Conformance test asserting JWT `principal_iri` claim exists (Cognito config change must not
-      silently break GE attribution). Owner: Platform contract test / GE TASK-004 defensive AC.
+      silently break GE attribution). Owner: Platform contract test / CE v1 TASK-023 (ex-GE v1
+      TASK-004) defensive AC.
 - [ ] Confirm GE freezes ge-canvas-1.md prop surface (stability lock is nominal otherwise).
 - [ ] Log elicit-skill SKILL.md broken `00-elicit` path template (stray `.md`) to QA ledger (harness
       bug — governance follow-up, not inline fix).
@@ -196,3 +197,30 @@ E12 story list, ADR-011, BE v1-delta). One hand-fix: BE v1 TASK-023 bare "(TASK-
 m1 repo-bootstrap task, disambiguated to "(m1 TASK-010)". `tech-spec/m2-delta.md` filenames kept
 (historical delta records). Dated entries earlier in THIS file keep their original "M2 TASK" labels
 as history — map via the table above.
+
+## CE + GE spec-tree merge (2026-07-08, task #13 — WS1-GAP ruling "CE + GE specs: merge")
+
+User MCQ rulings: surviving tree = `engines/constitution-engine/`; tracker IDs re-keyed GE→CE;
+colliding tech-spec filenames renamed with `-explorer` suffix (pure `git mv`, no content merge).
+
+**File + ID mapping (renumber-on-collision only; ex-GE numbers shift, CE numbers untouched):**
+
+| Ex-GE artifact | New location / ID | Offset |
+|---|---|---|
+| m1 TASK-001..005 | constitution-engine/m1/tasks/TASK-009..013 (tracker GE-TASK-00N → CE-TASK-0(N+8)) | +8 |
+| v1 TASK-001..011 | constitution-engine/v1/tasks/TASK-020..030 (tracker GE-V1-TASK-0NN → CE-V1-TASK-0(NN+19)) | +19 |
+| ADR-001..008 (suffixed names kept) | constitution-engine/decisions/ADR-014..021-* | +13 |
+| Doc epics EPIC-001..010 (tracker GE-EPIC / GE-V1-EPIC) | EPIC-013..022 (CE-EPIC-013/014 + CE-V1-EPIC-015..022) | +12 |
+| graph-explorer.md §1–§4 | constitution-engine.md §5–§8 ("Graph Explorer — Brief/PRD/Epics/Roadmap") | §+4 |
+| tech-spec architecture/business-process/data-model/invariants/testing-strategy/m2-delta.md | same names + `-explorer` suffix | rename |
+| tech-spec/ge-canvas-1.md, 00-elicit/20Q-oq09-predicate-closure.md | moved unchanged | — |
+
+- Contract IDs unchanged (`GE-CANVAS-1` etc.) — contracts.md stays canonical; only paths updated.
+- progress.json: 106 tasks / 53 epics, 31 done preserved; phase_plan 9→7 (graph-explorer phases
+  folded into constitution-engine phases); engines `graph-explorer[-v1]` → `constitution-engine[-v1]`.
+- State spine: summaries GE-TASK-001/002/005.md renamed to CE-TASK-009/010/013.md;
+  qa-cross-task-findings + qa-project-issues live pointers re-keyed. Escalations
+  (`GE-TASK-001-resolved.md`, `TASK-001-blocker.md`), `spec-reviews/graph-explorer.md`, PHASE-*
+  summaries and dated ledger entries keep historical GE labels (same precedent as the m2→v1 merge).
+- "GE" as a *surface/prose* name survives (weave-spec build-order row #3, contracts.md §3 heading);
+  only the spec tree, file IDs, and tracker IDs merged.

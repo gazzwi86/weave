@@ -160,7 +160,7 @@ per-task reports.
 - **Title:** Three conformance checks were ruled necessary in the M2/v1 coordinator pass but exist
   only as decision-log checkboxes, not as any brief's AC or a tracked test: (a) JWT
   `principal_iri` claim conformance test — a Cognito config change must not silently break GE
-  attribution (partial ACs exist in GE v1 TASK-004 but no platform-side contract test); (b)
+  attribution (partial ACs exist in CE v1 TASK-023, ex-GE v1 TASK-004, but no platform-side contract test); (b)
   CE-WRITE-1 idempotency-key contract test — Platform v1 TASK-018 AC-6 depends on the pinned
   semantics (per-tenant key, 24h window, replay→201, diff→409) but CE has no test proving it
   serves them; (c) `ge-canvas-1.md` prop-surface freeze confirmation — frontmatter still
@@ -171,3 +171,18 @@ per-task reports.
   (b) CE architect — add idempotency contract-test AC to the CE-WRITE-1 owning task; (c) GE — set
   `confirmed_by`/`confirmed_on` in ge-canvas-1.md frontmatter at next GE spec touch.
 - **Deadline:** Before the merged-milestone spec-review gate (WS1 step 4 / /spec-review).
+
+## PROJ-010: Stale pre-merge spec paths in docs/standards (harness-governed)
+
+- **Title:** `docs/standards/testing-ts.md` (lines ~224, 225, 231, 248, 273, 324) and
+  `docs/standards/design/data-viz.md` (line ~223) still cite the pre-2026-06-30 split-spec path
+  `docs/specs/graph-explorer/02-prd/prd.md`. That layout was removed by the spec merge
+  (2026-06-30); the content now lives in `docs/specs/weave/engines/constitution-engine.md` §5–§8
+  (Graph Explorer sections, merged 2026-07-08). The perf thresholds referenced are otherwise
+  unchanged — this is a citation-path fix only.
+- **Severity:** Project (documentation drift; standards cite dead paths).
+- **Raised in:** CE+GE merge verification sweep (task #13, 2026-07-09). Pre-existing — NOT caused
+  by the merge.
+- **Owner:** Harness maintainer — `docs/standards/**` is harness-governed, so the fix needs an
+  advisor consult + `Advisor-Consult:` trailer; do NOT fix inline mid-task.
+- **Deadline:** Next harness PR / phase-gate remediation sweep.

@@ -12,14 +12,14 @@ confirmed_on: 2026-07-01
 last_verified_sha: null
 expires_on: 2026-12-30
 owner: gazzwi86
-coverage: platform · constitution-engine · graph-explorer · build-engine
+coverage: platform · constitution-engine (incl. graph-explorer) · build-engine
 ---
 
 # ADR-001: Tenant isolation — named-graph-per-tenant + mandatory query-rewriting
 
 **Scope:** program-level. Binds [Platform](../engines/weave-platform.md),
 [Constitution Engine](../engines/constitution-engine.md),
-[Graph Explorer](../engines/graph-explorer.md), and [Build Engine](../engines/build-engine.md).
+[Graph Explorer](../engines/constitution-engine.md), and [Build Engine](../engines/build-engine.md).
 Enforces the isolation contract in [rbac-multi-tenancy](../../../standards/rbac-multi-tenancy.md).
 Resolves **OQ-01 / CE OQ-04**. Must be decided before M1 (see
 [weave-spec §1.4 M1 DoR](../weave-spec.md)).

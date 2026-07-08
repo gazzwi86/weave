@@ -24,7 +24,7 @@ coverage: n/a
 ---
 
 Engine spec: [onboarding.md](../../../onboarding.md) §M2 window row 1 · Delta:
-[m2-delta.md](../../tech-spec/m2-delta.md) §2–§3 · Owning surfaces: GE v1 TASK-002 (overlay
+[m2-delta.md](../../tech-spec/m2-delta.md) §2–§3 · Owning surfaces: CE v1 TASK-021 (overlay
 panel) + TASK-008 (completeness overlay), Platform v1 TASK-017 (role-home completeness tile).
 
 ## Story
@@ -51,7 +51,7 @@ competency-guidance beacon on the same tile is TASK-003 (it keys off checklist s
 |---|---|
 | AC-002-01 | WHEN a user on any path opens Explorer with the completeness overlay available THE SYSTEM SHALL offer `tour.ge.completeness-map` (welcome-modal CTA + help-launcher entry), covering overlay controls (enable Completeness here) → legend → gap-drill, spotlight + tooltip + Back/Next + step indicator, skippable and resumable (all M1 TourEngine invariants inherited). |
 | AC-002-02 | WHEN the Explorer overlay panel renders THE SYSTEM SHALL show beacons on `ge.overlay.controls` ("New: Completeness overlay") and `ge.overlay.completeness-legend` until dismissed; dismissal SHALL persist server-side per `(tenant, user)` (M1 TASK-008 machinery). |
-| AC-002-03 | WHEN the role-home completeness tile renders THE SYSTEM SHALL show a first-visit beacon on `plat.role-home.completeness-map` linking "See gaps in Explorer" — a plain deep-link to the Explorer route (GE v1 TASK-008 exposes no overlay-on URL state); the `ge.overlay.controls` beacon (AC-002-02) picks the user up there, and the beacon copy SHALL say the overlay is enabled from the Layers panel. |
+| AC-002-03 | WHEN the role-home completeness tile renders THE SYSTEM SHALL show a first-visit beacon on `plat.role-home.completeness-map` linking "See gaps in Explorer" — a plain deep-link to the Explorer route (CE v1 TASK-027 exposes no overlay-on URL state); the `ge.overlay.controls` beacon (AC-002-02) picks the user up there, and the beacon copy SHALL say the overlay is enabled from the Layers panel. |
 | AC-002-04 | IF any anchor is absent at runtime THEN THE SYSTEM SHALL skip/hide with a logged warning; WHILE any anchor a tour/beacon references is `shipped: false` THE SYSTEM SHALL not offer it (per-anchor gating, ADR-008) — never a broken or half-rendered overlay. |
 | AC-002-05 | WHEN the tour or any beacon is open THE SYSTEM SHALL pass axe WCAG 2.1 AA zero-violations and remain fully keyboard-navigable; step transition ≤ 200 ms (default, tunable); i18n keys + design tokens only, `ui_verify` passes. |
 
@@ -104,7 +104,7 @@ Minimum: 3 unit, 1 integration, 2 E2E.
 
 - **blocked_by**: TASK-001 (config + anchors + copy)
 - **unlocks**: TASK-005
-- **External (DoR, not DAG):** GE v1 TASK-002/008 merged (overlay panel + completeness overlay
+- **External (DoR, not DAG):** CE v1 TASK-021/027 merged (overlay panel + completeness overlay
   exist to plant on); Platform v1 TASK-017 merged (tile exists — its anchor is planted by
   onboarding TASK-003). Until this task plants and flips its GE anchors they stay
   `shipped: false`, so nothing renders (ADR-008) — this task can still merge config-first; the
@@ -118,7 +118,7 @@ Minimum: 3 unit, 1 integration, 2 E2E.
 ## DoR Checklist
 
 - [ ] TASK-001 merged (anchors + tour/beacon config green in CI)
-- [ ] GE v1 TASK-002/008 + Platform TASK-017 merged, or explicitly deferred with anchors left
+- [ ] CE v1 TASK-021/027 + Platform TASK-017 merged, or explicitly deferred with anchors left
       `shipped: false`
 - [ ] Design tokens for beacon/spotlight confirmed unchanged from M1 (`docs/standards/design/`)
 - [ ] Plain Explorer deep-link route for "See gaps in Explorer" confirmed against GE routing

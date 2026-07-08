@@ -1492,7 +1492,7 @@ post-v1 gate or ships as a v1-interim feature release, depending on ship order.
 
 | Onboarding feature | Surface it points at | Epic |
 |---|---|---|
-| Model-completeness map tour + beacons | GE M2: Explorer completeness overlay (GE TASK-008) + Platform M2: role-home completeness tile (Platform TASK-017); data is CE-served (`coverage_gap` / CE-METRICS-1) | EPIC-002 |
+| Model-completeness map tour + beacons | GE M2: Explorer completeness overlay (CE v1 TASK-027) + Platform M2: role-home completeness tile (Platform TASK-017); data is CE-served (`coverage_gap` / CE-METRICS-1) | EPIC-002 |
 | "What can Weave do for you" role-home guidance | M2 Platform: role-tailored home surface (Platform TASK-017) | EPIC-003 |
 | Provenance + confidence-signal UI tours | M2 GE (versions/diff, filters, overlays) + CE (rules & policies screen): trust-mechanics surfaces | EPIC-002 |
 | Competency-question guidance (manual checklist item + tile beacon) | Rendered by onboarding itself; deep-links the onboarding training article (no CE count/authoring surface exists — see m2 tech-spec delta OQ-M2-1) | EPIC-003 |
