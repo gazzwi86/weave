@@ -65,6 +65,11 @@ class DraftingRequest:
     tenant_id: str
     actor_iri: str
     prompt: str
+    #: The submitter's raw `Authorization` header, captured before this
+    #: pipeline is handed to `BackgroundTasks` (no live request/Principal by
+    #: then) -- forwarded to CE-VERSION-1, which requires the same bearer
+    #: auth as any other route.
+    auth_header: str | None = None
 
 
 def build_section_prompt(section: str, prompt: str, graph_context: str) -> str:
@@ -82,14 +87,17 @@ async def _draft_section(
     return await asyncio.to_thread(ai_router.route, "fable", section_prompt, provider=provider)
 
 
-async def _ground_in_ce_read(ce_client: httpx.AsyncClient, tenant_id: str, request_id: str) -> str:
+async def _ground_in_ce_read(
+    ce_client: httpx.AsyncClient, tenant_id: str, request_id: str, auth_header: str | None
+) -> str:
     """AC-2/AC-7: ground the draft in CE-VERSION-1's pinned latest version;
     degrade to "unavailable" (never blocking the draft) if CE is
     unreachable. The audit emit fires either way (AC-2's implementation
     hint: record the failure too).
     """
+    headers = {"Authorization": auth_header} if auth_header else None
     try:
-        graph_context = await get_pinned_latest_version(ce_client)
+        graph_context = await get_pinned_latest_version(ce_client, headers=headers)
     except CeVersionUnavailable:
         graph_context = "unavailable"
 
@@ -138,11 +146,9 @@ async def run_drafting_pipeline(
     """
     client = redis_client or await store.get_redis_client()
     graph_context = await _ground_in_ce_read(
-        ce_client, draft_request.tenant_id, draft_request.request_id
+        ce_client, draft_request.tenant_id, draft_request.request_id, draft_request.auth_header
     )
-    await store.update_request_record(
-        client, draft_request.request_id, graph_context=graph_context
-    )
+    await store.update_request_record(client, draft_request.request_id, graph_context=graph_context)
 
     sections: dict[str, str] = {}
     try:

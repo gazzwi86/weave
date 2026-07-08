@@ -68,7 +68,7 @@ def _unique_tenant(label: str) -> str:
 
 def _ce_stub(versions: list[dict[str, object]]) -> AsyncClient:
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=versions)
+        return httpx.Response(200, json={"versions": versions})
 
     return AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
 
@@ -138,9 +138,7 @@ async def test_blast_radius_returns_touched_domains_and_services(
         tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
         headers = {"Authorization": f"Bearer {tokens.access_token}"}
 
-        response = await client.get(
-            f"/api/requests/{request_id}/blast-radius", headers=headers
-        )
+        response = await client.get(f"/api/requests/{request_id}/blast-radius", headers=headers)
         assert response.status_code == 200
         body = response.json()
         assert body["status"] == "computed"

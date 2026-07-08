@@ -7,11 +7,12 @@ yet), so the default base URL is this same process; ``CE_API_BASE_URL``
 overrides it once CE ships as its own deployment -- same env-var-swap
 pattern as ``auth/oidc_client.py``'s ``OIDC_ISSUER_URL``.
 
-ponytail: CE-VERSION-1's real endpoint doesn't exist on ``main`` yet (a
-separate lane owns it). This client is proven against a stubbed transport
+CE-VERSION-1's real endpoint now lives on ``main`` (``routers/ontology.py``)
+and, like every route, requires the caller's bearer token -- pass it through
+via ``get_pinned_latest_version(..., headers=...)`` or every call 401s and
+looks identical to CE being unreachable. Proven against a stubbed transport
 (``httpx.MockTransport`` -- already a transitive dependency via ``httpx``,
-no new package needed) in both unit and integration tests here; real
-cross-engine wiring gets proven once that lane's endpoint merges.
+no new package needed).
 """
 
 from __future__ import annotations
@@ -67,22 +68,33 @@ async def close_ce_client() -> None:
         _client_loop = None
 
 
-def _pick_latest(versions: list[dict[str, object]]) -> str:
-    latest = next((v for v in versions if v.get("is_latest")), None)
+def _pick_latest(body: dict[str, object]) -> str:
+    # Real shape (VersionsResponse): {"versions": [...], "total", "page",
+    # "per_page"} -- not a bare list.
+    versions = body.get("versions", [])
+    if not isinstance(versions, list):
+        raise CeVersionUnavailable("CE-VERSION-1 returned a malformed versions body")
+    latest = next(
+        (v for v in versions if isinstance(v, dict) and v.get("is_latest")), None
+    )
     if latest is None:
         raise CeVersionUnavailable("CE-VERSION-1 returned no is_latest version")
     return str(latest["version_iri"])
 
 
-async def get_pinned_latest_version(client: httpx.AsyncClient) -> str:
+async def get_pinned_latest_version(
+    client: httpx.AsyncClient, *, headers: dict[str, str] | None = None
+) -> str:
     """AC-1/AC-2: fetch ``GET /api/ontology/versions``, return the
     ``is_latest`` entry's ``version_iri``. Retries on connection error or a
-    non-2xx status before giving up.
+    non-2xx status before giving up. ``headers`` forwards the caller's
+    ``Authorization`` bearer token -- the route requires auth same as any
+    other CE-READ-1 route.
     """
     last_error: Exception | None = None
     for _attempt in range(_MAX_ATTEMPTS):
         try:
-            response = await client.get("/api/ontology/versions")
+            response = await client.get("/api/ontology/versions", headers=headers)
             response.raise_for_status()
         except httpx.HTTPError as exc:
             last_error = exc

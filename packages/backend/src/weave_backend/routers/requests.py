@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from weave_backend.ai.providers import ModelProvider
@@ -61,12 +61,18 @@ def _validate_body(body: CreateRequestBody) -> None:
 
 
 @router.post("", status_code=202, response_model=CreateRequestResponse)
-async def create_request_route(
+async def create_request_route(  # noqa: PLR0913 -- Law E waiver, see .claude/state/complexity-waivers.md
     body: CreateRequestBody,
     background_tasks: BackgroundTasks,
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[httpx.AsyncClient, Depends(get_ce_client)],
     provider: Annotated[ModelProvider | None, Depends(get_ai_provider)] = None,
+    # Law E waiver (params > 5): the pipeline runs detached via
+    # BackgroundTasks with no live Principal by the time it grounds in
+    # CE-VERSION-1, so the raw header must be captured here and threaded
+    # through `DraftingRequest.auth_header` -- see
+    # .claude/state/complexity-waivers.md.
+    authorization: Annotated[str | None, Header()] = None,
 ) -> CreateRequestResponse:
     _validate_body(body)
 
@@ -96,6 +102,7 @@ async def create_request_route(
             tenant_id=principal.tenant_id,
             actor_iri=principal.principal_iri,
             prompt=body.prompt,
+            auth_header=authorization,
         ),
         ce_client=ce_client,
         provider=provider,

@@ -10,7 +10,7 @@ from typing import Annotated
 
 import asyncpg
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
@@ -136,7 +136,12 @@ def _project_name_from_prompt(prompt: str) -> str:
 
 
 async def _auto_create_project(
-    conn: asyncpg.Connection, *, tenant_id: str, prompt: str, ce_client: httpx.AsyncClient
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    prompt: str,
+    ce_client: httpx.AsyncClient,
+    headers: dict[str, str] | None = None,
 ) -> str:
     """AC-5 + design decision table: auto-create via TASK-001's
     `projects/model.py` in-process ("same service, no circular dep") --
@@ -147,7 +152,7 @@ async def _auto_create_project(
     existing = await find_existing_project_iri(conn, tenant_id=tenant_id, slug=slug)
     if existing is not None:
         return existing
-    pinned_version = await get_pinned_latest_version(ce_client)
+    pinned_version = await get_pinned_latest_version(ce_client, headers=headers)
     try:
         project = await create_project(
             conn,
@@ -167,10 +172,14 @@ async def _auto_create_project(
 async def _process_approval(
     conn: asyncpg.Connection,
     record: RequestRecord,
-    request_id: str,
     principal: Principal,
     ce_client: httpx.AsyncClient,
+    headers: dict[str, str] | None = None,
 ) -> SignOffResponse:
+    # request_id: use record.request_id, not a separate param -- the record
+    # was fetched by that same id (Law E: keeps params <= 5 room for
+    # `headers`, the CE-VERSION-1 auth forward).
+    request_id = record.request_id
     _check_not_self_approval(record, principal)
     await record_sign_off(
         conn,
@@ -194,7 +203,11 @@ async def _process_approval(
     # approved -- surface the error and leave it in the sign-off pending state.
     try:
         project_iri = await _auto_create_project(
-            conn, tenant_id=principal.tenant_id, prompt=record.prompt, ce_client=ce_client
+            conn,
+            tenant_id=principal.tenant_id,
+            prompt=record.prompt,
+            ce_client=ce_client,
+            headers=headers,
         )
     except CeVersionUnavailable as exc:
         raise HTTPException(
@@ -210,6 +223,7 @@ async def submit_sign_off_route(
     body: SignOffBody,
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[httpx.AsyncClient, Depends(get_ce_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> SignOffResponse:
     """AC-4..AC-7."""
     _validate_sign_off_action(body)
@@ -235,4 +249,5 @@ async def submit_sign_off_route(
                 status="returned_to_draft", rejection_reason=body.rejection_reason
             )
 
-        return await _process_approval(conn, record, request_id, principal, ce_client)
+        headers = {"Authorization": authorization} if authorization else None
+        return await _process_approval(conn, record, principal, ce_client, headers)

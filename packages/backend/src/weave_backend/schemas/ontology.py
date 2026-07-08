@@ -16,6 +16,10 @@ class VersionEntry(BaseModel):
     created_at: datetime
     published_at: datetime | None
     actor_iri: str
+    #: CE-READ-1's contract: the newest *published* version among the ones
+    #: returned -- computed by the router via `versioning.resolve_version`,
+    #: never stored on the row itself.
+    is_latest: bool = False
 
 
 class VersionsResponse(BaseModel):

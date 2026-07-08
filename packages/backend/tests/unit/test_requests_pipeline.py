@@ -61,26 +61,36 @@ async def _fake_tenant_connection(_tenant_id: str) -> AsyncIterator[None]:
     yield None
 
 
-def _ce_stub(status_code: int = 200) -> httpx.AsyncClient:
-    def handler(_request: httpx.Request) -> httpx.Response:
+def _ce_stub(
+    status_code: int = 200, *, captured: list[httpx.Request] | None = None
+) -> httpx.AsyncClient:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if captured is not None:
+            captured.append(request)
         if status_code != 200:
             return httpx.Response(status_code)
         return httpx.Response(
             200,
-            json=[
-                {
-                    "version_iri": "urn:weave:version:v1",
-                    "is_latest": True,
-                }
-            ],
+            json={
+                "versions": [
+                    {
+                        "version_iri": "urn:weave:version:v1",
+                        "is_latest": True,
+                    }
+                ]
+            },
         )
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
 
 
-def _draft_request(request_id: str = "r1") -> DraftingRequest:
+def _draft_request(request_id: str = "r1", auth_header: str | None = None) -> DraftingRequest:
     return DraftingRequest(
-        request_id=request_id, tenant_id="t1", actor_iri="urn:weave:principal:user:u1", prompt="p"
+        request_id=request_id,
+        tenant_id="t1",
+        actor_iri="urn:weave:principal:user:u1",
+        prompt="p",
+        auth_header=auth_header,
     )
 
 
@@ -142,6 +152,35 @@ async def test_drafting_logs_ce_read_call_to_audit() -> None:
     assert event.event_type == "ce_read_grounding"
     assert event.payload["version"] == "urn:weave:version:v1"
     assert "query" in event.payload
+
+
+async def test_drafting_forwards_auth_header_to_ce_version_client() -> None:
+    """The root cause fixed here: CE-VERSION-1 requires auth, so the
+    submitter's bearer token (captured pre-backgrounding into
+    `DraftingRequest.auth_header`) must reach the CE-VERSION-1 request or
+    every call 401s and looks like CE is unreachable.
+    """
+    redis_client = _FakeRedis()
+    await create_request_record(
+        redis_client,  # type: ignore[arg-type]
+        RequestRecord(
+            request_id="r1", tenant_id="t1", run_mode="draft_spec_only", status="drafting"
+        ),
+    )
+    captured: list[httpx.Request] = []
+
+    with (
+        patch("weave_backend.requests.pipeline.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.requests.pipeline.tenant_connection", _fake_tenant_connection),
+    ):
+        await run_drafting_pipeline(
+            _draft_request(auth_header="Bearer tok"),
+            ce_client=_ce_stub(captured=captured),
+            provider=_RecordingProvider(),
+            redis_client=redis_client,  # type: ignore[arg-type]
+        )
+
+    assert captured[0].headers["authorization"] == "Bearer tok"
 
 
 async def test_drafting_degrades_gracefully_when_ce_unreachable() -> None:

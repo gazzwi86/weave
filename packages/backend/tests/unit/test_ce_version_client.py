@@ -17,6 +17,10 @@ from weave_backend.projects.ce_version_client import (
 )
 
 
+def _versions_body(versions: list[dict[str, object]]) -> dict[str, object]:
+    return {"versions": versions, "total": len(versions), "page": 1, "per_page": 50}
+
+
 async def test_get_pinned_latest_version_returns_latest_version_iri() -> None:
     versions = [
         {
@@ -34,12 +38,38 @@ async def test_get_pinned_latest_version_returns_latest_version_iri() -> None:
     ]
 
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=versions)
+        return httpx.Response(200, json=_versions_body(versions))
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
     result = await get_pinned_latest_version(client)
 
     assert result == "urn:weave:version:v2"
+
+
+async def test_get_pinned_latest_version_forwards_authorization_header() -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json=_versions_body([{"version_iri": "v1", "is_latest": True}]))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
+    await get_pinned_latest_version(client, headers={"Authorization": "Bearer tok"})
+
+    assert captured[0].headers["authorization"] == "Bearer tok"
+
+
+async def test_get_pinned_latest_version_sends_no_auth_header_when_none_given() -> None:
+    captured: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json=_versions_body([{"version_iri": "v1", "is_latest": True}]))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
+    await get_pinned_latest_version(client)
+
+    assert "authorization" not in captured[0].headers
 
 
 async def test_get_pinned_latest_version_raises_after_retries_on_connection_error() -> None:
@@ -95,7 +125,7 @@ async def test_get_pinned_latest_version_raises_when_no_entry_is_latest() -> Non
     ]
 
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=versions)
+        return httpx.Response(200, json=_versions_body(versions))
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
 

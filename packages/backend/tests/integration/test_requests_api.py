@@ -57,7 +57,7 @@ def _unique_tenant(label: str) -> str:
 
 def _ce_stub(versions: list[dict[str, object]]) -> AsyncClient:
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=versions)
+        return httpx.Response(200, json={"versions": versions})
 
     return AsyncClient(transport=httpx.MockTransport(handler), base_url="http://ce")
 

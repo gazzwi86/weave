@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Annotated, cast
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -74,6 +74,7 @@ async def create_project_route(
     body: CreateProjectRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[httpx.AsyncClient, Depends(get_ce_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> CreateProjectResponse:
     slug = slugify(body.name)
     if not body.name.strip() or not slug:
@@ -90,7 +91,8 @@ async def create_project_route(
             raise _project_exists_response(existing_iri)
 
         try:
-            pinned_version = await get_pinned_latest_version(ce_client)
+            headers = {"Authorization": authorization} if authorization else None
+            pinned_version = await get_pinned_latest_version(ce_client, headers=headers)
         except CeVersionUnavailable as exc:
             raise HTTPException(
                 status_code=503, detail={"error": "ce_version_unavailable"}

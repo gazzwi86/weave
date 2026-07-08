@@ -162,6 +162,17 @@ async def _list_versions_outcome(
     )
     include_drafts = role is not None and ROLE_RANK.get(role, -1) >= ROLE_RANK["author"]
 
+    # is_latest (CE-READ-1): the newest *published* version, resolved once
+    # up front -- `None` when the workspace has no published version yet
+    # (every entry then reports is_latest=False, matching the "unavailable"
+    # 503 the client raises when it sees no is_latest entry).
+    try:
+        latest_iri = await versioning.resolve_version(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id, version="latest"
+        )
+    except versioning.VersionNotFound:
+        latest_iri = None
+
     page_result = await versioning.list_versions(
         conn,
         tenant_id=principal.tenant_id,
@@ -178,6 +189,7 @@ async def _list_versions_outcome(
                 created_at=v.created_at,
                 published_at=v.published_at,
                 actor_iri=v.actor_iri,
+                is_latest=v.version_iri == latest_iri,
             )
             for v in page_result.versions
         ],
@@ -308,9 +320,7 @@ async def publish_version_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> PublishResponse:
     async with tenant_connection(principal.tenant_id) as conn:
-        outcome = await _publish_version_outcome(
-            conn, principal=principal, version_iri=version_iri
-        )
+        outcome = await _publish_version_outcome(conn, principal=principal, version_iri=version_iri)
 
     if isinstance(outcome, HTTPException):
         raise outcome
