@@ -1,14 +1,10 @@
-# Ideas & feedback
+# Feedback
 
 The below should be planned by Fable and executed with a cost efficient model like claude-sonnet-5 as a sub-agent, unless otherwise specified. Fable or opus can review the outcome delivered by the sub agent. 
 
-- Can we create a lean canvas in a sub section of the CE. It should be a defined UI, competitiors, okrs, channels, etc, the common 11 lean canvas entities that form a strategy on a page for an org. The entities in the columns are powered by Googles OKF wiki format. This way in the ui, you can have an entity like a channel eg web, and then when clicked it can open a modal which has the okf markdown file giving a full detailed explination.
+- Need to add ask in settings.json for updating the harness, updating the spec, during the implement phase only. Eg. ask if write(docs/specs/weave/*), write(.claude/scripts/*), write(.claude/agents/*), write(.claude/commands/*), , write(.claude/skills/*), write(.claude/settings.json), write(.claude/rules/*), write(.claude/spec-templates/*)
 
-- Ontology meets Google OKF - the entities listed in the ontology are simple concepts, thin definitions without documentation and explination. Can we use the OKF and markdown to add documentation for them. Then when you click in the graph onto a concept, it can feature not only the SKOS glossary definitions but a detailed explination for the entity in the right hand aside. This would mean the OKF frontmatter types and other metadata will have to map neatly onto the URI, concept etc. But it should allow for in depth documentation of items beyon just the simple releationships. Im not sure how it fits with the BPMO though, where there would be overlap, conflicts or duplicate/overlapping documentation, it could be wasteful.
-
-- Need to add ask in settings.json for updating the harness, updating the spec, during the implement phase only. Eg. ask if write(docs/specs/weave/*)
-
-- There should be a force compact of the orchestrator at the end of each epic.
+- There should be a force compact of the orchestrator at the end of each epic. Can this be done via a hook?
 
 - The index needs to be a promotion brochure for the application, SaaS style, pushing to pricing, privacy, compliance, etc info with a buy and Sign up/buy buttons.
 
@@ -28,3 +24,8 @@ The below should be planned by Fable and executed with a cost efficient model li
 
 - Super admin see the self-improvement engine details, issues, and findings from the logs that can be used to describe tasks, updates etc that can improve the system then the build engine can open a PR. The CI/CD would deploy a new version of the app after human approval of the approval of the pipeline with pushes to prod
 
+- http://localhost:3000/ce - looking here, the manual adding of items doesnt see created included or functional, only the NL. There was supposed to be a form for creating things in the ontology/bpmo.
+
+- I think we need to move to v1 faster and deliver this hammerbarn example. It will help me alot to play and understand the application. We need to refine the spec to merge m2 and v1 and deliver both together.
+
+- http://localhost:3000/ce I asked: "build a capability in the hosted/housed in the company hq (location) who deliver/deploy/mange/operate the retail ecommerce website, which will in future have associated with it data, processes and systems/apis etc" I got "I'm not sure what you mean -- could you rephrase that more specifically?". Even when using "batiai/qwen3.6-27b:iq3". Are we unlikely to have a powerful enough local model to execute a task in this ui, or is the hanress, context or similar impeding this?
