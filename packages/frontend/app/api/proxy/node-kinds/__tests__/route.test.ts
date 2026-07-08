@@ -30,6 +30,7 @@ describe("GET /api/proxy/node-kinds", () => {
         JSON.stringify({
           kinds: [
             { iri: "https://weave.example/bpmo#Process", label: "Process", properties: [] },
+            { iri: "https://weave.example/bpmo#Widget", label: "Widget", properties: [] },
           ],
           relationships: [],
         }),
@@ -45,7 +46,11 @@ describe("GET /api/proxy/node-kinds", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      kinds: [{ id: "Process", label: "Process", colour: "var(--color-kind-fallback)" }],
+      kinds: [
+        // Known BPMO kinds get their palette token; unknown kinds fall back.
+        { id: "Process", label: "Process", colour: "var(--color-kind-process)" },
+        { id: "Widget", label: "Widget", colour: "var(--color-kind-fallback)" },
+      ],
     });
   });
 

@@ -14,19 +14,26 @@ async function loginAndGoToWorkspaces(page: Page): Promise<void> {
 }
 
 // Provisioning panel against the real backend (no API mocks): the seeded
-// workspace is listed, and creating one with a run-unique slug lands it in
-// the list (backend-state proof: the reloaded list, not the form, shows it).
+// workspace is listed, and creating one lands it in the list
+// (backend-state proof: the reloaded list, not the form, shows it).
+// ponytail: fixed slug, not `e2e-${Date.now()}` -- a run-unique slug leaks
+// one junk workspace into the dev DB per run and there is no delete
+// endpoint to clean up with. On re-runs the workspace already exists, so
+// the create step is skipped and the assertion is the durable one: the
+// backend lists it.
 test("workspaces panel lists the seeded workspace and creates a new one", async ({ page }) => {
   await loginAndGoToWorkspaces(page);
 
   const rows = page.getByTestId("workspace-row");
   await expect(rows.filter({ hasText: "Demo Workspace" }).first()).toBeVisible();
 
-  // Unique per run so re-runs never hit the 409 slug-taken path.
-  const slug = `e2e-${Date.now()}`;
-  await page.getByLabel("Display name").fill(`E2E ${slug}`);
-  await page.getByLabel("Slug").fill(slug);
-  await page.getByRole("button", { name: "Create workspace" }).click();
+  const slug = "e2e-sandbox";
+  const existing = await rows.filter({ hasText: slug }).count();
+  if (existing === 0) {
+    await page.getByLabel("Display name").fill("E2E Sandbox");
+    await page.getByLabel("Slug").fill(slug);
+    await page.getByRole("button", { name: "Create workspace" }).click();
+  }
 
   await expect(rows.filter({ hasText: slug })).toBeVisible();
 });
