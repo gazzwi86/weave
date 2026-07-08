@@ -61,6 +61,11 @@ depend on. CE owns and publishes ALL of the following.
   the generated query for transparency). **Ships in M1** — it is the proof demo's
   cross-notation-reconciliation "wow" (one plain-language question answered across
   process + data + system + governance) and the business-user legibility entry point.
+  - **Citations (CE v1, additive, per CE ADR-011):** the response MAY carry an optional
+    `citations` array — each entry pairs `entity_iri` + `artefact_iri` + `passage_id` + a source
+    locator (page / heading-path / char-range) + a ≤300-char snippet (FR-043: cite BOTH the graph
+    IRI and the source text). Additive-only; the base `{ sparql, rows, columns, grounded_iris }`
+    shape is unchanged, so M1/M2 consumers ignore it harmlessly.
   - **Security:** the LLM-generated SPARQL passes through the **same single SELECT-only +
     `SERVICE`-blocked validator** as user-supplied queries — there is exactly ONE validator
     between any SPARQL string (regardless of origin) and the store. The NL path is **not** a
@@ -107,6 +112,18 @@ depend on. CE owns and publishes ALL of the following.
     `422 { violations: [{ focus_node, path, severity, message }] }`.
   - Idempotency / conflict: duplicate-IRI create is reconciled to the existing node (not an error);
     callers may pass an idempotency key.
+  - **Referential integrity:** CE applies exactly the submitted ops — there is no server-side
+    cascade beyond them. Integrity is enforced by SHACL at commit: ops that leave a dangling
+    reference (where shapes forbid it) fail the whole batch with `422`. A deleting client must
+    therefore submit the incident-edge deletes too; it should first read incident edges (CE-READ-1)
+    that lie outside its loaded slice, or an otherwise-valid delete can surprise-`422`.
+  - **Concurrency (M2 → v1):** M2 has no conditional write — concurrent applies both commit (each a
+    new CE-VERSION-1 version), so lost-update protection is the caller's (a client-side
+    since-version drift warning). **Planned additive v1 enhancement:** an OPTIONAL
+    `expected_version` request field → `409 { current_version_iri }` when the base moved, giving
+    true server-side lost-update protection inside CE's already-serialised commit path. Non-breaking
+    (absent field = current behaviour); downstream editors (GE canvas, Events) should design toward
+    it rather than inventing bespoke guards.
 - Grounding: `validation/shacl.py`, `api/routes.py:365-483` (`_validate_prospective`, `apply_ops`);
   `llm/service.py:16-67,143-206` (MUTATION_TOOL, apply_operations, dedup).
 - **Note:** the prototype's legacy `POST /api/llm/mutate` auto-apply path bypasses validation —
@@ -168,6 +185,9 @@ depend on. CE owns and publishes ALL of the following.
 ### CE-METRICS-1 — Aggregate metrics for the Dashboard
 - `GET /api/metrics/ontology` → `{ entity_count_by_kind, latest_version, draft_published_delta,
   shacl_errors_by_severity, owl_inconsistencies }`.
+- `shacl_errors_by_severity` MAY be `{ "pending": true }` when counts for the current graph state
+  are not yet computed; consumers MUST render a pending state, never zeros (honesty rule — a `0`
+  count would read as "no violations", a false-health signal both engines' specs ban).
 - Consumer: composable Generative Dashboard (M2+). The **M1 fixed dashboard** is hand-composed
   CE-sourced tiles and does **not** consume this contract — CE-METRICS-1 lands M2.
 
@@ -225,11 +245,18 @@ depend on. CE owns and publishes ALL of the following.
   violations, self-improvement, build state, HITL-gate fired, automation-failure, connector-degraded,
   onboarding-activation, etc. Resolves Events OQ-05 (= reuse platform).
 
-### PLAT-IDENTITY-1 — Agent service-principal registry
-- One registry mints/scopes agent principal IRIs, including **dynamic per-automation** principals.
-  Reconciles Platform's agent classes + Build's 5 dark-factory roles (Engineer/QA/Architect/Review/
-  Sandbox) + Events' per-automation principals. The canonical principal IRI is used uniformly in
-  PROV-O and every PLAT-AUDIT-1 entry. Least-privilege role-scope per principal.
+### PLAT-IDENTITY-1 — Principal registry (human + agent)
+- One registry mints/scopes canonical principal IRIs for **all actors**, human and agent.
+- **Human principals** are minted at first Cognito login (M1 PLAT-TASK-004 AC-1):
+  `urn:weave:principal:user:{cognito_sub}`, stored in Aurora, and embedded in the JWT
+  `principal_iri` claim. Consumers needing the acting human's IRI (e.g. GE canvas edits →
+  CE-WRITE-1 attribution) read the JWT `principal_iri` claim directly — no separate resolve call —
+  or look up `GET /api/principals/{iri}` for the record.
+- **Agent principals**: the same registry mints/scopes agent principal IRIs, including **dynamic
+  per-automation** principals. Reconciles Platform's agent classes + Build's 5 dark-factory roles
+  (Engineer/QA/Architect/Review/Sandbox) + Events' per-automation principals.
+- The canonical principal IRI is used uniformly in PROV-O and every PLAT-AUDIT-1 entry.
+  Least-privilege role-scope per principal.
 
 ### PLAT-CONNECTOR-1 — Managed connector contract
 - v1 integrations (**7**): Snowflake · Databricks · AWS · Azure Data Lake ·
@@ -263,6 +290,9 @@ depend on. CE owns and publishes ALL of the following.
 - Consumer: Build embeds a **project-scoped slice** (`filterByIri = project IRI`) and writes project
   architecture updates back via CE-WRITE-1 (bidirectional sync). Explorer owns the component; Build
   manages its project portion.
+- **M2 pin:** force mode only; exact prop types, behavioural semantics, and the conformance suite are
+  pinned in `engines/graph-explorer/tech-spec/ge-canvas-1.md` — prop-surface changes after Build M2
+  decomposition are contract amendments. c4 mode post-v1.
 
 ---
 
