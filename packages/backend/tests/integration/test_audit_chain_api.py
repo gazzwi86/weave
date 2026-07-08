@@ -20,6 +20,7 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.oidc_client import get_oidc_client
+from weave_backend.billing.period import current_period
 from weave_backend.db.migrate import _dsn
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
@@ -133,15 +134,11 @@ async def test_audit_entries_tenant_scoped(client: AsyncClient) -> None:
         client, tenant_id=tenant_b, admin_sub="u-admin-b", slug="ws-b"
     )
 
-    same_tenant = await client.get(
-        "/api/audit", params={"tenant_id": tenant_b}, headers=headers_b
-    )
+    same_tenant = await client.get("/api/audit", params={"tenant_id": tenant_b}, headers=headers_b)
     assert same_tenant.status_code == 200, same_tenant.text
     assert same_tenant.json()["total"] == 1
 
-    cross_tenant = await client.get(
-        "/api/audit", params={"tenant_id": tenant_a}, headers=headers_b
-    )
+    cross_tenant = await client.get("/api/audit", params={"tenant_id": tenant_a}, headers=headers_b)
     assert cross_tenant.status_code == 403
     assert cross_tenant.json()["detail"]["error"] == "tenant_mismatch"
 
@@ -300,3 +297,50 @@ async def test_audit_table_truncate_rejected_for_weave_app(platform_stack: Path)
         )
         with pytest.raises(asyncpg.exceptions.InsufficientPrivilegeError):
             await conn.execute("TRUNCATE audit_entries")
+
+
+async def test_compliance_view_period_filters_entries_inside_and_outside_month(
+    client: AsyncClient,
+) -> None:
+    """Month-over-month trends: `?period=YYYY-MM` scopes the category
+    aggregation to that calendar month and echoes the period back; a month
+    with no entries (e.g. a distant past one) reports an empty breakdown
+    rather than leaking the tenant's all-time counts.
+    """
+    tenant_id = _unique_tenant("tenant-compliance-period")
+    _, headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-period", slug="ws-period"
+    )
+
+    this_month = await client.get(
+        "/api/audit/compliance", params={"period": current_period()}, headers=headers
+    )
+    assert this_month.status_code == 200, this_month.text
+    this_month_body = this_month.json()
+    assert this_month_body["period"] == current_period()
+    assert this_month_body["by_event_category"]["workspace"] == 1
+
+    empty_month = await client.get(
+        "/api/audit/compliance", params={"period": "2000-01"}, headers=headers
+    )
+    assert empty_month.status_code == 200, empty_month.text
+    empty_body = empty_month.json()
+    assert empty_body["period"] == "2000-01"
+    assert empty_body["by_event_category"] == {}
+    assert "shacl_validated" in empty_body
+    assert "shacl_rejections" in empty_body
+
+
+async def test_compliance_view_rejects_invalid_period(client: AsyncClient) -> None:
+    """`period` must be `YYYY-MM` -- a malformed value is a 422, not a
+    silent fall-through to all-time data.
+    """
+    tenant_id = _unique_tenant("tenant-compliance-bad-period")
+    _, headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-bad-period", slug="ws-bad-period"
+    )
+
+    response = await client.get(
+        "/api/audit/compliance", params={"period": "not-a-period"}, headers=headers
+    )
+    assert response.status_code == 422

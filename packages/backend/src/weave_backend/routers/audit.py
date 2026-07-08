@@ -29,6 +29,8 @@ from weave_backend.schemas.audit import (
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
+_PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
+
 
 def _require_own_tenant(principal: Principal, tenant_id: str) -> None:
     if tenant_id != principal.tenant_id:
@@ -74,9 +76,10 @@ async def verify_chain_route(
 @router.get("/compliance", response_model=ComplianceResponse)
 async def compliance_view_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
+    period: Annotated[str | None, Query(pattern=_PERIOD_PATTERN)] = None,
 ) -> ComplianceResponse:
     async with tenant_connection(principal.tenant_id) as conn:
-        summary = await get_compliance_summary(conn, principal.tenant_id)
+        summary = await get_compliance_summary(conn, principal.tenant_id, period=period)
     return ComplianceResponse(
         chain_status=summary.chain_status,
         entries_checked=summary.entries_checked,
@@ -84,4 +87,6 @@ async def compliance_view_route(
         by_event_category=summary.by_event_category,
         top_actors=[ActorCountResponse(**actor.__dict__) for actor in summary.top_actors],
         period=summary.period,
+        shacl_validated=summary.shacl_validated,
+        shacl_rejections=summary.shacl_rejections,
     )

@@ -46,6 +46,8 @@ class ComplianceResponse(BaseModel):
     by_event_category: dict[str, int]
     top_actors: list[ActorCountResponse]
     period: str
+    shacl_validated: int
+    shacl_rejections: int
 
 
 class AuditQueryParams(BaseModel):
