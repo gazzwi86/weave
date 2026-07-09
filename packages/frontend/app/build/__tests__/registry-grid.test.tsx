@@ -74,4 +74,22 @@ describe("RegistryGrid", () => {
     );
     expect(screen.getByRole("button", { name: /clear filters/i })).toBeInTheDocument();
   });
+
+  // QA edge case (TASK-015): the grid's network-failure path (`loadError`)
+  // had zero test coverage -- `use-project-grid.ts`'s catch branch was
+  // never exercised. A non-ok response must surface the alert, not a blank
+  // or perpetually-loading grid.
+  it("shows a load-error alert when the grid fetch fails, not a blank or stuck grid", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 500 }))
+    );
+
+    render(<RegistryGrid />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(/unable to load projects/i)
+    );
+    expect(screen.queryByText(/no projects match/i)).not.toBeInTheDocument();
+  });
 });
