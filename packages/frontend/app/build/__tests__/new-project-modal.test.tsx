@@ -62,4 +62,47 @@ describe("NewProjectModal", () => {
     expect(screen.getByText("gh-token-prod")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /reveal/i })).not.toBeInTheDocument();
   });
+
+  it("shows a name-conflict error and keeps the dialog open on a 409", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 409)));
+
+    render(<NewProjectModal onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ledger Sync" } });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "Reconciliation pipeline" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(/already exists/i)
+    );
+    expect(screen.getByLabelText("Description")).toHaveValue("Reconciliation pipeline");
+  });
+
+  it("shows a generic error when the create request throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      })
+    );
+
+    render(<NewProjectModal onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Ledger Sync" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(/try again shortly/i)
+    );
+  });
+
+  it("closes the dialog without creating a project on Cancel", () => {
+    render(<NewProjectModal onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByRole("dialog", { hidden: true })).not.toHaveAttribute("open");
+  });
 });
