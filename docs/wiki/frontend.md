@@ -261,3 +261,13 @@ Related: [backend](backend.md), [shared](shared.md)
 
 <!-- stale: packages/frontend/app/ce/overview/__tests__/page.test.tsx --> <!-- at: 2026-07-08T03:50:39.741538+00:00 -->
 
+
+<!-- stale: packages/frontend/tests/e2e/auth.spec.ts --> <!-- at: 2026-07-09T04:09:52.877134+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/ce-authoring.spec.ts --> <!-- at: 2026-07-09T04:10:19.220337+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/versions-publish.spec.ts --> <!-- at: 2026-07-09T04:10:50.634056+00:00 -->
+
+<!-- stale: packages/frontend/playwright.config.ts --> <!-- at: 2026-07-09T04:49:22.148587+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/global-search.spec.ts --> <!-- at: 2026-07-09T04:58:35.074832+00:00 -->

@@ -198,3 +198,22 @@ per-task reports.
 - **Owner:** Harness maintainer — `CLAUDE.md` is harness-governed, so the fix needs an advisor
   consult + `Advisor-Consult:` trailer; do NOT fix inline mid-task.
 - **Deadline:** Next harness PR / phase-gate remediation sweep (bundle with PROJ-010).
+
+## PROJ-012: Audit hash-chain "Chain broken" observed once, unreproducible (monitor)
+
+- **What:** During WS3 M1-gate e2e runs (2026-07-09), audit-logs.spec.ts once failed with backend
+  verify result "Chain broken — 0 entries checked, first broken seq 1". Not reproduced across
+  3 isolated + 5 full-suite runs on cleanly reset stacks. Code reading ruled out the cheap
+  explanations: empty table verifies valid (audit/chain.py:127-146), genesis written once under
+  `if created:` (db/seed_demo.py:150-159), signing key stable across process restarts
+  (audit/signing_key.py), no spec truncates audit tables, workers=1 so no parallel writes.
+  Occurrence coincided with a stale pre-reset environment + auth rate-limit starvation churn.
+- **Why it matters:** chain integrity is the product's core trust mechanic (PLAT-TASK-009); even
+  a spurious "broken" verdict erodes it. The UI badge collapses three distinct error codes
+  (hash_mismatch / chain_broken / signature_invalid) into one string, so the one sighting is
+  undiagnosable after the fact.
+- **Follow-up:** on next occurrence capture the raw `POST /api/audit/verify` response `error`
+  field (network log), not the badge text. Consider a debug log line in verify_entries naming
+  the failing check + seq. Candidate small task for the audit-surfaces epic (PLAT-V1-EPIC-009).
+- **Raised in:** WS3 M1 gate close-out (2026-07-09). **Owner:** unassigned (monitor).
+- **Deadline:** none (monitor); instrument if seen again.

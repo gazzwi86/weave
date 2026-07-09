@@ -37,7 +37,12 @@ test.describe("global search + help launcher", () => {
 
   test("Cmd+K opens the search palette, focuses input, Escape dismisses (AC-2)", async () => {
     await page.keyboard.press("ControlOrMeta+k");
-    const input = page.getByRole("combobox");
+    // Scoped to the dialog: getByRole("combobox") alone also matches the
+    // header's workspace <select> (Chromium maps single <select> to
+    // role=combobox too), so an unscoped locator can flip between
+    // 1 and 2 matches depending on whether that select's async fetch
+    // has resolved yet -- an order-dependent flake, not a focus bug.
+    const input = page.getByRole("dialog", { name: "Global search" }).getByRole("combobox");
     await expect(input).toBeVisible();
     await expect(input).toBeFocused();
 
@@ -66,7 +71,10 @@ test.describe("global search + help launcher", () => {
     });
 
     await page.keyboard.press("ControlOrMeta+k");
-    await page.getByRole("combobox").fill("acme");
+    await page
+      .getByRole("dialog", { name: "Global search" })
+      .getByRole("combobox")
+      .fill("acme");
     await page.getByText("Acme Corp").click();
 
     await expect(page).toHaveURL(/\/ce\/resource\?iri=urn%3Aweave%3Aentity%3Aacme/);

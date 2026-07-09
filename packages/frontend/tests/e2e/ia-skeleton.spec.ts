@@ -2,8 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 // PoC IA skeleton (docs/design/poc-ia-proposal.md): a human can log in, land
 // on Home, reach every one of the six top areas, hit the green CE + Audit
-// screens, see Build/Events as phase-labelled placeholders, and get the
-// marketing index logged out. Uses the two seeded demo logins
+// screens, see the shipped Build request form and the still-placeholder
+// Events area, and get the marketing index logged out. Uses the two seeded
+// demo logins
 // (seed_demo.py): admin@weave.local (admin) / client@weave.local (author).
 
 async function loginAs(page: Page, email: string): Promise<void> {
@@ -51,9 +52,10 @@ test("admin can navigate all six IA areas end to end", async ({ page }) => {
   await expect(page.getByTestId("kind-list")).toBeVisible();
   await expect(page.getByTestId("kind-list").getByText("Process", { exact: true })).toBeVisible();
 
-  // Build + Events: reachable, phase-labelled.
+  // Build: shipped M1 "Request application" form. Events: still a
+  // phase-labelled placeholder.
   await nav.getByRole("link", { name: "Build" }).click();
-  await expect(page.getByText("Delivered in phase v1.0.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Request application" })).toBeVisible();
   await nav.getByRole("link", { name: "Events" }).click();
   await expect(page.getByText("Delivered in phase post-v1.", { exact: true })).toBeVisible();
 

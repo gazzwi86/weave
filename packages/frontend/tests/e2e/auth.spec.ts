@@ -16,7 +16,7 @@ test("redirects to sign-in and returns to the original path after login", async 
 
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByTestId("principal-iri")).toHaveText(
-    "urn:weave:principal:user:dev-user-1"
+    "urn:weave:principal:user:admin"
   );
 });
 

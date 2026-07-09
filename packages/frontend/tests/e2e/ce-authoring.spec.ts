@@ -82,7 +82,7 @@ test.describe("CE authoring surfaces", () => {
 
     const entityLink = page.getByRole("link", { name: /urn:weave:process:1/ });
     await expect(entityLink).toBeVisible();
-    await expect(entityLink).toHaveAttribute("href", "/api/ontology/resource/urn:weave:process:1");
+    await expect(entityLink).toHaveAttribute("href", "/explorer?focus=urn%3Aweave%3Aprocess%3A1");
     // Backend-state proof (Law 16): the exact mutation the UI dispatched.
     expect(captured.applyBody?.operations).toEqual([
       { op: "add_node", ref: "p1", kind: PROCESS_KIND.iri, label: "Customer Onboarding" },
