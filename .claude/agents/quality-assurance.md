@@ -210,6 +210,14 @@ Verify that the UI conforms to the Weave design system in `docs/standards/design
 
 Output: fold results into the per-task QA report as a `Design conformance` block (token usage / type scale / motion / kind colours+shapes / Lighthouse-100 / axe-zero / visual baselines), each line PASS / WARN / FAIL with command-output evidence.
 
+**Design-agent assist (ADV-007, strictly additive):** for UI-bearing tasks (Category 17's
+smart-detection criterion — task touches a screen/component/page), additionally invoke the
+`design` agent with the task brief and your `ui_verify.sh` output, and merge its findings into the
+report. Its findings can ADD entries or RAISE severity — they never downgrade, dedupe-away, or
+substitute for this category or Category 17. `ui_verify.sh` exit ≠ 0 stays a hard FAIL regardless
+of design-agent output, and you still execute every category yourself. A design-agent finding that
+duplicates one this category already produced is cross-referenced, not re-reported.
+
 ### Category 16 — Mutation testing (changed files)
 
 Run mutation testing scoped to the files changed in this task:

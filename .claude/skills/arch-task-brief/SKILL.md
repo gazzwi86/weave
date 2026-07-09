@@ -106,6 +106,13 @@ Produce the task brief in this exact order. For each section:
 **HITL batching:** Sections are presented individually. Do not batch-write multiple sections
 before presenting. Each section gets its own Approve / Amend / Reject gate.
 
+**Design-requirements assist (ADV-007):** if the task is UI-bearing (QA Category 17's
+smart-detection criterion — the task touches a screen/component/page), invoke the `design` agent
+to draft a `### Design requirements` subsection (cited lines only: token names, `jtbd.md`
+entries, `F-D-NNN` findings, `visual-direction.md`) for the Technical Notes/NFR section. The
+drafted subsection goes through the SAME Approve / Amend / Reject gate as every other section —
+it lands before HITL sign-off, never after it; the architect and the human own the final brief.
+
 **Sections in order:**
 
 #### Story

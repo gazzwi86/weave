@@ -33,6 +33,7 @@ replacing TODO with `<name> <date>` once they have confirmed it is accurate.
 | project-memory | skill | Saves project-scoped facts (conventions, decisions, state, pointers) to MEMORY.md | User: /remember or Agent: saving a project-level fact | Team decisions/conventions are not persisted | active | TODO |
 | spec-review | skill | Reviews all specs for completeness, consistency, implementation-readiness | User: /spec-review or Agent: implement (pre-scaffold) | Broken/incomplete specs reach implementation | active | TODO |
 | status | skill | Renders the kanban progress dashboard + suggested next action | User: /status or /implement status | No progress/blocker visibility | active | TODO |
+| design | agent | Weave design agent. Two hooks: (1) at arch-task-brief time, appends a cited Design |  |  | active | TODO |
 | engineer | agent | Implements tasks via strict TDD from self-contained briefs; scaffolds boilerplate on first run | implement loop (PDAC build phase) | No code gets written | active | TODO |
 | product-owner | agent | Orchestrates PO artifacts brief -> PRD -> epics -> roadmap; delegates writing to skills | User: /po | The PO phase has no driver | active | TODO |
 | quality-assurance | agent | Validates implementation vs spec, extends tests, produces structured failure reports | implement ASSESS phase or User: /qa | The QA phase has no driver | active | TODO |
