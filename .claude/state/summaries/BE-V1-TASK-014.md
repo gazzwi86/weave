@@ -6,8 +6,16 @@ before QA so preflight passes ([[process_qa-preflight-vs-parallel-lanes]]).
 
 ## Outcome
 
-Impl complete + committed. Docker integration 4/4 pass; full unit lane 801 pass, 0 regressions.
-QA full checklist pending (this summary unblocks preflight).
+**QA PASS after retry 1.** Round-1 QA: security PASS (role guard admin-gated, tenancy isolated,
+mig 0019 safe, ADR-013 503 clean) but FAIL on DoD unit-lane coverage (settings 43% / contributors
+64% / grid 71% — route bodies were docker-only) + AC-6/AC-1 unit tests absent. Retry added
+fake-connection unit tests (`b21161a` grid, `46f176a` settings, `ea20189` contributors): all three
+files now **100%** unit-lane, AC-6 (no-secret) + AC-1 (filter/search) unit tests present. Docker
+**9/9**, full unit lane **817**, 0 regressions. Impl unchanged in the retry (test-only). retry=1/3.
+
+**PO follow-ups for phase gate (not defects):** removing a project's last admin contributor is not
+prevented (orphan possible); `POST /api/projects` create carries no `require_project_role` guard
+(ADR-014-documented, pre-existing) — any tenant member can create.
 
 ## What shipped
 

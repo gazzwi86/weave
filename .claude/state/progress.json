@@ -1376,7 +1376,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-011"
       ],

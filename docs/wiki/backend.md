@@ -387,3 +387,9 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/routers/project_settings.py --> <!-- at: 2026-07-09T20:22:53.944337+00:00 -->
 
 <!-- stale: packages/backend/src/weave_backend/projects/grid.py --> <!-- at: 2026-07-09T20:24:42.156851+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_projects_grid.py --> <!-- at: 2026-07-09T21:02:17.456332+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_settings_router.py --> <!-- at: 2026-07-09T21:08:37.103646+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_contributors_router.py --> <!-- at: 2026-07-09T21:10:42.515277+00:00 -->

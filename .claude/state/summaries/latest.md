@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T20:36:44+00:00
+Captured at: 2026-07-09T21:02:22+00:00
 Event: pre-compact
 
 ## Current State
@@ -1388,7 +1388,7 @@ Event: pre-compact
         "BE-V1-TASK-011"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-014.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-015",
