@@ -9,7 +9,7 @@ Evaluate whether the current implementation phase meets all quality gates before
 
 ## Model
 
-- **Gate evaluation:** claude-sonnet-5 (structured analysis, precise checklist assessment)
+- **Gate evaluation:** mid tier (structured analysis, precise checklist assessment)
 - **Security sub-skill:** delegates to `/security-review` (runs its own model chain)
 
 ## Trigger

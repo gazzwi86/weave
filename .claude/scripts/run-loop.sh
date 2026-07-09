@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="${RUN_LOOP_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
-MODEL="${RUN_LOOP_MODEL:-claude-fable-5}"
+MODEL="${RUN_LOOP_MODEL:-claude-opus-4-8}"
 FALLBACK_MODEL="${RUN_LOOP_FALLBACK:-claude-sonnet-5}"
 MAX_ITERATIONS="${RUN_LOOP_MAX_ITERATIONS:-25}"
 LIMIT_SLEEP="${RUN_LOOP_LIMIT_SLEEP:-1800}"

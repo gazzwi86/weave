@@ -30,22 +30,22 @@ The engine runs as **three cooperating layers**:
   deploy, and validated graph write-back.
 
 **AI boundary.** Every model call crosses one boundary: **Anthropic Agent SDK → AWS Bedrock
-AgentCore**. The engine uses the confirmed **two-tier** model policy only — `claude-fable-5` for
-judgement-heavy, low-volume work (architecture, PLAN) and `claude-sonnet-5` for volume work
+AgentCore**. The engine uses the confirmed **two-tier** model policy only — high tier for
+judgement-heavy, low-volume work (architecture, PLAN) and mid tier for volume work
 (engineering, QA, CODIFY validation). The routing table is a set of **constants, never runtime
 variables**; a role that resolves to no allowed model raises `ModelRoutingError` and **halts the
 task — it never silently invokes an unapproved or fallback model** (FR-045, TASK-006 AC-6).
 
-| Role (loop phase) | Provider | Model | Tier rationale |
+| Role (loop phase) | Provider | Tier | Tier rationale |
 |-------------------|----------|-------|----------------|
-| PLAN (Architect principal) | anthropic | `claude-fable-5` | Judgement — decompose brief, DoR reasoning |
-| DELEGATE (Engineer principal) | anthropic | `claude-sonnet-5` | Volume — TDD implementation |
-| ASSESS (QA principal) | anthropic | `claude-sonnet-5` | Volume — AC validation, failure classification |
-| CODIFY (QA/validator principal) | anthropic | `claude-sonnet-5` | Volume — EARS-AC verification before Done |
+| PLAN (Architect principal) | anthropic | high tier | Judgement — decompose brief, DoR reasoning |
+| DELEGATE (Engineer principal) | anthropic | mid tier | Volume — TDD implementation |
+| ASSESS (QA principal) | anthropic | mid tier | Volume — AC validation, failure classification |
+| CODIFY (QA/validator principal) | anthropic | mid tier | Volume — EARS-AC verification before Done |
 
 **Fallback rule.** WHEN the configured provider for a role is unreachable, THE SYSTEM SHALL fall
-back per policy **or** halt the task and emit a routing error; the fallback set is bounded by
-`ALLOWED_MODELS = {claude-fable-5, claude-sonnet-5}`. No model outside that set is ever invoked.
+back per policy **or** halt the task and emit a routing error; the fallback set (`ALLOWED_MODELS`)
+is bounded to the confirmed tier set (high tier, mid tier). No model outside that set is ever invoked.
 
 **Graph access (ADR-001).** The Build Engine touches **no RDF store directly**. All graph access
 goes through Constitution Engine contracts: reads via `CE-READ-1` (SELECT-only, `SERVICE`-blocked,
@@ -82,7 +82,7 @@ C4Context
     System_Ext(platform, "Weave Platform", "Five PLAT-* contracts Build consumes: PLAT-IDENTITY-1, PLAT-AUDIT-1, PLAT-SETTINGS-1, PLAT-NOTIFY-1, PLAT-BILLING-1")
     System_Ext(scm, "External SCM", "GitHub / GitLab — a NEW repo per project; all generated output is pushed here, never inside Weave")
     System_Ext(preview, "Preview-deploy targets", "AWS Lambda + CloudFront + S3 — time-limited shareable demo URL (default 72 h)")
-    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (claude-fable-5 / claude-sonnet-5)")
+    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (high tier / mid tier)")
     System_Ext(secrets, "AWS Secrets Manager", "SCM provider tokens — held by reference only, never in env/logs")
 
     Rel(requestor, build, "Submits NL request, picks run mode", "HTTPS")
@@ -112,10 +112,10 @@ C4Container
     Person(approver, "Sign-off / HITL operator")
 
     Container_Boundary(build, "Build Engine") {
-        Container(studio_api, "Request Studio API", "FastAPI / Python 3.12 / Lambda", "Intake form, AI spec drafting (claude-fable-5), blast-radius, cost gate, stakeholder sign-off; streams sections over SSE")
+        Container(studio_api, "Request Studio API", "FastAPI / Python 3.12 / Lambda", "Intake form, AI spec drafting (high tier), blast-radius, cost gate, stakeholder sign-off; streams sections over SSE")
         Container(lifecycle_api, "Spec-Lifecycle API", "FastAPI / Python 3.12 / Lambda", "Spec FSM (Draft→Review→Approved→Active), minimal project-bootstrap record, run enqueue")
         Container(orchestrator, "Dark-Factory Orchestrator", "Python 3.12 / ECS Fargate", "Long-running PLAN→DELEGATE→ASSESS→CODIFY loop; turn cap (60); resumable from last CODIFY checkpoint; runs as the INVOKING SESSION, not a principal")
-        Container(agents, "Dark-Factory Agents", "Anthropic Agent SDK on AgentCore", "5 PLAT-IDENTITY-1 principals: Architect (fable-5), Engineer (sonnet-5), QA (sonnet-5), Review, Sandbox (code-execution principal)")
+        Container(agents, "Dark-Factory Agents", "Anthropic Agent SDK on AgentCore", "5 PLAT-IDENTITY-1 principals: Architect (high tier), Engineer (mid tier), QA (mid tier), Review, Sandbox (code-execution principal)")
         Container(scm_driver, "ScmDriver", "Python / GitHub|GitLab SDK", "Repo bootstrap = run step 0: create_repo, write_initial_commit, commit_workspace; GitHubDriver / GitLabDriver behind one interface")
         Container(preview_deployer, "Preview Deployer", "Python 3.12 / Fargate task", "Wraps Lambda + CloudFront + S3; produces time-limited demo URL; retains prior URL on failure")
     }
@@ -186,7 +186,7 @@ C4Component
         Component(scm_step0, "Repo Bootstrap (ScmDriver)", "run step 0", "ensure_project_repo: create repo + write boilerplate; fail-closed on unconfigured provider / invalid token; no Weave-internal fallback (FR-061)")
         Component(fsm, "Spec-Lifecycle FSM", "Python", "Drives requests / build_specs / build_tasks status transitions with per-state action guards")
         Component(loop, "PDAC Loop Controller", "Python", "PLAN→DELEGATE→ASSESS→CODIFY; orchestrator turn cap 60; CODIFY non-skippable; resumes from last CODIFY checkpoint")
-        Component(model_router, "Model Router", "Python", "MODEL_ROUTING constants (plan=fable-5; delegate/assess/codify=sonnet-5); ModelRoutingError halts — never silent-invokes")
+        Component(model_router, "Model Router", "Python", "MODEL_ROUTING constants (plan=high tier; delegate/assess/codify=mid tier); ModelRoutingError halts — never silent-invokes")
         Component(depsum, "Dep-Summary Writer/Reader", "Python", "CODIFY writes breadcrumb row (M1 write-only); best-effort reader; full read-and-gate is M2 (ENG-4 stub)")
         Component(gates_quality, "DoR/DoD + Pre-Scaffold Checkers", "Python", "DoR before DELEGATE; DoD QA self-runs commands; pre-scaffold spec-review is an M1 pass-through stub")
         Component(safety_gates, "Safety Gate Pipeline", "Python", "5 atomic M1 gates: (1) secret-scan (2) SAST (3) type-check (4) pkg-existence (5) mutation≥70%; any fail = nothing committed")

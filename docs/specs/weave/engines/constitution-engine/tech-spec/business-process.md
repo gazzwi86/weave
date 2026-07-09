@@ -169,7 +169,7 @@ and SELECT-only / SERVICE-blocked sanitizer ([data-model.md §query-path-and-ten
 sequenceDiagram
     participant C as Client
     participant CE as CE API Layer
-    participant LLM as LLM (claude-sonnet-5)
+    participant LLM as LLM (mid tier)
     participant RW as Rewriting middleware
     participant STORE as RDF Store
 

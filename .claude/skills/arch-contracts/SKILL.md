@@ -30,7 +30,7 @@ SQLAlchemy models in Part 2 consistent where they describe the same entities.
 
 ### Model
 
-- **All phases:** claude-sonnet-5 (structured output, schema precision, YAML accuracy)
+- **All phases:** mid tier (structured output, schema precision, YAML accuracy)
 
 No elicitation phase for this skill — inputs come from approved upstream specs. If the
 upstream tech-spec or PRD is missing, STOP and ask the user to run `/architect` first.
@@ -567,10 +567,10 @@ A well-produced `openapi.yaml`:
 
 ### Model
 
-- **All phases:** claude-sonnet-5 (precise structured output, code generation, schema drafting)
+- **All phases:** mid tier (precise structured output, code generation, schema drafting)
 
 Rationale: data-model work is a generation and precision task, not open-ended reasoning.
-Sonnet is the right tier. Escalate to claude-fable-5 only when the entity boundary is
+Mid tier is the right tier. Escalate to high tier only when the entity boundary is
 genuinely ambiguous and needs strategic framing.
 
 ### Input

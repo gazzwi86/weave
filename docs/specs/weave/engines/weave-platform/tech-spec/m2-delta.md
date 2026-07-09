@@ -127,7 +127,7 @@ code; output is a `WidgetSpec`, JSON-schema-validated before the `spec` event em
   grammar; history append is server-side (§4), capped at 10 (tunable); refine failure
   preserves prior state (FR-007).
 - **Latency contingency (carried from ADR-012 confidence flag, binds TASK-011 ACs):** if the
-  ≤ 1 s-to-`spec` p95 misses with the sonnet call in the path, the endpoint emits a
+  ≤ 1 s-to-`spec` p95 misses with the mid-tier call in the path, the endpoint emits a
   provisional `spec` from rule-based keyword mapping (§2 table keyed on prompt keywords) and
   the agent-resolved spec follows as a spec-replacing `refine` — grammar unchanged, so this
   is a fallback implementation detail, not a contract change.

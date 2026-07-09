@@ -73,7 +73,7 @@ The single most important devex requirement: **a configurable provider+model rou
 
 - **Tiering:**
   - **Heavy / complex agentic work with planning** (elicitation, architecture, multi-step
-    generation, the dark factory's planning agents) → **Bedrock** (Claude Fable/Sonnet tier).
+    generation, the dark factory's planning agents) → **Bedrock** (high/mid tier).
   - **Simpler agentic needs** (validation, formatting, classification, lint, simple transforms,
     sub-tasks) → **Ollama** quantized small models (Qwen / Gemma / DeepSeek) where capable.
   - **Minimise Bedrock** — route to Ollama wherever a small model is sufficient (cost control).
@@ -83,7 +83,7 @@ The single most important devex requirement: **a configurable provider+model rou
 - **Configuration:** a single config surface maps `{agent-role | task-tier | complexity} →
   {provider, model}`, resolvable **per environment** (local / dev / staging / prod) and overridable
   per domain/role/task. "Set where and which model" lives here. This extends the CLAUDE.md model
-  right-sizing matrix (Fable/Sonnet/Haiku) with a **provider + local** dimension.
+  right-sizing matrix (high/mid tier) with a **provider + local** dimension.
 - **Fidelity caveat:** a local quantized model is lower-capability than Claude. Local runs validate
   **plumbing and logic**, not model-output quality. Quality-sensitive paths (final generation,
   spec authoring, the conformance-graded output) must run against Bedrock/Anthropic before sign-off.

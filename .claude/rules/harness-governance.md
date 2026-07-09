@@ -27,7 +27,7 @@ If a path is ambiguous, treat it as a harness change (fail safe).
 ## The rules
 
 1. **Advisor consult, always.** No harness change may be committed without a review by the advisor
-   model (`advisorModel` in `settings.json` — currently `fable`). Spawn the advisor over the
+   model (`advisorModel` in `settings.json` — currently `opus`). Spawn the advisor over the
    **planned overall change** (not file-by-file), record its verdict
    (`APPROVE` / `APPROVE-WITH-CHANGES` / `BLOCK`) in
    `.claude/state/advisor-consults/ADV-NNN.md`, and put the trailer `Advisor-Consult: ADV-NNN` on

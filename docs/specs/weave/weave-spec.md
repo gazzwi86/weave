@@ -387,9 +387,9 @@ Decisions are final unless overridden by explicit PRD justification.
   15 App Router, Tailwind, shadcn/ui. **API:** REST (OpenAPI 3.1) + SPARQL 1.1. **Auth:** AWS
   Cognito (default) or Auth0 (multi-IdP).
 - **AI/Agents:** Anthropic (Claude) Agent SDK — Python primary, TS secondary; AWS Bedrock
-  AgentCore (GA components: Runtime, Memory, Identity, Gateway). Models: `claude-fable-5`
-  (elicitation/architecture), `claude-sonnet-5` (generation/implementation),
-  validation/formatting also on `claude-sonnet-5` (two-tier policy, haiku dropped 2026-07-02). Guardrails: AWS Bedrock Guardrails.
+  AgentCore (GA components: Runtime, Memory, Identity, Gateway). Models: **high tier**
+  (elicitation/architecture), **mid tier** (generation/implementation),
+  validation/formatting also on **mid tier** (two-tier policy, haiku dropped 2026-07-02). Guardrails: AWS Bedrock Guardrails.
 - **Data:** RDF store Oxigraph (dev/test) → Neptune or Jena Fuseki (prod, deferred to CE tech
   spec); Vector AWS S3 Vectors; Relational AWS Aurora PostgreSQL Serverless v2 + SQLAlchemy
   async; Cache AWS ElastiCache (Redis 7).

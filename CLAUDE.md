@@ -96,9 +96,15 @@ Per-package `CLAUDE.md` files (once packages exist) override these global rules.
 Python 3.12+ / FastAPI / Pydantic v2 backend; TypeScript-strict / Next.js 15 / Tailwind / shadcn
 frontend; REST (OpenAPI 3.1) + SPARQL 1.1; AWS Cognito auth; Anthropic Agent SDK on Bedrock
 AgentCore; Oxigraph→Neptune/Fuseki RDF store, Aurora Postgres, S3 Vectors, ElastiCache; Terraform +
-GitHub Actions on AWS Lambda/Fargate. Models — two tiers only (haiku dropped 2026-07-02):
-`claude-fable-5` (elicitation, product ownership, architecture — judgement-heavy, low-volume) and
-`claude-sonnet-5` (generation, implementation, QA, validation — volume work). Full table in
+GitHub Actions on AWS Lambda/Fargate. Models — two capability tiers, named not literal so a future
+model swap is a find-replace on this one line (haiku dropped 2026-07-02; fable dropped 2026-07-09,
+credits exhausted): **`mid` tier** = `claude-sonnet-5` (generation, implementation, QA, validation —
+volume work); **`high` tier** = `claude-opus-4-8` (elicitation, product ownership, architecture —
+judgement-heavy, low-volume). Elsewhere in this repo, refer to a tier by name (`mid tier`/`high
+tier`), not by literal model ID — this line is the only place the harness's own tier↔ID mapping is
+restated. (Functional config that must run — agent frontmatter, script defaults, test assertions,
+runnable code examples — legitimately keeps literal IDs to work; `packages/backend`'s own
+`MODEL_ROUTING_TABLE` naming scheme is separate and out of scope here.) Full table in
 [`README.md`](README.md#stack); semantic-web stack in `.claude/rules/ontology-standards.md`.
 
 Managed connectors (Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) are

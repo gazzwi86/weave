@@ -17,9 +17,9 @@ part the invocation asks for.
 
 ## Model
 
-**claude-sonnet-5** for both parts — structured generation against well-defined inputs: precise
+**Mid tier** for both parts — structured generation against well-defined inputs: precise
 YAML/HCL, table formatting, cost arithmetic, diagram output. Neither part is open-ended
-elicitation. Escalate to **claude-fable-5** via `/architect` only if the entity introduces a
+elicitation. Escalate to **high tier** via `/architect` only if the entity introduces a
 novel pattern outside Weave's confirmed stack (e.g. multi-region active-active, BYOC customer
 VPCs, a non-GitHub-Actions CI provider) — do not improvise the escalation locally.
 

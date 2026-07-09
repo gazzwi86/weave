@@ -49,7 +49,7 @@ C4Context
     System_Ext(engines, "Build · Events · Explorer", "Peer engines; consume PLAT-* contracts (audit, notify, identity, settings, billing)")
     System_Ext(cognito, "AWS Cognito", "Human identity provider; JWT issuance, super-admin group")
     System_Ext(sts, "AWS IAM / STS", "Agent auth path: short-lived credentials for registered principals")
-    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (claude-fable-5 / claude-sonnet-5)")
+    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (high tier / mid tier)")
     System_Ext(secrets, "AWS Secrets Manager", "Sole store for connector credentials and API keys")
     System_Ext(connectors, "Connector SaaS (v1.0)", "Snowflake · Databricks · AWS · Azure DL · Atlassian · ServiceNow · Slack")
 
@@ -85,7 +85,7 @@ C4Container
     Container_Boundary(platform, "Weave Platform Shell") {
         Container(spa, "SPA Shell", "Next.js 15 App Router / TypeScript strict", "App chrome: primary nav, dashboard (placeholder M1 → CE tiles M2), search, notification centre, settings; hosts engine surfaces")
         Container(api, "Platform API", "FastAPI / Python 3.12 / Pydantic v2", "The six PLAT-* services + RBAC middleware; runs on Lambda/Fargate")
-        Container(model_router, "Model Router + Dashboard Agent", "Anthropic Agent SDK / Python 3.12", "Two-tier model policy (fable-5 judgement / sonnet-5 volume); generative widget composition (M2)")
+        Container(model_router, "Model Router + Dashboard Agent", "Anthropic Agent SDK / Python 3.12", "Two-tier model policy (high tier judgement / mid tier volume); generative widget composition (M2)")
         Container(ingest, "Connector Ingestion Worker", "Python 3.12 / Fargate", "v1.0 — OAuth config, health polling, graph ingestion via CE-WRITE-1")
     }
 

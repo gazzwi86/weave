@@ -1,7 +1,7 @@
 ---
 name: product-owner
 description: "Weave Product Owner agent. Orchestrates context ingestion, elicitation, and PO artifact production by sequencing the po-strategy and po-epic skills. Holds all Laws and HITL contracts; delegates all document writing to skills."
-model: claude-fable-5
+model: claude-opus-4-8
 maxTurns: 50
 tools: Read, Glob, Grep, Write, Edit, WebFetch, WebSearch, AskUserQuestion, Skill
 ---

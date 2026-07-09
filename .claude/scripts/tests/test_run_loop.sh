@@ -15,6 +15,11 @@ export RUN_LOOP_LIMIT_SLEEP=0
 export CLAUDE_BIN="$SANDBOX/bin/claude"
 unset AWS_PROFILE || true
 
+# Model markers under test — env-overridable, single point of edit when run-loop.sh's
+# defaults change (mirrors RUN_LOOP_MODEL/RUN_LOOP_FALLBACK on the script under test).
+PRIMARY_MARKER="${TEST_PRIMARY_MARKER:-opus}"        # substring marking the primary (high-tier) model id
+FALLBACK_MODEL="${TEST_FALLBACK_MODEL:-claude-sonnet-5}"  # full literal id of the fallback (mid-tier) model
+
 mkdir -p "$SANDBOX/bin" "$SANDBOX/.claude/state" "$SANDBOX/.claude/logs" "$SANDBOX/.claude/scripts"
 echo '{}' >"$SANDBOX/.claude/state/progress.json"
 echo '{"env": {"WEAVE_CAVEMAN": "true"}}' >"$SANDBOX/.claude/settings.json"
@@ -32,15 +37,15 @@ cat >"$SANDBOX/bin/claude" <<EOF
 echo "\$@" >>"$SANDBOX/calls.log"
 mode=\$(cat "$SANDBOX/stub-mode" 2>/dev/null || echo ok)
 case "\$mode" in
-  limit-on-fable)
-    if echo "\$@" | grep -q fable; then echo "Error: weekly usage limit reached"; exit 1; fi
+  limit-on-primary)
+    if echo "\$@" | grep -q "$PRIMARY_MARKER"; then echo "Error: weekly usage limit reached"; exit 1; fi
     echo '{"result":"ok"}'; exit 0 ;;
   limit-twice)
     n=\$(cat "$SANDBOX/count" 2>/dev/null || echo 0); n=\$((n+1)); echo "\$n" >"$SANDBOX/count"
     if [ "\$n" -le 2 ]; then echo "Error: usage limit reached"; exit 1; fi
     echo '{"result":"ok"}'; exit 0 ;;
   session-limit)
-    if echo "\$@" | grep -q fable; then echo "You've hit your session limit · resets 11:20pm (Australia/Melbourne)"; exit 1; fi
+    if echo "\$@" | grep -q "$PRIMARY_MARKER"; then echo "You've hit your session limit · resets 11:20pm (Australia/Melbourne)"; exit 1; fi
     echo '{"result":"ok"}'; exit 0 ;;
   hard-error) echo "Error: something unrelated broke"; exit 1 ;;
   *) echo '{"result":"ok"}'; exit 0 ;;
@@ -70,10 +75,10 @@ expect_exit 0 "complete phase exits clean" bash "$RUN_LOOP"
 [ -e "$SANDBOX/calls.log" ] && { echo "FAIL: claude invoked despite COMPLETE"; fails=$((fails+1)); } || echo "PASS: claude not invoked when COMPLETE"
 rm -f "$SANDBOX/.claude/state/done-marker"
 
-# 4. Limit on primary → falls back to opus; fallback run advances nothing → halts for human (3).
-echo limit-on-fable >"$SANDBOX/stub-mode"
+# 4. Limit on primary → falls back to sonnet; fallback run advances nothing → halts for human (3).
+echo limit-on-primary >"$SANDBOX/stub-mode"
 expect_exit 3 "limit falls back then halts at gate" bash "$RUN_LOOP"
-grep -q "claude-sonnet-5" "$SANDBOX/calls.log" && echo "PASS: fallback model used" || { echo "FAIL: fallback model never invoked"; fails=$((fails+1)); }
+grep -q "$FALLBACK_MODEL" "$SANDBOX/calls.log" && echo "PASS: fallback model used" || { echo "FAIL: fallback model never invoked"; fails=$((fails+1)); }
 grep -q "caveman" "$SANDBOX/calls.log" && echo "PASS: caveman system prompt passed" || { echo "FAIL: caveman system prompt missing"; fails=$((fails+1)); }
 
 # 4b. Both models limited → sleeps window, retries primary again, limit waits don't burn
@@ -81,7 +86,7 @@ grep -q "caveman" "$SANDBOX/calls.log" && echo "PASS: caveman system prompt pass
 echo limit-twice >"$SANDBOX/stub-mode"
 rm -f "$SANDBOX/count"; : >"$SANDBOX/calls.log"
 expect_exit 3 "limit wait restores primary within ceiling" env RUN_LOOP_MAX_ITERATIONS=1 bash "$RUN_LOOP"
-[ "$(wc -l <"$SANDBOX/calls.log" | tr -d ' ')" -eq 3 ] && sed -n '3p' "$SANDBOX/calls.log" | grep -q fable \
+[ "$(wc -l <"$SANDBOX/calls.log" | tr -d ' ')" -eq 3 ] && sed -n '3p' "$SANDBOX/calls.log" | grep -q "$PRIMARY_MARKER" \
   && echo "PASS: primary retried after window sleep" \
   || { echo "FAIL: primary not retried after window sleep"; fails=$((fails+1)); }
 
@@ -113,7 +118,7 @@ rm -f "$SANDBOX/.claude/state/done-marker" "$SANDBOX/count"
 echo session-limit >"$SANDBOX/stub-mode"
 : >"$SANDBOX/calls.log"
 RUN_LOOP_MAX_ITERATIONS=1 bash "$RUN_LOOP" >/dev/null 2>&1 || true
-grep -q "claude-sonnet-5" "$SANDBOX/calls.log" \
+grep -q "$FALLBACK_MODEL" "$SANDBOX/calls.log" \
   && echo "PASS: session-limit text triggers fallback (is_limit)" \
   || { echo "FAIL: session-limit text not recognised as a limit"; fails=$((fails+1)); }
 

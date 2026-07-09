@@ -17,9 +17,9 @@ part the invocation asks for.
 
 ## Model
 
-**claude-sonnet-5** for all three parts — structured, precise, stack-aware generation against
+**Mid tier** for all three parts — structured, precise, stack-aware generation against
 well-defined inputs (tech spec, PRD, task brief). None of the three artifacts require open-ended
-elicitation or novel architectural judgement, so no Fable-tier escalation applies.
+elicitation or novel architectural judgement, so no high-tier escalation applies.
 
 ---
 
@@ -746,7 +746,7 @@ A well-produced Definition of Done:
 - Security section covers all five rules in `.claude/rules/security.md`
 - Git hygiene section enforces Plugin Law D (stacked PRs, one per phase)
 - LocalStack / Oxigraph called out explicitly in integration tests — no real cloud calls
-- Has no `{{PLACEHOLDER}}` text and was written by claude-sonnet-5 (precision tier)
+- Has no `{{PLACEHOLDER}}` text and was written by the mid-tier model (precision tier)
 
 ---
 

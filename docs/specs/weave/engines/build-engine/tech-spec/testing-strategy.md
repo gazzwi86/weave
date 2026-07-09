@@ -89,8 +89,8 @@ def test_task_cannot_reach_complete_without_codify():
 
 #### Model-routing table + `ModelRoutingError`
 
-The routing table is a set of constants (`plan=claude-fable-5`; `delegate/assess/codify=
-claude-sonnet-5` — two tiers only, the former third tier is dropped). A role resolving to no model in `ALLOWED_MODELS` raises
+The routing table is a set of constants (`plan=high tier`; `delegate/assess/codify=
+mid tier` — two tiers only, the former third tier is dropped). A role resolving to no model in `ALLOWED_MODELS` raises
 `ModelRoutingError` and halts the task; the engine never silently invokes a fallback model:
 
 ```python

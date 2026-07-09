@@ -53,7 +53,7 @@ User-facing NL-to-spec flow (EPIC-001). Produces a `requests` row with `status=p
 flowchart TD
   A([User opens Request Studio]) --> B[Enter NL prompt + graph context selection]
   B --> C{run_mode selected}
-  C -->|draft_spec_only| D[AI drafts spec — claude-fable-5]
+  C -->|draft_spec_only| D[AI drafts spec — high tier]
   C -->|spec_to_build| D
   C -->|spike| E[Spike harness — no record committed, no write-back]
   D --> F[Spec preview rendered to user]
@@ -202,8 +202,8 @@ Brief IRI scheme: `urn:weave:brief:{task_id}`.
 sequenceDiagram
   autonumber
   participant Spec as Approved build_spec
-  participant Arch as Architect Agent<br/>(claude-fable-5)
-  participant Val as Brief Validator<br/>(claude-sonnet-5)
+  participant Arch as Architect Agent<br/>(high tier)
+  participant Val as Brief Validator<br/>(mid tier)
   participant Aurora as Aurora (task_briefs, build_tasks)
 
   Spec->>Arch: Engine spec sections (PRD + Epics + Roadmap)
@@ -289,9 +289,9 @@ ENG-4 stubs are shown as pass-through states in M1.
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Arch as Architect Agent<br/>(claude-fable-5)
-  participant Eng as Task Engineer<br/>(claude-sonnet-5)
-  participant Validator as CODIFY Validator<br/>(claude-sonnet-5)
+  participant Arch as Architect Agent<br/>(high tier)
+  participant Eng as Task Engineer<br/>(mid tier)
+  participant Validator as CODIFY Validator<br/>(mid tier)
   participant HITL as Human (HITL escalation)
   participant Audit as PLAT-AUDIT-1
 
@@ -333,7 +333,7 @@ stateDiagram-v2
   complete --> [*]
 ```
 
-**CODIFY is non-skippable (B3):** a task cannot move to `complete` without claude-sonnet-5
+**CODIFY is non-skippable (B3):** a task cannot move to `complete` without mid tier
 validation of all EARS ACs. A task in `complete` state is a DoD guarantee.
 
 ---
@@ -346,8 +346,8 @@ least-privilege IAM role (PLAT-IDENTITY-1 + ADR-002).
 ```mermaid
 flowchart LR
   A[Pin graph version<br/>CE-VERSION-1] --> B[Read tenant graph via CE-READ-1<br/>SELECT-only · SERVICE-blocked · paginated<br/>framework ∪ tenant graphs only]
-  B --> C[Generate Next.js UI<br/>claude-sonnet-5]
-  B --> D[Generate FastAPI API<br/>claude-sonnet-5]
+  B --> C[Generate Next.js UI<br/>mid tier]
+  B --> D[Generate FastAPI API<br/>mid tier]
   C --> E[Assemble artefact bundle<br/>on isolated branch]
   D --> E
   E --> F[Run M1 safety gates — 5 gates, atomic]
@@ -362,7 +362,7 @@ flowchart LR
 async def m1_generate_loop(job: BuildJob) -> None:
     version_iri = await pin_graph_version(job.tenant_id)          # CE-VERSION-1
     graph_data  = await paginated_read(job.tenant_id, version_iri) # CE-READ-1
-    artefacts   = await generate_nextjs_fastapi(graph_data, job)   # claude-sonnet-5
+    artefacts   = await generate_nextjs_fastapi(graph_data, job)   # mid tier
     gate_results = await run_m1_safety_gates(artefacts)            # 5 gates, atomic
     if all(g.result == "passed" for g in gate_results):
         await write_back(artefacts, version_iri, job)              # BE-ARTEFACT-1 → CE-WRITE-1
@@ -384,7 +384,7 @@ sequenceDiagram
   participant BE as Build Engine<br/>(dark-factory principal<br/>machine-auth IAM/STS — PLAT-IDENTITY-1)
   participant RW as Query Rewriter (ADR-001)
   participant CE as Constitution Engine
-  participant Gen as Code Generator<br/>(claude-sonnet-5)
+  participant Gen as Code Generator<br/>(mid tier)
   participant Gates as Safety Gates ×5 (M1)
   participant Prov as RDF :prov graph
 
@@ -476,7 +476,7 @@ flowchart LR
   subgraph DoR["Definition of Ready — checked before generate starts"]
     DR1[CE-READ-1 reachable and returning data]
     DR2[graph_version_iri pinned on project]
-    DR3[task_brief content validated by claude-sonnet-5]
+    DR3[task_brief content validated by mid tier]
     DR4[automatable flag resolved — auto or HITL decision made]
     DR5[no unresolved blockers in build_tasks.blocked_by]
   end
@@ -553,7 +553,7 @@ flowchart LR
 
 ### pre-scaffold-review (ENG-4 STUB)
 
-In M1 the pre-scaffold check step is present in the PDAC flow but **non-blocking**. The claude-sonnet-5
+In M1 the pre-scaffold check step is present in the PDAC flow but **non-blocking**. The mid tier
 validator runs the check; a warning is emitted if it would have gated, but the loop continues.
 
 ```mermaid

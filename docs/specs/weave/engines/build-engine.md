@@ -143,10 +143,10 @@ but humans still hand-build everything that runs it.
   constraint (OQ-11, closed M2).
 - Multi-tenant isolation: state spine, summaries, and investigator outputs are RLS-isolated;
   mechanism deferred to OQ-06.
-- Agent SDK: Anthropic Agent SDK (Python primary); confirmed model IDs only
-  (`claude-fable-5`, `claude-sonnet-5`).
+- Agent SDK: Anthropic Agent SDK (Python primary); confirmed tiers only
+  (high tier, mid tier).
 - Dark-factory agent principals (`PLAT-IDENTITY-1`): exactly **five** — Architect
-  (`claude-fable-5`), Engineer (`claude-sonnet-5`), QA (`claude-sonnet-5`), Review, and Sandbox
+  (high tier), Engineer (mid tier), QA (mid tier), Review, and Sandbox
   (execution principal). Canonical enumeration lives in [contracts.md](../contracts.md)
   §PLAT-IDENTITY-1; the orchestrator loop itself runs as the invoking session, not a principal.
 
@@ -223,7 +223,7 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | ID | Requirement | Story | Priority | Milestone |
 |---|---|---|---|---|
 | FR-001 | Intake form: free-text prompt + run-mode selector (Draft/Spec→build/Spike) | E1-S1 | Must | M1 |
-| FR-002 | AI spec drafting: brief/PRD/tech-spec streamed via `CE-READ-1` (pinned version); 60 s timeout, tunable; model `claude-fable-5` | E1-S1 | Must | M1 |
+| FR-002 | AI spec drafting: brief/PRD/tech-spec streamed via `CE-READ-1` (pinned version); 60 s timeout, tunable; high tier model | E1-S1 | Must | M1 |
 | FR-003 | Blast-radius panel: domains/services touched from graph (CE-READ-1); unavailable graph = "review manually", not blocked | E1-S2 | Must | M1 |
 | FR-004 | Cost-estimate gate: per-spec cap (~$25 default, tunable via `PLAT-SETTINGS-1`); blocks if exceeded | E1-S3 | Must | M1 |
 | FR-005 | Stakeholder sign-off: resolve from graph via `CE-READ-1`; spec locked on submit; Approve → auto-project create | E1-S4 | Must | M1 |
@@ -661,8 +661,8 @@ E8-S3 (anatomy/wiki, M2 Must Have), E8-S4 (deploy + demo, M1 Must Have), E8-S5 (
   shape, one typed method per named SPARQL SELECT, and one typed binding per `CE-FUNCTION-1`
   function in the CE-owned registry; WHEN `CE-READ-1` is unreachable or SHACL shapes cannot be
   resolved, THE SYSTEM SHALL fail atomically — no partial SDK package is emitted.
-- WHEN generated config references model IDs, THE SYSTEM SHALL use only confirmed Claude IDs
-  (`claude-fable-5`, `claude-sonnet-5`) — no placeholder IDs.
+- WHEN generated config references model IDs, THE SYSTEM SHALL resolve them from the confirmed
+  tier mapping (high tier, mid tier) — no placeholder IDs.
 
 ---
 

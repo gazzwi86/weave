@@ -60,7 +60,7 @@ Append a `### Design requirements` subsection to the brief's Technical Notes/NFR
 cannot cite is written as an *advisory note*, clearly marked, never an acceptance criterion.
 
 Your section is drafted BEFORE the brief's HITL sign-off: the architect presents it through the
-same Approve/Amend/Reject gate as every other section. You propose; the fable-tier architect and
+same Approve/Amend/Reject gate as every other section. You propose; the high-tier architect and
 the human dispose.
 
 ## Hook 2 — QA time (invoked by the quality-assurance agent)

@@ -22,7 +22,7 @@ resource: docs/claude-harness-overview.md
 > - **`.claude/HARNESS.md`** — derived element manifest, structural-parity pre-push gate.
 > - **Per-entity, change-aware spec-review** (`/implement` Step 1.5), and **durable resume** from committed `progress.json` (Step 0).
 > - **Golden patterns moved** to `docs/standards/patterns/` (was `.claude/spec-templates/few-shot/`), curated to this exact stack.
-> - **Harness models pinned to `claude-sonnet-5`** in `.claude/agents/*` + skills (the §12 table below predates this).
+> - **Harness models pinned per tier** (`mid`/`high` — see `CLAUDE.md` §Stack) in `.claude/agents/*` + skills (the §12 table below predates this).
 > - Operator runbook: **`docs/running-the-implement-loop.md`** is the current source of truth for the loop + HITL gates.
 
 ---
@@ -198,20 +198,20 @@ Implementation phase (dark factory)
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `po-strategy` | `/po` → product-owner agent | `engines/<entity>.md` → Brief, PRD, Roadmap (strict sequence, each gated on prior approval) | Fable (elicit/stories) → Sonnet (draft/NFRs) |
-| `po-epic` | `/po` → product-owner agent | `engines/<entity>.md` → ### EPIC-NNN | Sonnet |
+| `po-strategy` | `/po` → product-owner agent | `engines/<entity>.md` → Brief, PRD, Roadmap (strict sequence, each gated on prior approval) | High tier (elicit/stories) → mid tier (draft/NFRs) |
+| `po-epic` | `/po` → product-owner agent | `engines/<entity>.md` → ### EPIC-NNN | Mid tier |
 
 ### Tech Architect skills
 
 | Skill | Invoked by | Produces | Model |
 |---|---|---|---|
-| `arch-stack` | `/architect` → tech-architect agent | `<entity>/tech-spec/stack.md` | Sonnet + HITL |
-| `arch-diagrams` | `/architect` → tech-architect agent | `<entity>/tech-spec/architecture.md`, `class-diagram.md`, `business-process.md` (C4 → class → flows) | Fable |
-| `arch-contracts` | `/architect` → tech-architect agent | `<entity>/tech-spec/openapi.yaml`, `data-model.md` | Sonnet |
-| `arch-quality` | `/architect` → tech-architect agent | `<entity>/tech-spec/testing-strategy.md`, `definition-of-done.md`, `definition-of-ready.md` | Sonnet |
-| `arch-delivery` | `/architect` → tech-architect agent | `<entity>/tech-spec/ci-cd.md`, `infrastructure.md` | Sonnet |
-| `arch-adr` | Architect, on decisions | `<entity>/decisions/ADR-NNN.md` | Sonnet |
-| `arch-task-brief` | `/architect` → tech-architect agent | `<entity>/m1/tasks/TASK-NNN.md` | Fable |
+| `arch-stack` | `/architect` → tech-architect agent | `<entity>/tech-spec/stack.md` | Mid tier + HITL |
+| `arch-diagrams` | `/architect` → tech-architect agent | `<entity>/tech-spec/architecture.md`, `class-diagram.md`, `business-process.md` (C4 → class → flows) | High tier |
+| `arch-contracts` | `/architect` → tech-architect agent | `<entity>/tech-spec/openapi.yaml`, `data-model.md` | Mid tier |
+| `arch-quality` | `/architect` → tech-architect agent | `<entity>/tech-spec/testing-strategy.md`, `definition-of-done.md`, `definition-of-ready.md` | Mid tier |
+| `arch-delivery` | `/architect` → tech-architect agent | `<entity>/tech-spec/ci-cd.md`, `infrastructure.md` | Mid tier |
+| `arch-adr` | Architect, on decisions | `<entity>/decisions/ADR-NNN.md` | Mid tier |
+| `arch-task-brief` | `/architect` → tech-architect agent | `<entity>/m1/tasks/TASK-NNN.md` | High tier |
 
 ### Orchestration and support skills
 
@@ -483,16 +483,16 @@ Skills declare their model tier. No guessing — the tier is fixed per artifact 
 
 | Task type | Model | Rationale |
 |---|---|---|
-| Elicitation / creative brief writing | claude-fable-5 | Wide reasoning, novel framing |
-| Architecture design, C4 diagrams | claude-fable-5 | Spatial reasoning, tradeoff analysis |
-| Task brief writing | claude-fable-5 | Self-contained, must be complete |
-| PRD stories, flows, OpenAPI | claude-sonnet-5 | Structured but not exploratory |
-| Data models, class diagrams | claude-sonnet-5 | Precision over creativity |
-| Stack confirmation, open dimensions | claude-sonnet-5 (detect) + HITL | Validation tier; human confirms |
-| DoR/DoD, YAML/config generation | claude-sonnet-5 | Mechanical, template-following |
-| Validation, lint checks | claude-sonnet-5 | Deterministic tooling first; sonnet tier for judgement |
-| Code implementation (engineer) | claude-sonnet-5 | TDD iteration |
-| Security review | claude-fable-5 | High-stakes, adversarial |
+| Elicitation / creative brief writing | High tier | Wide reasoning, novel framing |
+| Architecture design, C4 diagrams | High tier | Spatial reasoning, tradeoff analysis |
+| Task brief writing | High tier | Self-contained, must be complete |
+| PRD stories, flows, OpenAPI | Mid tier | Structured but not exploratory |
+| Data models, class diagrams | Mid tier | Precision over creativity |
+| Stack confirmation, open dimensions | Mid tier (detect) + HITL | Validation tier; human confirms |
+| DoR/DoD, YAML/config generation | Mid tier | Mechanical, template-following |
+| Validation, lint checks | Mid tier | Deterministic tooling first; mid tier for judgement |
+| Code implementation (engineer) | Mid tier | TDD iteration |
+| Security review | High tier | High-stakes, adversarial |
 
 ---
 

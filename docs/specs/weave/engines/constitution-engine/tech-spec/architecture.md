@@ -26,7 +26,7 @@ with PROV-O, and queried by SPARQL 1.1 SELECT-only. The RDF store progression is
 → Neptune | Jena Fuseki (prod)** — the production choice is deferred to OQ-02, so the store sits behind
 a thin adapter and every component stays store-agnostic. The AI boundary is Anthropic Agent SDK → AWS
 Bedrock AgentCore; the two-tier model policy routes generation and NL-to-SELECT authoring volume to
-`claude-sonnet-5`. Per ADR-001, tenant isolation is enforced by **one named-graph-per-tenant scheme
+**mid tier** (see `CLAUDE.md` §Stack for the literal ID). Per ADR-001, tenant isolation is enforced by **one named-graph-per-tenant scheme
 behind a single fail-closed query rewriter** — the correctness of tenant separation concentrates in
 that one choke point, which is grep-enforced as the sole query path.
 
@@ -49,7 +49,7 @@ C4Context
     System_Ext(build, "Build Engine", "Consumes CE-READ-1 / CE-VERSION-1 / CE-WRITE-1 (+ CE-BRAND-1 / CE-FUNCTION-1 M2)")
     System_Ext(events, "Events & Actions", "Consumes CE-READ-1 / CE-VERSION-1 / CE-WRITE-1 (+ CE-EVENT-1 / CE-FUNCTION-1 M2)")
     System_Ext(onboarding, "Onboarding", "Consumes CE-READ-1 / CE-WRITE-1 for cold-start seed")
-    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (claude-sonnet-5 authoring volume)")
+    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime + Anthropic models (mid tier for authoring volume)")
 
     Rel(steward, ce, "Authors taxonomy/shapes, publishes", "HTTPS / SPA")
     Rel(analyst, ce, "NL chat + guided-form authoring", "HTTPS / SPA")
@@ -81,7 +81,7 @@ C4Container
         Container(api, "CE API", "FastAPI / Python 3.12 / Pydantic v2", "The eight CE-* services; auth + RBAC; runs on Lambda/Fargate")
         Container(rewriter, "Query Rewriter", "middleware (ADR-001)", "SINGLE query path: SELECT-only, SERVICE-blocked, tenant-graph injection, reject-unscoped; grep-enforced sole path")
         Container(shacl, "SHACL Validation Service", "pyshacl / Python", "Clone-validate-before-commit; inference='none' (decision B1); severity routing 422/advisory")
-        Container(llm, "LLM Service", "Anthropic Agent SDK / Python", "NL→SELECT + propose_mutations; claude-sonnet-5 via AgentCore; grounding caps")
+        Container(llm, "LLM Service", "Anthropic Agent SDK / Python", "NL→SELECT + propose_mutations; mid tier via AgentCore; grounding caps")
     }
 
     Container_Boundary(aws, "AWS") {

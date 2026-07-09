@@ -20,9 +20,9 @@ Produces three sequential PO artifacts for a Weave spec entity — Brief, then P
 each written as a section in `docs/specs/weave/engines/<entity>.md`, one sub-section at a time
 with HITL review at every step. **Each part is gated on the previous part's full approval: do not
 start Part 2 until every Part 1 section is HITL-approved; do not start Part 3 until every Part 2
-section is HITL-approved.** Fable drafts elicitation-heavy content (wide reasoning, novel framing,
-root-cause probing); Sonnet drafts structured, precise prose from settled inputs — see each part's
-own Model section for the exact split.
+section is HITL-approved.** The high tier drafts elicitation-heavy content (wide reasoning, novel
+framing, root-cause probing); the mid tier drafts structured, precise prose from settled inputs —
+see each part's own Model section for the exact split.
 
 ---
 
@@ -34,8 +34,8 @@ First PO artifact — no predecessor gate.
 
 ### Model
 
-- **Elicitation phase:** claude-fable-5 (wide reasoning, novel framing, root-cause probing)
-- **Drafting phase:** claude-sonnet-5
+- **Elicitation phase:** high tier (wide reasoning, novel framing, root-cause probing)
+- **Drafting phase:** mid tier
 
 ### Input
 
@@ -282,17 +282,17 @@ section. Invoked after Part 1 (Brief) is approved; output feeds Part 3 (Roadmap)
 
 ### Model
 
-- **User Stories (epics + stories):** claude-fable-5 — wide reasoning; ordered by user pain,
+- **User Stories (epics + stories):** high tier — wide reasoning; ordered by user pain,
   novel framing, root-cause story derivation
-- **Functional Requirements:** claude-fable-5 — observable-behaviour derivation, failure-mode
+- **Functional Requirements:** high tier — observable-behaviour derivation, failure-mode
   analysis, EARS AC authoring
-- **Overview, Product Context:** claude-sonnet-5 — structured, precise prose from known inputs
-- **Non-Functional Requirements:** claude-sonnet-5 — systematic category-by-category
+- **Overview, Product Context:** mid tier — structured, precise prose from known inputs
+- **Non-Functional Requirements:** mid tier — systematic category-by-category
   enumeration against the Weave stack
-- **Information Architecture:** claude-sonnet-5 — Mermaid diagram generation
-- **Technical Prerequisites:** claude-sonnet-5 — pre-fill from confirmed CLAUDE.md stack;
+- **Information Architecture:** mid tier — Mermaid diagram generation
+- **Technical Prerequisites:** mid tier — pre-fill from confirmed CLAUDE.md stack;
   structured table output
-- **Risks and Mitigations, Dependencies, Timeline:** claude-sonnet-5 — structured tables
+- **Risks and Mitigations, Dependencies, Timeline:** mid tier — structured tables
   from approved context
 
 ### Input
@@ -898,11 +898,11 @@ output feeds the Architect's tech-spec phase.
 
 ### Model
 
-- **Primary model:** claude-sonnet-5 (all phases — Gantt generation, phase block drafting,
+- **Primary model:** mid tier (all phases — Gantt generation, phase block drafting,
   gate criteria prose)
 - **Reasoning tier note:** Phase-scoping step (Step 2) requires dependency analysis; use
-  extended thinking tokens via claude-sonnet-5's thinking budget rather than switching
-  models. Do not invoke claude-fable-5 unless the user explicitly requests it.
+  extended thinking tokens via the mid tier's thinking budget rather than switching
+  models. Do not invoke the high tier unless the user explicitly requests it.
 
 ### Input
 

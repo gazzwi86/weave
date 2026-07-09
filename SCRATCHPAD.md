@@ -1,6 +1,6 @@
 # Feedback
 
-The below should be planned by Fable and executed with a cost efficient model like claude-sonnet-5 as a sub-agent, unless otherwise specified. Fable or opus can review the outcome delivered by the sub agent. 
+The below should be planned by the high tier and executed with a cost efficient model like the mid tier as a sub-agent, unless otherwise specified. The high tier can review the outcome delivered by the sub agent. 
 
 - Need to add ask in settings.json for updating the harness, updating the spec, during the implement phase only. Eg. ask if write(docs/specs/weave/*), write(.claude/scripts/*), write(.claude/agents/*), write(.claude/commands/*), , write(.claude/skills/*), write(.claude/settings.json), write(.claude/rules/*), write(.claude/spec-templates/*)
 

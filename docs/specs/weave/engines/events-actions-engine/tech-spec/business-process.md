@@ -49,14 +49,14 @@ document does not restate schemas.
 
 ## NL Authoring + Grounding Flow
 
-Covers E2-S1/E2-S2 and E6-S1. Builder drafting runs on `claude-fable-5`; every entity reference is
+Covers E2-S1/E2-S2 and E6-S1. Builder drafting runs on the high tier model; every entity reference is
 resolved through `CE-READ-1` — the model proposes, the contract resolves.
 
 ```mermaid
 sequenceDiagram
     participant U as Author (SPA)
     participant API as EA API
-    participant AI as Builder AI (claude-fable-5)
+    participant AI as Builder AI (high tier)
     participant CE as Constitution Engine
 
     U->>API: POST chat message ("when a delivery arrives … following the goods-inward process")

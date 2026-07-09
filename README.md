@@ -107,7 +107,7 @@ Engine's model.
 | API | REST (OpenAPI 3.1) + SPARQL 1.1 |
 | Auth | AWS Cognito (default) / Auth0 (multi-IdP) |
 | Agents | Anthropic Agent SDK; AWS Bedrock AgentCore runtime |
-| Models | claude-fable-5 (elicitation, product ownership, architecture), claude-sonnet-5 (generation, implementation, QA, validation) |
+| Models | high tier (elicitation, product ownership, architecture), mid tier (generation, implementation, QA, validation) — literal IDs live in `CLAUDE.md` §Stack |
 | RDF store | Oxigraph (dev/test) → Neptune or Jena Fuseki (prod) |
 | Relational | AWS Aurora PostgreSQL Serverless v2 |
 | Vector | AWS S3 Vectors |
@@ -147,7 +147,7 @@ model, and resume. How the whole harness fits together is in
 [`docs/claude-harness-overview.md`](docs/claude-harness-overview.md).
 
 **Limit-spanning autonomous runs:** `bash .claude/scripts/run-loop.sh` re-invokes the loop headless
-until the phase completes — falling back `claude-fable-5` → `claude-opus-4-8` on a usage limit,
+until the phase completes — falling back from the high tier to the mid tier on a usage limit,
 sleeping until the window resets when both are limited, and halting (never auto-approving) at every
 HITL gate. Kill switch: `touch .claude/state/run-loop.stop`. Toggles live in the `env` block of
 `.claude/settings.json` (a shell env var of the same name overrides):

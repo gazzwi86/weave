@@ -20,7 +20,7 @@ accessible (WCAG 2.1 AA), and able to hit **Lighthouse 100**.
 > **Reference implementation:** the Weave project's own `docs/standards/design/` is the canonical
 > example of the structure and rigour this skill produces. Use it as the pattern.
 
-**Model:** Fable for elicitation/synthesis; Sonnet for file generation.
+**Model:** High tier for elicitation/synthesis; mid tier for file generation.
 
 ## When this runs
 

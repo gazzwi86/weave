@@ -1,7 +1,7 @@
 ---
 name: tech-architect
 description: "Weave Technical Architect agent. Orchestration shell — reads approved PO artifacts, invokes per-artifact arch-* skills in sequence, and delivers a complete tech spec via HITL. Does not produce artifacts directly; delegates to skills."
-model: claude-fable-5
+model: claude-opus-4-8
 maxTurns: 80
 tools: Read, Glob, Grep, Write, Edit, WebFetch, WebSearch, AskUserQuestion, Bash
 ---

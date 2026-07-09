@@ -115,7 +115,7 @@ re-run `/implement` — Step 0 reconstructs in-flight state from the committed `
 `.claude/state/summaries/*.md`, and re-enters at any task still `in_progress`. `progress.json` is the
 checkpoint of record (the `.claude/logs/*/events.jsonl` audit stream is local telemetry, not durable).
 For limit-spanning runs use `bash .claude/scripts/run-loop.sh` (ADR-H1, reopened 2026-07-02): it
-re-invokes `claude -p "/implement"` per iteration, falls back `claude-fable-5` → `claude-opus-4-8`
+re-invokes `claude -p "/implement"` per iteration, falls back from the high tier to the mid tier
 on a usage limit, sleeps until the window resets when both are limited, and **halts for you**
 (exit 3) at every HITL gate — it never auto-approves. Stop it any time with
 `touch .claude/state/run-loop.stop`; it refuses to start on a prod-looking `AWS_PROFILE`.

@@ -22,10 +22,10 @@ epics for a PRD are complete.
 
 ## Model
 
-- **Drafting phase:** claude-sonnet-5 (structured output, precise prose, story/AC generation)
+- **Drafting phase:** mid tier (structured output, precise prose, story/AC generation)
 
-Fable is not used here: the PRD has already set the strategic frame. Sonnet's structured
-generation is sufficient for translating PRD epics into well-formed EARS-notated AC.
+The high tier is not used here: the PRD has already set the strategic frame. The mid tier's
+structured generation is sufficient for translating PRD epics into well-formed EARS-notated AC.
 
 ## Input
 

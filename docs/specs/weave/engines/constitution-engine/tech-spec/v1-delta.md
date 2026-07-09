@@ -48,8 +48,8 @@ flowchart LR
         CS[Corpus Retrieval<br/>read-side passage search]
     end
     subgraph worker[Ingest Worker — async, one job at a time per tenant]
-        EX[Doc Extractor Agent<br/>sonnet, prompt consumes FR-044 context]
-        VX[Vision Extractor<br/>sonnet vision, E12-S3]
+        EX[Doc Extractor Agent<br/>mid tier, prompt consumes FR-044 context]
+        VX[Vision Extractor<br/>mid tier vision, E12-S3]
         NC[Notation Converters<br/>ArchiMate XSD + BPMN/BBO → RDF]
         RML[RML Runner<br/>morph-kgc, ADR-012]
         RC[SKOS Reconciler<br/>similarity ≥ 0.85 merge proposals]

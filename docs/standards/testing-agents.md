@@ -27,8 +27,8 @@ All infrastructure is AWS-native where a managed option exists.
 
 ## Offline batch evals — AWS Bedrock Model Evaluation
 
-Use for: regression testing a prompt rewrite, comparing model versions (e.g. Sonnet 5
-vs Fable 5), validating Constitution Engine output quality.
+Use for: regression testing a prompt rewrite, comparing model versions (e.g. mid tier
+vs high tier), validating Constitution Engine output quality.
 
 **Dataset format (JSONL, stored in S3):**
 

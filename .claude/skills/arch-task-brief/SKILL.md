@@ -12,12 +12,12 @@ open any other spec file to implement the task.
 
 ## Model
 
-- **Drafting phase:** claude-fable-5 (deep reasoning, adversarial critic pass, explicit
+- **Drafting phase:** high tier (deep reasoning, adversarial critic pass, explicit
   pseudocode, precise contract derivation)
 
-Fable is used throughout: task briefs are implementation contracts, not prose summaries. Every
-ambiguity in a task brief costs the engineer time. Fable's wider reasoning surface is worth the
-extra cost to eliminate that ambiguity.
+The high tier is used throughout: task briefs are implementation contracts, not prose summaries.
+Every ambiguity in a task brief costs the engineer time. The high tier's wider reasoning surface
+is worth the extra cost to eliminate that ambiguity.
 
 ## Input
 
@@ -403,7 +403,7 @@ Size guide:
 | XL   | New sub-system boundary, 10+ ACs, multiple data models, 5+ endpoints |
 
 Estimate tokens by: 2k base + 500 per AC + 1k per endpoint + 1k per diagram reference.
-Estimate cost using claude-fable-5 input/output pricing (never use stale pricing — check
+Estimate cost using high-tier input/output pricing (never use stale pricing — check
 `.claude/memory/MEMORY.md` for any recorded pricing updates, otherwise note "pricing from
 CLAUDE.md at time of writing").
 

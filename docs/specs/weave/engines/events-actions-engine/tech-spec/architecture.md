@@ -38,8 +38,8 @@ and compliance reporting. **Phase-2-gated and NOT specced as available:** graph-
 `CE-FUNCTION-1` action references. `BE-SELFIMPROVE-1` is contract-gated degradable (the
 "create self-healing issue" on-failure option is simply unavailable until it lands).
 
-The AI boundary is Anthropic Agent SDK → AWS Bedrock: `claude-fable-5` powers Builder authoring
-(judgement-heavy, low-volume); `claude-sonnet-5` powers complex-tier agent-run actions (volume).
+The AI boundary is Anthropic Agent SDK → AWS Bedrock: high tier powers Builder authoring
+(judgement-heavy, low-volume); mid tier powers complex-tier agent-run actions (volume).
 The two-tier model policy admits no other tiers.
 
 ## C4 Model
@@ -61,7 +61,7 @@ C4Context
     System_Ext(platform, "Weave Platform", "Provides PLAT-CONNECTOR-1, PLAT-AUDIT-1, PLAT-NOTIFY-1, PLAT-IDENTITY-1, PLAT-BILLING-1, PLAT-SETTINGS-1")
     System_Ext(build, "Build Engine", "Provides BE-SELFIMPROVE-1 (contract-gated on-failure action)")
     System_Ext(external, "External systems", "Webhook sources; outbound API-call targets; Jira/ServiceNow/Slack behind PLAT-CONNECTOR-1")
-    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime; claude-fable-5 authoring, claude-sonnet-5 agent actions")
+    System_Ext(bedrock, "AWS Bedrock AgentCore", "Agent runtime; high tier authoring, mid tier agent actions")
 
     Rel(ops, ea, "NL authoring, grounding, activation", "HTTPS / SPA")
     Rel(author, ea, "Canvas edits, triggers, retries, DLQ", "HTTPS / SPA")
@@ -132,8 +132,8 @@ Container notes:
 - **Webhook Ingest** is deliberately thin — the whole webhook trust boundary concentrates in one
   Lambda (ADR-005), mirroring CE's single-choke-point philosophy.
 - The **Agent SDK → AgentCore boundary** is visible here per stack law: only the interpreter
-  dispatches agent runs (run-time, `claude-sonnet-5`); only the EA API calls Bedrock for Builder
-  drafting (authoring-time, `claude-fable-5`).
+  dispatches agent runs (run-time, mid tier); only the EA API calls Bedrock for Builder
+  drafting (authoring-time, high tier).
 - There is **no RDF store in this engine's boundary** — grounding resolution, typeahead, pin
   checks, and (Phase 2) writes all cross the CE contract surface.
 

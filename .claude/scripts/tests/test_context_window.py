@@ -26,7 +26,7 @@ def run():
     assert stop._window_for_model("claude-opus-4-8-1m") == 1_000_000
     assert stop._window_for_model("CLAUDE-OPUS-4-8[1M]") == 1_000_000  # case-insensitive
     assert stop._window_for_model("claude-opus-4-8") is None           # base -> default path
-    assert stop._window_for_model("claude-fable-5") is None
+    assert stop._window_for_model("claude-sonnet-5") is None            # base -> default path
     assert stop._window_for_model("some-future-model") is None
     assert stop._window_for_model("") is None
 

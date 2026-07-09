@@ -30,11 +30,11 @@ self-contained per part and are not shared across parts.
 
 ### Model
 
-- **Drafting phase:** claude-fable-5 (spatial reasoning, tradeoff analysis, adversarial critic)
+- **Drafting phase:** high tier (spatial reasoning, tradeoff analysis, adversarial critic)
 
-Fable is required here: C4 diagrams demand accurate boundary reasoning, technology placement,
+High tier is required here: C4 diagrams demand accurate boundary reasoning, technology placement,
 and the ability to hold the full system in context while running the adversarial-critic pass.
-Sonnet is not sufficient for this level of architectural precision.
+Mid tier is not sufficient for this level of architectural precision.
 
 ### Input
 
@@ -519,7 +519,7 @@ itself DRAFT if that file is absent or still in draft.
 
 ### Model
 
-- **Drafting phase:** claude-sonnet-5 (structured generation, precise relationships)
+- **Drafting phase:** mid tier (structured generation, precise relationships)
 - **Reasoning tier:** generation — translates spec intent into typed domain model
 
 ### Input
@@ -885,8 +885,8 @@ C4 Level 2/3) and, if it exists yet, `data-model.md` (entity names must match th
 
 ### Model
 
-- **Flow elicitation:** claude-fable-5 (broad reasoning, surfaces edge cases and invisible paths)
-- **Diagram drafting:** claude-sonnet-5 (structured Mermaid, concise prose)
+- **Flow elicitation:** high tier (broad reasoning, surfaces edge cases and invisible paths)
+- **Diagram drafting:** mid tier (structured Mermaid, concise prose)
 
 ### Input
 

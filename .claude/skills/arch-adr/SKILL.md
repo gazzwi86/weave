@@ -11,8 +11,8 @@ when a new technical choice needs to be captured before it is forgotten or conte
 
 ## Model
 
-- **Elicitation phase:** claude-fable-5 (probing context, surfacing hidden alternatives)
-- **Drafting phase:** claude-sonnet-5 (precise, opinionated prose)
+- **Elicitation phase:** high tier (probing context, surfacing hidden alternatives)
+- **Drafting phase:** mid tier (precise, opinionated prose)
 
 ADRs are short documents. The full draft — all sections — is presented to the user in a
 single HITL round. Elicitation is one targeted question before drafting begins.

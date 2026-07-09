@@ -670,7 +670,7 @@ AI builds it grounded in my actual documented process — not hand-wired against
 - **AC:** WHERE the Builder is open in split-pane (chat left, canvas right), WHEN I type a description
   (e.g. "When a delivery arrives at any Hammerbarn store, send a Slack notification to the
   #goods-inward channel for that store, following the goods-inward receipt process") THE SYSTEM SHALL,
-  via the AI (claude-fable-5), resolve the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
+  via the AI (high tier), resolve the referenced CE process via `CE-READ-1` (`GET /api/sparql`,
   SELECT-only, paginated), resolve related entities, and draft a simple-tier automation
   (Webhook → Slack notification) with grounding `weave:Process/goods-inward-receipt-process` pinned
   via `CE-VERSION-1`.
