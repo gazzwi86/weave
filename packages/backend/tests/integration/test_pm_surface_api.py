@@ -203,3 +203,168 @@ async def test_should_paginate_grid_at_100_projects_within_p95(client: AsyncClie
         assert pages <= 8  # guard against an infinite loop on a paging bug
 
     assert len(seen) == 100
+
+
+async def _seed_admin(tenant_id: str, project_iri: str, sub: str) -> None:
+    async with tenant_connection(tenant_id) as conn:
+        await upsert(
+            conn,
+            tenant_id=tenant_id,
+            contributor=NewContributor(
+                project_iri=project_iri,
+                principal_iri=human_principal_iri(sub),
+                role="admin",
+                added_by="urn:weave:person:acme:seed",
+            ),
+        )
+
+
+# --- QA edge-case additions (TASK-014 gaps: AC-1 filter/search had no test at
+# all; settings PATCH had zero HTTP-level test -- neither the guard nor the
+# ADR-013 503 wall was ever exercised end to end). ---
+
+
+async def test_should_filter_and_search_projects_grid(client: AsyncClient) -> None:
+    """AC-1: `search` (name ILIKE) and `owner` filters actually narrow the
+    grid -- the only prior grid test (pagination) never passed a filter.
+    """
+    tenant_id = _unique_tenant("grid-filter")
+    headers = await _headers(tenant_id)
+    widget_iri = await _seed_project(client, headers, "Widget Factory")
+    await _seed_project(client, headers, "Gadget Works")
+    await _seed_admin(tenant_id, widget_iri, "u-1")
+
+    by_search = await client.get("/api/projects", params={"search": "Widget"}, headers=headers)
+    assert by_search.status_code == 200
+    names = {card["name"] for card in by_search.json()["items"]}
+    assert names == {"Widget Factory"}
+
+    by_owner = await client.get(
+        "/api/projects", params={"owner": human_principal_iri("u-1")}, headers=headers
+    )
+    assert by_owner.status_code == 200
+    assert {card["project_iri"] for card in by_owner.json()["items"]} == {widget_iri}
+
+    no_match = await client.get("/api/projects", params={"search": "nope"}, headers=headers)
+    assert no_match.json()["items"] == []
+
+
+async def test_grid_pagination_boundary_exact_page_and_empty(client: AsyncClient) -> None:
+    """Edge case: exactly `limit` rows yields no `next_cursor` (not an extra
+    empty page), and a tenant with zero projects returns an empty page.
+    """
+    tenant_id = _unique_tenant("grid-boundary")
+    headers = await _headers(tenant_id)
+
+    empty = await client.get("/api/projects", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json() == {"items": [], "next_cursor": None}
+
+    for i in range(5):
+        await _seed_project(client, headers, f"Exact {i}")
+    exact = await client.get("/api/projects", params={"limit": "5"}, headers=headers)
+    assert len(exact.json()["items"]) == 5
+    assert exact.json()["next_cursor"] is None
+
+
+async def test_archived_project_is_included_in_default_grid_and_filterable(
+    client: AsyncClient,
+) -> None:
+    """Edge case: ADR-014 point 2/3 -- `archived_at` overrides the phase
+    derivation but the grid does not silently drop archived projects from
+    the unfiltered view; `lifecycle_phase=Archived` selects it explicitly.
+    """
+    tenant_id = _unique_tenant("grid-archived")
+    headers = await _headers(tenant_id)
+    project_iri = await _seed_project(client, headers, "Sunset Co")
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "UPDATE projects SET archived_at = now() WHERE tenant_id = $1 AND project_iri = $2",
+            tenant_id,
+            project_iri,
+        )
+
+    default_grid = await client.get("/api/projects", headers=headers)
+    card = next(c for c in default_grid.json()["items"] if c["project_iri"] == project_iri)
+    assert card["lifecycle_phase"] == "Archived"
+
+    filtered = await client.get(
+        "/api/projects", params={"lifecycle_phase": "Archived"}, headers=headers
+    )
+    assert {c["project_iri"] for c in filtered.json()["items"]} == {project_iri}
+
+
+async def test_settings_patch_denies_editor_and_503s_for_admin(client: AsyncClient) -> None:
+    """Security-critical gap: no prior test ever called `PATCH
+    .../settings` over HTTP. Confirms (a) the guard actually rejects an
+    editor with 403 on the real route, and (b) ADR-013's documented 503
+    (project-scope write structurally unreachable -- a Build project IRI
+    never parses under the settings cascade grammar) fires clean, not a
+    500, for an admin. Also confirms validation (422) still runs before
+    that wall, per the module's own docstring claim.
+    """
+    tenant_id = _unique_tenant("settings-guard")
+    admin_headers = await _headers(tenant_id, sub="u-admin")
+    project_iri = await _seed_project(client, admin_headers, "Settings Guarded")
+    await _seed_admin(tenant_id, project_iri, "u-admin")
+
+    editor_sub = "u-editor"
+    async with tenant_connection(tenant_id) as conn:
+        await upsert(
+            conn,
+            tenant_id=tenant_id,
+            contributor=NewContributor(
+                project_iri=project_iri,
+                principal_iri=human_principal_iri(editor_sub),
+                role="editor",
+                added_by="urn:weave:person:acme:seed",
+            ),
+        )
+    editor_headers = await _headers(tenant_id, sub=editor_sub)
+
+    denied = await client.patch(
+        f"/api/projects/{project_iri}/settings",
+        json={"cost_cap_usd": 10.0},
+        headers=editor_headers,
+    )
+    assert denied.status_code == 403
+
+    bad_input = await client.patch(
+        f"/api/projects/{project_iri}/settings",
+        json={"model_tier": "bespoke"},
+        headers=admin_headers,
+    )
+    assert bad_input.status_code == 422
+
+    unreachable = await client.patch(
+        f"/api/projects/{project_iri}/settings",
+        json={"cost_cap_usd": 10.0},
+        headers=admin_headers,
+    )
+    assert unreachable.status_code == 503
+    assert unreachable.json()["detail"]["error"] == "project_scope_settings_unavailable"
+
+
+async def test_removing_the_last_admin_contributor_is_not_prevented(client: AsyncClient) -> None:
+    """Edge case (PO question, not asserted as a defect): `pm/contributors.
+    py::delete` has no "don't orphan the project" check -- removing the
+    project's only admin contributor row succeeds today. A tenant-wide
+    admin/owner JWT grant still overlays per TASK-011 AC-4, so this does not
+    lock the tenant out, but it does remove the per-project admin path.
+    Documents current behaviour; flagged in the QA report as a PO
+    follow-up, not failed against any TASK-014 AC (none of AC-1..AC-7
+    specify last-admin protection).
+    """
+    tenant_id = _unique_tenant("last-admin")
+    admin_headers = await _headers(tenant_id, sub="u-admin")
+    project_iri = await _seed_project(client, admin_headers, "Solo Admin Co")
+    await _seed_admin(tenant_id, project_iri, "u-admin")
+    admin_iri = human_principal_iri("u-admin")
+
+    response = await client.delete(
+        f"/api/projects/{project_iri}/contributors/{admin_iri}", headers=admin_headers
+    )
+    assert response.status_code == 204
+
+    remaining = await client.get(f"/api/projects/{project_iri}/contributors", headers=admin_headers)
+    assert remaining.json()["items"] == []
