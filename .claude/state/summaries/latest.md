@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T21:02:22+00:00
+Captured at: 2026-07-09T22:20:23+00:00
 Event: pre-compact
 
 ## Current State
@@ -1383,7 +1383,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-011"
       ],
@@ -1395,7 +1395,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Registry Grid + Project Settings UI (FR-006/008/009/011, E2-S4 contributors UI)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-014"
       ],

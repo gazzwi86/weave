@@ -271,3 +271,63 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/playwright.config.ts --> <!-- at: 2026-07-09T04:49:22.148587+00:00 -->
 
 <!-- stale: packages/frontend/tests/e2e/global-search.spec.ts --> <!-- at: 2026-07-09T04:58:35.074832+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/backend-proxy.ts --> <!-- at: 2026-07-09T21:44:57.515234+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:45:30.994891+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/route.ts --> <!-- at: 2026-07-09T21:46:31.661561+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/settings/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:47:17.470691+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/settings/route.ts --> <!-- at: 2026-07-09T21:47:38.285642+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:48:17.362945+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/[principalIri]/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:48:31.659264+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/route.ts --> <!-- at: 2026-07-09T21:48:55.554265+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/[principalIri]/route.ts --> <!-- at: 2026-07-09T21:49:06.447743+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:49:40.155005+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/route.ts --> <!-- at: 2026-07-09T21:49:56.139038+00:00 -->
+
+<!-- stale: packages/frontend/app/build/__tests__/registry-grid.test.tsx --> <!-- at: 2026-07-09T21:51:28.497892+00:00 -->
+
+<!-- stale: packages/frontend/app/build/use-project-grid.ts --> <!-- at: 2026-07-09T21:51:46.534967+00:00 -->
+
+<!-- stale: packages/frontend/app/build/project-card.tsx --> <!-- at: 2026-07-09T21:52:03.918189+00:00 -->
+
+<!-- stale: packages/frontend/app/build/registry-grid.tsx --> <!-- at: 2026-07-09T21:52:24.034885+00:00 -->
+
+<!-- stale: packages/frontend/app/build/__tests__/new-project-modal.test.tsx --> <!-- at: 2026-07-09T21:56:23.307631+00:00 -->
+
+<!-- stale: packages/frontend/app/build/new-project-modal.tsx --> <!-- at: 2026-07-09T21:56:49.653961+00:00 -->
+
+<!-- stale: packages/frontend/app/build/new-project-form.tsx --> <!-- at: 2026-07-09T21:58:54.126964+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/derive-role.test.ts --> <!-- at: 2026-07-09T22:00:09.083746+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/derive-role.ts --> <!-- at: 2026-07-09T22:00:26.004567+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/contributors-tab.test.tsx --> <!-- at: 2026-07-09T22:01:00.201519+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/contributors-tab.tsx --> <!-- at: 2026-07-09T22:05:04.399304+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/backend-proxy.test.ts --> <!-- at: 2026-07-09T22:09:10.645980+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/project-settings-panel.test.tsx --> <!-- at: 2026-07-09T22:10:44.088436+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/governance-form.tsx --> <!-- at: 2026-07-09T22:11:04.901559+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/binding-slots.tsx --> <!-- at: 2026-07-09T22:11:56.280406+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/use-project-settings.ts --> <!-- at: 2026-07-09T22:12:38.294852+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/project-settings-panel.tsx --> <!-- at: 2026-07-09T22:12:53.377028+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/page.tsx --> <!-- at: 2026-07-09T22:16:39.636658+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/project-settings.spec.ts --> <!-- at: 2026-07-09T22:20:18.556754+00:00 -->
