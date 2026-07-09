@@ -55,6 +55,24 @@ def test_effective_set_overlays_project_standard_over_company_by_key() -> None:
     assert [r.standard_key for r in result] == ["lint", "testing"]  # sorted by key
 
 
+def test_effective_set_orders_by_standard_key_regardless_of_input_order() -> None:
+    """QA edge case (BE-V1-TASK-001): AC-3's `sorted by standard_key` must
+    be real sort behaviour, not incidental preservation of already-sorted
+    input -- feed both lists in reverse/interleaved key order.
+    """
+    company = [
+        _record(standard_key="zebra"),
+        _record(standard_key="middle"),
+    ]
+    project = [
+        _record(standard_key="apple", scope="project", project_id="p1"),
+    ]
+
+    result = effective_set(company, project)
+
+    assert [r.standard_key for r in result] == ["apple", "middle", "zebra"]
+
+
 def test_effective_set_excludes_draft_and_retired_rows() -> None:
     company = [
         _record(standard_key="lint", status="active"),

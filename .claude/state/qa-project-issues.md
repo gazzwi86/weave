@@ -217,3 +217,25 @@ per-task reports.
   the failing check + seq. Candidate small task for the audit-surfaces epic (PLAT-V1-EPIC-009).
 - **Raised in:** WS3 M1 gate close-out (2026-07-09). **Owner:** unassigned (monitor).
 - **Deadline:** none (monitor); instrument if seen again.
+
+## PROJ-013: `pytest-cov` + `asyncpg` segfaults the docker-marked integration lane (recurring, escalated)
+
+- **What:** Running the `@pytest.mark.docker` integration lane under `pytest-cov` (either the
+  default C tracer or `COVERAGE_CORE=sysmon`) segfaults (exit 139) inside the DB-connection
+  fixture setup on this environment. Reproducible on demand, not test-code-specific — same
+  symptom on two independent tasks' docker-marked suites.
+- **Raised in:** BE-TASK-001 (M1 Project Bootstrap Stub, 2026-07) — logged as a cross-task finding
+  but never written to `qa-cross-task-findings.md`. **Raised again in:** BE-V1-TASK-001 (Standards
+  Catalogue QA pass, 2026-07-10) — same command, same exit 139, on
+  `tests/integration/test_standards_api.py`. Per aggregation rule (QA Law #11), escalating here
+  instead of repeating a third time in a per-task report.
+- **Consequence:** DB/HTTP-path statements in repo-layer files (`standards/store.py` 57%,
+  `standards/ce_client.py` 31% measured unit-only) can only be coverage-measured from the unit
+  lane's mocked/fake-connection tests; the docker lane proves correctness (all green) but cannot
+  currently contribute to the coverage percentage. Both tasks worked around it by reporting
+  coverage from the unit lane alone plus a `--cov`-free docker-lane pass for correctness.
+- **Owner:** Engineer (or Scaffold-phase, if it's a pinned-version mismatch) — bisect whether it's
+  `pytest-cov`, `coverage.py`, or `asyncpg`'s C extension, and either pin a working version
+  combination or document a permanent `--no-cov` carve-out for `@pytest.mark.docker` in
+  `docs/standards/testing-py.md`.
+- **Deadline:** before the next milestone's phase-gate remediation sweep (bundle with PROJ-010/011).

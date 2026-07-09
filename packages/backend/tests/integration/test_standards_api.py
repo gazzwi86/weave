@@ -122,6 +122,30 @@ async def _admin_headers(tenant_id: str, *, user_sub: str = "u-admin") -> dict[s
     return {"Authorization": f"Bearer {tokens.access_token}"}
 
 
+async def _non_admin_headers(tenant_id: str, *, user_sub: str = "u-author") -> dict[str, str]:
+    """QA edge case (BE-V1-TASK-001): a tenant member with a real, active,
+    but *sub-admin* role -- proves `require_tenant_admin` (ADR-010's
+    tenant-admin authz fallback) actually rejects an authenticated
+    non-admin, not just an anonymous/missing-membership caller.
+    """
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="std-member", display_name="Standards Member"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=f"{user_sub}@example.invalid",
+            role="author",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=f"{user_sub}@example.invalid", user_sub=user_sub
+        )
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    return {"Authorization": f"Bearer {tokens.access_token}"}
+
+
 async def test_put_standard_422s_policy_not_found_when_ce_404s(client: AsyncClient) -> None:
     tenant_id = _unique_tenant("std-404")
     headers = await _admin_headers(tenant_id)
@@ -213,3 +237,68 @@ async def test_put_then_get_effective_round_trip_with_stack_pins(client: AsyncCl
     assert len(body["standards"]) == 1
     assert body["standards"][0]["standard_key"] == "frontend-stack"
     assert body["standards"][0]["stack_pins"] == {"frontend": "next.js"}
+
+
+async def test_put_standard_403s_for_authenticated_non_admin_principal(
+    client: AsyncClient,
+) -> None:
+    """QA edge case (BE-V1-TASK-001): ADR-010's tenant-admin fallback must
+    actually gate a real, authenticated, non-admin tenant member -- not just
+    reject callers with no membership row at all.
+    """
+    tenant_id = _unique_tenant("std-403")
+    headers = await _non_admin_headers(tenant_id)
+    app.dependency_overrides[get_ce_read_client] = lambda: _ce_stub_ok()
+
+    response = await client.put(
+        "/api/standards/company/lint",
+        json={"title": "Lint rules", "body_md": "# Lint", "policy_iri": _POLICY_IRI},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": {"error": "forbidden", "required_role": "admin"}}
+
+
+async def test_put_standard_upsert_is_idempotent_not_duplicated(client: AsyncClient) -> None:
+    """QA edge case (BE-V1-TASK-001): a second PUT at the same scope+key
+    overwrites the existing row (ON CONFLICT DO UPDATE) rather than
+    inserting a duplicate -- `GET /api/standards` must still show exactly
+    one row for that key, with the latest title/body.
+    """
+    tenant_id = _unique_tenant("std-idem")
+    headers = await _admin_headers(tenant_id)
+    app.dependency_overrides[get_ce_read_client] = lambda: _ce_stub_ok()
+
+    first = await client.put(
+        "/api/standards/company/lint",
+        json={
+            "title": "Lint rules v1",
+            "body_md": "# Lint v1",
+            "policy_iri": _POLICY_IRI,
+            "status": "active",
+        },
+        headers=headers,
+    )
+    assert first.status_code == 200
+
+    second = await client.put(
+        "/api/standards/company/lint",
+        json={
+            "title": "Lint rules v2",
+            "body_md": "# Lint v2",
+            "policy_iri": _POLICY_IRI,
+            "status": "active",
+        },
+        headers=headers,
+    )
+    assert second.status_code == 200
+    assert first.json()["standard_id"] == second.json()["standard_id"]
+
+    list_response = await client.get(
+        "/api/standards", params={"scope": "company"}, headers=headers
+    )
+    assert list_response.status_code == 200
+    rows = list_response.json()["standards"]
+    assert len(rows) == 1
+    assert rows[0]["title"] == "Lint rules v2"
