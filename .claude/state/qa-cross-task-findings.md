@@ -187,7 +187,15 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 
 ## XT-BE013-1 — `context_iri=project_iri` never parses under `settings/scope.py`'s IRI grammar (cascade dead beyond company)
 
-- **Severity:** High · **Status:** OPEN.
+- **Severity:** High · **Status:** PARTIALLY RESOLVED (`86eeb3b`/`e06642b`, `feature/BE-V1-EPIC-002`).
+  The production-breaking half is fixed: `build/cost.py::resolve_rate_card` had NO fallback so every
+  real dispatch produced an empty card / `RateCardConfigError` — now catches `InvalidScopeIri` and
+  falls back to company scope like `resolve_budget_cap` does (both tested against the real project
+  IRI). The **remaining half is DEFERRED to a schema follow-up** (ADR-013): domain/project-level
+  overrides stay unreachable until `projects` gains a `domain_id` column AND `settings/scope.py`
+  parses a project/domain scope IRI. Same root cause as ADR-012 — ONE `projects.domain_id` migration
+  + grammar extension closes XT-BE013-1's remainder, ADR-012's dormant role overlay, and this cap
+  cascade. Phase-gate ratification item.
 - **Affects:** BE-V1-TASK-013 (AC-3 — Company→Domain→Project budget-cap cascade), BE-V1-TASK-012
   (rate-card resolution, `build/cost.py:64`, same pattern — no cascade AC was claimed there so it
   wasn't caught, but it has the identical gap), BE-V1-TASK-019 (Dashboard "capped at Domain" tile —

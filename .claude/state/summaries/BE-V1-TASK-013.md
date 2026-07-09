@@ -93,3 +93,23 @@ SQL in `build/costs.py`; no new migration; tenancy WHERE clause unchanged.
 
 Sent back to Engineer — do not advance to TASK-019 until AC-2, AC-3, and the wire-format defect
 are fixed and the two integration tests pass for real.
+
+## Retry 1 (2026-07-10) — VERDICT: PASS
+
+All three defects fixed + verified by coordinator (full unit lane 791 pass, 0 regressions):
+
+- **AC-2 forecast cohort** (`86eeb3b`): `done_costs` now requires `task_id in done_task_ids`; engineer
+  also caught+fixed a sibling `done_tokens` bug (same missing guard). Both proving tests PASS.
+- **AC-3 cascade** (`e06642b`): the dead-cascade production bug is fixed — `resolve_budget_cap` and
+  (cross-task `XT-BE013-1`) `resolve_rate_card` both catch `InvalidScopeIri` and fall back to company
+  scope; tautological AC-3 tests rewritten to assert the REAL project-IRI path. **Documented limit
+  (ADR-013, phase-gate ratify):** domain/project overrides remain unreachable — `projects` has no
+  `domain_id` column + `settings/scope.py` won't parse a project IRI. SAME root cause as ADR-012;
+  one `projects.domain_id` migration + grammar extension closes ADR-012 + XT-BE013-1 remainder + this.
+  Fail-safe (under-grants, tenancy intact).
+- **Wire-format** (`dde4231`): money fields `Decimal`→`float` at the DTO boundary (matches
+  `billing.py`); both docker integration tests PASS.
+
+ADR-013 created by coordinator (`docs/.../decisions/ADR-013.md`) to resolve the engineer's dangling
+docstring references. TASK-012's rate-card path is now repaired (its `test_build_cost.py` 9 pass) —
+it stays `done`; the fix rode this retry. Retry count: 1/3.

@@ -1364,7 +1364,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Costs Endpoint + Budget-Cascade Breach Halt (ADR-008 read side, FR-008)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-012"
       ],

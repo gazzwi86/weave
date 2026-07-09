@@ -347,3 +347,15 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/billing/metering.py --> <!-- at: 2026-07-09T16:42:52.105845+00:00 -->
 
 <!-- stale: packages/backend/src/weave_backend/build/orchestrator.py --> <!-- at: 2026-07-09T16:43:26.754050+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_build_costs.py --> <!-- at: 2026-07-09T17:51:45.486958+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_costs_api.py --> <!-- at: 2026-07-09T17:53:06.974893+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/costs.py --> <!-- at: 2026-07-09T18:07:50.579142+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/briefs/store.py --> <!-- at: 2026-07-09T18:08:14.018538+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/costs.py --> <!-- at: 2026-07-09T18:18:01.367166+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/costs.py --> <!-- at: 2026-07-09T18:18:19.180984+00:00 -->
