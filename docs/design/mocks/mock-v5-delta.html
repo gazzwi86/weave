@@ -1,0 +1,2555 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- ponytail: static mock, no real API/state. built on mock-v4-hybrid.html chrome. -->
+<title>Weave V5 — M1→v1 delta mock</title>
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#0E1420; --raised:#131A28; --overlay:#1A2236; --hover:#1E2740;
+    --raised-strong:#1B2434; --border-soft:#161E2E; --border:#1F2937; --border-strong:#2A3550;
+    --text:#E5EAF2; --text-muted:#8A95A8; --text-subtle:#5C6779;
+    --accent:#22D3EE; --accent-hover:#67E8F9; --accent-soft:rgba(34,211,238,.12);
+    --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+    --gradient-brand:linear-gradient(100deg,#22D3EE,#2DD4BF,#E879F9,#A78BFA,#FBBF24,#A3E635,#60A5FA);
+    --gradient-accent:linear-gradient(120deg,#22D3EE,#A78BFA);
+    --shadow-overlay:0 16px 48px rgba(0,0,0,.55);
+    --k-process:#E73430; --k-activity:#F59E0B; --k-event:#0EA5E9; --k-actor:#0D9488;
+    --k-policy:#DB3B74; --k-domain:#9054FF; --k-capability:#E2307D; --k-system:#3272FB;
+    --k-service:#0891B2; --k-dataasset:#16A34A;
+    --radius-sm:4px; --radius-base:6px; --radius-lg:10px; --radius-xl:14px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    --font-sans:'Geist','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'Geist Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-sans);
+    font-size:15px; line-height:1.5; width:1440px; height:900px; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  ::selection{background:var(--accent-soft);}
+
+  /* ================= APP SHELL ================= */
+  .app-shell{display:flex; height:900px;}
+
+  .icon-rail{
+    width:56px; flex:0 0 56px; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; align-items:center; padding:var(--sp-3) 0; gap:var(--sp-1);
+  }
+  .rail-logo{
+    width:32px; height:32px; border-radius:var(--radius-base); margin-bottom:var(--sp-4);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; flex:0 0 auto;
+  }
+  .rail-logo img{width:34px; height:34px; object-fit:contain; margin:-3px; display:block;}
+  .rail-item{
+    position:relative; width:40px; height:40px; border-radius:var(--radius-base); border:none;
+    background:transparent; color:var(--text-muted); display:flex; align-items:center; justify-content:center;
+    font-size:18px; margin-bottom:2px;
+  }
+  .rail-item:hover{background:var(--hover); color:var(--text);}
+  .rail-item.active{background:var(--accent-soft); color:var(--accent);}
+  .rail-item.active::before{
+    content:''; position:absolute; left:-8px; top:8px; bottom:8px; width:3px;
+    border-radius:2px; background:var(--accent);
+  }
+  .rail-item.disabled{color:var(--text-subtle); cursor:not-allowed;}
+  .rail-item.disabled:hover{background:none; color:var(--text-subtle);}
+  .rail-item .tip{
+    position:absolute; left:48px; top:50%; transform:translateY(-50%); white-space:nowrap;
+    background:var(--overlay); border:1px solid var(--border-strong); color:var(--text);
+    padding:4px 8px; border-radius:var(--radius-sm); font-size:12px; font-weight:500;
+    opacity:0; pointer-events:none; transition:opacity .12s ease; z-index:50; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  .rail-item:hover .tip{opacity:1;}
+  .rail-spacer{flex:1;}
+  .rail-avatar{
+    width:30px; height:30px; border-radius:50%; background:var(--k-actor); color:#04222b;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; margin-bottom:var(--sp-2);
+  }
+
+  .sidebar{
+    width:232px; flex:0 0 232px; background:var(--surface); border-right:1px solid var(--border);
+    padding:var(--sp-4) var(--sp-3); overflow-y:auto; transition:width .16s ease, padding .16s ease;
+  }
+  .sidebar.collapsed{width:0; flex:0 0 0; padding-left:0; padding-right:0; overflow:hidden; border-right:none;}
+  .sidebar-head{display:flex; align-items:center; justify-content:space-between; padding:0 var(--sp-2) var(--sp-3);}
+  .sidebar-title{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-subtle);}
+  .sidebar-collapse{background:none; border:1px solid var(--border-strong); color:var(--text-subtle); width:20px; height:20px; border-radius:4px; font-size:11px; display:flex; align-items:center; justify-content:center;}
+  .sidebar-collapse:hover{color:var(--text); border-color:var(--accent);}
+  .sb-group{margin-bottom:var(--sp-4);}
+  .sb-group-label{font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:0 var(--sp-2); margin-bottom:6px;}
+  .sb-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:6px var(--sp-2); border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted);
+    cursor:pointer; margin-bottom:1px; white-space:nowrap;
+  }
+  .sb-item:hover{background:var(--hover); color:var(--text);}
+  .sb-item.active{background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .sb-item.disabled{color:var(--text-subtle); cursor:not-allowed;}
+  .sb-item.disabled:hover{background:none; color:var(--text-subtle);}
+  .pill{
+    font-size:10px; font-weight:600; padding:1px 6px; border-radius:999px; letter-spacing:.02em;
+    background:var(--overlay); color:var(--text-subtle); border:1px solid var(--border-strong);
+  }
+  .pill-new{background:rgba(34,211,238,.14); color:var(--accent); border-color:rgba(34,211,238,.35);}
+  .pill-upgraded{background:rgba(245,158,11,.14); color:var(--warn); border-color:rgba(245,158,11,.35);}
+
+  /* ================= DELTA BADGES (M1 vs v1) — new in v5 ================= */
+  .delta{
+    font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px; letter-spacing:.05em;
+    text-transform:uppercase; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  }
+  .delta::before{content:''; width:6px; height:6px; border-radius:50%; flex:0 0 auto;}
+  .delta-new{background:rgba(34,211,238,.14); color:var(--accent); border:1px solid rgba(34,211,238,.35);}
+  .delta-new::before{background:var(--accent); box-shadow:0 0 6px rgba(34,211,238,.7);}
+  .delta-upgraded{background:rgba(245,158,11,.14); color:var(--warn); border:1px solid rgba(245,158,11,.35);}
+  .delta-upgraded::before{background:var(--warn);}
+  .delta-m1{background:var(--overlay); color:var(--text-subtle); border:1px solid var(--border-strong);}
+  .delta-m1::before{background:var(--text-subtle);}
+  .delta-note{font-size:12px; color:var(--text-subtle); margin-left:8px;}
+
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; position:relative;}
+
+  .topbar{
+    height:44px; flex:0 0 44px; display:flex; align-items:center; padding:0 var(--sp-4);
+    border-bottom:1px solid var(--border); gap:var(--sp-4); background:var(--bg); position:relative; z-index:60;
+  }
+  .breadcrumb{font-size:13px; color:var(--text-muted); white-space:nowrap; flex:0 0 auto; width:340px; display:flex; align-items:center; gap:8px;}
+  .breadcrumb b{color:var(--text); font-weight:500;}
+  .breadcrumb .sep{color:var(--text-subtle); margin:0 4px;}
+  .sidebar-collapse-top{display:none;}
+
+  .cmdbar-wrap{flex:1; display:flex; justify-content:center;}
+  .cmdbar{
+    width:420px; max-width:100%; height:30px; border-radius:999px;
+    background:var(--raised); display:flex; align-items:center; padding:0 12px; gap:8px; color:var(--text-subtle);
+    font-size:13px; position:relative; cursor:pointer;
+    background-image:linear-gradient(var(--raised),var(--raised)), var(--gradient-brand);
+    background-origin:border-box; background-clip:padding-box, border-box; border:1px solid transparent;
+  }
+  .cmdbar:hover, .cmdbar:focus-within{box-shadow:0 0 0 2px var(--accent);}
+  .cmdbar svg{flex:0 0 auto; opacity:.7;}
+  .cmdbar .ph{flex:1;}
+  .cmdbar kbd{
+    font-family:var(--font-mono); font-size:10px; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:4px; padding:1px 5px; color:var(--text-muted);
+  }
+
+  .top-actions{flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3); width:260px; justify-content:flex-end;}
+  .icon-btn{
+    position:relative; width:28px; height:28px; border-radius:var(--radius-sm); background:transparent; border:none;
+    color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .icon-btn:hover{background:var(--hover); color:var(--text);}
+  .badge-dot{position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--danger); border:1.5px solid var(--bg);}
+  .split-btn{display:flex; align-items:center; height:28px; border-radius:var(--radius-base); overflow:hidden; border:1px solid var(--border-strong);}
+  .split-btn button{background:var(--raised); border:none; color:var(--text); font-size:12px; font-weight:600; padding:0 10px; height:100%;}
+  .split-btn button:first-child{border-right:1px solid var(--border-strong);}
+  .split-btn button:hover{background:var(--hover);}
+  .split-btn .main-action{color:var(--bg); background:var(--accent); font-weight:600;}
+  .split-btn .main-action:hover{background:var(--accent-hover);}
+  .rail-avatar-top{width:26px; height:26px; border-radius:50%; background:var(--gradient-accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#04222b;}
+
+  .body-area{flex:1; position:relative; overflow:hidden;}
+  .screen{display:none; position:absolute; inset:0;}
+  .screen.active{display:block;}
+
+  /* ================= CANVAS SCREENS ================= */
+  .content-canvas{overflow:hidden;}
+  .canvas-wrap{position:absolute; inset:0; background:
+      radial-gradient(ellipse 900px 600px at 30% 20%, rgba(34,211,238,.05), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 78% 70%, rgba(167,139,250,.04), transparent 60%),
+      var(--bg);}
+  .canvas-wrap svg{width:100%; height:100%; display:block;}
+
+  .glass{background:rgba(19,26,40,.72); backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%); border:1px solid var(--border-strong);
+    box-shadow:var(--shadow-overlay); border-radius:12px;}
+
+  .kpi-strip{position:absolute; top:16px; right:16px; display:flex; gap:0; padding:4px 4px; z-index:20;}
+  .kpi-strip .kpi{padding:8px 14px; text-align:center; border-right:1px solid var(--border-soft);}
+  .kpi-strip .kpi:last-child{border-right:none;}
+  .kpi-strip .kpi .v{font-family:var(--font-mono); font-size:14px; font-weight:500;}
+  .kpi-strip .kpi .v.ok{color:var(--success);}
+  .kpi-strip .kpi .l{font-size:10px; color:var(--text-subtle); margin-top:1px;}
+
+  .legend{position:absolute; bottom:16px; left:16px; width:300px; padding:12px 14px; z-index:20;}
+  .legend .row{display:flex; flex-wrap:wrap; gap:6px 12px; margin-bottom:10px;}
+  .legend .item{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted);}
+  .legend .swatch{width:8px; height:8px; border-radius:2px; flex:none;}
+  .legend .tools{display:flex; align-items:center; justify-content:space-between; padding-top:8px;
+    border-top:1px solid var(--border-soft); font-size:11px; color:var(--text-subtle);}
+  .legend .tools .zoom{display:flex; gap:4px;}
+  .legend .tools button{background:var(--hover); border:1px solid var(--border); color:var(--text-muted);
+    width:20px; height:20px; border-radius:4px; font-size:12px;}
+
+  .canvas-panel-toggles{position:absolute; top:16px; left:16px; display:flex; gap:6px; z-index:20;}
+  .canvas-panel-toggles button{
+    display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:500;
+    background:rgba(19,26,40,.72); backdrop-filter:blur(16px); border:1px solid var(--border-strong); color:var(--text-muted);
+  }
+  .canvas-panel-toggles button.on{color:var(--accent); border-color:var(--accent);}
+  .side-toggle-panel{position:absolute; top:60px; left:16px; width:260px; padding:14px; z-index:21; display:none;}
+  .side-toggle-panel.open{display:block;}
+  .side-toggle-panel h5{margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle);}
+  .side-toggle-panel .row{display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:12px; color:var(--text-muted);}
+  .toggle-sw{width:28px; height:16px; border-radius:999px; background:var(--overlay); border:1px solid var(--border-strong); position:relative; flex:0 0 auto;}
+  .toggle-sw.on{background:var(--accent-soft); border-color:var(--accent);}
+  .toggle-sw::after{content:''; position:absolute; top:1px; left:1px; width:12px; height:12px; border-radius:50%; background:var(--text-subtle); transition:left .12s;}
+  .toggle-sw.on::after{left:13px; background:var(--accent);}
+
+  .ask-bar{position:absolute; bottom:20px; left:50%; transform:translateX(-50%); width:660px; z-index:25;}
+  .ask-bar .pill{display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:999px;
+    background:rgba(19,26,40,.82); backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--border-strong); box-shadow:var(--shadow-overlay), 0 0 0 1px rgba(34,211,238,.06);}
+  .ask-bar .pill.filled{border-image:var(--gradient-accent) 1; border-width:1px; border-style:solid;}
+  .ask-bar .spark{color:var(--accent); flex:none; display:flex;}
+  .ask-bar input{flex:1; background:none; border:none; outline:none; color:var(--text); font-size:15px; font-family:inherit;}
+  .modal-backdrop{position:fixed; inset:0; background:rgba(6,10,18,.6); display:flex; align-items:center; justify-content:center; z-index:500;}
+  .modal-panel{width:420px; max-width:calc(100% - 32px); border-radius:var(--radius-lg); border:1px solid var(--border-strong); padding:22px 24px;}
+  .ask-bar input::placeholder{color:var(--text-subtle);}
+  .ask-bar .go{flex:none; width:28px; height:28px; border-radius:50%; background:var(--gradient-accent);
+    display:flex; align-items:center; justify-content:center; color:#04222b; border:none;}
+
+  .canvas-inspector{position:absolute; top:76px; right:16px; width:280px; bottom:16px; padding:16px; z-index:20;
+    display:flex; flex-direction:column; overflow:auto;}
+  .canvas-inspector .ins-title{display:flex; align-items:center; gap:8px;}
+  .canvas-inspector .ins-title .shape{width:22px; height:22px; flex:none;}
+  .canvas-inspector h4{margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em;}
+  .canvas-inspector .kind-tag{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:500; color:var(--text-muted); margin-top:2px;}
+  .canvas-inspector .status-draft{color:var(--warn);}
+  .canvas-inspector .sec-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); margin:16px 0 8px;}
+  .canvas-inspector .prop-row{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid var(--border-soft);}
+  .canvas-inspector .prop-row .k{color:var(--text-muted);}
+  .canvas-inspector .prop-row .v{font-family:var(--font-mono); font-size:11px; color:var(--text); text-align:right;}
+  .canvas-inspector .edge-row{display:flex; align-items:center; gap:6px; font-size:12px; padding:5px 0; color:var(--text-muted);}
+  .canvas-inspector .edge-row .rel{font-family:var(--font-mono); font-size:10px; color:var(--accent);}
+  .canvas-inspector .edge-row .target{color:var(--text);}
+  .canvas-inspector .btn-row{display:flex; gap:8px; margin-top:14px;}
+  .canvas-inspector .btn-row button{flex:1; font-size:12px; font-weight:500; border-radius:6px; padding:8px;}
+  .btn-primary{background:var(--gradient-accent); color:#04222b; border:none;}
+  .btn-secondary{background:var(--hover); color:var(--text); border:1px solid var(--border);}
+  .canvas-inspector .propose{margin-top:auto; padding-top:14px; border-top:1px solid var(--border-soft);}
+  .canvas-inspector .propose-box{display:flex; align-items:center; gap:8px; background:var(--surface);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--text-subtle);}
+
+  .answer-panel{position:absolute; bottom:92px; left:50%; transform:translateX(-50%); width:660px; padding:16px 18px; z-index:22;}
+  .answer-panel .sentence{font-size:14px; line-height:1.5; color:var(--text); margin-bottom:12px;}
+  .answer-panel .sentence b{font-weight:600; color:var(--accent-hover);}
+  .answer-panel table{width:100%; border-collapse:collapse; margin-bottom:10px;}
+  .answer-panel td{font-size:12px; padding:6px 4px; border-bottom:1px solid var(--border-soft);}
+  .answer-panel .chip{display:inline-flex; align-items:center; gap:4px; background:var(--hover);
+    border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:10px; color:var(--text-muted); font-family:var(--font-mono);}
+  .answer-panel .sparql-label{font-size:11px; color:var(--accent); cursor:pointer; margin-bottom:6px;}
+  .answer-panel pre{margin:0; background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:10px 12px; font-size:11px; line-height:1.6; color:#9fd8e8; font-family:var(--font-mono); overflow-x:auto;
+    max-height:0; opacity:0; transition:max-height .15s ease, opacity .15s ease;}
+  .answer-panel pre.open{max-height:120px; opacity:1;}
+
+  .glow-static{filter:drop-shadow(0 0 10px rgba(34,211,238,.35));}
+  .glow-pulse{animation:pulseGlow 2.6s ease-in-out infinite;}
+  @keyframes pulseGlow{
+    0%,100%{filter:drop-shadow(0 0 8px rgba(34,211,238,.30));}
+    50%{filter:drop-shadow(0 0 20px rgba(34,211,238,.65));}
+  }
+  @media (prefers-reduced-motion:reduce){ .glow-pulse{animation:none; filter:drop-shadow(0 0 12px rgba(34,211,238,.4));} }
+  .node-dim{opacity:.28; transition:opacity .25s;}
+  .node-spot{opacity:1;}
+
+  /* ================= CONTENT PAGE (shared list/dashboard/form scaffold) ================= */
+  .content-page{overflow-y:auto; padding:var(--sp-6) var(--sp-6) var(--sp-8);}
+  .content-inner{max-width:1220px; margin:0 auto;}
+  .content-inner.wide{max-width:1340px;}
+  .page-eyebrow{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:4px;}
+  .page-head-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:var(--sp-1);}
+  .page-title{font-size:28px; font-weight:700; letter-spacing:-.01em; margin:0 0 var(--sp-1);}
+  .page-sub{font-size:13px; color:var(--text-muted); margin:0 0 var(--sp-5);}
+
+  .toolbar{display:flex; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-4); flex-wrap:wrap;}
+  .chip-filter{
+    display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:500;
+    border:1px solid var(--border-strong); color:var(--text-muted); background:var(--surface); cursor:pointer;
+  }
+  .chip-filter.active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .toolbar-search{
+    flex:0 0 220px; height:30px; background:var(--raised); border:1px solid var(--border-strong);
+    border-radius:var(--radius-base); display:flex; align-items:center; padding:0 10px; gap:6px; color:var(--text-subtle); font-size:13px;
+  }
+  .toolbar-spacer{flex:1;}
+  select.sel{height:30px; background:var(--raised); border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; padding:0 8px; font-family:var(--font-sans);}
+  .btn-primary-pill{height:30px; background:var(--accent); color:#06141F; border:none; border-radius:var(--radius-base);
+    font-size:13px; font-weight:600; padding:0 14px; display:flex; align-items:center; gap:6px;}
+  .btn-primary-pill:hover{background:var(--accent-hover);}
+
+  .data-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .data-table thead th{text-align:left; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-subtle); padding:8px 12px; border-bottom:1px solid var(--border-strong);}
+  .data-table tbody td{padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text);}
+  .data-table tbody tr{cursor:pointer;}
+  .data-table tbody tr:hover{background:var(--hover);}
+  .data-table tbody tr.selected{background:var(--accent-soft);}
+  .name-cell .name{font-weight:500;}
+  .name-cell .id{display:block; color:var(--text-subtle); font-size:11px; font-family:var(--font-mono); margin-top:1px;}
+  .updated-cell{color:var(--text-subtle); font-family:var(--font-mono); font-size:12px; white-space:nowrap;}
+  .status-pill{font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px;}
+  .status-active{color:var(--success); background:rgba(16,185,129,.12);}
+  .status-draft{color:var(--warn); background:rgba(245,158,11,.12);}
+
+  .kind-chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; padding:2px 8px 2px 6px; border-radius:999px;}
+  .kind-dot{width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto;}
+
+  .table-wrap{position:relative; display:flex; gap:0;}
+  .table-scroll{flex:1; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); overflow:hidden;}
+
+  .inspector{
+    width:320px; flex:0 0 320px; margin-left:var(--sp-4); background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-base); padding:var(--sp-4); align-self:flex-start;
+  }
+  .insp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;}
+  .insp-title{font-size:16px; font-weight:600;}
+  .insp-close{color:var(--text-subtle); font-size:14px; background:none; border:none;}
+  .insp-sub{margin-bottom:var(--sp-4); color:var(--text-muted); font-size:12px;}
+  .insp-section-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); margin:var(--sp-4) 0 8px;}
+  .insp-section-label:first-of-type{margin-top:0;}
+  .insp-kv{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--border);}
+  .insp-kv:last-child{border-bottom:none;}
+  .insp-kv .k{color:var(--text-muted);}
+  .insp-kv .v{color:var(--text); text-align:right; font-family:var(--font-mono); font-size:12px;}
+  .insp-actions{display:flex; gap:8px; margin-top:var(--sp-4); flex-wrap:wrap;}
+  .btn-outline{
+    flex:1; height:30px; background:transparent; border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; font-weight:600; min-width:90px;
+  }
+  .btn-outline:hover{background:var(--hover); border-color:var(--accent);}
+  .view-canvas{width:100%; margin-top:8px; background:var(--hover); border:1px solid var(--accent); color:var(--accent);
+    font-size:12px; font-weight:600; border-radius:6px; padding:9px; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .view-canvas:hover{background:var(--accent-soft);}
+
+  /* ---- generative-ui components (KpiCard/BarChart/EntityRef/relative-time/DataTable) ---- */
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-4); margin-bottom:var(--sp-5);}
+  .kpi-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--sp-4);}
+  .kpi-card .kv{font-family:var(--font-mono); font-size:26px; font-weight:600; letter-spacing:-.01em;}
+  .kpi-card .kl{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .kpi-card.v-success .kv{color:var(--success);}
+  .kpi-card.v-warn .kv{color:var(--warn);}
+  .kpi-card.v-danger .kv{color:var(--danger);}
+  .entity-ref{display:inline-flex; align-items:baseline; gap:6px;}
+  .entity-ref .friendly{color:var(--text); font-weight:500;}
+  .entity-ref .raw{font-family:var(--font-mono); font-size:11px; color:var(--text-subtle);}
+  .rel-time{border-bottom:1px dotted var(--border-strong); cursor:help;}
+
+  /* ---- forms ---- */
+  .form-grid{display:flex; flex-direction:column; gap:var(--sp-4); max-width:640px;}
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:12px; font-weight:600; color:var(--text-muted);}
+  .field .hint{font-size:11px; color:var(--text-subtle);}
+  .field input[type=text], .field input[type=search], .field textarea, .field select{
+    background:var(--raised); border:1px solid var(--border-strong); color:var(--text); border-radius:var(--radius-base);
+    padding:9px 11px; font-size:13px; font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:70px;}
+  .chip-multi{display:flex; flex-wrap:wrap; gap:6px; padding:8px; background:var(--raised); border:1px solid var(--border-strong); border-radius:var(--radius-base);}
+  .chip-removable{display:inline-flex; align-items:center; gap:5px; background:var(--hover); border:1px solid var(--border); border-radius:999px; padding:3px 6px 3px 9px; font-size:12px;}
+  .chip-removable button{background:none; border:none; color:var(--text-subtle); font-size:11px;}
+  .radio-row{display:flex; gap:14px;}
+  .radio-row label{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-muted); cursor:pointer;}
+
+  /* ---- tabs ---- */
+  .tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:var(--sp-5);}
+  .tab{padding:9px 4px; margin-right:20px; font-size:13px; font-weight:500; color:var(--text-muted); border-bottom:2px solid transparent; cursor:pointer;}
+  .tab.active{color:var(--text); border-bottom-color:var(--accent);}
+
+  /* ---- registry / project cards ---- */
+  .card-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-4);}
+  .project-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--sp-4); cursor:pointer;}
+  .project-card:hover{border-color:var(--accent);}
+  .project-card .pc-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .project-card .pc-name{font-weight:600; font-size:14px;}
+  .project-card .pc-desc{font-size:12px; color:var(--text-muted); margin:2px 0 8px; line-height:1.4;}
+  .project-card .pc-meta{font-size:12px; color:var(--text-subtle); margin-bottom:10px;}
+  .phase-pill{font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--overlay); color:var(--text-muted); border:1px solid var(--border-strong);}
+  .phase-pill.is-live{background:color-mix(in srgb,var(--success) 18%,transparent); color:var(--success); border-color:transparent;}
+  .phase-pill.is-archived{background:color-mix(in srgb,var(--text-subtle) 22%,transparent); color:var(--text-subtle); border-color:transparent;}
+  .pc-budget{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted);}
+  .pc-budget .bar{flex:1; height:5px; border-radius:3px; background:var(--overlay); overflow:hidden;}
+  .pc-budget .bar span{display:block; height:100%; background:var(--accent);}
+
+  /* ---- kanban ---- */
+  .kanban-wrap{display:flex; gap:var(--sp-3); overflow-x:auto; padding-bottom:8px;}
+  .kanban-lane{flex:0 0 210px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); padding:10px;}
+  .kanban-lane h6{margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-subtle); display:flex; justify-content:space-between;}
+  .kcard{background:var(--raised); border:1px solid var(--border-strong); border-radius:8px; padding:9px; margin-bottom:8px; font-size:12px; cursor:pointer;}
+  .kcard:hover{border-color:var(--accent);}
+  .tree-graph-wrap{position:relative; height:520px; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--surface); margin-top:14px; overflow:hidden;}
+  .tree-graph-wrap svg{width:100%; height:100%; display:block;}
+  .tg-node-label{font-size:11px; fill:var(--text); font-weight:600;}
+  .tg-edge{stroke:var(--border-strong); stroke-width:1.5; fill:none;}
+  .tg-edge-label{font-size:9px; fill:var(--text-subtle);}
+  .legend-done{background:var(--success)}
+  .legend-progress{background:var(--accent)}
+  .legend-blocked{background:var(--danger)}
+  .legend-ready{background:var(--k-system)}
+  .legend-backlog{background:var(--text-subtle)}
+  .kcard .kt{font-weight:500; margin-bottom:6px;}
+  .kcard .retry-chip{display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 6px; border-radius:999px; background:rgba(239,68,68,.12); color:var(--danger);}
+  .kcard .hitl-chip{display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 6px; border-radius:999px; background:rgba(245,158,11,.14); color:var(--warn);}
+
+  /* ---- task detail drawer ---- */
+  .drawer-backdrop{position:absolute; inset:0; background:rgba(6,9,15,.55); display:none; z-index:90;}
+  .drawer-backdrop.show{display:block;}
+  .drawer{position:absolute; top:0; right:0; bottom:0; width:560px; background:var(--overlay); border-left:1px solid var(--border-strong); box-shadow:-16px 0 48px rgba(0,0,0,.5); display:none; flex-direction:column; z-index:95;}
+  .drawer.show{display:flex;}
+  .drawer-head{padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+  .drawer-body{flex:1; overflow-y:auto; padding:16px 20px;}
+  .capture-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .capture-cell{background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px 6px; text-align:center; font-size:10px; color:var(--text-subtle);}
+  .capture-cell.absent{opacity:.4;}
+  .console-log{background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:10px; font-family:var(--font-mono); font-size:11px; color:#9fd8e8; max-height:260px; overflow-y:auto; white-space:pre-wrap;}
+
+  /* ---- dashboard tiles ---- */
+  .tile-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-4);}
+  .tile{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--sp-4);}
+  .tile h6{margin:0 0 10px; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-subtle);}
+  .estimate-chip{font-size:10px; color:var(--text-subtle); border:1px dashed var(--border-strong); border-radius:6px; padding:2px 6px; margin-left:6px;}
+
+  /* ---- bar chart (simple svg-free div bars) ---- */
+  .bar-chart{display:flex; align-items:flex-end; gap:14px; height:140px; padding:10px 4px 0;}
+  .bar-group{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .bar-pair{display:flex; align-items:flex-end; gap:3px; height:100px;}
+  .bar{width:14px; border-radius:3px 3px 0 0;}
+  .bar.prev{background:var(--border-strong);}
+  .bar.cur{background:var(--accent);}
+  .bar-label{font-size:10px; color:var(--text-subtle); text-align:center;}
+
+  /* ---- notifications / help panels ---- */
+  .flyout-backdrop{position:absolute; inset:0; z-index:80; display:none;}
+  .flyout-backdrop.show{display:block;}
+  .flyout{position:absolute; top:52px; width:360px; padding:0; z-index:81; max-height:520px; display:flex; flex-direction:column; overflow:hidden;}
+  .flyout-head{padding:14px 16px; border-bottom:1px solid var(--border-soft); font-size:13px; font-weight:600; display:flex; justify-content:space-between;}
+  .flyout-body{overflow-y:auto; flex:1;}
+  .notif-row{padding:12px 16px; border-bottom:1px solid var(--border-soft); font-size:12px; display:flex; gap:10px;}
+  .notif-row .nd{width:6px; height:6px; border-radius:50%; background:var(--accent); margin-top:5px; flex:0 0 auto;}
+  .notif-row.read .nd{background:transparent;}
+  .notif-day{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); padding:8px 16px 4px;}
+
+  /* ---- onboarding tour ---- */
+  .tour-spot{position:absolute; z-index:95; border:2px solid var(--accent); border-radius:8px; box-shadow:0 0 0 4000px rgba(6,9,15,.6); pointer-events:none;}
+  .tour-tip{position:absolute; z-index:96; width:260px; padding:14px; z-index:96;}
+  .tour-tip .step{font-size:10px; color:var(--text-subtle); margin-bottom:6px;}
+  .tour-tip h6{margin:0 0 6px; font-size:13px;}
+  .tour-tip p{margin:0 0 12px; font-size:12px; color:var(--text-muted);}
+  .tour-tip .row{display:flex; justify-content:space-between; align-items:center;}
+
+  /* ================= COMMAND PALETTE ================= */
+  .palette-backdrop{
+    position:absolute; inset:0; background:rgba(6,9,15,.6); backdrop-filter:blur(2px);
+    display:none; align-items:flex-start; justify-content:center; padding-top:120px; z-index:100;
+  }
+  .palette-backdrop.show{display:flex;}
+  .palette{
+    width:560px; max-width:90%; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg); box-shadow:0 24px 64px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .palette-input-row{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);}
+  .palette-input-row svg{opacity:.6; flex:0 0 auto;}
+  .palette-input{flex:1; font-size:15px; color:var(--text); font-weight:500;}
+  .palette-input .cursor{display:inline-block; width:1px; height:16px; background:var(--accent); vertical-align:middle; animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .palette-esc{font-size:10px; color:var(--text-subtle); border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);}
+  .palette-body{max-height:360px; overflow-y:auto; padding:8px;}
+  .palette-group-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:8px 10px 4px;}
+  .palette-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-sm); font-size:13px;}
+  .palette-row:hover, .palette-row.sel{background:var(--hover);}
+  .palette-row .name{flex:1; color:var(--text);}
+  .palette-row .type{font-size:11px; color:var(--text-subtle);}
+  .palette-hint{font-size:11px; color:var(--text-subtle); padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px;}
+
+  /* ================= BOTTOM SCREEN TABS (dev nav aid) ================= */
+  .screen-tabs{
+    position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:200;
+    display:flex; background:var(--overlay); border:1px solid var(--border-strong); border-radius:999px;
+    padding:4px; box-shadow:0 12px 32px rgba(0,0,0,.45); gap:2px; max-width:1360px; overflow-x:auto;
+  }
+  .screen-tab{font-size:11px; font-weight:500; color:var(--text-muted); padding:6px 11px; border-radius:999px; border:none; background:none; white-space:nowrap; flex:0 0 auto;}
+  .screen-tab .num{font-family:var(--font-mono); color:var(--text-subtle); margin-right:4px;}
+  .screen-tab.active{background:var(--accent); color:#06141F; font-weight:600;}
+  .screen-tab.active .num{color:#06141F;}
+  .screen-tab:hover:not(.active){color:var(--text);}
+  /* ---- fragment: build ---- */
+  .rs-results{border:1px solid var(--border);border-radius:8px;margin-top:4px;background:var(--raised);overflow:hidden}
+  .rs-opt{padding:8px 10px;cursor:pointer;font-size:13px;display:flex;gap:8px;align-items:center}
+  .rs-opt:hover{background:var(--overlay)}
+  .rs-stepper{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .rs-step{padding:6px 12px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:var(--surface)}
+  .rs-step.active{border-color:var(--accent);color:var(--accent);font-weight:600}
+  .rs-step.pending{opacity:.45}
+  .pc-demo{margin-top:8px;font-size:11px;color:var(--warn)}
+  .avatar-i{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--overlay);color:var(--text);align-items:center;justify-content:center;font-size:11px;font-weight:600;margin-right:6px}
+  .avatar-i.is-human{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);width:16px;height:16px;font-size:9px;}
+  .avatar-i.is-machine{background:color-mix(in srgb,var(--k-system) 20%,transparent);color:var(--k-system);width:16px;height:16px;font-size:9px;}
+  .project-card.is-disabled{opacity:.45;filter:grayscale(1)}
+  .onto-dlg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;align-items:center;justify-content:center}
+  .onto-dlg-box{background:var(--raised);border:1px solid var(--border-strong);border-radius:12px;width:min(480px,92vw);max-height:80vh;overflow:auto}
+  .onto-break{color:var(--danger);font-weight:600}
+  .console-log div{white-space:pre-wrap}
+
+  /* ---- fragment: constitution ---- */
+  .row-selected { background: var(--raised); }
+  .lifecycle-strip { display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .lc-step { padding:4px 12px; border:1px solid var(--border); border-radius:999px; font-size:12px; color:var(--text-muted); }
+  .lc-arrow { color:var(--text-subtle); }
+  .lc-endstates { color:var(--text-subtle); font-size:12px; }
+  .result-frame { border:1px solid var(--border); border-radius:12px; padding:14px; background:var(--surface); }
+  .sparql-toggle { display:inline-block; margin-top:10px; color:var(--accent); cursor:pointer; font-size:13px; }
+  .sparql-block { max-height:0; overflow:hidden; transition:max-height .25s ease; margin:0; padding:0 12px;
+    background:var(--overlay); border-radius:8px; font-family:monospace; font-size:12px; color:var(--text-muted); }
+  .sparql-block.open { max-height:220px; padding:12px; margin-top:8px; }
+  .brand-tab { margin-top:14px; }
+  .disabled-card { border:1px dashed var(--border); border-radius:12px; padding:14px; background:var(--surface); opacity:.55; }
+  .state-banner-warn { border:1px solid var(--warn); color:var(--warn); border-radius:10px; padding:12px 14px; margin:14px 0; background:var(--surface); }
+  .state-banner-warn strong { color:var(--warn); }
+  .count-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .count-good { color:var(--success); border:1px solid var(--success); }
+  .count-bad { color:var(--danger); border:1px solid var(--danger); }
+  .violation-detail td { border-top:none; font-size:13px; }
+  .violation-detail .entity-ref { display:block; margin:2px 0; }
+  .version-row { cursor:pointer; }
+  .version-row:hover { background:var(--raised); }
+
+  /* ---- fragment: audit ---- */
+  .chart-legend{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--text-muted);margin-bottom:10px}
+  .legend-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  .legend-prev{background:var(--border-strong)}
+  .legend-cur{background:var(--accent)}
+  .evt-chip{font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;color:var(--text-muted);background:var(--surface)}
+  .cat-chip{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .cat-chip.cat-decision{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);}
+  .cat-chip.cat-task{background:color-mix(in srgb,var(--success) 16%,transparent);color:var(--success);}
+  .cat-chip.cat-system{background:color-mix(in srgb,var(--text-subtle) 20%,transparent);color:var(--text-subtle);}
+  .tgt-link{color:var(--accent);cursor:pointer}
+  .tgt-link:hover{text-decoration:underline}
+
+  /* ---- fragment: light (home + settings) ---- */
+  .home-recent{margin-top:24px;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:16px 18px;}
+  .recent-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .recent-row:last-child{border-bottom:none;}
+  .recent-eng{flex:0 0 auto;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;letter-spacing:.02em;}
+  .eng-const{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);}
+  .eng-build{background:color-mix(in srgb,var(--success) 18%,transparent);color:var(--success);}
+  .eng-audit{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn);}
+  .recent-txt{flex:1 1 auto;color:var(--text-muted);}
+  .recent-txt strong{color:var(--text);font-weight:600;}
+  .recent-time{flex:0 0 auto;color:var(--text-subtle);font-size:12px;border-bottom:1px dotted var(--border-strong);cursor:default;}
+  .ws-toggle-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;}
+  .ws-toggle-row:last-of-type{border-bottom:none;}
+  .ws-connector{opacity:.55;filter:grayscale(.6);cursor:not-allowed;}
+  .ws-connector h6{display:flex;align-items:center;gap:8px;margin:0;}
+</style>
+
+<div class="app-shell">
+
+  <!-- ICON RAIL -->
+  <div class="icon-rail">
+    <div class="rail-logo"><img src="../../../logo.png" alt="" role="presentation"></div>
+    <button class="rail-item" id="rail-home" onclick="switchSection('home')"><span>⌂</span><span class="tip">Home</span></button>
+    <button class="rail-item active" id="rail-constitution" onclick="switchSection('constitution')"><span>◆</span><span class="tip">Constitution</span></button>
+    <button class="rail-item" id="rail-build" onclick="switchSection('build')"><span>▤</span><span class="tip">Build</span></button>
+    <button class="rail-item disabled" id="rail-events"><span>⚡</span><span class="tip">Events · post-v1</span></button>
+    <button class="rail-item" id="rail-audit" onclick="switchSection('audit')"><span>☰</span><span class="tip">Audit trail</span></button>
+    <button class="rail-item" id="rail-settings" onclick="switchSection('settings')"><span>⚙</span><span class="tip">Settings</span></button>
+    <div class="rail-spacer"></div>
+    <div class="rail-avatar" title="Priya Shah">PS</div>
+  </div>
+
+  <!-- SECONDARY SIDEBAR (collapsible, content swapped per section) -->
+  <div class="sidebar" id="sidebar" aria-label="Weave" role="navigation"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <button class="sidebar-collapse-top" id="sidebar-expand-btn" title="Expand sidebar">»</button>
+        <span id="breadcrumb"></span>
+      </div>
+      <div class="cmdbar-wrap">
+        <div class="cmdbar" id="cmdbar-open" onclick="openPalette()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <span class="ph">Search, ask, or jump to…</span>
+          <kbd>⌘K</kbd>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="notif-btn" onclick="toggleFlyout('notif')">🔔<span class="badge-dot"></span></button>
+        <button class="icon-btn" id="help-btn" onclick="toggleFlyout('help')">?</button>
+        <div class="split-btn">
+          <button class="main-action">New</button>
+          <button>▾</button>
+        </div>
+        <div class="rail-avatar-top">PS</div>
+      </div>
+    </div>
+
+    <div class="body-area" id="body-area">
+      <!-- SCREENS INJECTED BELOW (placeholders filled by content pass) -->
+      <div class="screen content-page active" id="screen-1">
+<div class="content-inner">
+  <div class="page-eyebrow">Home</div>
+  <div class="page-head-row">
+    <div>
+      <h1 class="page-title">Welcome back, Priya</h1>
+      <p class="page-sub">Hammerbarn workspace · Retail Operations</p>
+    </div>
+    <button class="btn-outline" onclick="showTourStep(1)">▶ Restart tour</button>
+  </div>
+
+  <div class="card-grid" style="grid-template-columns:repeat(3,1fr);margin-top:20px;">
+    <div class="tile">
+      <h6>Constitution</h6>
+      <p style="color:var(--text-muted);margin:6px 0 14px;">1,240 entities modelled</p>
+      <a href="#" style="color:var(--accent);text-decoration:none;font-size:13px;" onclick="showScreen(2);return false;">Explore →</a>
+    </div>
+    <div class="tile">
+      <h6>Build</h6>
+      <p style="color:var(--text-muted);margin:6px 0 14px;">3 projects in flight</p>
+      <a href="#" style="color:var(--accent);text-decoration:none;font-size:13px;" onclick="switchSection('build');return false;">Open Build →</a>
+    </div>
+    <div class="tile">
+      <h6>Audit</h6>
+      <p style="color:var(--text-muted);margin:6px 0 14px;">Chain valid · 142,880 entries checked</p>
+      <a href="#" style="color:var(--accent);text-decoration:none;font-size:13px;" onclick="switchSection('audit');return false;">View audit →</a>
+    </div>
+  </div>
+
+  <div class="home-recent">
+    <h6 style="margin:0 0 10px;color:var(--text);">Recent activity</h6>
+    <div class="recent-row">
+      <span class="recent-eng eng-build">Build</span>
+      <span class="recent-txt">Run #418 for <strong>Returns Intake</strong> completed successfully</span>
+      <span class="recent-time" title="2026-07-09T07:41:12Z">2h ago</span>
+    </div>
+    <div class="recent-row">
+      <span class="recent-eng eng-const">Constitution</span>
+      <span class="recent-txt">Priya added 12 <strong>SKU</strong> entities to the graph</span>
+      <span class="recent-time" title="2026-07-08T16:22:44Z">Yesterday</span>
+    </div>
+    <div class="recent-row">
+      <span class="recent-eng eng-audit">Audit</span>
+      <span class="recent-txt">Nightly chain verification passed · <strong>0 anomalies</strong></span>
+      <span class="recent-time" title="2026-07-08T02:00:03Z">Yesterday</span>
+    </div>
+    <div class="recent-row">
+      <span class="recent-eng eng-build">Build</span>
+      <span class="recent-txt">Diego published <strong>Stock Alert</strong> automation to staging</span>
+      <span class="recent-time" title="2026-07-07T11:09:31Z">2 days ago</span>
+    </div>
+  </div>
+</div>
+<div id="tour-step-1" style="display:none;">
+  <div class="tour-spot" style="top:60px;left:8px;width:40px;height:40px;border-radius:8px;"></div>
+  <div class="tour-tip glass" style="top:56px;left:64px;">
+    <div class="step">Step 1 of 2</div>
+    <h6>This is your Constitution</h6>
+    <p>The living knowledge graph of how Hammerbarn operates — people, systems, SKUs and the rules between them.</p>
+    <div class="row">
+      <button class="btn-secondary" onclick="hideTour()">Skip</button>
+      <button class="btn-primary-pill" onclick="showTourStep(2)">Next</button>
+    </div>
+  </div>
+</div>
+<div id="tour-step-2" style="display:none;">
+  <div class="tour-spot" style="top:102px;left:8px;width:40px;height:40px;border-radius:8px;"></div>
+  <div class="tour-tip glass" style="top:98px;left:64px;">
+    <div class="step">Step 2 of 2</div>
+    <h6>Build turns the graph into apps</h6>
+    <p>Generate and run the apps, agents and automations that operate the business — straight from your model.</p>
+    <div class="row">
+      <button class="btn-secondary" onclick="hideTour()">Skip</button>
+      <button class="btn-primary-pill" onclick="hideTour()">Done</button>
+    </div>
+  </div>
+</div>
+</div>
+
+      <div class="screen content-canvas" id="screen-2">
+        <div class="canvas-wrap"><svg id="svg1" viewBox="0 0 1180 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+        <div class="kpi-strip glass">
+          <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+          <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+          <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+        </div>
+
+        <div class="legend glass">
+          <div class="row" id="legend-row"></div>
+          <div class="tools">
+            <span>filter by kind ▾</span>
+            <div class="zoom"><button>−</button><button>+</button></div>
+          </div>
+        </div>
+
+        <div class="canvas-panel-toggles">
+          <button class="on" onclick="toggleCanvasPanel('filters')">Filters &amp; layers</button>
+          <button onclick="toggleCanvasPanel('overlays')">Overlays</button>
+          <button onclick="toggleCanvasPanel('versions')">Versions &amp; diff</button>
+        </div>
+
+        <div id="panel-filters" class="side-toggle-panel glass open">
+          <h5>Filters &amp; layers <span class="delta delta-new">v1</span></h5>
+          <div class="row"><span>Process</span><span class="toggle-sw on"></span></div>
+          <div class="row"><span>Policy</span><span class="toggle-sw on"></span></div>
+          <div class="row"><span>System</span><span class="toggle-sw"></span></div>
+          <div class="insp-section-label">Governed content</div>
+          <div class="row"><span>Glossary layer</span><span class="toggle-sw on"></span></div>
+          <div class="row"><span>Governance layer</span><span class="toggle-sw"></span></div>
+          <div class="row"><span>Brand layer</span><span class="toggle-sw"></span></div>
+        </div>
+
+        <div id="panel-overlays" class="side-toggle-panel glass">
+          <h5>Overlays <span class="delta delta-new">v1</span></h5>
+          <div class="row"><span>Heatmap</span><span class="toggle-sw on"></span></div>
+          <div class="row">
+            <span>Dimension</span>
+            <select class="sel">
+              <option>Maturity</option><option>Investment</option><option>Strategy</option><option>Lifecycle</option>
+            </select>
+          </div>
+          <div class="row"><span>Domain colouring</span><span class="toggle-sw"></span></div>
+          <div class="delta-note">Heatmap and diff overlay are mutually exclusive.</div>
+        </div>
+
+        <div id="panel-versions" class="side-toggle-panel glass">
+          <h5>Versions &amp; diff <span class="delta delta-new">v1</span></h5>
+          <div class="row version-row"><span>v1.4.2 <span class="status-pill status-active">latest</span></span></div>
+          <div class="row version-row"><span>v1.4.1</span></div>
+          <div class="row version-row"><span>v1.3.0</span></div>
+          <button class="btn-outline" style="margin-top:8px">Compare two versions</button>
+          <div class="delta-note">Loading a published version makes canvas fully read-only.</div>
+        </div>
+
+        <div class="canvas-inspector glass">
+          <div class="ins-title">
+            <svg class="shape" viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="var(--k-process)"/></svg>
+            <div><h4>Order-to-Cash</h4><div class="kind-tag">Process · <span class="status-draft">draft</span></div></div>
+          </div>
+          <div class="sec-label">Properties</div>
+          <div class="prop-row"><span class="k">label</span><span class="v">Order-to-Cash</span></div>
+          <div class="prop-row"><span class="k">owner</span><span class="v">Finance Team</span></div>
+          <div class="prop-row"><span class="k">domain</span><span class="v">Retail Operations</span></div>
+          <div class="prop-row"><span class="k">criticality</span><span class="v">high</span></div>
+          <div class="sec-label">Edges</div>
+          <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Order Pack</span></div>
+          <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Payment Processing</span></div>
+          <div class="edge-row"><span class="rel">consumes</span>→<span class="target">OrdersDB</span></div>
+          <div class="edge-row"><span class="rel">governedBy</span>→<span class="target">RMA Policy</span></div>
+          <div class="edge-row"><span class="rel">triggeredBy</span>→<span class="target">Order Placed</span></div>
+          <div class="btn-row">
+            <button class="btn-primary">✎ (SHACL form)</button>
+            <button class="btn-secondary">PROV</button>
+          </div>
+          <div class="propose">
+            <div class="propose-box">💬&nbsp;propose →</div>
+          </div>
+        </div>
+
+        <div class="ask-bar">
+          <div class="pill">
+            <span class="spark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9L12 3z"/></svg>
+            </span>
+            <input placeholder="Ask the graph anything…" />
+            <button class="go">→</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="screen content-canvas" id="screen-3">
+        <div class="canvas-wrap" style="opacity:.9"><svg id="svg2" viewBox="0 0 1180 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+        <div class="kpi-strip glass">
+          <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+          <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+          <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+        </div>
+
+        <div class="delta delta-m1" style="position:absolute; top:16px; left:16px; z-index:20;" title="Ask flow carried forward from M1 unchanged — no v1 delta">M1 · unchanged</div>
+
+        <div class="answer-panel glass">
+          <div class="sentence">
+            <b>3 processes</b> touch <b>OrdersDB</b>: Order-to-Cash, Inventory Replenishment and
+            Click-and-Collect — each via a <span class="mono" style="color:var(--accent-hover)">consumes</span> edge.
+          </div>
+          <table>
+            <tr><td>Order-to-Cash</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+            <tr><td>Inventory Replenishment</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+            <tr><td>Click-and-Collect</td><td><span class="chip">Service → consumes → OrdersDB</span></td></tr>
+          </table>
+          <div class="sparql-toggle" onclick="toggleSparql(this)">View SPARQL ▾</div>
+          <pre class="sparql-block">SELECT ?process ?label WHERE {
+  ?process bpmo:consumes weave:OrdersDB .
+  ?process rdfs:label ?label .
+}</pre>
+        </div>
+
+        <div class="ask-bar">
+          <div class="pill filled">
+            <span class="spark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9L12 3z"/></svg>
+            </span>
+            <input value="Which processes touch OrdersDB?" />
+            <button class="go">→</button>
+          </div>
+        </div>
+      </div>
+      <div class="screen content-page" id="screen-4">
+<div class="content-inner">
+  <div class="page-eyebrow">Constitution · Instances</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Instances &amp; Data</h1>
+    <span class="delta delta-upgraded" title="M1 shipped chat+guided-form only — no browse/search table existed">UPGRADED · v1</span>
+  </div>
+  <p class="page-sub">Browse, search and inspect every instance in the Hammerbarn graph. Table-first — AI assist is an aside, not the primary path.</p>
+
+  <div class="toolbar">
+    <div class="chip-filter active" style="border:1px solid var(--accent)"><span class="kind-dot" style="background:var(--k-process)"></span>Process</div>
+    <div class="chip-filter"><span class="kind-dot" style="background:var(--k-activity)"></span>Activity</div>
+    <div class="chip-filter"><span class="kind-dot" style="background:var(--k-event)"></span>Event</div>
+    <div class="chip-filter"><span class="kind-dot" style="background:var(--k-actor)"></span>Actor</div>
+    <div class="chip-filter"><span class="kind-dot" style="background:var(--k-policy)"></span>Policy</div>
+    <div class="chip-filter"><span class="kind-dot" style="background:var(--k-system)"></span>System</div>
+    <input class="toolbar-search" type="text" placeholder="Search instances…" />
+    <div class="toolbar-spacer"></div>
+    <button class="btn-primary-pill" title="Opens a drawer — persistent kind header, entity-picker for object properties (never free text), inline validation on blur">+ New instance</button>
+  </div>
+
+  <div class="table-wrap" style="position:relative">
+    <div class="table-scroll" style="max-width:calc(100% - 336px)">
+      <table class="data-table">
+        <thead>
+          <tr><th>Name</th><th>Kind</th><th>Key relationship</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+          <tr class="row-selected">
+            <td class="name-cell"><div class="name">Order-to-Cash</div><div class="id">inst:order-to-cash</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-process)"></span>Process</span></td>
+            <td>hasStep → Pick &amp; Pack</td>
+            <td class="updated-cell">2026-07-02</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Inventory Replenishment</div><div class="id">inst:inventory-replenishment</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-process)"></span>Process</span></td>
+            <td>triggeredBy → Stock Below Threshold</td>
+            <td class="updated-cell">2026-06-28</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Pick &amp; Pack</div><div class="id">inst:pick-and-pack</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-activity)"></span>Activity</span></td>
+            <td>partOf → Order-to-Cash</td>
+            <td class="updated-cell">2026-06-30</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Payment Processing</div><div class="id">inst:payment-processing</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-activity)"></span>Activity</span></td>
+            <td>uses → POS System</td>
+            <td class="updated-cell">2026-06-25</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Order Placed</div><div class="id">inst:order-placed</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-event)"></span>Event</span></td>
+            <td>starts → Order-to-Cash</td>
+            <td class="updated-cell">2026-07-01</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Returns Policy</div><div class="id">inst:returns-policy</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-policy)"></span>Policy</span></td>
+            <td>governs → Order-to-Cash</td>
+            <td class="updated-cell">2026-06-20</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">POS System</div><div class="id">inst:pos-system</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-system)"></span>System</span></td>
+            <td>writesTo → OrdersDB</td>
+            <td class="updated-cell">2026-06-18</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">OrdersDB</div><div class="id">inst:ordersdb</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-dataasset)"></span>Data asset</span></td>
+            <td>readBy → Supplier Portal</td>
+            <td class="updated-cell">2026-06-15</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Finance Team</div><div class="id">inst:finance-team</div></td>
+            <td><span class="kind-chip"><span class="kind-dot" style="background:var(--k-actor)"></span>Actor</span></td>
+            <td>owns → Order-to-Cash</td>
+            <td class="updated-cell">2026-06-12</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="inspector" style="position:absolute; top:0; right:0; width:320px;">
+      <div class="insp-head">
+        <div>
+          <div class="insp-title">Order-to-Cash</div>
+          <div class="insp-sub"><span class="kind-chip"><span class="kind-dot" style="background:var(--k-process)"></span>Process</span></div>
+        </div>
+        <button class="insp-close" aria-label="Close inspector">×</button>
+      </div>
+
+      <div class="insp-section-label">Properties</div>
+      <div class="insp-kv"><span class="k">status</span><span class="v"><span class="status-pill status-active">Active</span></span></div>
+      <div class="insp-kv"><span class="k">owner</span><span class="v"><span class="entity-ref"><span class="friendly">Finance Team</span> <span class="raw">inst:finance-team</span></span></span></div>
+      <div class="insp-kv"><span class="k">created</span><span class="v"><span class="rel-time" title="2026-01-14T09:20:00Z">2026-01-14</span></span></div>
+
+      <div class="insp-section-label">Relationships</div>
+      <div class="insp-kv"><span class="k">hasStep</span><span class="v"><span class="entity-ref"><span class="friendly">Pick &amp; Pack</span></span></span></div>
+      <div class="insp-kv"><span class="k">hasStep</span><span class="v"><span class="entity-ref"><span class="friendly">Payment Processing</span></span></span></div>
+      <div class="insp-kv"><span class="k">governedBy</span><span class="v"><span class="entity-ref"><span class="friendly">Returns Policy</span></span></span></div>
+
+      <div class="insp-section-label">History</div>
+      <div class="delta-note">Modified by Priya Shah · <span class="rel-time" title="2026-07-02T14:05:00Z">2026-07-02</span></div>
+      <div class="delta-note">Created by Tom Rees · <span class="rel-time" title="2026-01-14T09:20:00Z">2026-01-14</span></div>
+
+      <div class="insp-actions">
+        <button class="btn-outline">Edit</button>
+        <button class="view-canvas">View on canvas</button>
+      </div>
+
+      <div class="glass" style="margin-top:16px; padding:14px;">
+        <div class="insp-section-label" style="margin-top:0">Ask</div>
+        <div class="chip-multi" style="margin-bottom:8px">
+          <span class="chip-removable">What depends on OrdersDB?</span>
+          <span class="chip-removable">Show all policies</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="toolbar-search" style="width:100%" type="text" placeholder="Ask about the graph…" />
+        </div>
+        <div class="delta-note" style="margin-top:8px">AI chat — moved from primary screen to an aside; table/form work fully even if AI is unavailable.</div>
+      </div>
+    </div>
+  </div>
+  <div class="delta-note">+ New instance opens a drawer — persistent kind header (fixes the M1 hidden-kind bug), entity-picker for object-typed properties (never free text), inline validation on blur.</div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-5">
+<div class="content-inner">
+  <div class="page-eyebrow">Constitution · Query</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Query &amp; Ask</h1>
+    <span class="delta delta-upgraded" title="M1 had zero loading-state feedback — 18s+ dead air">UPGRADED · v1</span>
+  </div>
+  <p class="page-sub">Ask in plain English or run SPARQL. Every request shows an explicit lifecycle state — never a blank screen.</p>
+
+  <div class="field" style="margin-bottom:14px">
+    <div class="toolbar" style="margin:0">
+      <input class="toolbar-search" style="flex:1" type="text" value="What systems does Order-to-Cash depend on?" />
+      <button class="btn-primary-pill">Run</button>
+      <button class="btn-outline">Explain</button>
+      <button class="btn-outline">Coverage gap report</button>
+    </div>
+  </div>
+
+  <div class="lifecycle-strip">
+    <span class="lc-step active" style="color:var(--accent); border-color:var(--accent)">Submitting</span>
+    <span class="lc-arrow">→</span>
+    <span class="lc-step">Success</span>
+    <span class="lc-endstates">(or: provider-missing / timeout 15s / error — each shown distinctly, never a blank screen)</span>
+  </div>
+
+  <div class="result-frame">
+    <div class="tabs">
+      <div class="tab">Graph</div>
+      <div class="tab active">Table</div>
+      <div class="tab">Raw</div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>System</th><th>Relationship</th><th>Confidence</th></tr></thead>
+        <tbody>
+          <tr><td class="name-cell"><div class="name">POS System</div></td><td>dependsOn (via Payment Processing)</td><td>0.98</td></tr>
+          <tr><td class="name-cell"><div class="name">OrdersDB</div></td><td>writesTo</td><td>0.95</td></tr>
+          <tr><td class="name-cell"><div class="name">Supplier Portal</div></td><td>reads OrdersDB</td><td>0.81</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <a class="sparql-toggle" onclick="toggleSparql(this)">View SPARQL ▾</a>
+    <pre class="sparql-block">SELECT ?system ?rel WHERE {
+  inst:order-to-cash :hasStep ?step .
+  ?step :uses ?system .
+  ?system a :System .
+} ORDER BY DESC(?confidence)</pre>
+  </div>
+
+  <div class="field" style="margin-top:14px; max-width:360px">
+    <label for="ontver">Ontology version</label>
+    <select id="ontver" class="sel">
+      <option>v1.4.2 (latest)</option>
+      <option>v1.4.1</option>
+      <option>v1.3.0</option>
+    </select>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-6">
+<div class="content-inner">
+  <div class="page-eyebrow">Constitution · Glossary</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Glossary</h1>
+    <span class="delta delta-new">NEW · v1</span>
+  </div>
+  <p class="page-sub">Business terms and definitions with SKOS broader/narrower links. No M1 screen — terms weren't browsable at all.</p>
+
+  <div class="toolbar">
+    <input class="toolbar-search" style="flex:1" type="text" placeholder="Search terms, definitions…" />
+    <div class="toolbar-spacer"></div>
+    <button class="btn-primary-pill">+ New term</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <tbody>
+        <tr>
+          <td class="name-cell" style="width:220px"><div class="name">Click-and-Collect</div></td>
+          <td>Order online, collect in-store — reserves stock at a nominated branch.
+            <div style="margin-top:6px"><span class="kind-chip">broader: Fulfillment</span> <span class="kind-chip">narrower: Locker Pickup</span></div></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">RMA</div></td>
+          <td>Return Merchandise Authorisation — reference issued before a return is accepted.
+            <div style="margin-top:6px"><span class="kind-chip">broader: Returns</span></div></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Stock Keeping Unit (SKU)</div></td>
+          <td>Unique identifier for a distinct sellable product variant.
+            <div style="margin-top:6px"><span class="kind-chip">broader: Inventory</span> <span class="kind-chip">narrower: Variant SKU</span></div></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Goods Inward</div></td>
+          <td>Receiving and checking-in of supplier deliveries at a store or DC.
+            <div style="margin-top:6px"><span class="kind-chip">broader: Inbound Logistics</span></div></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Pricing Tier</div></td>
+          <td>Customer-segment price band (retail / trade / contract).
+            <div style="margin-top:6px"><span class="kind-chip">broader: Pricing</span></div></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Loss Prevention</div></td>
+          <td>Measures to reduce shrinkage from theft, error or fraud.
+            <div style="margin-top:6px"><span class="kind-chip">broader: Store Ops</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="delta-note">No match → empty-state offers "create term", same authoring pipeline as instances.</div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-7">
+<div class="content-inner">
+  <div class="page-eyebrow">Constitution · Brand</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Brand &amp; Voice</h1>
+    <span class="delta delta-new">NEW · v1</span>
+  </div>
+  <p class="page-sub">Brand standards and voice rules that govern generated content across Hammerbarn.</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchBrandTab(this,'brand-standards')">Standards</div>
+    <div class="tab" onclick="switchBrandTab(this,'brand-voice')">Voice rules</div>
+  </div>
+
+  <div id="brand-standards" class="brand-tab">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Standard</th><th>Content</th><th>Effective</th><th>Owner</th><th>Last modified</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="name-cell"><div class="name">Tone of voice guide</div></td>
+            <td><span class="status-pill status-active">content: pasted text</span></td>
+            <td>2026-05-01</td>
+            <td>Priya Shah</td>
+            <td><span class="rel-time" title="2026-07-03T11:00:00Z">2026-07-03</span> by Priya Shah</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Logo usage</div></td>
+            <td><span class="status-pill status-draft">content: source URL</span></td>
+            <td>2026-04-15</td>
+            <td>Design Team</td>
+            <td><span class="rel-time" title="2026-06-22T09:30:00Z">2026-06-22</span> by Priya Shah</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Colour palette</div></td>
+            <td><span class="status-pill status-active">content: pasted text</span></td>
+            <td>2026-04-15</td>
+            <td>Design Team</td>
+            <td><span class="rel-time" title="2026-06-10T16:45:00Z">2026-06-10</span> by Priya Shah</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="brand-voice" class="brand-tab" style="display:none">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Rule</th><th>Severity</th><th>Assertion</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="name-cell"><div class="name">No competitor names</div></td>
+            <td><span class="status-pill" style="background:var(--danger); color:#fff">critical</span></td>
+            <td>forbidden-term</td>
+            <td>"Wickes", "B&amp;Q"</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">British spelling</div></td>
+            <td><span class="status-pill status-draft">normal</span></td>
+            <td>regex</td>
+            <td>/\b(color|catalog)\b/</td>
+          </tr>
+          <tr>
+            <td class="name-cell"><div class="name">Headline length</div></td>
+            <td><span class="status-pill status-draft">normal</span></td>
+            <td>max-length</td>
+            <td>60 chars</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="disabled-card" style="margin-top:16px">
+    <div class="insp-section-label" style="margin-top:0">Extract from pasted styleguide (AI)</div>
+    <button class="btn-outline" disabled>Extract standards &amp; rules</button>
+    <div class="delta-note">Ships degraded-only this milestone — extraction itself is out of scope; forms stay fully usable regardless.</div>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-8">
+<div class="content-inner">
+  <div class="page-eyebrow">Constitution · Governance</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Rules &amp; Policies</h1>
+    <span class="delta delta-new">NEW · v1</span>
+  </div>
+  <p class="page-sub">SHACL shapes — framework and tenant-authored — with live violation counts. No browse screen in M1 despite SHACL validation existing as a backend capability.</p>
+
+  <div class="toolbar">
+    <div class="chip-filter active">All</div>
+    <div class="chip-filter">Framework</div>
+    <div class="chip-filter">Tenant-authored</div>
+  </div>
+
+  <div class="state-banner-warn">
+    <strong>Validation pending</strong> — last report doesn't match current draft state. Counts below may be stale.
+    <div class="delta-note" style="margin-top:4px">Shown INSTEAD of stale counts or an empty state, never silently.</div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Rule</th><th>Severity</th><th>Description</th><th>Violations</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="name-cell"><div class="name">Process must have an owner</div><div class="id">framework</div></td>
+          <td><span style="color:var(--danger)">sh:Violation</span></td>
+          <td>Every Process node requires exactly one owner Actor.</td>
+          <td><span class="count-badge count-bad">3 violations</span></td>
+        </tr>
+        <tr class="violation-detail">
+          <td colspan="4" style="padding-left:24px">
+            <div class="entity-ref"><span class="friendly">Inventory Replenishment</span> <span class="raw">inst:inventory-replenishment</span></div>
+            <div class="entity-ref"><span class="friendly">Click-and-Collect</span> <span class="raw">inst:click-and-collect</span></div>
+          </td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Policy must cite a source</div><div class="id">framework</div></td>
+          <td><span style="color:var(--warn)">sh:Warning</span></td>
+          <td>Policy nodes should link a source document.</td>
+          <td><span class="count-badge count-good">0 violations</span></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">System needs data classification</div><div class="id">tenant</div></td>
+          <td><span style="color:var(--warn)">sh:Warning</span></td>
+          <td>Each System must declare a data-sensitivity tier.</td>
+          <td><span class="count-badge count-bad">1 violation</span></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Event must have a trigger</div><div class="id">framework</div></td>
+          <td><span style="color:var(--accent)">sh:Info</span></td>
+          <td>Events ideally reference the activity that raises them.</td>
+          <td><span class="count-badge count-good">0 violations</span></td>
+        </tr>
+        <tr>
+          <td class="name-cell"><div class="name">Returns must map to Returns Policy</div><div class="id">tenant</div></td>
+          <td><span style="color:var(--danger)">sh:Violation</span></td>
+          <td>Return activities must be governed by an active returns policy.</td>
+          <td><span class="count-badge count-bad">2 violations</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toolbar" style="margin-top:16px">
+    <input id="rule-nl-input" class="toolbar-search" style="flex:1" type="text" placeholder="Describe a new rule in plain English…" />
+    <button class="btn-primary-pill" onclick="generateShapePreview()">Generate shape (AI)</button>
+  </div>
+  <div class="delta-note">Human review/diff required before a generated shape commits.</div>
+
+  <div id="rule-gen-preview" class="glass" style="display:none;margin-top:14px;padding:16px;">
+    <div class="insp-section-label" style="margin-top:0">Draft SHACL — not yet committed</div>
+    <pre id="rule-gen-code" style="font-size:12px;color:var(--text-muted);white-space:pre-wrap;margin:10px 0;"></pre>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-outline">Discard</button>
+      <button class="btn-primary-pill" disabled style="opacity:.5;cursor:not-allowed" title="Illustrative only — commit not wired in this mock">Review &amp; commit</button>
+    </div>
+  </div>
+</div>
+</div>
+
+      <div class="screen content-page" id="screen-9">
+<div class="content-inner">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Request Studio</h1>
+    <span class="delta delta-new" title="Entirely new in v1 — M1 exposed no UI">NEW · v1</span>
+  </div>
+  <p class="page-sub">Kick off a build. <span class="delta-note">no M1 screen existed — POST /api/requests + SSE stream, integration-test only</span></p>
+
+  <div class="form-grid" style="max-width:640px">
+    <div class="field">
+      <label>Request name</label>
+      <input type="text" value="Returns Automation" placeholder="1–200 characters">
+      <span class="hint">1–200 characters</span>
+    </div>
+
+    <div class="field">
+      <label>Grounding entities</label>
+      <input type="text" placeholder="Search the graph (type ≥2 chars)…" oninput="rsTypeahead(this)">
+      <div id="rs-results" class="rs-results" style="display:none">
+        <div class="rs-opt" onclick="rsPick('RMA Policy','--k-policy')"><span class="kind-chip"><span class="kind-dot" style="background:var(--k-policy)"></span>Policy</span> RMA Policy</div>
+        <div class="rs-opt" onclick="rsPick('Refund Process','--k-process')"><span class="kind-chip"><span class="kind-dot" style="background:var(--k-process)"></span>Process</span> Refund Process</div>
+        <div class="rs-opt" onclick="rsPick('Store Associate','--k-actor')"><span class="kind-chip"><span class="kind-dot" style="background:var(--k-actor)"></span>Actor</span> Store Associate</div>
+      </div>
+      <div class="chip-multi" id="rs-chips">
+        <span class="chip-removable"><span class="kind-dot" style="background:var(--k-policy)"></span>RMA Policy <button onclick="this.parentNode.remove()">×</button></span>
+        <span class="chip-removable"><span class="kind-dot" style="background:var(--k-process)"></span>Refund Process <button onclick="this.parentNode.remove()">×</button></span>
+      </div>
+      <span class="hint">Typeahead against the live graph — selected entities become removable chips</span>
+    </div>
+
+    <div class="field">
+      <label>Target repo name</label>
+      <input type="text" value="returns-automation" placeholder="kebab-case, 3–100 chars">
+      <span class="hint">kebab-case, 3–100 chars · required unless run mode is “Draft spec only”</span>
+    </div>
+
+    <div class="field">
+      <label>Run mode</label>
+      <div class="radio-row">
+        <label><input type="radio" name="runmode" checked> Full build</label>
+        <label><input type="radio" name="runmode"> Draft spec only</label>
+      </div>
+    </div>
+
+    <div class="insp-actions">
+      <button class="btn-primary">Start request</button>
+    </div>
+  </div>
+
+  <div class="insp-section-label" style="margin-top:28px">Request detail (preview)</div>
+  <div class="kpi-grid" style="max-width:640px">
+    <div class="kv"><span class="kl">Name</span> Returns Automation</div>
+    <div class="kv"><span class="kl">Status</span> <span class="status-pill status-active">queued</span></div>
+    <div class="kv"><span class="kl">Run mode</span> Full build</div>
+  </div>
+  <div style="margin-top:10px">
+    <span class="kl" style="display:block;margin-bottom:6px">Grounding provenance</span>
+    <span class="entity-ref"><span class="friendly">RMA Policy</span> <span class="raw">weave:policy/rma-2024</span></span>
+    <span class="entity-ref"><span class="friendly">Refund Process</span> <span class="raw">weave:process/refund</span></span>
+  </div>
+
+  <div class="insp-section-label" style="margin-top:24px">Pipeline</div>
+  <div class="rs-stepper">
+    <div class="rs-step active">1 · Drafting</div>
+    <div class="rs-step pending">2 · Blast-radius check</div>
+    <div class="rs-step pending">3 · Cost estimate <span class="estimate-chip">~$4.20 estimated</span></div>
+    <div class="rs-step pending">4 · Sign-off</div>
+  </div>
+  <p class="page-sub" style="margin-top:8px">Same underlying job as the API — streaming progress, blast-radius, cost, and human sign-off all resolve against one run.</p>
+</div>
+</div>
+      <div class="screen content-page" id="screen-10">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Project Registry</h1>
+    <span class="delta delta-new" title="Entirely new in v1">NEW · v1</span>
+  </div>
+  <p class="page-sub">Every Build project for Hammerbarn. <span class="delta-note">no M1 screen existed — API/SSE only</span></p>
+
+  <div class="toolbar">
+    <input class="toolbar-search" type="text" placeholder="Search projects…">
+    <span class="chip-filter active">All</span>
+    <span class="chip-filter">Speccing</span>
+    <span class="chip-filter">Building</span>
+    <span class="chip-filter">Live monitoring</span>
+    <span class="chip-filter">Archived</span>
+    <span class="toolbar-spacer"></span>
+    <select class="sel">
+      <option>Any phase</option><option>Speccing</option><option>Building</option><option>Live monitoring</option><option>Archived</option>
+    </select>
+    <button class="btn-primary-pill" onclick="openNewProjectModal()">New project</button>
+  </div>
+  <p class="page-sub" style="margin-top:-4px">Empty search shows “No projects match — clear filters”. <span class="delta-note">Phase: Speccing → Building → Live monitoring, or Archived at any point.</span></p>
+
+  <div class="card-grid" id="registry-card-grid">
+    <div class="project-card" onclick="selectProject('Store Ops Portal')">
+      <div class="pc-head"><span class="pc-name">Store Ops Portal</span><span class="phase-pill">Building</span></div>
+      <div class="pc-desc">Staff-facing operations console for store managers.</div>
+      <div class="pc-meta"><span class="avatar-i">P</span> Priya Shah · updated 2h ago</div>
+      <div class="pc-budget"><span>$340 / $500</span><div class="bar"><span style="width:68%"></span></div></div>
+    </div>
+    <div class="project-card" onclick="selectProject('Returns Automation')">
+      <div class="pc-head"><span class="pc-name">Returns Automation</span><span class="phase-pill">Building</span></div>
+      <div class="pc-desc">Automates RMA intake, refund calc and restock routing.</div>
+      <div class="pc-meta"><span class="avatar-i">M</span> Marcus Bell · updated 40m ago</div>
+      <div class="pc-budget"><span>$420 / $600</span><div class="bar"><span style="width:70%"></span></div></div>
+      <div class="pc-demo">Demo: S3 bundle only — no live preview URL yet</div>
+    </div>
+    <div class="project-card" onclick="selectProject('Supplier EDI Bridge')">
+      <div class="pc-head"><span class="pc-name">Supplier EDI Bridge</span><span class="phase-pill">Speccing</span></div>
+      <div class="pc-desc">EDI 850/856 bridge between Hammerbarn and BuildRight.</div>
+      <div class="pc-meta"><span class="avatar-i">A</span> Aisha Khan · updated yesterday</div>
+      <div class="pc-budget"><span>$60 / $500</span><div class="bar"><span style="width:12%"></span></div></div>
+    </div>
+    <div class="project-card" onclick="selectProject('Click &amp; Collect Tracker')">
+      <div class="pc-head"><span class="pc-name">Click &amp; Collect Tracker</span><span class="phase-pill is-live">Live monitoring</span></div>
+      <div class="pc-desc">Order status tracking for in-store pickup.</div>
+      <div class="pc-meta"><span class="avatar-i">T</span> Tom Reed · updated 5m ago</div>
+      <div class="pc-budget"><span>$480 / $500</span><div class="bar"><span style="width:96%"></span></div></div>
+    </div>
+    <div class="project-card" onclick="selectProject('Stock Reorder Agent')">
+      <div class="pc-head"><span class="pc-name">Stock Reorder Agent</span><span class="phase-pill">Building</span></div>
+      <div class="pc-desc">Auto-reorders low-stock SKUs against supplier thresholds.</div>
+      <div class="pc-meta"><span class="avatar-i">L</span> Lena Ford · updated 3h ago</div>
+      <div class="pc-budget"><span>$210 / $450</span><div class="bar"><span style="width:47%"></span></div></div>
+    </div>
+    <div class="project-card" onclick="selectProject('Loyalty Points Ledger')">
+      <div class="pc-head"><span class="pc-name">Loyalty Points Ledger</span><span class="phase-pill">Building</span></div>
+      <div class="pc-desc">Points accrual and redemption ledger for the loyalty program.</div>
+      <div class="pc-meta"><span class="avatar-i">R</span> Ravi Patel · updated 1d ago</div>
+      <div class="pc-budget"><span>$390 / $500</span><div class="bar"><span style="width:78%"></span></div></div>
+    </div>
+    <div class="project-card is-disabled" onclick="selectProject('Legacy POS Sync')">
+      <div class="pc-head"><span class="pc-name">Legacy POS Sync</span><span class="phase-pill is-archived">Archived</span></div>
+      <div class="pc-desc">Retired POS sync job, superseded by Store Ops Portal.</div>
+      <div class="pc-meta"><span class="avatar-i">P</span> Priya Shah · updated 3mo ago</div>
+    </div>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-11">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Kanban Board</h1>
+    <span class="delta delta-new" title="Entirely new in v1">NEW · v1</span>
+  </div>
+  <p class="page-sub">Returns Automation — task flow. <span class="delta-note">no M1 screen existed — API/SSE only</span></p>
+
+  <div class="tabs">
+    <span class="tab active" onclick="kanbanTab(event,'kanban-board-pane')">Board</span>
+    <span class="tab" onclick="kanbanTab(event,'kanban-tree-pane')">Task tree</span>
+  </div>
+
+  <div id="kanban-board-pane">
+  <p class="page-sub">Read-only — position reflects task state, not draggable.</p>
+  <div class="toolbar">
+    <span class="chip-filter active">All</span>
+    <span class="chip-filter">In flight</span>
+    <span class="chip-filter">Blocked</span>
+    <span class="chip-filter">Self-improvement flagged</span>
+    <span class="chip-filter">This phase</span>
+  </div>
+
+  <div class="kanban-wrap">
+    <div class="kanban-lane">
+      <h6>Backlog</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Seed demo fixtures</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Draft OpenAPI for /refunds</span></div>
+    </div>
+    <div class="kanban-lane">
+      <h6>Ready</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Scaffold returns-automation repo</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Wire Cognito auth stub</span></div>
+    </div>
+    <div class="kanban-lane">
+      <h6>In Progress</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Write SHACL shape for RMA policy</span><span class="retry-chip">syntax 2/3</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Refund calc service</span></div>
+    </div>
+    <div class="kanban-lane">
+      <h6>Review</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Playwright E2E: refund flow</span><span class="hitl-chip">HITL escalated</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">SPARQL query for returns audit</span></div>
+    </div>
+    <div class="kanban-lane">
+      <h6>QA</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Mutation test refund calc</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Accessibility pass on portal</span></div>
+    </div>
+    <div class="kanban-lane">
+      <h6>Done</h6>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Repo scaffold</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">CI pipeline skeleton</span></div>
+      <div class="kcard" onclick="openTaskDrawer()"><span class="kt">Provision Oxigraph store</span></div>
+    </div>
+  </div>
+  </div>
+
+  <div id="kanban-tree-pane" style="display:none">
+    <p class="page-sub">Same tasks as the board, laid out by dependency instead of status.</p>
+    <div class="chart-legend">
+      <span class="legend-dot legend-done"></span> Done
+      <span class="legend-dot legend-progress"></span> In progress
+      <span class="legend-dot legend-blocked"></span> Blocked / HITL
+      <span class="legend-dot legend-backlog"></span> Backlog
+    </div>
+    <div class="tree-graph-wrap"><svg id="task-graph-svg" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet"></svg></div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawer-backdrop" onclick="closeTaskDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <span>Playwright E2E: refund flow</span>
+      <button class="insp-close" onclick="closeTaskDrawer()">×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="tabs">
+        <span class="tab active" onclick="drawerTab(event,'d-brief')">Brief</span>
+        <span class="tab" onclick="drawerTab(event,'d-handoff')">Handoff</span>
+        <span class="tab" onclick="drawerTab(event,'d-tests')">Tests</span>
+        <span class="tab" onclick="drawerTab(event,'d-console')">Console</span>
+        <span class="tab" onclick="drawerTab(event,'d-audit')">Audit</span>
+      </div>
+
+      <div id="d-brief" class="d-pane">
+<pre>task: TASK-017
+title: Playwright E2E — refund flow
+goal: assert refund POST mutates ledger + emits event
+grounding: [weave:process/refund, weave:policy/rma-2024]
+gates: [ui_verify, e2e, mutation>=60%]
+ceiling: 3</pre>
+      </div>
+      <div id="d-handoff" class="d-pane" style="display:none">
+        <p>Depends on: TASK-014 (repo scaffold) — done</p>
+        <p>Blocks: TASK-021 (deploy bundle)</p>
+      </div>
+      <div id="d-tests" class="d-pane" style="display:none">
+        <div class="capture-grid">
+          <div class="capture-cell">default</div>
+          <div class="capture-cell">hover</div>
+          <div class="capture-cell">focus</div>
+          <div class="capture-cell">active</div>
+          <div class="capture-cell absent">absent — not captured</div>
+          <div class="capture-cell">loading</div>
+          <div class="capture-cell">empty</div>
+          <div class="capture-cell absent">absent — not captured</div>
+        </div>
+      </div>
+      <div id="d-console" class="d-pane" style="display:none">
+        <div class="console-log">
+<div>› playwright test refund.spec.ts</div>
+<div>✓ loads refund modal (412ms)</div>
+<div>✓ submits refund, ledger row +1 (883ms)</div>
+<div>✗ retry 1: selector [data-refund-ok] timeout</div>
+<div>! escalated to HITL — ceiling 3/3</div>
+        </div>
+      </div>
+      <div id="d-audit" class="d-pane" style="display:none">
+        <p><code>2026-07-08 14:02</code> — engineer.task.completed — TASK-017</p>
+        <p><code>2026-07-08 14:05</code> — qa.task.failed — TASK-017 (retry 1)</p>
+        <p><code>2026-07-08 14:09</code> — hitl.escalated — TASK-017</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-12">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Store Ops Portal <span class="phase-pill">Building</span></h1>
+    <span class="delta delta-new" title="Entirely new in v1">NEW · v1</span>
+    <span class="toolbar-spacer"></span>
+    <button class="btn-secondary" onclick="showScreen(11)">Open Kanban</button>
+  </div>
+  <p class="page-sub">Project dashboard. <span class="delta-note">no M1 screen existed — API/SSE only</span></p>
+
+  <div class="tile-grid">
+    <div class="tile">
+      <h6>Demo readiness</h6>
+      <div class="kpi-card v-success">Bundle ready · <a href="#">store-ops.s3.bundle</a></div>
+      <p class="page-sub">Retains last successful demo URL on deploy failure — never shows false-green.</p>
+    </div>
+    <div class="tile">
+      <h6>Budget</h6>
+      <div class="kpi-card">$340 <span class="kl">/ $500 cap</span></div>
+      <p class="page-sub">Projected to close at <span class="estimate-chip">~$470 est.</span></p>
+    </div>
+    <div class="tile">
+      <h6>Forecast</h6>
+      <div class="kpi-card">Done <span class="estimate-chip">~2026-07-14 est.</span></div>
+      <p class="page-sub">Binding cascade: workspace default.</p>
+    </div>
+    <div class="tile">
+      <h6>Tasks in flight</h6>
+      <div class="kpi-card">4</div>
+      <div class="kv"><span class="kl">IP</span> SHACL shape for RMA policy</div>
+      <div class="kv"><span class="kl">Rev</span> SPARQL returns audit</div>
+    </div>
+    <div class="tile">
+      <h6>Blockers</h6>
+      <div class="kv v-danger"><span class="hitl-chip">HITL</span> Playwright E2E refund — ceiling hit</div>
+      <div class="kv"><span class="kl">Wait</span> Supplier EDI creds pending</div>
+    </div>
+    <div class="tile">
+      <h6>Git ribbon</h6>
+      <div class="kv"><code>a1f9c2</code> feat: refund calc service</div>
+      <div class="kv"><code>7b32e0</code> test: e2e refund flow</div>
+      <div class="kv"><code>c90d14</code> chore: scaffold repo</div>
+      <p class="page-sub">Reflects recorded generation runs, not a live SCM call.</p>
+    </div>
+  </div>
+
+  <div class="kpi-card" style="margin-top:14px;cursor:pointer" onclick="showScreen(18)"><a href="#" onclick="event.preventDefault()">2 improvement proposals available →</a></div>
+
+  <div class="insp-section-label" style="margin-top:22px">
+    Direct Project Prompt
+    <span class="delta delta-new" title="Optional add-on">NEW · v1 · Should-have</span>
+  </div>
+  <div class="field" style="max-width:640px">
+    <textarea placeholder="Ask Build to do something on this project…"></textarea>
+    <div class="insp-actions">
+      <button class="btn-primary-pill">Send</button>
+    </div>
+    <span class="hint">Enqueues a normal run — same caps, gates, and sign-off as a request-triggered build. A too-vague prompt holds in Ready with “brief incomplete.”</span>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-13">
+<div class="content-inner">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Project Settings</h1>
+    <span class="delta delta-new" title="Entirely new in v1">NEW · v1</span>
+  </div>
+  <p class="page-sub">Store Ops Portal. <span class="delta-note">no M1 screen existed — API/SSE only</span></p>
+
+  <div class="tabs">
+    <span class="tab active" onclick="settingsTab(event,'s-gov')">Governance</span>
+    <span class="tab" onclick="settingsTab(event,'s-contrib')">Contributors</span>
+    <span class="tab" onclick="settingsTab(event,'s-integ')">Integrations</span>
+    <span class="tab" onclick="settingsTab(event,'s-scm')">Source control</span>
+  </div>
+
+  <div id="s-gov" class="s-pane">
+    <div class="form-grid" style="max-width:560px">
+      <div class="field">
+        <label>Budget cap (USD)</label>
+        <input type="text" value="500">
+        <span class="hint">Binding parent: workspace default (looser values rejected — 422)</span>
+      </div>
+      <div class="field">
+        <label>Model tier</label>
+        <select class="sel"><option>standard</option><option>fast</option><option>premium</option><option>experimental</option></select>
+      </div>
+      <div class="field">
+        <label>Ontology pin</label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <code style="font-size:12px;color:var(--text);">bpmo v2.3.1</code>
+          <button class="btn-outline" onclick="document.getElementById('onto-dlg').style.display='flex'">Review upgrade</button>
+        </div>
+        <span class="hint">Opens a diff dialog before any version bump</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-contrib" class="s-pane" style="display:none">
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Name</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Priya Shah</td><td><select class="sel"><option>admin</option><option>editor</option></select></td></tr>
+        <tr><td>Marcus Bell</td><td><select class="sel"><option>editor</option><option>admin</option></select></td></tr>
+        <tr><td>Aisha Khan</td><td><select class="sel"><option>editor</option><option>admin</option></select></td></tr>
+      </tbody>
+    </table></div>
+    <button class="btn-primary-pill" style="margin-top:10px">Add contributor</button>
+  </div>
+
+  <div id="s-integ" class="s-pane" style="display:none">
+    <div class="card-grid">
+      <div class="project-card is-disabled"><div class="pc-head"><span class="pc-name">Confluence</span></div><div class="pc-meta">Disabled</div></div>
+      <div class="project-card is-disabled"><div class="pc-head"><span class="pc-name">Jira</span></div><div class="pc-meta">Disabled</div></div>
+      <div class="project-card is-disabled"><div class="pc-head"><span class="pc-name">ServiceNow</span></div><div class="pc-meta">Disabled</div></div>
+    </div>
+    <p class="page-sub">Available when connectors ship — Platform dependency.</p>
+  </div>
+
+  <div id="s-scm" class="s-pane" style="display:none">
+    <div class="form-grid" style="max-width:560px">
+      <div class="field">
+        <label>Provider</label>
+        <select class="sel"><option>GitHub</option><option>GitLab</option></select>
+      </div>
+      <div class="field">
+        <label>Access token</label>
+        <input type="text" placeholder="•••••••• (write-only, never re-displayed)">
+      </div>
+    </div>
+    <div class="insp-kv" style="margin-top:8px"><span class="v">GitHub · hammerbarn/store-ops-portal</span> — configured by Priya Shah, 2026-07-02 · <a href="#">Replace token</a></div>
+  </div>
+
+  <div id="onto-dlg" class="onto-dlg">
+    <div class="onto-dlg-box">
+      <div class="drawer-head"><span>Ontology upgrade · v2.3.1 → v2.4.0</span><button class="insp-close" onclick="document.getElementById('onto-dlg').style.display='none'">×</button></div>
+      <div class="drawer-body">
+        <div class="insp-section-label">Node / edge delta</div>
+        <div class="kv">+ node: <span class="kind-dot" style="background:var(--k-capability)"></span> Capability.slaTier</div>
+        <div class="kv">+ edge: Process → governedBy → Policy</div>
+        <div class="kv onto-break">⚠ breaking: Actor.role cardinality 1..* → 1..1</div>
+        <div class="insp-actions">
+          <label style="font-size:12px"><input type="checkbox" disabled> I acknowledge the breaking change</label>
+          <button class="btn-primary" disabled>Confirm</button>
+        </div>
+        <span class="hint" style="font-size:11px;color:var(--text-subtle);display:block;margin-top:6px;">enable via acknowledgement checkbox</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-14">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Decision Log</h1>
+    <span class="delta delta-new" title="Entirely new in v1">NEW · v1</span>
+  </div>
+  <p class="page-sub">Store Ops Portal. <span class="delta-note">no M1 screen existed — API/SSE only</span> · Read-only view over the audit trail — Build stores no separate copy.</p>
+  <p class="delta-note">Modeled on Audit Logs (screen 16) — same raw-row density, scoped to this project. Root view is everything; filter down to Decisions for a governance-only read. Task updates (scaffolds, merges) are logged rows too, not a separate feed.</p>
+
+  <div class="toolbar">
+    <input class="toolbar-search" type="text" placeholder="Search decisions…">
+    <span class="chip-filter active" onclick="filterDecisionLog(this,'all')">All</span>
+    <span class="chip-filter" onclick="filterDecisionLog(this,'decision')">Decisions</span>
+    <span class="chip-filter" onclick="filterDecisionLog(this,'task')">Task updates</span>
+    <span class="chip-filter" onclick="filterDecisionLog(this,'system')">System</span>
+    <span class="toolbar-spacer"></span>
+    <span class="page-sub">no export — post-v1</span>
+  </div>
+  <p class="page-sub">Deep-linkable by record — e.g. <code>?record=40219</code> scrolls + highlights the row (shown below).</p>
+
+  <div class="table-wrap"><div class="table-scroll"><table class="data-table">
+    <thead><tr><th>Time</th><th>Actor</th><th>Kind</th><th>Event type</th><th>Summary</th><th>Target</th></tr></thead>
+    <tbody id="decision-log-body">
+      <tr data-cat="decision"><td><span class="rel-time" title="2026-07-08T14:09:00Z">2h ago</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">qa-agent</span></span></td><td><span class="cat-chip cat-decision">Decision</span></td><td><code class="evt-chip">hitl.escalated</code></td><td>Refund E2E hit retry ceiling</td><td><a href="#">TASK-017</a></td></tr>
+      <tr data-cat="decision" style="background:var(--accent-soft)"><td><span class="rel-time" title="2026-07-08T13:40:00Z">3h ago</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">architect</span></span></td><td><span class="cat-chip cat-decision">Decision</span></td><td><code class="evt-chip">ontology.pinned</code></td><td>Pinned bpmo v2.3.1</td><td><a href="#">record 40219</a></td></tr>
+      <tr data-cat="task"><td><span class="rel-time" title="2026-07-08T12:12:00Z">4h ago</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">engineer</span></span></td><td><span class="cat-chip cat-task">Task update</span></td><td><code class="evt-chip">task.completed</code></td><td>Refund calc service merged</td><td><a href="#">TASK-014</a></td></tr>
+      <tr data-cat="decision"><td><span class="rel-time" title="2026-07-08T11:03:00Z">5h ago</span></td><td><span class="entity-ref"><span class="avatar-i is-human">H</span><span class="friendly">Priya Shah</span></span></td><td><span class="cat-chip cat-decision">Decision</span></td><td><code class="evt-chip">budget.raised</code></td><td>Cap $400 → $500</td><td><a href="#">project</a></td></tr>
+      <tr data-cat="decision"><td><span class="rel-time" title="2026-07-08T09:50:00Z">7h ago</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">architect</span></span></td><td><span class="cat-chip cat-decision">Decision</span></td><td><code class="evt-chip">spec.approved</code></td><td>Returns PRD signed off</td><td><a href="#">PRD-Returns</a></td></tr>
+      <tr data-cat="task"><td><span class="rel-time" title="2026-07-07T16:22:00Z">Jul 7</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">engineer</span></span></td><td><span class="cat-chip cat-task">Task update</span></td><td><code class="evt-chip">repo.scaffolded</code></td><td>store-ops-portal created</td><td><a href="#">TASK-002</a></td></tr>
+      <tr data-cat="task"><td><span class="rel-time" title="2026-07-07T10:11:00Z">Jul 7</span></td><td><span class="entity-ref"><span class="avatar-i is-human">H</span><span class="friendly">Marcus Bell</span></span></td><td><span class="cat-chip cat-task">Task update</span></td><td><code class="evt-chip">request.created</code></td><td>Store Ops Portal requested</td><td><a href="#">REQ-041</a></td></tr>
+      <tr data-cat="system"><td><span class="rel-time" title="2026-07-06T14:00:00Z">Jul 6</span></td><td><span class="entity-ref"><span class="avatar-i is-machine">M</span><span class="friendly">system</span></span></td><td><span class="cat-chip cat-system">System</span></td><td><code class="evt-chip">tenant.provisioned</code></td><td>Hammerbarn workspace ready</td><td><a href="#">tenant</a></td></tr>
+    </tbody>
+  </table></div></div>
+  <p class="delta-note" style="margin-top:8px;">Actor icon (H/M) is read from the account/principal record, not guessed from the name.</p>
+</div>
+</div>
+
+      <div class="screen content-page" id="screen-18">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Build</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Improvement</h1>
+    <span class="pill" title="Confirmed post-v1 in the spec interview — this screen is a preview, not shipped v1 scope. The project dashboard keeps a read-only teaser card linking here.">PREVIEW · post-v1</span>
+  </div>
+  <p class="page-sub">Store Ops Portal. <span class="delta-note">Self-generated proposals for how this project could run better — perf, cost, reliability, code health. Distinct from Weave's own platform-level self-improvement (super-admin, analyses Weave's own logs/prompts) — same technique, different scope. Both post-v1.</span></p>
+
+  <div class="kpi-card" style="margin-top:16px">
+    <div class="page-head-row" style="margin-bottom:4px">
+      <span style="font-weight:600;font-size:14px">Cache Instances list queries</span>
+      <span class="pill">Perf</span>
+    </div>
+    <p class="page-sub" style="margin:4px 0 10px">Instance list re-queries the graph on every filter change — 40% of requests are repeat queries within 5 min. Add a 60s cache.</p>
+    <div class="insp-actions"><button class="btn-primary-pill">Accept</button><button class="btn-outline">Reject</button><button class="btn-outline">View diff</button></div>
+  </div>
+  <div class="kpi-card" style="margin-top:12px">
+    <div class="page-head-row" style="margin-bottom:4px">
+      <span style="font-weight:600;font-size:14px">Downgrade nightly SHACL revalidation to changed shapes only</span>
+      <span class="pill">Cost</span>
+    </div>
+    <p class="page-sub" style="margin:4px 0 10px">Full revalidation runs nightly regardless of change volume — 3 of the last 7 runs touched &lt;2% of shapes. Scope to delta.</p>
+    <div class="insp-actions"><button class="btn-primary-pill">Accept</button><button class="btn-outline">Reject</button><button class="btn-outline">View diff</button></div>
+  </div>
+  <div class="kpi-card" style="margin-top:12px;opacity:.7">
+    <div class="page-head-row" style="margin-bottom:4px">
+      <span style="font-weight:600;font-size:14px">Extract refund-calc retry logic into shared util</span>
+      <span class="pill">Reliability</span>
+    </div>
+    <p class="page-sub" style="margin:4px 0 10px">Retry-with-backoff duplicated in 3 tasks this milestone. <span class="delta-note">Accepted — merged in TASK-014 follow-up.</span></p>
+  </div>
+  <p class="delta-note" style="margin-top:14px">Proposals are read-only until Accepted — accepting enqueues a normal Build run through the same caps/gates as any other task.</p>
+</div>
+</div>
+
+      <div class="screen content-page" id="screen-15">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Audit engine</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Audit trail</h1>
+    <span class="delta delta-upgraded" title="M1 rendered this as plain bullet-list text, no KPI tiles or chart — presentation-layer rebuild only, no backend/schema change">UPGRADED · v1</span>
+  </div>
+  <p class="page-sub">Tamper-evident, hash-chained record of every write across Hammerbarn's platform — now with at-a-glance chain health, throughput tiles and a period-over-period category chart.</p>
+  <p class="delta-note"><code>/compliance</code> now redirects here — the Audit nav item covers both routes.</p>
+
+  <div class="kpi-grid">
+    <div class="kpi-card v-success" style="cursor:pointer" title="Drill through to Logs" onclick="showScreen(16)">
+      <div class="kv">Valid</div>
+      <div class="kl">Chain status</div>
+      <button class="btn-outline" style="margin-top:10px" title="same verify action as M1" onclick="event.stopPropagation();this.textContent='Verified just now ✓'">Verify chain</button>
+    </div>
+    <div class="kpi-card" style="cursor:pointer" title="Drill through to Logs" onclick="showScreen(16)">
+      <div class="kv">142,880</div>
+      <div class="kl">Entries checked</div>
+    </div>
+    <div class="kpi-card" style="cursor:pointer" title="Drill through to Logs" onclick="showScreen(16)">
+      <div class="kv">98.4%</div>
+      <div class="kl">SHACL validated</div>
+    </div>
+    <div class="kpi-card v-warn" style="cursor:pointer" title="Drill through to Logs" onclick="showScreen(16)">
+      <div class="kv">12</div>
+      <div class="kl">SHACL rejections</div>
+    </div>
+  </div>
+  <p class="delta-note">Tiles and bar segments drill through to Logs, pre-filtered (unchanged from M1).</p>
+
+  <div class="kpi-card" style="margin-top:20px;cursor:default">
+    <div class="kl" style="margin-bottom:12px">Entries by category — this period vs previous</div>
+    <div class="chart-legend">
+      <span class="legend-dot legend-prev"></span> Previous period
+      <span class="legend-dot legend-cur"></span> Current period
+    </div>
+    <div class="bar-chart">
+      <div class="bar-group">
+        <div class="bar-pair">
+          <div class="bar prev" style="height:48px"></div>
+          <div class="bar cur" style="height:72px"></div>
+        </div>
+        <div class="bar-label">workspace</div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-pair">
+          <div class="bar prev" style="height:60px"></div>
+          <div class="bar cur" style="height:88px"></div>
+        </div>
+        <div class="bar-label">auth</div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-pair">
+          <div class="bar prev" style="height:70px"></div>
+          <div class="bar cur" style="height:44px"></div>
+        </div>
+        <div class="bar-label">connector</div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-pair">
+          <div class="bar prev" style="height:34px"></div>
+          <div class="bar cur" style="height:56px"></div>
+        </div>
+        <div class="bar-label">billing</div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-pair">
+          <div class="bar prev" style="height:82px"></div>
+          <div class="bar cur" style="height:52px"></div>
+        </div>
+        <div class="bar-label">security</div>
+      </div>
+    </div>
+    <p class="delta-note" style="margin-top:12px">If no previous period exists, this renders an empty-state instead of a fake zero bar.</p>
+  </div>
+</div>
+</div>
+      <div class="screen content-page" id="screen-16">
+<div class="content-inner wide">
+  <div class="page-eyebrow">Audit engine</div>
+  <div class="page-head-row">
+    <h1 class="page-title">Audit logs</h1>
+    <span class="delta delta-upgraded" title="M1 had one filter (event type) and raw principal_iri + raw ISO timestamps">UPGRADED · v1</span>
+  </div>
+  <p class="page-sub">Every write, hash-chained and queryable — v1 expands from one filter to seven dimensions, with friendly actor labels and human-readable timestamps.</p>
+
+  <div class="toolbar">
+    <input class="toolbar-search" type="text" placeholder="Search (q)">
+    <select class="sel">
+      <option>Engine: All</option>
+      <option>Constitution</option>
+      <option>Build</option>
+      <option>Audit</option>
+      <option>Platform</option>
+    </select>
+    <select class="sel">
+      <option>Event type</option>
+      <option>constitution.*</option>
+      <option>build.*</option>
+      <option>audit.*</option>
+    </select>
+    <input class="sel" type="text" placeholder="Actor…">
+    <input class="sel" type="text" placeholder="Target entity…">
+    <input class="sel" type="text" placeholder="From">
+    <input class="sel" type="text" placeholder="To">
+    <span class="toolbar-spacer"></span>
+    <button class="btn-primary-pill" style="opacity:.4;cursor:not-allowed" title="Export not confirmed for this milestone — flagged">Export</button>
+  </div>
+  <p class="delta-note">Export (JSON/NDJSON) mentioned at epic level, not confirmed wired into this screen — shown disabled. Event-type taxonomy is open (<code>engine.noun.verb</code>), not a fixed list.</p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Actor</th>
+        <th>Event type</th>
+        <th>Target</th>
+        <th>Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T09:14:02Z">2 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Priya Shah</span> <span class="raw">urn:actor:priya.9f2</span></span></td>
+        <td><code class="evt-chip">constitution.instance.updated</code></td>
+        <td><a class="tgt-link">Product · Timber 90mm</a></td>
+        <td>Renamed SKU + updated stock rule</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T09:11:47Z">4 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Build runner</span> <span class="raw">urn:actor:svc.build.01</span></span></td>
+        <td><code class="evt-chip">build.task.completed</code></td>
+        <td><a class="tgt-link">TASK-214 · Orders API</a></td>
+        <td>Scaffolded orders endpoint, tests green</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T09:05:19Z">11 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">System</span> <span class="raw">urn:actor:svc.audit</span></span></td>
+        <td><code class="evt-chip">audit.chain.verified</code></td>
+        <td><a class="tgt-link">Chain · block 142,880</a></td>
+        <td>Hourly integrity check passed</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T08:52:33Z">24 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Dan Okafor</span> <span class="raw">urn:actor:dan.4a1</span></span></td>
+        <td><code class="evt-chip">auth.session.revoked</code></td>
+        <td><a class="tgt-link">User · liam.t@hammerbarn</a></td>
+        <td>Forced sign-out on password reset</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T08:40:08Z">37 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Priya Shah</span> <span class="raw">urn:actor:priya.9f2</span></span></td>
+        <td><code class="evt-chip">constitution.shape.rejected</code></td>
+        <td><a class="tgt-link">Shape · SupplierSHACL</a></td>
+        <td>Write blocked — missing VAT number</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T08:21:55Z">55 min ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Mei Lin</span> <span class="raw">urn:actor:mei.7c3</span></span></td>
+        <td><code class="evt-chip">connector.sync.started</code></td>
+        <td><a class="tgt-link">Connector · Snowflake</a></td>
+        <td>Manual re-sync of inventory feed</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T07:58:12Z">1 hr ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Billing bot</span> <span class="raw">urn:actor:svc.billing</span></span></td>
+        <td><code class="evt-chip">billing.invoice.issued</code></td>
+        <td><a class="tgt-link">Invoice · INV-20418</a></td>
+        <td>July seat charge, 42 users</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T07:44:29Z">1 hr ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Dan Okafor</span> <span class="raw">urn:actor:dan.4a1</span></span></td>
+        <td><code class="evt-chip">security.role.granted</code></td>
+        <td><a class="tgt-link">User · mei.l@hammerbarn</a></td>
+        <td>Added Connector-admin role</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T07:30:41Z">2 hr ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Build runner</span> <span class="raw">urn:actor:svc.build.01</span></span></td>
+        <td><code class="evt-chip">build.app.deployed</code></td>
+        <td><a class="tgt-link">App · Stock Portal</a></td>
+        <td>Released v1.4 to staging</td>
+      </tr>
+      <tr>
+        <td><span class="rel-time" title="2026-07-08T07:02:17Z">2 hr ago</span></td>
+        <td><span class="entity-ref"><span class="friendly">Priya Shah</span> <span class="raw">urn:actor:priya.9f2</span></span></td>
+        <td><code class="evt-chip">constitution.relationship.created</code></td>
+        <td><a class="tgt-link">Supplier → Product</a></td>
+        <td>Linked BuildRight to 14 SKUs</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="delta-note" style="margin-top:12px">Page 1 of 12 · 500 per page</p>
+</div>
+</div>
+
+      <div class="screen content-page" id="screen-17">
+<div class="content-inner">
+  <div class="page-eyebrow">Settings</div>
+  <div class="page-head-row">
+    <div>
+      <h1 class="page-title">Workspace settings</h1>
+      <p class="page-sub">Hammerbarn · manage your workspace configuration</p>
+    </div>
+  </div>
+
+  <div class="tabs" style="margin-top:18px;">
+    <div class="tab active" onclick="wsSettingsTab('general',this)">General</div>
+    <div class="tab" onclick="wsSettingsTab('members',this)">Members <span class="delta delta-new">v1</span></div>
+    <div class="tab" onclick="wsSettingsTab('notifications',this)">Notifications</div>
+    <div class="tab" onclick="wsSettingsTab('connectors',this)">Connectors</div>
+  </div>
+
+  <div id="ws-general" class="ws-pane">
+    <div class="form-grid" style="max-width:520px;margin-top:18px;">
+      <div class="field">
+        <label>Workspace name</label>
+        <input type="text" value="Hammerbarn" />
+      </div>
+      <div class="field">
+        <label>Timezone</label>
+        <select>
+          <option>Europe/London (GMT+1)</option>
+          <option>UTC</option>
+          <option>America/New_York</option>
+        </select>
+        <span class="hint">Used for scheduled runs and audit timestamps.</span>
+      </div>
+      <div class="field">
+        <label>Default model tier</label>
+        <select>
+          <option>Standard</option>
+          <option>Fast</option>
+          <option>Premium</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn-primary-pill">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ws-members" class="ws-pane" style="display:none;">
+    <table class="data-table" style="margin-top:18px;">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="name-cell"><span class="name">Priya Shah</span></div></td>
+          <td>priya.shah@hammerbarn.co.uk</td>
+          <td>Admin</td>
+        </tr>
+        <tr>
+          <td><div class="name-cell"><span class="name">Diego Alvarez</span></div></td>
+          <td>diego.alvarez@hammerbarn.co.uk</td>
+          <td>Editor</td>
+        </tr>
+        <tr>
+          <td><div class="name-cell"><span class="name">Fiona Grant</span></div></td>
+          <td>fiona.grant@hammerbarn.co.uk</td>
+          <td>Editor</td>
+        </tr>
+        <tr>
+          <td><div class="name-cell"><span class="name">Omar Rashid</span></div></td>
+          <td>omar.rashid@hammerbarn.co.uk</td>
+          <td>Reader</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="delta-note" style="margin-top:10px;">Workspace member management — new in v1.</p>
+  </div>
+
+  <div id="ws-notifications" class="ws-pane" style="display:none;">
+    <div style="max-width:520px;margin-top:18px;">
+      <div class="ws-toggle-row">
+        <span>Audit alerts</span>
+        <span class="toggle-sw on"></span>
+      </div>
+      <div class="ws-toggle-row">
+        <span>Build run status</span>
+        <span class="toggle-sw on"></span>
+      </div>
+      <div class="ws-toggle-row">
+        <span>Weekly digest</span>
+        <span class="toggle-sw"></span>
+      </div>
+      <div class="ws-toggle-row">
+        <span>Mentions &amp; comments</span>
+        <span class="toggle-sw"></span>
+      </div>
+      <p class="delta-note" style="margin-top:10px;">Notification preferences — new in v1.</p>
+    </div>
+  </div>
+
+  <div id="ws-connectors" class="ws-pane" style="display:none;">
+    <div class="card-grid" style="grid-template-columns:repeat(2,1fr);margin-top:18px;max-width:640px;">
+      <div class="tile ws-connector">
+        <h6>Slack <span class="pill">v1.0 stub</span></h6>
+      </div>
+      <div class="tile ws-connector">
+        <h6>Confluence <span class="pill">v1.0 stub</span></h6>
+      </div>
+      <div class="tile ws-connector">
+        <h6>Jira <span class="pill">v1.0 stub</span></h6>
+      </div>
+      <div class="tile ws-connector">
+        <h6>ServiceNow <span class="pill">v1.0 stub</span></h6>
+      </div>
+    </div>
+    <p class="delta-note" style="margin-top:12px;">Connector bindings ship post-MVP — all workspace-level connectors deferred to v1.0.</p>
+  </div>
+</div>
+</div>
+    </div>
+
+    <!-- NOTIFICATIONS FLYOUT -->
+    <div class="flyout-backdrop" id="notif-backdrop" onclick="closeFlyouts()">
+      <div class="flyout glass" style="right:170px;" onclick="event.stopPropagation()">
+        <div class="flyout-head"><span>Notifications</span><button class="btn-outline" style="flex:none; height:22px; padding:0 8px; font-size:10px;" onclick="document.querySelectorAll('#notif-body .notif-row').forEach(function(r){r.classList.add('read')})">Mark all read</button></div>
+        <div class="flyout-body" id="notif-body"></div>
+      </div>
+    </div>
+    <!-- HELP FLYOUT -->
+    <div class="flyout-backdrop" id="help-backdrop" onclick="closeFlyouts()">
+      <div class="flyout glass" style="right:130px;" onclick="event.stopPropagation()">
+        <div class="flyout-head"><span>Help &amp; guided tour</span></div>
+        <div class="flyout-body" id="help-body"></div>
+      </div>
+    </div>
+
+    <!-- COMMAND PALETTE OVERLAY -->
+    <div class="palette-backdrop" id="palette-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <div class="palette-input">orders<span class="cursor"></span></div>
+          <div class="palette-esc">ESC</div>
+        </div>
+        <div class="palette-body">
+          <div class="palette-group-label">Jump to</div>
+          <div class="palette-row sel">
+            <span style="color:var(--k-dataasset)">◆</span>
+            <span class="name">OrdersDB</span>
+            <span class="type">DataAsset</span>
+          </div>
+          <div class="palette-row">
+            <span style="color:var(--k-process)">⬡</span>
+            <span class="name">Order-to-Cash</span>
+            <span class="type">Process</span>
+          </div>
+          <div class="palette-group-label">Actions</div>
+          <div class="palette-row">
+            <span style="color:var(--accent)">+</span>
+            <span class="name">Add entity…</span>
+            <span class="type">Action</span>
+          </div>
+          <div class="palette-row">
+            <span style="color:var(--accent)">✦</span>
+            <span class="name">Ask the graph…</span>
+            <span class="type">Action</span>
+          </div>
+          <div class="palette-group-label">Navigate</div>
+          <div class="palette-row">
+            <span style="color:var(--text-muted)">☰</span>
+            <span class="name">Audit trail</span>
+            <span class="type">Section</span>
+          </div>
+        </div>
+        <div class="palette-hint">
+          <span><kbd>↑↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>ESC</kbd> close</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SCREEN TABS (dev nav aid) -->
+  <div class="screen-tabs" id="screen-tabs"></div>
+</div>
+
+<div class="modal-backdrop" id="new-project-modal" style="display:none;" onclick="if(event.target===this) closeNewProjectModal()">
+  <div class="modal-panel glass">
+    <h3 style="margin:0 0 4px;">New project</h3>
+    <p class="page-sub" style="margin:0 0 16px;">Give it a name and a one-line description — you can flesh out requests once it exists.</p>
+    <div class="field">
+      <label>Project name</label>
+      <input type="text" id="new-project-name" placeholder="e.g. Curbside Pickup Scheduler" />
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <label>Description</label>
+      <textarea id="new-project-desc" rows="3" placeholder="One line on what this project is for…"></textarea>
+    </div>
+    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+      <button class="btn-outline" onclick="closeNewProjectModal()">Cancel</button>
+      <button class="btn-primary-pill" onclick="submitNewProject()">Create project</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ======================================================================
+  // SECTION 1: shared kind metadata + Hammerbarn sample graph (from v4)
+  // ======================================================================
+  const KIND = {
+    process:    { color:'var(--k-process)',    hex:'#E73430', shape:'hex',    label:'Process' },
+    activity:   { color:'var(--k-activity)',   hex:'#F59E0B', shape:'circle', label:'Activity' },
+    event:      { color:'var(--k-event)',      hex:'#0EA5E9', shape:'diamond',label:'Event' },
+    actor:      { color:'var(--k-actor)',      hex:'#0D9488', shape:'circle', label:'Actor' },
+    policy:     { color:'var(--k-policy)',     hex:'#DB3B74', shape:'circle', label:'Policy' },
+    domain:     { color:'var(--k-domain)',     hex:'#9054FF', shape:'circle', label:'Business Domain' },
+    capability: { color:'var(--k-capability)', hex:'#E2307D', shape:'circle', label:'Business Capability' },
+    system:     { color:'var(--k-system)',     hex:'#3272FB', shape:'square', label:'System' },
+    service:    { color:'var(--k-service)',    hex:'#0891B2', shape:'circle', label:'Service' },
+    dataasset:  { color:'var(--k-dataasset)',  hex:'#16A34A', shape:'circle', label:'Data Asset' },
+  };
+  const NODES = [
+    { id:'o2c',        kind:'process',    label:'Order-to-Cash',            x:420, y:300 },
+    { id:'inv',        kind:'process',    label:'Inventory Replenishment',  x:650, y:540 },
+    { id:'returns',    kind:'policy',     label:'Returns Policy',           x:230, y:400 },
+    { id:'pos',        kind:'system',     label:'POS System',               x:570, y:180 },
+    { id:'ordersdb',   kind:'dataasset',  label:'OrdersDB',                  x:440, y:130 },
+    { id:'supplierportal', kind:'system', label:'Supplier Portal',          x:850, y:460 },
+    { id:'clickcollect', kind:'service',  label:'Click-and-Collect',        x:320, y:220 },
+    { id:'financeteam', kind:'actor',     label:'Finance Team',             x:540, y:410 },
+    { id:'storeops',   kind:'actor',      label:'Store Ops',                 x:760, y:600 },
+    { id:'supplier',   kind:'actor',      label:'Supplier',                  x:950, y:540 },
+    { id:'orderplaced', kind:'event',     label:'Order Placed',              x:330, y:340 },
+    { id:'stocklow',   kind:'event',      label:'Stock Below Threshold',    x:760, y:670 },
+    { id:'pickpack',   kind:'activity',  label:'Pick & Pack',                x:480, y:460 },
+    { id:'payment',    kind:'activity',  label:'Payment Processing',        x:660, y:310 },
+    { id:'retailops',  kind:'domain',    label:'Retail Operations',          x:230, y:560 },
+    { id:'orderfulfillment', kind:'capability', label:'Order Fulfillment',  x:380, y:600 },
+  ];
+  const EDGES = [
+    ['o2c','pickpack','hasStep'], ['o2c','payment','hasStep'], ['o2c','financeteam','performedBy'],
+    ['o2c','ordersdb','consumes'], ['o2c','returns','governedBy'], ['o2c','orderplaced','triggeredBy'],
+    ['inv','storeops','performedBy'], ['inv','stocklow','triggeredBy'], ['inv','ordersdb','consumes'],
+    ['pos','ordersdb','recordsTo'], ['clickcollect','ordersdb','consumes'], ['clickcollect','storeops','performedBy'],
+    ['supplierportal','supplier','performedBy'], ['payment','pos','uses'],
+    ['o2c','orderfulfillment','partOf'], ['inv','orderfulfillment','partOf'], ['orderfulfillment','retailops','partOf'],
+  ];
+  const GLOW_STATIC = ['ordersdb','financeteam'];
+  const GLOW_PULSE = ['ordersdb'];
+  const SELECTED = 'o2c';
+  const SPOTLIGHT = ['o2c','inv','clickcollect','ordersdb'];
+
+  function hexToRgba(hex, a){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function shapeMarkup(kind, r){
+    const k = KIND[kind]; const c = k.color;
+    if (k.shape === 'hex'){
+      const pts = [[0,-r],[r*.87,-r/2],[r*.87,r/2],[0,r],[-r*.87,r/2],[-r*.87,-r/2]].map(p=>p.join(',')).join(' ');
+      return `<polygon points="${pts}" fill="${c}"/>`;
+    }
+    if (k.shape === 'diamond') return `<rect x="${-r*.75}" y="${-r*.75}" width="${r*1.5}" height="${r*1.5}" fill="${c}" transform="rotate(45)"/>`;
+    if (k.shape === 'square') return `<rect x="${-r}" y="${-r}" width="${r*2}" height="${r*2}" rx="3" fill="${c}"/>`;
+    return `<circle r="${r}" fill="${c}"/>`;
+  }
+  function renderGraph(svgId, opts){
+    const svg = document.getElementById(svgId);
+    if (!svg) return;
+    const r = 22;
+    let html = '';
+    EDGES.forEach(([a,b,rel]) => {
+      const na = NODES.find(n=>n.id===a), nb = NODES.find(n=>n.id===b);
+      const mx = (na.x+nb.x)/2, my = (na.y+nb.y)/2;
+      const dim = opts.spotlight && !(opts.spotlight.includes(a) && opts.spotlight.includes(b));
+      html += `<line x1="${na.x}" y1="${na.y}" x2="${nb.x}" y2="${nb.y}" stroke="var(--border-strong)" stroke-width="1.4" opacity="${dim?0.18:0.55}"/>`;
+      html += `<rect x="${mx-rel.length*3.1-4}" y="${my-8}" width="${rel.length*6.2+8}" height="14" rx="4" fill="var(--surface)" opacity="${dim?0.3:0.9}"/>`;
+      html += `<text x="${mx}" y="${my+3.5}" text-anchor="middle" font-family="Geist Mono, monospace" font-size="9.5" fill="var(--text-muted)" opacity="${dim?0.35:1}">${rel}</text>`;
+    });
+    NODES.forEach(n => {
+      const dim = opts.spotlight && !opts.spotlight.includes(n.id);
+      const isSelected = opts.selected === n.id;
+      const glowClass = opts.glowPulse && opts.glowPulse.includes(n.id) ? 'glow-pulse'
+                      : opts.glowStatic && opts.glowStatic.includes(n.id) ? 'glow-static' : '';
+      html += `<g transform="translate(${n.x},${n.y})" class="${dim?'node-dim':'node-spot'}">`;
+      html += `<g class="${glowClass}">${shapeMarkup(n.kind, r)}</g>`;
+      if (isSelected) html += `<circle r="${r+6}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>`;
+      html += `<rect x="${-(n.label.length*3.2)}" y="${r+6}" width="${n.label.length*6.4}" height="15" rx="4" fill="var(--surface)" opacity="0.85"/>`;
+      html += `<text y="${r+16.5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text)">${n.label}</text>`;
+      html += `</g>`;
+    });
+    svg.innerHTML = html;
+  }
+
+  // ======================================================================
+  // SECTION 2: navigation model — sections, sidebars, screens, breadcrumbs
+  // ======================================================================
+  const SCREEN_SECTION = {
+    1:'home', 2:'constitution', 3:'constitution', 4:'constitution', 5:'constitution', 6:'constitution', 7:'constitution', 8:'constitution',
+    9:'build', 10:'build', 11:'build', 12:'build', 13:'build', 14:'build', 18:'build',
+    15:'audit', 16:'audit', 17:'settings',
+  };
+  const SCREEN_LABEL = {
+    1:'Overview', 2:'Explore', 3:'Ask', 4:'Instances', 5:'Query', 6:'Glossary', 7:'Brand & voice', 8:'Rules & policies',
+    9:'Request Studio', 10:'Registry', 11:'Kanban', 12:'Dashboard', 13:'Settings', 14:'Decisions', 18:'Improvement',
+    15:'Dashboard', 16:'Logs', 17:'General',
+  };
+  const SECTION_LABEL = { home:'Home', constitution:'Constitution', build:'Build', audit:'Audit trail', settings:'Settings' };
+  const SECTION_DEFAULT_SCREEN = { home:1, constitution:2, build:10, audit:15, settings:17 };
+
+  const SIDEBARS = {
+    home: ``,
+    constitution: `
+      <div class="sidebar-head"><div class="sidebar-title">Constitution</div><button class="sidebar-collapse" id="sidebar-collapse-btn" title="Collapse">«</button></div>
+      <div class="sb-group"><div class="sb-group-label">Model</div>
+        <div class="sb-item">Overview</div>
+        <div class="sb-item" data-screen="2" onclick="showScreen(2)">Explore</div>
+        <div class="sb-item">Ontology / Types</div>
+        <div class="sb-item" data-screen="4" onclick="showScreen(4)">Instances / Data <span class="delta delta-upgraded" title="M1 shipped chat+form only, no table — v1 rebuild">v1</span></div>
+      </div>
+      <div class="sb-group"><div class="sb-group-label">Query</div>
+        <div class="sb-item" data-screen="5" onclick="showScreen(5)">Query <span class="delta delta-upgraded" title="M1 had zero loading-state feedback — v1 rebuild">v1</span></div>
+        <div class="sb-item" data-screen="2" onclick="showScreen(2)">Versions <span class="pill">panel</span></div>
+      </div>
+      <div class="sb-group"><div class="sb-group-label">Standards</div>
+        <div class="sb-item" data-screen="6" onclick="showScreen(6)">Glossary <span class="delta delta-new" title="No M1 screen — new in v1">v1</span></div>
+        <div class="sb-item" data-screen="7" onclick="showScreen(7)">Brand &amp; voice <span class="delta delta-new" title="No M1 screen — new in v1">v1</span></div>
+        <div class="sb-item" data-screen="8" onclick="showScreen(8)">Rules &amp; policies <span class="delta delta-new" title="No M1 screen — new in v1">v1</span></div>
+        <div class="sb-item disabled">Strategy &amp; motivation <span class="pill">M2</span></div>
+      </div>
+      <div class="sb-group"><div class="sb-group-label">Tools</div>
+        <div class="sb-item disabled">Ingest <span class="pill pill-new">chat-panel · v1</span></div>
+        <div class="sb-item disabled">Reasoning <span class="pill">post-v1</span></div>
+      </div>`,
+    build: `
+      <div class="sidebar-head"><div class="sidebar-title">Build</div><button class="sidebar-collapse" id="sidebar-collapse-btn" title="Collapse">«</button></div>
+      <div class="sb-group"><div class="sb-group-label">Projects</div>
+        <div class="sb-item" data-screen="10" onclick="showScreen(10)">Registry <span class="delta delta-new">v1</span></div>
+      </div>
+      __CURRENT_PROJECT_GROUP__`,
+    audit: `
+      <div class="sidebar-head"><div class="sidebar-title">Audit trail</div><button class="sidebar-collapse" id="sidebar-collapse-btn" title="Collapse">«</button></div>
+      <div class="sb-group"><div class="sb-group-label">Compliance</div>
+        <div class="sb-item" data-screen="15" onclick="showScreen(15)">Dashboard <span class="delta delta-upgraded">v1</span></div>
+        <div class="sb-item" data-screen="16" onclick="showScreen(16)">Logs <span class="delta delta-upgraded">v1</span></div>
+      </div>`,
+    settings: `
+      <div class="sidebar-head"><div class="sidebar-title">Settings</div><button class="sidebar-collapse" id="sidebar-collapse-btn" title="Collapse">«</button></div>
+      <div class="sb-group"><div class="sb-group-label">Workspace</div>
+        <div class="sb-item" data-screen="17" onclick="showScreen(17)">General</div>
+        <div class="sb-item" data-screen="17" onclick="showScreen(17)">Members <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="17" onclick="showScreen(17)">Notifications <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="17" onclick="showScreen(17)">Connectors <span class="pill">v1.0 stub</span></div>
+      </div>`,
+  };
+
+  let currentSection = 'constitution';
+  let selectedProject = null;
+  const sidebarEl = document.getElementById('sidebar');
+  const railEls = { home:'rail-home', constitution:'rail-constitution', build:'rail-build', audit:'rail-audit', settings:'rail-settings' };
+
+  function currentProjectGroupHTML(){
+    if(!selectedProject) return '';
+    return `
+      <div class="sb-group"><div class="sb-group-label">Current project — ${selectedProject}</div>
+        <div class="sb-item" data-screen="12" onclick="showScreen(12)">Dashboard <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="9" onclick="showScreen(9)">Request studio <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="11" onclick="showScreen(11)">Kanban <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="14" onclick="showScreen(14)">Decision log <span class="delta delta-new">v1</span></div>
+        <div class="sb-item" data-screen="13" onclick="showScreen(13)">Settings <span class="delta delta-new">v1</span></div>
+      </div>`;
+  }
+
+  function getSidebarHTML(sec){
+    if(sec === 'build') return SIDEBARS.build.replace('__CURRENT_PROJECT_GROUP__', currentProjectGroupHTML());
+    return SIDEBARS[sec];
+  }
+
+  function selectProject(name, targetScreen){
+    selectedProject = name;
+    showScreen(targetScreen || 12);
+    sidebarEl.innerHTML = getSidebarHTML('build');
+    wireSidebarCollapse();
+    document.querySelectorAll('#sidebar .sb-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.screen) === (targetScreen || 12));
+    });
+  }
+
+  function switchSection(sec){
+    currentSection = sec;
+    Object.values(railEls).forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById(railEls[sec]).classList.add('active');
+    sidebarEl.innerHTML = getSidebarHTML(sec);
+    wireSidebarCollapse();
+    showScreen(SECTION_DEFAULT_SCREEN[sec]);
+  }
+
+  function filterDecisionLog(chipEl, cat){
+    chipEl.parentNode.querySelectorAll('.chip-filter').forEach(c => c.classList.remove('active'));
+    chipEl.classList.add('active');
+    document.querySelectorAll('#decision-log-body tr').forEach(row => {
+      row.style.display = (cat === 'all' || row.dataset.cat === cat) ? '' : 'none';
+    });
+  }
+
+  function openNewProjectModal(){
+    document.getElementById('new-project-modal').style.display = 'flex';
+    document.getElementById('new-project-name').focus();
+  }
+  function closeNewProjectModal(){
+    document.getElementById('new-project-modal').style.display = 'none';
+    document.getElementById('new-project-name').value = '';
+    document.getElementById('new-project-desc').value = '';
+  }
+  function submitNewProject(){
+    const name = document.getElementById('new-project-name').value.trim();
+    const desc = document.getElementById('new-project-desc').value.trim();
+    if(!name) { document.getElementById('new-project-name').focus(); return; }
+    const card = document.createElement('div');
+    card.className = 'project-card';
+    card.onclick = () => selectProject(name);
+    card.innerHTML = `
+      <div class="pc-head"><span class="pc-name">${name}</span><span class="phase-pill">Speccing</span></div>
+      <div class="pc-desc">${desc || 'No description yet.'}</div>
+      <div class="pc-meta">Just now</div>`;
+    document.getElementById('registry-card-grid').prepend(card);
+    closeNewProjectModal();
+  }
+
+  function showScreen(n){
+    n = Number(n);
+    closePalette(); closeFlyouts();
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + n).classList.add('active');
+    const sec = SCREEN_SECTION[n];
+    if (sec !== currentSection) { currentSection = sec;
+      Object.values(railEls).forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById(railEls[sec]).classList.add('active');
+      sidebarEl.innerHTML = getSidebarHTML(sec); wireSidebarCollapse();
+    }
+    document.querySelectorAll('#sidebar .sb-item').forEach(el => {
+      el.classList.toggle('active', Number(el.dataset.screen) === n);
+    });
+    document.getElementById('breadcrumb').innerHTML =
+      `<b>Hammerbarn</b> <span class="sep">/</span> ${SECTION_LABEL[sec]} <span class="sep">/</span> ${SCREEN_LABEL[n]}`;
+    document.querySelectorAll('.screen-tab').forEach(t => t.classList.toggle('active', Number(t.dataset.screen) === n));
+    renderGraph('svg1', { selected: SELECTED, glowStatic: GLOW_STATIC, glowPulse: GLOW_PULSE });
+    renderGraph('svg2', { spotlight: SPOTLIGHT, glowStatic: SPOTLIGHT, glowPulse: ['ordersdb'] });
+  }
+
+  // bottom dev-nav strip
+  const tabsWrap = document.getElementById('screen-tabs');
+  Object.keys(SCREEN_LABEL).forEach(n => {
+    tabsWrap.innerHTML += `<button class="screen-tab" data-screen="${n}" onclick="showScreen(${n})"><span class="num">${n}</span>${SCREEN_LABEL[n]}</button>`;
+  });
+
+  function openPalette(){ document.getElementById('palette-backdrop').classList.add('show'); }
+  function closePalette(){ document.getElementById('palette-backdrop').classList.remove('show'); }
+  document.getElementById('palette-backdrop').addEventListener('click', e => { if (e.target.id === 'palette-backdrop') closePalette(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePalette(); closeFlyouts(); }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); openPalette(); }
+  });
+
+  function toggleFlyout(which){
+    const id = which + '-backdrop';
+    const el = document.getElementById(id);
+    const wasOpen = el.classList.contains('show');
+    closeFlyouts();
+    if (!wasOpen) el.classList.add('show');
+  }
+  function closeFlyouts(){
+    document.getElementById('notif-backdrop').classList.remove('show');
+    document.getElementById('help-backdrop').classList.remove('show');
+  }
+
+  function wireSidebarCollapse(){
+    const sidebar = document.getElementById('sidebar');
+    const collapseBtn = document.getElementById('sidebar-collapse-btn');
+    const expandBtn = document.getElementById('sidebar-expand-btn');
+    if (!collapseBtn) { expandBtn.style.display = 'none'; return; }
+    collapseBtn.addEventListener('click', () => { sidebar.classList.add('collapsed'); expandBtn.style.display = 'inline-flex'; });
+    expandBtn.addEventListener('click', () => { sidebar.classList.remove('collapsed'); expandBtn.style.display = 'none'; });
+  }
+
+  // notifications sample content (day-grouped, per TASK-027)
+  document.getElementById('notif-body').innerHTML = `
+    <div class="notif-day">Today</div>
+    <div class="notif-row"><div class="nd"></div><div><b>Audit chain invalid</b> on Hammerbarn tenant — seq 40213 broke the hash chain. <div style="color:var(--text-subtle); margin-top:2px;">2m ago</div></div></div>
+    <div class="notif-row"><div class="nd"></div><div>3 model versions published (batched) — Order-to-Cash, Returns Policy, +1 more. <div style="color:var(--text-subtle); margin-top:2px;">1h ago</div></div></div>
+    <div class="notif-day">Yesterday</div>
+    <div class="notif-row read"><div class="nd"></div><div>SHACL violation cleared on <b>Returns Policy</b>. <div style="color:var(--text-subtle); margin-top:2px;">1d ago</div></div></div>
+    <div class="notif-row read"><div class="nd"></div><div>Slack delivery unavailable — connector not yet configured (in-app only). <div style="color:var(--text-subtle); margin-top:2px;">1d ago</div></div></div>`;
+  document.getElementById('help-body').innerHTML = `
+    <div style="padding:14px 16px;">
+      <div class="toolbar-search" style="flex:1; width:100%; margin-bottom:12px;">⌕ Search docs…</div>
+      <div class="insp-section-label" style="margin-top:0;">Guided tours</div>
+      <div class="sb-item" style="padding-left:0;">▶ Business path</div>
+      <div class="sb-item" style="padding-left:0;">▶ Technical path</div>
+      <div class="sb-item" style="padding-left:0;">▶ Compliance path</div>
+      <div class="sb-item" style="padding-left:0;">▶ Admin path</div>
+      <div class="insp-section-label">Keyboard shortcuts</div>
+      <div class="insp-kv"><span class="k">Command palette</span><span class="v">⌘K</span></div>
+      <div class="insp-kv"><span class="k">Ask the graph</span><span class="v">⌘/</span></div>
+    </div>`;
+
+  // ---- fragment: build ----
+  function rsTypeahead(el){document.getElementById('rs-results').style.display = el.value.length>=2 ? 'block':'none';}
+  function rsPick(label,varname){
+    var chips=document.getElementById('rs-chips');
+    var s=document.createElement('span');s.className='chip-removable';
+    s.innerHTML='<span class="kind-dot" style="background:var('+varname+')"></span>'+label+' <button onclick="this.parentNode.remove()">×</button>';
+    chips.appendChild(s);
+    document.getElementById('rs-results').style.display='none';
+  }
+  function openTaskDrawer(){document.getElementById('drawer-backdrop').classList.add('show');document.getElementById('drawer').classList.add('show');}
+  function closeTaskDrawer(){document.getElementById('drawer-backdrop').classList.remove('show');document.getElementById('drawer').classList.remove('show');}
+  function drawerTab(e,id){
+    var body=e.target.closest('.drawer-body');
+    body.querySelectorAll('.d-pane').forEach(p=>p.style.display='none');
+    body.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(id).style.display='block';e.target.classList.add('active');
+  }
+  function settingsTab(e,id){
+    var scope=e.target.closest('.content-inner');
+    scope.querySelectorAll('.s-pane').forEach(p=>p.style.display='none');
+    e.target.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(id).style.display='block';e.target.classList.add('active');
+  }
+
+  // ---- fragment: constitution ----
+  function toggleSparql(el){
+    var pre = el.nextElementSibling;
+    pre.classList.toggle('open');
+    el.textContent = pre.classList.contains('open') ? 'View SPARQL ▴' : 'View SPARQL ▾';
+  }
+  function switchBrandTab(tab, id){
+    tab.parentNode.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    tab.classList.add('active');
+    document.getElementById('brand-standards').style.display = id==='brand-standards' ? '' : 'none';
+    document.getElementById('brand-voice').style.display = id==='brand-voice' ? '' : 'none';
+  }
+  function toggleCanvasPanel(name){
+    ['filters','overlays','versions'].forEach(function(n){
+      var open = n===name;
+      document.getElementById('panel-'+n).classList.toggle('open', open);
+    });
+    document.querySelectorAll('.canvas-panel-toggles button').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('onclick').indexOf("'"+name+"'")>-1);
+    });
+  }
+
+  // ---- fragment: light (home + settings) ----
+  function generateShapePreview(){
+    var nl = document.getElementById('rule-nl-input').value || 'Every SKU must have a supplier';
+    document.getElementById('rule-gen-code').textContent =
+      'sh:targetClass :SKU ;\nsh:property [\n  sh:path :supplier ;\n  sh:minCount 1 ;\n  sh:message "' + nl + '" ;\n] .';
+    document.getElementById('rule-gen-preview').style.display = 'block';
+  }
+  var TASK_GRAPH_RENDERED = false;
+  var TG_STATUS = {
+    root:     { shape:'hex',    color:'var(--k-process)', r:20 },
+    done:     { shape:'circle', color:'var(--success)',   r:14 },
+    progress: { shape:'circle', color:'var(--accent)',    r:14 },
+    blocked:  { shape:'diamond',color:'var(--danger)',    r:14 },
+    backlog:  { shape:'square', color:'var(--text-subtle)', r:12 },
+  };
+  var TG_NODES = [
+    { id:'rt',      status:'root',     label:'Returns Automation',            x:60,  y:240 },
+    { id:'repo',    status:'done',     label:'Repo scaffold',                 x:260, y:60  },
+    { id:'shacl',   status:'progress', label:'SHACL shape · RMA policy',      x:260, y:180 },
+    { id:'refund',  status:'progress', label:'Refund calc service',           x:260, y:300 },
+    { id:'pw',      status:'blocked',  label:'Playwright E2E · refund flow',  x:260, y:420 },
+    { id:'ci',      status:'done',     label:'CI pipeline skeleton',          x:480, y:20  },
+    { id:'oxi',     status:'done',     label:'Provision Oxigraph store',      x:480, y:100 },
+    { id:'openapi', status:'backlog',  label:'Draft OpenAPI /refunds',        x:480, y:180 },
+    { id:'cognito', status:'backlog',  label:'Wire Cognito auth stub',        x:480, y:260 },
+    { id:'mutation',status:'backlog',  label:'Mutation test refund calc',     x:480, y:340 },
+    { id:'sparql',  status:'backlog',  label:'SPARQL audit query',            x:480, y:400 },
+    { id:'a11y',    status:'backlog',  label:'Accessibility pass',            x:480, y:460 },
+  ];
+  var TG_EDGES = [
+    ['rt','repo'],['rt','shacl'],['rt','refund'],['rt','pw'],
+    ['repo','ci'],['repo','oxi'],['shacl','openapi'],
+    ['refund','cognito'],['refund','mutation'],
+    ['pw','sparql'],['pw','a11y'],
+  ];
+  function tgShapeMarkup(n){
+    var s = TG_STATUS[n.status], r = s.r;
+    if(s.shape==='circle') return '<circle r="'+r+'" fill="'+s.color+'"/>';
+    if(s.shape==='diamond') return '<rect x="-'+r+'" y="-'+r+'" width="'+(r*2)+'" height="'+(r*2)+'" fill="'+s.color+'" transform="rotate(45)"/>';
+    if(s.shape==='square') return '<rect x="-'+r+'" y="-'+r+'" width="'+(r*2)+'" height="'+(r*2)+'" rx="3" fill="'+s.color+'"/>';
+    if(s.shape==='hex'){
+      var pts=[]; for(var i=0;i<6;i++){ var a=Math.PI/3*i - Math.PI/6; pts.push((r*Math.cos(a)).toFixed(1)+','+(r*Math.sin(a)).toFixed(1)); }
+      return '<polygon points="'+pts.join(' ')+'" fill="'+s.color+'"/>';
+    }
+    return '<circle r="'+r+'" fill="'+s.color+'"/>';
+  }
+  function renderTaskGraph(){
+    if(TASK_GRAPH_RENDERED) return;
+    var svg = document.getElementById('task-graph-svg');
+    var byId = {}; TG_NODES.forEach(function(n){ byId[n.id]=n; });
+    var html = '';
+    TG_EDGES.forEach(function(e){
+      var a=byId[e[0]], b=byId[e[1]];
+      html += '<line class="tg-edge" x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'"/>';
+    });
+    TG_NODES.forEach(function(n){
+      html += '<g transform="translate('+n.x+','+n.y+')" style="cursor:pointer" onclick="openTaskDrawer(event)">'
+            + tgShapeMarkup(n)
+            + '<text class="tg-node-label" x="0" y="'+(TG_STATUS[n.status].r+16)+'" text-anchor="middle">'+n.label+'</text>'
+            + '</g>';
+    });
+    svg.innerHTML = html;
+    TASK_GRAPH_RENDERED = true;
+  }
+  function kanbanTab(e, paneId){
+    document.getElementById('kanban-board-pane').style.display = paneId==='kanban-board-pane' ? 'block' : 'none';
+    document.getElementById('kanban-tree-pane').style.display = paneId==='kanban-tree-pane' ? 'block' : 'none';
+    if(paneId==='kanban-tree-pane') renderTaskGraph();
+    e.currentTarget.parentNode.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    e.currentTarget.classList.add('active');
+  }
+  function wsSettingsTab(name, el){
+    document.querySelectorAll('.ws-pane').forEach(function(p){ p.style.display='none'; });
+    var pane=document.getElementById('ws-'+name);
+    if(pane) pane.style.display='block';
+    var tabs=el.parentNode.querySelectorAll('.tab');
+    tabs.forEach(function(t){ t.classList.remove('active'); });
+    el.classList.add('active');
+  }
+  function showTourStep(n){
+    document.querySelectorAll('[id^="tour-step-"]').forEach(function(s){ s.style.display='none'; });
+    var step=document.getElementById('tour-step-'+n);
+    if(step) step.style.display='block';
+  }
+  function hideTour(){
+    document.querySelectorAll('[id^="tour-step-"]').forEach(function(s){ s.style.display='none'; });
+  }
+
+  // ---- legend (screen-2 kind swatches) ----
+  var legendRow = document.getElementById('legend-row');
+  if (legendRow) {
+    Object.entries(KIND).forEach(function(e){
+      legendRow.innerHTML += '<div class="item"><span class="swatch" style="background:'+e[1].color+'"></span>'+e[1].label+'</div>';
+    });
+  }
+
+  // init
+  switchSection('constitution');
+  showScreen(2);
+</script>

@@ -35,9 +35,12 @@ resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-015.md
 **I want** a browsable project registry and per-project settings tabs
 **So that** I can find any project fast and govern it without touching an API
 
-> **FRs covered:** FR-006 (grid UI), FR-008/FR-009 (caps + model-tier settings UI), FR-011
-> (secret references display), E2-S4 contributors UI (FR-060), FR-010 binding **slots
-> placeholder** ("available when connectors ship" — live bindings are TASK-022).
+> **FRs covered:** FR-006 (grid UI, derived phase display), FR-008/FR-009 (caps + model-tier
+> settings UI), FR-011 (secret references display), E2-S4 contributors UI (FR-060), FR-010
+> binding **slots placeholder** ("available when connectors ship" — live bindings are TASK-022),
+> **FR-066 (E2-S8 "New project" modal — name + description, `POST /api/projects` from
+> TASK-014; replaces any "New request" action in the Registry — Request Studio is unchanged
+> and lives in per-project nav, see AC-8/AC-9)**.
 
 ## Acceptance Criteria
 
@@ -50,6 +53,8 @@ resource: docs/specs/weave/engines/build-engine/v1/tasks/TASK-015.md
 | AC-5 | WHEN contributors are managed, THE SYSTEM SHALL support add/change-role/remove with the admin/editor roles only, and explain that read access is company-wide (tenant membership) | `should manage contributors from settings tab` |
 | AC-6 | WHEN secret configuration renders, THE SYSTEM SHALL show reference names only, with no reveal affordance | `should display secret reference names only` |
 | AC-7 | WHEN the bindings tab renders before connectors ship, THE SYSTEM SHALL show the Confluence/Jira/ServiceNow slots as "available when connectors ship" — present, labelled, disabled | `should show binding slots placeholder` |
+| AC-8 | WHEN "New project" is clicked in the Registry, THE SYSTEM SHALL open a modal collecting **name and description only** and, on save, call `POST /api/projects` (TASK-014) and navigate to the new project — no request/sign-off step in this flow. There is **no "New request" action in the Registry**; requesting work against an existing project remains in that project's Request Studio nav entry, unchanged | `should create project via new-project modal and navigate to it` |
+| AC-9 | WHEN no project is selected, THE SYSTEM SHALL hide the "Current project" sidebar navigation group entirely; WHEN a project is selected (from the Registry or by direct navigation), THE SYSTEM SHALL populate that group with the project's name and its screens; WHEN the user returns to the Registry and selects a different project, THE SYSTEM SHALL re-point the group's contents to the newly-selected project **while each already-open screen retains its own state/URL** — never show a stale or empty-context group, and never silently reset an in-progress view | `should show and swap current-project sidebar group on selection` |
 
 ## Implementation
 
@@ -60,8 +65,14 @@ routes (Next.js app router, Build module in the shared SPA):
   /build                       -> RegistryGrid (server component + client filter bar)
   /build/projects/[id]/settings -> SettingsTabs(governance | contributors | integrations)
 
-RegistryGrid: useQuery(GET /api/projects?filters) -> <ProjectCard/> grid
+RegistryGrid: useQuery(GET /api/projects?filters) -> <ProjectCard phase={derived}/> grid
   empty result -> <EmptyState onClear={resetFilters}/>            # AC-2
+  "New project" button -> <NewProjectModal name, description/>
+    on save: POST /api/projects -> navigate(/build/projects/[id])  # AC-8, no request step
+SidebarNav (shell-level, Build module contributes the conditional group):
+  selectedProjectId = useSelectedProject()      # null until Registry selection or deep link
+  selectedProjectId == null -> "Current project" group ABSENT      # AC-9
+  selectedProjectId set     -> group renders {project.name} + screens, swaps on reselect
 SettingsTabs:
   role = useProjectRole()      # from session/contributor payload  # AC-4
   governance tab: CapFields (cascade level shown per field), ModelTierSelect
@@ -73,8 +84,10 @@ all styling via design tokens (docs/standards/design/tokens.md); shadcn primitiv
 
 ### API Contracts
 
-Consumes TASK-014 routes only (`GET /api/projects`, `PATCH settings`, contributors CRUD) —
-shapes pinned there and in `v1-delta.md` §3. No new endpoints.
+Consumes TASK-014 routes only (`GET /api/projects`, `POST /api/projects`, `PATCH settings`,
+contributors CRUD) — shapes pinned there and in `v1-delta.md` §3. No new endpoints. The sidebar
+"Current project" group is client-side navigation state (selected project id), not a new
+endpoint — it reads whichever project the user is already viewing.
 
 ### Diagram References
 
@@ -92,6 +105,8 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
 | Binding slots ship disabled, not omitted | FR-010 AC | Users see the feature exists and what gates it; TASK-022 flips them live |
 | Server components for grid data, client islands for filters | Next.js 15 default | Keeps the interactive ≤ 1 s budget at 100 projects |
 | No ad-hoc styling values | `docs/standards/design/` | `ui_verify` gate rejects raw hex/px/duration |
+| "New project" replaces "New request" in the Registry (B10) | FR-066 / `ADR-009` | This is a real create operation, not a relabel — the modal calls a new endpoint (TASK-014); Request Studio is untouched and lives per-project |
+| "Current project" sidebar group is conditional, not a fixed shell element | FR-066 AC-9 / `v1-delta.md` §2 | Matches the researched "context-scoped sidebar" convention (Vercel dashboard nav, general SaaS nav guidance — cited in `v1-delta.md` §2) — no context shown until a context exists; each screen's state/URL is preserved across a context switch |
 
 ## Test Requirements
 
@@ -106,6 +121,7 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
 
 - `should render settings read-only for editor` (rendered against role payload)
 - `should show binding slots placeholder`
+- `should show and swap current-project sidebar group on selection`
 
 ### E2E Tests (Playwright, minimum 3 — Law B: backend state asserted)
 
@@ -114,6 +130,8 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
 - `should deny settings mutation to editor end to end` (editor session forces a PATCH → 403
   + audit entry asserted server-side; UI shows read-only)
 - `should filter registry and open a project` (grid → settings navigation)
+- `should create project via new-project modal and navigate to it` (modal save → DB row
+  asserted via TASK-014's `POST /api/projects` → redirected to the new project; Law B)
 
 ### AC-to-Test Mapping
 
@@ -126,6 +144,8 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
 | AC-5 | E2E | `should manage contributors from settings tab` |
 | AC-6 | Unit | `should display secret reference names only` |
 | AC-7 | Integration | `should show binding slots placeholder` |
+| AC-8 | E2E | `should create project via new-project modal and navigate to it` |
+| AC-9 | Unit | `should show and swap current-project sidebar group on selection` |
 
 ## Dependencies
 
@@ -175,6 +195,11 @@ shapes pinned there and in `v1-delta.md` §3. No new endpoints.
   states are compositions, not new patterns.
 - Keep filter state in the URL (searchParams) so filtered views are shareable and the
   back-button behaves; this also makes the Playwright assertions trivial.
+- Visual/behavioral reference: `docs/design/mocks/mock-v5-delta.html`, screen 10 (Project
+  Registry: grid, "New project" modal, lifecycle-phase chips) — build the modal fields to match.
+  The "Current project" conditional sidebar group is demonstrated by the mock's shell navigation
+  logic (`currentProjectGroupHTML()`), not a numbered screen of its own — see it exercised by
+  navigating from screen 10 into any per-project screen (9/11/12/13/14) and back.
 
 ---
 

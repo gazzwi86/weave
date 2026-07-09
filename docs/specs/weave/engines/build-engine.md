@@ -172,6 +172,7 @@ but humans still hand-build everything that runs it.
 | B7 | Brand-conformance gate (CE-BRAND-1) is M2, not M1 | Formula requires full VoiceRules SHACL catalogue; thin-proof loop ships without it |
 | B8 | **Build Engine is stack-agnostic** — the *generated* stack is driven by the client company's + project's standards (FR-063/FR-064), never fixed to Weave's own stack | Weave's own stack (Next.js 15 / FastAPI / Cognito / Bedrock / `uv`) constrains **building the Build Engine itself**, not what it generates; the engine builds whatever the target spec + client standards require. The M1 thin-proof uses Next.js + FastAPI as a **demo default**, not a constraint on output |
 | B9 | **Generated output lives in a NEW external repo per project** (GitHub/GitLab, configured); repo bootstrap is the **first step of a run** | Client-owned, forkable, portable code (consistent with `BE-SDK-1` ownership); source control is a project/domain setting + Secrets-Manager token, distinct from the 7 `PLAT-CONNECTOR-1` data connectors and not connector-gated |
+| B10 | **A project can be created directly** (name + description modal, `POST /api/projects`), **with no Request Studio flow behind it, but still fully governed**: the direct-create path pins the newest published CE version (`CE-VERSION-1`) and resolves the Company→Domain→Project governance cascade **at create time, through the same shared code path as request-approval auto-create (FR-007)** — it differs from FR-007 only in that no request/spec seeds the backlog (the project starts empty, in the `Speccing` lifecycle phase). Request Studio (EPIC-001) remains, unchanged, for requesting *work against an existing project* | User ruling 2026-07-09 (see `ADR-009`): the "New request"-only entry point in the Registry was a false requirement — a bare, empty, but fully-governed and version-pinned project shell is a legitimate starting state; EPIC-002's "no ungoverned window" invariant is preserved because governance resolution is not conditional on how the project came to exist |
 
 ### Navigation
 
@@ -227,8 +228,8 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-003 | Blast-radius panel: domains/services touched from graph (CE-READ-1); unavailable graph = "review manually", not blocked | E1-S2 | Must | M1 |
 | FR-004 | Cost-estimate gate: per-spec cap (~$25 default, tunable via `PLAT-SETTINGS-1`); blocks if exceeded | E1-S3 | Must | M1 |
 | FR-005 | Stakeholder sign-off: resolve from graph via `CE-READ-1`; spec locked on submit; Approve → auto-project create | E1-S4 | Must | M1 |
-| FR-006 | Project grid: status cards with phase, budget, owner, demo status; filter + name search | E2-S1 | Must | v1.0 |
-| FR-007 | Auto-create project from approved request with pinned CE version (`CE-VERSION-1`) and budget cascade | E2-S2 | Must | v1.0 *¹ |
+| FR-006 | Project grid: status cards with **lifecycle phase**, budget, owner, demo status; filter + name search. **Lifecycle phase is a distinct axis from FR-044's per-task execution `phase` / FR-017's board "This phase" filter — same word, different concept, do not conflate.** Lifecycle phase is **derived at read time, never stored**: `Speccing` (no approved `build_specs` row yet) → `Building` (state spine has running/queued tasks) → `Live monitoring` (`demo_output_location_ref` is set and nothing is in flight); `Archived` overrides any of the three when `archived_at` is set (the one manual, stored flag — see B10) | E2-S1 | Must | v1.0 |
+| FR-007 | Auto-create project from approved request with pinned CE version (`CE-VERSION-1`) and budget cascade. Request Studio is one of **two** create paths in v1.0 — see FR-066 for direct creation | E2-S2 | Must | v1.0 *¹ |
 | FR-008 | Budget-cap cascade (Company→Domain→Project, tighter-wins; `PLAT-SETTINGS-1`); breach halts at checkpoint | E2-S3 | Must | v1.0 |
 | FR-009 | Model-tier gating per project (standard/fast/premium/experimental); default from domain policy (`PLAT-SETTINGS-1`) | E2-S3 | Must | v1.0 |
 | FR-010 | Project **external-space bindings**: project settings bind the project to specific external boards/spaces — **Confluence space, Jira board/project, ServiceNow** — by reference via `PLAT-CONNECTOR-1` (no connector credential stored in Build), so agents pull from / push to the right spaces. **Connector-dependent: rides the connector timeline (connectors deferred to v1.0), so bindings land at v1.0** | E2-S5 | Must | v1.0 (connector-gated) |
@@ -249,7 +250,7 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-024 | Four-class retry taxonomy: logic / syntax / dependency / spec-ambiguity; per-class ceiling; ceiling-hit → HITL | E6-S3 | Must | M1 |
 | FR-025 | HITL gates: web Approve/Amend/Reject via `PLAT-NOTIFY-1`; fail-closed on audit outage; gate stays closed if ceremony step errors | E6-S4 | Must | M1 |
 | FR-026 | No-self-approval invariant: an agent cannot approve its own output; enforced via `PLAT-IDENTITY-1` | E6-S4 | Must | M1 |
-| FR-027 | Decision log: searchable table of agent decisions + ADRs over `PLAT-AUDIT-1` | E7-S1 | Must | v1.0 |
+| FR-027 | Decision log: searchable table of agent decisions + ADRs over `PLAT-AUDIT-1`. **Widened scope**: includes task-update events (not decisions/ADRs only), and every row carries a **category/kind** dimension (`Decision` / `Task update` / `System`) derived from a namespace→kind map over the `PLAT-AUDIT-1` `event_type` prefix — no new event field, no contract change. **Filter chips (All/Decisions/Task updates/System) are server-side query params** (each maps to an `event_type` prefix set passed to the paginated query) — never client-side row-hiding, which would silently break pagination. Default view: Decisions. Actor column renders human vs. agent by parsing the `:user:` vs. non-`:user:` segment of `actor_principal_iri` (the `PLAT-IDENTITY-1` IRI shape already encodes this) — no per-row principal lookup, no new stored field | E7-S1 | Must | v1.0 |
 | FR-028 | Decision log export (PDF/CSV) | E7-S2 | Could | post-v1 |
 | FR-029 | Generation safety gates (M1) before commit — **atomic; any failure = nothing committed**: SAST (Bandit/Semgrep), type-check (mypy/tsc), delta-scoped mutation ≥ 70%, package-existence hard-block, secret-scan. CE-BRAND-1 conformance gate **→ M2** (formula: `score=(normal rules passed)/(total normal rules)`; critical failure = hard fail; pass bar ≥ 90%, tunable). | E8-S1 | Must | M1 (safety) / M2 (brand gate) |
 | FR-030 | Agent generation (Anthropic Agent SDK, Python primary): grounded in BPMO graph via `CE-READ-1`; acts under named `PLAT-IDENTITY-1` principal | E8-S2 | Should | post-v1 |
@@ -262,7 +263,7 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-037 | Signal collection from 12 AWS sources with configurable thresholds; each record: type, severity, timestamp, evidence, ARN | E10-S1 | Should | post-v1 |
 | FR-038 | Issue creation from WARN/CRITICAL signals; CRITICAL auto-notifies via `PLAT-NOTIFY-1`; duplicate detection | E10-S2 | Should | post-v1 |
 | FR-039 | HITL-gated fix dispatch: gate sequence explicit-deny→authority→automatable→HITL before any autonomous step; no autonomous merge ever | E10-S2 | Should | post-v1 |
-| FR-040 | Self-healing screen: signal bar, ranked open issues, resolved issues, summary chip | E10-S3 | Should | post-v1 |
+| FR-040 | Self-healing screen: signal bar, ranked open issues, resolved issues, summary chip. Visual/behavioral reference: `docs/design/mocks/mock-v5-delta.html`, screen 18 (labelled "Improvement" in the mock, PREVIEW/post-v1 tagged) | E10-S3 | Should | post-v1 |
 | FR-041 | Orchestrator turn cap: default 60 dispatch cycles, tunable via `PLAT-SETTINGS-1`, **distinct from per-agent internal caps**. Worst-case ceiling: orchestrator 60 × per-agent ~100 = **~6,000 LLM calls**. Either cap halts to HITL. | E11-S1 | Must | M1 |
 | FR-042 | Resumable on cap-halt or crash: resume from last completed CODIFY checkpoint; no task left partially committed | E11-S1 | Must | M1 |
 | FR-043 | Dependency-summary handoff: CODIFY writes key decisions + edge cases to tenant-scoped store; PLAN reads predecessors' summaries before DELEGATE; missing summary = hold in Ready. **M1 = pass-through stub** (CODIFY writes the `dep_summaries` breadcrumb row; the consumer does not read/gate on it); full read-and-gate behaviour lands M2 (council ENG-4) | E11-S3 | Must | M1 stub / M2 |
@@ -287,6 +288,7 @@ real-client ingestion. Real-client cold-start ingestion lands in v1.0.
 | FR-063 | **Company-level standards catalogue** *(workspace level dropped 2026-07-08 — catalogue re-homes to company scope)* — coding standards, architecture patterns, and preferred stacks are authored and stored at company scope (same family as this repo's `docs/standards/`, extended beyond brand/design) and **consumed by every build project in the company** (at generation, E8-S1) to drive the generated stack. Standards are **governed by `Policy` entities read via `CE-READ-1`** (`governedBy`) so agents reason over them; brand/voice remains `CE-BRAND-1`. The generated stack is chosen from these standards — **the Build Engine is stack-agnostic (decision B8)**, not fixed to Weave's own stack. | E2-S7 | Must | M2 |
 | FR-064 | **Project-level standards** extend/override the company standards for a specific project (tighter-wins, aligned to the `PLAT-SETTINGS-1` cascade); the effective standard set (company ⊕ project) grounds generation (E8-S1) for that project. Also linked to `Policy` via `CE-READ-1`. | E2-S7 | Must | M2 |
 | FR-065 | **Direct project prompt interface** — a prompt box scoped to a build project lets a user instruct the agent to make changes (e.g. "fix this inaccuracy", "change how the UI looks", "change what this API returns / the error message it throws"). The agent runs (reusing the dark-factory run lifecycle) with visible run status, and produces **PRs/amendments to the project's code, specs, AND backlog** as appropriate, opened against the project's external repo (FR-061). **Permission-gated:** project **editors and admins** (and company/domain admin/owner) may prompt; **readers cannot** (FR-060 role model); an unauthorised prompt returns 403 + `PLAT-AUDIT-1`. | E3-S3 | Should | v1.0 |
+| FR-066 | **Direct project creation** — a "New project" action in the Registry opens a modal (name + description only) and creates a new project shell directly via `POST /api/projects` — **no Request Studio flow is required for the shell itself**. Governance still resolves through the Company→Domain→Project cascade at create time (FR-007's "no ungoverned window" guarantee applies identically to this path). The created project starts in the `Speccing` derived phase with no spec, no tasks, no repo bound yet. Request Studio (EPIC-001) is unchanged and still used to request *work against an existing project*. See `ADR-009`, decision B10. | E2-S8 | Must | v1.0 |
 
 *¹ M1 requires a **minimal project bootstrap** (backend record: project IRI + pinned CE version, no UI) to allow E11 dark factory to run against a `project_iri`. Full Registry grid and settings UI (FR-006 through FR-012) land in v1.0. See §3 E2 notes.
 
@@ -400,6 +402,11 @@ on a pre-generation cost estimate, and collects stakeholder sign-off.
 target-repo name, visible request record — `TASK-024`) — v1.0 Should Have, closing design finding
 F-D20; the M1 form shipped without these three fields (see `TASK-024` scope traceability).
 
+> **v1.0 IA note (user ruling 2026-07-09):** Request Studio is **no longer the Registry's only
+> entry point** — a project can also be created directly with no request behind it (FR-066,
+> `ADR-009`). This epic's flow, ACs, and stories are unchanged; only its Registry entry-point
+> language changes ("New request" is a distinct action from "New project", not a synonym).
+
 **Acceptance criteria (EARS)**
 
 - WHEN a request is submitted, THE SYSTEM SHALL draft a brief/PRD/tech spec streamed section by
@@ -443,13 +450,40 @@ contributors/roles, integrations/external-space bindings, **source-control provi
 
 **Stories:** E2-S1 (grid), E2-S2 (auto-create), E2-S3 (governance cascade), E2-S4 (contributors &
 roles, FR-060), E2-S5 (external-space bindings, FR-010), E2-S6 (source-control provider config,
-FR-061/B9), E2-S7 (company/project standards, FR-063/FR-064) — all Must Have.
+FR-061/B9), E2-S7 (company/project standards, FR-063/FR-064), E2-S8 (direct project creation,
+FR-066) — all Must Have.
 
 **Acceptance criteria (EARS)**
 
 - WHEN a project is created, THE SYSTEM SHALL pin the newest published CE version via `CE-VERSION-1`
   and resolve governance through the Company→Domain→Project cascade (tighter-wins) with
-  no window where the project exists ungoverned.
+  no window where the project exists ungoverned. **This applies identically to both create paths**:
+  request-approval auto-create (E2-S2/FR-007) and direct creation (E2-S8/FR-066) — governance
+  resolution is not conditional on how the project came to exist.
+- WHEN the Registry grid renders a project's phase, THE SYSTEM SHALL **derive** it
+  (`Speccing` / `Building` / `Live monitoring`) from spec/task/deploy state rather than reading a
+  stored field, and layer the manual `Archived` flag on top when set — there is no free-set phase
+  field and no separate phase state machine (decision B10).
+- **(E2-S8 — direct project creation, FR-066)** WHEN a user with company/domain create rights clicks
+  "New project" in the Registry, THE SYSTEM SHALL open a modal collecting **name and description
+  only** and, on save, create the project shell via `POST /api/projects`, pinning the newest
+  published CE version and resolving governance through the cascade exactly as FR-007's
+  request-approval path does — no request or sign-off is required for the shell itself, but there
+  is no ungoverned or unpinned window either way (decision B10).
+- **(nav — FR-066 AC, "context-scoped sidebar" convention)** WHEN no project is selected, THE
+  SYSTEM SHALL hide the "Current project" sidebar group; WHEN a project is selected (from the
+  Registry or by direct navigation), THE SYSTEM SHALL reveal the group labelled with that
+  project's name and populate it with that project's screens; WHEN the user returns to the
+  Registry and selects a different project, THE SYSTEM SHALL re-point the group to the new
+  project **while preserving each screen's own state/URL** across the switch (a returning user
+  lands back where they were, not at a reset default). This is a UI-shell behaviour on the
+  existing Build routes, **not a new FR** — it is the established "context-scoped sidebar"
+  pattern (single sidebar; a context switcher reveals/swaps scoped nav items; no-context state
+  shows the org/root-level nav only), confirmed against Vercel's dashboard navigation
+  (`vercel.com/changelog/new-dashboard-navigation-available`) and general SaaS nav-pattern
+  guidance (`designpixil.com/blog/saas-navigation-design-patterns`); see `v1-delta.md` §2 for the
+  full research note. No disagreement was found between this convention and the mock's built
+  behaviour, so nothing here overrides the working mock (per the user's stated fallback rule).
 - WHEN the binding cap is breached mid-run, THE SYSTEM SHALL halt in-flight agent steps at the
   next safe checkpoint and fire a `PLAT-NOTIFY-1` budget event — partial work commits only if it
   passes the generation safety gates.
@@ -610,8 +644,9 @@ gate mechanics.
 **depends_on:** `PLAT-AUDIT-1`
 **blocks:** — · **provides:** —
 
-A searchable table of agent decisions and ADRs as a read-only view over `PLAT-AUDIT-1`. Export
-to PDF/CSV (E7-S2) is post-v1.
+A searchable table of agent decisions, ADRs, **and task-update events** as a read-only view over
+`PLAT-AUDIT-1` (see FR-027, widened scope — user ruling 2026-07-09). Export to PDF/CSV (E7-S2) is
+post-v1.
 
 **Stories:** E7-S1 (log view, Must Have), E7-S2 (export, Could Have → post-v1).
 
@@ -622,6 +657,18 @@ to PDF/CSV (E7-S2) is post-v1.
   rather than fabricating entries or showing a blank screen.
 - WHEN an ADR is linked from a task brief (FR-018), THE SYSTEM SHALL resolve the link to the
   corresponding audit record in the decision log.
+- WHEN a row is rendered, THE SYSTEM SHALL show a **category/kind chip** (`Decision` /
+  `Task update` / `System`) alongside the existing event-type code, derived from a
+  namespace→kind map over the `event_type` prefix — no new field on the `PLAT-AUDIT-1` event
+  shape.
+- WHEN a filter chip (All/Decisions/Task updates/System) is selected, THE SYSTEM SHALL re-query
+  the server with the corresponding `event_type` prefix set — filtering never happens by hiding
+  already-fetched rows client-side, which would silently break cursor pagination. Default view
+  is Decisions.
+- WHEN the actor column is rendered, THE SYSTEM SHALL label it human or agent by parsing the
+  `actor_principal_iri` (`:user:` segment = human; anything else = agent/service) — the
+  `PLAT-IDENTITY-1` IRI shape already encodes this; never a per-row principal lookup, never a
+  stored/guessed field on the audit row itself.
 
 ---
 
@@ -703,6 +750,16 @@ and a staleness indicator computed from the canonical CE version-lag.
 Self-healing observes deployed-app signals (12 AWS source types), drafts issues from WARN/CRITICAL
 signals, and dispatches fixes through the same dark factory — always behind the deterministic gate
 sequence (explicit-deny → authority → automatable-flag → HITL). No autonomous merge, ever.
+
+> **Two distinct post-v1 concepts — do not collapse (user ruling 2026-07-09):** this epic is the
+> **project-level** concept — it looks at **one project's own** logs/signals for bugs and fixes.
+> A **separate, Platform-owned** concept — Weave analysing **its own** app logs, user interaction
+> logs, and AI-prompt logs, for a super-admin audience — is out of scope here; it belongs to
+> `weave-platform.md`'s existing self-improvement epics. Same technique (signal → issue →
+> dispatch), different owning engine and different data scope; already separated by decision B5
+> (`BE-SELFIMPROVE-1` is Build-provided, Platform-consumed) — no new decision needed, citation
+> only. The mock's "Improvement" screen label (`mock-v5-delta.html`, screen 18, PREVIEW/post-v1
+> tag) is **this epic's FR-040 self-healing screen** — one feature, one label, not two.
 
 **Stories:** E10-S1 (signal collection), E10-S2 (issue creation + dispatch), E10-S3 (screen) —
 all post-v1 Should Have.

@@ -212,6 +212,11 @@ no new status endpoint. Consumes: lifecycle enqueue (M1), Role Guard (TASK-011),
   message it throws") are the E2E prompt fixtures — use one verbatim.
 - Backlog amendments (AC-3) mean spec/task file changes in the external repo's spec tree —
   the same ScmDriver PR path as code; no Weave-internal backlog mutation.
+- Visual/behavioral reference: `docs/design/mocks/mock-v5-delta.html`, screen 12 (the prompt
+  box mounts on the Dashboard). **Text-only input** — this screen originally had a mic/voice
+  affordance in an earlier mock pass; it has been removed per user ruling (no voice/speech-to-
+  text capability is planned anywhere in Build) — do not reintroduce it, and do not spec any
+  voice/mic FR or NFR for this surface.
 
 ---
 

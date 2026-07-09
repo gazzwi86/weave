@@ -92,6 +92,33 @@ both choke points unchanged (`repo_layer`, `ce_client`).
   renders from the contract's health-read API (`status, last_sync, last_error, error_count`,
   incl. skipped-count); unbound slots render "available when connectors ship" until Platform
   v1 connector delivery is live — binding tasks carry that DAG dependency.
+- **Direct project creation (FR-066, B10)** — the Registry's "New project" action opens a
+  name+description modal and calls `POST /api/projects` directly (§3); this is a second create
+  path alongside the existing request-approval auto-create (FR-007), not a relabel of it. **Both
+  paths run the same shared create function**: pin the newest published CE version
+  (`CE-VERSION-1`) and resolve the Company→Domain→Project governance cascade, atomically with
+  the insert — "no ungoverned window" (EPIC-002's founding invariant) holds regardless of entry
+  point; the direct path differs only in that no request/spec seeds the backlog.
+- **Project lifecycle phase (FR-006, B10)** — **a distinct axis from FR-044's per-task execution
+  `phase` and FR-017's board "This phase" filter** — same word, different concept. No
+  `phase` column is added to `projects`; it is computed at read time from existing state:
+  `Speccing` (no approved `build_specs` row yet) → `Building` (state spine has one or more
+  running/queued tasks) → `Live monitoring` (`demo_output_location_ref` is set and nothing is in
+  flight). `Archived` overrides all three when `archived_at` (§4) is set — the one stored,
+  manually-set field; unarchiving clears it and the derived label resumes.
+- **"Current project" nav (E2-S8, FR-066) — the "context-scoped sidebar" convention** — one
+  sidebar; a context switcher (the Registry) reveals/swaps a scoped nav group; the org/root-level
+  nav is what's shown with no context selected. The group is absent while no project is
+  selected, renders with that project's name + screens once one is, and re-points (preserving
+  each screen's own state/URL) when the user returns to the Registry and picks a different
+  project. No new URL-namespace requirement beyond the existing `/build/projects/[id]/...`
+  routes already in use by TASK-015/017/019/020. **Researched, per user request (2026-07-09)**:
+  this is the established pattern, confirmed against Vercel's dashboard navigation redesign
+  (`vercel.com/changelog/new-dashboard-navigation-available`) and general SaaS nav-pattern
+  guidance (`designpixil.com/blog/saas-navigation-design-patterns`). The mock's built behaviour
+  (conditional group, Registry-as-root, swap-on-reselect) already matches this convention — no
+  rework required; cited here because the user asked for the standard to be looked up rather than
+  invented, and because they asked to be told if it disagreed with the mock — it does not.
 
 ```mermaid
 flowchart TB
@@ -126,6 +153,7 @@ All routes tenant-scoped (RLS + repo-layer filter) and role-guarded per FR-060 (
 | Endpoint | p95 target | Notes |
 |---|---|---|
 | `GET /api/projects` (filter + name search) | ≤ 300 ms | Registry grid; paginated |
+| `POST /api/projects` | ≤ 500 ms | FR-066 direct create: name + description only; governance cascade resolved synchronously (same code path as request auto-create); 201 + project shell, no spec/tasks/repo bound yet |
 | `PATCH /api/projects/{id}/settings` | ≤ 500 ms | model tier, caps (cascade-validated) — admin only |
 | `GET /api/projects/{id}/dashboard/{tile}` | ≤ 400 ms | one endpoint per tile; tile-isolated errors |
 | `GET /api/projects/{id}/costs` | ≤ 300 ms | ADR-008 rollup; `estimated` label in payload |
@@ -133,7 +161,7 @@ All routes tenant-scoped (RLS + repo-layer filter) and role-guarded per FR-060 (
 | `GET /api/projects/{id}/task-tree` | ≤ 500 ms | flagged orphans, never dropped |
 | `GET /api/projects/{id}/tasks/{task_id}` | ≤ 400 ms | Brief/Handoff/Tests/Console pointers |
 | `GET /api/projects/{id}/tasks/{task_id}/audit` | ≤ 800 ms | PLAT-AUDIT-1 filtered read; unreachable ⇒ "audit unavailable" |
-| `GET /api/projects/{id}/decisions?search=` | ≤ 800 ms | read-only PLAT-AUDIT-1 view, paginated |
+| `GET /api/projects/{id}/decisions?search=&kind=` | ≤ 800 ms | read-only PLAT-AUDIT-1 view, cursor-paginated; `kind` maps to an `event_type` prefix set (all/decision/task_update/system) — server-side filter, not client row-hiding |
 | `GET/PUT/DELETE /api/projects/{id}/contributors[/{principal}]` | ≤ 400 ms | admin only; denial audited |
 | `GET/PUT /api/projects/{id}/bindings` | ≤ 400 ms | instance-handle references only; health via PLAT-CONNECTOR-1 read API |
 | `GET /api/projects/{id}/pin-diff` | ≤ 2 s | CE-DIFF-1 proxy (CE-bound latency) |
@@ -143,9 +171,11 @@ All routes tenant-scoped (RLS + repo-layer filter) and role-guarded per FR-060 (
 
 ## 4. Aurora delta (extends data-model.md — same RLS + repo-layer pattern)
 
-Four new tables, two column adds. Everything else reuses existing tables (git ribbon = recent
+Four new tables, four column adds. Everything else reuses existing tables (git ribbon = recent
 `generation_runs.branch/commit_sha`; Tests-tab captures = `{output_location_ref}/captures/`
-manifest convention inside the existing bundle — no schema change).
+manifest convention inside the existing bundle — no schema change). **No lifecycle-phase column
+is added** to `projects` — lifecycle phase is derived at read time (§2, distinct from FR-044's
+execution `phase`); only `description` and `archived_at` are stored.
 
 ```sql
 CREATE TABLE project_contributors (
@@ -187,6 +217,11 @@ CREATE TABLE cost_events (                  -- ADR-008
 );
 CREATE INDEX idx_cost_events_rollup ON cost_events (tenant_id, project_iri, task_id);
 
+-- projects (FR-066, B10): direct-create fields; no lifecycle-phase column — it is derived, not
+-- stored (see §2). archived_at (nullable, not a boolean) doubles as the archive timestamp.
+ALTER TABLE projects ADD COLUMN description TEXT;
+ALTER TABLE projects ADD COLUMN archived_at TIMESTAMPTZ;
+
 -- generation_runs: prompt-triggered runs (FR-065) + console log pointer
 ALTER TABLE generation_runs ADD COLUMN trigger TEXT NOT NULL DEFAULT 'request'
     CHECK (trigger IN ('request','prompt'));
@@ -226,6 +261,12 @@ Every failure state named in the epics is a UI state, not an exception path:
 - Cost figures always labelled "estimated" (ADR-008).
 - Binding health unknown (connector unreachable) ⇒ "health unavailable", never a fake green
   (FR-010, mirrors the connector contract's honesty rule).
+- A newly, directly-created project (FR-066, no spec/tasks/repo yet) ⇒ renders as `Speccing`
+  (lifecycle phase) with an explicit "not started" empty state on Dashboard/Kanban/Decision Log
+  — never a spinner, never an error, never a phase label implying more progress than exists.
+- Decision Log filter chips ⇒ always a fresh server query by `event_type` prefix set, never
+  client-side hiding of an already-fetched page — a hidden row must never silently break the
+  cursor-pagination count (FR-027).
 
 ## 6. Pages + Lighthouse targets (Arch Law 3 — first Build milestone with pages)
 
@@ -264,6 +305,13 @@ tests (each maps to an AC in a v1 task brief); all fixtures local — Law F, no 
 - `should never echo source-control token in any response` (E2-S6)
 - `should show health unavailable when connector health read fails`
 - `should return zero tenant-B rows for every new v1 table` (two-tenant fixture)
+- `should create project shell via direct create with no request behind it, still CE-pinned and governed` (FR-066, E2-S8)
+- `should resolve governance cascade and pin CE version identically for direct-create and request auto-create paths`
+- `should derive lifecycle phase from spec/task/deploy state rather than reading a stored field`
+- `should hide current-project sidebar group when no project is selected and preserve state on re-point`
+- `should render decision log category chip from event_type namespace map`
+- `should re-query server on decision log filter chip change rather than hiding rows client-side`
+- `should render actor as human or agent from actor_principal_iri prefix, not a stored audit field or per-row lookup`
 
 ## 8. Delivery — Arch Law 9 statement
 

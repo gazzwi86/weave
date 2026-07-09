@@ -93,7 +93,7 @@ consumer note) and treats absence as empty.
 | Per-tile endpoints, no aggregate | FR-013 AC / AC-2 | Failure isolation is structural, not try/catch theatre; caching per tile |
 | Git ribbon reads recorded runs, never live SCM | AC-5 / OQ-07 disposition | Page load can't hang on GitHub; the recorded rows are already the source of truth for what Weave pushed |
 | Prior-demo-URL retention is server-side state | AC-3 | The tile is honest even on first render after a failed deploy — not a client cache trick |
-| Self-improvement card is read-only + link-out | B5 / EPIC-003 AC | Build never owns the proposal lifecycle; zero proposal mutations in this codebase |
+| Self-improvement card is read-only + link-out | B5 / EPIC-003 AC | Build never owns the proposal lifecycle; zero proposal mutations in this codebase. **Not the same surface as FR-040's post-v1 self-healing screen** (mock screen 18, "Improvement") — this card is a small dashboard tile linking OUT to the Platform surface; FR-040 is a separate, full, project-level page, still post-v1 |
 
 ## Test Requirements
 
@@ -176,6 +176,10 @@ consumer note) and treats absence as empty.
   check most).
 - `repo_url` join for ribbon links: the projects row already stores it (M1 ScmDriver) — no
   SCM API involvement anywhere in this task.
+- Visual/behavioral reference: `docs/design/mocks/mock-v5-delta.html`, screen 12 ("Store Ops
+  Portal" dashboard). Note: this screen originally had a mic/voice-input affordance in an
+  earlier mock pass; it has been removed per user ruling (no voice/speech-to-text capability is
+  planned anywhere in Build) — do not reintroduce it.
 
 ---
 

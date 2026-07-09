@@ -183,6 +183,12 @@ tasks move lanes only via the orchestrator).
   mechanism; the a11y unit test should assert label text, not colour values.
 - Poll/refresh: reuse the existing run-status pub/sub → SSE channel the M1 Studio uses for
   live updates rather than adding websockets or a poller.
+- FR-017's "This phase" filter is the **execution** phase (FR-044 state-spine axis) — unrelated
+  to the Registry's derived **lifecycle** phase (Speccing/Building/Live monitoring, FR-006/B10);
+  same word, two different things, do not conflate the filter with the Registry chip.
+- Visual/behavioral reference: `docs/design/mocks/mock-v5-delta.html`, screen 11 (Kanban Board)
+  — confirms the task-tree renders as a static layered list/DAG, no new graph-rendering
+  dependency, aligned with this task's existing design decision.
 
 ---
 
