@@ -167,6 +167,32 @@ def test_has_admin_grant_false_for_a_non_admin_role() -> None:
     assert has_admin_grant(roles, domain=None) is False
 
 
+def test_has_admin_grant_false_for_a_project_scoped_admin_grant() -> None:
+    """QA edge case: `scope="project"` is a valid `RoleGrant` shape
+    (PLAT-IDENTITY-1 allows it for future project-scoped grants) but AC-4's
+    overlay is defined only for tenant/domain scope -- a project-scoped
+    entry must never short-circuit the contributor-row lookup, even with
+    `role="admin"`. Without this, a stray/foreign-project grant in the JWT
+    could silently over-grant on the wrong project.
+    """
+    roles = [RoleGrant(scope="project", role="admin", project_iri="urn:weave:project:acme:p1")]
+
+    assert has_admin_grant(roles, domain=None) is False
+    assert has_admin_grant(roles, domain="urn:weave:domain:acme:sales") is False
+
+
+def test_has_admin_grant_true_when_a_later_grant_in_the_list_matches() -> None:
+    """QA edge case: the JWT `roles` claim is a list -- a non-matching entry
+    earlier in the list must not short-circuit the scan away from a real
+    tenant-admin grant later in the same list."""
+    roles = [
+        RoleGrant(scope="project", role="editor", project_iri="urn:weave:project:acme:p1"),
+        RoleGrant(scope="tenant", role="owner"),
+    ]
+
+    assert has_admin_grant(roles, domain=None) is True
+
+
 def test_project_role_allows_denies_a_missing_role() -> None:
     assert project_role_allows(None, ProjectAction.SETTINGS) is False
 
