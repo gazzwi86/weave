@@ -6,9 +6,16 @@ Playwright E2E tail + fixed one tsc error in the E2E spec). Written before QA so
 
 ## Outcome
 
-Impl complete + committed (all 5 surfaces). Vitest 17/17 pass, lint 0 errors (11 warnings), tsc
-clean. QA full checklist pending (this summary unblocks preflight). **Full `ui_verify --full`
-cross-screen check runs at epic close (Step 14) on the assembled app — this epic is now UI-bearing.**
+**QA PASS after retry 1.** Round-1 QA: design tokens (0 ad-hoc hex/px), a11y structure, role-gating
+(UX-only, server-side 403 is the real boundary), exhaustive-deps all PASS — but FAIL on (a) AC-7
+binding-slot labels wrong (delivered "Data warehouse/Source control/Secrets manager", spec requires
+**Confluence/Jira/ServiceNow**), (b) 2 of 4 mandated E2E absent (AC-4 editor-403, AC-5 contributors).
+Retry fixed all: slots corrected + label-asserting test (`dc9e31b`); AC-4/AC-5 backend-asserting E2E
+added (`7c079ca`, Law-B via independent `page.request`); AC-3 field-level `aria-invalid`/`aria-describedby`
++ danger-token border on cost-cap (`d6c5821`); coverage lifted new-project-modal 78%→100%, form
+75%→87.5% (`5efa004`). Vitest **21/21**, all app/build ≥80%, tsc clean, lint 0 errors. retry=1/3.
+**Full `ui_verify --full` cross-screen check + the 4 E2E specs run at epic close (Step 14) on the
+assembled app — this epic is UI-bearing.** Kept the 503 settings path (correct — TASK-014 returns it).
 
 ## What shipped (frontend, `packages/frontend/app/build/`)
 
