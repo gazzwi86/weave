@@ -22,7 +22,7 @@ from weave_backend.build.state_spine import BUILD_PRINCIPAL_IRI
 from weave_backend.pm import cost_events
 from weave_backend.schemas.tasks import DispatchUsage
 from weave_backend.settings.resolver import SettingNotFound, resolve_setting
-from weave_backend.settings.scope import InvalidScopeIri, workspace_of
+from weave_backend.settings.scope import InvalidScopeIri, company_iri, workspace_of
 from weave_backend.tenancy.sessions import get_redis
 
 log = logging.getLogger(__name__)
@@ -58,13 +58,33 @@ async def resolve_rate_card(
     (one JSON object, `{model_id: {usd_per_1k_in, usd_per_1k_out}}`) and
     validate every routable model (`ALLOWED_MODELS`) has an entry --
     fail-closed, never a per-row fallback price.
+
+    XT-BE013-1: every real `project_iri` (`urn:weave:project:{tid}:{slug}`,
+    `projects/model.py::build_project_iri`) does not parse under
+    `settings/scope.py`'s cascade grammar and always raises
+    `InvalidScopeIri` here -- same gap as `build/costs.py::resolve_budget_cap`.
+    Before this fix that fell straight through to an empty card, so
+    `RATE_CARD_KEY` was unresolvable on every real run regardless of what was
+    configured. Mirrors `resolve_budget_cap`'s fallback: retry at the
+    tenant's company scope, so at least the company-wide rate card is
+    reachable. Domain/project overrides stay inert until Build threads a
+    domain-aware project IRI (schema gap -- see the coordinator escalation).
     """
     try:
         resolved = await resolve_setting(
             conn, tenant_id=tenant_id, key=RATE_CARD_KEY, context_iri=project_iri
         )
         raw_card: dict[str, dict[str, str]] = resolved.value
-    except (SettingNotFound, InvalidScopeIri):
+    except InvalidScopeIri:
+        try:
+            resolved = await resolve_setting(
+                conn, tenant_id=tenant_id, key=RATE_CARD_KEY,
+                context_iri=company_iri(tenant_id),
+            )
+            raw_card = resolved.value
+        except SettingNotFound:
+            raw_card = {}
+    except SettingNotFound:
         raw_card = {}
 
     card = {

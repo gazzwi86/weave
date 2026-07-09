@@ -22,12 +22,18 @@ from weave_backend.build.cost import (
     record_dispatch_cost,
     resolve_rate_card,
 )
+from weave_backend.projects.model import build_project_iri
 from weave_backend.schemas.tasks import DispatchUsage
 from weave_backend.settings.resolver import set_setting
 
 _TENANT = "tenant-cost"
 _COMPANY_IRI = f"urn:weave:tenant:{_TENANT}:company"
 _PROJECT_IRI = f"urn:weave:tenant:{_TENANT}:ws:11111111-1111-1111-1111-111111111111:project:acme"
+#: XT-BE013-1: the settings-grammar-shaped `_PROJECT_IRI` above is what
+#: `resolve_rate_card`'s cascade *would* receive if Build ever threads a
+#: domain-aware project IRI -- it is NOT what any real caller passes today.
+#: The real shape, straight from `projects/model.py::build_project_iri`.
+_REAL_PROJECT_IRI = build_project_iri(_TENANT, "acme")
 
 _RATE_CARD_VALUE = {
     "claude-fable-5": {"usd_per_1k_in": "0.01", "usd_per_1k_out": "0.02"},
@@ -89,6 +95,27 @@ async def test_resolve_rate_card_from_settings() -> None:
     )
     assert card["claude-fable-5"] == ModelRate(
         usd_per_1k_in=Decimal("0.01"), usd_per_1k_out=Decimal("0.02")
+    )
+
+
+async def test_resolve_rate_card_falls_back_to_company_for_real_project_iri() -> None:
+    """XT-BE013-1 regression: the real production `project_iri` shape
+    (`urn:weave:project:{tid}:{slug}`) never parses under
+    `settings/scope.py`'s cascade grammar and raises `InvalidScopeIri` on
+    every call -- before this fix that fell straight to an empty card
+    (`RateCardConfigError` on every real run, regardless of configuration).
+    Proves the company-scope fallback (mirroring
+    `build/costs.py::resolve_budget_cap`) actually resolves. Domain/project
+    overrides stay unreachable -- no schema field threads a project to a
+    domain or workspace (see the coordinator escalation) -- so this is
+    company-level reachability only, not full-cascade coverage.
+    """
+    conn = await _seeded_conn()
+
+    card = await resolve_rate_card(conn, tenant_id=_TENANT, project_iri=_REAL_PROJECT_IRI)
+
+    assert card["claude-sonnet-5"] == ModelRate(
+        usd_per_1k_in=Decimal("0.001"), usd_per_1k_out=Decimal("0.002")
     )
 
 

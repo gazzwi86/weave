@@ -26,10 +26,8 @@ from weave_backend.settings.resolver import set_setting
 
 _TENANT = "tenant-budget"
 _DOMAIN_ID = "d1"
-_PROJECT_ID = "p1"
 _COMPANY_IRI = f"urn:weave:tenant:{_TENANT}:company"
 _DOMAIN_IRI = f"urn:weave:tenant:{_TENANT}:domain:{_DOMAIN_ID}"
-_DOMAIN_PROJECT_IRI = f"urn:weave:tenant:{_TENANT}:domain:{_DOMAIN_ID}:project:{_PROJECT_ID}"
 _PROJECT_IRI = f"urn:weave:project:{_TENANT}:acme"
 
 
@@ -74,10 +72,20 @@ def test_forecast_falls_back_to_brief_only_when_no_tasks_completed() -> None:
     assert result.inputs.remaining_count == 2
 
 
-async def test_resolve_budget_cap_tighter_wins_across_cascade() -> None:
-    """AC-3: a domain-level cap overrides a looser company-level cap; the
-    binding level is reported straight from
-    `ResolvedSetting.resolved_at` -- no extra derivation.
+async def test_resolve_budget_cap_falls_back_to_company_for_real_project_iri() -> None:
+    """XT-BE013-1 regression: `_PROJECT_IRI` is the REAL production shape
+    (`projects/model.py::build_project_iri`), not a fabricated
+    settings-grammar-conforming one. It never parses under
+    `settings/scope.py`'s cascade grammar, so a domain-level cap is
+    unreachable through it today -- `resolve_budget_cap` falls back to the
+    tenant's company scope regardless of a tighter domain cap being
+    configured. This replaces a prior version of this test that passed a
+    fabricated `urn:weave:tenant:{tid}:domain:{did}:project:{pid}` IRI no
+    real caller ever produces, which made the "tighter-wins" assertion
+    tautological. Domain/project overrides need a schema field linking a
+    Build project to a domain or workspace scope, which does not exist yet
+    (see the coordinator escalation) -- until then this is the correct,
+    honest behaviour, not a bug to paper over with a fake IRI.
     """
     conn = _FakeSettingsConnection()
     await set_setting(
@@ -87,13 +95,11 @@ async def test_resolve_budget_cap_tighter_wins_across_cascade() -> None:
         conn, tenant_id=_TENANT, key="build.budget.cap_usd", scope_iri=_DOMAIN_IRI, value=50
     )
 
-    resolved = await resolve_budget_cap(
-        conn, tenant_id=_TENANT, context_iri=_DOMAIN_PROJECT_IRI
-    )
+    resolved = await resolve_budget_cap(conn, tenant_id=_TENANT, context_iri=_PROJECT_IRI)
 
     assert resolved is not None
-    assert resolved.cap_usd == Decimal("50")
-    assert resolved.level == "domain"
+    assert resolved.cap_usd == Decimal("100")
+    assert resolved.level == "company"
 
 
 async def test_costs_payload_labels_all_figures_estimated() -> None:
