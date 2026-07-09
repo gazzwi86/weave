@@ -61,3 +61,59 @@ test("a non-admin caller sees governance controls disabled", async ({ page, brow
 
   await clientContext.close();
 });
+
+// TASK-015 AC-4, Law B: the UI hiding the Save button is UX only -- the
+// real boundary is the server. A non-admin forcing the PATCH directly
+// (bypassing the disabled UI) must be rejected by the backend itself, and
+// the settings must remain unchanged (independent GET as admin).
+test("should deny settings mutation to editor end to end", async ({ page, browser }) => {
+  await loginAs(page, "admin@weave.local");
+  const projectId = await createProject(page);
+
+  const clientContext = await browser.newContext();
+  const clientPage = await clientContext.newPage();
+  await loginAs(clientPage, "client@weave.local");
+  await clientPage.goto(`/build/projects/${encodeURIComponent(projectId)}/settings`);
+
+  const forcedPatch = await clientPage.request.patch(
+    `/api/build/projects/${encodeURIComponent(projectId)}/settings`,
+    { data: { model_tier: "premium" } }
+  );
+  expect(forcedPatch.status()).toBe(403);
+
+  // Backend-state proof: the forced write did not take -- an independent
+  // read (admin session) still shows the original tier.
+  const settings = await page.request.get(`/api/build/projects/${projectId}/settings`);
+  const body = (await settings.json()) as { model_tier: string };
+  expect(body.model_tier).not.toBe("premium");
+
+  await clientContext.close();
+});
+
+// TASK-015 AC-5, Law B: add/remove contributor from the settings tab
+// actually mutates the backend contributor list, proven via an
+// independent GET (not the page's own fetch) before/after each action.
+test("should manage contributors from settings tab", async ({ page }) => {
+  await loginAs(page, "admin@weave.local");
+  const projectId = await createProject(page);
+  const contributorIri = "urn:weave:principal:user:client";
+
+  await page.getByRole("tab", { name: "Contributors" }).click();
+  await page.getByLabel("New contributor principal").fill(contributorIri);
+  await page.getByRole("button", { name: "Add contributor" }).click();
+  await expect(page.getByText(contributorIri)).toBeVisible();
+
+  const afterAdd = await page.request.get(`/api/build/projects/${projectId}/contributors`);
+  const addedBody = (await afterAdd.json()) as { items: { principal_iri: string }[] };
+  expect(addedBody.items.some((c) => c.principal_iri === contributorIri)).toBe(true);
+
+  await page
+    .getByRole("row", { name: new RegExp(contributorIri) })
+    .getByRole("button", { name: "Remove" })
+    .click();
+  await expect(page.getByText(contributorIri)).toHaveCount(0);
+
+  const afterRemove = await page.request.get(`/api/build/projects/${projectId}/contributors`);
+  const removedBody = (await afterRemove.json()) as { items: { principal_iri: string }[] };
+  expect(removedBody.items.some((c) => c.principal_iri === contributorIri)).toBe(false);
+});
