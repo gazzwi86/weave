@@ -134,6 +134,71 @@ describe("PinUpgradeSection", () => {
     );
   });
 
+  it("disables confirm while a submit is in flight, preventing double-submit", async () => {
+    let resolvePost!: (value: Response) => void;
+    const postPromise = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(NON_BREAKING_DIFF))
+      .mockReturnValueOnce(postPromise);
+    vi.stubGlobal("fetch", fetchMock);
+    render(<PinUpgradeSection projectId="p-1" canManage={true} />);
+
+    await openDialog();
+    await waitFor(() => expect(screen.getByText(/urn:s1/)).toBeInTheDocument());
+
+    const confirmButton = screen.getByRole("button", { name: /^confirm upgrade$/i });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(confirmButton).toBeDisabled());
+    expect(confirmButton).toHaveAttribute("aria-busy", "true");
+
+    // second click while confirming must not fire a second POST (no double-submit)
+    fireEvent.click(confirmButton);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    resolvePost(jsonResponse({ pinned_graph_version_iri: "urn:weave:version:v2" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/upgraded/i));
+  });
+
+  it("resets to a clean error state when confirm fails for a non-409 reason", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(NON_BREAKING_DIFF))
+      .mockResolvedValueOnce(jsonResponse({ error: "internal_error" }, 500));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<PinUpgradeSection projectId="p-1" canManage={true} />);
+
+    await openDialog();
+    await waitFor(() => expect(screen.getByText(/urn:s1/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /^confirm upgrade$/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    // clean reset, not stuck mid-submit: no leftover conflict/success text, confirm re-enabled
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^confirm upgrade$/i })).toHaveAttribute(
+      "aria-busy",
+      "false"
+    );
+  });
+
+  it("shows an alert on a network failure while loading the diff", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      })
+    );
+    render(<PinUpgradeSection projectId="p-1" canManage={true} />);
+
+    await openDialog();
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+  });
+
   it("shows a conflict message and re-fetches the diff on 409 (AC-3)", async () => {
     const fetchMock = vi
       .fn()

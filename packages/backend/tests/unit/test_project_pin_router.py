@@ -9,16 +9,19 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 from fastapi import HTTPException
+from fastapi.routing import APIRoute
 
 from weave_backend.auth.dependencies import Principal
 from weave_backend.projects.ce_version_client import CeDiffUnavailable, CeVersionUnavailable
 from weave_backend.projects.model import Project
-from weave_backend.routers.project_pin import get_pin_diff_route, upgrade_pin_route
+from weave_backend.rbac import InsufficientProjectRole, ProjectAction
+from weave_backend.routers.project_pin import get_pin_diff_route, router, upgrade_pin_route
 from weave_backend.schemas.project_pin import PinUpgradeRequest
 
 _PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
@@ -188,3 +191,58 @@ async def test_upgrade_pin_route_404_when_project_missing() -> None:
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == {"error": "not_found"}  # type: ignore[comparison-overlap]
+
+
+def _pin_upgrade_role_guard() -> object:
+    """Extracts the actual `require_project_role(...)` closure wired via
+    `Depends(...)` on the production `POST .../pin-upgrade` route (walks
+    `router.routes`, not a reimplementation). AC-6's Test Mapping calls
+    this "route registration asserted here" -- without it, deleting the
+    `Depends(...)` from `upgrade_pin_route`'s signature would pass every
+    other test in this file (they all call the route function directly,
+    bypassing FastAPI's dependency resolution entirely).
+    """
+    matches = [
+        api_route
+        for api_route in router.routes
+        if getattr(api_route, "path", None) == "/api/projects/{project_iri}/pin-upgrade"
+        and "POST" in getattr(api_route, "methods", set())
+    ]
+    assert len(matches) == 1, "expected exactly one POST .../pin-upgrade route"
+    api_route = cast(APIRoute, matches[0])
+    guard_calls = [
+        dep.call
+        for dep in api_route.dependant.dependencies
+        if getattr(dep.call, "__qualname__", "") == "require_project_role.<locals>._dependency"
+    ]
+    assert len(guard_calls) == 1, "upgrade_pin_route must Depends() on require_project_role(...)"
+    return guard_calls[0]
+
+
+def test_upgrade_pin_route_wires_the_settings_role_guard() -> None:
+    """AC-6: the route is actually registered with a SETTINGS-scoped guard
+    (not some other action, not missing entirely)."""
+    guard = _pin_upgrade_role_guard()
+    freevars = guard.__code__.co_freevars  # type: ignore[attr-defined]
+    closure_values = dict(
+        zip(freevars, (cell.cell_contents for cell in guard.__closure__ or ()), strict=True)  # type: ignore[attr-defined]
+    )
+    assert closure_values.get("action") == ProjectAction.SETTINGS
+
+
+async def test_upgrade_pin_route_guard_403s_editor_without_settings_action() -> None:
+    """Behavioural half of the same gap: invokes the exact guard instance
+    wired on the production route (extracted above) and proves it refuses
+    an editor grant, mirroring TASK-014's
+    `test_patch_settings_guard_403s_editor_without_settings_action` pattern."""
+    guard = _pin_upgrade_role_guard()
+
+    with (
+        patch("weave_backend.rbac.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.rbac.get_contributor_role", AsyncMock(return_value="editor")),
+        pytest.raises(InsufficientProjectRole) as exc_info,
+    ):
+        await guard(_PROJECT_IRI, _PRINCIPAL)  # type: ignore[operator]
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == {"error": "forbidden", "action": "settings"}  # type: ignore[comparison-overlap]
