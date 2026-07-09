@@ -17,6 +17,7 @@ import pytest
 from weave_backend.briefs.store import BriefEstimate, estimates
 from weave_backend.build.costs import (
     RollupUnavailable,
+    check_budget,
     compute_forecast,
     get_costs,
     resolve_budget_cap,
@@ -171,6 +172,91 @@ async def test_estimates_parses_stored_brief_content_into_brief_estimate() -> No
     assert result == [
         BriefEstimate(task_id="t1", brief_estimate_tokens=3000, estimated_cost_usd=Decimal("4.25"))
     ]
+
+
+async def test_get_costs_returns_zero_total_when_rollup_has_no_rows_at_all() -> None:
+    """QA edge case: a brand-new project with zero `cost_events` rows ever
+    (not merely a NULL sum) -- `cost_events.rollup` returns no grouping rows
+    at all, so `get_costs` must fall back to a real `0` total, not raise
+    `RollupUnavailable` (that's the AC-6 DB-*error* case, a different path)."""
+    conn = _FakeCostsConnection(cost_rows=[])
+
+    payload = await get_costs(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
+
+    assert payload.total_estimate_usd == Decimal("0")
+    assert payload.by_task == []
+    assert payload.label == "estimated"
+
+
+async def test_forecast_excludes_in_progress_task_from_completed_cohort() -> None:
+    """QA edge case (ADR-008 #4 / AC-2): a task with a recorded cost event
+    but NOT in `done_task_ids` (still in progress, e.g. mid-retry) must not
+    be counted as "completed" -- `basis` should stay `brief_only` and
+    `completed_count` should stay 0 when `done_task_ids` is empty, even
+    though that in-progress task already has spend in `task_costs`.
+    """
+    task_costs = {"t-inprogress": Decimal("1")}
+    briefs = [
+        BriefEstimate(
+            task_id="t-inprogress", brief_estimate_tokens=1000, estimated_cost_usd=Decimal("2")
+        ),
+        BriefEstimate(
+            task_id="t-todo", brief_estimate_tokens=1000, estimated_cost_usd=Decimal("2")
+        ),
+    ]
+
+    result = compute_forecast(task_costs=task_costs, briefs=briefs, done_task_ids=set())
+
+    assert result.inputs.basis == "brief_only"
+    assert result.inputs.completed_count == 0
+
+
+async def test_check_budget_halts_exactly_at_cap_not_only_above_it() -> None:
+    """QA edge case (Design Decisions: "Halt >= cap (not >)" -- AC-4): spend
+    exactly equal to the cap is a breach; one cent under is not.
+    """
+    conn = _FakeBudgetConnection(cap_usd=Decimal("10"), spent_usd=Decimal("10"))
+    breach = await check_budget(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
+    assert breach is not None
+    assert breach.cap_usd == Decimal("10")
+    assert breach.level == "company"
+
+    conn_under = _FakeBudgetConnection(cap_usd=Decimal("10"), spent_usd=Decimal("9.99"))
+    no_breach = await check_budget(conn_under, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
+    assert no_breach is None
+
+
+class _FakeBudgetConnection:
+    """Routes `fetch` for `check_budget`'s two real collaborators -- the
+    settings cascade cap lookup and the cost rollup -- so the boundary check
+    exercises the actual `>=` comparison in `build.costs.check_budget`,
+    not a stand-in.
+    """
+
+    def __init__(self, *, cap_usd: Decimal, spent_usd: Decimal) -> None:
+        self.cap_usd = cap_usd
+        self.spent_usd = spent_usd
+
+    async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
+        if "scope_iri = ANY($2)" in query:
+            _tenant_id, scope_iris, _key = args
+            return [
+                {"scope_iri": scope_iris[-1], "scope": "company", "value": str(self.cap_usd)}
+            ]
+        if "GROUPING SETS" in query:
+            return [
+                {
+                    "task_id": None,
+                    "is_total": True,
+                    "tokens_in": 0,
+                    "tokens_out": 0,
+                    "cost_usd": self.spent_usd,
+                }
+            ]
+        raise AssertionError(f"unexpected fetch: {query}")
+
+    async def fetchrow(self, query: str, *args: Any) -> dict[str, Any] | None:
+        raise AssertionError(f"unexpected fetchrow: {query}")
 
 
 class _FakeSettingsConnection:
