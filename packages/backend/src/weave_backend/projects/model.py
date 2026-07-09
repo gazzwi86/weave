@@ -179,6 +179,22 @@ async def update_project_publish(
     )
 
 
+async def update_project_pin(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, pinned_graph_version_iri: str
+) -> None:
+    """TASK-016 AC-4: upgrade the project's ontology pin. Called inside the
+    same ``tenant_connection`` transaction as the audit entry (atomic).
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    await conn.execute(
+        "UPDATE projects SET pinned_graph_version_iri = $1"
+        " WHERE tenant_id = $2 AND project_iri = $3",
+        pinned_graph_version_iri,
+        tenant_id,
+        project_iri,
+    )
+
+
 async def update_project_write_back(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, write_back_artefact_iri: str
 ) -> None:
