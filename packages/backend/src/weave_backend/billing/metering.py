@@ -39,6 +39,13 @@ class TokenUsageRecord:
     output_tokens: int
     cost_usd: float
     ts: datetime
+    #: TASK-012 (ADR-008 #3): additive per-dispatch attribution tags -- not
+    #: persisted by the dev-stand-in `AuroraMeteringQueue.put_token_usage`
+    #: (`billing_usage` has no `task_id` column; `run_id` reuses the
+    #: existing one). Carried on the record so a real queue consumer
+    #: (v-later SQS) can pick them up without a schema change here.
+    task_id: str | None = None
+    run_id: str | None = None
 
 
 @dataclass(frozen=True)
