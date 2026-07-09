@@ -1330,7 +1330,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-010.md",
       "retry_count": 0

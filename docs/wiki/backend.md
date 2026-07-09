@@ -299,3 +299,27 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/generation/service.py --> <!-- at: 2026-07-09T14:19:55.415847+00:00 -->
 
 <!-- stale: packages/backend/tests/unit/test_generation_service.py --> <!-- at: 2026-07-09T14:26:05.207055+00:00 -->
+
+<!-- stale: packages/backend/migrations/0018_v1_pm_tables.sql --> <!-- at: 2026-07-09T15:13:43.763621+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/__init__.py --> <!-- at: 2026-07-09T15:14:00.532079+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/contributors.py --> <!-- at: 2026-07-09T15:14:15.939452+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/bindings.py --> <!-- at: 2026-07-09T15:14:29.758173+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/cost_events.py --> <!-- at: 2026-07-09T15:15:00.759325+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/prompts.py --> <!-- at: 2026-07-09T15:15:15.120646+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_contributors.py --> <!-- at: 2026-07-09T15:15:35.472930+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_bindings.py --> <!-- at: 2026-07-09T15:15:53.474840+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_cost_events.py --> <!-- at: 2026-07-09T15:16:11.641964+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_prompts.py --> <!-- at: 2026-07-09T15:16:28.293352+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_static_no_raw_sql.py --> <!-- at: 2026-07-09T15:16:56.353148+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_v1_pm_tables.py --> <!-- at: 2026-07-09T15:17:42.769941+00:00 -->
