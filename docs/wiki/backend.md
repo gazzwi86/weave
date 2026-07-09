@@ -265,3 +265,37 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/audit/compliance.py --> <!-- at: 2026-07-08T05:11:53.820200+00:00 -->
 
 <!-- stale: packages/backend/src/weave_backend/projects/ce_version_client.py --> <!-- at: 2026-07-08T05:12:15.791344+00:00 -->
+
+<!-- stale: packages/backend/migrations/0017_standards.sql --> <!-- at: 2026-07-09T14:12:06.310056+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/__init__.py --> <!-- at: 2026-07-09T14:12:26.051509+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_effective.py --> <!-- at: 2026-07-09T14:13:16.983787+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_generation_hook.py --> <!-- at: 2026-07-09T14:13:39.935195+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/standards.py --> <!-- at: 2026-07-09T14:13:51.679899+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/models.py --> <!-- at: 2026-07-09T14:14:02.056272+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/effective.py --> <!-- at: 2026-07-09T14:14:13.484239+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/generation_hook.py --> <!-- at: 2026-07-09T14:14:31.501343+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_store.py --> <!-- at: 2026-07-09T14:14:49.541319+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/store.py --> <!-- at: 2026-07-09T14:15:16.955784+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/ce_client.py --> <!-- at: 2026-07-09T14:16:01.408906+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/standards.py --> <!-- at: 2026-07-09T14:16:39.850676+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/__init__.py --> <!-- at: 2026-07-09T14:17:01.277094+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_router.py --> <!-- at: 2026-07-09T14:17:25.474920+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_standards_api.py --> <!-- at: 2026-07-09T14:18:11.119949+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/generation/service.py --> <!-- at: 2026-07-09T14:19:55.415847+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_generation_service.py --> <!-- at: 2026-07-09T14:26:05.207055+00:00 -->

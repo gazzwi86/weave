@@ -29,8 +29,27 @@ from weave_backend.generation.service import (
 )
 from weave_backend.projects.model import Project
 from weave_backend.repo_bootstrap.store import ProjectRepoRow
+from weave_backend.standards.models import StandardRecord
 
 _MODULE = "weave_backend.generation.service"
+
+
+def _standard(key: str, stack_pins: dict[str, str] | None = None) -> StandardRecord:
+    return StandardRecord(
+        standard_id="s-1",
+        tenant_id="t1",
+        scope="company",
+        project_id=None,
+        standard_key=key,
+        title=key,
+        body_md=f"body for {key}",
+        stack_pins=stack_pins,
+        policy_iri="urn:weave:policy:t1:p1",
+        status="active",
+        created_by="u1",
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
 
 
 def _project() -> Project:
@@ -99,16 +118,20 @@ def _ctx(ce_client: Any = None) -> GenerationContext:
     )
 
 
-def _deps(*, driver: _FakeDriver | None = None, workspaces: list[str] | None = None) -> tuple[
-    GenerationDeps, list[dict[str, object]]
-]:
+def _deps(
+    *,
+    driver: _FakeDriver | None = None,
+    workspaces: list[str] | None = None,
+    calls: list[dict[str, Any]] | None = None,
+) -> tuple[GenerationDeps, list[dict[str, object]]]:
     emitted: list[dict[str, object]] = []
     driver = driver or _FakeDriver()
 
     async def fake_generate_workspace(
         *, prompt: str, output_dir: str, bpmo: dict[str, Any]
     ) -> None:
-        del prompt, bpmo
+        if calls is not None:
+            calls.append({"prompt": prompt, "bpmo": bpmo})
         if workspaces is not None:
             workspaces.append(output_dir)
         Path(output_dir, "openapi.yaml").write_text("openapi: 3.1.0\n")
@@ -167,6 +190,7 @@ async def test_generate_app_commits_and_returns_gates_passed_on_all_pass() -> No
         patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
         patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
         patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
         patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
         patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
     ):
@@ -192,7 +216,9 @@ async def test_generate_app_cleans_up_workspace_on_gate_failure() -> None:
         patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
         patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
         patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
-        patch(f"{_MODULE}.GATE_PIPELINE", (failing_gate,)),pytest.raises(GateFailure)
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
+        patch(f"{_MODULE}.GATE_PIPELINE", (failing_gate,)),
+        pytest.raises(GateFailure),
     ):
         await generate_app(AsyncMock(), _ctx(), deps)
 
@@ -212,7 +238,9 @@ async def test_generate_app_emits_secret_scan_fail_audit_on_secret_scan_gate_fai
         patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
         patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
         patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
-        patch(f"{_MODULE}.GATE_PIPELINE", (failing_gate,)),pytest.raises(GateFailure)
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
+        patch(f"{_MODULE}.GATE_PIPELINE", (failing_gate,)),
+        pytest.raises(GateFailure),
     ):
         await generate_app(AsyncMock(), _ctx(), deps)
 
@@ -232,9 +260,93 @@ async def test_generate_app_never_calls_ce_brand_tokens_endpoint() -> None:
         patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
         patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
         patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
         patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
         patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
     ):
         await generate_app(AsyncMock(), _ctx(ce_client), deps)
 
     assert "/api/brand/tokens" not in ce_client.paths
+
+
+async def test_generate_app_falls_back_to_demo_default_and_warns_when_standards_missing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """AC-4: empty catalogue never halts generation -- it proceeds with the
+    M1 demo-default stack and logs a `standards_missing` run-log warning.
+    """
+    calls: list[dict[str, Any]] = []
+    deps, _ = _deps(calls=calls)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+        caplog.at_level("WARNING"),
+    ):
+        outcome = await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert outcome["gates_passed"] == [{"gate": "secret_scan", "status": "PASS"}]
+    assert "standards_missing" in caplog.text
+    assert calls[0]["bpmo"]["stack_pins"] is None
+
+
+async def test_generate_app_injects_stack_pins_into_generation_context(
+) -> None:
+    """AC-5: a non-empty effective set is folded into the generation
+    context and keys stack selection off `stack_pins`.
+    """
+    calls: list[dict[str, Any]] = []
+    deps, _ = _deps(calls=calls)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    standards = [_standard("frontend_framework", {"frontend": "nextjs"})]
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=(standards, []))),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+    ):
+        await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert calls[0]["bpmo"]["stack_pins"] == {"frontend": "nextjs"}
+    assert "frontend_framework" in calls[0]["prompt"]
+
+
+async def test_generate_app_falls_back_to_demo_default_for_conflicting_stack_pin_axis(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Implementation hint: cross-key `stack_pins` conflicts never resolve
+    via last-write-wins -- the conflicting axis falls back to demo-default
+    and is logged as a finding, while a non-conflicting axis still resolves
+    and generation still proceeds (never halts).
+    """
+    calls: list[dict[str, Any]] = []
+    deps, _ = _deps(calls=calls)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    standards = [
+        _standard("a_backend", {"backend": "fastapi", "auth": "cognito"}),
+        _standard("b_backend", {"backend": "django"}),
+    ]
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=(standards, []))),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+        caplog.at_level("WARNING"),
+    ):
+        outcome = await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert outcome["gates_passed"] == [{"gate": "secret_scan", "status": "PASS"}]
+    assert calls[0]["bpmo"]["stack_pins"] == {"auth": "cognito"}
+    assert "standards_conflict" in caplog.text
+    assert "backend" in caplog.text

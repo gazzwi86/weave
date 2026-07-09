@@ -6,6 +6,7 @@ any commit (task brief's pseudocode). Mirrors `repo_bootstrap/service.py`'s
 
 from __future__ import annotations
 
+import logging
 import shutil
 import tempfile
 from collections.abc import Awaitable, Callable
@@ -24,6 +25,14 @@ from weave_backend.projects.model import get_project
 from weave_backend.repo_bootstrap.drivers import RepoHandle, ScmDriver, get_scm_driver
 from weave_backend.repo_bootstrap.secrets import get_scm_token
 from weave_backend.repo_bootstrap.store import ProjectRepoRow, fetch_project_repo_row
+from weave_backend.standards.effective import effective_set
+from weave_backend.standards.generation_hook import (
+    GenerationContextAddendum,
+    build_context_addendum,
+)
+from weave_backend.standards.store import load_effective_standards
+
+log = logging.getLogger(__name__)
 
 #: Same service-actor convention as `repo_bootstrap.service`'s audit events.
 BUILD_SERVICE_PRINCIPAL_IRI = "urn:weave:principal:service:build-engine"
@@ -152,6 +161,38 @@ async def _emit_secret_scan_fail(
     )
 
 
+async def _load_standards_addendum(
+    conn: asyncpg.Connection, ctx: GenerationContext
+) -> GenerationContextAddendum:
+    """TASK-001 AC-4/AC-5: folds the effective standards set into the
+    generation context. An empty catalogue degrades to the M1 demo-default
+    stack with a `standards_missing` run-log warning -- it never halts
+    generation. A `stack_pins` conflict across keys falls back to the
+    demo-default for that one axis (never last-key-wins) and is logged as
+    a finding; run-log here is Python `logging`, same convention as
+    `projects/ce_version_client.py`'s `log.warning(...)` (no dedicated
+    run-log object exists in this codebase).
+    """
+    company, project = await load_effective_standards(
+        conn, tenant_id=ctx.tenant_id, project_id=ctx.project_iri
+    )
+    addendum = build_context_addendum(effective_set(company, project))
+    if addendum.standards_missing:
+        log.warning(
+            "standards_missing: project=%s -- falling back to M1 demo-default stack",
+            ctx.project_iri,
+        )
+    for conflict in addendum.conflicts:
+        log.warning(
+            "standards_conflict: project=%s axis=%s values=%s -- falling back to"
+            " demo-default for this axis",
+            ctx.project_iri,
+            conflict.axis,
+            conflict.values,
+        )
+    return addendum
+
+
 async def generate_app(
     conn: asyncpg.Connection, ctx: GenerationContext, deps: GenerationDeps = DEFAULT_DEPS
 ) -> dict[str, object]:
@@ -169,6 +210,12 @@ async def generate_app(
     # AC-1: non-degradable -- CeReadUnavailable propagates to the router's
     # 503 mapping, generation never proceeds without graph context.
     bpmo = await get_bpmo_context(ctx.ce_client, ctx.project_iri)
+    addendum = await _load_standards_addendum(conn, ctx)
+    bpmo = {
+        **bpmo,
+        "standards_section": addendum.standards_section,
+        "stack_pins": addendum.stack_pins,
+    }
 
     repo_row = _require_bootstrapped_repo(
         await fetch_project_repo_row(conn, tenant_id=ctx.tenant_id, project_iri=ctx.project_iri)
