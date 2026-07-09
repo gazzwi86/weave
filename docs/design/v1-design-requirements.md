@@ -63,8 +63,7 @@ approved finding or ruling.
   example questions), success. Never dead air.
 - Result frame with **Graph / Table / Raw** toggle (research pattern 1); generated SPARQL always
   inspectable ("view SPARQL" disclosure); grounded IRIs glow on canvas with non-matches dimmed
-  (V3 Ask pattern); version selector labelled; speech input affordance on the ask bar
-  (V4 direction).
+  (V3 Ask pattern); version selector labelled.
 - SPARQL editor remains the expert path (SELECT-only, versioned) with clear Run primary.
 
 ## R6 — Marketing entry (Blocker F-D25, F-D26)

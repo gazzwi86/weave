@@ -1408,7 +1408,7 @@ result-frame reference.
 
 | Task | Title | Priority |
 |---|---|---|
-| TASK-032 | Query & ask v2 — lifecycle states + Graph/Table/Raw results + speech input | Must Have |
+| TASK-032 | Query & ask v2 — lifecycle states + Graph/Table/Raw results | Must Have |
 
 **TASK-032: Query & ask v2**
 
@@ -1421,8 +1421,6 @@ result-frame reference.
   glow matching canvas nodes and dim non-matches (fixes F-D19's missing graph-visual grounding).
 - **AC:** WHERE the version selector is shown THE SYSTEM SHALL render it as a labelled control,
   never an unlabeled input containing "latest" (fixes F-D19's unlabeled-field finding).
-- **AC:** WHERE the ask bar's microphone affordance is used THE SYSTEM SHALL transcribe speech to
-  editable text, never auto-submitting an unreviewed transcript.
 
 **Epic-level acceptance criteria (EARS)**
 

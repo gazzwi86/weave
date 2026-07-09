@@ -2,7 +2,7 @@
 type: Design
 title: "Weave — chosen visual direction (V4 hybrid)"
 description: "User-selected direction from the WS2 mock round (2026-07-09): V3 canvas-first body
-  with V2 chrome (nav, header, search, borders), real logo.png mark, AI speech inputs. The recipe
+  with V2 chrome (nav, header, search, borders), real logo.png mark. The recipe
   every design requirement and the design agent build against."
 tags: [design, direction, app-shell, canvas]
 status: "Approved — user MCQ, 2026-07-09 morning; confirmed as NORTH STAR + Storybook
@@ -36,7 +36,7 @@ Dense**. Reference mock: `docs/design/mocks/mock-v4-hybrid.html` (V1/V2/V3 kept 
 - Constitution lands on the **full-bleed living canvas**; floating glass panels for nav-in-context,
   legend, KPI strip, and the node inspector (glass stays canvas/overlay-only per the design
   system).
-- **NL ask bar** persistent on the canvas, with **AI speech input** (mic affordance) — asks answer
+- **NL ask bar** persistent on the canvas — asks answer
   in place: answer panel + generated-SPARQL disclosure + grounded nodes glowing, non-matches
   dimmed.
 - Instances screen per V3 (with V2's denser table treatment): kind chips, table, right inspector,

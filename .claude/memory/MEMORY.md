@@ -11,3 +11,4 @@
 - [Tenancy realignment — workspace ≡ company (2026-07-08)](decision_tenancy-workspace-alignment.md) — spec wins over intra-tenant sub-workspaces; operator-console provisioning; 10 roles + project grants; publish notifies members
 - [GitHub Actions unavailable until 2026-08-01](project_ci_credits_outage.md) — CI credits exhausted; gates use local verification + waiver until reset
 - [Never delete descoped task briefs](feedback_never-delete-descoped-briefs.md) — post-v1 descopes move briefs to post-v1/tasks/, never delete
+- [Ask decisions in-flight, don't defer](feedback_ask-decisions-in-flight.md) — blocking decision surfaces mid-task → AskUserQuestion immediately, never report-and-wait

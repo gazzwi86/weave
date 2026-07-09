@@ -1,10 +1,10 @@
 ---
 type: Task Brief
-title: "Task: TASK-032 — Query & ask v2 — lifecycle states + Graph/Table/Raw results + speech input"
+title: "Task: TASK-032 — Query & ask v2 — lifecycle states + Graph/Table/Raw results"
 description: "Rebuilds the Constitution 'Query' screen's ask lifecycle (submitting /
   provider-missing / timeout / error / success — never dead air) and result presentation
   (Graph/Table/Raw toggle, always-available 'view SPARQL', grounded-IRI canvas glow, labelled
-  version selector, speech input). Bundle R5; closes Blocker F-D18 and Major F-D19."
+  version selector). Bundle R5; closes Blocker F-D18 and Major F-D19."
 tags: [constitution-engine, arch, task, v1, design-refit]
 status: Backlog
 priority: Must Have
@@ -22,7 +22,7 @@ owner: gazzwi86
 coverage: n/a
 ---
 
-# Task: TASK-032 — Query & ask v2 — lifecycle states + Graph/Table/Raw results + speech input
+# Task: TASK-032 — Query & ask v2 — lifecycle states + Graph/Table/Raw results
 
 > **Scope traceability:** M1 shipped the base NL→SPARQL query surface — `m1/TASK-007` (NL→SELECT
 > translation via `POST /api/query/nl`, the raw SPARQL editor, and the `coverage_gap(process)`
@@ -66,8 +66,7 @@ their backend).
 | AC-6 | WHILE any result is displayed, THE SYSTEM SHALL show a "View SPARQL" disclosure containing the exact executed SPARQL string, available identically whether the query originated from NL or was hand-typed. | integration: `test_view_sparql_disclosure_always_available_both_origins` |
 | AC-7 | WHEN the Graph view is active and the response carries a non-empty `grounded_iris` array, THE SYSTEM SHALL glow the matching nodes on the embedded canvas and dim all non-matching nodes; WHEN `grounded_iris` is empty, THE SYSTEM SHALL dim the whole canvas with a "no grounded matches" note rather than an error or a blank canvas. | integration: `test_grounded_iris_glow_matches_dim_others_and_empty_case` |
 | AC-8 | WHERE the version selector is shown, THE SYSTEM SHALL render it as a labelled control (e.g. "Version:") resolved from CE-READ-1 `GET /api/ontology/versions`, defaulting to `latest` — never an unlabeled text input. | integration: `test_version_selector_labelled_and_defaults_latest` |
-| AC-9 | WHEN the ask bar's microphone affordance is activated, THE SYSTEM SHALL capture speech via the browser's Web Speech API, transcribe it into the ask input as editable text, and require an explicit Ask action before submission — a transcript SHALL NEVER auto-submit. | integration: `test_speech_input_transcribes_to_editable_text_no_auto_submit` |
-| AC-10 | WHILE the SPARQL editor is used as the expert path, THE SYSTEM SHALL render Run as the single visually-primary action with "Explain this query" and "Run coverage gap report" as secondary/ghost actions, and SHALL reject any non-SELECT or `SERVICE`-bearing query before execution (TASK-007's existing sanitiser, unchanged). | integration: `test_sparql_editor_run_is_sole_primary_action_others_secondary` |
+| AC-9 | WHILE the SPARQL editor is used as the expert path, THE SYSTEM SHALL render Run as the single visually-primary action with "Explain this query" and "Run coverage gap report" as secondary/ghost actions, and SHALL reject any non-SELECT or `SERVICE`-bearing query before execution (TASK-007's existing sanitiser, unchanged). | integration: `test_sparql_editor_run_is_sole_primary_action_others_secondary` |
 
 ## Implementation
 
@@ -116,15 +115,8 @@ function renderGraphView(groundedIris, canvasEmbed):
     return canvasEmbed.render(dimAll=true, note="No grounded matches for this answer")
   return canvasEmbed.render(glow=groundedIris, dimNonMatching=true)
 
-function onMicActivated():
-  # AC-9
-  if not browserSupportsSpeechRecognition(): return renderMicUnsupportedTooltip()
-  transcript = webSpeechApi.listenOnce()      # browser-native, no server round-trip
-  setAskInputValue(transcript)                # editable; user must still press Ask
-  return                                       # no auto-submit, ever
-
 function runSparqlEditor(sparqlText, version):
-  # AC-10 — unchanged sanitiser call, TASK-007's existing path
+  # AC-9 — unchanged sanitiser call, TASK-007's existing path
   validation = ce_read.sanitiseSelectOnly(sparqlText)     # rejects UPDATE/INSERT/DELETE/SERVICE
   if not validation.ok:
     return 400 with {"error": "disallowed_construct", "construct": validation.found}
@@ -164,7 +156,6 @@ Error responses (from CE-READ-1, unchanged by this task):
 | Decision | Reference | Impact on This Task |
 |----------|-----------|----------------------|
 | Graph/Table/Raw toggle switches views client-side over one fetched result — never a second query per view | Research pattern 1, `docs/design/research/graph-canvas-ux-patterns.md` (Neo4j Browser) | AC-5's toggle is pure view state; `renderResultFrame` takes no network action |
-| Speech input uses the browser's native Web Speech API, not a server-side transcription endpoint | `v1-design-requirements.md` R5 ("speech-input affordance"); no CE-* contract defines server-side transcription | AC-9 has no backend dependency; unsupported browsers get a tooltip, not a broken mic button |
 | `citations` field (if present) is read but not required — additive per ADR-011 | [ADR-011](../../decisions/ADR-011.md) | The result-frame schema tolerates the field being absent; this task does not build citation UI (out of scope — R5 does not request it) |
 | No task-specific ADR for the backend NL-translation/sanitiser logic — inherited from CE-READ-1 as fixed in contracts.md | [CLAUDE.md](../../../../../../CLAUDE.md#stack-confirmed--final-unless-a-prd-justifies-otherwise) | This task changes no backend contract; it is UI-only |
 
@@ -176,7 +167,6 @@ Error responses (from CE-READ-1, unchanged by this task):
 - Result frame with Graph/Table/Raw toggle; "view SPARQL" disclosure always available; grounded
   IRIs glow on canvas with non-matches dimmed; labelled version selector — `v1-design-requirements.md`
   R5; closes Major **F-D19**.
-- Speech-input (mic) affordance on the ask bar — `v1-design-requirements.md` R5 (V4 direction).
 - SPARQL editor stays the expert path: SELECT-only, versioned, clear Run primary —
   `v1-design-requirements.md` R5.
 - Graph/Table/Raw toggle pattern — research pattern 1, `docs/design/research/graph-canvas-ux-patterns.md`
@@ -192,12 +182,10 @@ Error responses (from CE-READ-1, unchanged by this task):
 
 ## Test Requirements
 
-### Unit Tests (minimum 3)
+### Unit Tests (minimum 2)
 
 - `should_classify_503_as_provider_missing_not_generic_error` — response-classification unit:
   a `503` maps to the `provider_missing` state, never the generic `error` state
-- `should_never_auto_submit_speech_transcript` — the mic handler sets input value but does not
-  invoke the submit action
 - `should_toggle_result_view_without_new_fetch` — switching Graph/Table/Raw mutates local view
   state only, no fetch is triggered
 
@@ -211,7 +199,6 @@ Error responses (from CE-READ-1, unchanged by this task):
 - `test_view_sparql_disclosure_always_available_both_origins`
 - `test_grounded_iris_glow_matches_dim_others_and_empty_case`
 - `test_version_selector_labelled_and_defaults_latest`
-- `test_speech_input_transcribes_to_editable_text_no_auto_submit`
 - `test_sparql_editor_run_is_sole_primary_action_others_secondary`
 
 ### E2E Tests (minimum 1)
@@ -233,8 +220,7 @@ Error responses (from CE-READ-1, unchanged by this task):
 | AC-6 | Integration | `test_view_sparql_disclosure_always_available_both_origins` |
 | AC-7 | Integration + E2E | `test_grounded_iris_glow_matches_dim_others_and_empty_case`, `test_analyst_asks_question_sees_progress_then_grounded_graph_result` |
 | AC-8 | Integration | `test_version_selector_labelled_and_defaults_latest` |
-| AC-9 | Integration + Unit | `test_speech_input_transcribes_to_editable_text_no_auto_submit`, `should_never_auto_submit_speech_transcript` |
-| AC-10 | Integration | `test_sparql_editor_run_is_sole_primary_action_others_secondary` |
+| AC-9 | Integration | `test_sparql_editor_run_is_sole_primary_action_others_secondary` |
 
 ## Dependencies
 
@@ -284,15 +270,13 @@ Estimated cost:    ~$2.90 (claude-fable-5 pricing at time of writing, per CLAUDE
 
 ## Implementation Hints
 
-- Reuse TASK-007's SPARQL sanitiser and NL-translation calls verbatim (AC-10) — this task only
+- Reuse TASK-007's SPARQL sanitiser and NL-translation calls verbatim (AC-9) — this task only
   changes what wraps them on the frontend, never the translation or sanitiser logic itself.
 - Verify the exact NL-query response field names against the live OpenAPI schema before wiring
   the Graph/Table/Raw toggle: contracts.md's canonical CE-READ-1 shape names the field `sparql`,
   but the M1 implementation (`m1/TASK-007`) used `sparql_generated` — confirm which the deployed
   endpoint actually returns (per the harness's live-CE-VERSION-1 grounding convention) rather than
   trusting either doc blindly.
-- The Web Speech API is unavailable in some browsers (notably older Firefox) — `onMicActivated`'s
-  unsupported branch must degrade to hiding or disabling the mic affordance, never a silent no-op.
 - `# ponytail: timeout default is a flat 15s client-side timer, not a server-negotiated budget —
   upgrade path is reading a server-advertised timeout header if p95 latency data later shows 15s
   is miscalibrated.`
