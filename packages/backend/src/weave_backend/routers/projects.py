@@ -4,10 +4,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated, cast
+from dataclasses import dataclass
+from typing import Annotated, Literal, cast
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -16,6 +17,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.projects.ce_version_client import CeVersionUnavailable, get_ce_client
 from weave_backend.projects.governance import NewProjectShell, create_project_shell
+from weave_backend.projects.grid import GridFilters, list_projects
 from weave_backend.projects.model import (
     ProjectExists,
     find_existing_project_iri,
@@ -26,6 +28,8 @@ from weave_backend.repo_bootstrap.store import ProjectRepoRow, fetch_project_rep
 from weave_backend.schemas.projects import (
     CreateProjectRequest,
     CreateProjectResponse,
+    ProjectCardResponse,
+    ProjectGridResponse,
     ProjectResponse,
     RepoInfo,
 )
@@ -62,6 +66,61 @@ async def projects_validation_error_handler(request: Request, exc: Exception) ->
     # `detail` under that key) -- so a client sees one consistent envelope.
     detail = {"error": "validation_error", "field": field}
     return JSONResponse(status_code=422, content={"detail": detail})
+
+
+@dataclass
+class _ProjectGridQuery:
+    """Groups the grid's query params under Law E's 5-parameter cap --
+    `Annotated[_ProjectGridQuery, Depends()]` lets FastAPI still bind each
+    field from its own query string key.
+    """
+
+    lifecycle_phase: Annotated[
+        Literal["Speccing", "Building", "Live monitoring", "Archived"] | None, Query()
+    ] = None
+    owner: Annotated[str | None, Query()] = None
+    search: Annotated[str | None, Query()] = None
+    cursor: Annotated[str | None, Query()] = None
+    limit: Annotated[int, Query(ge=1, le=100)] = 25
+
+
+@router.get("", response_model=ProjectGridResponse)
+async def list_projects_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    query: Annotated[_ProjectGridQuery, Depends()],
+) -> ProjectGridResponse:
+    """AC-1: `status`/`lifecycle_phase` are the same filter (ADR-014 point 5)
+    -- only `lifecycle_phase` is accepted. Keyset-paginated (ADR-014 note on
+    `(created_at, project_iri)`), not OFFSET.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        page = await list_projects(
+            conn,
+            tenant_id=principal.tenant_id,
+            filters=GridFilters(
+                lifecycle_phase=query.lifecycle_phase,
+                owner_iri=query.owner,
+                search=query.search,
+                cursor=query.cursor,
+                limit=query.limit,
+            ),
+        )
+    return ProjectGridResponse(
+        items=[
+            ProjectCardResponse(
+                project_iri=card.project_iri,
+                name=card.name,
+                created_at=card.created_at,
+                lifecycle_phase=cast(
+                    'Literal["Speccing", "Building", "Live monitoring", "Archived"]',
+                    card.lifecycle_phase,
+                ),
+                owner_iri=card.owner_iri,
+            )
+            for card in page.items
+        ],
+        next_cursor=page.next_cursor,
+    )
 
 
 @router.post("", status_code=201, response_model=CreateProjectResponse)

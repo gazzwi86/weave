@@ -32,6 +32,23 @@ class Contributor:
     added_at: datetime
 
 
+#: TASK-014 AC-1: the "owner" grid derivation (ADR-014 point 4) -- the
+#: earliest-added `admin` contributor per project. Exposed as a joinable SQL
+#: fragment (not a Python function) so callers outside `pm/` -- `projects/
+#: grid.py`'s single grid query -- can compose it into one indexed query
+#: without naming `project_contributors` in their own raw SQL, which
+#: `test_pm_static_no_raw_sql.py`'s repo-layer-only guard forbids. Assumes
+#: the caller's outer query aliases its `projects` row as `p`.
+OWNER_LATERAL_SQL = """
+    LEFT JOIN LATERAL (
+        SELECT principal_iri FROM project_contributors pc
+        WHERE pc.tenant_id = p.tenant_id AND pc.project_iri = p.project_iri
+            AND pc.role = 'admin'
+        ORDER BY pc.added_at ASC LIMIT 1
+    ) owner ON true
+"""
+
+
 def _from_row(row: asyncpg.Record) -> Contributor:
     return Contributor(
         project_iri=row["project_iri"],
