@@ -359,3 +359,31 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/schemas/costs.py --> <!-- at: 2026-07-09T18:18:01.367166+00:00 -->
 
 <!-- stale: packages/backend/src/weave_backend/routers/costs.py --> <!-- at: 2026-07-09T18:18:19.180984+00:00 -->
+
+<!-- stale: packages/backend/migrations/0019_projects_archived_at.sql --> <!-- at: 2026-07-09T19:41:35.351323+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_governance.py --> <!-- at: 2026-07-09T19:43:07.273832+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_pm_surface_api.py --> <!-- at: 2026-07-09T19:43:42.870233+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/projects/governance.py --> <!-- at: 2026-07-09T19:44:13.222876+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/projects.py --> <!-- at: 2026-07-09T19:45:25.998185+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/projects.py --> <!-- at: 2026-07-09T19:46:00.266049+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/request_governance.py --> <!-- at: 2026-07-09T19:46:09.238065+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_projects_router.py --> <!-- at: 2026-07-09T19:47:00.788294+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_requests_governance.py --> <!-- at: 2026-07-09T19:47:41.766002+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/contributors.py --> <!-- at: 2026-07-09T20:18:03.418982+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_contributors.py --> <!-- at: 2026-07-09T20:18:20.882889+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/project_settings.py --> <!-- at: 2026-07-09T20:22:20.668468+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_settings.py --> <!-- at: 2026-07-09T20:22:53.944337+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/projects/grid.py --> <!-- at: 2026-07-09T20:24:42.156851+00:00 -->

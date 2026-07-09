@@ -1376,12 +1376,12 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-011"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-014.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-015",
