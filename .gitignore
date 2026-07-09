@@ -18,6 +18,11 @@ out/
 # ...and the frontend's Build-section route (app router page, not an artefact).
 !packages/frontend/app/build/
 !packages/frontend/app/build/**
+# ...and its API proxy routes + shared lib (TASK-015), same reason.
+!packages/frontend/app/api/build/
+!packages/frontend/app/api/build/**
+!packages/frontend/lib/build/
+!packages/frontend/lib/build/**
 
 # Environment
 .env
