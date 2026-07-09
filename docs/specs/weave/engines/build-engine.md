@@ -384,7 +384,9 @@ Build **provides**:
 
 ### EPIC-001 — Request Studio
 
-**Milestone:** M1 · **Priority:** Must Have · **Status:** Backlog
+**Milestone:** M1 (intake form + spec drafting, blast-radius, cost gate, sign-off) · **v1.0 field
+extension** (name, grounding-entity picker, target-repo name, visible request record — see E1-S5)
+· **Priority:** Must Have · **Status:** Backlog
 **depends_on:** `CE-READ-1`, `PLAT-SETTINGS-1`, `PLAT-NOTIFY-1`
 **blocks:** E2 (project create from approved request) · **provides:** approved spec
 
@@ -394,7 +396,9 @@ company graph. Before any project is created, intake computes a blast-radius imp
 on a pre-generation cost estimate, and collects stakeholder sign-off.
 
 **Stories:** E1-S1 (intake form + spec drafting), E1-S2 (blast-radius), E1-S3 (cost gate), E1-S4
-(stakeholder sign-off) — all M1 Must Have.
+(stakeholder sign-off) — all M1 Must Have. E1-S5 (request name, grounding-entity picker,
+target-repo name, visible request record — `TASK-024`) — v1.0 Should Have, closing design finding
+F-D20; the M1 form shipped without these three fields (see `TASK-024` scope traceability).
 
 **Acceptance criteria (EARS)**
 
@@ -410,6 +414,9 @@ on a pre-generation cost estimate, and collects stakeholder sign-off.
 - WHEN the company graph is unreachable during blast-radius computation, THE SYSTEM SHALL mark the
   blast-radius panel "unavailable — review manually" and hold project creation until a human
   acknowledges the gap.
+- WHEN a request is submitted with a `name`, `grounding_entity_iris`, and `target_repo_name` (v1.0,
+  `TASK-024`), THE SYSTEM SHALL persist all three alongside the M1 fields and render a visible
+  request record with status and at least one provenance link (pinned graph entity or CE version).
 
 ---
 

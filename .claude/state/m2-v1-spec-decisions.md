@@ -262,3 +262,38 @@ Loose atomic design: atoms → molecules → organisms → **templates → pages
 system**. App/container layer binds data into design-system templates/pages only — no ad-hoc
 composition or presentational markup in the react-app layer; missing layouts are added to the
 system first. Folded into `visual-direction.md` §Delivery + R13.
+
+## Addendum 3 — WS1 step-4 architect pass executed (2026-07-09)
+
+R1–R13 design-requirement bundles attached to owning v1 briefs; user approved the mapping and
+all 8 new tasks ("Approve all 8").
+
+**Attached to existing briefs (design agent, ADV-007 Hook 1):** R2 → PLAT-V1-TASK-010/016/024;
+R4 → CE-V1-TASK-020/021/023/029; R12 → CE-V1-TASK-011; R10 Slack slice → PLAT-V1-TASK-022.
+
+**New tasks (tracker id → brief):** PLAT-V1-TASK-026 Storybook foundation (R13, unblocks all
+refits) · 027 App shell v2 (R1+R7 chrome+R10 remainder) · 028 Marketing (R6) · 029 Audit/
+compliance v2 (R8) · 030 Settings completeness (R9+R7) · CE-V1-TASK-031 Instance browser v2
+(R3) · 032 Query & ask v2 (R5) · BE-V1-TASK-024 Build request form v2 (R11). Tracker epics
+PLAT-V1-EPIC-011/012/009/004, CE-V1-EPIC-023/024, BE-V1-EPIC-001 map to doc-side flat
+EPIC-011/012 (new), EPIC-009/004/001 (extended), EPIC-023/024 (new) per per-file convention.
+
+**Architect rulings made during the pass:**
+- CE-V1-TASK-023 gained AC-9: node-select → glass inspector shell owned by this task (design
+  agent found D-1..D-7 had no AC row).
+- CE-V1-TASK-020: canvas-toolbar search = the M1 TASK-011 spotlight surfaced inline; no second
+  search implementation; Cmd+K stays as keyboard entry.
+- Compliance route: /audit/compliance canonical, /compliance becomes a redirect (keeps existing
+  Playwright green) — in PLAT-V1-TASK-029.
+- Explorer R4 items already built at M1 written as verify-still-holds; named-edge labelling and
+  isolated-node layout confirmed NEW scope (M1 briefs never specified them — checked, not
+  assumed).
+
+**Findings during the pass:**
+- F-D25 (marketing CTAs dead / login 404) does NOT reproduce on trunk — /auth/login exists and
+  CTAs point at it; PLAT-V1-TASK-028 scoped down to the real gaps (hero shot, 2 sections, logo
+  lockup, /login redirect insurance). QA should close F-D25 as partially stale.
+- TASK-030 exposed two missing backend read endpoints (member list, notification-prefs read) —
+  now explicit ACs, not assumptions.
+- CLAUDE.md stale "no application code yet" premise → PROJ-011 (harness-governed, deferred).
+- jtbd.md lacks an entry for the /ce/types kind-catalogue surface (design agent gap flag).

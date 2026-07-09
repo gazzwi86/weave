@@ -186,3 +186,15 @@ per-task reports.
 - **Owner:** Harness maintainer — `docs/standards/**` is harness-governed, so the fix needs an
   advisor consult + `Advisor-Consult:` trailer; do NOT fix inline mid-task.
 - **Deadline:** Next harness PR / phase-gate remediation sweep.
+
+## PROJ-011: CLAUDE.md "no application code yet" premise is stale (harness-governed)
+
+- **What:** Root `CLAUDE.md` still says the repo is "a spec-driven dark-factory harness — there is
+  no application code yet." `packages/{backend,frontend,shared}` is a real running PoC (FastAPI +
+  Next.js) with 31 tasks done. The stale premise caused a brief-authoring agent to invent a
+  `design-system/` path instead of grounding against the live `packages/frontend/components/`
+  tree (caught and fixed in the same pass, weave-platform TASK-026/027).
+- **Raised in:** WS1 step-4 architect pass (task #16, 2026-07-09), by the platform brief author.
+- **Owner:** Harness maintainer — `CLAUDE.md` is harness-governed, so the fix needs an advisor
+  consult + `Advisor-Consult:` trailer; do NOT fix inline mid-task.
+- **Deadline:** Next harness PR / phase-gate remediation sweep (bundle with PROJ-010).

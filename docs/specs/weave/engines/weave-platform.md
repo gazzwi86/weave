@@ -1183,10 +1183,11 @@ re-implements settings resolution. Revocation uses short-lived tokens + per-requ
 one mechanism, one bounded latency; the same mechanism EPIC-004's RBAC enforcement consumes. Relies on the
 Phase-1 multi-tenant isolation mechanism decision (OQ-01) and the dev-AWS Cognito pool.
 
-### EPIC-004 — Authentication, RBAC & Agent Identity
+### EPIC-004 — Authentication, RBAC & Agent Identity / Settings & Membership UI
 
-**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003 ·
-**blocks:** EPIC-007, EPIC-009, EPIC-002 · **provides:** PLAT-IDENTITY-1 · **consumes:** PLAT-SETTINGS-1.
+**Milestone:** M1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-003, EPIC-011
+(v1 story only) · **blocks:** EPIC-007, EPIC-009, EPIC-002 · **provides:** PLAT-IDENTITY-1 ·
+**consumes:** PLAT-SETTINGS-1, PLAT-NOTIFY-1 (v1 story only).
 
 **Description.** The identity and access spine for humans and agents: SSO via Cognito (default) or Auth0
 (multi-IdP), RBAC enforced at the API boundary against roles resolved through `PLAT-SETTINGS-1`, and named
@@ -1213,6 +1214,16 @@ PROV-O record and audit entry.
   distinct; THE SYSTEM SHALL record which IAM role maps to which canonical principal IRI and RBAC role.
   Admins view agent principals + scopes in Settings. AC (failure, EARS): IF a principal acts out of scope
   THEN THE SYSTEM SHALL deny the action (least-privilege) and log it to `PLAT-AUDIT-1`. *(Must)*
+- **E4-S4 — Settings & Membership UI (Members + notification preferences).** WHEN a workspace admin
+  opens Settings -> Members THE SYSTEM SHALL list current members (via a new
+  `GET /api/workspaces/{workspace_id}/members` read alongside the existing invite/revoke routes),
+  with invite/revoke wired to those existing endpoints and role selection limited to the 10
+  canonical in-tenant roles enumerated in [§Roles & Access](#roles--access). WHEN a signed-in user
+  opens Settings -> Notifications THE SYSTEM SHALL render the 8 `PLAT-NOTIFY-1` types (grouped
+  Model/Build/Governance/Account) pre-filled from a new `GET /api/notifications/preferences` read,
+  toggleable per type via the existing `PUT`, except `audit.chain.invalid` which SHALL render locked
+  (non-suppressible) for workspace admin and compliance officer roles. Closes design assessment
+  2026-07-09 finding F-D24 (Settings had neither section). *(Should, v1 — TASK-030)*
 
 **Epic-level acceptance criteria:**
 
@@ -1228,6 +1239,10 @@ PROV-O record and audit entry.
   agent classes, Build's 5 dark-factory roles, and Events' per-automation principals into one IRI that
   appears in PROV-O and every `PLAT-AUDIT-1` entry, and maps to exactly one IAM role and one RBAC role at
   the Weave API boundary — verified by tracing one agent action end to end.
+- [ ] Settings exposes a working Members list (backed by the new list endpoint) and a Notifications
+  preferences matrix (backed by the new preferences-read endpoint) covering all 8 `PLAT-NOTIFY-1`
+  types, with `audit.chain.invalid` locked non-suppressible for admin/compliance in both this surface
+  and the EPIC-011 bell panel — one shared rule, verified in both UIs.
 
 **Technical notes.** The 10 canonical in-tenant roles + the Weave super admin, enumerated in
 [§Roles & Access](#roles--access) above, are the **normative** RBAC role set — `PLAT-SETTINGS-1`
@@ -1240,6 +1255,9 @@ dedicated Cognito group minting a `PLAT-IDENTITY-1` principal outside any client
 provisions companies and their first admins at **MVP** (FR-045..047, story E3-S4). The separate
 *self-improvement* platform-operator capability (audit-reading signal→issue→dispatch) is defined **post-v1**
 alongside the self-improvement loop; neither operator identity ever appears in a client tenant's RBAC.
+**v1 addendum:** E4-S4 adds two read-only endpoints (`GET .../members`, `GET .../preferences`)
+alongside the existing M1 write endpoints from `PLAT-TASK-003`/`PLAT-TASK-007` — no schema change,
+no new contract family.
 
 ### EPIC-005 — Global Navigation & Search
 
@@ -1472,11 +1490,11 @@ recent committed meter. Usage screen shows cycle usage counts (not dollar spend 
 default < 5 min is provisional (owner Architect). Per-spec/per-PR caps, model-tier gating, and
 cost-estimate-before-generation gating are explicitly Build-Engine generation-loop scope, not platform v1.
 
-### EPIC-009 — Immutable Audit (PLAT-AUDIT-1)
+### EPIC-009 — Immutable Audit (PLAT-AUDIT-1) / Audit & Compliance Surfaces v2
 
-**Milestone:** M1 (E9-S1 audit trail) / **post-v1** (self-improvement loop) ·
-**Priority:** Must Have · **depends_on:** EPIC-000, EPIC-004, EPIC-006 ·
-**blocks:** EPIC-002, EPIC-005 · **provides:** PLAT-AUDIT-1 ·
+**Milestone:** M1 (E9-S1 audit trail) / **v1** (E9-S2 tiles/charts UI rebuild) / **post-v1**
+(self-improvement loop) · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-004, EPIC-006,
+EPIC-011 (v1 story only) · **blocks:** EPIC-002, EPIC-005 · **provides:** PLAT-AUDIT-1 ·
 **consumes:** PLAT-IDENTITY-1, PLAT-NOTIFY-1.
 
 **Description.** The single immutable audit/provenance service (`PLAT-AUDIT-1`) every engine emits to.
@@ -1502,6 +1520,17 @@ run-log are views over it; CE PROV-O remains semantic provenance AND writes a co
   prev_hash; verify ed25519 signature). AC (tamper test, EARS): WHEN any historical entry is altered or
   deleted THE SYSTEM SHALL fail chain verification at a named row. Audit is exposed as a **sub-view under
   the Compliance area** (E5-S1), readable by the Compliance role. *(Must, M1)*
+- **E9-S2 — Audit & compliance surfaces v2 (tiles/charts rebuild).** WHEN the audit dashboard or
+  compliance page renders THE SYSTEM SHALL present chain-status/entries-checked/SHACL figures as
+  `KpiCard` tiles and the month-over-month category comparison as a `BarChart`, replacing the M1
+  plain-text/glyph-based trend presentation (design assessment 2026-07-09 findings F-D21/F-D22).
+  THE SYSTEM SHALL give the logs table relative-time and friendly-actor (`EntityRef`) treatment
+  with a full 7-dimension filter bar (`engine`, `event_type`, `actor_principal_iri`, `target_iri`,
+  `date_from`, `date_to`, `q`) matching `PLAT-AUDIT-1`'s query-filter contract exactly. THE SYSTEM
+  SHALL serve the compliance view at the canonical `/audit/compliance` route (nav-highlighted under
+  Audit) while the legacy `/compliance` path continues to resolve via redirect, so no existing
+  test suite addressing it breaks. No new backend contract — this story is presentation-layer only,
+  consuming `PLAT-AUDIT-1` as already shipped by E9-S1. *(Should, v1 — TASK-029)*
 
 **Epic-level acceptance criteria:**
 
@@ -1513,6 +1542,9 @@ run-log are views over it; CE PROV-O remains semantic provenance AND writes a co
 - [ ] Audit queries are filterable by date, actor, event-type, resource, and engine; the export procedure
   produces verifiable JSON/NDJSON with the chain-verification steps documented alongside — verified by
   running an export and re-verifying each entry's hash chain.
+- [ ] Audit dashboard and compliance page render tiles/charts (not plain text rows), the logs table
+  exposes all 7 `PLAT-AUDIT-1` filter dimensions, and `/compliance` redirects to the canonical
+  `/audit/compliance` without breaking any existing suite addressing the legacy path.
 
 **Technical notes.** `PLAT-AUDIT-1` entry shape: `{ seq, ts, actor_principal_iri, engine, event_type,
 target_iri, diff_summary, signature }`, hash-chained (prev_hash → hash) with a per-entry ed25519 signature
@@ -1520,7 +1552,8 @@ over the canonicalised entry + prev_hash. Queries filterable by date/actor/event
 paginated (default ≤ 500 rows/page, tunable), exportable as JSON/NDJSON with a chain-verification
 procedure. CE PROV-O remains semantic provenance and also writes a corresponding `PLAT-AUDIT-1` entry.
 Storage choice (append-only DynamoDB vs PostgreSQL with constraint-based immutability) is OQ-05, deferred
-to Architect at tech-spec.
+to Architect at tech-spec. **v1 addendum:** E9-S2's tiles/charts rebuild is presentation-layer only —
+no schema or endpoint change; it consumes `PLAT-AUDIT-1` exactly as E9-S1 shipped it.
 
 ### EPIC-010 — "What can Weave do for you?" Role-Home (legibility)
 
@@ -1573,6 +1606,97 @@ legibility layer (model-completeness map + trust mechanics).
 (`entity_count_by_kind`, `shacl_errors_by_severity`, `draft_published_delta`) and `CE-READ-1` completeness
 queries; it does not introduce a new contract. The Build capability surface (E10-S3) is keyed to Build GA.
 Cross-links to `[constitution-engine](constitution-engine.md)`, `[build-engine](build-engine.md)`, `[weave-spec](../weave-spec.md)`.
+
+### EPIC-011 — Design System & App Shell v2
+
+**Milestone:** v1 · **Priority:** Must Have · **depends_on:** EPIC-000, EPIC-005 ·
+**blocks:** EPIC-009 (v1 story), EPIC-004 (v1 story), EPIC-012 · **provides:** none (internal
+component library, no new contract) · **consumes:** PLAT-NOTIFY-1, PLAT-IDENTITY-1, CE-READ-1.
+
+**Description.** A Storybook-hosted, token-only, atomic-design component library (atoms →
+molecules → organisms → templates → pages) that the M1 app shell is refit onto, plus the chrome
+refit itself. Design assessment 2026-07-09 (live inspection of the running PoC) found the built
+chrome had regressed from its own M1 spec — Cmd+K a no-op, no header search, notifications a text
+label, the workspace switcher contradicting the tenancy realignment ruling (2026-07-08) — and found
+no shared page-scaffolding/button-hierarchy layer existed to prevent every surface reinventing its
+own chrome. This epic builds that shared layer once (`v1-design-requirements.md` R13) and refits
+the chrome onto it (R1 + R7 + the R10 remainder), so every other v1 design epic (EPIC-012, and the
+v1 stories under EPIC-009/EPIC-004) consumes it rather than owning bespoke CSS.
+
+**User stories (architect pass, 2026-07-09) — full acceptance criteria:**
+
+- **E11-S1 — Storybook design-system foundation.** WHEN a developer runs the Storybook dev
+  command THE SYSTEM SHALL serve a workbench listing the starting component set (`NavRail`,
+  `SecondarySidebar`, `AppHeader`, `CommandBar`, `PageHeader`, `EntityRef`, `KindChip`, `KpiTile`,
+  `DataTable`, `InspectorPanel`, `GlassPanel`, `AskBar`, `CanvasLegend`, `CanvasToolbar`, Bell
+  panel, `EmptyState`), each tagged by atomic layer, token-only styled, with per-state
+  (default/hover/selected/loading/empty/error) and per-theme story coverage; an import-boundary
+  rule enforces atoms/molecules/organisms/templates stay dumb (no data fetching) and the app layer
+  binds data into templates/pages only, never composing raw components. Storybook is dev-time only
+  — `ui_verify`/Lighthouse/token gates continue to run against built app pages unchanged.
+  *(Must, v1 — TASK-026)*
+- **E11-S2 — App shell v2 (V4-hybrid chrome refit).** WHEN a signed-in user views any page THE
+  SYSTEM SHALL render the icon-rail `NavRail` + contextual `SecondarySidebar`, a working Cmd+K
+  `CommandBar` (gradient-border, grouped results), a real bell panel (day-grouped, deep-linking,
+  mark-read, `model.version.published` batched per session, `audit.chain.invalid` non-suppressible
+  for admin/compliance), and an avatar menu — all consumed from E11-S1's library. Non-super-admin
+  members SHALL NOT see a workspace switcher, and all "applies to every workspace" copy SHALL read
+  company-scoped instead (tenancy realignment ruling, 2026-07-08); Weave super admins keep the
+  provisioning entry point, relocated to Settings -> Workspaces. *(Must, v1 — TASK-027)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] Every starting-set component ships in Storybook with full state/theme coverage, token-only
+  styling (a raw hex/px/ms literal under `packages/frontend/components/**` fails the token-conformance
+  lint), and the import-boundary rule blocking data-fetching imports in atoms/molecules/organisms/
+  templates and raw-component imports from `app/**`.
+- [ ] The refit chrome closes every regressed-chrome finding the assessment logged (Cmd+K opens and
+  navigates, bell shows an icon+badge and a working panel, no bare workspace switcher for members,
+  no company-scope copy violations) — verified by the E2E suite TASK-027 specifies.
+
+**Technical notes.** New atomic subdirectories (`components/{atoms,molecules,organisms,templates,
+pages}/`) land alongside the existing `packages/frontend/components/{ui,shell,explorer,dashboard,
+marketing}/` tree — TASK-026 does not rename or relocate the existing directories. The existing
+`components/ui/{button,input,badge,card,toast}.tsx` (+ stories, from M1 `PLAT-TASK-002`) fold in as
+the starting atoms; the existing `components/shell/{nav,section-rail,command-palette,
+notification-center,app-shell,workspace-switcher}.tsx` are the regressed organisms TASK-027 refits
+onto the new library. Full detail in `TASK-026.md`/`TASK-027.md`.
+
+### EPIC-012 — Marketing Site
+
+**Milestone:** v1 · **Priority:** Must Have · **depends_on:** EPIC-011 · **blocks:** none ·
+**provides:** none · **consumes:** none (static public surface, no data API).
+
+**Description.** The public marketing index and its remaining gaps against the approved IA
+(`poc-ia-proposal.md` §6). Grounding this epic against the live repo found the surface further
+along than the design assessment implied: `packages/frontend/app/page.tsx` already composes a
+7-section index with working CTAs to `/auth/login` — the assessment's literal "CTAs 404" claim
+(F-D25) does not reproduce on current trunk. The verified remaining gaps are a real product
+screenshot in place of the CSS hero mock, the two IA sections not yet built (social-proof strip,
+screenshot band), a generated full logo lockup asset, and moving the page's composition onto an
+EPIC-011 design-system template (today it composes marketing molecules directly, which the R13
+atomic-design constraint forbids).
+
+**User stories (architect pass, 2026-07-09) — full acceptance criteria:**
+
+- **E12-S1 — Marketing entry gaps (real hero, missing sections, logo lockup).** WHEN the
+  marketing index renders THE SYSTEM SHALL show a real product screenshot in the hero (not the CSS
+  `MockGraphPanel`), all nine `poc-ia-proposal.md` §6 sections in order, a full logo lockup (not the
+  cropped in-app mark), and SHALL compose all of this through a new `landing-page` design-system
+  template rather than direct JSX in `app/page.tsx`. A bare `/login` path SHALL redirect to the
+  canonical `/auth/login`, closing F-D25's literal wording as cheap insurance even though
+  `/auth/login` already works. *(Must, v1 — TASK-028)*
+
+**Epic-level acceptance criteria:**
+
+- [ ] The marketing index renders all nine IA sections in the fixed order, with a real product
+  screenshot hero and full logo lockup — no placeholder visual remains on the page.
+- [ ] `app/page.tsx` contains no direct composition of marketing molecules — it binds section data
+  into the `landing-page` design-system template only; `/login` redirects to `/auth/login`.
+
+**Technical notes.** No backend or auth changes — `/auth/login`'s existing `next-auth` `cognito`
+provider (M1 `PLAT-TASK-002`) is reused as-is. Full detail, including the discovered discrepancy
+with F-D25 and the resulting reduced scope, in `TASK-028.md`.
 
 ---
 

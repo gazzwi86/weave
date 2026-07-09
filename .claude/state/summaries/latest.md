@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-08T13:14:32+00:00
+Captured at: 2026-07-09T03:24:59+00:00
 Event: pre-compact
 
 ## Current State
@@ -11,15 +11,10 @@ Event: pre-compact
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
-    "graph-explorer/phase-1",
     "build-engine/phase-1",
-    "build-engine-m2/phase-1",
     "build-engine-v1/phase-1",
-    "constitution-engine-m2/phase-1",
     "constitution-engine-v1/phase-1",
-    "graph-explorer-m2/phase-1",
-    "onboarding-m2/phase-1",
-    "weave-platform-m2/phase-1",
+    "onboarding-v1/phase-1",
     "weave-platform-v1/phase-1"
   ],
   "epics": [
@@ -94,13 +89,13 @@ Event: pre-compact
       "status": "done"
     },
     {
-      "id": "GE-EPIC-001",
-      "title": "GE-EPIC-001",
+      "id": "CE-EPIC-013",
+      "title": "CE-EPIC-013",
       "status": "done"
     },
     {
-      "id": "GE-EPIC-002",
-      "title": "GE-EPIC-002",
+      "id": "CE-EPIC-014",
+      "title": "CE-EPIC-014",
       "status": "done"
     },
     {
@@ -139,17 +134,17 @@ Event: pre-compact
       "status": "done"
     },
     {
-      "id": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-EPIC-001",
       "title": "Dashboard (fixed default + Generative, M2)",
       "status": "backlog"
     },
     {
-      "id": "PLAT-M2-EPIC-002",
+      "id": "PLAT-V1-EPIC-002",
       "title": "Widget Library (engine-sourced data categories, milestone-gated)",
       "status": "backlog"
     },
     {
-      "id": "PLAT-M2-EPIC-010",
+      "id": "PLAT-V1-EPIC-010",
       "title": "\"What can Weave do for you?\" Role-Home (legibility)",
       "status": "backlog"
     },
@@ -164,37 +159,32 @@ Event: pre-compact
       "status": "backlog"
     },
     {
-      "id": "PLAT-V1-EPIC-002",
-      "title": "Widget Library (engine-sourced data categories, milestone-gated)",
-      "status": "backlog"
-    },
-    {
-      "id": "CE-M2-EPIC-003",
+      "id": "CE-V1-EPIC-003",
       "title": "SKOS Controlled Vocabulary (Glossary)",
       "status": "backlog"
     },
     {
-      "id": "CE-M2-EPIC-004",
+      "id": "CE-V1-EPIC-004",
       "title": "Brand & Voice Standards",
       "status": "backlog"
     },
     {
-      "id": "CE-M2-EPIC-005",
+      "id": "CE-V1-EPIC-005",
       "title": "Governance & Compliance Rules",
       "status": "backlog"
     },
     {
-      "id": "CE-M2-EPIC-009",
+      "id": "CE-V1-EPIC-009",
       "title": "Provenance & Version Lifecycle",
       "status": "backlog"
     },
     {
-      "id": "CE-M2-EPIC-010",
+      "id": "CE-V1-EPIC-010",
       "title": "Stable Read & Write Interfaces (Inter-engine Contract Hub)",
       "status": "backlog"
     },
     {
-      "id": "CE-M2-EPIC-007",
+      "id": "CE-V1-EPIC-007",
       "title": "SPARQL Query & NL Query",
       "status": "backlog"
     },
@@ -204,68 +194,63 @@ Event: pre-compact
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-003",
+      "id": "CE-V1-EPIC-015",
       "title": "Filters & Layers \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-004",
+      "id": "CE-V1-EPIC-016",
       "title": "Visual Overlays \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-008",
+      "id": "CE-V1-EPIC-020",
       "title": "Version Views & Diff \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-005",
+      "id": "CE-V1-EPIC-017",
       "title": "Visual Editing on the Canvas \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-007",
+      "id": "CE-V1-EPIC-019",
       "title": "Saved Views & Layout \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-006",
+      "id": "CE-V1-EPIC-018",
       "title": "Async Share & Comments \u00b7 M2",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-010",
+      "id": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map \u00b7 M2 (new)",
       "status": "backlog"
     },
     {
-      "id": "GE-M2-EPIC-009",
+      "id": "CE-V1-EPIC-021",
       "title": "Embeddable Canvas Component GE-CANVAS-1 \u00b7 force mode M2, c4 mode post-v1",
-      "status": "backlog"
-    },
-    {
-      "id": "BE-M2-EPIC-002",
-      "title": "Project Registry & Settings",
-      "status": "backlog"
-    },
-    {
-      "id": "BE-M2-EPIC-008",
-      "title": "Artefact Generation",
-      "status": "backlog"
-    },
-    {
-      "id": "BE-M2-EPIC-011",
-      "title": "Dark-Factory Execution Engine",
-      "status": "backlog"
-    },
-    {
-      "id": "BE-M2-EPIC-012",
-      "title": "Quality Gates & Spec-Coverage",
       "status": "backlog"
     },
     {
       "id": "BE-V1-EPIC-002",
       "title": "Project Registry & Settings",
+      "status": "backlog"
+    },
+    {
+      "id": "BE-V1-EPIC-008",
+      "title": "Artefact Generation",
+      "status": "backlog"
+    },
+    {
+      "id": "BE-V1-EPIC-011",
+      "title": "Dark-Factory Execution Engine",
+      "status": "backlog"
+    },
+    {
+      "id": "BE-V1-EPIC-012",
+      "title": "Quality Gates & Spec-Coverage",
       "status": "backlog"
     },
     {
@@ -289,13 +274,48 @@ Event: pre-compact
       "status": "backlog"
     },
     {
-      "id": "ONB-M2-EPIC-002",
+      "id": "ONB-V1-EPIC-002",
       "title": "Guided Tours & Contextual Overlays",
       "status": "backlog"
     },
     {
-      "id": "ONB-M2-EPIC-003",
+      "id": "ONB-V1-EPIC-003",
       "title": "Role-Tailored Onboarding Paths",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-011",
+      "title": "Design System & App Shell v2 (Storybook atomic library + V4-hybrid chrome refit)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-012",
+      "title": "Marketing Site (public entry + working /login)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-009",
+      "title": "Audit & Compliance Surfaces v2 (tiles/charts rebuild, successor of PLAT-EPIC-009)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-004",
+      "title": "Settings & Membership UI (successor of PLAT-EPIC-004 RBAC)",
+      "status": "backlog"
+    },
+    {
+      "id": "CE-V1-EPIC-023",
+      "title": "Instance Browser v2 (browse/search + SHACL drawer + glass chat aside)",
+      "status": "backlog"
+    },
+    {
+      "id": "CE-V1-EPIC-024",
+      "title": "Query & Ask v2 (lifecycle states, Graph/Table/Raw, speech input)",
+      "status": "backlog"
+    },
+    {
+      "id": "BE-V1-EPIC-001",
+      "title": "Request Studio v2 (form polish, successor of BE-EPIC-001)",
       "status": "backlog"
     }
   ],
@@ -493,60 +513,60 @@ Event: pre-compact
       "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-008.md"
     },
     {
-      "id": "GE-TASK-001",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-009",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "SPIKE: Cytoscape 10k-node Benchmark + Aurora Layout Schema Design",
       "status": "done",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-001.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-009.md",
       "retry_count": 0
     },
     {
-      "id": "GE-TASK-002",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-010",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Whole-Company Force Canvas + Navigation",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-001"
+        "CE-TASK-009"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-002.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-010.md"
     },
     {
-      "id": "GE-TASK-003",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-011",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Node Spotlight + Search Overlay",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-002"
+        "CE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-003.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-011.md"
     },
     {
-      "id": "GE-TASK-004",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-001",
+      "id": "CE-TASK-012",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-013",
       "title": "Server-Side Layout Persistence",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-001",
-        "GE-TASK-002"
+        "CE-TASK-009",
+        "CE-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-004.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-012.md"
     },
     {
-      "id": "GE-TASK-005",
-      "engine": "graph-explorer",
-      "epic": "GE-EPIC-002",
+      "id": "CE-TASK-013",
+      "engine": "constitution-engine",
+      "epic": "CE-EPIC-014",
       "title": "Drill-In: Domain Focus, Neighbourhood Expand/Collapse, Impact Traversal",
       "status": "done",
       "blocked_by": [
-        "GE-TASK-002",
-        "GE-TASK-003"
+        "CE-TASK-010",
+        "CE-TASK-011"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m1/tasks/TASK-005.md"
+      "brief": "docs/specs/weave/engines/constitution-engine/m1/tasks/TASK-013.md"
     },
     {
       "id": "BE-TASK-001",
@@ -665,112 +685,112 @@ Event: pre-compact
       "brief": "docs/specs/weave/engines/build-engine/m1/tasks/TASK-010.md"
     },
     {
-      "id": "PLAT-M2-TASK-010",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-010",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Widget-state foundation + fixed CE-sourced default dashboard (E1-S0, E1-S6)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-010.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-010.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-011",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-011",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Generative widget pipeline: prompt bar + SSE stream + budget/meter/audit (E1-S1, E1-S7)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-010"
+        "PLAT-V1-TASK-010"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-011.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-011.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-012",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-012",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Declarative intent\u2192component mapping + change visualisation (E1-S2)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-011"
+        "PLAT-V1-TASK-011"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-012.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-012.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-013",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-013",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Refine widget by follow-up prompt + refinement history (E1-S3)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-012"
+        "PLAT-V1-TASK-012"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-013.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-013.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-014",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-014",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Pin widgets, responsive grid, drag-reorder, auto-refresh (E1-S4)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-010",
-        "PLAT-M2-TASK-011"
+        "PLAT-V1-TASK-010",
+        "PLAT-V1-TASK-011"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-014.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-014.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-015",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-001",
+      "id": "PLAT-V1-TASK-015",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-001",
       "title": "Publish widgets to the tenant (company) widget library; independent per-user copies (E1-S5)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-014"
+        "PLAT-V1-TASK-014"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-015.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-015.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-016",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-002",
+      "id": "PLAT-V1-TASK-016",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-002",
       "title": "Widget-library category bindings: 10 CE/platform-sourced categories (EPIC-002)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-010",
-        "PLAT-M2-TASK-012"
+        "PLAT-V1-TASK-010",
+        "PLAT-V1-TASK-012"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-016.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-016.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-017",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-010",
+      "id": "PLAT-V1-TASK-017",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-010",
       "title": "'What can Weave do for you?' role-home (E10-S1..S3)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-010",
-        "PLAT-M2-TASK-016"
+        "PLAT-V1-TASK-010",
+        "PLAT-V1-TASK-016"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-017.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-017.md",
       "retry_count": 0
     },
     {
-      "id": "PLAT-M2-TASK-024",
-      "engine": "weave-platform-m2",
-      "epic": "PLAT-M2-EPIC-002",
+      "id": "PLAT-V1-TASK-024",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-002",
       "title": "Recent-edits collaboration widget polling the CE-EVENT-1 seq feed (E2-S9)",
       "status": "backlog",
       "blocked_by": [
-        "PLAT-M2-TASK-016"
+        "PLAT-V1-TASK-016"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/m2/tasks/TASK-024.md",
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-024.md",
       "retry_count": 0
     },
     {
@@ -856,7 +876,7 @@ Event: pre-compact
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-006",
-        "PLAT-M2-TASK-016"
+        "PLAT-V1-TASK-016"
       ],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-023.md",
       "retry_count": 0
@@ -874,118 +894,10 @@ Event: pre-compact
       "retry_count": 0
     },
     {
-      "id": "CE-M2-TASK-001",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-003",
-      "title": "SKOS Glossary Backend (Punned Term Model + SHACL)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-001.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-002",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-003",
-      "title": "Glossary Search, Browse and Create UI",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-M2-TASK-001"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-002.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-003",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-004",
-      "title": "Brand & Voice Model + CE-BRAND-1 Projections",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-003.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-004",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-004",
-      "title": "Brand & Voice Authoring UI",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-M2-TASK-003"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-004.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-005",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-005",
-      "title": "Tenant-Scoped Governance Shapes (NL\u2192SHACL, Isolation, Cache Invalidation)",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-M2-TASK-001"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-005.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-006",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-005",
-      "title": "Rules & Policies Screen + Full Validation Report API",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-M2-TASK-005"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-006.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-007",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-005",
-      "title": "CE-METRICS-1 Aggregate Metrics Endpoint",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-007.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-008",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-009",
-      "title": "CE-EVENT-1 Change-Feed (Beta Transport)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-008.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-009",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-010",
-      "title": "CE-FUNCTION-1 Registry (Definition Surface)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-009.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-M2-TASK-010",
-      "engine": "constitution-engine-m2",
-      "epic": "CE-M2-EPIC-007",
-      "title": "Agent-Grounding Authority & Escalation Patterns (E7-S4, base-links descope)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/constitution-engine/m2/tasks/TASK-010.md",
-      "retry_count": 0
-    },
-    {
       "id": "CE-V1-TASK-001",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
+      "epic": "CE-V1-EPIC-003",
+      "title": "SKOS Glossary Backend (Punned Term Model + SHACL)",
       "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-001.md",
@@ -994,8 +906,8 @@ Event: pre-compact
     {
       "id": "CE-V1-TASK-002",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Conversational Document Ingest Agent (E12-S1, USER PRIORITY)",
+      "epic": "CE-V1-EPIC-003",
+      "title": "Glossary Search, Browse and Create UI",
       "status": "backlog",
       "blocked_by": [
         "CE-V1-TASK-001"
@@ -1006,25 +918,21 @@ Event: pre-compact
     {
       "id": "CE-V1-TASK-003",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Document Corpus Store: Chunking, Embeddings, Retrieval, NL Citations",
+      "epic": "CE-V1-EPIC-004",
+      "title": "Brand & Voice Model + CE-BRAND-1 Projections",
       "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-001",
-        "CE-V1-TASK-002",
-        "CE-V1-TASK-004"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-003.md",
       "retry_count": 0
     },
     {
       "id": "CE-V1-TASK-004",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Structured Model Import: ArchiMate Exchange Format + BPMN",
+      "epic": "CE-V1-EPIC-004",
+      "title": "Brand & Voice Authoring UI",
       "status": "backlog",
       "blocked_by": [
-        "CE-V1-TASK-001"
+        "CE-V1-TASK-003"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-004.md",
       "retry_count": 0
@@ -1032,11 +940,11 @@ Event: pre-compact
     {
       "id": "CE-V1-TASK-005",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "AI Diagram / Image-to-Data Ingest",
+      "epic": "CE-V1-EPIC-005",
+      "title": "Tenant-Scoped Governance Shapes (NL\u2192SHACL, Isolation, Cache Invalidation)",
       "status": "backlog",
       "blocked_by": [
-        "CE-V1-TASK-002"
+        "CE-V1-TASK-001"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-005.md",
       "retry_count": 0
@@ -1044,11 +952,11 @@ Event: pre-compact
     {
       "id": "CE-V1-TASK-006",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Structured-Data Import: R2RML + RML (morph-kgc), OCEL Reference Mapping",
+      "epic": "CE-V1-EPIC-005",
+      "title": "Rules & Policies Screen + Full Validation Report API",
       "status": "backlog",
       "blocked_by": [
-        "CE-V1-TASK-001"
+        "CE-V1-TASK-005"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-006.md",
       "retry_count": 0
@@ -1056,267 +964,282 @@ Event: pre-compact
     {
       "id": "CE-V1-TASK-007",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "SKOS Cross-Notation Reconciliation",
+      "epic": "CE-V1-EPIC-005",
+      "title": "CE-METRICS-1 Aggregate Metrics Endpoint",
       "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-001",
-        "CE-V1-TASK-004"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-007.md",
       "retry_count": 0
     },
     {
       "id": "CE-V1-TASK-008",
       "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Import & Ingest Page, Epic E2E, CI Closure",
+      "epic": "CE-V1-EPIC-009",
+      "title": "CE-EVENT-1 Change-Feed (Beta Transport)",
       "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-002",
-        "CE-V1-TASK-003",
-        "CE-V1-TASK-004",
-        "CE-V1-TASK-005",
-        "CE-V1-TASK-006",
-        "CE-V1-TASK-007"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-008.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-001",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-003",
+      "id": "CE-V1-TASK-009",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-010",
+      "title": "CE-FUNCTION-1 Registry (Definition Surface)",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-009.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-010",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-007",
+      "title": "Agent-Grounding Authority & Escalation Patterns (E7-S4, base-links descope)",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-010.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-012",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-012.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-013",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Conversational Document Ingest Agent (E12-S1, USER PRIORITY)",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-012"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-013.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-014",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Document Corpus Store: Chunking, Embeddings, Retrieval, NL Citations",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-012",
+        "CE-V1-TASK-013",
+        "CE-V1-TASK-015"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-014.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-015",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Structured Model Import: ArchiMate Exchange Format + BPMN",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-012"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-015.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-016",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "AI Diagram / Image-to-Data Ingest",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-013"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-016.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-017",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Structured-Data Import: R2RML + RML (morph-kgc), OCEL Reference Mapping",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-012"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-017.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-018",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "SKOS Cross-Notation Reconciliation",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-012",
+        "CE-V1-TASK-015"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-018.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-019",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-012",
+      "title": "Import & Ingest Page, Epic E2E, CI Closure",
+      "status": "backlog",
+      "blocked_by": [
+        "CE-V1-TASK-013",
+        "CE-V1-TASK-014",
+        "CE-V1-TASK-015",
+        "CE-V1-TASK-016",
+        "CE-V1-TASK-017",
+        "CE-V1-TASK-018"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-019.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-020",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-015",
       "title": "Filters & Layers Panel (entity, relationship, property, governed-content)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-001.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-020.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-002",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-004",
+      "id": "CE-V1-TASK-021",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "Overlay Engine + Heatmap + Domain Colouring",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-001"
+        "CE-V1-TASK-020"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-002.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-021.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-003",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-008",
+      "id": "CE-V1-TASK-022",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-020",
       "title": "Versions Panel + Diff Overlay (CE-VERSION-1 / CE-DIFF-1)",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-003.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-022.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-004",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-005",
+      "id": "CE-V1-TASK-023",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-004.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-005",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-005",
+      "id": "CE-V1-TASK-024",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-017",
       "title": "Side-Panel Property Edit + Delete Node/Edge + Concurrency Guard",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-004"
+        "CE-V1-TASK-023"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-005.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-024.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-006",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-007",
+      "id": "CE-V1-TASK-025",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-019",
       "title": "Explorer Persistence Service: Saved Views + Comments (Aurora)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-006.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-025.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-007",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-006",
+      "id": "CE-V1-TASK-026",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-018",
       "title": "Saved Views UI + Share + Comments + Live-Refresh Poll",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-001",
-        "GE-M2-TASK-006"
+        "CE-V1-TASK-020",
+        "CE-V1-TASK-025"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-007.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-026.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-008",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-010",
+      "id": "CE-V1-TASK-027",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map (coverage_gap overlay)",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-008.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-027.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-009",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-004",
+      "id": "CE-V1-TASK-028",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "Closure Config Wiring + Drift Guard + Pinned Impact Overlay",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-002"
+        "CE-V1-TASK-021"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-009.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-028.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-010",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-009",
+      "id": "CE-V1-TASK-029",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-021",
       "title": "GE-CANVAS-1 Packaging + Contract Conformance Suite",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-004"
+        "CE-V1-TASK-023"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-010.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-029.md",
       "retry_count": 0
     },
     {
-      "id": "GE-M2-TASK-011",
-      "engine": "graph-explorer-m2",
-      "epic": "GE-M2-EPIC-004",
+      "id": "CE-V1-TASK-030",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-016",
       "title": "M2 Release-Gate Suite (isolation, a11y, perf, invariants)",
       "status": "backlog",
       "blocked_by": [
-        "GE-M2-TASK-003",
-        "GE-M2-TASK-005",
-        "GE-M2-TASK-007",
-        "GE-M2-TASK-008",
-        "GE-M2-TASK-009",
-        "GE-M2-TASK-010"
+        "CE-V1-TASK-022",
+        "CE-V1-TASK-024",
+        "CE-V1-TASK-026",
+        "CE-V1-TASK-027",
+        "CE-V1-TASK-028",
+        "CE-V1-TASK-029"
       ],
-      "brief": "docs/specs/weave/engines/graph-explorer/m2/tasks/TASK-011.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-001",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-002",
-      "title": "Standards Catalogue: Company/Project Standards + Effective-Set Resolution (E2-S7)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-001.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-002",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-008",
-      "title": "CE-BRAND-1 Conformance Gate as Sixth Safety Gate (E8-S1, FR-029 M2)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-002.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-003",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-011",
-      "title": "BPMO Retrieval Under 200-Node Cap + Investigator Runs (ADR-005, FR-051)",
-      "status": "backlog",
-      "blocked_by": [
-        "BE-M2-TASK-001"
-      ],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-003.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-004",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-008",
-      "title": "BE-SDK-1 Generator Core: Fetch \u2192 IR \u2192 TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-004.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-005",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-008",
-      "title": "BE-SDK-1 Trigger API, breaking:true Ack Flow, Provenance + Regeneration (E8-S5, FR-059)",
-      "status": "backlog",
-      "blocked_by": [
-        "BE-M2-TASK-004",
-        "BE-M2-TASK-001"
-      ],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-005.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-006",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-011",
-      "title": "Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-006.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-007",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-012",
-      "title": "Full QA Category Suite (E12-S3, FR-054)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-007.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-008",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-012",
-      "title": "Spec-Coverage Audit + Phase-Gate Ceremony (E12-S4/S5, FR-052/FR-053)",
-      "status": "backlog",
-      "blocked_by": [
-        "BE-M2-TASK-007"
-      ],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-008.md",
-      "retry_count": 0
-    },
-    {
-      "id": "BE-M2-TASK-009",
-      "engine": "build-engine-m2",
-      "epic": "BE-M2-EPIC-008",
-      "title": "Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)",
-      "status": "backlog",
-      "blocked_by": [],
-      "brief": "docs/specs/weave/engines/build-engine/m2/tasks/TASK-009.md",
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-030.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-001",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
-      "title": "v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods",
+      "title": "Standards Catalogue: Company/Project Standards + Effective-Set Resolution (E2-S7)",
       "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-001.md",
@@ -1325,20 +1248,18 @@ Event: pre-compact
     {
       "id": "BE-V1-TASK-002",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary",
+      "epic": "BE-V1-EPIC-008",
+      "title": "CE-BRAND-1 Conformance Gate as Sixth Safety Gate (E8-S1, FR-029 M2)",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-001"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-002.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-003",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "cost_events Writer (ADR-008): Per-Dispatch Usage Attribution",
+      "epic": "BE-V1-EPIC-011",
+      "title": "BPMO Retrieval Under 200-Node Cap + Investigator Runs (ADR-005, FR-051)",
       "status": "backlog",
       "blocked_by": [
         "BE-V1-TASK-001"
@@ -1349,23 +1270,22 @@ Event: pre-compact
     {
       "id": "BE-V1-TASK-004",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "Costs Endpoint + Budget-Cascade Breach Halt (ADR-008 read side, FR-008)",
+      "epic": "BE-V1-EPIC-008",
+      "title": "BE-SDK-1 Generator Core: Fetch \u2192 IR \u2192 TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-003"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-005",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)",
+      "epic": "BE-V1-EPIC-008",
+      "title": "BE-SDK-1 Trigger API, breaking:true Ack Flow, Provenance + Regeneration (E8-S5, FR-059)",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-002"
+        "BE-V1-TASK-004",
+        "BE-V1-TASK-001"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-005.md",
       "retry_count": 0
@@ -1373,35 +1293,31 @@ Event: pre-compact
     {
       "id": "BE-V1-TASK-006",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "Registry Grid + Project Settings UI (FR-006/008/009/011, E2-S4 contributors UI)",
+      "epic": "BE-V1-EPIC-011",
+      "title": "Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-005"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-007",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-002",
-      "title": "Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm",
+      "epic": "BE-V1-EPIC-012",
+      "title": "Full QA Category Suite (E12-S3, FR-054)",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-005"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-008",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-004",
-      "title": "Kanban Board, Task Tree & Filters (FR-015/016/017)",
+      "epic": "BE-V1-EPIC-012",
+      "title": "Spec-Coverage Audit + Phase-Gate Ceremony (E12-S4/S5, FR-052/FR-053)",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-002"
+        "BE-V1-TASK-007"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-008.md",
       "retry_count": 0
@@ -1409,36 +1325,31 @@ Event: pre-compact
     {
       "id": "BE-V1-TASK-009",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-005",
-      "title": "Run-Log Sink + Task Detail 5-Tab Panel (FR-019/FR-020)",
+      "epic": "BE-V1-EPIC-008",
+      "title": "Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-001"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-009.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-010",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-003",
-      "title": "Project Dashboard (FR-013): Per-Tile Isolated Status View",
+      "epic": "BE-V1-EPIC-002",
+      "title": "v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods",
       "status": "backlog",
-      "blocked_by": [
-        "BE-V1-TASK-004",
-        "BE-V1-TASK-005"
-      ],
+      "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-010.md",
       "retry_count": 0
     },
     {
       "id": "BE-V1-TASK-011",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-007",
-      "title": "Decision Log (FR-027): Searchable Read-Only View over PLAT-AUDIT-1",
+      "epic": "BE-V1-EPIC-002",
+      "title": "Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-002"
+        "BE-V1-TASK-010"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-011.md",
       "retry_count": 0
@@ -1446,11 +1357,10 @@ Event: pre-compact
     {
       "id": "BE-V1-TASK-012",
       "engine": "build-engine-v1",
-      "epic": "BE-V1-EPIC-003",
-      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt \u2192 Dark-Factory Run",
+      "epic": "BE-V1-EPIC-002",
+      "title": "cost_events Writer (ADR-008): Per-Dispatch Usage Attribution",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-003",
         "BE-V1-TASK-010"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-012.md",
@@ -1460,11 +1370,10 @@ Event: pre-compact
       "id": "BE-V1-TASK-013",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
-      "title": "External-Space Bindings (FR-010): Confluence/Jira/ServiceNow by Reference",
+      "title": "Costs Endpoint + Budget-Cascade Breach Halt (ADR-008 read side, FR-008)",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-001",
-        "BE-V1-TASK-006"
+        "BE-V1-TASK-012"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-013.md",
       "retry_count": 0
@@ -1473,77 +1382,291 @@ Event: pre-compact
       "id": "BE-V1-TASK-014",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
-      "title": "Source-Control Provider Config UI (E2-S6, FR-061/B9)",
+      "title": "PM Surface API Core: Projects Grid, Settings, Contributors (FR-006/007/008/009/060)",
       "status": "backlog",
       "blocked_by": [
-        "BE-V1-TASK-006"
+        "BE-V1-TASK-011"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-014.md",
       "retry_count": 0
     },
     {
-      "id": "ONB-M2-TASK-001",
-      "engine": "onboarding-m2",
-      "epic": "ONB-M2-EPIC-002",
+      "id": "BE-V1-TASK-015",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-002",
+      "title": "Registry Grid + Project Settings UI (FR-006/008/009/011, E2-S4 contributors UI)",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-014"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-015.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-016",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-002",
+      "title": "Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-014"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-016.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-017",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-004",
+      "title": "Kanban Board, Task Tree & Filters (FR-015/016/017)",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-011"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-017.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-018",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-005",
+      "title": "Run-Log Sink + Task Detail 5-Tab Panel (FR-019/FR-020)",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-010"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-018.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-019",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-003",
+      "title": "Project Dashboard (FR-013): Per-Tile Isolated Status View",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-013",
+        "BE-V1-TASK-014"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-019.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-020",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-007",
+      "title": "Decision Log (FR-027): Searchable Read-Only View over PLAT-AUDIT-1",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-011"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-020.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-021",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-003",
+      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt \u2192 Dark-Factory Run",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-012",
+        "BE-V1-TASK-019"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-021.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-022",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-002",
+      "title": "External-Space Bindings (FR-010): Confluence/Jira/ServiceNow by Reference",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-010",
+        "BE-V1-TASK-015"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-022.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-023",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-002",
+      "title": "Source-Control Provider Config UI (E2-S6, FR-061/B9)",
+      "status": "backlog",
+      "blocked_by": [
+        "BE-V1-TASK-015"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-023.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-V1-TASK-001",
+      "engine": "onboarding-v1",
+      "epic": "ONB-V1-EPIC-002",
       "title": "M2 Anchor-Registry + Content-Config (zero schema change)",
       "status": "backlog",
       "blocked_by": [],
-      "brief": "docs/specs/weave/engines/onboarding/m2/tasks/TASK-001.md",
+      "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-001.md",
       "retry_count": 0
     },
     {
-      "id": "ONB-M2-TASK-002",
-      "engine": "onboarding-m2",
-      "epic": "ONB-M2-EPIC-002",
+      "id": "ONB-V1-TASK-002",
+      "engine": "onboarding-v1",
+      "epic": "ONB-V1-EPIC-002",
       "title": "Model-Completeness Map Tour + Beacons (Explorer overlay + role-home tile)",
       "status": "backlog",
       "blocked_by": [
-        "ONB-M2-TASK-001"
+        "ONB-V1-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/onboarding/m2/tasks/TASK-002.md",
+      "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-002.md",
       "retry_count": 0
     },
     {
-      "id": "ONB-M2-TASK-003",
-      "engine": "onboarding-m2",
-      "epic": "ONB-M2-EPIC-003",
+      "id": "ONB-V1-TASK-003",
+      "engine": "onboarding-v1",
+      "epic": "ONB-V1-EPIC-003",
       "title": "Role-Home Guidance + Competency-Question Guidance Item",
       "status": "backlog",
       "blocked_by": [
-        "ONB-M2-TASK-001"
+        "ONB-V1-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/onboarding/m2/tasks/TASK-003.md",
+      "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-003.md",
       "retry_count": 0
     },
     {
-      "id": "ONB-M2-TASK-004",
-      "engine": "onboarding-m2",
-      "epic": "ONB-M2-EPIC-002",
+      "id": "ONB-V1-TASK-004",
+      "engine": "onboarding-v1",
+      "epic": "ONB-V1-EPIC-002",
       "title": "Trust-Mechanics Tours (versions/diff, overlays, governed filters, rules screen)",
       "status": "backlog",
       "blocked_by": [
-        "ONB-M2-TASK-001"
+        "ONB-V1-TASK-001"
       ],
-      "brief": "docs/specs/weave/engines/onboarding/m2/tasks/TASK-004.md",
+      "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-004.md",
       "retry_count": 0
     },
     {
-      "id": "ONB-M2-TASK-005",
-      "engine": "onboarding-m2",
-      "epic": "ONB-M2-EPIC-002",
+      "id": "ONB-V1-TASK-005",
+      "engine": "onboarding-v1",
+      "epic": "ONB-V1-EPIC-002",
       "title": "M2 Overlay Release-Gate Suite (a11y, resilience, role matrix, tile flip)",
       "status": "backlog",
       "blocked_by": [
-        "ONB-M2-TASK-002",
-        "ONB-M2-TASK-003",
-        "ONB-M2-TASK-004"
+        "ONB-V1-TASK-002",
+        "ONB-V1-TASK-003",
+        "ONB-V1-TASK-004"
       ],
-      "brief": "docs/specs/weave/engines/onboarding/m2/tasks/TASK-005.md",
+      "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-005.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-011",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-010",
+      "title": "Kind-Level Descriptions via skos:definition",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-011.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-026",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-011",
+      "title": "Storybook design-system foundation (atomic component library, R13)",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-026.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-027",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-011",
+      "title": "App shell v2 \u2014 V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-027.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-028",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-012",
+      "title": "Marketing entry + working /login (R6)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-028.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-029",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-009",
+      "title": "Audit & compliance surfaces v2 \u2014 tiles/charts rebuild (R8)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-029.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-030",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-004",
+      "title": "Settings completeness \u2014 Members + notification preferences (R9 + R7 copy)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-030.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-031",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-023",
+      "title": "Instance browser v2 \u2014 browse/search + SHACL drawer + glass chat aside (R3)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-031.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-032",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-024",
+      "title": "Query & ask v2 \u2014 lifecycle states + Graph/Table/Raw + speech input (R5)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-032.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-024",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-001",
+      "title": "Build request form v2 \u2014 labelled fields + visible request record (R11)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-024.md",
       "retry_count": 0
     }
   ]
 }
-
 
 ## Last Phase Summary
 

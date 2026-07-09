@@ -275,6 +275,41 @@
       "id": "ONB-V1-EPIC-003",
       "title": "Role-Tailored Onboarding Paths",
       "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-011",
+      "title": "Design System & App Shell v2 (Storybook atomic library + V4-hybrid chrome refit)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-012",
+      "title": "Marketing Site (public entry + working /login)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-009",
+      "title": "Audit & Compliance Surfaces v2 (tiles/charts rebuild, successor of PLAT-EPIC-009)",
+      "status": "backlog"
+    },
+    {
+      "id": "PLAT-V1-EPIC-004",
+      "title": "Settings & Membership UI (successor of PLAT-EPIC-004 RBAC)",
+      "status": "backlog"
+    },
+    {
+      "id": "CE-V1-EPIC-023",
+      "title": "Instance Browser v2 (browse/search + SHACL drawer + glass chat aside)",
+      "status": "backlog"
+    },
+    {
+      "id": "CE-V1-EPIC-024",
+      "title": "Query & Ask v2 (lifecycle states, Graph/Table/Raw, speech input)",
+      "status": "backlog"
+    },
+    {
+      "id": "BE-V1-EPIC-001",
+      "title": "Request Studio v2 (form polish, successor of BE-EPIC-001)",
+      "status": "backlog"
     }
   ],
   "tasks": [
@@ -1527,6 +1562,100 @@
       "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-011.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-026",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-011",
+      "title": "Storybook design-system foundation (atomic component library, R13)",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-026.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-027",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-011",
+      "title": "App shell v2 \u2014 V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-027.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-028",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-012",
+      "title": "Marketing entry + working /login (R6)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-028.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-029",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-009",
+      "title": "Audit & compliance surfaces v2 \u2014 tiles/charts rebuild (R8)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-029.md",
+      "retry_count": 0
+    },
+    {
+      "id": "PLAT-V1-TASK-030",
+      "engine": "weave-platform-v1",
+      "epic": "PLAT-V1-EPIC-004",
+      "title": "Settings completeness \u2014 Members + notification preferences (R9 + R7 copy)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-030.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-031",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-023",
+      "title": "Instance browser v2 \u2014 browse/search + SHACL drawer + glass chat aside (R3)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-031.md",
+      "retry_count": 0
+    },
+    {
+      "id": "CE-V1-TASK-032",
+      "engine": "constitution-engine-v1",
+      "epic": "CE-V1-EPIC-024",
+      "title": "Query & ask v2 \u2014 lifecycle states + Graph/Table/Raw + speech input (R5)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-032.md",
+      "retry_count": 0
+    },
+    {
+      "id": "BE-V1-TASK-024",
+      "engine": "build-engine-v1",
+      "epic": "BE-V1-EPIC-001",
+      "title": "Build request form v2 \u2014 labelled fields + visible request record (R11)",
+      "status": "backlog",
+      "blocked_by": [
+        "PLAT-V1-TASK-026"
+      ],
+      "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-024.md",
       "retry_count": 0
     }
   ]

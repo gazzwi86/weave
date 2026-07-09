@@ -162,3 +162,40 @@ one response-field pass-through + a completeness test; no new endpoint, no write
 - Pitfall: don't block this task on the coordinator's contracts.md amendment landing first — author
   the definitions and the pass-through field now, and reconcile field naming when the amendment
   lands (tracked in the DoR checklist above).
+
+## Design requirements
+
+Source bundle: **R12 — Kind list polish** (`docs/design/v1-design-requirements.md`), grounded in
+finding **F-D14** (Minor, `docs/design/design-assessment-2026-07-09.md:68`): "Kind list (`/ce/types`):
+no `skos:definition` descriptions (planned v1 need), rows aren't links to a kind detail/shape view,
+and '1 properties' grammar." This task closes the first half (the descriptions); the other two
+F-D14 items are UI-only and land in the same surface refit.
+
+- **Description text rendering** (AC-011-03, AC-011-04; F-D14) — the kind list row and the CE
+  authoring-surface kind picker both render the returned `description` field as secondary text
+  under/beside the kind name. Token binding: `--text-body-sm` (`typography.md:66`, "secondary text,
+  captions, dense tables") and `--color-text-muted` for colour — not `--color-text-subtle`, which
+  is reserved for large-text/non-body use and fails the 4.5:1 floor at this size
+  (`typography.md:116-121`).
+- **Absent-description state** (AC-011-05; F-D14) — when `description` is null (extension kinds),
+  the row renders with no secondary text line, not a placeholder dash or blank reserved space that
+  misaligns row height against rows that do have a description.
+- **Row → kind-detail link** (F-D14, R12) — each kind-list row links through to a kind detail/shape
+  view, closing F-D14's "rows aren't links to a kind detail/shape view" finding. This is a UI
+  behaviour riding the same surface as the `description` field but is not gated by this task's ACs
+  (no AC covers it) — implement it alongside AC-011-03/04 since it is the same row.
+- **Pluralisation fix** (F-D14, R12) — the "N properties" count label uses correct singular/plural
+  grammar ("1 property" / "2 properties"), closing F-D14's "'1 properties' grammar" finding.
+  ADVISORY: if a shared count+noun helper exists elsewhere in the codebase, the same fix likely
+  applies there too — a scope check for the engineer, not a new acceptance criterion for this task.
+
+ADVISORY (not cited, flagged): the kind-list row is not yet built onto a design-system `DataTable`
+organism — that component only lands with R13 (`PLAT-V1-TASK-026`, not confirmed landed as of this
+brief). If R13 has not landed by build time, style the row with existing tokens per the bindings
+above rather than waiting on the organism; a later refit onto `DataTable` is separate follow-up
+work, not blocked on or blocking this task.
+
+GAPS: `docs/design/jtbd.md` has no dedicated entry for the kind-list/schema-catalogue surface
+(`/ce/types`) — the nearest entry, "Constitution → Overview" (health-snapshot job), doesn't
+precisely cover a kind glossary/definition view. Flagged per graceful degradation; no success
+criteria invented beyond what F-D14/R12 state literally.

@@ -29,3 +29,7 @@ The below should be planned by Fable and executed with a cost efficient model li
 - I think we need to move to v1 faster and deliver this hammerbarn example. It will help me alot to play and understand the application. We need to refine the spec to merge m2 and v1 and deliver both together.
 
 - http://localhost:3000/ce I asked: "build a capability in the hosted/housed in the company hq (location) who deliver/deploy/mange/operate the retail ecommerce website, which will in future have associated with it data, processes and systems/apis etc" I got "I'm not sure what you mean -- could you rephrase that more specifically?". Even when using "batiai/qwen3.6-27b:iq3". Are we unlikely to have a powerful enough local model to execute a task in this ui, or is the hanress, context or similar impeding this?
+
+- look at the graph explorer page via chrome visually. I cannot see the text, the page doesn't function successfully as a result of the poor colour choices and ui.
+
+- harness this should be blocking hook forcing the anatomy update: Pre-commit warned anatomy may be stale — pushing; if pre-push gate blocks, will run /anatomy refresh.

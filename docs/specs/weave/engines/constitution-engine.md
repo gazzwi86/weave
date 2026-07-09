@@ -1327,6 +1327,121 @@ SKOS, OCEL 2.0.
 
 ---
 
+### EPIC-023 — Instance Browser v2 · v1
+
+**Milestone:** v1 · **Priority:** Must Have · **Consumes:** CE-READ-1, CE-WRITE-1 · **Blocked
+by:** the design-system component library (`visual-direction.md` §Delivery, ruling R13 —
+Storybook atoms/molecules/organisms/templates: `KindChip`, `DataTable`, `InspectorPanel`,
+`GlassPanel`, `AskBar`) — authored in the same 2026-07-09 architect pass as weave-platform
+TASK-026 (tracker `PLAT-V1-TASK-026`); see the Instance Browser v2 task's Dependencies section.
+
+Rebuilds the Constitution "Instances / Data" screen from a chat-transcript-plus-form into a real
+browse/search surface with authoring as an action on it, not a replacement for it — closing the
+Blocker finding that **there is no instance browse/search/list surface at all**
+(`design-assessment-2026-07-09.md` F-D11) and the Major findings that the chat panel is a command
+parser presented as NL chat with no recovery path (F-D12) and that the guided form hides which
+kind is being authored and uses free-text for object properties (F-D13). Bundle **R3**
+(`v1-design-requirements.md`) is the requirement source; the JTBD is `jtbd.md` §Constitution →
+Instances / Data.
+
+**User stories**
+
+| Task | Title | Priority |
+|---|---|---|
+| TASK-031 | Instance browser v2 — browse/search surface + SHACL drawer + glass chat aside | Must Have |
+
+**TASK-031: Instance browser v2**
+
+- **AC:** WHEN the screen loads THE SYSTEM SHALL render a kind-chip filter row (colour + glyph
+  per BPMO kind, sourced from CE-READ-1 `/api/ontology/types`) above a searchable, paginated
+  dense table (name, kind chip, key relationship, updated) — the browse half that F-D11 found
+  entirely missing.
+- **AC:** WHEN a row is selected THE SYSTEM SHALL open a right inspector (properties, edges,
+  PROV-O history, edit entry) with a "view on canvas" cross-link — never a full-page navigation.
+- **AC:** WHEN a user authors or edits an entity THE SYSTEM SHALL open a guided SHACL form in a
+  drawer where the kind stays visible throughout (fixes F-D13's disappearing-kind bug) and object
+  properties render as entity pickers, never free text.
+- **AC (failure):** IF a submitted field or form violates a SHACL shape THEN THE SYSTEM SHALL
+  render the CE-WRITE-1 `422` violation inline against the specific field, never a generic toast.
+- **AC:** WHERE the chat aside is open THE SYSTEM SHALL present template chips, a clear-history
+  action, and a graceful, specific reply when a message can't be parsed (fixes F-D12's repeating
+  "I'm not sure what you mean" failure loop) — chat becomes one authoring action on the browse
+  surface, not the only way to see the data.
+
+**Epic-level acceptance criteria (EARS)**
+
+- [ ] WHEN a business analyst opens Instances / Data THE SYSTEM SHALL show every seeded instance
+  in a searchable, kind-filterable table — verified by an integration test seeding > 1 page of
+  instances across ≥ 3 kinds.
+- [ ] WHEN an entity is created or edited via the guided form THE SYSTEM SHALL show a friendly
+  label + mono ID chip confirmation, never a raw IRI — verified by a creation E2E test.
+- [ ] WHEN the chat aside cannot parse a message THE SYSTEM SHALL reply with a specific,
+  actionable message and example phrasings, not a repeated generic failure — verified by a
+  can't-parse regression test seeded from the F-D12 transcript.
+
+**Technical notes:** No new CE-READ-1/CE-WRITE-1 endpoints — this epic is a frontend rebuild
+consuming the existing contracts (TASK-005/TASK-006 already implement the backend browse,
+mutation, and chat-authoring paths; see the task brief's scope-traceability note). Per the
+atomic-design constraint (`visual-direction.md` §Delivery), the surface consumes design-system
+templates/pages; the app/container layer binds data only — a missing layout is a design-system
+gap, not something this epic's screen code should patch locally.
+
+---
+
+### EPIC-024 — Query & Ask v2 · v1
+
+**Milestone:** v1 · **Priority:** Must Have · **Consumes:** CE-READ-1 · **Blocked by:** the
+design-system component library (`visual-direction.md` §Delivery, ruling R13 — `AskBar`,
+`GlassPanel`, `CanvasLegend`) — authored in the same 2026-07-09 architect pass as weave-platform
+TASK-026 (tracker `PLAT-V1-TASK-026`); see the Query & Ask v2 task's Dependencies section.
+
+Rebuilds the Constitution "Query" screen's ask lifecycle and result presentation, closing the
+Blocker finding that NL "Ask" gives **zero feedback** — 18s+ of dead air with no loading, timeout,
+or error state (`design-assessment-2026-07-09.md` F-D18) — and the Major finding that results,
+when they do render, are table-only with no graph-visual grounding of the answer and an unlabeled
+version field (F-D19). Bundle **R5** (`v1-design-requirements.md`) is the requirement source; the
+JTBD is `jtbd.md` §Constitution → Query, and research pattern 1
+(`docs/design/research/graph-canvas-ux-patterns.md`, Neo4j Browser Graph/Table/Raw toggle) is the
+result-frame reference.
+
+**User stories**
+
+| Task | Title | Priority |
+|---|---|---|
+| TASK-032 | Query & ask v2 — lifecycle states + Graph/Table/Raw results + speech input | Must Have |
+
+**TASK-032: Query & ask v2**
+
+- **AC:** WHEN a question is submitted THE SYSTEM SHALL show explicit lifecycle states
+  (submitting / provider-missing / timeout / error-with-examples / success) with no state showing
+  nothing (fixes F-D18's dead-air failure).
+- **AC:** WHEN a query returns rows THE SYSTEM SHALL render a Graph / Table / Raw toggle over the
+  same result set, defaulting to Table, with a "view SPARQL" disclosure always available.
+- **AC:** WHEN the Graph view is active and the response carries `grounded_iris` THE SYSTEM SHALL
+  glow matching canvas nodes and dim non-matches (fixes F-D19's missing graph-visual grounding).
+- **AC:** WHERE the version selector is shown THE SYSTEM SHALL render it as a labelled control,
+  never an unlabeled input containing "latest" (fixes F-D19's unlabeled-field finding).
+- **AC:** WHERE the ask bar's microphone affordance is used THE SYSTEM SHALL transcribe speech to
+  editable text, never auto-submitting an unreviewed transcript.
+
+**Epic-level acceptance criteria (EARS)**
+
+- [ ] WHEN the AI provider is unavailable THE SYSTEM SHALL show a distinct provider-missing state
+  with example questions AND keep the SPARQL editor fully functional — verified by a
+  provider-unavailable integration test (FR-018).
+- [ ] WHEN a result renders THE SYSTEM SHALL support switching Graph/Table/Raw without
+  re-querying the store — verified by a toggle-no-requery test.
+- [ ] WHEN `grounded_iris` is empty THE SYSTEM SHALL dim the canvas with a "no grounded matches"
+  note, never an error — verified by an empty-grounding test.
+
+**Technical notes:** No new CE-READ-1 endpoints — this epic is a frontend rebuild over the
+existing `POST /api/query/nl` and `GET /api/sparql` surfaces (TASK-007 already implements the
+backend NL-translation and sanitiser paths; see the task brief's scope-traceability note). Per
+the atomic-design constraint, the surface consumes design-system templates/pages; the
+app/container layer binds data only.
+
+---
+
 ## 4. Roadmap
 
 **Build order:** Platform shell (#1) → **Constitution Engine (#2)** → Graph Explorer (#3) → Build
