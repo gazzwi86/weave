@@ -22,6 +22,7 @@ from weave_backend.rbac import (
     enforce_workspace_role,
     has_admin_grant,
     is_tenant_admin,
+    project_role_allows,
     resolve_workspace_role,
 )
 
@@ -164,6 +165,10 @@ def test_has_admin_grant_false_for_a_non_admin_role() -> None:
     roles = [RoleGrant(scope="tenant", role="member")]
 
     assert has_admin_grant(roles, domain=None) is False
+
+
+def test_project_role_allows_denies_a_missing_role() -> None:
+    assert project_role_allows(None, ProjectAction.SETTINGS) is False
 
 
 async def test_enforce_project_role_allows_settings_mutation_to_project_admin() -> None:
