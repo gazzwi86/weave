@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BindingSlots } from "./binding-slots";
 import { ContributorsTab } from "./contributors-tab";
 import { GovernanceForm } from "./governance-form";
+import { PinUpgradeSection } from "./pin-upgrade-section";
 import { useProjectSettings } from "./use-project-settings";
 
 const TABS = ["Governance", "Connections", "Contributors"] as const;
@@ -58,16 +59,19 @@ export function ProjectSettingsPanel({
         </p>
       )}
       {tab === "Governance" && settings.values && settings.source && (
-        <GovernanceForm
-          values={settings.values}
-          source={settings.source}
-          canManage={settings.canManage}
-          saving={settings.saving}
-          costCapInvalid={settings.costCapInvalid}
-          errorId="settings-error"
-          onChange={settings.setValues}
-          onSave={settings.save}
-        />
+        <>
+          <GovernanceForm
+            values={settings.values}
+            source={settings.source}
+            canManage={settings.canManage}
+            saving={settings.saving}
+            costCapInvalid={settings.costCapInvalid}
+            errorId="settings-error"
+            onChange={settings.setValues}
+            onSave={settings.save}
+          />
+          <PinUpgradeSection projectId={projectId} canManage={settings.canManage} />
+        </>
       )}
       {tab === "Connections" && <BindingSlots />}
       {tab === "Contributors" && (

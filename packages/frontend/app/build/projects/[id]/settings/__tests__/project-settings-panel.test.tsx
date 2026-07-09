@@ -122,6 +122,33 @@ describe("ProjectSettingsPanel", () => {
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
+  it("shows the pin-upgrade trigger on Governance for an admin (AC-6, TASK-016)", async () => {
+    stubFetchSequence(jsonResponse(SETTINGS), jsonResponse(CONTRIBUTORS));
+    render(
+      <ProjectSettingsPanel projectId="p-1" tenantRole="admin" principalIri="urn:weave:principal:user:owner" />
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("standard")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /review upgrade/i })).toBeInTheDocument();
+  });
+
+  it("hides the pin-upgrade trigger for a non-admin (AC-6, TASK-016)", async () => {
+    stubFetchSequence(
+      jsonResponse(SETTINGS),
+      jsonResponse({ items: [{ principal_iri: "urn:weave:principal:user:client", role: "editor" }] })
+    );
+    render(
+      <ProjectSettingsPanel
+        projectId="p-1"
+        tenantRole="author"
+        principalIri="urn:weave:principal:user:client"
+      />
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("standard")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /review upgrade/i })).not.toBeInTheDocument();
+  });
+
   it("renders three disabled binding-slot cards (AC-7)", async () => {
     stubFetchSequence(jsonResponse(SETTINGS), jsonResponse(CONTRIBUTORS));
     render(
