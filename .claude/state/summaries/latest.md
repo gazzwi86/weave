@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T16:44:56+00:00
+Captured at: 2026-07-09T18:49:17+00:00
 Event: pre-compact
 
 ## Current State
@@ -1359,7 +1359,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "cost_events Writer (ADR-008): Per-Dispatch Usage Attribution",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],
@@ -1371,7 +1371,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Costs Endpoint + Budget-Cascade Breach Halt (ADR-008 read side, FR-008)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-012"
       ],

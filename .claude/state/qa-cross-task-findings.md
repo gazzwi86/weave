@@ -184,3 +184,32 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   parent commit to its tree (`GET /git/commits/{parent_sha}` → `tree.sha`). Recorded here because
   BE-009 reuses `commit_workspace` — the single fix protects it too; no separate BE-009 action.
 - **Classification:** interface / cross-task (one fix closes both).
+
+## XT-BE013-1 — `context_iri=project_iri` never parses under `settings/scope.py`'s IRI grammar (cascade dead beyond company)
+
+- **Severity:** High · **Status:** OPEN.
+- **Affects:** BE-V1-TASK-013 (AC-3 — Company→Domain→Project budget-cap cascade), BE-V1-TASK-012
+  (rate-card resolution, `build/cost.py:64`, same pattern — no cascade AC was claimed there so it
+  wasn't caught, but it has the identical gap), BE-V1-TASK-019 (Dashboard "capped at Domain" tile —
+  will never render anything but "capped at Company").
+- **Found by:** BE-V1-TASK-013 QA (traced `resolve_budget_cap` -> `settings/scope.py:scope_of`
+  against the real `build_project_iri` format).
+- **Symptom:** every real project IRI in this codebase is `urn:weave:project:{tenant_id}:{slug}`
+  (`projects/model.py:build_project_iri`). `settings/scope.py`'s cascade grammar only recognises
+  `urn:weave:tenant:{tid}:company` / `:domain:{did}` / `:ws:{wid}` / `:ws:{wid}:project:{pid}`.
+  Calling `resolve_setting(..., context_iri=<real project_iri>)` therefore always raises
+  `InvalidScopeIri` and falls straight back to the tenant's company scope — domain- and
+  project-level overrides of `build.budget.cap_usd` (and `build.rate_card`) are silently
+  unreachable in production. `resolve_budget_cap`'s own docstring self-discloses this
+  ("...inert until a follow-up threads a domain-aware project IRI") but it isn't flagged as a
+  known-gap anywhere outward-facing (DoD, progress summary).
+- **Root cause:** two IRI grammars from different specs (Build's `urn:weave:project:{tid}:{slug}`
+  vs Platform-Settings' `urn:weave:tenant:{tid}:...`) were never reconciled; TASK-013's unit test
+  proves the cascade machinery in isolation with a fabricated IRI that conforms to the *settings*
+  grammar, not the one the orchestrator/router actually pass — a tautological test relative to the
+  real call path.
+- **Action:** either (a) extend `settings/scope.py`'s grammar to parse Build project IRIs (thread
+  a domain-aware project IRI per the docstring's own suggestion), or (b) have Build resolve/pass a
+  settings-scope-shaped context IRI at the call site. Either way, AC-3 needs a real fix plus a test
+  that exercises the actual production project_iri shape, not a fabricated one.
+- **Classification:** interface / spec gap (two unreconciled IRI grammars).
