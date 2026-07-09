@@ -230,3 +230,91 @@ async def test_cost_events_rollup_computes_totals_and_by_task_from_seeded_events
     assert by_task["task-1"].tokens_in == 120
     assert by_task["task-2"].tokens_in == 5
     assert by_task[None].tokens_in == 1
+
+
+async def test_cost_events_rollup_survives_mixed_null_and_non_null_run_id(
+    platform_stack: Path,
+) -> None:
+    """Edge case: `run_id` is nullable (ADR-008 -- non-run work like drafting/replans has no
+    run), but a run-attributed event must also insert and roll up correctly alongside it. Every
+    other test in this file only ever exercises `run_id=None`; this proves the non-NULL path
+    isn't silently broken by the same code (e.g. a stray `run_id IS NULL` filter).
+    """
+    tenant_id = _unique_tenant("runid")
+    project_iri = _unique_project_iri("proj")
+    real_run_id = str(uuid.uuid4())
+
+    async with tenant_connection(tenant_id) as conn:
+        await cost_events.insert(
+            conn,
+            tenant_id=tenant_id,
+            event=cost_events.NewCostEvent(
+                project_iri=project_iri,
+                task_id="task-1",
+                run_id=real_run_id,  # run-attributed work
+                agent_role="engineer",
+                model="claude-sonnet-5",
+                tokens_in=100,
+                tokens_out=50,
+                cost_estimate_usd=Decimal("0.01"),
+            ),
+        )
+        await cost_events.insert(
+            conn,
+            tenant_id=tenant_id,
+            event=cost_events.NewCostEvent(
+                project_iri=project_iri,
+                task_id=None,
+                run_id=None,  # non-run, non-task work (e.g. drafting)
+                agent_role="engineer",
+                model="claude-sonnet-5",
+                tokens_in=1,
+                tokens_out=1,
+                cost_estimate_usd=Decimal("0.0001"),
+            ),
+        )
+        result = await cost_events.rollup(conn, tenant_id=tenant_id, project_iri=project_iri)
+
+    assert result.total.tokens_in == 101
+    by_task = {row.task_id: row for row in result.by_task}
+    assert by_task["task-1"].tokens_in == 100
+    assert by_task[None].tokens_in == 1
+
+
+async def test_contributor_upsert_same_principal_updates_role_not_duplicate_row(
+    platform_stack: Path,
+) -> None:
+    """Edge case: re-upserting the same (tenant, project, principal) with a different role must
+    update the existing row via `ON CONFLICT ... DO UPDATE`, not insert a duplicate. The PK is
+    (tenant_id, project_iri, principal_iri), so a naive plain INSERT would raise a PK violation
+    on the second call -- this proves the idempotent upsert path, not just the happy-path insert.
+    """
+    tenant_id = _unique_tenant("upsert")
+    project_iri = _unique_project_iri("proj")
+
+    async with tenant_connection(tenant_id) as conn:
+        await contributors.upsert(
+            conn,
+            tenant_id=tenant_id,
+            contributor=contributors.NewContributor(
+                project_iri=project_iri,
+                principal_iri="urn:weave:person:alice",
+                role="editor",
+                added_by="urn:weave:person:bob",
+            ),
+        )
+        await contributors.upsert(
+            conn,
+            tenant_id=tenant_id,
+            contributor=contributors.NewContributor(
+                project_iri=project_iri,
+                principal_iri="urn:weave:person:alice",
+                role="admin",
+                added_by="urn:weave:person:carol",
+            ),
+        )
+        rows = await contributors.get_all(conn, tenant_id=tenant_id, project_iri=project_iri)
+
+    assert len(rows) == 1
+    assert rows[0].role == "admin"
+    assert rows[0].added_by == "urn:weave:person:carol"
