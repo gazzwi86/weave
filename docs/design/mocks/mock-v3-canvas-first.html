@@ -1,0 +1,510 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- ponytail: static node layout, not a real force simulation — this is a frozen mock, the real app owns GE-CANVAS-1 physics -->
+<title>Weave V3 — Canvas First</title>
+<style>
+  :root {
+    --bg:#0A0E14; --surface:#0E1420; --raised:#131A28; --overlay:#1A2236;
+    --hover:#1E2740; --raised-strong:#1B2434;
+    --border-soft:#161E2E; --border:#1F2937; --border-strong:#2A3550;
+    --text:#E5EAF2; --text-muted:#8A95A8; --text-subtle:#5C6779;
+    --accent:#22D3EE; --accent-hover:#67E8F9; --accent-soft:rgba(34,211,238,0.12);
+    --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+    --gradient-brand:linear-gradient(100deg,#22D3EE,#2DD4BF,#E879F9,#A78BFA,#FBBF24,#A3E635,#60A5FA);
+    --gradient-accent:linear-gradient(120deg,#22D3EE,#A78BFA);
+    --glow-brand:0 0 24px rgba(34,211,238,0.30);
+    --shadow-overlay:0 16px 48px rgba(0,0,0,0.55);
+    --k-process:#E73430; --k-activity:#F59E0B; --k-event:#0EA5E9; --k-actor:#0D9488;
+    --k-policy:#DB3B74; --k-domain:#9054FF; --k-capability:#E2307D; --k-system:#3272FB;
+    --k-service:#0891B2; --k-dataasset:#16A34A;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Geist','Inter',system-ui,sans-serif; width:1440px; height:900px; overflow:hidden; }
+  .mono { font-family:'Geist Mono','SF Mono',Menlo,monospace; font-variant-numeric:tabular-nums; }
+
+  /* ---- top bar ---- */
+  .topbar { height:48px; display:flex; align-items:center; gap:20px; padding:0 16px;
+    background:var(--raised); border-bottom:1px solid var(--border); position:relative; z-index:50; }
+  .logo { width:22px; height:22px; border-radius:6px; background:var(--gradient-brand); flex:none;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.08) inset; }
+  .wordmark { font-weight:600; font-size:14px; letter-spacing:-0.01em; margin-right:8px; }
+  .topnav { display:flex; gap:2px; }
+  .topnav a { font-size:13px; font-weight:500; color:var(--text-muted); text-decoration:none;
+    padding:6px 12px; border-radius:6px; }
+  .topnav a.active { color:var(--text); background:var(--hover); }
+  .topbar-spacer { flex:1; }
+  .topsearch { display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border);
+    border-radius:6px; padding:5px 10px; color:var(--text-subtle); font-size:12px; width:220px; }
+  .topsearch kbd { margin-left:auto; font-size:10px; font-family:'Geist Mono',monospace; color:var(--text-subtle);
+    border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  .icon-btn { position:relative; width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border-radius:6px; color:var(--text-muted); }
+  .badge-dot { position:absolute; top:5px; right:5px; width:7px; height:7px; border-radius:50%;
+    background:var(--danger); border:1.5px solid var(--raised); }
+  .avatar { width:26px; height:26px; border-radius:50%; background:var(--gradient-accent);
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#04222b; }
+
+  /* ---- screens ---- */
+  .screen { position:relative; width:1440px; height:852px; display:none; }
+  .screen.active { display:block; }
+  .canvas-wrap { position:absolute; inset:0; background:
+      radial-gradient(ellipse 900px 600px at 30% 25%, rgba(34,211,238,0.05), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 75% 70%, rgba(167,139,250,0.04), transparent 60%),
+      var(--bg); }
+  .canvas-wrap svg { width:100%; height:100%; display:block; }
+
+  /* ---- glass floating panels ---- */
+  .glass { background:rgba(19,26,40,0.72); backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%); border:1px solid var(--border-strong);
+    box-shadow:var(--shadow-overlay); border-radius:12px; }
+
+  .nav-card { position:absolute; top:20px; left:20px; width:184px; padding:10px; z-index:20; }
+  .nav-card .group-label { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--text-subtle); padding:8px 8px 4px; }
+  .nav-card a { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--text-muted);
+    text-decoration:none; padding:7px 8px; border-radius:6px; }
+  .nav-card a.active { color:var(--text); background:var(--accent-soft); border:1px solid rgba(34,211,238,0.25); }
+  .nav-card a .dot { width:5px; height:5px; border-radius:50%; background:currentColor; opacity:0.6; }
+  .nav-card .new-entity { margin-top:6px; border-top:1px solid var(--border-soft); padding-top:8px; }
+  .nav-card .new-entity button { width:100%; background:var(--hover); border:1px solid var(--border);
+    color:var(--text); font-size:12px; font-weight:500; border-radius:6px; padding:7px; cursor:pointer; }
+
+  .kpi-strip { position:absolute; top:20px; right:20px; display:flex; gap:0; padding:4px 4px; z-index:20; }
+  .kpi-strip .kpi { padding:8px 14px; text-align:center; border-right:1px solid var(--border-soft); }
+  .kpi-strip .kpi:last-child { border-right:none; }
+  .kpi-strip .kpi .v { font-family:'Geist Mono',monospace; font-size:14px; font-weight:500; }
+  .kpi-strip .kpi .v.ok { color:var(--success); }
+  .kpi-strip .kpi .l { font-size:10px; color:var(--text-subtle); margin-top:1px; }
+
+  .legend { position:absolute; bottom:20px; left:20px; width:300px; padding:12px 14px; z-index:20; }
+  .legend .row { display:flex; flex-wrap:wrap; gap:6px 12px; margin-bottom:10px; }
+  .legend .item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted); }
+  .legend .swatch { width:8px; height:8px; border-radius:2px; flex:none; }
+  .legend .tools { display:flex; align-items:center; justify-content:space-between; padding-top:8px;
+    border-top:1px solid var(--border-soft); font-size:11px; color:var(--text-subtle); }
+  .legend .tools .zoom { display:flex; gap:4px; }
+  .legend .tools button { background:var(--hover); border:1px solid var(--border); color:var(--text-muted);
+    width:20px; height:20px; border-radius:4px; font-size:12px; cursor:pointer; }
+
+  .ask-bar { position:absolute; bottom:24px; left:50%; transform:translateX(-50%); width:640px; z-index:25; }
+  .ask-bar .pill { display:flex; align-items:center; gap:10px; padding:14px 18px; border-radius:999px;
+    background:rgba(19,26,40,0.82); backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--border-strong); box-shadow:var(--shadow-overlay), 0 0 0 1px rgba(34,211,238,0.06); }
+  .ask-bar .pill.filled { border-image:var(--gradient-accent) 1; border-width:1px; border-style:solid; }
+  .ask-bar .spark { color:var(--accent); flex:none; }
+  .ask-bar input { flex:1; background:none; border:none; outline:none; color:var(--text); font-size:15px;
+    font-family:inherit; }
+  .ask-bar input::placeholder { color:var(--text-subtle); }
+  .ask-bar .go { flex:none; width:30px; height:30px; border-radius:50%; background:var(--gradient-accent);
+    display:flex; align-items:center; justify-content:center; color:#04222b; border:none; cursor:pointer; }
+
+  .inspector { position:absolute; top:20px; right:20px; width:280px; bottom:20px; padding:16px; z-index:20;
+    display:flex; flex-direction:column; overflow:auto; }
+  .inspector .ins-title { display:flex; align-items:center; gap:8px; }
+  .inspector .ins-title .shape { width:22px; height:22px; flex:none; }
+  .inspector h4 { margin:0; font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+  .inspector .kind-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:500;
+    color:var(--text-muted); margin-top:2px; }
+  .inspector .status-draft { color:var(--warn); }
+  .inspector .sec-label { font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--text-subtle); margin:16px 0 8px; }
+  .inspector .prop-row { display:flex; justify-content:space-between; font-size:12px; padding:5px 0;
+    border-bottom:1px solid var(--border-soft); }
+  .inspector .prop-row .k { color:var(--text-muted); }
+  .inspector .prop-row .v { font-family:'Geist Mono',monospace; font-size:11px; color:var(--text); text-align:right; }
+  .inspector .edge-row { display:flex; align-items:center; gap:6px; font-size:12px; padding:5px 0; color:var(--text-muted); }
+  .inspector .edge-row .rel { font-family:'Geist Mono',monospace; font-size:10px; color:var(--accent); }
+  .inspector .edge-row .target { color:var(--text); }
+  .inspector .btn-row { display:flex; gap:8px; margin-top:14px; }
+  .inspector .btn-row button { flex:1; font-size:12px; font-weight:500; border-radius:6px; padding:8px;
+    cursor:pointer; }
+  .btn-primary { background:var(--gradient-accent); color:#04222b; border:none; }
+  .btn-secondary { background:var(--hover); color:var(--text); border:1px solid var(--border); }
+  .inspector .propose { margin-top:auto; padding-top:14px; border-top:1px solid var(--border-soft); }
+  .inspector .propose-box { display:flex; align-items:center; gap:8px; background:var(--surface);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--text-subtle); }
+
+  /* ---- screen 2 answer panel ---- */
+  .answer-panel { position:absolute; bottom:96px; left:50%; transform:translateX(-50%); width:640px;
+    padding:16px 18px; z-index:22; }
+  .answer-panel .sentence { font-size:14px; line-height:1.5; color:var(--text); margin-bottom:12px; }
+  .answer-panel .sentence b { font-weight:600; color:var(--accent-hover); }
+  .answer-panel table { width:100%; border-collapse:collapse; margin-bottom:10px; }
+  .answer-panel td { font-size:12px; padding:6px 4px; border-bottom:1px solid var(--border-soft); }
+  .answer-panel .chip { display:inline-flex; align-items:center; gap:4px; background:var(--hover);
+    border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:10px; color:var(--text-muted);
+    font-family:'Geist Mono',monospace; }
+  .answer-panel .sparql-label { font-size:11px; color:var(--text-subtle); margin-bottom:6px; }
+  .answer-panel pre { margin:0; background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:10px 12px; font-size:11px; line-height:1.6; color:#9fd8e8; font-family:'Geist Mono',monospace;
+    overflow-x:auto; }
+
+  /* ---- screen 3: standard page ---- */
+  .page { position:absolute; inset:0; overflow:auto; padding:24px 28px 28px; }
+  .breadcrumb { font-size:12px; color:var(--text-subtle); margin-bottom:10px; }
+  .breadcrumb span.sep { margin:0 6px; }
+  .breadcrumb span.current { color:var(--text-muted); }
+  .page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .page-head h1 { font-size:36px; font-weight:700; letter-spacing:-0.02em; margin:0; }
+  .page-head .actions { display:flex; gap:8px; }
+  .btn { font-size:13px; font-weight:500; border-radius:6px; padding:8px 14px; cursor:pointer; }
+  .kind-filters { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .kchip { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; color:var(--text-muted);
+    background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:5px 12px; cursor:pointer; }
+  .kchip .dot { width:7px; height:7px; border-radius:50%; }
+  .kchip.active { color:var(--text); border-color:var(--border-strong); background:var(--hover); }
+
+  .page-body { display:flex; gap:20px; }
+  .table-wrap { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  table.data { width:100%; border-collapse:collapse; }
+  table.data th { text-align:left; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+    color:var(--text-subtle); padding:10px 14px; border-bottom:1px solid var(--border); background:var(--raised); }
+  table.data td { padding:10px 14px; font-size:13px; border-bottom:1px solid var(--border-soft); color:var(--text); }
+  table.data tr.row { cursor:pointer; }
+  table.data tr.row:hover { background:var(--hover); }
+  table.data tr.row.selected { background:var(--accent-soft); }
+  .entity-cell .name { font-weight:500; }
+  .entity-cell .id { display:block; color:var(--text-subtle); font-size:11px; font-family:'Geist Mono',monospace; margin-top:1px; }
+  .status-pill { font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; }
+  .status-active { color:var(--success); background:rgba(16,185,129,0.12); }
+  .status-draft { color:var(--warn); background:rgba(245,158,11,0.12); }
+  .page-inspector { width:280px; flex:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:16px; align-self:flex-start; }
+  .page-inspector h4 { margin:0 0 2px; font-size:16px; font-weight:600; }
+  .view-canvas { width:100%; margin-top:14px; background:var(--hover); border:1px solid var(--accent); color:var(--accent);
+    font-size:12px; font-weight:600; border-radius:6px; padding:9px; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; gap:6px; }
+
+  /* ---- glow / pulse ---- */
+  .glow-static { filter:drop-shadow(0 0 10px rgba(34,211,238,0.35)); }
+  .glow-pulse { animation:pulseGlow 2.6s ease-in-out infinite; }
+  @keyframes pulseGlow {
+    0%,100% { filter:drop-shadow(0 0 8px rgba(34,211,238,0.30)); }
+    50% { filter:drop-shadow(0 0 20px rgba(34,211,238,0.65)); }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    .glow-pulse { animation:none; filter:drop-shadow(0 0 12px rgba(34,211,238,0.4)); }
+  }
+  .node-dim { opacity:0.28; transition:opacity .25s; }
+  .node-spot { opacity:1; }
+
+  /* ---- tab switcher ---- */
+  .tabswitcher { position:fixed; bottom:14px; right:16px; display:flex; gap:2px; z-index:100;
+    background:var(--raised); border:1px solid var(--border-strong); border-radius:8px; padding:3px;
+    box-shadow:var(--shadow-overlay); }
+  .tabswitcher button { font-size:11px; font-weight:500; color:var(--text-muted); background:none; border:none;
+    padding:6px 10px; border-radius:6px; cursor:pointer; font-family:inherit; }
+  .tabswitcher button.active { color:var(--text); background:var(--hover); }
+</style>
+
+<div class="topbar">
+  <div class="logo"></div>
+  <div class="wordmark">Weave</div>
+  <div class="topnav">
+    <a class="active" href="#">Constitution</a>
+    <a href="#">Build</a>
+    <a href="#">Events &amp; Actions</a>
+    <a href="#">Explorer</a>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="topsearch">⌕&nbsp;Search entities…<kbd>⌘K</kbd></div>
+  <div class="icon-btn">🔔<span class="badge-dot"></span></div>
+  <div class="avatar">GW</div>
+</div>
+
+<!-- ============ SCREEN 1: CANVAS HOME ============ -->
+<div class="screen active" id="screen1">
+  <div class="canvas-wrap"><svg id="svg1" viewBox="0 0 1440 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+  <div class="nav-card glass">
+    <div class="group-label">Model</div>
+    <a href="#">Overview</a>
+    <a class="active" href="#"><span class="dot"></span>Explore</a>
+    <a href="#">Ontology</a>
+    <a href="#" onclick="showScreen(3)">Instances</a>
+    <div class="group-label">Query</div>
+    <a href="#" onclick="showScreen(2)">Query</a>
+    <a href="#">Versions</a>
+    <div class="new-entity"><button>+ New entity</button></div>
+  </div>
+
+  <div class="kpi-strip glass">
+    <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+    <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+    <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+  </div>
+
+  <div class="legend glass">
+    <div class="row" id="legend-row"></div>
+    <div class="tools">
+      <span>filter by kind ▾</span>
+      <div class="zoom"><button>−</button><button>+</button></div>
+    </div>
+  </div>
+
+  <div class="ask-bar">
+    <div class="pill"><span class="spark">✦</span>
+      <input placeholder="Ask your company anything…" />
+      <button class="go">→</button>
+    </div>
+  </div>
+
+  <div class="inspector glass">
+    <div class="ins-title">
+      <svg class="shape" viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="var(--k-process)"/></svg>
+      <div><h4>Order-to-Cash</h4><div class="kind-chip">Process · <span class="status-draft">draft</span></div></div>
+    </div>
+    <div class="sec-label">Properties</div>
+    <div class="prop-row"><span class="k">label</span><span class="v">Order-to-Cash</span></div>
+    <div class="prop-row"><span class="k">owner</span><span class="v">Finance Team</span></div>
+    <div class="prop-row"><span class="k">domain</span><span class="v">Retail Operations</span></div>
+    <div class="prop-row"><span class="k">criticality</span><span class="v">high</span></div>
+    <div class="sec-label">Edges</div>
+    <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Pick &amp; Pack</span></div>
+    <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Payment Processing</span></div>
+    <div class="edge-row"><span class="rel">consumes</span>→<span class="target">OrdersDB</span></div>
+    <div class="edge-row"><span class="rel">governedBy</span>→<span class="target">Returns Policy</span></div>
+    <div class="edge-row"><span class="rel">triggeredBy</span>→<span class="target">Order Placed</span></div>
+    <div class="btn-row">
+      <button class="btn-primary">✎ Edit (SHACL form)</button>
+      <button class="btn-secondary">PROV</button>
+    </div>
+    <div class="propose">
+      <div class="propose-box">💬&nbsp;propose a change via chat →</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: ASK RESULT ============ -->
+<div class="screen" id="screen2">
+  <div class="canvas-wrap" style="opacity:0.9"><svg id="svg2" viewBox="0 0 1440 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+  <div class="nav-card glass">
+    <div class="group-label">Model</div>
+    <a href="#" onclick="showScreen(1)">Overview</a>
+    <a href="#" onclick="showScreen(1)">Explore</a>
+    <a href="#">Ontology</a>
+    <a href="#" onclick="showScreen(3)">Instances</a>
+    <div class="group-label">Query</div>
+    <a class="active" href="#"><span class="dot"></span>Query</a>
+    <a href="#">Versions</a>
+    <div class="new-entity"><button>+ New entity</button></div>
+  </div>
+
+  <div class="kpi-strip glass">
+    <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+    <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+    <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+  </div>
+
+  <div class="answer-panel glass">
+    <div class="sentence">
+      <b>3 processes</b> touch <b>OrdersDB</b>: Order-to-Cash, Inventory Replenishment and
+      Click-and-Collect — each via a <span class="mono" style="color:var(--accent-hover)">consumes</span> edge.
+    </div>
+    <table>
+      <tr><td>Order-to-Cash</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+      <tr><td>Inventory Replenishment</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+      <tr><td>Click-and-Collect</td><td><span class="chip">Service → consumes → OrdersDB</span></td></tr>
+    </table>
+    <div class="sparql-label">view SPARQL ▾</div>
+    <pre>SELECT ?process ?label WHERE {
+  ?process bpmo:consumes weave:OrdersDB .
+  ?process rdfs:label ?label .
+}</pre>
+  </div>
+
+  <div class="ask-bar">
+    <div class="pill filled"><span class="spark">✦</span>
+      <input value="Which processes touch OrdersDB?" />
+      <button class="go">→</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: INSTANCES ============ -->
+<div class="screen" id="screen3">
+  <div class="page">
+    <div class="breadcrumb">Workspace <span class="sep">/</span> Constitution <span class="sep">/</span> <span class="current">Instances</span></div>
+    <div class="page-head">
+      <h1>Instances</h1>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="showScreen(1)">◉ View on canvas</button>
+        <button class="btn btn-primary">+ New entity</button>
+      </div>
+    </div>
+    <div class="kind-filters" id="kind-filters"></div>
+    <div class="page-body">
+      <div class="table-wrap">
+        <table class="data" id="instances-table">
+          <thead><tr><th>Entity</th><th>Kind</th><th>Updated</th><th>Status</th></tr></thead>
+          <tbody id="instances-tbody"></tbody>
+        </table>
+      </div>
+      <div class="page-inspector" id="page-inspector"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabswitcher">
+  <button class="active" id="tab1" onclick="showScreen(1)">1 Canvas home</button>
+  <button id="tab2" onclick="showScreen(2)">2 Ask result</button>
+  <button id="tab3" onclick="showScreen(3)">3 Instances</button>
+</div>
+
+<script>
+// ---- kind metadata: color + shape + glyph (design system §color.md kind table, trimmed to kinds in this dataset) ----
+const KIND = {
+  process:    { color:'var(--k-process)',    shape:'hex',    glyph:'M4 12h13M13 6l6 6-6 6', glyphFill:false, label:'Process' },
+  activity:   { color:'var(--k-activity)',   shape:'circle', glyph:'M8 5l11 7-11 7V5z',      glyphFill:true,  label:'Activity' },
+  event:      { color:'var(--k-event)',      shape:'diamond',glyph:'M12 3L21 12L12 21L3 12Z',glyphFill:true,  label:'Event' },
+  actor:      { color:'var(--k-actor)',      shape:'circle', glyph:'person',                 glyphFill:true,  label:'Actor' },
+  policy:     { color:'var(--k-policy)',     shape:'circle', glyph:'shield',                 glyphFill:false, label:'Policy' },
+  domain:     { color:'var(--k-domain)',     shape:'circle', glyph:'M4 6h6l2 2h9v10H4V6z',    glyphFill:true,  label:'Business Domain' },
+  capability: { color:'var(--k-capability)', shape:'circle', glyph:'grid',                    glyphFill:true,  label:'Business Capability' },
+  system:     { color:'var(--k-system)',     shape:'square', glyph:'cpu',                     glyphFill:false, label:'System' },
+  service:    { color:'var(--k-service)',    shape:'circle', glyph:'gear',                     glyphFill:false, label:'Service' },
+  dataasset:  { color:'var(--k-dataasset)',  shape:'circle', glyph:'cylinder',                glyphFill:false, label:'Data Asset' },
+};
+
+// ---- Hammerbarn (hardware retailer) sample graph ----
+const NODES = [
+  { id:'o2c',        kind:'process',    label:'Order-to-Cash',            x:520, y:300 },
+  { id:'inv',        kind:'process',    label:'Inventory Replenishment',  x:790, y:540 },
+  { id:'returns',    kind:'policy',     label:'Returns Policy',           x:300, y:400 },
+  { id:'pos',        kind:'system',     label:'POS System',               x:700, y:180 },
+  { id:'ordersdb',   kind:'dataasset',  label:'OrdersDB',                  x:540, y:130 },
+  { id:'supplierportal', kind:'system', label:'Supplier Portal',          x:1020,y:460 },
+  { id:'clickcollect', kind:'service',  label:'Click-and-Collect',        x:390, y:220 },
+  { id:'financeteam', kind:'actor',     label:'Finance Team',             x:660, y:410 },
+  { id:'storeops',   kind:'actor',      label:'Store Ops',                 x:920, y:600 },
+  { id:'supplier',   kind:'actor',      label:'Supplier',                  x:1140,y:540 },
+  { id:'orderplaced', kind:'event',     label:'Order Placed',              x:400, y:340 },
+  { id:'stocklow',   kind:'event',      label:'Stock Below Threshold',    x:920, y:670 },
+  { id:'pickpack',   kind:'activity',  label:'Pick & Pack',                x:580, y:460 },
+  { id:'payment',    kind:'activity',  label:'Payment Processing',        x:800, y:310 },
+  { id:'retailops',  kind:'domain',    label:'Retail Operations',          x:290, y:560 },
+  { id:'orderfulfillment', kind:'capability', label:'Order Fulfillment',  x:460, y:600 },
+];
+const EDGES = [
+  ['o2c','pickpack','hasStep'], ['o2c','payment','hasStep'], ['o2c','financeteam','performedBy'],
+  ['o2c','ordersdb','consumes'], ['o2c','returns','governedBy'], ['o2c','orderplaced','triggeredBy'],
+  ['inv','storeops','performedBy'], ['inv','stocklow','triggeredBy'], ['inv','ordersdb','consumes'],
+  ['pos','ordersdb','recordsTo'], ['clickcollect','ordersdb','consumes'], ['clickcollect','storeops','performedBy'],
+  ['supplierportal','supplier','performedBy'], ['payment','pos','uses'],
+  ['o2c','orderfulfillment','partOf'], ['inv','orderfulfillment','partOf'], ['orderfulfillment','retailops','partOf'],
+];
+const GLOW_STATIC = ['ordersdb','financeteam'];
+const GLOW_PULSE = ['ordersdb'];
+const SELECTED = 'o2c';
+const SPOTLIGHT = ['o2c','inv','clickcollect','ordersdb'];
+
+function glyphMarkup(kind) {
+  const k = KIND[kind];
+  const stroke = k.glyphFill ? '' : `fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+  const fill = k.glyphFill ? `fill="white"` : '';
+  if (k.glyph === 'person') return `<circle cx="12" cy="8.5" r="3.4" fill="white"/><path d="M5 20c0-4 3.2-7 7-7s7 3 7 7" fill="white"/>`;
+  if (k.glyph === 'shield') return `<path d="M12 3l7 3v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V6l7-3z" fill="none" stroke="white" stroke-width="1.6"/><path d="M8.7 12l2.3 2.3L15.3 9" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if (k.glyph === 'grid') return `<rect x="4" y="4" width="6.5" height="6.5" fill="white"/><rect x="13.5" y="4" width="6.5" height="6.5" fill="white"/><rect x="4" y="13.5" width="6.5" height="6.5" fill="white"/><rect x="13.5" y="13.5" width="6.5" height="6.5" fill="white"/>`;
+  if (k.glyph === 'cpu') return `<rect x="6" y="6" width="12" height="12" rx="1" fill="none" stroke="white" stroke-width="1.6"/><rect x="10" y="10" width="4" height="4" fill="white"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" stroke="white" stroke-width="1.6"/>`;
+  if (k.glyph === 'gear') return `<circle cx="12" cy="12" r="3.2" fill="none" stroke="white" stroke-width="1.6"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8" stroke="white" stroke-width="1.6" stroke-linecap="round"/>`;
+  if (k.glyph === 'cylinder') return `<ellipse cx="12" cy="6" rx="7" ry="2.6" fill="none" stroke="white" stroke-width="1.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6" fill="none" stroke="white" stroke-width="1.6"/>`;
+  return `<path d="${k.glyph}" ${stroke} ${fill}/>`;
+}
+
+function shapeMarkup(kind, r) {
+  const k = KIND[kind];
+  const c = k.color;
+  if (k.shape === 'hex') {
+    const pts = [[0,-r],[r*0.87,-r/2],[r*0.87,r/2],[0,r],[-r*0.87,r/2],[-r*0.87,-r/2]].map(p=>p.join(',')).join(' ');
+    return `<polygon points="${pts}" fill="${c}"/>`;
+  }
+  if (k.shape === 'diamond') return `<rect x="${-r*0.75}" y="${-r*0.75}" width="${r*1.5}" height="${r*1.5}" fill="${c}" transform="rotate(45)"/>`;
+  if (k.shape === 'square') return `<rect x="${-r}" y="${-r}" width="${r*2}" height="${r*2}" rx="3" fill="${c}"/>`;
+  return `<circle r="${r}" fill="${c}"/>`;
+}
+
+function renderGraph(svgId, opts) {
+  const svg = document.getElementById(svgId);
+  const r = 24;
+  let html = '<defs></defs>';
+  // edges (drawn first, under nodes)
+  EDGES.forEach(([a,b,rel]) => {
+    const na = NODES.find(n=>n.id===a), nb = NODES.find(n=>n.id===b);
+    const mx = (na.x+nb.x)/2, my = (na.y+nb.y)/2;
+    const dim = opts.spotlight && !(opts.spotlight.includes(a) && opts.spotlight.includes(b));
+    html += `<line x1="${na.x}" y1="${na.y}" x2="${nb.x}" y2="${nb.y}" stroke="var(--border-strong)" stroke-width="1.4" opacity="${dim?0.18:0.55}"/>`;
+    html += `<rect x="${mx-rel.length*3.1-4}" y="${my-8}" width="${rel.length*6.2+8}" height="14" rx="4" fill="var(--surface)" opacity="${dim?0.3:0.9}"/>`;
+    html += `<text x="${mx}" y="${my+3.5}" text-anchor="middle" font-family="Geist Mono, monospace" font-size="9.5" fill="var(--text-muted)" opacity="${dim?0.35:1}">${rel}</text>`;
+  });
+  // nodes
+  NODES.forEach(n => {
+    const dim = opts.spotlight && !opts.spotlight.includes(n.id);
+    const isSelected = opts.selected === n.id;
+    const glowClass = opts.glowPulse && opts.glowPulse.includes(n.id) ? 'glow-pulse'
+                    : opts.glowStatic && opts.glowStatic.includes(n.id) ? 'glow-static' : '';
+    html += `<g transform="translate(${n.x},${n.y})" class="${dim?'node-dim':'node-spot'}">`;
+    html += `<g class="${glowClass}">${shapeMarkup(n.kind, r)}</g>`;
+    if (isSelected) html += `<circle r="${r+6}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>`;
+    html += `<g transform="translate(${-9},${-9}) scale(0.75)">${glyphMarkup(n.kind)}</g>`;
+    html += `<rect x="${-(n.label.length*3.2)}" y="${r+6}" width="${n.label.length*6.4}" height="15" rx="4" fill="var(--surface)" opacity="0.85"/>`;
+    html += `<text y="${r+16.5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text)">${n.label}</text>`;
+    html += `</g>`;
+  });
+  svg.innerHTML = html;
+}
+
+renderGraph('svg1', { selected: SELECTED, glowStatic: GLOW_STATIC, glowPulse: GLOW_PULSE });
+renderGraph('svg2', { spotlight: SPOTLIGHT, glowStatic: SPOTLIGHT, glowPulse: ['ordersdb'] });
+
+// ---- legend ----
+const legendRow = document.getElementById('legend-row');
+Object.entries(KIND).forEach(([key,k]) => {
+  legendRow.innerHTML += `<div class="item"><span class="swatch" style="background:${k.color}"></span>${k.label}</div>`;
+});
+
+// ---- instances table (screen 3) ----
+const TABLE_IDS = ['o2c','inv','returns','pos','ordersdb','supplierportal','clickcollect','financeteam','storeops','supplier','orderplaced','pickpack'];
+const tbody = document.getElementById('instances-tbody');
+const UPDATED = ['2h ago','1d ago','3d ago','5h ago','1d ago','6d ago','2d ago','4h ago','1d ago','9d ago','3h ago','1d ago'];
+const STATUS = ['active','active','draft','active','active','active','draft','active','active','draft','active','active'];
+TABLE_IDS.forEach((id,i) => {
+  const n = NODES.find(x=>x.id===id);
+  const k = KIND[n.kind];
+  tbody.innerHTML += `<tr class="row${i===0?' selected':''}" onclick="selectRow('${id}', this)">
+    <td class="entity-cell"><span class="name">${n.label}</span><span class="id">wv:${n.kind}:${id}</span></td>
+    <td><span class="kchip" style="cursor:default"><span class="dot" style="background:${k.color}"></span>${k.label}</span></td>
+    <td class="mono" style="color:var(--text-muted)">${UPDATED[i]}</td>
+    <td><span class="status-pill status-${STATUS[i]}">${STATUS[i]}</span></td>
+  </tr>`;
+});
+
+function selectRow(id, el) {
+  document.querySelectorAll('#instances-tbody tr').forEach(r=>r.classList.remove('selected'));
+  el.classList.add('selected');
+  const n = NODES.find(x=>x.id===id);
+  const k = KIND[n.kind];
+  document.getElementById('page-inspector').innerHTML = `
+    <h4>${n.label}</h4>
+    <div class="kind-chip" style="font-size:12px;color:var(--text-muted);margin-bottom:4px">${k.label}</div>
+    <div class="sec-label">Properties</div>
+    <div class="prop-row"><span class="k">id</span><span class="v mono">wv:${n.kind}:${id}</span></div>
+    <div class="prop-row"><span class="k">status</span><span class="v">active</span></div>
+    <button class="view-canvas" onclick="showScreen(1)">◉ View on canvas</button>`;
+}
+selectRow('o2c', document.querySelector('#instances-tbody tr'));
+
+// ---- kind filter chips (screen 3) ----
+const kindFilters = document.getElementById('kind-filters');
+kindFilters.innerHTML = `<div class="kchip active">All</div>` +
+  Object.entries(KIND).map(([key,k]) => `<div class="kchip" onclick="this.parentElement.querySelectorAll('.kchip').forEach(c=>c.classList.remove('active'));this.classList.add('active')"><span class="dot" style="background:${k.color}"></span>${k.label}</div>`).join('');
+
+// ---- tab switcher ----
+function showScreen(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('screen'+i).classList.toggle('active', i===n);
+    document.getElementById('tab'+i).classList.toggle('active', i===n);
+  });
+}
+</script>

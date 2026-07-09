@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weave V1 — Calm Foundry</title>
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#0E1420; --raised:#131A28; --overlay:#1A2236; --hover:#1E2740;
+    --border:#1F2937; --border-strong:#2A3550;
+    --text:#E5EAF2; --text-muted:#8A95A8; --text-subtle:#5C6779;
+    --accent:#22D3EE; --accent-hover:#67E8F9; --accent-soft:rgba(34,211,238,0.12);
+    --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+    --gradient-brand:linear-gradient(100deg,#22D3EE,#2DD4BF,#E879F9,#A78BFA,#FBBF24,#A3E635,#60A5FA);
+    --k-process:#F87171; --k-activity:#F59E0B; --k-goal:#FDE047; --k-data:#34D399;
+    --k-system:#60A5FA; --k-capability:#F472B6; --k-actor:#2DD4BF;
+    --radius-sm:4px; --radius-base:8px; --radius-lg:12px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    --font-sans:'Geist','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'Geist Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-sans);
+    font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+    width:1440px; margin:0 auto; overflow-x:hidden; position:relative;
+  }
+  ::selection{background:var(--accent-soft); color:var(--text);}
+  button{font-family:inherit; cursor:pointer;}
+  input{font-family:inherit;}
+  a{color:inherit; text-decoration:none;}
+  .mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    height:48px; display:flex; align-items:center; gap:var(--sp-5);
+    padding:0 var(--sp-5); border-bottom:1px solid var(--border);
+    background:var(--surface); position:sticky; top:0; z-index:50;
+  }
+  .brand{display:flex; align-items:center; gap:8px; flex-shrink:0;}
+  .brand .wordmark{font-weight:700; font-size:15px; letter-spacing:-0.01em; color:var(--text);}
+  .company-label{
+    color:var(--text-muted); font-size:13px; font-weight:500; padding-left:var(--sp-3);
+    border-left:1px solid var(--border); flex-shrink:0;
+  }
+  .primary-nav{display:flex; align-items:center; gap:2px; margin-left:var(--sp-4);}
+  .primary-nav a{
+    font-size:13px; font-weight:500; color:var(--text-muted); padding:6px 12px;
+    border-radius:var(--radius-sm); transition:color .12s, background .12s;
+  }
+  .primary-nav a:hover{color:var(--text); background:var(--hover);}
+  .primary-nav a.active{color:var(--text); background:var(--raised); box-shadow:inset 0 0 0 1px var(--border);}
+  .topbar-spacer{flex:1;}
+  .search-field{
+    display:flex; align-items:center; gap:8px; width:280px; height:30px;
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-base);
+    padding:0 10px; color:var(--text-subtle); font-size:13px; transition:border-color .12s;
+  }
+  .search-field:hover{border-color:var(--border-strong);}
+  .search-field kbd{
+    margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--text-subtle);
+    background:var(--raised); border:1px solid var(--border); border-radius:4px; padding:1px 5px;
+  }
+  .icon-btn{
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border-radius:var(--radius-sm); color:var(--text-muted); position:relative; background:none; border:none;
+    transition:background .12s, color .12s;
+  }
+  .icon-btn:hover{background:var(--hover); color:var(--text);}
+  .icon-btn .dot{
+    position:absolute; top:5px; right:6px; width:6px; height:6px; border-radius:50%;
+    background:var(--accent); box-shadow:0 0 0 2px var(--surface);
+  }
+  .avatar{
+    width:28px; height:28px; border-radius:50%; background:var(--overlay);
+    border:1px solid var(--border-strong); display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:600; color:var(--text); flex-shrink:0;
+  }
+  .right-cluster{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+
+  /* ---------- Shell ---------- */
+  .shell{display:flex; min-height:calc(100vh - 48px); position:relative;}
+  .rail{
+    width:220px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border);
+    padding:var(--sp-5) var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-5);
+  }
+  .rail-group-label{
+    font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--text-subtle); padding:0 var(--sp-2); margin-bottom:6px;
+  }
+  .rail-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:7px 10px; border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted);
+    font-weight:500; transition:background .12s, color .12s;
+  }
+  .rail-item:hover{background:var(--hover); color:var(--text);}
+  .rail-item.active{background:var(--accent-soft); color:var(--text); box-shadow:inset 2px 0 0 var(--accent);}
+  .rail-item.disabled{color:var(--text-subtle); cursor:default;}
+  .rail-item.disabled:hover{background:none; color:var(--text-subtle);}
+  .phase-pill{
+    font-size:10px; font-weight:600; letter-spacing:0.03em; color:var(--text-subtle);
+    background:var(--raised); border:1px solid var(--border); border-radius:20px;
+    padding:1px 7px; flex-shrink:0;
+  }
+
+  .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .page{padding:var(--sp-6) var(--sp-6) 80px;}
+  .breadcrumb{font-size:12px; color:var(--text-subtle); margin-bottom:var(--sp-3); font-weight:500;}
+  .breadcrumb span{color:var(--text-muted);}
+  .page-header{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:var(--sp-6);
+    margin-bottom:var(--sp-6);
+  }
+  .page-header h1{font-size:36px; font-weight:700; letter-spacing:-0.02em; line-height:1.1;}
+  .page-header .subtext{font-size:15px; color:var(--text-muted); margin-top:6px; max-width:60ch;}
+  .page-actions{display:flex; gap:var(--sp-2); flex-shrink:0; padding-top:2px;}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 14px;
+    border-radius:var(--radius-base); font-size:13px; font-weight:600; border:1px solid transparent;
+    transition:background .12s, border-color .12s, color .12s;
+  }
+  .btn-primary{background:var(--accent); color:#03222A;}
+  .btn-primary:hover{background:var(--accent-hover);}
+  .btn-secondary{background:transparent; border-color:var(--border-strong); color:var(--text);}
+  .btn-secondary:hover{background:var(--hover); border-color:var(--text-subtle);}
+
+  /* ---------- Bento / KPI (Home) ---------- */
+  .bento{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-4); margin-bottom:var(--sp-5);}
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base);
+    padding:var(--sp-5);
+  }
+  .kpi-label{font-size:12px; font-weight:500; letter-spacing:0.01em; color:var(--text-muted); margin-bottom:10px;}
+  .kpi-value{font-family:var(--font-mono); font-size:28px; font-weight:700; letter-spacing:-0.01em; display:flex; align-items:baseline; gap:8px;}
+  .kpi-value .unit{font-size:14px; font-weight:500; color:var(--text-muted); font-family:var(--font-sans);}
+  .kpi-check{display:inline-flex; align-items:center; gap:6px; color:var(--success); font-size:13px; font-weight:600; margin-top:8px;}
+  .kpi-sub{font-size:12px; color:var(--text-subtle); margin-top:8px;}
+
+  .content-grid{display:grid; grid-template-columns:1.4fr 1fr; gap:var(--sp-4);}
+  .card-title{font-size:18px; font-weight:600; margin-bottom:var(--sp-1);}
+  .card-purpose{font-size:12px; color:var(--text-subtle); margin-bottom:var(--sp-4);}
+
+  .needs-item{
+    display:flex; align-items:flex-start; gap:12px; padding:12px 0;
+    border-top:1px solid var(--border);
+  }
+  .needs-item:first-child{border-top:none; padding-top:0;}
+  .needs-icon{
+    width:28px; height:28px; border-radius:var(--radius-sm); background:rgba(245,158,11,0.12);
+    color:var(--warn); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px;
+  }
+  .needs-title{font-size:13px; font-weight:600; color:var(--text);}
+  .needs-sub{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .needs-cta{margin-left:auto; font-size:12px; font-weight:600; color:var(--accent); flex-shrink:0; padding-top:2px;}
+
+  .activity-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--border);}
+  .activity-row:first-child{border-top:none; padding-top:0;}
+  .activity-icon{width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; background:var(--raised);}
+  .activity-text{font-size:13px; color:var(--text); flex:1; min-width:0;}
+  .activity-text b{font-weight:600;}
+  .id-chip{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-subtle); background:var(--raised);
+    border:1px solid var(--border); border-radius:4px; padding:1px 5px; margin:0 2px;
+  }
+  .activity-time{font-size:11px; color:var(--text-subtle); flex-shrink:0; font-family:var(--font-mono);}
+
+  .change-row{display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--border); font-size:13px;}
+  .change-row:first-child{border-top:none; padding-top:0;}
+  .change-glyph{font-family:var(--font-mono); font-weight:700; width:16px; text-align:center; flex-shrink:0;}
+  .change-glyph.add{color:var(--success);}
+  .change-glyph.upd{color:var(--warn);}
+  .change-glyph.pub{color:var(--accent);}
+  .change-time{margin-left:auto; font-size:11px; color:var(--text-subtle); font-family:var(--font-mono); flex-shrink:0;}
+
+  /* ---------- Kind chip ---------- */
+  .kind-chip{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500;
+    padding:3px 8px 3px 6px; border-radius:20px; border:1px solid var(--border); background:var(--raised);
+    white-space:nowrap;
+  }
+  .kind-glyph{width:12px; height:12px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;}
+  .kind-glyph svg{width:100%; height:100%;}
+
+  /* ---------- Instances screen ---------- */
+  .instances-layout{display:flex; gap:var(--sp-5); align-items:flex-start;}
+  .instances-main{flex:1; min-width:0;}
+  .chip-row{display:flex; gap:8px; margin-bottom:var(--sp-4); flex-wrap:wrap;}
+  .filter-chip{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500;
+    padding:5px 10px; border-radius:20px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text-muted); transition:all .12s;
+  }
+  .filter-chip.active{border-color:var(--accent); color:var(--text); background:var(--accent-soft);}
+  .filter-chip:hover{border-color:var(--border-strong);}
+
+  table{width:100%; border-collapse:collapse;}
+  thead th{
+    text-align:left; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+    color:var(--text-subtle); padding:0 12px 10px; border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:11px 12px; font-size:13px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tbody tr{transition:background .1s;}
+  tbody tr:hover{background:var(--hover); cursor:pointer;}
+  tbody tr.selected{background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent);}
+  .entity-name{font-weight:600; color:var(--text);}
+  .rel-count{font-family:var(--font-mono); color:var(--text-muted);}
+  .updated-time{color:var(--text-subtle); font-size:12px;}
+
+  .inspector{
+    width:320px; flex-shrink:0; background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-base); padding:var(--sp-5); position:sticky; top:64px;
+  }
+  .inspector-header{display:flex; align-items:center; gap:8px; margin-bottom:4px;}
+  .inspector-title{font-size:18px; font-weight:600;}
+  .inspector-sub{margin-bottom:var(--sp-4);}
+  .inspector-section-label{
+    font-size:11px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--text-subtle); margin:var(--sp-4) 0 8px;
+  }
+  .prop-row{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-top:1px solid var(--border);}
+  .prop-row:first-child{border-top:none;}
+  .prop-key{color:var(--text-muted);}
+  .prop-val{color:var(--text); font-weight:500; text-align:right;}
+  .edge-row{display:flex; align-items:center; gap:6px; font-size:13px; padding:6px 0; border-top:1px solid var(--border);}
+  .edge-row:first-child{border-top:none;}
+  .edge-label{color:var(--text-subtle); font-family:var(--font-mono); font-size:11px;}
+  .edge-arrow{color:var(--text-subtle);}
+  .edge-target{color:var(--accent); font-weight:500;}
+  .prov-line{
+    font-size:11px; color:var(--text-subtle); margin-top:var(--sp-4); padding-top:var(--sp-4);
+    border-top:1px solid var(--border); line-height:1.6;
+  }
+  .inspector-actions{display:flex; gap:8px; margin-top:var(--sp-4);}
+
+  .chat-drawer{
+    position:fixed; bottom:24px; right:24px; z-index:40;
+    display:flex; align-items:center; gap:8px; height:40px; padding:0 16px;
+    background:var(--raised); border:1px solid var(--border-strong); border-radius:24px;
+    font-size:13px; font-weight:600; color:var(--text); box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    transition:border-color .15s, transform .15s;
+  }
+  .chat-drawer:hover{border-color:var(--accent); transform:translateY(-1px);}
+
+  /* ---------- Explore screen ---------- */
+  .explore-shell{display:flex; height:calc(100vh - 48px);}
+  .canvas-wrap{flex:1; position:relative; background:var(--bg); overflow:hidden;}
+  .canvas-wrap svg{width:100%; height:100%; display:block;}
+  .ask-bar-wrap{
+    position:absolute; top:20px; left:20px; right:340px; z-index:20;
+  }
+  .ask-bar{
+    display:flex; align-items:center; gap:10px; height:44px; padding:0 8px 0 16px;
+    background:var(--overlay); border:1px solid var(--border-strong); border-radius:var(--radius-lg);
+    backdrop-filter:blur(12px); box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .ask-bar .ask-icon{color:var(--accent); font-size:14px;}
+  .ask-bar input{
+    flex:1; background:none; border:none; color:var(--text); font-size:14px; outline:none;
+  }
+  .ask-bar input::placeholder{color:var(--text-subtle);}
+  .ask-bar .btn{height:32px;}
+  .answer-strip{
+    margin-top:8px; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:var(--radius-base); backdrop-filter:blur(12px); overflow:hidden;
+    box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .answer-strip-head{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 16px;
+    font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border);
+  }
+  .answer-strip-head b{color:var(--text); font-weight:600;}
+  .answer-row{display:flex; align-items:center; gap:10px; padding:8px 16px; font-size:13px; border-top:1px solid var(--border);}
+  .answer-row:first-of-type{border-top:none;}
+  .sparql-toggle{font-size:12px; color:var(--accent); font-weight:600;}
+
+  .toolbar{
+    position:absolute; top:20px; left:20px; z-index:30; display:flex; flex-direction:column; gap:6px;
+    background:var(--overlay); border:1px solid var(--border-strong); border-radius:var(--radius-base);
+    padding:6px; backdrop-filter:blur(12px); box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  /* toolbar repositioned below ask-bar via top offset trick using margin */
+  .toolbar{top:84px;}
+  .toolbar button{
+    width:32px; height:32px; display:flex; align-items:center; justify-content:center;
+    background:none; border:none; border-radius:6px; color:var(--text-muted); font-size:14px;
+  }
+  .toolbar button:hover{background:var(--hover); color:var(--text);}
+  .toolbar hr{border:none; border-top:1px solid var(--border); margin:2px 4px;}
+
+  .legend-card{
+    position:absolute; bottom:20px; left:20px; z-index:20;
+    background:var(--overlay); border:1px solid var(--border-strong); border-radius:var(--radius-base);
+    padding:14px 16px; backdrop-filter:blur(12px); box-shadow:0 8px 24px rgba(0,0,0,0.35);
+    display:grid; grid-template-columns:repeat(4,auto); gap:10px 18px;
+  }
+  .legend-item{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-muted);}
+
+  .canvas-inspector{
+    width:320px; flex-shrink:0; background:var(--surface); border-left:1px solid var(--border);
+    padding:var(--sp-5); overflow-y:auto;
+  }
+
+  .node-glow{filter:drop-shadow(0 0 6px var(--accent)) drop-shadow(0 0 12px rgba(34,211,238,0.6));}
+  .edge-line{stroke:var(--border-strong); stroke-width:1.4; fill:none;}
+  .edge-text{fill:var(--text-subtle); font-size:10px; font-family:var(--font-sans);}
+  .node-label{fill:var(--text); font-size:11px; font-weight:500; font-family:var(--font-sans);}
+  .node-shape{stroke:var(--bg); stroke-width:2; cursor:pointer; transition:filter .15s;}
+  .node-shape:hover{filter:brightness(1.25);}
+  .node-glyph-text{fill:var(--bg); font-size:11px; font-weight:700; font-family:var(--font-sans); text-anchor:middle; dominant-baseline:central; pointer-events:none;}
+
+  /* ---------- Screen switcher ---------- */
+  .switcher{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100;
+    display:flex; gap:2px; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:24px; padding:4px; backdrop-filter:blur(16px); box-shadow:0 10px 32px rgba(0,0,0,0.5);
+  }
+  .switcher button{
+    background:none; border:none; color:var(--text-muted); font-size:12px; font-weight:600;
+    padding:8px 16px; border-radius:20px; transition:background .12s, color .12s;
+  }
+  .switcher button:hover{color:var(--text);}
+  .switcher button.active{background:var(--accent); color:#03222A;}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .screen.flex-screen.active{display:flex; flex:1; min-width:0;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <defs>
+        <linearGradient id="wgrad" x1="0" y1="0" x2="26" y2="20">
+          <stop offset="0%" stop-color="#22D3EE"/>
+          <stop offset="30%" stop-color="#2DD4BF"/>
+          <stop offset="55%" stop-color="#E879F9"/>
+          <stop offset="75%" stop-color="#A78BFA"/>
+          <stop offset="100%" stop-color="#FBBF24"/>
+        </linearGradient>
+      </defs>
+      <polyline points="2,7 8,19 13,9 18,19 24,7" fill="none" stroke="url(#wgrad)" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="2" cy="7" r="2" fill="#22D3EE"/>
+      <circle cx="8" cy="19" r="2" fill="#2DD4BF"/>
+      <circle cx="13" cy="9" r="2" fill="#E879F9"/>
+      <circle cx="18" cy="19" r="2" fill="#A78BFA"/>
+      <circle cx="24" cy="7" r="2" fill="#FBBF24"/>
+    </svg>
+    <span class="wordmark">weave</span>
+  </div>
+  <div class="company-label">Hammerbarn</div>
+  <nav class="primary-nav" id="primaryNav">
+    <a href="#" data-nav="home">Home</a>
+    <a href="#" data-nav="constitution">Constitution</a>
+    <a href="#" data-nav="build">Build</a>
+    <a href="#" data-nav="events">Events</a>
+    <a href="#" data-nav="audit">Audit trail</a>
+    <a href="#" data-nav="settings">Settings</a>
+  </nav>
+  <div class="topbar-spacer"></div>
+  <div class="search-field">
+    <span>&#8981;</span>
+    <span>Search or jump to&hellip;</span>
+    <kbd>&#8984;K</kbd>
+  </div>
+  <div class="right-cluster">
+    <button class="icon-btn" title="Notifications">&#128276;<span class="dot"></span></button>
+    <button class="icon-btn" title="Help">?</button>
+    <div class="avatar">GW</div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 1 — HOME ============ -->
+<div class="screen active" id="screen-1">
+  <div class="page" style="max-width:1440px;">
+    <div class="breadcrumb">Hammerbarn <span>/ Home</span></div>
+    <div class="page-header">
+      <div>
+        <h1>Home</h1>
+        <div class="subtext">Your workspace at a glance — model health, activity, and what needs attention.</div>
+      </div>
+      <div class="page-actions">
+        <button class="btn btn-secondary">Export report</button>
+        <button class="btn btn-primary">Request build</button>
+      </div>
+    </div>
+
+    <div class="bento">
+      <div class="card">
+        <div class="kpi-label">Model entities</div>
+        <div class="kpi-value">128</div>
+        <div class="kpi-sub">across 7 kinds</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Published version</div>
+        <div class="kpi-value mono" style="font-size:24px;">v0.3.0</div>
+        <div class="kpi-sub">published 2h ago</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Builds this week</div>
+        <div class="kpi-value">3</div>
+        <div class="kpi-sub">1 in review</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Conformance</div>
+        <div class="kpi-value">100<span class="unit">%</span></div>
+        <div class="kpi-check">&#10003; all shapes passing</div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <div>
+        <div class="card" style="margin-bottom:var(--sp-4);">
+          <div class="card-title">Needs you</div>
+          <div class="card-purpose">Items waiting on a decision or review.</div>
+          <div class="needs-item">
+            <div class="needs-icon">&#9888;</div>
+            <div>
+              <div class="needs-title">Inventory Replenishment has 3 unresolved validation warnings</div>
+              <div class="needs-sub">Flagged by the SHACL conformance check on the current draft</div>
+            </div>
+            <div class="needs-cta">Review &rarr;</div>
+          </div>
+          <div class="needs-item">
+            <div class="needs-icon" style="background:rgba(34,211,238,0.12); color:var(--accent);">&#9993;</div>
+            <div>
+              <div class="needs-title">Build request &ldquo;Store Ops Mobile App&rdquo; needs grounding entities</div>
+              <div class="needs-sub">Submitted by James Okafor &middot; waiting 4h</div>
+            </div>
+            <div class="needs-cta">Open &rarr;</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Activity</div>
+          <div class="card-purpose">What's happened across the workspace recently.</div>
+          <div class="activity-row">
+            <div class="activity-icon">&#128100;</div>
+            <div class="activity-text"><b>Maria Chen</b><span class="id-chip">usr_8f2a1c</span>published Constitution <span class="mono">v0.3.0</span></div>
+            <div class="activity-time">2h ago</div>
+          </div>
+          <div class="activity-row">
+            <div class="activity-icon">&#129302;</div>
+            <div class="activity-text"><b>sonnet-builder</b><span class="id-chip">agt_finance_01</span>created Process &ldquo;Returns Processing&rdquo;</div>
+            <div class="activity-time">3h ago</div>
+          </div>
+          <div class="activity-row">
+            <div class="activity-icon">&#128100;</div>
+            <div class="activity-text"><b>James Okafor</b><span class="id-chip">usr_1b77e0</span>updated shape <span class="mono">ProcessShape</span></div>
+            <div class="activity-time">5h ago</div>
+          </div>
+          <div class="activity-row">
+            <div class="activity-icon">&#129302;</div>
+            <div class="activity-text"><b>fable-architect</b><span class="id-chip">agt_arch_09</span>requested build &ldquo;Store Ops Mobile App&rdquo;</div>
+            <div class="activity-time">6h ago</div>
+          </div>
+          <div class="activity-row">
+            <div class="activity-icon">&#128100;</div>
+            <div class="activity-text"><b>Priya Patel</b><span class="id-chip">usr_44d9f2</span>added Actor &ldquo;Warehouse Team&rdquo;</div>
+            <div class="activity-time">yesterday</div>
+          </div>
+          <div class="activity-row">
+            <div class="activity-icon">&#129302;</div>
+            <div class="activity-text"><b>sonnet-qa</b><span class="id-chip">agt_qa_03</span>verified audit chain &middot; 4,712 rows</div>
+            <div class="activity-time">yesterday</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent model changes</div>
+        <div class="card-purpose">Latest edits to the company graph.</div>
+        <div class="change-row"><span class="change-glyph add">+</span> Added Activity &ldquo;Approve Return&rdquo;<span class="change-time">3h ago</span></div>
+        <div class="change-row"><span class="change-glyph upd">~</span> Updated Process &ldquo;Order-to-Cash&rdquo; description<span class="change-time">4h ago</span></div>
+        <div class="change-row"><span class="change-glyph add">+</span> Added performedBy: Replenishment &rarr; Store Ops<span class="change-time">5h ago</span></div>
+        <div class="change-row"><span class="change-glyph pub">&#8593;</span> Published version <span class="mono">v0.3.0</span><span class="change-time">2h ago</span></div>
+        <div class="change-row"><span class="change-glyph add">+</span> Added Actor &ldquo;Warehouse Team&rdquo;<span class="change-time">yesterday</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2 — INSTANCES ============ -->
+<div class="screen flex-screen" id="screen-2">
+  <div class="rail">
+    <div>
+      <div class="rail-group-label">Model</div>
+      <div class="rail-item">Overview</div>
+      <div class="rail-item">Explore</div>
+      <div class="rail-item">Ontology</div>
+      <div class="rail-item active">Instances</div>
+    </div>
+    <div>
+      <div class="rail-group-label">Query</div>
+      <div class="rail-item">Query</div>
+      <div class="rail-item">Versions</div>
+    </div>
+    <div>
+      <div class="rail-group-label">Standards</div>
+      <div class="rail-item disabled">Glossary <span class="phase-pill">M2</span></div>
+      <div class="rail-item disabled">Rules <span class="phase-pill">M2</span></div>
+    </div>
+    <div>
+      <div class="rail-group-label">Tools</div>
+      <div class="rail-item disabled">Ingest <span class="phase-pill">v1.0</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page">
+      <div class="breadcrumb">Hammerbarn / Constitution <span>/ Instances</span></div>
+      <div class="page-header">
+        <div>
+          <h1>Instances</h1>
+          <div class="subtext">Browse, search, and author every entity and relationship in the company graph.</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-secondary">Import</button>
+          <button class="btn btn-primary">+ New entity</button>
+        </div>
+      </div>
+
+      <div class="instances-layout">
+        <div class="instances-main">
+          <div class="chip-row">
+            <span class="filter-chip active">All &middot; 128</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#F87171"/></svg>Process</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="#F59E0B"/></svg>Activity</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="2" fill="#FDE047" transform="rotate(45 6 6)"/></svg>Goal</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><polygon points="6,1 11,4 11,8 6,11 1,8 1,4" fill="#34D399"/></svg>Data asset</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="#60A5FA"/></svg>System</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><polygon points="6,0.5 11.5,4 9.5,11 2.5,11 0.5,4" fill="#F472B6"/></svg>Capability</span>
+            <span class="filter-chip"><svg class="kind-glyph" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="#2DD4BF" stroke-width="1.6"/><circle cx="6" cy="6" r="2.2" fill="#2DD4BF"/></svg>Actor</span>
+          </div>
+
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Kind</th><th>Relationships</th><th>Updated</th></tr>
+            </thead>
+            <tbody id="instances-tbody"><!-- rows injected by JS --></tbody>
+          </table>
+        </div>
+
+        <div class="inspector">
+          <div class="inspector-header">
+            <span class="kind-chip"><span class="kind-glyph"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#F87171"/></svg></span>Process</span>
+          </div>
+          <div class="inspector-title">Order-to-Cash</div>
+          <div class="inspector-sub" style="font-size:12px; color:var(--text-subtle);">Published &middot; v0.3.0</div>
+
+          <div class="inspector-section-label">Properties</div>
+          <div class="prop-row"><span class="prop-key">Owner</span><span class="prop-val">Finance Team</span></div>
+          <div class="prop-row"><span class="prop-key">Status</span><span class="prop-val">Published</span></div>
+          <div class="prop-row"><span class="prop-key">Criticality</span><span class="prop-val">High</span></div>
+          <div class="prop-row"><span class="prop-key">Description</span><span class="prop-val" style="text-align:right; max-width:180px;">Quote-to-cash cycle for retail store orders</span></div>
+
+          <div class="inspector-section-label">Edges</div>
+          <div class="edge-row"><span class="edge-label">performedBy</span><span class="edge-arrow">&rarr;</span><span class="edge-target">Finance Team</span></div>
+          <div class="edge-row"><span class="edge-label">consumes</span><span class="edge-arrow">&rarr;</span><span class="edge-target">OrdersDB</span></div>
+          <div class="edge-row"><span class="edge-label">hasStep</span><span class="edge-arrow">&rarr;</span><span class="edge-target">Process Purchase Order</span></div>
+
+          <div class="prov-line">Created by <span class="mono">finance-ops-agent</span> &middot; last modified 2026-07-02 by Maria Chen</div>
+
+          <div class="inspector-actions">
+            <button class="btn btn-secondary" style="flex:1;">View PROV</button>
+            <button class="btn btn-primary" style="flex:1;">Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-drawer">&#128172; Author via chat</div>
+</div>
+
+<!-- ============ SCREEN 3 — EXPLORE & ASK ============ -->
+<div class="screen flex-screen" id="screen-3">
+  <div class="rail">
+    <div>
+      <div class="rail-group-label">Model</div>
+      <div class="rail-item">Overview</div>
+      <div class="rail-item active">Explore</div>
+      <div class="rail-item">Ontology</div>
+      <div class="rail-item">Instances</div>
+    </div>
+    <div>
+      <div class="rail-group-label">Query</div>
+      <div class="rail-item">Query</div>
+      <div class="rail-item">Versions</div>
+    </div>
+    <div>
+      <div class="rail-group-label">Standards</div>
+      <div class="rail-item disabled">Glossary <span class="phase-pill">M2</span></div>
+      <div class="rail-item disabled">Rules <span class="phase-pill">M2</span></div>
+    </div>
+    <div>
+      <div class="rail-group-label">Tools</div>
+      <div class="rail-item disabled">Ingest <span class="phase-pill">v1.0</span></div>
+    </div>
+  </div>
+
+  <div class="explore-shell" style="flex:1;">
+    <div class="canvas-wrap">
+      <div class="ask-bar-wrap">
+        <div class="ask-bar">
+          <span class="ask-icon">&#10022;</span>
+          <input type="text" value="Which processes touch OrdersDB?" readonly>
+          <button class="btn btn-primary">Ask</button>
+        </div>
+        <div class="answer-strip">
+          <div class="answer-strip-head"><span><b>Answer</b> &middot; 3 results grounded on canvas</span><span class="sparql-toggle">view SPARQL &#9662;</span></div>
+          <div class="answer-row"><span class="kind-glyph"><svg viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#F87171"/></svg></span> <b>Order-to-Cash</b>&nbsp;<span style="color:var(--text-subtle);">consumes &rarr; OrdersDB</span></div>
+          <div class="answer-row"><span class="kind-glyph"><svg viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="#60A5FA"/></svg></span> <b>POS System</b>&nbsp;<span style="color:var(--text-subtle);">writes &rarr; OrdersDB</span></div>
+          <div class="answer-row"><span class="kind-glyph"><svg viewBox="0 0 12 12"><polygon points="6,1 11,4 11,8 6,11 1,8 1,4" fill="#34D399"/></svg></span> <b>OrdersDB</b>&nbsp;<span style="color:var(--text-subtle);">matched entity</span></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button title="Search">&#8981;</button>
+        <hr>
+        <button title="Fit to view">&#9974;</button>
+        <button title="Zoom in" onclick="zoomCanvas(1.15)">+</button>
+        <button title="Zoom out" onclick="zoomCanvas(0.87)">&minus;</button>
+        <hr>
+        <button title="Layout">&#8942;</button>
+      </div>
+
+      <svg id="graphSvg" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet">
+        <g id="graphGroup">
+          <!-- edges -->
+          <g id="edges"></g>
+          <!-- nodes -->
+          <g id="nodes"></g>
+        </g>
+      </svg>
+
+      <div class="legend-card">
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#F87171"/></svg>Process</div>
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="#F59E0B"/></svg>Activity</div>
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><polygon points="6,1 11,4 11,8 6,11 1,8 1,4" fill="#34D399"/></svg>Data asset</div>
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" fill="#60A5FA"/></svg>System</div>
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><polygon points="6,0.5 11.5,4 9.5,11 2.5,11 0.5,4" fill="#F472B6"/></svg>Capability</div>
+        <div class="legend-item"><svg class="kind-glyph" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="#2DD4BF" stroke-width="1.6"/><circle cx="6" cy="6" r="2.2" fill="#2DD4BF"/></svg>Actor</div>
+      </div>
+    </div>
+
+    <div class="canvas-inspector" id="canvasInspector"><!-- injected by JS --></div>
+  </div>
+</div>
+
+<div class="switcher">
+  <button class="active" onclick="setScreen(1)">1 Home</button>
+  <button onclick="setScreen(2)">2 Instances</button>
+  <button onclick="setScreen(3)">3 Explore &amp; Ask</button>
+</div>
+
+<script>
+/* ---------------- screen + nav switching ---------------- */
+const navByScreen = {1:'home', 2:'constitution', 3:'constitution'};
+function setScreen(n){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+n).classList.add('active');
+  document.querySelectorAll('.switcher button').forEach((b,i)=>b.classList.toggle('active', i===n-1));
+  document.querySelectorAll('.primary-nav a').forEach(a=>{
+    a.classList.toggle('active', a.dataset.nav===navByScreen[n]);
+  });
+}
+document.querySelectorAll('.primary-nav a').forEach(a=>a.addEventListener('click', e=>e.preventDefault()));
+setScreen(1);
+
+/* ---------------- instances table ---------------- */
+const KIND_META = {
+  Process:     {color:'#F87171', shape:'circle'},
+  Activity:    {color:'#F59E0B', shape:'square'},
+  Goal:        {color:'#FDE047', shape:'diamond'},
+  DataAsset:   {color:'#34D399', shape:'hex'},
+  System:      {color:'#60A5FA', shape:'square'},
+  Capability:  {color:'#F472B6', shape:'pentagon'},
+  Actor:       {color:'#2DD4BF', shape:'ring'}
+};
+function kindGlyphSvg(kind){
+  const c = KIND_META[kind].color;
+  switch(KIND_META[kind].shape){
+    case 'circle': return `<circle cx="6" cy="6" r="5" fill="${c}"/>`;
+    case 'square': return `<rect x="1.5" y="1.5" width="9" height="9" rx="2" fill="${c}"/>`;
+    case 'diamond': return `<rect x="1" y="1" width="10" height="10" rx="2" fill="${c}" transform="rotate(45 6 6)"/>`;
+    case 'hex': return `<polygon points="6,1 11,4 11,8 6,11 1,8 1,4" fill="${c}"/>`;
+    case 'pentagon': return `<polygon points="6,0.5 11.5,4 9.5,11 2.5,11 0.5,4" fill="${c}"/>`;
+    case 'ring': return `<circle cx="6" cy="6" r="5" fill="none" stroke="${c}" stroke-width="1.6"/><circle cx="6" cy="6" r="2.2" fill="${c}"/>`;
+  }
+}
+function kindChip(kind){
+  const label = kind==='DataAsset' ? 'Data asset' : kind==='Capability' ? 'Capability' : kind;
+  return `<span class="kind-chip"><span class="kind-glyph"><svg viewBox="0 0 12 12">${kindGlyphSvg(kind)}</svg></span>${label}</span>`;
+}
+
+const INSTANCES = [
+  {name:'Order-to-Cash', kind:'Process', rel:9, upd:'2h ago', sel:true},
+  {name:'Inventory Replenishment', kind:'Process', rel:7, upd:'4h ago'},
+  {name:'Returns Processing', kind:'Process', rel:5, upd:'yesterday'},
+  {name:'Process Purchase Order', kind:'Activity', rel:3, upd:'3h ago'},
+  {name:'Restock Shelf', kind:'Activity', rel:2, upd:'5h ago'},
+  {name:'Approve Return', kind:'Activity', rel:2, upd:'3h ago'},
+  {name:'POS System', kind:'System', rel:6, upd:'1d ago'},
+  {name:'ERP System', kind:'System', rel:5, upd:'2d ago'},
+  {name:'OrdersDB', kind:'DataAsset', rel:4, upd:'2h ago'},
+  {name:'InventoryDB', kind:'DataAsset', rel:3, upd:'4h ago'},
+  {name:'Finance Team', kind:'Actor', rel:8, upd:'yesterday'},
+  {name:'Increase Online Conversion', kind:'Goal', rel:3, upd:'3d ago'},
+];
+document.getElementById('instances-tbody').innerHTML = INSTANCES.map(r=>`
+  <tr class="${r.sel?'selected':''}">
+    <td class="entity-name">${r.name}</td>
+    <td>${kindChip(r.kind)}</td>
+    <td class="rel-count">${r.rel}</td>
+    <td class="updated-time">${r.upd}</td>
+  </tr>`).join('');
+document.querySelectorAll('#instances-tbody tr').forEach(tr=>{
+  tr.addEventListener('click', ()=>{
+    document.querySelectorAll('#instances-tbody tr').forEach(t=>t.classList.remove('selected'));
+    tr.classList.add('selected');
+  });
+});
+
+/* ---------------- explore canvas ---------------- */
+const NODES = [
+  {id:'o2c',  name:'Order-to-Cash',            kind:'Process',    x:330, y:230, glow:true},
+  {id:'inv',  name:'Inventory Replenishment',  kind:'Process',    x:560, y:400},
+  {id:'ret',  name:'Returns Processing',       kind:'Process',    x:180, y:420},
+  {id:'ppo',  name:'Process Purchase Order',   kind:'Activity',   x:170, y:120},
+  {id:'rst',  name:'Restock Shelf',            kind:'Activity',   x:700, y:490},
+  {id:'apr',  name:'Approve Return',           kind:'Activity',   x:90,  y:530},
+  {id:'pos',  name:'POS System',               kind:'System',     x:470, y:120, glow:true},
+  {id:'erp',  name:'ERP System',               kind:'System',     x:760, y:280},
+  {id:'wms',  name:'Warehouse Mgmt System',    kind:'System',     x:620, y:550},
+  {id:'ords', name:'OrdersDB',                 kind:'DataAsset',  x:480, y:250, glow:true},
+  {id:'invd', name:'InventoryDB',              kind:'DataAsset',  x:740, y:430},
+  {id:'fin',  name:'Finance Team',             kind:'Actor',      x:200, y:280},
+  {id:'sops', name:'Store Ops',                kind:'Actor',      x:420, y:520},
+  {id:'omni', name:'Omnichannel Fulfillment',  kind:'Capability', x:390, y:60},
+];
+const EDGES = [
+  {a:'o2c', b:'fin', label:'performedBy'},
+  {a:'o2c', b:'ords', label:'consumes'},
+  {a:'o2c', b:'ppo', label:'hasStep'},
+  {a:'inv', b:'sops', label:'performedBy'},
+  {a:'inv', b:'invd', label:'consumes'},
+  {a:'inv', b:'rst', label:'hasStep'},
+  {a:'ret', b:'fin', label:'performedBy'},
+  {a:'ret', b:'apr', label:'hasStep'},
+  {a:'pos', b:'o2c', label:'supports'},
+  {a:'pos', b:'ords', label:'writes'},
+  {a:'erp', b:'inv', label:'supports'},
+  {a:'wms', b:'rst', label:'supports'},
+  {a:'wms', b:'invd', label:'writes'},
+  {a:'omni', b:'o2c', label:'supports'},
+  {a:'omni', b:'inv', label:'supports'},
+];
+function shapePath(kind, x, y, r, glow){
+  const c = KIND_META[kind].color;
+  const cls = 'node-shape' + (glow ? ' node-glow' : '');
+  switch(KIND_META[kind].shape){
+    case 'circle': return `<circle class="${cls}" cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`;
+    case 'square': return `<rect class="${cls}" x="${x-r}" y="${y-r}" width="${r*2}" height="${r*2}" rx="4" fill="${c}"/>`;
+    case 'diamond': return `<rect class="${cls}" x="${x-r*0.8}" y="${y-r*0.8}" width="${r*1.6}" height="${r*1.6}" rx="3" fill="${c}" transform="rotate(45 ${x} ${y})"/>`;
+    case 'hex': return `<polygon class="${cls}" points="${hexPoints(x,y,r)}" fill="${c}"/>`;
+    case 'pentagon': return `<polygon class="${cls}" points="${pentaPoints(x,y,r)}" fill="${c}"/>`;
+    case 'ring': return `<circle class="${cls}" cx="${x}" cy="${y}" r="${r}" fill="${c}" fill-opacity="0.25" stroke="${c}" stroke-width="2.5"/>`;
+  }
+}
+function hexPoints(cx,cy,r){
+  const pts=[];
+  for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-90); pts.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}
+  return pts.join(' ');
+}
+function pentaPoints(cx,cy,r){
+  const pts=[];
+  for(let i=0;i<5;i++){const a=Math.PI/180*(72*i-90); pts.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1));}
+  return pts.join(' ');
+}
+function glyphChar(kind){
+  return {Process:'P', Activity:'A', Goal:'G', DataAsset:'D', System:'S', Capability:'C', Actor:'Ac'}[kind];
+}
+
+const nodeById = {}; NODES.forEach(n=>nodeById[n.id]=n);
+const edgesG = document.getElementById('edges');
+const nodesG = document.getElementById('nodes');
+
+edgesG.innerHTML = EDGES.map(e=>{
+  const a=nodeById[e.a], b=nodeById[e.b];
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+  return `<line class="edge-line" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>
+          <text class="edge-text" x="${mx}" y="${my-4}" text-anchor="middle">${e.label}</text>`;
+}).join('');
+
+nodesG.innerHTML = NODES.map(n=>{
+  const r = 22;
+  return `<g class="node" data-id="${n.id}" style="cursor:pointer;">
+      ${shapePath(n.kind, n.x, n.y, r, n.glow)}
+      <text class="node-glyph-text" x="${n.x}" y="${n.y+1}">${glyphChar(n.kind)}</text>
+      <text class="node-label" x="${n.x}" y="${n.y+r+16}" text-anchor="middle">${n.name}</text>
+    </g>`;
+}).join('');
+
+function inspectorFor(n){
+  const label = n.kind==='DataAsset'?'Data asset':n.kind;
+  const related = EDGES.filter(e=>e.a===n.id||e.b===n.id).map(e=>{
+    const other = e.a===n.id ? nodeById[e.b] : nodeById[e.a];
+    const dir = e.a===n.id ? '&rarr;' : '&larr;';
+    return `<div class="edge-row"><span class="edge-label">${e.label}</span><span class="edge-arrow">${dir}</span><span class="edge-target">${other.name}</span></div>`;
+  }).join('');
+  return `
+    <div class="inspector-header">${kindChip(n.kind)}</div>
+    <div class="inspector-title">${n.name}</div>
+    <div class="inspector-sub" style="font-size:12px; color:var(--text-subtle);">${label} &middot; draft</div>
+    <div class="inspector-section-label">Edges</div>
+    ${related || '<div style="font-size:12px; color:var(--text-subtle);">No relationships yet</div>'}
+    <div class="prov-line">Grounded from live graph &middot; version <span class="mono">v0.3.0</span></div>
+    <div class="inspector-actions">
+      <button class="btn btn-secondary" style="flex:1;">View PROV</button>
+      <button class="btn btn-primary" style="flex:1;">Edit</button>
+    </div>`;
+}
+document.getElementById('canvasInspector').innerHTML = inspectorFor(nodeById['o2c']);
+document.querySelectorAll('.node').forEach(g=>{
+  g.addEventListener('click', ()=>{
+    document.getElementById('canvasInspector').innerHTML = inspectorFor(nodeById[g.dataset.id]);
+  });
+});
+
+let zoomLevel = 1;
+function zoomCanvas(factor){
+  zoomLevel = Math.max(0.6, Math.min(2, zoomLevel*factor));
+  document.getElementById('graphGroup').setAttribute('transform', `translate(500 310) scale(${zoomLevel}) translate(-500 -310)`);
+}
+</script>
+</body>
+</html>

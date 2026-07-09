@@ -224,3 +224,25 @@ colliding tech-spec filenames renamed with `-explorer` suffix (pure `git mv`, no
   summaries and dated ledger entries keep historical GE labels (same precedent as the m2→v1 merge).
 - "GE" as a *surface/prose* name survives (weave-spec build-order row #3, contracts.md §3 heading);
   only the spec tree, file IDs, and tracker IDs merged.
+
+## WS2 design assessment rulings (2026-07-09, user MCQs)
+
+Full package: `docs/design/MORNING-REVIEW.md`; findings `docs/design/design-assessment-2026-07-09.md`.
+
+1. **Visual direction = V4 hybrid** — V3 canvas-first body (floating glass panels, NL ask bar with
+   speech input, grounded-answer glow, V3 Instances/Ask) + V2 chrome (icon rail + contextual
+   sidebar, slim header, gradient-border command/search bar, ⌘K palette, border-based elevation)
+   + real `logo.png` mark. Recipe: `docs/design/visual-direction.md`; reference mock
+   `docs/design/mocks/mock-v4-hybrid.html`. Canvas-first applies to Constitution/Explore only.
+2. **All 5 demo Blockers → v1 requirements now** (F-D10 empty dashboard, F-D11 no instance
+   browser, F-D15 broken canvas layout, F-D18 silent NL query, F-D25 dead marketing CTAs).
+3. **Compliance stays under Audit trail**; route fixed to `/audit/compliance` (F-D23); spec-vs-IA
+   naming reconciliation stays deferred to M2 as previously agreed.
+4. **Design agent approved** (spec-time brief sections + QA-time verification, sonnet) — advisor
+   consult ADV-007; wiring commits carry the trailer.
+5. **`model.version.published` = all members, batched per session** (collapsed multi-publish
+   entries) — honours "publish notifies members" without authoring spam.
+6. **Tenancy wording sweep confirmed as v1 requirement** (F-D04): no member-visible workspace
+   switcher, company-scope copy, super-admin provisioning list unchanged; E2E uses direct URLs.
+
+Requirements ledger for the architect pass: `docs/design/v1-design-requirements.md` (R1–R12).

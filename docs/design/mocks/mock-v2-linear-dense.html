@@ -1,0 +1,937 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Weave V2 — Linear Dense</title>
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#0E1420; --raised:#131A28; --overlay:#1A2236; --hover:#1E2740;
+    --border:#1F2937; --border-strong:#2A3550;
+    --text:#E5EAF2; --text-muted:#8A95A8; --text-subtle:#5C6779;
+    --accent:#22D3EE; --accent-hover:#67E8F9; --accent-soft:rgba(34,211,238,.12);
+    --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+    --gradient-brand:linear-gradient(100deg,#22D3EE,#2DD4BF,#E879F9,#A78BFA,#FBBF24,#A3E635,#60A5FA);
+    --k-process:#2DD4BF; --k-system:#60A5FA; --k-data:#A78BFA; --k-actor:#FBBF24; --k-store:#A3E635;
+    --radius-sm:4px; --radius-base:6px; --radius-lg:10px; --radius-xl:14px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    --font-sans:'Geist','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'Geist Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-sans);
+    font-size:15px; line-height:1.5; width:1440px; min-height:900px; overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:var(--font-mono); font-feature-settings:'zero','ss01'; font-variant-numeric:tabular-nums;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  ::selection{background:var(--accent-soft);}
+
+  /* ---------- App shell ---------- */
+  .app-shell{display:flex; height:900px;}
+
+  /* Icon rail */
+  .icon-rail{
+    width:56px; flex:0 0 56px; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; align-items:center; padding:var(--sp-3) 0; gap:var(--sp-1);
+  }
+  .rail-logo{
+    width:32px; height:32px; border-radius:var(--radius-base); margin-bottom:var(--sp-4);
+    background:var(--gradient-brand); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:13px; color:#06141F; flex:0 0 auto;
+  }
+  .rail-item{
+    position:relative; width:40px; height:40px; border-radius:var(--radius-base); border:none;
+    background:transparent; color:var(--text-muted); display:flex; align-items:center; justify-content:center;
+    font-size:18px; margin-bottom:2px;
+  }
+  .rail-item:hover{background:var(--hover); color:var(--text);}
+  .rail-item.active{background:var(--accent-soft); color:var(--accent);}
+  .rail-item.active::before{
+    content:''; position:absolute; left:-8px; top:8px; bottom:8px; width:3px;
+    border-radius:2px; background:var(--accent);
+  }
+  .rail-item .tip{
+    position:absolute; left:48px; top:50%; transform:translateY(-50%); white-space:nowrap;
+    background:var(--overlay); border:1px solid var(--border-strong); color:var(--text);
+    padding:4px 8px; border-radius:var(--radius-sm); font-size:12px; font-weight:500;
+    opacity:0; pointer-events:none; transition:opacity .12s ease; z-index:50; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  .rail-item:hover .tip{opacity:1;}
+  .rail-spacer{flex:1;}
+  .rail-avatar{
+    width:30px; height:30px; border-radius:50%; background:var(--k-actor); color:#1a1400;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; margin-bottom:var(--sp-2);
+  }
+
+  /* Secondary sidebar */
+  .sidebar{
+    width:232px; flex:0 0 232px; background:var(--surface); border-right:1px solid var(--border);
+    padding:var(--sp-4) var(--sp-3); overflow-y:auto;
+  }
+  .sidebar-title{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-subtle); padding:0 var(--sp-2) var(--sp-3);}
+  .sb-group{margin-bottom:var(--sp-4);}
+  .sb-group-label{font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:0 var(--sp-2); margin-bottom:6px;}
+  .sb-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:6px var(--sp-2); border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted);
+    cursor:default; margin-bottom:1px;
+  }
+  .sb-item:hover{background:var(--hover); color:var(--text);}
+  .sb-item.active{background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .sb-item.disabled{color:var(--text-subtle); cursor:not-allowed;}
+  .sb-item.disabled:hover{background:none; color:var(--text-subtle);}
+  .pill{
+    font-size:10px; font-weight:600; padding:1px 6px; border-radius:999px; letter-spacing:.02em;
+    background:var(--overlay); color:var(--text-subtle); border:1px solid var(--border-strong);
+  }
+
+  /* Main column */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; position:relative;}
+
+  /* Top strip */
+  .topbar{
+    height:44px; flex:0 0 44px; display:flex; align-items:center; padding:0 var(--sp-4);
+    border-bottom:1px solid var(--border); gap:var(--sp-4); background:var(--bg);
+  }
+  .breadcrumb{font-size:13px; color:var(--text-muted); white-space:nowrap; flex:0 0 auto; width:230px;}
+  .breadcrumb b{color:var(--text); font-weight:500;}
+  .breadcrumb .sep{color:var(--text-subtle); margin:0 4px;}
+
+  .cmdbar-wrap{flex:1; display:flex; justify-content:center;}
+  .cmdbar{
+    width:420px; max-width:100%; height:30px; border-radius:999px;
+    background:var(--raised); border:1px solid var(--border-strong);
+    display:flex; align-items:center; padding:0 12px; gap:8px; color:var(--text-subtle);
+    font-size:13px; position:relative; cursor:pointer;
+    background-image:linear-gradient(var(--raised),var(--raised)), var(--gradient-brand);
+    background-origin:border-box; background-clip:padding-box, border-box; border:1px solid transparent;
+  }
+  .cmdbar:hover, .cmdbar:focus-within{box-shadow:0 0 0 2px var(--accent);}
+  .cmdbar svg{flex:0 0 auto; opacity:.7;}
+  .cmdbar .ph{flex:1;}
+  .cmdbar kbd{
+    font-family:var(--font-mono); font-size:10px; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:4px; padding:1px 5px; color:var(--text-muted);
+  }
+
+  .top-actions{flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3); width:230px; justify-content:flex-end;}
+  .icon-btn{
+    position:relative; width:28px; height:28px; border-radius:var(--radius-sm); background:transparent; border:none;
+    color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .icon-btn:hover{background:var(--hover); color:var(--text);}
+  .badge-dot{position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--danger); border:1.5px solid var(--bg);}
+  .split-btn{display:flex; align-items:center; height:28px; border-radius:var(--radius-base); overflow:hidden; border:1px solid var(--border-strong);}
+  .split-btn button{background:var(--raised); border:none; color:var(--text); font-size:12px; font-weight:600; padding:0 10px; height:100%;}
+  .split-btn button:first-child{border-right:1px solid var(--border-strong);}
+  .split-btn button:hover{background:var(--hover);}
+  .split-btn .main-action{color:var(--bg); background:var(--accent); font-weight:600;}
+  .split-btn .main-action:hover{background:var(--accent-hover);}
+
+  /* Content area */
+  .content{flex:1; overflow-y:auto; padding:var(--sp-6) var(--sp-6) var(--sp-8);}
+  .content-inner{max-width:1200px; margin:0 auto;}
+
+  .page-eyebrow{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:4px;}
+  .page-title{font-size:28px; font-weight:700; letter-spacing:-0.01em; margin:0 0 var(--sp-1);}
+  .page-sub{font-size:13px; color:var(--text-muted); margin:0 0 var(--sp-5);}
+
+  /* Screens toggle */
+  .screen{display:none;}
+  .screen.active{display:block;}
+
+  /* ---------- Screen 1: Home ---------- */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-3); margin-bottom:var(--sp-5);}
+  .kpi-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base);
+    padding:var(--sp-4); display:flex; flex-direction:column; gap:6px;
+  }
+  .kpi-label{font-size:12px; font-weight:500; letter-spacing:.01em; color:var(--text-muted);}
+  .kpi-value{font-size:28px; font-weight:700; font-family:var(--font-mono);}
+  .kpi-delta{font-size:12px; font-weight:500;}
+  .kpi-delta.up{color:var(--success);}
+  .kpi-delta.flat{color:var(--text-subtle);}
+  .kpi-card.disabled{opacity:.5;}
+  .kpi-card.disabled .kpi-value{color:var(--text-subtle);}
+
+  .bento-2col{display:grid; grid-template-columns:1.3fr 1fr; gap:var(--sp-4); margin-bottom:var(--sp-5);}
+  .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); padding:var(--sp-4);}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-3);}
+  .panel-title{font-size:15px; font-weight:600;}
+  .panel-link{font-size:12px; color:var(--accent);}
+
+  .needs-item{display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);}
+  .needs-item:last-child{border-bottom:none;}
+  .needs-dot{width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 auto;}
+  .needs-dot.warn{background:var(--warn);}
+  .needs-dot.danger{background:var(--danger);}
+  .needs-dot.info{background:var(--accent);}
+  .needs-body{flex:1; min-width:0;}
+  .needs-title{font-size:13px; font-weight:500; color:var(--text);}
+  .needs-meta{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .needs-meta .mono{color:var(--text-subtle);}
+
+  .act-item{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .act-item:last-child{border-bottom:none;}
+  .act-avatar{width:22px; height:22px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#05131a;}
+  .act-text{flex:1; min-width:0; color:var(--text-muted);}
+  .act-text b{color:var(--text); font-weight:500;}
+  .id-chip{
+    font-family:var(--font-mono); font-size:11px; background:var(--overlay); color:var(--text-muted);
+    border:1px solid var(--border-strong); border-radius:4px; padding:1px 6px; margin:0 2px;
+  }
+  .act-time{flex:0 0 auto; font-size:12px; color:var(--text-subtle); font-family:var(--font-mono);}
+
+  .versions-strip{display:flex; gap:var(--sp-3); overflow-x:auto;}
+  .version-chip{
+    flex:0 0 auto; background:var(--raised); border:1px solid var(--border); border-radius:var(--radius-base);
+    padding:8px 12px; min-width:140px;
+  }
+  .version-chip .vnum{font-family:var(--font-mono); font-size:13px; font-weight:600;}
+  .version-chip .vstatus{display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--success); margin-left:6px;}
+  .version-chip .vmeta{font-size:11px; color:var(--text-subtle); margin-top:4px;}
+
+  /* Command palette overlay */
+  .palette-backdrop{
+    position:absolute; inset:0; background:rgba(6,9,15,.6); backdrop-filter:blur(2px);
+    display:flex; align-items:flex-start; justify-content:center; padding-top:120px; z-index:100;
+  }
+  .palette{
+    width:560px; max-width:90%; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg); box-shadow:0 24px 64px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .palette-input-row{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);}
+  .palette-input-row svg{opacity:.6; flex:0 0 auto;}
+  .palette-input{flex:1; font-size:15px; color:var(--text); font-weight:500;}
+  .palette-input .cursor{display:inline-block; width:1px; height:16px; background:var(--accent); vertical-align:middle; animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .palette-esc{font-size:10px; color:var(--text-subtle); border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);}
+  .palette-body{max-height:360px; overflow-y:auto; padding:8px;}
+  .palette-group-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:8px 10px 4px;}
+  .palette-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-sm); font-size:13px;}
+  .palette-row:hover, .palette-row.sel{background:var(--hover);}
+  .palette-row .kind-glyph{flex:0 0 auto;}
+  .palette-row .name{flex:1; color:var(--text);}
+  .palette-row .name em{font-style:normal; color:var(--text);}
+  .palette-row .type{font-size:11px; color:var(--text-subtle);}
+  .palette-hint{font-size:11px; color:var(--text-subtle); padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px;}
+
+  /* Reopen hint chip when palette closed */
+  .reopen-hint{
+    position:absolute; top:60px; left:50%; transform:translateX(-50%); z-index:20;
+    background:var(--raised); border:1px solid var(--border-strong); border-radius:999px;
+    padding:6px 14px; font-size:12px; color:var(--text-muted); display:none; align-items:center; gap:8px;
+  }
+  .reopen-hint.show{display:flex;}
+  .reopen-hint kbd{font-family:var(--font-mono); background:var(--overlay); border:1px solid var(--border-strong); border-radius:4px; padding:1px 5px; font-size:10px;}
+
+  /* ---------- Screen 2: Instances ---------- */
+  .toolbar{display:flex; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-4); flex-wrap:wrap;}
+  .chip-filter{
+    display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:500;
+    border:1px solid var(--border-strong); color:var(--text-muted); background:var(--surface);
+  }
+  .chip-filter.active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .toolbar-search{
+    flex:0 0 220px; height:30px; background:var(--raised); border:1px solid var(--border-strong);
+    border-radius:var(--radius-base); display:flex; align-items:center; padding:0 10px; gap:6px;
+    color:var(--text-subtle); font-size:13px;
+  }
+  .toolbar-spacer{flex:1;}
+  select.sel{
+    height:30px; background:var(--raised); border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; padding:0 8px; font-family:var(--font-sans);
+  }
+  .btn-primary{
+    height:30px; background:var(--accent); color:#06141F; border:none; border-radius:var(--radius-base);
+    font-size:13px; font-weight:600; padding:0 14px; display:flex; align-items:center; gap:6px;
+  }
+  .btn-primary:hover{background:var(--accent-hover);}
+
+  .data-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .data-table thead th{
+    text-align:left; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-subtle); padding:8px 12px; border-bottom:1px solid var(--border-strong);
+  }
+  .data-table tbody td{padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text);}
+  .data-table tbody tr{cursor:pointer;}
+  .data-table tbody tr:hover{background:var(--hover);}
+  .data-table tbody tr.selected{background:var(--accent-soft);}
+  .data-table tbody tr.selected td{color:var(--text);}
+  .name-cell{font-weight:500;}
+  .rel-cell{color:var(--text-muted);}
+  .rel-cell .verb{color:var(--text-subtle); font-style:normal;}
+  .updated-cell{color:var(--text-subtle); font-family:var(--font-mono); font-size:12px; white-space:nowrap;}
+
+  .kind-chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; padding:2px 8px 2px 6px; border-radius:999px;}
+  .kind-glyph{width:9px; height:9px; display:inline-block; flex:0 0 auto;}
+  .kind-process{background:rgba(45,212,191,.12); color:var(--k-process);}
+  .kind-system{background:rgba(96,165,250,.12); color:var(--k-system);}
+  .kind-data{background:rgba(167,139,250,.12); color:var(--k-data);}
+  .kind-actor{background:rgba(251,191,36,.12); color:var(--k-actor);}
+  .kind-store{background:rgba(163,230,53,.12); color:var(--k-store);}
+
+  .table-wrap{position:relative; display:flex; gap:0;}
+  .table-scroll{flex:1; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); overflow:hidden;}
+
+  .inspector{
+    width:320px; flex:0 0 320px; margin-left:var(--sp-4); background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-base); padding:var(--sp-4); align-self:flex-start;
+  }
+  .insp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;}
+  .insp-title{font-size:16px; font-weight:600;}
+  .insp-close{color:var(--text-subtle); font-size:14px; background:none; border:none;}
+  .insp-sub{margin-bottom:var(--sp-4);}
+  .insp-section-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); margin:var(--sp-4) 0 8px;}
+  .insp-section-label:first-of-type{margin-top:0;}
+  .insp-kv{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--border);}
+  .insp-kv:last-child{border-bottom:none;}
+  .insp-kv .k{color:var(--text-muted);}
+  .insp-kv .v{color:var(--text); text-align:right;}
+  .insp-edge{display:flex; align-items:center; gap:8px; font-size:13px; padding:6px 0;}
+  .insp-edge .verb{color:var(--text-subtle); font-size:11px; font-family:var(--font-mono);}
+  .insp-prov{font-size:11px; color:var(--text-subtle); font-family:var(--font-mono); line-height:1.6;}
+  .insp-actions{display:flex; gap:8px; margin-top:var(--sp-4);}
+  .btn-outline{
+    flex:1; height:30px; background:transparent; border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; font-weight:600;
+  }
+  .btn-outline:hover{background:var(--hover); border-color:var(--accent);}
+
+  /* ---------- Screen 3: Explore & Ask ---------- */
+  .explore-wrap{display:flex; gap:var(--sp-4);}
+  .canvas-col{flex:1; min-width:0;}
+  .canvas-frame{
+    position:relative; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base);
+    height:460px; overflow:hidden;
+  }
+  .canvas-toolbar{
+    position:absolute; top:10px; left:10px; right:10px; z-index:5; display:flex; align-items:center; gap:8px;
+  }
+  .canvas-search{
+    flex:0 0 200px; height:28px; background:var(--raised); border:1px solid var(--border-strong); border-radius:999px;
+    display:flex; align-items:center; padding:0 10px; gap:6px; font-size:12px; color:var(--text-subtle);
+  }
+  .canvas-tool-btn{
+    width:28px; height:28px; border-radius:var(--radius-sm); background:var(--raised); border:1px solid var(--border-strong);
+    color:var(--text-muted); font-size:13px; display:flex; align-items:center; justify-content:center;
+  }
+  .canvas-tool-btn:hover{color:var(--text); border-color:var(--accent);}
+  .canvas-spacer{flex:1;}
+  .legend{
+    position:absolute; bottom:10px; left:10px; display:flex; gap:12px; background:rgba(19,26,40,.85);
+    border:1px solid var(--border); border-radius:var(--radius-base); padding:6px 12px; z-index:5;
+    backdrop-filter:blur(6px);
+  }
+  .legend-item{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted);}
+
+  .edge-label{font-size:9px; fill:var(--text-subtle); font-family:var(--font-mono);}
+  .node-label{font-size:10px; fill:var(--text); font-weight:500; font-family:var(--font-sans);}
+  .edge-line{stroke:var(--border-strong); stroke-width:1.2;}
+  .node-glow{filter:drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 3px var(--accent));}
+  .node-ring{fill:none; stroke:var(--accent); stroke-width:2;}
+
+  .ask-panel{margin-top:var(--sp-4); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); padding:var(--sp-4);}
+  .ask-bar{
+    display:flex; align-items:center; gap:10px; height:36px; border-radius:999px; background:var(--raised);
+    border:1px solid var(--border-strong); padding:0 14px; margin-bottom:var(--sp-4);
+    background-image:linear-gradient(var(--raised),var(--raised)), var(--gradient-brand);
+    background-origin:border-box; background-clip:padding-box, border-box; border:1px solid transparent;
+  }
+  .ask-bar .q{flex:1; font-size:13px; color:var(--text);}
+  .ask-bar .go{font-size:11px; font-weight:600; color:var(--accent);}
+  .answer-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .answer-count{font-size:13px; font-weight:600;}
+  .sparql-toggle{font-size:12px; color:var(--accent);}
+  .answer-table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:var(--sp-3);}
+  .answer-table th{text-align:left; font-size:11px; color:var(--text-subtle); font-weight:600; padding:4px 8px; border-bottom:1px solid var(--border-strong);}
+  .answer-table td{padding:6px 8px; border-bottom:1px solid var(--border);}
+  .sparql-block{
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted); line-height:1.6; max-height:64px; overflow:hidden;
+    position:relative;
+  }
+  .sparql-block::after{content:''; position:absolute; bottom:0; left:0; right:0; height:28px; background:linear-gradient(transparent, var(--bg));}
+  .sparql-kw{color:var(--k-system);}
+  .sparql-var{color:var(--k-actor);}
+
+  /* Bottom-center screen tabs */
+  .screen-tabs{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:200;
+    display:flex; background:var(--overlay); border:1px solid var(--border-strong); border-radius:999px;
+    padding:4px; box-shadow:0 12px 32px rgba(0,0,0,.45); gap:2px;
+  }
+  .screen-tab{
+    font-size:12px; font-weight:500; color:var(--text-muted); padding:7px 14px; border-radius:999px; border:none; background:none;
+  }
+  .screen-tab .num{font-family:var(--font-mono); color:var(--text-subtle); margin-right:5px;}
+  .screen-tab.active{background:var(--accent); color:#06141F; font-weight:600;}
+  .screen-tab.active .num{color:#06141F;}
+  .screen-tab:hover:not(.active){color:var(--text);}
+</style>
+
+<div class="app-shell">
+
+  <!-- ICON RAIL -->
+  <div class="icon-rail">
+    <div class="rail-logo">W</div>
+    <button class="rail-item"><span>⌂</span><span class="tip">Home</span></button>
+    <button class="rail-item active"><span>◆</span><span class="tip">Constitution</span></button>
+    <button class="rail-item"><span>▤</span><span class="tip">Build</span></button>
+    <button class="rail-item"><span>⚡</span><span class="tip">Events · post-v1</span></button>
+    <button class="rail-item"><span>☰</span><span class="tip">Audit trail</span></button>
+    <button class="rail-item"><span>⚙</span><span class="tip">Settings</span></button>
+    <div class="rail-spacer"></div>
+    <div class="rail-avatar" title="Priya Shah">PS</div>
+  </div>
+
+  <!-- SECONDARY SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Constitution</div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Model</div>
+      <div class="sb-item">Overview</div>
+      <div class="sb-item active" id="sb-explore">Explore</div>
+      <div class="sb-item">Ontology / Types</div>
+      <div class="sb-item" id="sb-instances">Instances / Data</div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Query</div>
+      <div class="sb-item">Query</div>
+      <div class="sb-item">Versions</div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Standards</div>
+      <div class="sb-item disabled">Glossary <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Brand &amp; voice <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Rules &amp; policies <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Strategy &amp; motivation <span class="pill">M2</span></div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Tools</div>
+      <div class="sb-item disabled">Ingest <span class="pill">v1.0</span></div>
+      <div class="sb-item disabled">Reasoning <span class="pill">post-v1</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb" id="breadcrumb"><b>Hammerbarn</b> <span class="sep">/</span> Home</div>
+      <div class="cmdbar-wrap">
+        <div class="cmdbar" id="cmdbar-open">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <span class="ph">Search, ask, or jump to…</span>
+          <kbd>⌘K</kbd>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn">🔔<span class="badge-dot"></span></button>
+        <button class="icon-btn">?</button>
+        <div class="split-btn">
+          <button class="main-action">New</button>
+          <button>▾</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="content-inner">
+
+        <!-- ============ SCREEN 1: HOME ============ -->
+        <section class="screen active" id="screen-1">
+          <div class="page-eyebrow">Workspace</div>
+          <h1 class="page-title">Good afternoon, Priya</h1>
+          <p class="page-sub">Hammerbarn — here's what changed since you last looked.</p>
+
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">Entities</div>
+              <div class="kpi-value mono">1,204</div>
+              <div class="kpi-delta up">▲ 18 this week</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Open build requests</div>
+              <div class="kpi-value mono">3</div>
+              <div class="kpi-delta flat">1 awaiting grounding</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Audit events today</div>
+              <div class="kpi-value mono">187</div>
+              <div class="kpi-delta up">▲ 12% vs yesterday</div>
+            </div>
+            <div class="kpi-card disabled">
+              <div class="kpi-label">Automations <span class="pill">post-v1</span></div>
+              <div class="kpi-value mono">—</div>
+              <div class="kpi-delta flat">Delivered in phase post-v1</div>
+            </div>
+          </div>
+
+          <div class="bento-2col">
+            <div class="panel">
+              <div class="panel-head">
+                <div class="panel-title">Needs you</div>
+                <a class="panel-link">View all</a>
+              </div>
+              <div class="needs-item">
+                <div class="needs-dot warn"></div>
+                <div class="needs-body">
+                  <div class="needs-title">SHACL violation on Inventory Replenishment</div>
+                  <div class="needs-meta">missing <span class="mono">performedBy</span> target &middot; flagged 40m ago</div>
+                </div>
+              </div>
+              <div class="needs-item">
+                <div class="needs-dot info"></div>
+                <div class="needs-body">
+                  <div class="needs-title">Version draft ready to publish</div>
+                  <div class="needs-meta"><span class="mono id-chip">v15-draft</span> 6 changes since v14</div>
+                </div>
+              </div>
+              <div class="needs-item">
+                <div class="needs-dot danger"></div>
+                <div class="needs-body">
+                  <div class="needs-title">Build request stalled — no grounding entities</div>
+                  <div class="needs-meta">"Click-and-Collect tracker" &middot; opened 2d ago</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div class="panel-title">Activity</div>
+                <a class="panel-link">View all</a>
+              </div>
+              <div class="act-item">
+                <div class="act-avatar" style="background:var(--k-actor)">PS</div>
+                <div class="act-text"><b>Priya Shah</b> added <span class="id-chip">wv:proc-0142</span> Order-to-Cash</div>
+                <div class="act-time">2m</div>
+              </div>
+              <div class="act-item">
+                <div class="act-avatar" style="background:var(--k-system)">DK</div>
+                <div class="act-text"><b>Deepak Kumar</b> linked <span class="id-chip">wv:sys-0091</span> to POS System</div>
+                <div class="act-time">18m</div>
+              </div>
+              <div class="act-item">
+                <div class="act-avatar" style="background:var(--k-process)">JW</div>
+                <div class="act-text"><b>Jamie Wu</b> published <span class="id-chip">v14</span></div>
+                <div class="act-time">2h</div>
+              </div>
+              <div class="act-item">
+                <div class="act-avatar" style="background:var(--k-data)">RA</div>
+                <div class="act-text"><b>Ravi Anand</b> ran a build request for Supplier Portal sync</div>
+                <div class="act-time">5h</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">Recent versions</div>
+              <a class="panel-link">Versions</a>
+            </div>
+            <div class="versions-strip">
+              <div class="version-chip">
+                <span class="vnum mono">v14</span><span class="vstatus">● Published</span>
+                <div class="vmeta">2h ago &middot; Jamie Wu</div>
+              </div>
+              <div class="version-chip">
+                <span class="vnum mono">v13</span><span class="vstatus">● Published</span>
+                <div class="vmeta">1d ago &middot; Priya Shah</div>
+              </div>
+              <div class="version-chip">
+                <span class="vnum mono">v12</span><span class="vstatus">● Published</span>
+                <div class="vmeta">3d ago &middot; Deepak Kumar</div>
+              </div>
+              <div class="version-chip">
+                <span class="vnum mono">v11</span><span class="vstatus">● Published</span>
+                <div class="vmeta">6d ago &middot; Priya Shah</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ SCREEN 2: INSTANCES ============ -->
+        <section class="screen" id="screen-2">
+          <div class="page-eyebrow">Constitution</div>
+          <h1 class="page-title">Instances / Data</h1>
+          <p class="page-sub">Browse, search, and author entities in the Hammerbarn graph.</p>
+
+          <div class="toolbar">
+            <div class="chip-filter active">All &middot; 14</div>
+            <div class="chip-filter">● Process &middot; 4</div>
+            <div class="chip-filter">■ System &middot; 3</div>
+            <div class="chip-filter">◆ DataAsset &middot; 3</div>
+            <div class="chip-filter">▲ Actor &middot; 3</div>
+            <div class="chip-filter">⬡ Store &middot; 1</div>
+            <div class="toolbar-spacer"></div>
+            <div class="toolbar-search">⌕ Search instances…</div>
+            <select class="sel"><option>Sort: Updated</option><option>Sort: Name</option><option>Sort: Kind</option></select>
+            <button class="btn-primary">+ Add entity</button>
+          </div>
+
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Name</th><th>Kind</th><th>Key relationship</th><th>Updated</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td class="name-cell">Order-to-Cash</td><td><span class="kind-chip kind-process"><span class="kind-glyph">●</span>Process</span></td><td class="rel-cell"><span class="verb">performedBy</span> Sales Ops</td><td class="updated-cell">2h ago</td></tr>
+                  <tr><td class="name-cell">Inventory Replenishment</td><td><span class="kind-chip kind-process"><span class="kind-glyph">●</span>Process</span></td><td class="rel-cell"><span class="verb">performedBy</span> Store Ops</td><td class="updated-cell">1d ago</td></tr>
+                  <tr><td class="name-cell">Click-and-Collect</td><td><span class="kind-chip kind-process"><span class="kind-glyph">●</span>Process</span></td><td class="rel-cell"><span class="verb">performedBy</span> Store Ops</td><td class="updated-cell">3d ago</td></tr>
+                  <tr><td class="name-cell">Loyalty Program</td><td><span class="kind-chip kind-process"><span class="kind-glyph">●</span>Process</span></td><td class="rel-cell"><span class="verb">performedBy</span> Finance Team</td><td class="updated-cell">6d ago</td></tr>
+                  <tr><td class="name-cell">POS System</td><td><span class="kind-chip kind-system"><span class="kind-glyph">■</span>System</span></td><td class="rel-cell"><span class="verb">implements</span> Order-to-Cash</td><td class="updated-cell">5h ago</td></tr>
+                  <tr><td class="name-cell">Supplier Portal</td><td><span class="kind-chip kind-system"><span class="kind-glyph">■</span>System</span></td><td class="rel-cell"><span class="verb">consumes</span> Inventory Replenishment</td><td class="updated-cell">6d ago</td></tr>
+                  <tr><td class="name-cell">Warehouse Management System</td><td><span class="kind-chip kind-system"><span class="kind-glyph">■</span>System</span></td><td class="rel-cell"><span class="verb">supports</span> Inventory Replenishment</td><td class="updated-cell">4d ago</td></tr>
+                  <tr class="selected" id="row-ordersdb"><td class="name-cell">OrdersDB</td><td><span class="kind-chip kind-data"><span class="kind-glyph">◆</span>DataAsset</span></td><td class="rel-cell"><span class="verb">consumedBy</span> POS System</td><td class="updated-cell">2h ago</td></tr>
+                  <tr><td class="name-cell">Customer Master</td><td><span class="kind-chip kind-data"><span class="kind-glyph">◆</span>DataAsset</span></td><td class="rel-cell"><span class="verb">consumedBy</span> POS System</td><td class="updated-cell">1w ago</td></tr>
+                  <tr><td class="name-cell">Replenishment Policy</td><td><span class="kind-chip kind-data"><span class="kind-glyph">◆</span>DataAsset</span></td><td class="rel-cell"><span class="verb">governs</span> Inventory Replenishment</td><td class="updated-cell">3d ago</td></tr>
+                  <tr><td class="name-cell">Finance Team</td><td><span class="kind-chip kind-actor"><span class="kind-glyph">▲</span>Actor</span></td><td class="rel-cell"><span class="verb">owns</span> Order-to-Cash</td><td class="updated-cell">2w ago</td></tr>
+                  <tr><td class="name-cell">Store Ops</td><td><span class="kind-chip kind-actor"><span class="kind-glyph">▲</span>Actor</span></td><td class="rel-cell"><span class="verb">performs</span> Inventory Replenishment</td><td class="updated-cell">2w ago</td></tr>
+                  <tr><td class="name-cell">Sales Ops</td><td><span class="kind-chip kind-actor"><span class="kind-glyph">▲</span>Actor</span></td><td class="rel-cell"><span class="verb">performs</span> Order-to-Cash</td><td class="updated-cell">3w ago</td></tr>
+                  <tr><td class="name-cell">Store #142</td><td><span class="kind-chip kind-store"><span class="kind-glyph">⬡</span>Store</span></td><td class="rel-cell"><span class="verb">locatedIn</span> Click-and-Collect</td><td class="updated-cell">5d ago</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Slide-over inspector -->
+            <div class="inspector">
+              <div class="insp-head">
+                <div class="insp-title">OrdersDB</div>
+                <button class="insp-close">✕</button>
+              </div>
+              <div class="insp-sub"><span class="kind-chip kind-data"><span class="kind-glyph">◆</span>DataAsset</span> &middot; published</div>
+
+              <div class="insp-section-label">Properties</div>
+              <div class="insp-kv"><span class="k">Label</span><span class="v">OrdersDB</span></div>
+              <div class="insp-kv"><span class="k">Owner</span><span class="v">Finance Team</span></div>
+              <div class="insp-kv"><span class="k">Classification</span><span class="v">Internal</span></div>
+              <div class="insp-kv"><span class="k">ID</span><span class="v mono">wv:data-0037</span></div>
+
+              <div class="insp-section-label">Edges</div>
+              <div class="insp-edge"><span class="verb">consumedBy</span> POS System</div>
+              <div class="insp-edge"><span class="verb">consumedBy</span> Order-to-Cash</div>
+              <div class="insp-edge"><span class="verb">governedBy</span> Replenishment Policy</div>
+
+              <div class="insp-section-label">Provenance</div>
+              <div class="insp-prov">
+                created by Priya Shah &middot; 2026-06-18<br/>
+                last modified by Deepak Kumar &middot; 2026-07-07<br/>
+                <span class="mono id-chip">v14</span> published
+              </div>
+
+              <div class="insp-actions">
+                <button class="btn-outline">Edit</button>
+                <button class="btn-outline">View PROV</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ SCREEN 3: EXPLORE & ASK ============ -->
+        <section class="screen" id="screen-3">
+          <div class="page-eyebrow">Constitution</div>
+          <h1 class="page-title">Explore &amp; Ask</h1>
+          <p class="page-sub">Visualise the graph, or ask a question in plain English.</p>
+
+          <div class="explore-wrap">
+            <div class="canvas-col">
+              <div class="canvas-frame">
+                <div class="canvas-toolbar">
+                  <div class="canvas-search">⌕ Filter nodes…</div>
+                  <div class="canvas-spacer"></div>
+                  <button class="canvas-tool-btn">⤢</button>
+                  <button class="canvas-tool-btn">+</button>
+                  <button class="canvas-tool-btn">−</button>
+                  <select class="sel" style="width:104px;"><option>Force layout</option><option>Hierarchy</option></select>
+                </div>
+
+                <svg width="100%" height="100%" viewBox="0 0 900 460" style="display:block;">
+                  <!-- edges -->
+                  <g>
+                    <line class="edge-line" x1="220" y1="140" x2="330" y2="90"/>
+                    <line class="edge-line" x1="220" y1="140" x2="130" y2="210"/>
+                    <line class="edge-line" x1="220" y1="140" x2="330" y2="230"/>
+                    <line class="edge-line" x1="330" y1="230" x2="440" y2="150"/>
+                    <line class="edge-line" x1="130" y1="330" x2="130" y2="210"/>
+                    <line class="edge-line" x1="130" y1="330" x2="260" y2="380"/>
+                    <line class="edge-line" x1="130" y1="330" x2="30" y2="260"/>
+                    <line class="edge-line" x1="440" y1="150" x2="560" y2="90"/>
+                    <line class="edge-line" x1="440" y1="150" x2="330" y2="230"/>
+                    <line class="edge-line" x1="560" y1="240" x2="130" y2="330"/>
+                    <line class="edge-line" x1="700" y1="150" x2="800" y2="90"/>
+                    <line class="edge-line" x1="700" y1="150" x2="700" y2="270"/>
+                    <line class="edge-line" x1="330" y1="230" x2="260" y2="380"/>
+                  </g>
+                  <!-- edge labels -->
+                  <g>
+                    <text class="edge-label" x="255" y="108">implements</text>
+                    <text class="edge-label" x="150" y="182">performedBy</text>
+                    <text class="edge-label" x="260" y="192">consumes</text>
+                    <text class="edge-label" x="368" y="197">consumedBy</text>
+                    <text class="edge-label" x="100" y="272">performedBy</text>
+                    <text class="edge-label" x="175" y="362">locatedIn</text>
+                    <text class="edge-label" x="55" y="300">consumes</text>
+                    <text class="edge-label" x="495" y="112">supports</text>
+                    <text class="edge-label" x="370" y="198">governs</text>
+                    <text class="edge-label" x="300" y="292">performedBy</text>
+                    <text class="edge-label" x="745" y="112">performedBy</text>
+                    <text class="edge-label" x="712" y="212">consumes</text>
+                    <text class="edge-label" x="280" y="313">consumes</text>
+                  </g>
+
+                  <!-- nodes: Process (circle, teal), System (square, blue), DataAsset (diamond, purple), Actor (triangle, amber), Store (hex, lime) -->
+                  <!-- Order-to-Cash (glow, queried) -->
+                  <g class="node-glow">
+                    <circle cx="220" cy="140" r="16" fill="var(--k-process)"/>
+                    <circle class="node-ring" cx="220" cy="140" r="20"/>
+                  </g>
+                  <text class="node-label" x="220" y="168" text-anchor="middle">Order-to-Cash</text>
+
+                  <circle cx="130" cy="330" r="14" fill="var(--k-process)"/>
+                  <text class="node-label" x="130" y="354" text-anchor="middle">Inventory Replen.</text>
+
+                  <circle cx="260" cy="380" r="12" fill="var(--k-process)"/>
+                  <text class="node-label" x="260" y="402" text-anchor="middle">Click-and-Collect</text>
+
+                  <circle cx="700" cy="150" r="12" fill="var(--k-process)"/>
+                  <text class="node-label" x="700" y="132" text-anchor="middle">Loyalty Program</text>
+
+                  <!-- POS System (glow) -->
+                  <g class="node-glow">
+                    <rect x="318" y="78" width="24" height="24" rx="4" fill="var(--k-system)"/>
+                    <rect class="node-ring" x="314" y="74" width="32" height="32" rx="6"/>
+                  </g>
+                  <text class="node-label" x="330" y="120" text-anchor="middle">POS System</text>
+
+                  <rect x="20" y="248" width="20" height="20" rx="4" fill="var(--k-system)"/>
+                  <text class="node-label" x="30" y="286" text-anchor="middle">Supplier Portal</text>
+
+                  <rect x="550" y="78" width="20" height="20" rx="4" fill="var(--k-system)"/>
+                  <text class="node-label" x="560" y="66" text-anchor="middle">Warehouse Mgmt</text>
+
+                  <!-- OrdersDB (glow) -->
+                  <g class="node-glow">
+                    <rect x="428" y="138" width="22" height="22" fill="var(--k-data)" transform="rotate(45 439 149)"/>
+                    <rect class="node-ring" x="424" y="134" width="30" height="30" transform="rotate(45 439 149)"/>
+                  </g>
+                  <text class="node-label" x="439" y="180" text-anchor="middle">OrdersDB</text>
+
+                  <rect x="690" y="260" width="20" height="20" fill="var(--k-data)" transform="rotate(45 700 270)"/>
+                  <text class="node-label" x="700" y="300" text-anchor="middle">Customer Master</text>
+
+                  <rect x="550" y="230" width="20" height="20" fill="var(--k-data)" transform="rotate(45 560 240)"/>
+                  <text class="node-label" x="560" y="222" text-anchor="middle">Replen. Policy</text>
+
+                  <!-- Sales Ops (glow, triangle) -->
+                  <g class="node-glow">
+                    <polygon points="130,196 146,222 114,222" fill="var(--k-actor)"/>
+                    <polygon class="node-ring" points="130,190 152,226 108,226"/>
+                  </g>
+                  <text class="node-label" x="130" y="240" text-anchor="middle">Sales Ops</text>
+
+                  <polygon points="30,246 44,270 16,270" fill="var(--k-actor)"/>
+                  <text class="node-label" x="30" y="234" text-anchor="middle">Finance Team</text>
+
+                  <polygon points="130,318 144,342 116,342" fill="var(--k-actor)"/>
+                  <text class="node-label" x="130" y="308" text-anchor="middle">Store Ops</text>
+
+                  <!-- Store -->
+                  <polygon points="260,368 271,374 271,386 260,392 249,386 249,374" fill="var(--k-store)"/>
+                  <text class="node-label" x="260" y="415" text-anchor="middle">Store #142</text>
+                </svg>
+
+                <div class="legend">
+                  <div class="legend-item"><span style="color:var(--k-process)">●</span> Process</div>
+                  <div class="legend-item"><span style="color:var(--k-system)">■</span> System</div>
+                  <div class="legend-item"><span style="color:var(--k-data)">◆</span> DataAsset</div>
+                  <div class="legend-item"><span style="color:var(--k-actor)">▲</span> Actor</div>
+                  <div class="legend-item"><span style="color:var(--k-store)">⬡</span> Store</div>
+                </div>
+              </div>
+
+              <div class="ask-panel">
+                <div class="ask-bar">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                  <span class="q">which systems run order-to-cash?</span>
+                  <span class="go">Ask ↵</span>
+                </div>
+                <div class="answer-head">
+                  <div class="answer-count">Answer &middot; 3 rows</div>
+                  <div class="sparql-toggle">view SPARQL ▾</div>
+                </div>
+                <table class="answer-table">
+                  <thead><tr><th>Name</th><th>Kind</th><th>Relationship to Order-to-Cash</th></tr></thead>
+                  <tbody>
+                    <tr><td>POS System</td><td>System</td><td>implements</td></tr>
+                    <tr><td>OrdersDB</td><td>DataAsset</td><td>consumed by</td></tr>
+                    <tr><td>Sales Ops</td><td>Actor</td><td>performed by</td></tr>
+                  </tbody>
+                </table>
+                <div class="sparql-block">
+<span class="sparql-kw">SELECT</span> <span class="sparql-var">?entity</span> <span class="sparql-var">?kind</span> <span class="sparql-var">?rel</span> <span class="sparql-kw">WHERE</span> {<br/>
+&nbsp;&nbsp;<span class="sparql-var">?entity</span> <span class="sparql-kw">wv:relatesTo</span> wv:proc-0142 .<br/>
+&nbsp;&nbsp;<span class="sparql-var">?entity</span> <span class="sparql-kw">a</span> <span class="sparql-var">?kind</span> .
+                </div>
+              </div>
+            </div>
+
+            <!-- Right inspector, reused pattern -->
+            <div class="inspector">
+              <div class="insp-head">
+                <div class="insp-title">Order-to-Cash</div>
+                <button class="insp-close">✕</button>
+              </div>
+              <div class="insp-sub"><span class="kind-chip kind-process"><span class="kind-glyph">●</span>Process</span> &middot; published</div>
+
+              <div class="insp-section-label">Properties</div>
+              <div class="insp-kv"><span class="k">Label</span><span class="v">Order-to-Cash</span></div>
+              <div class="insp-kv"><span class="k">Owner</span><span class="v">Finance Team</span></div>
+              <div class="insp-kv"><span class="k">ID</span><span class="v mono">wv:proc-0142</span></div>
+
+              <div class="insp-section-label">Edges</div>
+              <div class="insp-edge"><span class="verb">performedBy</span> Sales Ops</div>
+              <div class="insp-edge"><span class="verb">implementedBy</span> POS System</div>
+              <div class="insp-edge"><span class="verb">consumes</span> OrdersDB</div>
+
+              <div class="insp-section-label">Provenance</div>
+              <div class="insp-prov">
+                created by Priya Shah &middot; 2026-05-02<br/>
+                <span class="mono id-chip">v14</span> published
+              </div>
+
+              <div class="insp-actions">
+                <button class="btn-outline">Edit</button>
+                <button class="btn-outline">View PROV</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Reopen hint (shown after palette closed) -->
+    <div class="reopen-hint" id="reopen-hint">Press <kbd>⌘K</kbd> to reopen the command palette</div>
+
+    <!-- COMMAND PALETTE OVERLAY (screen 1 only) -->
+    <div class="palette-backdrop" id="palette-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <div class="palette-input">orders<span class="cursor"></span></div>
+          <div class="palette-esc">ESC</div>
+        </div>
+        <div class="palette-body">
+          <div class="palette-group-label">Jump to</div>
+          <div class="palette-row sel">
+            <span class="kind-glyph" style="color:var(--k-data)">◆</span>
+            <span class="name"><em>Orders</em>DB</span>
+            <span class="type">DataAsset</span>
+          </div>
+          <div class="palette-row">
+            <span class="kind-glyph" style="color:var(--k-process)">●</span>
+            <span class="name">Order-to-Cash</span>
+            <span class="type">Process</span>
+          </div>
+
+          <div class="palette-group-label">Actions</div>
+          <div class="palette-row">
+            <span class="kind-glyph" style="color:var(--accent)">+</span>
+            <span class="name">Add entity…</span>
+            <span class="type">Action</span>
+          </div>
+          <div class="palette-row">
+            <span class="kind-glyph" style="color:var(--accent)">✦</span>
+            <span class="name">Ask the graph…</span>
+            <span class="type">Action</span>
+          </div>
+
+          <div class="palette-group-label">Navigate</div>
+          <div class="palette-row">
+            <span class="kind-glyph" style="color:var(--text-muted)">☰</span>
+            <span class="name">Audit trail</span>
+            <span class="type">Section</span>
+          </div>
+        </div>
+        <div class="palette-hint">
+          <span><kbd>↑↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>ESC</kbd> close</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SCREEN TABS -->
+    <div class="screen-tabs">
+      <button class="screen-tab active" data-screen="1"><span class="num">1</span>Home</button>
+      <button class="screen-tab" data-screen="2"><span class="num">2</span>Instances</button>
+      <button class="screen-tab" data-screen="3"><span class="num">3</span>Explore &amp; Ask</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var breadcrumbs = {
+    '1': '<b>Hammerbarn</b> <span class="sep">/</span> Home',
+    '2': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Instances',
+    '3': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Explore &amp; Ask'
+  };
+  var tabs = document.querySelectorAll('.screen-tab');
+  var palette = document.getElementById('palette-backdrop');
+  var reopenHint = document.getElementById('reopen-hint');
+
+  function showScreen(n){
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById('screen-' + n).classList.add('active');
+    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.screen === n); });
+    document.getElementById('breadcrumb').innerHTML = breadcrumbs[n];
+    if(n === '1'){
+      palette.style.display = 'flex';
+      reopenHint.classList.remove('show');
+    } else {
+      palette.style.display = 'none';
+    }
+  }
+
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ showScreen(t.dataset.screen); });
+  });
+
+  function closePalette(){
+    palette.style.display = 'none';
+    reopenHint.classList.add('show');
+  }
+  function openPalette(){
+    palette.style.display = 'flex';
+    reopenHint.classList.remove('show');
+  }
+
+  palette.addEventListener('click', function(e){
+    if(e.target === palette) closePalette();
+  });
+  document.getElementById('cmdbar-open').addEventListener('click', openPalette);
+  reopenHint.addEventListener('click', openPalette);
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && palette.style.display !== 'none') closePalette();
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
+      e.preventDefault();
+      openPalette();
+    }
+  });
+
+  var sparqlToggle = document.querySelector('.sparql-toggle');
+  var sparqlBlock = document.querySelector('.sparql-block');
+  sparqlToggle.addEventListener('click', function(){
+    var open = sparqlBlock.style.maxHeight === 'none';
+    sparqlBlock.style.maxHeight = open ? '64px' : 'none';
+    sparqlBlock.style.overflow = open ? 'hidden' : 'visible';
+    sparqlToggle.textContent = open ? 'view SPARQL ▾' : 'view SPARQL ▴';
+  });
+</script>
