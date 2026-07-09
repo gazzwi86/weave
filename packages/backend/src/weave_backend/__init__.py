@@ -35,6 +35,7 @@ from weave_backend.routers.layout import router as layout_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
+from weave_backend.routers.project_contributors import router as project_contributors_router
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
@@ -89,6 +90,7 @@ app.include_router(layout_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
+app.include_router(project_contributors_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
 app.include_router(generation_router)
