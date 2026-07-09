@@ -17,27 +17,31 @@ router = APIRouter(prefix="/api/projects", tags=["costs"])
 
 
 def _to_response(payload: CostsPayload) -> GetCostsResponse:
+    """Internal `CostsPayload`/`ForecastInputs` stay `Decimal` for precision;
+    every USD/ratio field narrows to `float` here at the wire boundary
+    (`schemas/costs.py`'s module docstring -- matches `schemas/billing.py`).
+    """
     return GetCostsResponse(
         label=payload.label,
-        total_estimate_usd=payload.total_estimate_usd,
+        total_estimate_usd=float(payload.total_estimate_usd),
         by_task=[
             TaskCostItem(
                 task_id=row.task_id,
                 tokens_in=row.tokens_in,
                 tokens_out=row.tokens_out,
-                cost_estimate_usd=row.cost_estimate_usd,
+                cost_estimate_usd=float(row.cost_estimate_usd),
                 brief_estimate_tokens=row.brief_estimate_tokens,
             )
             for row in payload.by_task
         ],
-        burn_rate_usd=payload.burn_rate_usd,
-        forecast_usd=payload.forecast_usd,
+        burn_rate_usd=float(payload.burn_rate_usd),
+        forecast_usd=float(payload.forecast_usd),
         forecast_inputs=ForecastInputsResponse(
             basis=payload.forecast_inputs.basis,
-            mean_actual=payload.forecast_inputs.mean_actual,
+            mean_actual=float(payload.forecast_inputs.mean_actual),
             completed_count=payload.forecast_inputs.completed_count,
             remaining_count=payload.forecast_inputs.remaining_count,
-            calibration=payload.forecast_inputs.calibration,
+            calibration=float(payload.forecast_inputs.calibration),
         ),
     )
 
