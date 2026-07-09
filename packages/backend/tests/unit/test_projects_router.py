@@ -23,12 +23,16 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.dependencies import Principal
 from weave_backend.projects.ce_version_client import CeVersionUnavailable
+from weave_backend.projects.governance import GovernanceSnapshot
 from weave_backend.projects.model import Project, ProjectExists
 from weave_backend.repo_bootstrap.store import ProjectRepoRow
 from weave_backend.routers.projects import create_project_route, get_project_route
 from weave_backend.schemas.projects import CreateProjectRequest
 
 _PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
+_FAKE_GOVERNANCE = GovernanceSnapshot(
+    model_tier="standard", model_tier_source="default", cap_usd=None, cap_source=None
+)
 
 
 @asynccontextmanager
@@ -90,7 +94,7 @@ async def test_create_project_route_503_when_ce_unreachable() -> None:
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.projects.get_pinned_latest_version",
+            "weave_backend.routers.projects.create_project_shell",
             AsyncMock(side_effect=CeVersionUnavailable("boom")),
         ),
         pytest.raises(HTTPException) as exc_info,
@@ -119,24 +123,22 @@ async def test_create_project_route_returns_pinned_version_on_success() -> None:
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.projects.get_pinned_latest_version",
-            AsyncMock(return_value="urn:weave:version:v2"),
-        ),
-        patch(
-            "weave_backend.routers.projects.create_project",
-            AsyncMock(return_value=created),
+            "weave_backend.routers.projects.create_project_shell",
+            AsyncMock(return_value=(created, _FAKE_GOVERNANCE)),
         ),
     ):
         result = await create_project_route(body, _PRINCIPAL, httpx.AsyncClient())
 
     assert result.project_iri == "urn:weave:project:t1:acme-corp"
     assert result.pinned_graph_version_iri == "urn:weave:version:v2"
+    assert result.lifecycle_phase == "Speccing"
 
 
 async def test_create_project_route_409_on_race_condition_from_create_project() -> None:
     """The pre-check (`find_existing_project_iri`) passes, but a concurrent
-    request wins the INSERT first -- `create_project` raises `ProjectExists`,
-    which must still turn into the same 409 shape as the pre-check path.
+    request wins the INSERT first -- `create_project_shell` raises
+    `ProjectExists`, which must still turn into the same 409 shape as the
+    pre-check path.
     """
     body = CreateProjectRequest(name="Acme Corp")
 
@@ -147,11 +149,7 @@ async def test_create_project_route_409_on_race_condition_from_create_project() 
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.projects.get_pinned_latest_version",
-            AsyncMock(return_value="urn:weave:version:v2"),
-        ),
-        patch(
-            "weave_backend.routers.projects.create_project",
+            "weave_backend.routers.projects.create_project_shell",
             AsyncMock(side_effect=ProjectExists("urn:weave:project:t1:acme-corp")),
         ),
         pytest.raises(HTTPException) as exc_info,

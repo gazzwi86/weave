@@ -34,6 +34,8 @@ class CreateProjectResponse(BaseModel):
     project_iri: str
     pinned_graph_version_iri: str
     created_at: datetime
+    # AC-7: derived, never stored (B10) -- direct create always starts here.
+    lifecycle_phase: Literal["Speccing"] = "Speccing"
 
 
 class RepoInfo(BaseModel):

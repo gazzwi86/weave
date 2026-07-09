@@ -14,15 +14,10 @@ from fastapi.responses import JSONResponse
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
-from weave_backend.projects.ce_version_client import (
-    CeVersionUnavailable,
-    get_ce_client,
-    get_pinned_latest_version,
-)
+from weave_backend.projects.ce_version_client import CeVersionUnavailable, get_ce_client
+from weave_backend.projects.governance import NewProjectShell, create_project_shell
 from weave_backend.projects.model import (
-    NewProject,
     ProjectExists,
-    create_project,
     find_existing_project_iri,
     get_project,
     slugify,
@@ -90,28 +85,31 @@ async def create_project_route(
         if existing_iri is not None:
             raise _project_exists_response(existing_iri)
 
+        source_control = body.source_control
+        headers = {"Authorization": authorization} if authorization else None
+        # ADR-009 Decision #1: the only place CE-pin + governance-cascade
+        # resolution happen, atomically with the insert -- AC-7's "Speccing,
+        # CE-pinned, governance resolved" shell.
         try:
-            headers = {"Authorization": authorization} if authorization else None
-            pinned_version = await get_pinned_latest_version(ce_client, headers=headers)
+            project, _governance = await create_project_shell(
+                conn,
+                ce_client=ce_client,
+                fields=NewProjectShell(
+                    tenant_id=principal.tenant_id,
+                    slug=slug,
+                    name=body.name,
+                    description=body.description,
+                    source_control_provider=source_control.provider if source_control else None,
+                    source_control_token_secret_ref=(
+                        source_control.token_secret_ref if source_control else None
+                    ),
+                ),
+                headers=headers,
+            )
         except CeVersionUnavailable as exc:
             raise HTTPException(
                 status_code=503, detail={"error": "ce_version_unavailable"}
             ) from exc
-
-        source_control = body.source_control
-        fields = NewProject(
-            tenant_id=principal.tenant_id,
-            slug=slug,
-            name=body.name,
-            description=body.description,
-            pinned_graph_version_iri=pinned_version,
-            source_control_provider=source_control.provider if source_control else None,
-            source_control_token_secret_ref=(
-                source_control.token_secret_ref if source_control else None
-            ),
-        )
-        try:
-            project = await create_project(conn, fields)
         except ProjectExists as exc:
             raise _project_exists_response(exc.existing_iri) from exc
 
@@ -119,6 +117,10 @@ async def create_project_route(
         project_iri=project.project_iri,
         pinned_graph_version_iri=project.pinned_graph_version_iri,
         created_at=project.created_at,
+        # AC-7: direct create always starts from an empty shell -- no spec,
+        # no tasks, no deploy -- so the phase is unconditionally Speccing
+        # (B10: derived, never stored).
+        lifecycle_phase="Speccing",
     )
 
 
