@@ -241,8 +241,19 @@ def require_project_role(
         project_iri: str,
         principal: Annotated[Principal, Depends(get_current_principal)],
     ) -> Principal:
+        # Catch-then-re-raise-outside-the-block, not a bare propagate: a
+        # raised exception in flight when `tenant_connection`'s `async with`
+        # exits rolls its whole transaction back (`conn.transaction()`,
+        # ADR-010) -- including the `authz_denied` row AC-6 requires to
+        # survive the very 403 it's logging.
+        denial: InsufficientProjectRole | None = None
         async with tenant_connection(principal.tenant_id) as conn:
-            await enforce_project_role(conn, principal, project_iri=project_iri, action=action)
+            try:
+                await enforce_project_role(conn, principal, project_iri=project_iri, action=action)
+            except InsufficientProjectRole as exc:
+                denial = exc
+        if denial is not None:
+            raise denial
         return principal
 
     return _dependency
