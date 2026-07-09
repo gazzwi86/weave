@@ -26,3 +26,15 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   `create_request_route` above). All six are framework/DI params already at the route boundary --
   none is app-owned business data that could be grouped into one dataclass without adding an
   unrequested wrapper layer for a single caller.
+
+## `NewProjectForm` (`packages/frontend/app/build/new-project-form.tsx`)
+
+- **Threshold:** function ≤ 50 lines (Law E).
+- **Actual:** 77.
+- **Reason:** the "New project" modal's form body (AC-8 name/description + AC-6 secret-reference
+  chip + error row + cancel/create actions) is already split out of `NewProjectModal` (which owns
+  the `<dialog>`/open-close/submit-to-backend concerns) specifically to keep both under budget.
+  The remaining length is five `<label>` blocks of genuinely declarative JSX with no shared
+  branching logic (cyclomatic 1) -- fragmenting each field into its own single-field component
+  would add four unrequested wrapper components for a form this small, purely to dodge a line
+  count, with no readability or reuse benefit. Left as one component with this waiver.

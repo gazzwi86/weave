@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { NewProjectModal } from "./new-project-modal";
 import { ProjectCard } from "./project-card";
 import { EMPTY_FILTERS, type GridFilters, useProjectGrid } from "./use-project-grid";
 
@@ -84,12 +86,20 @@ function GridSkeleton(): React.JSX.Element {
  * Hint, not an AC; skipped for now (ponytail: add useSearchParams sync
  * if shareable/back-button filtered views are actually requested). */
 export function RegistryGrid(): React.JSX.Element {
+  const router = useRouter();
   const [filters, setFilters] = useState<GridFilters>(EMPTY_FILTERS);
   const { page, loadError } = useProjectGrid(filters);
 
   return (
     <div className="flex flex-col gap-[var(--space-6)]">
-      <FilterBar filters={filters} onChange={setFilters} />
+      <div className="flex items-center justify-between">
+        <FilterBar filters={filters} onChange={setFilters} />
+        <NewProjectModal
+          onCreated={(projectIri) =>
+            router.push(`/build/projects/${encodeURIComponent(projectIri)}/settings`)
+          }
+        />
+      </div>
       {page === null && !loadError && <GridSkeleton />}
       {loadError && (
         <p role="alert" className="text-[var(--color-danger)]">
