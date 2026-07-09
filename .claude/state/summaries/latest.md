@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T22:20:23+00:00
+Captured at: 2026-07-09T23:45:02+00:00
 Event: pre-compact
 
 ## Current State
@@ -1395,19 +1395,19 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Registry Grid + Project Settings UI (FR-006/008/009/011, E2-S4 contributors UI)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-014"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-015.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-016",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-014"
       ],

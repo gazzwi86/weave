@@ -331,3 +331,17 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/app/build/projects/[id]/settings/page.tsx --> <!-- at: 2026-07-09T22:16:39.636658+00:00 -->
 
 <!-- stale: packages/frontend/tests/e2e/project-settings.spec.ts --> <!-- at: 2026-07-09T22:20:18.556754+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-diff/__tests__/route.test.ts --> <!-- at: 2026-07-09T23:16:27.987681+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-upgrade/__tests__/route.test.ts --> <!-- at: 2026-07-09T23:16:45.689210+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-diff/route.ts --> <!-- at: 2026-07-09T23:17:35.592643+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-upgrade/route.ts --> <!-- at: 2026-07-09T23:17:48.836009+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/pin-upgrade-section.test.tsx --> <!-- at: 2026-07-09T23:24:51.774447+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/pin-upgrade-section.tsx --> <!-- at: 2026-07-09T23:25:29.003849+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/pin-upgrade.spec.ts --> <!-- at: 2026-07-09T23:31:31.682809+00:00 -->
