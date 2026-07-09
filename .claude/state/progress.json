@@ -1340,7 +1340,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],
