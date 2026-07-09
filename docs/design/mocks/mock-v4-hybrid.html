@@ -1,0 +1,796 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- ponytail: static node layout not a real force simulation; this is a frozen mock, the real app owns GE-CANVAS-1 physics -->
+<title>Weave V4 — Hybrid (chosen direction)</title>
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#0E1420; --raised:#131A28; --overlay:#1A2236; --hover:#1E2740;
+    --raised-strong:#1B2434; --border-soft:#161E2E; --border:#1F2937; --border-strong:#2A3550;
+    --text:#E5EAF2; --text-muted:#8A95A8; --text-subtle:#5C6779;
+    --accent:#22D3EE; --accent-hover:#67E8F9; --accent-soft:rgba(34,211,238,.12);
+    --success:#10B981; --warn:#F59E0B; --danger:#EF4444;
+    --gradient-brand:linear-gradient(100deg,#22D3EE,#2DD4BF,#E879F9,#A78BFA,#FBBF24,#A3E635,#60A5FA);
+    --gradient-accent:linear-gradient(120deg,#22D3EE,#A78BFA);
+    --shadow-overlay:0 16px 48px rgba(0,0,0,.55);
+    --k-process:#E73430; --k-activity:#F59E0B; --k-event:#0EA5E9; --k-actor:#0D9488;
+    --k-policy:#DB3B74; --k-domain:#9054FF; --k-capability:#E2307D; --k-system:#3272FB;
+    --k-service:#0891B2; --k-dataasset:#16A34A;
+    --radius-sm:4px; --radius-base:6px; --radius-lg:10px; --radius-xl:14px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+    --font-sans:'Geist','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'Geist Mono','SF Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-sans);
+    font-size:15px; line-height:1.5; width:1440px; height:900px; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  ::selection{background:var(--accent-soft);}
+
+  /* ================= APP SHELL (from V2) ================= */
+  .app-shell{display:flex; height:900px;}
+
+  .icon-rail{
+    width:56px; flex:0 0 56px; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; align-items:center; padding:var(--sp-3) 0; gap:var(--sp-1);
+  }
+  .rail-logo{
+    width:32px; height:32px; border-radius:var(--radius-base); margin-bottom:var(--sp-4);
+    display:flex; align-items:center; justify-content:center; overflow:hidden; flex:0 0 auto;
+  }
+  .rail-logo img{width:34px; height:34px; object-fit:contain; margin:-3px; display:block;}
+  .rail-item{
+    position:relative; width:40px; height:40px; border-radius:var(--radius-base); border:none;
+    background:transparent; color:var(--text-muted); display:flex; align-items:center; justify-content:center;
+    font-size:18px; margin-bottom:2px;
+  }
+  .rail-item:hover{background:var(--hover); color:var(--text);}
+  .rail-item.active{background:var(--accent-soft); color:var(--accent);}
+  .rail-item.active::before{
+    content:''; position:absolute; left:-8px; top:8px; bottom:8px; width:3px;
+    border-radius:2px; background:var(--accent);
+  }
+  .rail-item .tip{
+    position:absolute; left:48px; top:50%; transform:translateY(-50%); white-space:nowrap;
+    background:var(--overlay); border:1px solid var(--border-strong); color:var(--text);
+    padding:4px 8px; border-radius:var(--radius-sm); font-size:12px; font-weight:500;
+    opacity:0; pointer-events:none; transition:opacity .12s ease; z-index:50; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  .rail-item:hover .tip{opacity:1;}
+  .rail-spacer{flex:1;}
+  .rail-avatar{
+    width:30px; height:30px; border-radius:50%; background:var(--k-actor); color:#04222b;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; margin-bottom:var(--sp-2);
+  }
+
+  .sidebar{
+    width:232px; flex:0 0 232px; background:var(--surface); border-right:1px solid var(--border);
+    padding:var(--sp-4) var(--sp-3); overflow-y:auto; transition:width .16s ease, padding .16s ease;
+  }
+  .sidebar.collapsed{width:0; flex:0 0 0; padding-left:0; padding-right:0; overflow:hidden; border-right:none;}
+  .sidebar-head{display:flex; align-items:center; justify-content:space-between; padding:0 var(--sp-2) var(--sp-3);}
+  .sidebar-title{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--text-subtle);}
+  .sidebar-collapse{background:none; border:1px solid var(--border-strong); color:var(--text-subtle); width:20px; height:20px; border-radius:4px; font-size:11px; display:flex; align-items:center; justify-content:center;}
+  .sidebar-collapse:hover{color:var(--text); border-color:var(--accent);}
+  .sb-group{margin-bottom:var(--sp-4);}
+  .sb-group-label{font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:0 var(--sp-2); margin-bottom:6px;}
+  .sb-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:6px var(--sp-2); border-radius:var(--radius-sm); font-size:13px; color:var(--text-muted);
+    cursor:pointer; margin-bottom:1px; white-space:nowrap;
+  }
+  .sb-item:hover{background:var(--hover); color:var(--text);}
+  .sb-item.active{background:var(--accent-soft); color:var(--accent); font-weight:600;}
+  .sb-item.disabled{color:var(--text-subtle); cursor:not-allowed;}
+  .sb-item.disabled:hover{background:none; color:var(--text-subtle);}
+  .pill{
+    font-size:10px; font-weight:600; padding:1px 6px; border-radius:999px; letter-spacing:.02em;
+    background:var(--overlay); color:var(--text-subtle); border:1px solid var(--border-strong);
+  }
+
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; position:relative;}
+
+  .topbar{
+    height:44px; flex:0 0 44px; display:flex; align-items:center; padding:0 var(--sp-4);
+    border-bottom:1px solid var(--border); gap:var(--sp-4); background:var(--bg); position:relative; z-index:60;
+  }
+  .breadcrumb{font-size:13px; color:var(--text-muted); white-space:nowrap; flex:0 0 auto; width:260px; display:flex; align-items:center; gap:8px;}
+  .breadcrumb b{color:var(--text); font-weight:500;}
+  .breadcrumb .sep{color:var(--text-subtle); margin:0 4px;}
+  .sidebar-collapse-top{display:none;}
+
+  .cmdbar-wrap{flex:1; display:flex; justify-content:center;}
+  .cmdbar{
+    width:420px; max-width:100%; height:30px; border-radius:999px;
+    background:var(--raised); display:flex; align-items:center; padding:0 12px; gap:8px; color:var(--text-subtle);
+    font-size:13px; position:relative; cursor:pointer;
+    background-image:linear-gradient(var(--raised),var(--raised)), var(--gradient-brand);
+    background-origin:border-box; background-clip:padding-box, border-box; border:1px solid transparent;
+  }
+  .cmdbar:hover, .cmdbar:focus-within{box-shadow:0 0 0 2px var(--accent);}
+  .cmdbar svg{flex:0 0 auto; opacity:.7;}
+  .cmdbar .ph{flex:1;}
+  .cmdbar kbd{
+    font-family:var(--font-mono); font-size:10px; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:4px; padding:1px 5px; color:var(--text-muted);
+  }
+
+  .top-actions{flex:0 0 auto; display:flex; align-items:center; gap:var(--sp-3); width:260px; justify-content:flex-end;}
+  .icon-btn{
+    position:relative; width:28px; height:28px; border-radius:var(--radius-sm); background:transparent; border:none;
+    color:var(--text-muted); display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .icon-btn:hover{background:var(--hover); color:var(--text);}
+  .badge-dot{position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:var(--danger); border:1.5px solid var(--bg);}
+  .split-btn{display:flex; align-items:center; height:28px; border-radius:var(--radius-base); overflow:hidden; border:1px solid var(--border-strong);}
+  .split-btn button{background:var(--raised); border:none; color:var(--text); font-size:12px; font-weight:600; padding:0 10px; height:100%;}
+  .split-btn button:first-child{border-right:1px solid var(--border-strong);}
+  .split-btn button:hover{background:var(--hover);}
+  .split-btn .main-action{color:var(--bg); background:var(--accent); font-weight:600;}
+  .split-btn .main-action:hover{background:var(--accent-hover);}
+  .rail-avatar-top{width:26px; height:26px; border-radius:50%; background:var(--gradient-accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#04222b;}
+
+  /* body area holds the three screens */
+  .body-area{flex:1; position:relative; overflow:hidden;}
+  .screen{display:none; position:absolute; inset:0;}
+  .screen.active{display:block;}
+
+  /* ================= CANVAS SCREENS (from V3) ================= */
+  .content-canvas{overflow:hidden;}
+  .canvas-wrap{position:absolute; inset:0; background:
+      radial-gradient(ellipse 900px 600px at 30% 20%, rgba(34,211,238,.05), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 78% 70%, rgba(167,139,250,.04), transparent 60%),
+      var(--bg);}
+  .canvas-wrap svg{width:100%; height:100%; display:block;}
+
+  .glass{background:rgba(19,26,40,.72); backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%); border:1px solid var(--border-strong);
+    box-shadow:var(--shadow-overlay); border-radius:12px;}
+
+  .kpi-strip{position:absolute; top:16px; right:16px; display:flex; gap:0; padding:4px 4px; z-index:20;}
+  .kpi-strip .kpi{padding:8px 14px; text-align:center; border-right:1px solid var(--border-soft);}
+  .kpi-strip .kpi:last-child{border-right:none;}
+  .kpi-strip .kpi .v{font-family:var(--font-mono); font-size:14px; font-weight:500;}
+  .kpi-strip .kpi .v.ok{color:var(--success);}
+  .kpi-strip .kpi .l{font-size:10px; color:var(--text-subtle); margin-top:1px;}
+
+  .legend{position:absolute; bottom:16px; left:16px; width:300px; padding:12px 14px; z-index:20;}
+  .legend .row{display:flex; flex-wrap:wrap; gap:6px 12px; margin-bottom:10px;}
+  .legend .item{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-muted);}
+  .legend .swatch{width:8px; height:8px; border-radius:2px; flex:none;}
+  .legend .tools{display:flex; align-items:center; justify-content:space-between; padding-top:8px;
+    border-top:1px solid var(--border-soft); font-size:11px; color:var(--text-subtle);}
+  .legend .tools .zoom{display:flex; gap:4px;}
+  .legend .tools button{background:var(--hover); border:1px solid var(--border); color:var(--text-muted);
+    width:20px; height:20px; border-radius:4px; font-size:12px;}
+
+  .ask-bar{position:absolute; bottom:20px; left:50%; transform:translateX(-50%); width:660px; z-index:25;}
+  .ask-bar .pill{display:flex; align-items:center; gap:10px; padding:12px 16px; border-radius:999px;
+    background:rgba(19,26,40,.82); backdrop-filter:blur(16px) saturate(140%);
+    border:1px solid var(--border-strong); box-shadow:var(--shadow-overlay), 0 0 0 1px rgba(34,211,238,.06);}
+  .ask-bar .pill.filled{border-image:var(--gradient-accent) 1; border-width:1px; border-style:solid;}
+  .ask-bar .spark{color:var(--accent); flex:none; display:flex;}
+  .ask-bar .mic{flex:none; display:flex; color:var(--text-muted); width:26px; height:26px; border-radius:50%; align-items:center; justify-content:center; border:1px solid var(--border-strong); background:var(--hover);}
+  .ask-bar .mic:hover{color:var(--accent); border-color:var(--accent);}
+  .ask-bar input{flex:1; background:none; border:none; outline:none; color:var(--text); font-size:15px; font-family:inherit;}
+  .ask-bar input::placeholder{color:var(--text-subtle);}
+  .ask-bar .go{flex:none; width:28px; height:28px; border-radius:50%; background:var(--gradient-accent);
+    display:flex; align-items:center; justify-content:center; color:#04222b; border:none;}
+
+  .canvas-inspector{position:absolute; top:76px; right:16px; width:280px; bottom:16px; padding:16px; z-index:20;
+    display:flex; flex-direction:column; overflow:auto;}
+  .canvas-inspector .ins-title{display:flex; align-items:center; gap:8px;}
+  .canvas-inspector .ins-title .shape{width:22px; height:22px; flex:none;}
+  .canvas-inspector h4{margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em;}
+  .canvas-inspector .kind-tag{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:500; color:var(--text-muted); margin-top:2px;}
+  .canvas-inspector .status-draft{color:var(--warn);}
+  .canvas-inspector .sec-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); margin:16px 0 8px;}
+  .canvas-inspector .prop-row{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid var(--border-soft);}
+  .canvas-inspector .prop-row .k{color:var(--text-muted);}
+  .canvas-inspector .prop-row .v{font-family:var(--font-mono); font-size:11px; color:var(--text); text-align:right;}
+  .canvas-inspector .edge-row{display:flex; align-items:center; gap:6px; font-size:12px; padding:5px 0; color:var(--text-muted);}
+  .canvas-inspector .edge-row .rel{font-family:var(--font-mono); font-size:10px; color:var(--accent);}
+  .canvas-inspector .edge-row .target{color:var(--text);}
+  .canvas-inspector .btn-row{display:flex; gap:8px; margin-top:14px;}
+  .canvas-inspector .btn-row button{flex:1; font-size:12px; font-weight:500; border-radius:6px; padding:8px;}
+  .btn-primary{background:var(--gradient-accent); color:#04222b; border:none;}
+  .btn-secondary{background:var(--hover); color:var(--text); border:1px solid var(--border);}
+  .canvas-inspector .propose{margin-top:auto; padding-top:14px; border-top:1px solid var(--border-soft);}
+  .canvas-inspector .propose-box{display:flex; align-items:center; gap:8px; background:var(--surface);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--text-subtle);}
+
+  .answer-panel{position:absolute; bottom:92px; left:50%; transform:translateX(-50%); width:660px; padding:16px 18px; z-index:22;}
+  .answer-panel .sentence{font-size:14px; line-height:1.5; color:var(--text); margin-bottom:12px;}
+  .answer-panel .sentence b{font-weight:600; color:var(--accent-hover);}
+  .answer-panel table{width:100%; border-collapse:collapse; margin-bottom:10px;}
+  .answer-panel td{font-size:12px; padding:6px 4px; border-bottom:1px solid var(--border-soft);}
+  .answer-panel .chip{display:inline-flex; align-items:center; gap:4px; background:var(--hover);
+    border:1px solid var(--border); border-radius:5px; padding:2px 7px; font-size:10px; color:var(--text-muted); font-family:var(--font-mono);}
+  .answer-panel .sparql-label{font-size:11px; color:var(--accent); cursor:pointer; margin-bottom:6px;}
+  .answer-panel pre{margin:0; background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:10px 12px; font-size:11px; line-height:1.6; color:#9fd8e8; font-family:var(--font-mono); overflow-x:auto;
+    max-height:0; opacity:0; transition:max-height .15s ease, opacity .15s ease;}
+  .answer-panel pre.open{max-height:120px; opacity:1;}
+
+  .glow-static{filter:drop-shadow(0 0 10px rgba(34,211,238,.35));}
+  .glow-pulse{animation:pulseGlow 2.6s ease-in-out infinite;}
+  @keyframes pulseGlow{
+    0%,100%{filter:drop-shadow(0 0 8px rgba(34,211,238,.30));}
+    50%{filter:drop-shadow(0 0 20px rgba(34,211,238,.65));}
+  }
+  @media (prefers-reduced-motion:reduce){ .glow-pulse{animation:none; filter:drop-shadow(0 0 12px rgba(34,211,238,.4));} }
+  .node-dim{opacity:.28; transition:opacity .25s;}
+  .node-spot{opacity:1;}
+
+  /* ================= INSTANCES PAGE (V2 dense table + V3 view-canvas) ================= */
+  .content-page{overflow-y:auto; padding:var(--sp-6) var(--sp-6) var(--sp-8);}
+  .content-inner{max-width:1220px; margin:0 auto;}
+  .page-eyebrow{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-bottom:4px;}
+  .page-title{font-size:28px; font-weight:700; letter-spacing:-.01em; margin:0 0 var(--sp-1);}
+  .page-sub{font-size:13px; color:var(--text-muted); margin:0 0 var(--sp-5);}
+
+  .toolbar{display:flex; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-4); flex-wrap:wrap;}
+  .chip-filter{
+    display:flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:500;
+    border:1px solid var(--border-strong); color:var(--text-muted); background:var(--surface); cursor:pointer;
+  }
+  .chip-filter.active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .toolbar-search{
+    flex:0 0 220px; height:30px; background:var(--raised); border:1px solid var(--border-strong);
+    border-radius:var(--radius-base); display:flex; align-items:center; padding:0 10px; gap:6px; color:var(--text-subtle); font-size:13px;
+  }
+  .toolbar-spacer{flex:1;}
+  select.sel{height:30px; background:var(--raised); border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; padding:0 8px; font-family:var(--font-sans);}
+  .btn-primary-pill{height:30px; background:var(--accent); color:#06141F; border:none; border-radius:var(--radius-base);
+    font-size:13px; font-weight:600; padding:0 14px; display:flex; align-items:center; gap:6px;}
+  .btn-primary-pill:hover{background:var(--accent-hover);}
+
+  .data-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .data-table thead th{text-align:left; font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text-subtle); padding:8px 12px; border-bottom:1px solid var(--border-strong);}
+  .data-table tbody td{padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text);}
+  .data-table tbody tr{cursor:pointer;}
+  .data-table tbody tr:hover{background:var(--hover);}
+  .data-table tbody tr.selected{background:var(--accent-soft);}
+  .name-cell .name{font-weight:500;}
+  .name-cell .id{display:block; color:var(--text-subtle); font-size:11px; font-family:var(--font-mono); margin-top:1px;}
+  .updated-cell{color:var(--text-subtle); font-family:var(--font-mono); font-size:12px; white-space:nowrap;}
+  .status-pill{font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px;}
+  .status-active{color:var(--success); background:rgba(16,185,129,.12);}
+  .status-draft{color:var(--warn); background:rgba(245,158,11,.12);}
+
+  .kind-chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:500; padding:2px 8px 2px 6px; border-radius:999px;}
+  .kind-dot{width:9px; height:9px; border-radius:50%; display:inline-block; flex:0 0 auto;}
+
+  .table-wrap{position:relative; display:flex; gap:0;}
+  .table-scroll{flex:1; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-base); overflow:hidden;}
+
+  .inspector{
+    width:320px; flex:0 0 320px; margin-left:var(--sp-4); background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-base); padding:var(--sp-4); align-self:flex-start;
+  }
+  .insp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:2px;}
+  .insp-title{font-size:16px; font-weight:600;}
+  .insp-close{color:var(--text-subtle); font-size:14px; background:none; border:none;}
+  .insp-sub{margin-bottom:var(--sp-4); color:var(--text-muted); font-size:12px;}
+  .insp-section-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); margin:var(--sp-4) 0 8px;}
+  .insp-section-label:first-of-type{margin-top:0;}
+  .insp-kv{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--border);}
+  .insp-kv:last-child{border-bottom:none;}
+  .insp-kv .k{color:var(--text-muted);}
+  .insp-kv .v{color:var(--text); text-align:right; font-family:var(--font-mono); font-size:12px;}
+  .insp-actions{display:flex; gap:8px; margin-top:var(--sp-4); flex-wrap:wrap;}
+  .btn-outline{
+    flex:1; height:30px; background:transparent; border:1px solid var(--border-strong); color:var(--text);
+    border-radius:var(--radius-base); font-size:12px; font-weight:600; min-width:90px;
+  }
+  .btn-outline:hover{background:var(--hover); border-color:var(--accent);}
+  .view-canvas{width:100%; margin-top:8px; background:var(--hover); border:1px solid var(--accent); color:var(--accent);
+    font-size:12px; font-weight:600; border-radius:6px; padding:9px; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .view-canvas:hover{background:var(--accent-soft);}
+
+  /* ================= COMMAND PALETTE (from V2) ================= */
+  .palette-backdrop{
+    position:absolute; inset:0; background:rgba(6,9,15,.6); backdrop-filter:blur(2px);
+    display:none; align-items:flex-start; justify-content:center; padding-top:120px; z-index:100;
+  }
+  .palette-backdrop.show{display:flex;}
+  .palette{
+    width:560px; max-width:90%; background:var(--overlay); border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg); box-shadow:0 24px 64px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .palette-input-row{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);}
+  .palette-input-row svg{opacity:.6; flex:0 0 auto;}
+  .palette-input{flex:1; font-size:15px; color:var(--text); font-weight:500;}
+  .palette-input .cursor{display:inline-block; width:1px; height:16px; background:var(--accent); vertical-align:middle; animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .palette-esc{font-size:10px; color:var(--text-subtle); border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; font-family:var(--font-mono);}
+  .palette-body{max-height:360px; overflow-y:auto; padding:8px;}
+  .palette-group-label{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-subtle); padding:8px 10px 4px;}
+  .palette-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-sm); font-size:13px;}
+  .palette-row:hover, .palette-row.sel{background:var(--hover);}
+  .palette-row .name{flex:1; color:var(--text);}
+  .palette-row .name em{font-style:normal; color:var(--text);}
+  .palette-row .type{font-size:11px; color:var(--text-subtle);}
+  .palette-hint{font-size:11px; color:var(--text-subtle); padding:10px 16px; border-top:1px solid var(--border); display:flex; gap:14px;}
+
+  /* ================= BOTTOM SCREEN TABS (from V2) ================= */
+  .screen-tabs{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:200;
+    display:flex; background:var(--overlay); border:1px solid var(--border-strong); border-radius:999px;
+    padding:4px; box-shadow:0 12px 32px rgba(0,0,0,.45); gap:2px;
+  }
+  .screen-tab{font-size:12px; font-weight:500; color:var(--text-muted); padding:7px 14px; border-radius:999px; border:none; background:none;}
+  .screen-tab .num{font-family:var(--font-mono); color:var(--text-subtle); margin-right:5px;}
+  .screen-tab.active{background:var(--accent); color:#06141F; font-weight:600;}
+  .screen-tab.active .num{color:#06141F;}
+  .screen-tab:hover:not(.active){color:var(--text);}
+</style>
+
+<div class="app-shell">
+
+  <!-- ICON RAIL -->
+  <div class="icon-rail">
+    <div class="rail-logo"><img src="../../../logo.png" alt="" role="presentation"></div>
+    <button class="rail-item"><span>⌂</span><span class="tip">Home</span></button>
+    <button class="rail-item active"><span>◆</span><span class="tip">Constitution</span></button>
+    <button class="rail-item"><span>▤</span><span class="tip">Build</span></button>
+    <button class="rail-item"><span>⚡</span><span class="tip">Events · post-v1</span></button>
+    <button class="rail-item"><span>☰</span><span class="tip">Audit trail</span></button>
+    <button class="rail-item"><span>⚙</span><span class="tip">Settings</span></button>
+    <div class="rail-spacer"></div>
+    <div class="rail-avatar" title="Priya Shah">PS</div>
+  </div>
+
+  <!-- SECONDARY SIDEBAR (collapsible) -->
+  <div class="sidebar" id="sidebar" aria-label="Weave" role="navigation">
+    <div class="sidebar-head">
+      <div class="sidebar-title">Constitution</div>
+      <button class="sidebar-collapse" id="sidebar-collapse-btn" title="Collapse">«</button>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Model</div>
+      <div class="sb-item">Overview</div>
+      <div class="sb-item active" id="sb-explore" onclick="showScreen(1)">Explore</div>
+      <div class="sb-item">Ontology / Types</div>
+      <div class="sb-item" id="sb-instances" onclick="showScreen(3)">Instances / Data</div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Query</div>
+      <div class="sb-item" onclick="showScreen(2)">Query</div>
+      <div class="sb-item">Versions</div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Standards</div>
+      <div class="sb-item disabled">Glossary <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Brand &amp; voice <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Rules &amp; policies <span class="pill">M2</span></div>
+      <div class="sb-item disabled">Strategy &amp; motivation <span class="pill">M2</span></div>
+    </div>
+
+    <div class="sb-group">
+      <div class="sb-group-label">Tools</div>
+      <div class="sb-item disabled">Ingest <span class="pill">v1.0</span></div>
+      <div class="sb-item disabled">Reasoning <span class="pill">post-v1</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <button class="sidebar-collapse-top" id="sidebar-expand-btn" title="Expand sidebar">»</button>
+        <span id="breadcrumb"><b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Explore</span>
+      </div>
+      <div class="cmdbar-wrap">
+        <div class="cmdbar" id="cmdbar-open" onclick="openPalette()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <span class="ph">Search, ask, or jump to…</span>
+          <kbd>⌘K</kbd>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn">🔔<span class="badge-dot"></span></button>
+        <button class="icon-btn">?</button>
+        <div class="split-btn">
+          <button class="main-action">New</button>
+          <button>▾</button>
+        </div>
+        <div class="rail-avatar-top">PS</div>
+      </div>
+    </div>
+
+    <div class="body-area" id="body-area">
+
+      <!-- ============ SCREEN 1: CANVAS HOME ============ -->
+      <div class="screen content-canvas active" id="screen-1">
+        <div class="canvas-wrap"><svg id="svg1" viewBox="0 0 1180 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+        <div class="kpi-strip glass">
+          <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+          <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+          <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+        </div>
+
+        <div class="legend glass">
+          <div class="row" id="legend-row"></div>
+          <div class="tools">
+            <span>filter by kind ▾</span>
+            <div class="zoom"><button>−</button><button>+</button></div>
+          </div>
+        </div>
+
+        <div class="canvas-inspector glass">
+          <div class="ins-title">
+            <svg class="shape" viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="var(--k-process)"/></svg>
+            <div><h4>Order-to-Cash</h4><div class="kind-tag">Process · <span class="status-draft">draft</span></div></div>
+          </div>
+          <div class="sec-label">Properties</div>
+          <div class="prop-row"><span class="k">label</span><span class="v">Order-to-Cash</span></div>
+          <div class="prop-row"><span class="k">owner</span><span class="v">Finance Team</span></div>
+          <div class="prop-row"><span class="k">domain</span><span class="v">Retail Operations</span></div>
+          <div class="prop-row"><span class="k">criticality</span><span class="v">high</span></div>
+          <div class="sec-label">Edges</div>
+          <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Pick &amp; Pack</span></div>
+          <div class="edge-row"><span class="rel">hasStep</span>→<span class="target">Payment Processing</span></div>
+          <div class="edge-row"><span class="rel">consumes</span>→<span class="target">OrdersDB</span></div>
+          <div class="edge-row"><span class="rel">governedBy</span>→<span class="target">Returns Policy</span></div>
+          <div class="edge-row"><span class="rel">triggeredBy</span>→<span class="target">Order Placed</span></div>
+          <div class="btn-row">
+            <button class="btn-primary">✎ Edit (SHACL form)</button>
+            <button class="btn-secondary">PROV</button>
+          </div>
+          <div class="propose">
+            <div class="propose-box">💬&nbsp;propose a change via chat →</div>
+          </div>
+        </div>
+
+        <div class="ask-bar">
+          <div class="pill">
+            <span class="spark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9L12 3z"/></svg>
+            </span>
+            <input placeholder="Ask your company anything…" />
+            <button class="mic" title="Speak your question">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+            </button>
+            <button class="go">→</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCREEN 2: ASK RESULT ============ -->
+      <div class="screen content-canvas" id="screen-2">
+        <div class="canvas-wrap" style="opacity:.9"><svg id="svg2" viewBox="0 0 1180 780" preserveAspectRatio="xMidYMid meet"></svg></div>
+
+        <div class="kpi-strip glass">
+          <div class="kpi"><div class="v mono">128</div><div class="l">entities</div></div>
+          <div class="kpi"><div class="v mono">v0.3.0</div><div class="l">version</div></div>
+          <div class="kpi"><div class="v ok">✓</div><div class="l">conformance</div></div>
+        </div>
+
+        <div class="answer-panel glass">
+          <div class="sentence">
+            <b>3 processes</b> touch <b>OrdersDB</b>: Order-to-Cash, Inventory Replenishment and
+            Click-and-Collect — each via a <span class="mono" style="color:var(--accent-hover)">consumes</span> edge.
+          </div>
+          <table>
+            <tr><td>Order-to-Cash</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+            <tr><td>Inventory Replenishment</td><td><span class="chip">Process → consumes → OrdersDB</span></td></tr>
+            <tr><td>Click-and-Collect</td><td><span class="chip">Service → consumes → OrdersDB</span></td></tr>
+          </table>
+          <div class="sparql-label" id="sparql-toggle" onclick="toggleSparql()">view SPARQL ▾</div>
+          <pre id="sparql-block">SELECT ?process ?label WHERE {
+  ?process bpmo:consumes weave:OrdersDB .
+  ?process rdfs:label ?label .
+}</pre>
+        </div>
+
+        <div class="ask-bar">
+          <div class="pill filled">
+            <span class="spark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9L12 3z"/></svg>
+            </span>
+            <input value="Which processes touch OrdersDB?" />
+            <button class="mic" title="Speak your question">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+            </button>
+            <button class="go">→</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SCREEN 3: INSTANCES ============ -->
+      <div class="screen content-page" id="screen-3">
+        <div class="content-inner">
+          <div class="page-eyebrow">Constitution</div>
+          <h1 class="page-title">Instances / Data</h1>
+          <p class="page-sub">Browse, search, and author entities in the Hammerbarn graph.</p>
+
+          <div class="toolbar" id="toolbar-filters"></div>
+
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Entity</th><th>Kind</th><th>Updated</th><th>Status</th></tr></thead>
+                <tbody id="instances-tbody"></tbody>
+              </table>
+            </div>
+            <div class="inspector" id="table-inspector"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COMMAND PALETTE OVERLAY -->
+    <div class="palette-backdrop" id="palette-backdrop">
+      <div class="palette">
+        <div class="palette-input-row">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <div class="palette-input">orders<span class="cursor"></span></div>
+          <div class="palette-esc">ESC</div>
+        </div>
+        <div class="palette-body">
+          <div class="palette-group-label">Jump to</div>
+          <div class="palette-row sel">
+            <span style="color:var(--k-dataasset)">◆</span>
+            <span class="name"><em>Orders</em>DB</span>
+            <span class="type">DataAsset</span>
+          </div>
+          <div class="palette-row">
+            <span style="color:var(--k-process)">⬡</span>
+            <span class="name">Order-to-Cash</span>
+            <span class="type">Process</span>
+          </div>
+
+          <div class="palette-group-label">Actions</div>
+          <div class="palette-row">
+            <span style="color:var(--accent)">+</span>
+            <span class="name">Add entity…</span>
+            <span class="type">Action</span>
+          </div>
+          <div class="palette-row">
+            <span style="color:var(--accent)">✦</span>
+            <span class="name">Ask the graph…</span>
+            <span class="type">Action</span>
+          </div>
+
+          <div class="palette-group-label">Navigate</div>
+          <div class="palette-row">
+            <span style="color:var(--text-muted)">☰</span>
+            <span class="name">Audit trail</span>
+            <span class="type">Section</span>
+          </div>
+        </div>
+        <div class="palette-hint">
+          <span><kbd>↑↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> select</span>
+          <span><kbd>ESC</kbd> close</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM SCREEN TABS -->
+  <div class="screen-tabs">
+    <button class="screen-tab active" data-screen="1"><span class="num">1</span>Canvas home</button>
+    <button class="screen-tab" data-screen="2"><span class="num">2</span>Ask result</button>
+    <button class="screen-tab" data-screen="3"><span class="num">3</span>Instances</button>
+    <button class="screen-tab" data-screen="4"><span class="num">4</span>⌘K palette</button>
+  </div>
+</div>
+
+<script>
+  // ---- kind metadata: color + shape + glyph (design system §color.md kind table) ----
+  const KIND = {
+    process:    { color:'var(--k-process)',    hex:'#E73430', shape:'hex',    label:'Process' },
+    activity:   { color:'var(--k-activity)',   hex:'#F59E0B', shape:'circle', label:'Activity' },
+    event:      { color:'var(--k-event)',      hex:'#0EA5E9', shape:'diamond',label:'Event' },
+    actor:      { color:'var(--k-actor)',      hex:'#0D9488', shape:'circle', label:'Actor' },
+    policy:     { color:'var(--k-policy)',     hex:'#DB3B74', shape:'circle', label:'Policy' },
+    domain:     { color:'var(--k-domain)',     hex:'#9054FF', shape:'circle', label:'Business Domain' },
+    capability: { color:'var(--k-capability)', hex:'#E2307D', shape:'circle', label:'Business Capability' },
+    system:     { color:'var(--k-system)',     hex:'#3272FB', shape:'square', label:'System' },
+    service:    { color:'var(--k-service)',    hex:'#0891B2', shape:'circle', label:'Service' },
+    dataasset:  { color:'var(--k-dataasset)',  hex:'#16A34A', shape:'circle', label:'Data Asset' },
+  };
+
+  // ---- Hammerbarn (hardware retailer) sample graph ----
+  const NODES = [
+    { id:'o2c',        kind:'process',    label:'Order-to-Cash',            x:420, y:300 },
+    { id:'inv',        kind:'process',    label:'Inventory Replenishment',  x:650, y:540 },
+    { id:'returns',    kind:'policy',     label:'Returns Policy',           x:230, y:400 },
+    { id:'pos',        kind:'system',     label:'POS System',               x:570, y:180 },
+    { id:'ordersdb',   kind:'dataasset',  label:'OrdersDB',                  x:440, y:130 },
+    { id:'supplierportal', kind:'system', label:'Supplier Portal',          x:850, y:460 },
+    { id:'clickcollect', kind:'service',  label:'Click-and-Collect',        x:320, y:220 },
+    { id:'financeteam', kind:'actor',     label:'Finance Team',             x:540, y:410 },
+    { id:'storeops',   kind:'actor',      label:'Store Ops',                 x:760, y:600 },
+    { id:'supplier',   kind:'actor',      label:'Supplier',                  x:950, y:540 },
+    { id:'orderplaced', kind:'event',     label:'Order Placed',              x:330, y:340 },
+    { id:'stocklow',   kind:'event',      label:'Stock Below Threshold',    x:760, y:670 },
+    { id:'pickpack',   kind:'activity',  label:'Pick & Pack',                x:480, y:460 },
+    { id:'payment',    kind:'activity',  label:'Payment Processing',        x:660, y:310 },
+    { id:'retailops',  kind:'domain',    label:'Retail Operations',          x:230, y:560 },
+    { id:'orderfulfillment', kind:'capability', label:'Order Fulfillment',  x:380, y:600 },
+  ];
+  const EDGES = [
+    ['o2c','pickpack','hasStep'], ['o2c','payment','hasStep'], ['o2c','financeteam','performedBy'],
+    ['o2c','ordersdb','consumes'], ['o2c','returns','governedBy'], ['o2c','orderplaced','triggeredBy'],
+    ['inv','storeops','performedBy'], ['inv','stocklow','triggeredBy'], ['inv','ordersdb','consumes'],
+    ['pos','ordersdb','recordsTo'], ['clickcollect','ordersdb','consumes'], ['clickcollect','storeops','performedBy'],
+    ['supplierportal','supplier','performedBy'], ['payment','pos','uses'],
+    ['o2c','orderfulfillment','partOf'], ['inv','orderfulfillment','partOf'], ['orderfulfillment','retailops','partOf'],
+  ];
+  const GLOW_STATIC = ['ordersdb','financeteam'];
+  const GLOW_PULSE = ['ordersdb'];
+  const SELECTED = 'o2c';
+  const SPOTLIGHT = ['o2c','inv','clickcollect','ordersdb'];
+
+  function hexToRgba(hex, a){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  function shapeMarkup(kind, r){
+    const k = KIND[kind]; const c = k.color;
+    if (k.shape === 'hex'){
+      const pts = [[0,-r],[r*.87,-r/2],[r*.87,r/2],[0,r],[-r*.87,r/2],[-r*.87,-r/2]].map(p=>p.join(',')).join(' ');
+      return `<polygon points="${pts}" fill="${c}"/>`;
+    }
+    if (k.shape === 'diamond') return `<rect x="${-r*.75}" y="${-r*.75}" width="${r*1.5}" height="${r*1.5}" fill="${c}" transform="rotate(45)"/>`;
+    if (k.shape === 'square') return `<rect x="${-r}" y="${-r}" width="${r*2}" height="${r*2}" rx="3" fill="${c}"/>`;
+    return `<circle r="${r}" fill="${c}"/>`;
+  }
+
+  function renderGraph(svgId, opts){
+    const svg = document.getElementById(svgId);
+    const r = 22;
+    let html = '';
+    EDGES.forEach(([a,b,rel]) => {
+      const na = NODES.find(n=>n.id===a), nb = NODES.find(n=>n.id===b);
+      const mx = (na.x+nb.x)/2, my = (na.y+nb.y)/2;
+      const dim = opts.spotlight && !(opts.spotlight.includes(a) && opts.spotlight.includes(b));
+      html += `<line x1="${na.x}" y1="${na.y}" x2="${nb.x}" y2="${nb.y}" stroke="var(--border-strong)" stroke-width="1.4" opacity="${dim?0.18:0.55}"/>`;
+      html += `<rect x="${mx-rel.length*3.1-4}" y="${my-8}" width="${rel.length*6.2+8}" height="14" rx="4" fill="var(--surface)" opacity="${dim?0.3:0.9}"/>`;
+      html += `<text x="${mx}" y="${my+3.5}" text-anchor="middle" font-family="Geist Mono, monospace" font-size="9.5" fill="var(--text-muted)" opacity="${dim?0.35:1}">${rel}</text>`;
+    });
+    NODES.forEach(n => {
+      const dim = opts.spotlight && !opts.spotlight.includes(n.id);
+      const isSelected = opts.selected === n.id;
+      const glowClass = opts.glowPulse && opts.glowPulse.includes(n.id) ? 'glow-pulse'
+                      : opts.glowStatic && opts.glowStatic.includes(n.id) ? 'glow-static' : '';
+      html += `<g transform="translate(${n.x},${n.y})" class="${dim?'node-dim':'node-spot'}">`;
+      html += `<g class="${glowClass}">${shapeMarkup(n.kind, r)}</g>`;
+      if (isSelected) html += `<circle r="${r+6}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="3 3"/>`;
+      html += `<rect x="${-(n.label.length*3.2)}" y="${r+6}" width="${n.label.length*6.4}" height="15" rx="4" fill="var(--surface)" opacity="0.85"/>`;
+      html += `<text y="${r+16.5}" text-anchor="middle" font-size="11" font-weight="500" fill="var(--text)">${n.label}</text>`;
+      html += `</g>`;
+    });
+    svg.innerHTML = html;
+  }
+  renderGraph('svg1', { selected: SELECTED, glowStatic: GLOW_STATIC, glowPulse: GLOW_PULSE });
+  renderGraph('svg2', { spotlight: SPOTLIGHT, glowStatic: SPOTLIGHT, glowPulse: ['ordersdb'] });
+
+  // ---- legend ----
+  const legendRow = document.getElementById('legend-row');
+  Object.entries(KIND).forEach(([key,k]) => {
+    legendRow.innerHTML += `<div class="item"><span class="swatch" style="background:${k.color}"></span>${k.label}</div>`;
+  });
+
+  // ---- instances toolbar filter chips (V2 dense style, with counts) ----
+  const TABLE_IDS = ['o2c','inv','returns','pos','ordersdb','supplierportal','clickcollect','financeteam','storeops','supplier','orderplaced','pickpack'];
+  const UPDATED = ['2h ago','1d ago','3d ago','5h ago','1d ago','6d ago','2d ago','4h ago','1d ago','9d ago','3h ago','1d ago'];
+  const STATUS = ['active','active','draft','active','active','active','draft','active','active','draft','active','active'];
+
+  const counts = {};
+  TABLE_IDS.forEach(id => { const k = NODES.find(n=>n.id===id).kind; counts[k] = (counts[k]||0)+1; });
+  const toolbar = document.getElementById('toolbar-filters');
+  toolbar.innerHTML = `<div class="chip-filter active">All &middot; ${TABLE_IDS.length}</div>` +
+    Object.entries(counts).map(([k,c]) => `<div class="chip-filter"><span class="kind-dot" style="background:${KIND[k].color}"></span>${KIND[k].label} &middot; ${c}</div>`).join('') +
+    `<div class="toolbar-spacer"></div>
+     <div class="toolbar-search">⌕ Search instances…</div>
+     <select class="sel"><option>Sort: Updated</option><option>Sort: Name</option><option>Sort: Kind</option></select>
+     <button class="btn-primary-pill">+ Add entity</button>`;
+
+  // ---- instances table ----
+  const tbody = document.getElementById('instances-tbody');
+  TABLE_IDS.forEach((id,i) => {
+    const n = NODES.find(x=>x.id===id);
+    const k = KIND[n.kind];
+    tbody.innerHTML += `<tr class="row${i===0?' selected':''}" onclick="selectRow('${id}', this)">
+      <td class="name-cell"><span class="name">${n.label}</span><span class="id">wv:${n.kind}:${id}</span></td>
+      <td><span class="kind-chip" style="background:${hexToRgba(k.hex,.12)};color:${k.color}"><span class="kind-dot" style="background:${k.color}"></span>${k.label}</span></td>
+      <td class="updated-cell">${UPDATED[i]}</td>
+      <td><span class="status-pill status-${STATUS[i]}">${STATUS[i]}</span></td>
+    </tr>`;
+  });
+
+  function selectRow(id, el){
+    document.querySelectorAll('#instances-tbody tr').forEach(r=>r.classList.remove('selected'));
+    el.classList.add('selected');
+    const n = NODES.find(x=>x.id===id);
+    const k = KIND[n.kind];
+    const idx = TABLE_IDS.indexOf(id);
+    document.getElementById('table-inspector').innerHTML = `
+      <div class="insp-head"><div class="insp-title">${n.label}</div><button class="insp-close">✕</button></div>
+      <div class="insp-sub"><span class="kind-chip" style="background:${hexToRgba(k.hex,.12)};color:${k.color}"><span class="kind-dot" style="background:${k.color}"></span>${k.label}</span> &middot; ${STATUS[idx]}</div>
+      <div class="insp-section-label">Properties</div>
+      <div class="insp-kv"><span class="k">Label</span><span class="v">${n.label}</span></div>
+      <div class="insp-kv"><span class="k">ID</span><span class="v">wv:${n.kind}:${id}</span></div>
+      <div class="insp-kv"><span class="k">Updated</span><span class="v">${UPDATED[idx]}</span></div>
+      <div class="insp-actions">
+        <button class="btn-outline">Edit</button>
+        <button class="btn-outline">View PROV</button>
+      </div>
+      <button class="view-canvas" onclick="showScreen(1)">◉ View on canvas</button>`;
+  }
+  selectRow('o2c', document.querySelector('#instances-tbody tr'));
+
+  // ---- screen switching (1: canvas home, 2: ask result, 3: instances, 4: palette over screen 1) ----
+  const breadcrumbs = {
+    '1': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Explore',
+    '2': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Ask',
+    '3': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Instances',
+    '4': '<b>Hammerbarn</b> <span class="sep">/</span> Constitution <span class="sep">/</span> Explore',
+  };
+  const tabs = document.querySelectorAll('.screen-tab');
+  const palette = document.getElementById('palette-backdrop');
+
+  function showScreen(n){
+    n = String(n);
+    if (n === '4'){
+      showScreen(1);
+      openPalette();
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.screen === '4'));
+      return;
+    }
+    closePalette();
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + n).classList.add('active');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.screen === n));
+    document.getElementById('breadcrumb').innerHTML = breadcrumbs[n];
+    document.getElementById('sb-explore').classList.toggle('active', n === '1');
+    document.getElementById('sb-instances').classList.toggle('active', n === '3');
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showScreen(t.dataset.screen)));
+
+  function openPalette(){ palette.classList.add('show'); }
+  function closePalette(){ palette.classList.remove('show'); }
+  palette.addEventListener('click', e => { if (e.target === palette) showScreen(1); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && palette.classList.contains('show')) showScreen(1);
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){ e.preventDefault(); showScreen(4); }
+  });
+
+  function toggleSparql(){
+    const block = document.getElementById('sparql-block');
+    const toggle = document.getElementById('sparql-toggle');
+    const open = block.classList.toggle('open');
+    toggle.textContent = open ? 'view SPARQL ▴' : 'view SPARQL ▾';
+  }
+
+  // ---- collapsible secondary sidebar ----
+  const sidebar = document.getElementById('sidebar');
+  const collapseBtn = document.getElementById('sidebar-collapse-btn');
+  const expandBtn = document.getElementById('sidebar-expand-btn');
+  collapseBtn.addEventListener('click', () => {
+    sidebar.classList.add('collapsed');
+    expandBtn.style.display = 'inline-flex';
+  });
+  expandBtn.addEventListener('click', () => {
+    sidebar.classList.remove('collapsed');
+    expandBtn.style.display = 'none';
+  });
+</script>
