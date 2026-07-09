@@ -333,3 +333,17 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/tests/integration/test_project_role_guard.py --> <!-- at: 2026-07-09T15:54:28.146803+00:00 -->
 
 <!-- stale: packages/backend/tests/unit/test_auth_dependencies.py --> <!-- at: 2026-07-09T16:07:39.697378+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_build_cost.py --> <!-- at: 2026-07-09T16:39:09.646388+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_orchestrator.py --> <!-- at: 2026-07-09T16:39:54.505098+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/tasks.py --> <!-- at: 2026-07-09T16:41:48.416856+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/state_spine.py --> <!-- at: 2026-07-09T16:42:05.290899+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/cost.py --> <!-- at: 2026-07-09T16:42:32.251184+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/billing/metering.py --> <!-- at: 2026-07-09T16:42:52.105845+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/orchestrator.py --> <!-- at: 2026-07-09T16:43:26.754050+00:00 -->

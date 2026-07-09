@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T16:02:21+00:00
+Captured at: 2026-07-09T16:44:56+00:00
 Event: pre-compact
 
 ## Current State
@@ -1347,7 +1347,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],
@@ -1359,7 +1359,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "cost_events Writer (ADR-008): Per-Dispatch Usage Attribution",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],
