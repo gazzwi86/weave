@@ -211,6 +211,37 @@ async def test_forecast_excludes_in_progress_task_from_completed_cohort() -> Non
     assert result.inputs.completed_count == 0
 
 
+def test_forecast_calibration_denominator_excludes_in_progress_task_tokens() -> None:
+    """Same defect as the test above, one level deeper (QA edge case): once a
+    real Done task exists, the calibration denominator (mean brief-tokens of
+    *completed* tasks) must average only `t-done`'s tokens, not also
+    `t-inprogress`'s -- an in-progress task with recorded spend but not in
+    `done_task_ids` must not pollute the "completed" side of the ADR-008 #4
+    ratio, only ever count on the "remaining" side.
+    Hand computed (fixed): done mean tokens=1000 (t-done only, NOT
+    (1000+3000)/2=2000), remaining mean tokens=3000 (t-inprogress is
+    remaining, not done), calibration=3000/1000=3, mean_actual=$1,
+    forecast = 1 * 1 remaining * 3 = $3 (the pre-fix bug would compute
+    calibration=3000/2000=1.5 -> forecast=$1.5).
+    """
+    task_costs = {"t-done": Decimal("1"), "t-inprogress": Decimal("5")}
+    briefs = [
+        BriefEstimate(task_id="t-done", brief_estimate_tokens=1000, estimated_cost_usd=None),
+        BriefEstimate(
+            task_id="t-inprogress", brief_estimate_tokens=3000, estimated_cost_usd=None
+        ),
+    ]
+
+    result = compute_forecast(
+        task_costs=task_costs, briefs=briefs, done_task_ids={"t-done"}
+    )
+
+    assert result.inputs.basis == "calibrated"
+    assert result.inputs.completed_count == 1
+    assert result.inputs.calibration == Decimal("3")
+    assert result.amount_usd == Decimal("3")
+
+
 async def test_check_budget_halts_exactly_at_cap_not_only_above_it() -> None:
     """QA edge case (Design Decisions: "Halt >= cap (not >)" -- AC-4): spend
     exactly equal to the cap is a breach; one cent under is not.

@@ -183,7 +183,11 @@ def compute_forecast(
     rate-card).
     """
     remaining = [b for b in briefs if b.task_id not in done_task_ids]
-    done_costs = [task_costs[b.task_id] for b in briefs if b.task_id in task_costs]
+    done_costs = [
+        task_costs[b.task_id]
+        for b in briefs
+        if b.task_id in task_costs and b.task_id in done_task_ids
+    ]
 
     if not done_costs:
         amount = sum(
@@ -203,7 +207,7 @@ def compute_forecast(
     done_tokens = [
         b.brief_estimate_tokens
         for b in briefs
-        if b.task_id in task_costs and b.brief_estimate_tokens is not None
+        if b.task_id in done_task_ids and b.brief_estimate_tokens is not None
     ]
     remaining_tokens = [
         b.brief_estimate_tokens for b in remaining if b.brief_estimate_tokens is not None
