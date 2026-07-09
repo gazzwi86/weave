@@ -76,8 +76,9 @@ class Rollup:
 
 _ROLLUP_QUERY = """
     SELECT task_id, GROUPING(task_id) AS is_total,
-           SUM(tokens_in) AS tokens_in, SUM(tokens_out) AS tokens_out,
-           SUM(cost_estimate_usd) AS cost_usd
+           COALESCE(SUM(tokens_in), 0) AS tokens_in,
+           COALESCE(SUM(tokens_out), 0) AS tokens_out,
+           COALESCE(SUM(cost_estimate_usd), 0) AS cost_usd
     FROM cost_events
     WHERE tenant_id = $1 AND project_iri = $2
     GROUP BY GROUPING SETS ((task_id), ())
@@ -132,10 +133,10 @@ async def burn_rate(conn: asyncpg.Connection, *, tenant_id: str, project_iri: st
         SELECT COALESCE(SUM(cost_estimate_usd), 0) AS burn_usd
         FROM cost_events
         WHERE tenant_id = $1 AND project_iri = $2
-          AND recorded_at >= now() - ($3 || ' days')::interval
+          AND recorded_at >= now() - ($3::text || ' days')::interval
         """,
         tenant_id,
         project_iri,
-        window_days,
+        str(window_days),
     )
     return Decimal(str(row["burn_usd"])) if row is not None else Decimal("0")

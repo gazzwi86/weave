@@ -65,7 +65,7 @@ async def test_get_costs_returns_payload_within_contract_shape(
             conn,
             tenant_id=tenant_id,
             event=NewCostEvent(
-                project_iri=project_iri, task_id="t-done", run_id="run-1",
+                project_iri=project_iri, task_id="t-done", run_id=str(uuid.uuid4()),
                 agent_role="delegate", model="claude-sonnet-5",
                 tokens_in=1000, tokens_out=500, cost_estimate_usd=Decimal("1.5"),
             ),
