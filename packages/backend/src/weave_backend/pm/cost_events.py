@@ -10,6 +10,15 @@ from decimal import Decimal
 
 import asyncpg
 
+from weave_backend.settings.resolver import SettingNotFound, resolve_setting
+from weave_backend.settings.scope import company_iri
+
+#: TASK-013: trailing-window burn rate -- a tuned settings value (Implementation
+#: Hints: "not a constant"), company-scoped since it is a global tuning knob,
+#: not part of the per-project budget cascade.
+BURN_RATE_WINDOW_KEY = "build.cost.burn_rate_window_days"
+DEFAULT_BURN_RATE_WINDOW_DAYS = 7
+
 
 @dataclass(frozen=True)
 class NewCostEvent:
@@ -99,3 +108,34 @@ async def rollup(conn: asyncpg.Connection, *, tenant_id: str, project_iri: str) 
                 )
             )
     return Rollup(total=total, by_task=by_task)
+
+
+async def burn_rate(conn: asyncpg.Connection, *, tenant_id: str, project_iri: str) -> Decimal:
+    """TASK-013 Implementation Hints: total spend over a trailing window,
+    window length a `PLAT-SETTINGS-1` value (`DEFAULT_BURN_RATE_WINDOW_DAYS`
+    fallback), never a hardcoded constant.
+    """
+    try:
+        resolved = await resolve_setting(
+            conn,
+            tenant_id=tenant_id,
+            key=BURN_RATE_WINDOW_KEY,
+            context_iri=company_iri(tenant_id),
+        )
+        window_days = int(resolved.value)
+    except SettingNotFound:
+        window_days = DEFAULT_BURN_RATE_WINDOW_DAYS
+
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    row = await conn.fetchrow(
+        """
+        SELECT COALESCE(SUM(cost_estimate_usd), 0) AS burn_usd
+        FROM cost_events
+        WHERE tenant_id = $1 AND project_iri = $2
+          AND recorded_at >= now() - ($3 || ' days')::interval
+        """,
+        tenant_id,
+        project_iri,
+        window_days,
+    )
+    return Decimal(str(row["burn_usd"])) if row is not None else Decimal("0")

@@ -18,6 +18,7 @@ import pytest
 from weave_backend.build import model_routing
 from weave_backend.build import store as task_store
 from weave_backend.build.cost import ModelRate, RateCardConfigError, record_dispatch_cost
+from weave_backend.build.costs import BudgetBreach
 from weave_backend.build.dep_summary import DepSummary
 from weave_backend.build.hitl import HitlGateContext
 from weave_backend.build.orchestrator import (
@@ -69,6 +70,15 @@ class _FakeConnection:
         if "FROM dep_summaries" in query:
             return self._dep_summary_row
         raise AssertionError(f"unexpected fetchrow: {query}")
+
+    async def fetch(self, query: str, *_args: Any) -> list[dict[str, Any]]:
+        # TASK-013: `check_budget`'s default `resolve_budget_cap` reads the
+        # settings cascade every checkpoint (unlike the turn cap, resolved
+        # once) -- no cap seeded here means `SettingNotFound` -> unmetered,
+        # so the existing turn-cap/resume tests are unaffected.
+        if "scope_iri = ANY($2)" in query:
+            return []
+        raise AssertionError(f"unexpected fetch: {query}")
 
     async def execute(self, query: str, *args: Any) -> None:
         self.executed.append((query, args))
@@ -541,3 +551,72 @@ async def test_halt_run_at_start_when_rate_card_unresolvable() -> None:
     assert result.phase == "halted_config_error"
     assert len(hitl_calls) == 1
     assert task.status == "Queued"
+
+
+async def test_halt_run_at_next_checkpoint_when_budget_cascade_breached() -> None:
+    """TASK-013 AC-4: the budget check runs beside the existing turn-cap
+    checkpoint, right after each dispatch commits -- a breach halts before
+    the next task dispatches, never invented as a second checkpoint concept.
+    """
+    task1 = TaskState(id="t1", status="Queued")
+    task2 = TaskState(id="t2", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task1, task2])
+    conn = _FakeConnection()
+    hitl_calls: list[HitlGateContext] = []
+
+    async def _fake_hitl(_conn: Any, ctx: HitlGateContext, **_kw: Any) -> None:
+        hitl_calls.append(ctx)
+
+    async def _breach(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return BudgetBreach(cap_usd=Decimal("10"), spent_usd=Decimal("12"), level="domain")
+
+    notify_calls: list[Any] = []
+
+    async def _fake_notify(_conn: Any, *, tenant_id: str, project_iri: str, breach: Any) -> None:
+        notify_calls.append(breach)
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
+        check_budget_fn=_breach,
+        notify_budget_breach_fn=_fake_notify,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.dispatch_count == 1
+    assert result.phase == "halted_budget_breach"
+    assert result.tasks[0].status == "Done"
+    assert result.tasks[1].status == "Queued"  # never dispatched
+    assert len(hitl_calls) == 1
+    assert hitl_calls[0].evidence == "budget_breach_at_domain"
+    assert len(notify_calls) == 1
+
+
+async def test_stay_halted_when_budget_notify_emit_fails() -> None:
+    """TASK-013 AC-5: a `PLAT-NOTIFY-1` emit failure never un-halts the run
+    -- the halted phase is already committed before the best-effort notify.
+    """
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+
+    async def _breach(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return BudgetBreach(cap_usd=Decimal("10"), spent_usd=Decimal("12"), level="company")
+
+    async def _boom_notify(_conn: Any, *, tenant_id: str, project_iri: str, breach: Any) -> None:
+        raise ConnectionError("notify pipeline unreachable")
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        resolve_rate_card_fn=_empty_rate_card,
+        check_budget_fn=_breach,
+        notify_budget_breach_fn=_boom_notify,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.phase == "halted_budget_breach"
