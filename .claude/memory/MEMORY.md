@@ -12,3 +12,4 @@
 - [GitHub Actions unavailable until 2026-08-01](project_ci_credits_outage.md) — CI credits exhausted; gates use local verification + waiver until reset
 - [Never delete descoped task briefs](feedback_never-delete-descoped-briefs.md) — post-v1 descopes move briefs to post-v1/tasks/, never delete
 - [Ask decisions in-flight, don't defer](feedback_ask-decisions-in-flight.md) — blocking decision surfaces mid-task → AskUserQuestion immediately, never report-and-wait
+- [projects table has no domain_id (2026-07-10)](project_projects-domain-id-gap.md) — kills every domain/project-scoped cascade (roles/budget/rate-card); one migration + scope-grammar extension closes ADR-012 + ADR-013 + XT-BE013-1; phase-gate item
