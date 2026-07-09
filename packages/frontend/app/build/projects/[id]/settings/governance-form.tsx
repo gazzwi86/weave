@@ -51,11 +51,15 @@ function CostCapField({
   value,
   source,
   canManage,
+  invalid,
+  errorId,
   onChange,
 }: {
   value: string;
   source: string | null;
   canManage: boolean;
+  invalid: boolean;
+  errorId: string;
   onChange: (value: string) => void;
 }): React.JSX.Element {
   return (
@@ -68,6 +72,9 @@ function CostCapField({
           type="number"
           value={value}
           disabled={!canManage}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? errorId : undefined}
+          className={invalid ? "border-[var(--color-danger)]" : undefined}
           onChange={(e) => onChange(e.target.value)}
         />
       </label>
@@ -87,6 +94,8 @@ export function GovernanceForm({
   source,
   canManage,
   saving,
+  costCapInvalid,
+  errorId,
   onChange,
   onSave,
 }: {
@@ -94,6 +103,8 @@ export function GovernanceForm({
   source: { modelTier: string; costCap: string | null };
   canManage: boolean;
   saving: boolean;
+  costCapInvalid: boolean;
+  errorId: string;
   onChange: (values: GovernanceValues) => void;
   onSave: () => void;
 }): React.JSX.Element {
@@ -109,6 +120,8 @@ export function GovernanceForm({
         value={values.costCap}
         source={source.costCap}
         canManage={canManage}
+        invalid={costCapInvalid}
+        errorId={errorId}
         onChange={(costCap) => onChange({ ...values, costCap })}
       />
       {canManage && (

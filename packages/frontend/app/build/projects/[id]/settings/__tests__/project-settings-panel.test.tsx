@@ -80,6 +80,9 @@ describe("ProjectSettingsPanel", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(/company/i)
     );
+    const costCapInput = screen.getByLabelText("Cost cap (USD)");
+    expect(costCapInput).toHaveAttribute("aria-invalid", "true");
+    expect(costCapInput).toHaveAttribute("aria-describedby", screen.getByRole("alert").id);
   });
 
   it("surfaces the 503 project-scope-settings-unavailable error (AC-3)", async () => {
@@ -98,6 +101,7 @@ describe("ProjectSettingsPanel", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(/unavailable/i)
     );
+    expect(screen.getByLabelText("Cost cap (USD)")).not.toHaveAttribute("aria-invalid", "true");
   });
 
   it("renders governance read-only and hides Save for a non-admin caller (AC-4)", async () => {

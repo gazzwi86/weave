@@ -48,7 +48,7 @@ export function ProjectSettingsPanel({
     <div className="flex flex-col gap-[var(--space-4)]">
       <TabList active={tab} onSelect={setTab} />
       {settings.error && (
-        <p role="alert" className="text-[var(--color-danger)]">
+        <p id="settings-error" role="alert" className="text-[var(--color-danger)]">
           {settings.error}
         </p>
       )}
@@ -63,6 +63,8 @@ export function ProjectSettingsPanel({
           source={settings.source}
           canManage={settings.canManage}
           saving={settings.saving}
+          costCapInvalid={settings.costCapInvalid}
+          errorId="settings-error"
           onChange={settings.setValues}
           onSave={settings.save}
         />

@@ -59,6 +59,7 @@ export interface ProjectSettingsState {
   canManage: boolean;
   saving: boolean;
   error: string | null;
+  costCapInvalid: boolean;
   saved: boolean;
   setValues: (values: GovernanceValues) => void;
   save: () => void;
@@ -72,15 +73,17 @@ function useSave(
   projectId: string,
   edited: GovernanceValues | null,
   onSaved: (settings: SettingsResponse) => void
-): { saving: boolean; error: string | null; saved: boolean; save: () => void } {
+): { saving: boolean; error: string | null; costCapInvalid: boolean; saved: boolean; save: () => void } {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [costCapInvalid, setCostCapInvalid] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const save = useCallback(() => {
     if (!edited) return;
     setSaving(true);
     setError(null);
+    setCostCapInvalid(false);
     setSaved(false);
     fetch(`/api/build/projects/${projectId}/settings`, {
       method: "PATCH",
@@ -94,6 +97,7 @@ function useSave(
         const body = (await res.json()) as SettingsResponse & { error?: string };
         if (!res.ok) {
           setError(describeError(body));
+          setCostCapInvalid(body.error === "cap_looser_than_parent");
           return;
         }
         onSaved(body);
@@ -103,7 +107,7 @@ function useSave(
       .finally(() => setSaving(false));
   }, [projectId, edited, onSaved]);
 
-  return { saving, error, saved, save };
+  return { saving, error, costCapInvalid, saved, save };
 }
 
 /** Drives the governance tab: GET-then-render, PATCH-on-save, with AC-3's
@@ -127,7 +131,7 @@ export function useProjectSettings(
     },
     [setSettings]
   );
-  const { saving, error, saved, save } = useSave(projectId, values, onSaved);
+  const { saving, error, costCapInvalid, saved, save } = useSave(projectId, values, onSaved);
 
   return {
     values,
@@ -135,6 +139,7 @@ export function useProjectSettings(
     canManage,
     saving,
     error,
+    costCapInvalid,
     saved,
     setValues: setEdited,
     save,
