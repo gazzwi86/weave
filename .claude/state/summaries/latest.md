@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T15:09:30+00:00
+Captured at: 2026-07-09T16:02:21+00:00
 Event: pre-compact
 
 ## Current State
@@ -1337,7 +1337,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "v1 Data Layer: Four PM Tables + generation_runs Columns + Repo Methods",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-010.md",
       "retry_count": 0
@@ -1347,7 +1347,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Role Guard (FR-060): Per-Project Roles Enforced at the API Boundary",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],

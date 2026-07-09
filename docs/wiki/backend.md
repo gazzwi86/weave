@@ -323,3 +323,13 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/tests/unit/test_pm_static_no_raw_sql.py --> <!-- at: 2026-07-09T15:16:56.353148+00:00 -->
 
 <!-- stale: packages/backend/tests/integration/test_v1_pm_tables.py --> <!-- at: 2026-07-09T15:17:42.769941+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/auth/dependencies.py --> <!-- at: 2026-07-09T15:44:54.412910+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_rbac.py --> <!-- at: 2026-07-09T15:45:25.181027+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/rbac.py --> <!-- at: 2026-07-09T15:47:33.676696+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_project_role_guard.py --> <!-- at: 2026-07-09T15:54:28.146803+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_auth_dependencies.py --> <!-- at: 2026-07-09T16:07:39.697378+00:00 -->
