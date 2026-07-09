@@ -246,3 +246,12 @@ Full package: `docs/design/MORNING-REVIEW.md`; findings `docs/design/design-asse
    switcher, company-scope copy, super-admin provisioning list unchanged; E2E uses direct URLs.
 
 Requirements ledger for the architect pass: `docs/design/v1-design-requirements.md` (R1–R12).
+
+### WS2 addendum (2026-07-09, user): V4 = north star; Storybook design system
+
+V4 hybrid confirmed as the **north star** for the built app — "very important that we get this
+style of design nailed". Delivery approach: Storybook in `packages/frontend` with reusable dumb
+components extracted from the V4 mock / existing app, iterated in Storybook, then pages refit onto
+the library. Recorded as requirement bundle **R13** (foundation — precedes R1–R11 page refits) in
+`docs/design/v1-design-requirements.md`; recipe in `docs/design/visual-direction.md` §Delivery.
+Storybook = dev-time tool; existing ui_verify/Lighthouse/token gates unchanged.

@@ -106,6 +106,20 @@ approved finding or ruling.
   mode; labelled fields (no placeholder-only); post-submit visible request record with status +
   provenance link.
 
+## R13 — Storybook design system (user ruling 2026-07-09, `visual-direction.md` §Delivery)
+
+- Storybook workbench in `packages/frontend`; reusable **dumb** components extracted from the V4
+  mock + existing app (props-in/markup-out, no data fetching, `var(--token)` only).
+- Starting set per `visual-direction.md`: NavRail, SecondarySidebar, AppHeader/CommandBar,
+  PageHeader, EntityRef, KindChip, KpiTile, DataTable, InspectorPanel, GlassPanel, AskBar,
+  CanvasLegend, CanvasToolbar, Bell panel, EmptyState.
+- Stories cover states (default/hover/selected/loading/empty/error) and both themes; component
+  lands in Storybook before any page consumes it; R1–R12 surfaces refit onto the library rather
+  than owning bespoke CSS.
+- Dev-time only (not shipped); `ui_verify`/Lighthouse/token gates continue to run against app
+  pages. **Sequencing: R13 components precede the page refits in R1–R11** — it is the foundation
+  bundle.
+
 ## R12 — Kind list polish (F-D14, minor)
 
 - `skos:definition` descriptions when CE-V1-TASK-011 lands; rows link to kind detail/shape view;

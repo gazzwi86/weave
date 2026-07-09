@@ -5,7 +5,8 @@ description: "User-selected direction from the WS2 mock round (2026-07-09): V3 c
   with V2 chrome (nav, header, search, borders), real logo.png mark, AI speech inputs. The recipe
   every design requirement and the design agent build against."
 tags: [design, direction, app-shell, canvas]
-status: "Approved — user MCQ, 2026-07-09 morning"
+status: "Approved — user MCQ, 2026-07-09 morning; confirmed as NORTH STAR + Storybook
+  component-library delivery approach, user 2026-07-09"
 timestamp: 2026-07-09T00:00:00Z
 resource: docs/design/visual-direction.md
 source: WS2 mock review (mocks V1/V2/V3), user selection
@@ -49,6 +50,26 @@ padding and must not ship as-is.
 **Where canvas-first does NOT apply:** Audit trail, Settings, Build, and other table/form-heavy
 areas use standard page scaffolding (V2-style PageHeader + content), same chrome. Canvas-first is
 Constitution/Explore's identity, not a global rule.
+
+## Delivery approach — Storybook component library (user ruling, 2026-07-09)
+
+The V4 mock is the **north star**; nailing this style in the built app is a priority. The landing
+mechanism is a **design system in the app via Storybook**:
+
+- Extract **reusable dumb (presentational) components** from the V4 mock and the existing app —
+  props in, markup out, no data fetching, all styling via `var(--token)`.
+- Each component gets stories covering its states (default/hover/selected/loading/empty/error)
+  and both themes; Storybook is the dev workbench where look-and-feel is iterated and reviewed
+  **before** pages consume the component.
+- Pages are then refit to consume the library — the shell and surfaces stop owning bespoke CSS.
+- Storybook is a dev-time tool (not shipped runtime); existing gates are unaffected — `ui_verify`,
+  Lighthouse-100, and token conformance still gate the app pages themselves.
+
+Starting component set (from the V4 mock): NavRail, SecondarySidebar (+ phase pill), AppHeader
+(breadcrumb + gradient-border CommandBar + bell/help/avatar), PageHeader, EntityRef
+(label + mono-ID chip), KindChip (colour+glyph), KpiTile, DataTable (dense, tabular-nums),
+InspectorPanel, GlassPanel, AskBar (speech affordance), CanvasLegend, CanvasToolbar, Toast/Bell
+panel, EmptyState. Recommended build order: components in Storybook first, then page refits.
 
 ## Decisions bound with this direction (same MCQ round)
 
