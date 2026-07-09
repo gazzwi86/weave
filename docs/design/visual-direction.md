@@ -65,11 +65,17 @@ mechanism is a **design system in the app via Storybook**:
 - Storybook is a dev-time tool (not shipped runtime); existing gates are unaffected — `ui_verify`,
   Lighthouse-100, and token conformance still gate the app pages themselves.
 
-Starting component set (from the V4 mock): NavRail, SecondarySidebar (+ phase pill), AppHeader
-(breadcrumb + gradient-border CommandBar + bell/help/avatar), PageHeader, EntityRef
-(label + mono-ID chip), KindChip (colour+glyph), KpiTile, DataTable (dense, tabular-nums),
-InspectorPanel, GlassPanel, AskBar (speech affordance), CanvasLegend, CanvasToolbar, Toast/Bell
-panel, EmptyState. Recommended build order: components in Storybook first, then page refits.
+**Atomic design structure (user ruling, 2026-07-09):** the library loosely follows atomic design
+— **atoms** (KindChip, EntityRef, phase pill, buttons, inputs) → **molecules** (CommandBar,
+AskBar, KpiTile, table row, legend) → **organisms** (NavRail, SecondarySidebar, AppHeader,
+DataTable, InspectorPanel, GlassPanel, Bell panel) → **templates** (canvas-page, table-page,
+form/drawer-page, dashboard-grid layouts) → **pages** (Storybook page stories binding fixture
+data). The app's container layer supplies DATA into design-system templates/pages — it never
+composes raw components ad hoc or owns presentational markup/content. If a screen needs a layout
+the system lacks, the template is added to the design system first, then consumed.
+
+Recommended build order: atoms/molecules/organisms in Storybook first, then templates, then app
+pages refit as thin data-binding containers.
 
 ## Decisions bound with this direction (same MCQ round)
 

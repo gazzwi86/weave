@@ -116,6 +116,10 @@ approved finding or ruling.
 - Stories cover states (default/hover/selected/loading/empty/error) and both themes; component
   lands in Storybook before any page consumes it; R1–R12 surfaces refit onto the library rather
   than owning bespoke CSS.
+- **Atomic design (loose)**: atoms → molecules → organisms → **templates → pages** all live in
+  the design system; the app/container layer binds data into design-system templates/pages and
+  never composes raw components or owns presentational markup. Missing layout ⇒ add the template
+  to the system first (`visual-direction.md` §Delivery).
 - Dev-time only (not shipped); `ui_verify`/Lighthouse/token gates continue to run against app
   pages. **Sequencing: R13 components precede the page refits in R1–R11** — it is the foundation
   bundle.

@@ -255,3 +255,10 @@ components extracted from the V4 mock / existing app, iterated in Storybook, the
 the library. Recorded as requirement bundle **R13** (foundation — precedes R1–R11 page refits) in
 `docs/design/v1-design-requirements.md`; recipe in `docs/design/visual-direction.md` §Delivery.
 Storybook = dev-time tool; existing ui_verify/Lighthouse/token gates unchanged.
+
+### WS2 addendum 2 (2026-07-09, user): atomic design for the Storybook system
+
+Loose atomic design: atoms → molecules → organisms → **templates → pages all inside the design
+system**. App/container layer binds data into design-system templates/pages only — no ad-hoc
+composition or presentational markup in the react-app layer; missing layouts are added to the
+system first. Folded into `visual-direction.md` §Delivery + R13.
