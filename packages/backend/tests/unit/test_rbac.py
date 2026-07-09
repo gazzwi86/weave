@@ -11,11 +11,16 @@ from typing import Any
 
 import pytest
 
+from weave_backend.auth.dependencies import Principal, RoleGrant
 from weave_backend.rbac import (
     ROLE_RANK,
+    InsufficientProjectRole,
     InsufficientRole,
+    ProjectAction,
     check_role,
+    enforce_project_role,
     enforce_workspace_role,
+    has_admin_grant,
     is_tenant_admin,
     resolve_workspace_role,
 )
@@ -112,3 +117,106 @@ async def test_enforce_workspace_role_allows_a_sufficient_role() -> None:
     await enforce_workspace_role(
         conn, tenant_id="acme", workspace_id=_WORKSPACE_ID, user_sub="u-author", min_role="read"
     )
+
+
+# --- TASK-011: project-level role guard -------------------------------
+
+
+def _principal(*, roles: list[RoleGrant] | None = None) -> Principal:
+    return Principal(
+        sub="u1",
+        tenant_id="acme",
+        principal_iri="urn:weave:person:acme:u1",
+        roles=roles or [],
+    )
+
+
+class _RaisingAuditEmitter:
+    """Stands in for `AuditEmitter` -- always raises, proving the guard's
+    403 does not depend on the audit write succeeding (AC-6).
+    """
+
+    async def emit(self, conn: Any, event: Any) -> None:
+        raise RuntimeError("audit sink unavailable")
+
+
+def test_has_admin_grant_true_for_a_tenant_scoped_grant() -> None:
+    roles = [RoleGrant(scope="tenant", role="admin")]
+
+    assert has_admin_grant(roles, domain="urn:weave:domain:acme:sales") is True
+    assert has_admin_grant(roles, domain=None) is True
+
+
+def test_has_admin_grant_true_for_a_matching_domain_grant() -> None:
+    roles = [RoleGrant(scope="domain", role="owner", domain_iri="urn:weave:domain:acme:sales")]
+
+    assert has_admin_grant(roles, domain="urn:weave:domain:acme:sales") is True
+
+
+def test_has_admin_grant_false_for_a_different_domain_grant() -> None:
+    roles = [RoleGrant(scope="domain", role="admin", domain_iri="urn:weave:domain:acme:sales")]
+
+    assert has_admin_grant(roles, domain="urn:weave:domain:acme:marketing") is False
+    assert has_admin_grant(roles, domain=None) is False
+
+
+def test_has_admin_grant_false_for_a_non_admin_role() -> None:
+    roles = [RoleGrant(scope="tenant", role="member")]
+
+    assert has_admin_grant(roles, domain=None) is False
+
+
+async def test_enforce_project_role_allows_settings_mutation_to_project_admin() -> None:
+    conn = _FakeConnection(row={"role": "admin"})
+
+    await enforce_project_role(
+        conn, _principal(), project_iri="urn:weave:project:acme:p1", action=ProjectAction.SETTINGS
+    )
+
+
+async def test_enforce_project_role_allows_backlog_authoring_to_editor() -> None:
+    conn = _FakeConnection(row={"role": "editor"})
+
+    await enforce_project_role(
+        conn, _principal(), project_iri="urn:weave:project:acme:p1", action=ProjectAction.BACKLOG
+    )
+
+
+async def test_enforce_project_role_denies_contributors_mutation_to_editor() -> None:
+    conn = _FakeConnection(row={"role": "editor"})
+
+    with pytest.raises(InsufficientProjectRole) as exc_info:
+        await enforce_project_role(
+            conn,
+            _principal(),
+            project_iri="urn:weave:project:acme:p1",
+            action=ProjectAction.CONTRIBUTORS,
+        )
+
+    assert exc_info.value.status_code == 403
+
+
+async def test_enforce_project_role_allows_any_action_to_a_tenant_admin_grant() -> None:
+    """AC-4: tenant admin/owner overlays the per-project role entirely --
+    no `project_contributors` row needed."""
+    conn = _FakeConnection(row=None)
+    principal = _principal(roles=[RoleGrant(scope="tenant", role="admin")])
+
+    await enforce_project_role(
+        conn, principal, project_iri="urn:weave:project:acme:p1", action=ProjectAction.CONTRIBUTORS
+    )
+
+
+async def test_enforce_project_role_returns_403_even_when_audit_emit_fails() -> None:
+    """AC-6: the denial audit emit is best-effort -- a broken audit sink
+    must not turn a 403 into a 500."""
+    conn = _FakeConnection(row={"role": "editor"})
+
+    with pytest.raises(InsufficientProjectRole):
+        await enforce_project_role(
+            conn,
+            _principal(),
+            project_iri="urn:weave:project:acme:p1",
+            action=ProjectAction.CONTRIBUTORS,
+            audit_emitter=_RaisingAuditEmitter(),
+        )

@@ -7,17 +7,76 @@ and agent principals (no branching on `principal_type` anywhere below).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
+from enum import StrEnum
 from typing import Annotated, Any
 
 import asyncpg
 from fastapi import Depends, HTTPException
 
-from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.audit.emitter import AuditEmitter, default_audit_emitter
+from weave_backend.auth.dependencies import Principal, RoleGrant, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.tenancy.workspaces import get_workspace
 
 ROLE_RANK: dict[str, int] = {"read": 0, "author": 1, "publish": 2, "admin": 3}
+
+
+class ProjectAction(StrEnum):
+    """TASK-011: mutation actions gated by `require_project_role`. Reads
+    carry no guard (AC-5) -- tenant membership via `get_current_principal`
+    is sufficient.
+    """
+
+    SETTINGS = "settings"
+    CONTRIBUTORS = "contributors"
+    BINDINGS = "bindings"
+    BACKLOG = "backlog"
+    SPECS = "specs"
+    GENERATE = "generate"
+    PROMPT = "prompt"
+
+
+#: TASK-011 AC-1/AC-2: `admin`'s action set is a strict superset of `editor`'s.
+PROJECT_ROLE_ACTIONS: dict[str, frozenset[ProjectAction]] = {
+    "admin": frozenset(ProjectAction),
+    "editor": frozenset(
+        {ProjectAction.BACKLOG, ProjectAction.SPECS, ProjectAction.GENERATE, ProjectAction.PROMPT}
+    ),
+}
+
+#: TASK-011 AC-4: role names in the JWT `roles` claim that overlay a
+#: tenant/domain-wide admin grant over any per-project role.
+_OVERLAY_ROLES = frozenset({"admin", "owner"})
+
+
+class InsufficientProjectRole(HTTPException):
+    def __init__(self, action: ProjectAction) -> None:
+        super().__init__(status_code=403, detail={"error": "forbidden", "action": action.value})
+
+
+def project_role_allows(role: str | None, action: ProjectAction) -> bool:
+    if role is None:
+        return False
+    return action in PROJECT_ROLE_ACTIONS.get(role, frozenset())
+
+
+def has_admin_grant(roles: Sequence[RoleGrant], *, domain: str | None) -> bool:
+    """TASK-011 AC-4: a tenant-scope admin/owner grant always overlays; a
+    domain-scope grant overlays only when `domain` (the project's
+    `domain_iri`) is given and matches. `domain=None` at the route boundary
+    is the honest M1 state -- `projects` carries no `domain_iri` column yet
+    (see ADR) -- so only tenant-scope grants are live in production; the
+    domain branch is unit-tested directly against AC-4's spec.
+    """
+    for grant in roles:
+        if grant.role not in _OVERLAY_ROLES:
+            continue
+        if grant.scope == "tenant":
+            return True
+        if grant.scope == "domain" and domain is not None and grant.domain_iri == domain:
+            return True
+    return False
 
 
 class InsufficientRole(HTTPException):
@@ -105,6 +164,17 @@ def require_workspace_role(
         return principal
 
     return _dependency
+
+
+async def enforce_project_role(
+    conn: asyncpg.Connection,
+    principal: Principal,
+    *,
+    project_iri: str,
+    action: ProjectAction,
+    audit_emitter: AuditEmitter = default_audit_emitter,
+) -> None:
+    raise NotImplementedError
 
 
 async def require_tenant_admin(
