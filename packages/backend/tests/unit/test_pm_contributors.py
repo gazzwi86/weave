@@ -11,7 +11,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from weave_backend.pm.contributors import Contributor, NewContributor, delete, get_all, upsert
+from weave_backend.pm.contributors import (
+    Contributor,
+    NewContributor,
+    delete,
+    get_all,
+    get_role,
+    upsert,
+)
 
 
 class _FakeRow(dict[str, Any]):
@@ -114,3 +121,29 @@ async def test_delete_executes_scoped_by_tenant_and_project() -> None:
     assert len(conn.executed) == 1
     _query, args = conn.executed[0]
     assert args == ("t1", "urn:weave:project:t1:acme", "urn:weave:person:alice")
+
+
+async def test_get_role_returns_the_role_for_a_known_contributor() -> None:
+    conn = _FakeConnection(fetchrow_result=_FakeRow(role="admin"))
+
+    role = await get_role(
+        conn,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        principal_iri="urn:weave:person:alice",
+    )
+
+    assert role == "admin"
+
+
+async def test_get_role_returns_none_for_a_non_contributor() -> None:
+    conn = _FakeConnection(fetchrow_result=None)
+
+    role = await get_role(
+        conn,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        principal_iri="urn:weave:person:nobody",
+    )
+
+    assert role is None

@@ -80,6 +80,23 @@ async def upsert(
     return _from_row(row)
 
 
+async def get_role(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, principal_iri: str
+) -> str | None:
+    """TASK-011: single indexed lookup on `(tenant_id, project_iri,
+    principal_iri)` -- the same key `upsert`'s `ON CONFLICT` targets. No
+    caching: removing a contributor revokes access on the very next request.
+    """
+    row = await conn.fetchrow(
+        "SELECT role FROM project_contributors"
+        " WHERE tenant_id = $1 AND project_iri = $2 AND principal_iri = $3",
+        tenant_id,
+        project_iri,
+        principal_iri,
+    )
+    return str(row["role"]) if row is not None else None
+
+
 async def delete(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, principal_iri: str
 ) -> None:
