@@ -29,5 +29,17 @@ export async function forwardToBackend(
     return NextResponse.json({ error: "upstream_unavailable" }, { status: 502 });
   }
   const body = (await upstream.json()) as unknown;
-  return NextResponse.json(body, { status: upstream.status });
+  return NextResponse.json(unwrapErrorEnvelope(body, upstream.status), { status: upstream.status });
+}
+
+/** Every route this helper serves raises `HTTPException(detail={...})`,
+ * which Starlette always nests under a `detail` key -- unwrap it once here
+ * (only for non-2xx responses, so a legitimate 2xx body that happens to
+ * have its own `detail` field is left alone) instead of every route
+ * re-implementing the same unwrap. */
+function unwrapErrorEnvelope(body: unknown, status: number): unknown {
+  if (status < 400 || typeof body !== "object" || body === null || !("detail" in body)) {
+    return body;
+  }
+  return (body as { detail: unknown }).detail;
 }
