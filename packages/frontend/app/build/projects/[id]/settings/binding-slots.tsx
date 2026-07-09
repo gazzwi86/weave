@@ -1,4 +1,4 @@
-const SLOTS = ["Data warehouse", "Source control", "Secrets manager"] as const;
+const SLOTS = ["Confluence", "Jira", "ServiceNow"] as const;
 
 /** AC-7: managed connectors are deferred to v1.0 (CLAUDE.md §Stack) --
  * these three slots exist so the surface is discoverable now, disabled. */

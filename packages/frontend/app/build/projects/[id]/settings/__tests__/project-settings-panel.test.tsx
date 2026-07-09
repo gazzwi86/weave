@@ -127,5 +127,8 @@ describe("ProjectSettingsPanel", () => {
     await waitFor(() => expect(screen.getByDisplayValue("standard")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("tab", { name: "Connections" }));
     expect(screen.getAllByText(/available when connectors ship/i)).toHaveLength(3);
+    expect(screen.getByText("Confluence")).toBeInTheDocument();
+    expect(screen.getByText("Jira")).toBeInTheDocument();
+    expect(screen.getByText("ServiceNow")).toBeInTheDocument();
   });
 });
