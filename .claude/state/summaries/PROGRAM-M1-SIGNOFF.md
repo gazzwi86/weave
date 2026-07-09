@@ -1,6 +1,6 @@
 # Phase Gate: M1 (WS3 close-out — v1 consolidation plan)
 
-**Status: RECORDED** — verification complete; decision pending the human `/phase-gate` review.
+**Status: APPROVED** — M1 program sign-off complete (gazzwi86, 2026-07-09).
 
 ## Gate Criteria
 
@@ -179,14 +179,14 @@ Not tracked for this gate — token/cost accounting was not part of this verific
 
 ## Decision
 
-- [ ] **Approve** — proceed to M2/v1 work already spec'd on top of this milestone
+- [x] **Approve** — proceed to M2/v1 work already spec'd on top of this milestone
 - [ ] **Amend** — address specific items before proceeding
 - [ ] **Reject** — significant rework needed
 
 ## Sign-off Block
 
 - **Verified by:** Claude harness, WS3 run, 2026-07-09
-- **Approval:** pending human review at `/phase-gate`
+- **Approval:** APPROVED — gazzwi86, 2026-07-09, via `/phase-gate` HITL (see summaries/PHASE-build-engine-phase-1.md)
 - **Waiver approval:** gazzwi86 (CI-outage substitution, `project_ci_credits_outage.md`)
 
 ## Notes

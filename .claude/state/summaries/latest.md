@@ -1,13 +1,13 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T04:12:08+00:00
-Event: pre-compact
+Captured at: 2026-07-09T05:34:54+00:00
+Event: session-end
 
 ## Current State
 
 {
   "project": "weave",
-  "phase": "build-engine/phase-1",
+  "phase": "build-engine-v1/phase-1",
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
@@ -1672,11 +1672,11 @@ Event: pre-compact
 
 ---
 title: "Phase Gate: Build-Engine Phase 1 — M1 Program Terminus"
-status: Amend
+status: Approved
 phase: build-engine/phase-1
-date: 2026-07-07
-security_verdict: PASS (semgrep CI green; full /security-review backstop deferred to post-#46 re-gate)
-mutation_score: RED — main CI failing on mutation-strict (fixed in unmerged #46); ~77% when green
+date: 2026-07-09
+security_verdict: PASS (full review over ac0ad18..HEAD, 2026-07-09 — 0 Blocker/High/Medium)
+mutation_score: 92.0% (local mutation-strict mirror, 60% bar — CI-outage waiver)
 ---
 
 # Phase Gate: Build-Engine Phase 1 — M1 Program Terminus
@@ -1772,4 +1772,40 @@ real measurement). Root cause: `emit_mutation_outcome_metric` (best-effort Cloud
 inline on the write critical path (ADR-004 hotspot). Fixed by making it fire-and-forget
 (`perf(ce)` commit) → write p95 890 → 717ms, ce-perf gate PASS. Not a gate-weakening (the 800ms
 budget is unchanged).
+
+
+---
+
+## Re-gate 2026-07-09 (closing the 2026-07-07 Amend)
+
+The two open amendment items are resolved with evidence; the full verification record is
+[`.claude/state/PROGRAM-M1-SIGNOFF.md`](../PROGRAM-M1-SIGNOFF.md) (committed `e136667`).
+
+| Amend item (2026-07-07) | Resolution (2026-07-09) |
+|---|---|
+| Full `/security-review` backstop not run | Run over `ac0ad18..HEAD`: **PASS**, 0 Blocker/High/Medium, 2 informational Lows (in-memory bearer token in `DraftingRequest`; tenant-wide workspace list is by-design). |
+| Mutation RED (CI failing pre-#46) | #46 merged; local mutation-strict mirror of the CI recipe (mutmut + gate, live services): **92.0% vs the 60% bar**. CI itself unavailable until 2026-08-01 — user-approved waiver recorded in the signoff. |
+
+Additional gates re-executed this cycle (not trusted from prior passes):
+
+- Backend unit+integration vs live services: PASS (pytest exit 0).
+- Frontend unit: 470/470.
+- Playwright e2e: 54 passed / 0 failed / 1 intentional skip — after realigning 4 stale specs to
+  intentionally shipped behaviour and two suite-infrastructure fixes (`AUTH_RATE_LIMIT_MAX`
+  300→600 for the 55-test suite; global-search locator scoped to the dialog). No app code changed.
+- `ui_verify.sh --full --target http://localhost:3000`: **exit 0** (structural+a11y pass,
+  click-through 54/0/1, Lighthouse pass). Run without the optional `--runbook` flag on this
+  re-execution; two extra confirmation runs went pass/fail/pass — the single-run flake on
+  global-search.spec.ts:38 is recorded as a known issue in the signoff, not hidden.
+
+Known issues carried (non-blocking, all ledgered): PROJ-010/011 (harness-governed doc staleness,
+advisor-consulted fix pending), PROJ-012 (single unreproduced audit chain-broken sighting —
+monitor + instrument), residual global-search flake (CI retries would absorb; timeout bump
+suggested).
+
+**APPROVED — gazzwi86, 2026-07-09 (AskUserQuestion HITL).**
+
+M1-terminus note: this approval is the **program-M1 sign-off** (per the 2026-07-07 gate doc).
+Since the phase_plan now extends past M1, approval also advances `progress.json` to
+`build-engine-v1/phase-1` — the approver is releasing the next engine to build.
 
