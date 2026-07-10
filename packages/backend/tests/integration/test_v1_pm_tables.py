@@ -178,7 +178,11 @@ async def test_external_bindings_rejects_duplicate_binding_at_unique_constraint(
                 created_by="urn:weave:person:bob",
             ),
         )
-        with pytest.raises(asyncpg.UniqueViolationError):
+        # TASK-022 AC-4: `put` now wraps the DB's UniqueViolationError into
+        # the typed `DuplicateBinding` (router turns it into a 409) --
+        # updated from the raw asyncpg exception this test originally
+        # asserted under TASK-010, before that wrapping existed.
+        with pytest.raises(bindings.DuplicateBinding):
             await bindings.put(
                 conn,
                 tenant_id=tenant_id,
