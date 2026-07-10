@@ -25,6 +25,7 @@ import { useNeighbourExpansion } from "./use-neighbour-expansion";
 import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
 import { useOverlayControls } from "./use-overlay-controls";
+import { usePinnedImpact } from "./use-pinned-impact";
 import { useSearchOverlay } from "./use-search-overlay";
 
 export interface ExplorerInteractionsProps {
@@ -285,6 +286,7 @@ export function ExplorerInteractions({
   const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
   const legend = useCanvasLegend(fetchPalette);
   const overlayControls = useOverlayControls({ adapter, config });
+  usePinnedImpact({ adapter });
 
   return (
     <>
