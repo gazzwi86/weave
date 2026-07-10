@@ -144,9 +144,42 @@ jobs:
     # continue-on-error). The strict tier below runs the same 60 bar with live
     # services on main-push, where the SQL/boto3 mutants this lane cannot reach
     # are also killed (~77% measured).
+    #
+    # Sharded 2-way (2026-07-10): the full per-PR corpus (~13.4k mutants) started
+    # missing the 10-min job budget as the codebase grew (mutant *generation* is
+    # fast and unavoidably runs in full each shard; mutant *execution* — the slow
+    # part — is what `mutmut run <patterns>` filters, so splitting the executed
+    # set in half genuinely roughly halves wall-clock). Shards are a hand-balanced
+    # module-name split by LOC (not alphabetical — `routers`/`build` are large
+    # enough on their own to make a naive a-m/n-z cut lopsided), matched via
+    # mutmut's `weave_backend.<module>.*` mutant-key glob filter. Gating each
+    # shard independently at the same 60% bar is safe, not just convenient: a
+    # weighted average of two numbers that are each >= 60% is itself >= 60%, so
+    # per-shard gating can only be as strict or stricter than gating the
+    # combined total — no merge step needed.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: a
+            patterns: >-
+              weave_backend.routers.* weave_backend.audit.* weave_backend.repo_bootstrap.*
+              weave_backend.requests.* weave_backend.billing.* weave_backend.auth.*
+              weave_backend.deploy.* weave_backend.tenancy.* weave_backend.rdf.*
+              weave_backend.settings.* weave_backend.ontology.* weave_backend.identity.*
+              weave_backend.ai.* weave_backend.storage.* weave_backend.search.*
+              weave_backend.briefs.* weave_backend.rate_limit.* weave_backend.__init__*
+          - shard: b
+            patterns: >-
+              weave_backend.build.* weave_backend.schemas.* weave_backend.operations.*
+              weave_backend.generation.* weave_backend.projects.* weave_backend.pm.*
+              weave_backend.notifications.* weave_backend.authoring.* weave_backend.standards.*
+              weave_backend.db.* weave_backend.mock_oidc.* weave_backend.observability.*
+              weave_backend.instances.* weave_backend.nl_query.* weave_backend.connectors.*
+              weave_backend.scripts.* weave_backend.rbac.* weave_backend.health_checks.*
     defaults:
       run:
         working-directory: packages/backend
@@ -156,9 +189,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync
-      - run: uv run mutmut run || true
+      - run: uv run mutmut run ${{ matrix.patterns }} || true
       - run: uv run mutmut export-cicd-stats
-      # Blocking gate: fails the PR if the score drops below the regression floor.
+      # Blocking gate: fails the PR if this shard's score drops below the regression floor.
       - name: Enforce mutation score threshold
         run: |
           # tee the score to the run summary so it is visible without opening logs;
