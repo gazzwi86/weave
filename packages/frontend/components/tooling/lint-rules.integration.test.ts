@@ -29,8 +29,10 @@ function lint(relativePath: string, code: string, ruleId: string, rule: unknown)
 
 describe("wired ESLint rules fire on absolute paths", () => {
   it("token-conformance reports a raw hex literal", () => {
+    // components/ui is where the real atoms (Button/Input/Badge/...) live --
+    // components/atoms/ doesn't exist, so this must target the real path.
     const messages = lint(
-      "components/atoms/Foo.tsx",
+      "components/ui/Foo.tsx",
       'const c = "bg-[#ff0000]";',
       "token-conformance",
       tokenConformanceRule
@@ -41,7 +43,7 @@ describe("wired ESLint rules fire on absolute paths", () => {
 
   it("token-conformance is silent on var(--token) usage", () => {
     const messages = lint(
-      "components/atoms/Foo.tsx",
+      "components/ui/Foo.tsx",
       'const c = "bg-[var(--color-accent-primary)]";',
       "token-conformance",
       tokenConformanceRule

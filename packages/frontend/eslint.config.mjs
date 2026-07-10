@@ -37,12 +37,16 @@ const eslintConfig = defineConfig([...nextVitals, ...nextTs, sonarjs.configs.rec
     "sonarjs/no-globals-shadowing": "off",
   },
 }, {
-  // Design-system gate (TASK-026): scoped to the new atomic-design layers
-  // only -- components/{ui,shell,explorer,dashboard,marketing} predate this
-  // rule and carry their own pre-existing literals (e.g. Cytoscape canvas
+  // Design-system gate (TASK-026): covers the atomic-design layers plus
+  // components/ui/** -- the real atoms (Button/Input/Badge/Card/Toast) live
+  // there, not under a components/atoms/ dir that doesn't exist. The other
+  // legacy dirs (shell, explorer, dashboard, marketing) predate this rule
+  // and carry their own pre-existing literals (e.g. Cytoscape canvas
   // geometry, which isn't a CSS token at all). Retrofitting them is a
   // separate, unscoped task, not this one.
-  files: ["components/{atoms,molecules,organisms,templates,pages}/**/*.{ts,tsx}"],
+  files: [
+    "components/{atoms,molecules,organisms,templates,pages,ui}/**/*.{ts,tsx}",
+  ],
   ignores: ["**/*.stories.tsx", "**/*.test.ts", "**/*.test.tsx"],
   plugins: { weave: weavePlugin },
   rules: {
@@ -65,6 +69,10 @@ globalIgnores([
   // Throwaway spike harnesses: own package.json/node_modules, not part of the
   // production app -- see benchmarks/ge-oq01-spike/report.md (TASK-001).
   "benchmarks/**",
+  // Generated build outputs, not source -- lint-staged/pre-commit shouldn't
+  // touch these even if temporarily present in a working tree.
+  "storybook-static/**",
+  "coverage/**",
 ]), ...storybook.configs["flat/recommended"]]);
 
 export default eslintConfig;
