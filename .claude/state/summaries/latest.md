@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T03:22:15+00:00
+Captured at: 2026-07-10T03:46:47+00:00
 Event: pre-compact
 
 ## Current State
@@ -1250,7 +1250,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "CE-BRAND-1 Conformance Gate as Sixth Safety Gate (E8-S1, FR-029 M2)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-002.md",
       "retry_count": 0
@@ -1272,7 +1272,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "BE-SDK-1 Generator Core: Fetch → IR → TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
       "retry_count": 0

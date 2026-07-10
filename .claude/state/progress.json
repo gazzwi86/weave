@@ -244,7 +244,7 @@
     {
       "id": "BE-V1-EPIC-012",
       "title": "Quality Gates & Spec-Coverage",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-004",
@@ -1308,7 +1308,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-012",
       "title": "Spec-Coverage Audit + Phase-Gate Ceremony (E12-S4/S5, FR-052/FR-053)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-007"
       ],
