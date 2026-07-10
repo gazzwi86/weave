@@ -17,6 +17,8 @@ connection is already released back to the pool.
 
 from __future__ import annotations
 
+import os
+import shutil
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -24,37 +26,31 @@ from typing import Protocol
 import asyncpg
 import httpx
 
-# GREEN-phase imports: skeleton bodies below don't reference these yet
-# (`raise NotImplementedError`), so ruff's unused-import check needs the
-# per-line waiver -- every name is either wired in during GREEN or is the
-# monkeypatch target a RED-phase test already patches by attribute
-# (`monkeypatch.setattr(sdk_trigger, "name", ...)`).
-from weave_backend.build.gates import GateRecord, record_gate  # noqa: F401
-from weave_backend.build.hitl import (  # noqa: F401
-    HitlGateContext,
-    SelfApprovalNotPermitted,
-    fire_hitl_gate,
-)
-from weave_backend.db.pool import tenant_connection  # noqa: F401
-from weave_backend.generation.sdk_store import (  # noqa: F401
+from weave_backend.build.gates import GateRecord, record_gate
+from weave_backend.build.hitl import HitlGateContext, SelfApprovalNotPermitted, fire_hitl_gate
+from weave_backend.db.pool import tenant_connection
+from weave_backend.generation.sdk_store import (
+    IN_FLIGHT_STATUSES,
     SdkGenerationRun,
+    ensure_sdk_run,
     get_sdk_run,
     insert_sdk_generation_run,
     lock_latest_sdk_run,
     update_sdk_run_status,
 )
 from weave_backend.identity.registry import get_principal
-from weave_backend.projects.ce_version_client import get_ontology_diff  # noqa: F401
-from weave_backend.projects.model import Project, get_project  # noqa: F401
-from weave_backend.repo_bootstrap.drivers import RepoHandle  # noqa: F401
-from weave_backend.repo_bootstrap.service import (  # noqa: F401
+from weave_backend.projects.ce_version_client import DEFAULT_CE_BASE_URL, get_ontology_diff
+from weave_backend.projects.model import Project, get_project, update_project_sdk_generation
+from weave_backend.repo_bootstrap.drivers import RepoHandle
+from weave_backend.repo_bootstrap.service import (
     BUILD_SERVICE_PRINCIPAL_IRI,
+    DEFAULT_DEPS,
     RepoBootstrapDeps,
+    RepoBootstrapError,
 )
-from weave_backend.repo_bootstrap.store import fetch_project_repo_row  # noqa: F401
 from weave_backend.sdkgen.ir import CeVersionPin
-from weave_backend.sdkgen.pipeline import generate_sdk  # noqa: F401
-from weave_backend.sdkgen.provenance import (  # noqa: F401
+from weave_backend.sdkgen.pipeline import GeneratedSdk, generate_sdk
+from weave_backend.sdkgen.provenance import (
     build_sdk_provenance_header,
     collect_iris,
     stamp_provenance,
@@ -110,7 +106,39 @@ async def trigger_sdk_generation(
     genuinely serialises concurrent triggers within it (Implementation
     Hints: lock the newest run row, not an advisory flag).
     """
-    raise NotImplementedError
+    if not project.pinned_graph_version_iri:
+        raise ProjectHasNoPinnedVersion(project.project_iri)
+
+    existing = await lock_latest_sdk_run(
+        conn, tenant_id=tenant_id, project_iri=project.project_iri
+    )
+    if existing is not None and existing.status in IN_FLIGHT_STATUSES:
+        raise SdkGenerationInFlight(existing.run_id)
+
+    return await insert_sdk_generation_run(
+        conn, tenant_id=tenant_id, project_iri=project.project_iri
+    )
+
+
+async def _breaking_version_iris(
+    ce_client: httpx.AsyncClient | None, *, from_version: str, to_version: str
+) -> list[str]:
+    """AC-2: CE-DIFF-1's `versions` breaking-span, read defensively (Build
+    never derives breakingness itself -- contracts.md CE-DIFF-1). A default
+    client is opened when the caller doesn't inject one (production, no
+    request-scoped `Depends(get_ce_client)` available from a background
+    task).
+    """
+    if ce_client is not None:
+        body = await get_ontology_diff(ce_client, from_version=from_version, to_version=to_version)
+        return [v["version_iri"] for v in body.get("versions", []) if v.get("breaking")]
+
+    base_url = os.environ.get("CE_API_BASE_URL", DEFAULT_CE_BASE_URL)
+    async with httpx.AsyncClient(base_url=base_url, timeout=5.0) as default_client:
+        body = await get_ontology_diff(
+            default_client, from_version=from_version, to_version=to_version
+        )
+        return [v["version_iri"] for v in body.get("versions", []) if v.get("breaking")]
 
 
 async def run_sdk_generation(
@@ -129,7 +157,42 @@ async def run_sdk_generation(
     human principal, and this callback runs after the request that
     enqueued it has already returned (Starlette `BackgroundTasks`).
     """
-    raise NotImplementedError
+    async with tenant_connection(tenant_id) as conn:
+        project = await get_project(conn, tenant_id=tenant_id, project_iri=project_iri)
+    if project is None:
+        return  # project vanished between trigger and dispatch -- nothing to run
+
+    if project.last_sdk_version_iri is not None:
+        # AC-4: a project's first generation has nothing to diff against.
+        breaking = await _breaking_version_iris(
+            ce_client,
+            from_version=project.last_sdk_version_iri,
+            to_version=project.pinned_graph_version_iri,
+        )
+        if breaking:
+            async with tenant_connection(tenant_id) as conn:
+                await update_sdk_run_status(
+                    conn,
+                    tenant_id=tenant_id,
+                    run_id=run_id,
+                    status="breaking_hold",
+                    payload={"breaking_hold": {"version_iris": breaking}},
+                )
+                await fire_hitl_gate(
+                    conn,
+                    HitlGateContext(
+                        tenant_id=tenant_id,
+                        task_id=f"sdk_generation:{run_id}",
+                        submitting_principal_iri=BUILD_SERVICE_PRINCIPAL_IRI,
+                        evidence=_SDK_GENERATION_EVIDENCE,
+                    ),
+                )
+            return
+
+    pin = CeVersionPin(version_iri=project.pinned_graph_version_iri)
+    await _generate_and_commit(
+        tenant_id=tenant_id, run_id=run_id, project=project, pin=pin, deps=deps or DEFAULT_DEPS
+    )
 
 
 async def approve_sdk_breaking_ack(
@@ -141,17 +204,95 @@ async def approve_sdk_breaking_ack(
     ack_deps: SdkAckDeps | None = None,
 ) -> None:
     """AC-3: the `sdk_breaking_ack` HITL release path -- mirrors
-    `rich_scaffold.approve_env_verification`'s D9 shape (the submitting
-    principal is always the automated `BUILD_SERVICE_PRINCIPAL_IRI`, so
-    "non-self" collapses to "approver must resolve to a human principal").
-    Persists the `gate_results` row, then resumes straight to
-    `_generate_and_commit` (pseudocode's `on_ack`) -- the breaking check
-    itself is never re-run post-ack. `ack_deps` defaults to `SdkAckDeps()`
-    (real principal resolution + `repo_bootstrap.service.DEFAULT_DEPS`);
-    see `SdkAckDeps` for why the two seams are bundled (Law E 5-param
-    budget).
+    `rich_scaffold.approve_env_verification`'s D9 shape. The submitting
+    principal is always the automated `BUILD_SERVICE_PRINCIPAL_IRI` (never
+    stored per-run), so self-approval is a direct IRI match against that
+    known constant rather than a DB round-trip; a resolved non-human
+    principal is rejected the same way. Persists the `gate_results` row,
+    then resumes straight to `_generate_and_commit` (pseudocode's
+    `on_ack`) -- the breaking check itself is never re-run post-ack.
     """
-    raise NotImplementedError
+    if approving_principal_iri == BUILD_SERVICE_PRINCIPAL_IRI:
+        raise SelfApprovalNotPermitted(approving_principal_iri)
+
+    deps = ack_deps or SdkAckDeps()
+    principal = await deps.resolve_principal(conn, tenant_id=tenant_id, iri=approving_principal_iri)
+    if principal.type != "human":
+        raise SelfApprovalNotPermitted(approving_principal_iri)
+
+    run = await get_sdk_run(conn, tenant_id=tenant_id, run_id=run_id)
+    if run is None:
+        raise SdkGenerationRunNotFound(run_id)
+
+    await record_gate(
+        conn,
+        GateRecord(
+            tenant_id=tenant_id,
+            actor_iri=approving_principal_iri,
+            event_type="sdk_breaking_ack_approved",
+            subject_iri=run_id,
+            gate="sdk_breaking_ack",
+            result="approved",
+            payload={"approver": approving_principal_iri},
+            run_id=run_id,
+        ),
+    )
+
+    project = await get_project(conn, tenant_id=tenant_id, project_iri=run.project_iri)
+    if project is None:
+        raise SdkGenerationRunNotFound(run_id)
+
+    pin = CeVersionPin(version_iri=project.pinned_graph_version_iri)
+    await _generate_and_commit(
+        tenant_id=tenant_id,
+        run_id=run_id,
+        project=project,
+        pin=pin,
+        deps=deps.repo_deps or DEFAULT_DEPS,
+    )
+
+
+_REPO_ROW_SQL = (
+    "SELECT repo_provider, repo_url, repo_default_branch, repo_id,"
+    " source_control_token_secret_ref FROM projects"
+    " WHERE tenant_id = $1 AND project_iri = $2"
+)
+
+
+async def _commit_generated_sdk(
+    generated: GeneratedSdk, *, project: Project, tenant_id: str, pin: CeVersionPin,
+    deps: RepoBootstrapDeps,
+) -> tuple[str, str]:
+    """AC-5: stamps BE-ARTEFACT-1 provenance, then the SINGLE
+    `commit_workspace` call -- returns `(commit_sha, package_version)`.
+    """
+    entity_iris = collect_iris(generated.ir)
+    header = build_sdk_provenance_header(project, entity_iris)
+    stamp_provenance(generated.staging, header)
+
+    async with tenant_connection(tenant_id) as conn:
+        row = await conn.fetchrow(_REPO_ROW_SQL, tenant_id, project.project_iri)
+
+    token_ref = row["source_control_token_secret_ref"] if row else None
+    token = await deps.get_secret(token_ref) if token_ref else None
+    if not token:
+        raise RepoBootstrapError("repo_auth_invalid")
+
+    driver = deps.driver_for((row["repo_provider"] if row else None) or "")
+    repo = RepoHandle(
+        repo_id=(row["repo_id"] if row else None) or "",
+        url=(row["repo_url"] if row else None) or "",
+        default_branch=(row["repo_default_branch"] if row else None) or "",
+    )
+    package_version = f"{_ce_version_tag(pin.version_iri)}+build.{project.sdk_generation_count + 1}"
+    commit_sha = await driver.commit_workspace(
+        repo,
+        workspace=str(generated.staging),
+        branch=repo.default_branch,
+        message=f"chore(sdk): {package_version}",
+        token=token,
+    )
+    return commit_sha, package_version
 
 
 async def _generate_and_commit(
@@ -165,5 +306,48 @@ async def _generate_and_commit(
     a FRESH `tenant_connection` records `status='failed'` -- asyncpg aborts
     a transaction on its first error, so the failure row can never share the
     transaction that failed (it would itself be rolled back).
+
+    `ensure_sdk_run` first: `run_sdk_generation` may be called directly
+    against a `run_id` the trigger route's own `insert_sdk_generation_run`
+    never wrote (test convenience, and any future caller that mints its own
+    run_id) -- idempotent insert-or-noop so the status updates below always
+    have a row to land on.
     """
-    raise NotImplementedError
+    async with tenant_connection(tenant_id) as conn:
+        await ensure_sdk_run(
+            conn, tenant_id=tenant_id, run_id=run_id, project_iri=project.project_iri
+        )
+
+    try:
+        generated = generate_sdk(pin)
+        try:
+            commit_sha, package_version = await _commit_generated_sdk(
+                generated, project=project, tenant_id=tenant_id, pin=pin, deps=deps
+            )
+        finally:
+            shutil.rmtree(generated.staging, ignore_errors=True)
+    except Exception as exc:  # fail-closed: any pipeline error marks the run failed
+        async with tenant_connection(tenant_id) as conn:
+            await update_sdk_run_status(
+                conn,
+                tenant_id=tenant_id,
+                run_id=run_id,
+                status="failed",
+                payload={"failure_cause": str(exc)},
+            )
+        return
+
+    async with tenant_connection(tenant_id) as conn:
+        await update_project_sdk_generation(
+            conn,
+            tenant_id=tenant_id,
+            project_iri=project.project_iri,
+            last_sdk_version_iri=pin.version_iri,
+        )
+        await update_sdk_run_status(
+            conn,
+            tenant_id=tenant_id,
+            run_id=run_id,
+            status="passed",
+            payload={"package_version": package_version, "commit_sha": commit_sha},
+        )
