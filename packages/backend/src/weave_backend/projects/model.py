@@ -10,7 +10,7 @@ about to mint anyway (AC-5).
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 import asyncpg
 from pydantic import BaseModel
@@ -34,6 +34,11 @@ class Project(BaseModel):
     demo_output_location_ref: str | None = None
     write_back_complete: bool = False
     write_back_artefact_iri: str | None = None
+    # TASK-009 (migration 0021): FR-034 release-plan fields (ADR-020) --
+    # nullable, population deferred to a future task; `render_release_plan`
+    # shows "TBD" on unset rather than fabricating a value.
+    signoff_roles: list[str] | None = None
+    target_date: date | None = None
 
 
 class NewProject(BaseModel):
