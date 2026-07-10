@@ -138,3 +138,9 @@ the old `.history` folder, not on this branch or in docs. Engineer ships `heatma
 a valid AC-6 state ("no data for this dimension → all-grey + legend notice, no error", tested). Overlay shows
 all-grey until real value→colour pairs are filled in. ACTION: recover the mappings from prototype-findings.md
 (or have design author them) + wire into config. Non-blocking; the empty state is honest + tested.
+
+## Cross-task note: dashboard Cmd+K guard vs TASK-027 shell refit
+PLAT-V1-TASK-011 adds a `usePathname` guard to `components/shell/command-palette.tsx` so the global
+entity-search Cmd+K no-ops on `/dashboard` (dashboard PromptBar owns Cmd+K there — AC-8). PLAT-V1-TASK-027
+(App shell v2 chrome refit, parked/spec-blocked) touches this same shell — it MUST preserve the context-scoped
+Cmd+K guard (don't silently re-break it). Coordinator approved the guard (cleanest AC-8 impl, only shared-file edit).
