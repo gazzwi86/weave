@@ -22,7 +22,7 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.build.dep_summary import DepSummary, write_dep_summary
-from weave_backend.build.orchestrator import run_dark_factory
+from weave_backend.build.orchestrator import OrchestratorDeps, run_dark_factory
 from weave_backend.build.state_spine import (
     StateSpine,
     TaskState,
@@ -46,6 +46,10 @@ pytestmark = [
 
 def _unique_tenant(label: str) -> str:
     return f"{label}-{uuid.uuid4().hex[:8]}"
+
+
+async def _empty_rate_card(_conn: object, *, tenant_id: str, project_iri: str) -> dict[str, object]:
+    return {}
 
 
 async def _seed_project_with_repo(tenant_id: str, slug: str) -> str:
@@ -110,7 +114,13 @@ async def test_one_pdac_cycle_commits_state_spine_dispatch_count_1(platform_stac
             turn_cap=60,
         )
         spine.tasks.append(TaskState(id="t-1", status="Queued"))
-        await run_dark_factory(conn, spine, tenant_id=tenant_id)
+        # TASK-012 (ADR-008) made run-start rate-card resolution mandatory and
+        # fail-closed; the no-op PDAC stub here carries no usage, so cost
+        # attribution never fires. Stub the resolver (empty card) so this
+        # spine round-trip test needs no settings-table fixture, mirroring
+        # test_orchestrator.py's `_empty_rate_card`.
+        deps = OrchestratorDeps(resolve_rate_card_fn=_empty_rate_card)
+        await run_dark_factory(conn, spine, tenant_id=tenant_id, deps=deps)
 
     async with tenant_connection(tenant_id) as conn:
         reloaded = await load_state_spine(conn, tenant_id=tenant_id, project_iri=project_iri)
