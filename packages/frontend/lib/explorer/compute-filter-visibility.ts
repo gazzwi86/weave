@@ -83,7 +83,10 @@ export function computeFilterVisibility(elements: CytoscapeElement[], state: Fil
     hiddenNodeIds: [...hiddenNodeIds],
     dimmedNodeIds: [...dimmedNodeIds],
     hiddenEdgeIds: [...hiddenEdgeIds],
-    isEmpty: visibleNodes.length === 0,
+    // AC-2 is "all entity types toggled off", not "nothing loaded yet" --
+    // an empty canvas (nodes.length === 0) is a load-state concern
+    // (ExplorerCanvas's own CE-error empty-state), not a filter concern.
+    isEmpty: nodes.length > 0 && visibleNodes.length === 0,
     filterMatchEmpty,
   };
 }

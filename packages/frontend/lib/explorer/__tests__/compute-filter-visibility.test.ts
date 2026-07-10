@@ -36,6 +36,12 @@ describe("computeFilterVisibility", () => {
     expect(result.isEmpty).toBe(true);
   });
 
+  it("does not report isEmpty when the canvas simply has no elements loaded yet (AC-2 is about filtering, not an empty graph)", () => {
+    const result = computeFilterVisibility([], createFilterState());
+
+    expect(result.isEmpty).toBe(false);
+  });
+
   it("hides edges of a toggled-off relationship type and dims nodes left with no visible edge (AC-3)", () => {
     const elements = [
       node("a", "Policy"),
