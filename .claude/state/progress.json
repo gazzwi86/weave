@@ -1323,7 +1323,7 @@
       "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-009.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-010",

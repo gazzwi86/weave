@@ -39,3 +39,15 @@ completeness vs the brief (esp. that NO M1-stub-upgrade or anatomy sub-part is m
 
 - **blocked_by:** [] · EPIC-008 remaining after this: **TASK-005** (SDK Trigger — BLOCKED: needs TASK-001
   on the EPIC-002 branch, NOT on this off-main EPIC-008 branch; do at an EPIC-002+008 merge base).
+
+## QA (2026-07-10) — VERDICT: FAIL (logic) — retry 1/3, AC-2 UNIMPLEMENTED
+7 of 8 ACs delivered + tested (anatomy indexer AC-1, staleness AC-3/4, release-plan AC-5, dep-hold AC-6,
+pre-scaffold-BLOCKED AC-7/8) — 95% cov, ruff/mypy/bandit clean, migration 0021 additive, ADR-020 OKF-valid,
+NO gates.py regression (record_gate untouched). **AC-2 ("load anatomy into task context before DELEGATE",
+FR-031/M2-exit-4) is ENTIRELY MISSING**: no `TaskState.context` field, no ANATOMY.md read in the
+PLAN→DELEGATE dispatch loop, no test; `anatomy/indexer.py` has a MISLEADING docstring claiming it's covered.
+QA pinned it with strict-xfail `test_ac2_anatomy_loaded_into_task_context_before_delegate` (`8192d01`).
+**RESUME FIX (next session):** add `context: list[str]` to TaskState; in `default_dispatch_pdac`/pre-PLAN
+step read the project repo's ANATOMY.md via the SCM driver + prepend before dispatch; add the brief's
+`should load anatomy into task context before delegate` integration test; delete the xfail marker; fix the
+indexer docstring. retry=1/3.
