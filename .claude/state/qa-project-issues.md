@@ -239,3 +239,7 @@ per-task reports.
   combination or document a permanent `--no-cov` carve-out for `@pytest.mark.docker` in
   `docs/standards/testing-py.md`.
 - **Deadline:** before the next milestone's phase-gate remediation sweep (bundle with PROJ-010/011).
+
+## PROJ-014 — test_runs_api::test_one_pdac_cycle_commits_state_spine_dispatch_count_1 intermittent flake
+
+- **Severity:** Low · **Status:** OPEN (watch). Fails intermittently even in isolation (docker lane), no bindings/feature code path involved. First traced 2026-07-10 (BE-V1-TASK-022 AC-3 retry). Pre-existing sandbox flake, not a regression. Phase-gate: reproduce + root-cause the PDAC dispatch-count assertion.

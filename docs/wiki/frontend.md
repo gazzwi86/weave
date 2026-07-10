@@ -345,3 +345,17 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/app/build/projects/[id]/settings/pin-upgrade-section.tsx --> <!-- at: 2026-07-09T23:25:29.003849+00:00 -->
 
 <!-- stale: packages/frontend/tests/e2e/pin-upgrade.spec.ts --> <!-- at: 2026-07-09T23:31:31.682809+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/binding-slots.test.tsx --> <!-- at: 2026-07-10T00:45:11.078029+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/bind-dialog.tsx --> <!-- at: 2026-07-10T00:46:34.999434+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/binding-card.tsx --> <!-- at: 2026-07-10T00:55:28.931784+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/__tests__/route.test.ts --> <!-- at: 2026-07-10T00:59:17.026447+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/[bindingId]/__tests__/route.test.ts --> <!-- at: 2026-07-10T00:59:30.804031+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/route.ts --> <!-- at: 2026-07-10T01:00:01.131956+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/[bindingId]/route.ts --> <!-- at: 2026-07-10T01:00:11.757790+00:00 -->
