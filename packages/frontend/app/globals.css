@@ -72,7 +72,12 @@
    * which is also undarkened in light mode: these are decorative chart/
    * overlay fills, not text/interactive elements, so the doc's own
    * accessibility mechanism is colour+shape/pattern/label pairing, not a
-   * darkened AA-on-white fill). */
+   * darkened AA-on-white fill).
+   *
+   * Dark-mode only -- brand-spectrum stops lack light-mode hex; adjacent
+   * domain fills fail WCAG 1.4.11 on a light canvas. Light-safe hex is a
+   * design-authority follow-up (team-lead decision 2026-07-10), must land
+   * before any light-mode ship of the Explorer canvas. See overnight-queue. */
   --color-series-1: #22d3ee;
   --color-series-2: #2dd4bf;
   --color-series-3: #e879f9;
