@@ -464,6 +464,64 @@ async def test_should_leave_repo_and_bookkeeping_unchanged_on_failure(
     assert run.status == "failed"
 
 
+async def test_bookkeeping_failure_after_successful_commit_leaves_run_unresolved(
+    platform_stack: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Edge case (not in the AC-6 test mapping, which only pokes a
+    pre-commit pipeline failure): `_generate_and_commit`'s fail-closed
+    `except Exception` block only wraps `generate_sdk` + `_commit_generated_sdk`
+    (sdk_commit.py L98-106). A failure raised by the bookkeeping update that
+    runs AFTER a successful `commit_workspace` is NOT caught, so it propagates
+    uncaught out of `run_sdk_generation` -- the run is left at whatever status
+    it had before this call (never `failed`), `projects.last_sdk_version_iri`
+    is never updated, yet the SCM commit already landed. This documents the
+    current (imperfect) behaviour so a future fix has a red test to turn
+    green -- see QA report for TASK-005.
+    """
+    tenant_id = _unique_tenant("bookkeeping-fail")
+    project_iri = await _seed_project(
+        tenant_id, token_ref=f"weave/{tenant_id}/scm/github/token"
+    )
+    driver = _StubDriver()
+    async with tenant_connection(tenant_id) as conn:
+        await set_project_repo(
+            conn,
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            provider="github",
+            repo=RepoHandle(
+                repo_id="acme/weave-acme", url="https://scm/acme/repo", default_branch="main"
+            ),
+        )
+
+    monkeypatch.setattr(sdk_commit, "generate_sdk", lambda _pin: _generated_sdk(tmp_path))
+
+    async def _poisoned_bookkeeping(*_args: Any, **_kwargs: Any) -> None:
+        raise RuntimeError("db connection dropped post-commit")
+
+    monkeypatch.setattr(sdk_commit, "update_project_sdk_generation", _poisoned_bookkeeping)
+
+    with pytest.raises(RuntimeError, match="db connection dropped post-commit"):
+        await sdk_trigger.run_sdk_generation(
+            tenant_id=tenant_id, run_id="gen-bookkeeping-fail", project_iri=project_iri,
+            deps=_repo_deps(driver),
+        )
+
+    # The commit already landed -- the repo is NOT left unchanged, contrary
+    # to AC-6's literal wording ("leave the repo... unchanged"). This is the
+    # gap: AC-6 as coded only holds for pre-commit failures.
+    assert len(driver.commits) == 1
+
+    async with tenant_connection(tenant_id) as conn:
+        project = await get_project(conn, tenant_id=tenant_id, project_iri=project_iri)
+        run = await get_sdk_run(conn, tenant_id=tenant_id, run_id="gen-bookkeeping-fail")
+    assert project is not None
+    assert project.last_sdk_version_iri is None  # bookkeeping never landed
+    assert project.sdk_generation_count == 0
+    assert run is not None
+    assert run.status == "running"  # never advanced to "failed" -- stuck
+
+
 async def test_should_return_latest_generation_status(client: AsyncClient) -> None:
     """AC-7: `GET .../sdk-generations/latest` reflects the newest row."""
     tenant_id = _unique_tenant("latest")
