@@ -49,6 +49,18 @@ async def _empty_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> d
     return {}
 
 
+async def _always_ok_preflight(
+    _conn: Any, *, tenant_id: str, project_iri: str, run_id: str, phase: str
+) -> None:
+    """This test's project row carries a fake `source_control_token_secret_ref`
+    ("weave/unused-token-ref") that is never seeded into LocalStack Secrets
+    Manager -- the real `default_preflight` would halt the run fail-closed
+    on it (AC-2), unrelated to what this test is about (AC-4/AC-5
+    self-verification handoff). Same no-op stub convention as
+    `test_orchestrator.py`'s `_always_ok_preflight`.
+    """
+
+
 async def _seed_released_project(tenant_id: str) -> str:
     """A project already scaffolded and released (`feature_dispatch_held`
     `False`) -- the run reaches the dispatch loop without touching a real
@@ -105,6 +117,7 @@ async def test_should_persist_self_verification_block_on_handoff(platform_stack:
         dispatch_pdac_fn=_dispatch_reporting_compliance,
         applicable_rules_fn=lambda: ["lint"],
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
 
     async with tenant_connection(tenant_id) as conn:
