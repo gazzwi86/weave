@@ -39,7 +39,7 @@ from weave_backend.operations.outbox import enqueue
 from weave_backend.operations.provenance import ActorType, write_activity
 from weave_backend.operations.shacl import validate_graph
 from weave_backend.operations.versioning import get_version, mint_version
-from weave_backend.rdf.oxigraph_client import fetch_graph_turtle, load_graph
+from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples, load_graph
 from weave_backend.schemas.operations import (
     AddNodeOp,
     ApplyRequest,
@@ -116,10 +116,12 @@ def resolve_source_graph_iri(named_graph_iri: str, target: str) -> str:
 
 
 async def _fetch_scratch_graph(source_graph_iri: str) -> Graph:
-    turtle = await fetch_graph_turtle(source_graph_iri)
+    # ce-perf: N-Triples clone+parse, not Turtle -- Turtle's qname/prefix
+    # computation was the dominant write-path cost (see ADR-004 follow-up).
+    ntriples = await fetch_graph_ntriples(source_graph_iri)
     graph = Graph()
-    if turtle:
-        graph.parse(data=turtle, format="turtle")
+    if ntriples:
+        graph.parse(data=ntriples, format="nt")
     return graph
 
 
@@ -140,12 +142,15 @@ async def _commit(
     and ADR-002. AC-002-04: real delivery happens later, out of this
     transaction, so a down audit sink can never roll back the mutation.
 
-    Returns `(version_iri, activity_iri, turtle)`; the caller does the final
-    `load_graph(ctx.named_graph_iri, turtle)` promotion itself, deliberately
-    last. Note: the version-graph PUT below runs before the Postgres
-    transaction commits -- if promotion never happens, that PUT is an
-    orphan (no `graph_versions` row survives to reference it), invisible to
-    the registry. Acceptable residue, not a divergence.
+    Returns `(version_iri, activity_iri, body)` -- `body` is N-Triples, not
+    Turtle (ce-perf: avoids rdflib's Turtle qname/prefix cost, see
+    `_fetch_scratch_graph`). The caller does the final
+    `load_graph(ctx.named_graph_iri, body, content_type="application/n-triples")`
+    promotion itself, deliberately last. Note: the version-graph PUT below
+    runs before the Postgres transaction commits -- if promotion never
+    happens, that PUT is an orphan (no `graph_versions` row survives to
+    reference it), invisible to the registry. Acceptable residue, not a
+    divergence.
     """
     version_iri, _semver = await mint_version(
         ctx.conn,
@@ -154,8 +159,8 @@ async def _commit(
         named_graph_iri=ctx.named_graph_iri,
         actor_iri=ctx.principal_iri,
     )
-    turtle = scratch.serialize(format="turtle")
-    await load_graph(version_iri, turtle)
+    body = scratch.serialize(format="nt")
+    await load_graph(version_iri, body, content_type="application/n-triples")
     activity_iri = await write_activity(
         named_graph_iri=ctx.named_graph_iri,
         actor_iri=ctx.principal_iri,
@@ -183,7 +188,7 @@ async def _commit(
             },
         ),
     )
-    return version_iri, activity_iri, turtle
+    return version_iri, activity_iri, body
 
 
 def _to_violation_detail(result: Any) -> ViolationDetail:
@@ -228,7 +233,7 @@ async def _apply_uncached(
         metrics.schedule_mutation_outcome_metric("violation")
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
-    version_iri, activity_iri, turtle = await _commit(
+    version_iri, activity_iri, body = await _commit(
         ctx,
         scratch,
         source_graph_iri=source_graph_iri,
@@ -238,7 +243,7 @@ async def _apply_uncached(
     metrics.schedule_mutation_outcome_metric("success")
     # Last, irreversible step -- everything failable already happened and
     # committed (or would roll back) above; see module docstring.
-    await load_graph(ctx.named_graph_iri, turtle)
+    await load_graph(ctx.named_graph_iri, body, content_type="application/n-triples")
     advisories = [_to_violation_detail(r) for r in shacl_results if r.severity != "Violation"]
     return ApplyResponse(
         activity_iri=activity_iri,

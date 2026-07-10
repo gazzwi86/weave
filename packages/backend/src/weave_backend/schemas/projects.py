@@ -34,6 +34,8 @@ class CreateProjectResponse(BaseModel):
     project_iri: str
     pinned_graph_version_iri: str
     created_at: datetime
+    # AC-7: derived, never stored (B10) -- direct create always starts here.
+    lifecycle_phase: Literal["Speccing"] = "Speccing"
 
 
 class RepoInfo(BaseModel):
@@ -62,3 +64,20 @@ class ProjectResponse(BaseModel):
     created_at: datetime
     repo: RepoInfo | None = None
     staleness: StalenessInfo
+
+
+class ProjectCardResponse(BaseModel):
+    """AC-1: one row on the grid. `lifecycle_phase`/`owner_iri` are derived
+    at read time (ADR-014), never stored.
+    """
+
+    project_iri: str
+    name: str
+    created_at: datetime
+    lifecycle_phase: Literal["Speccing", "Building", "Live monitoring", "Archived"]
+    owner_iri: str | None
+
+
+class ProjectGridResponse(BaseModel):
+    items: list[ProjectCardResponse]
+    next_cursor: str | None

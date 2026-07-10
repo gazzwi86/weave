@@ -43,6 +43,8 @@ from weave_backend.generation.service import (
     GenerationDeps,
     generate_app,
 )
+from weave_backend.pm.bindings import NewBinding
+from weave_backend.pm.bindings import put as put_binding
 from weave_backend.projects.model import NewProject, create_project
 from weave_backend.repo_bootstrap.drivers import GitHubDriver
 from weave_backend.repo_bootstrap.secrets import get_scm_token
@@ -309,6 +311,56 @@ async def test_generate_app_records_generation_complete_audit_event_on_success(
     assert row is not None
     assert row["target_iri"] == project_iri
     assert row["engine"] == "build"
+
+
+async def test_generate_app_exposes_a_real_stored_binding_in_run_context(
+    platform_stack: Path,
+) -> None:
+    """TASK-022 AC-6, real Postgres: a binding written via `pm.bindings.put`
+    (not mocked) is read back by `get_bindings` and lands in the `bpmo`
+    dict `generate_workspace_fn` receives -- ref-only, no credentials.
+    """
+    tenant_id = _unique_tenant("tenant-gen-binding")
+    project_iri, task_id = await _seed_project_and_brief(tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await put_binding(
+            conn,
+            tenant_id=tenant_id,
+            binding=NewBinding(
+                project_iri=project_iri,
+                system="jira",
+                connector_ref="jira-1",
+                space_ref="ACME",
+                created_by="urn:weave:principal:user:admin",
+            ),
+        )
+
+    seen_bpmo: list[dict[str, object]] = []
+
+    async def capturing_generate_workspace(
+        *, prompt: str, output_dir: str, bpmo: dict[str, object]
+    ) -> None:
+        del prompt
+        seen_bpmo.append(bpmo)
+        Path(output_dir, "openapi.yaml").write_text("openapi: 3.1.0\n")
+
+    async with tenant_connection(tenant_id) as conn:
+        ctx = GenerationContext(
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            task_id=task_id,
+            ce_client=_ce_read_client(project_iri),
+        )
+        with patch("weave_backend.generation.gates.subprocess.run", side_effect=_all_tools_pass):
+            await generate_app(
+                conn, ctx, _gen_deps(generate_workspace_fn=capturing_generate_workspace)
+            )
+
+    assert seen_bpmo, "generate_workspace_fn was never invoked"
+    assert seen_bpmo[0]["external_bindings"] == [
+        {"system": "jira", "space_ref": "ACME", "connector_ref": "jira-1"}
+    ]
 
 
 # --- TASK-002 (E8-S1): CE-BRAND-1 conformance gate, 6th in the pipeline ---

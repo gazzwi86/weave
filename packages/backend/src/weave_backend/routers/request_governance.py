@@ -14,18 +14,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
-from weave_backend.projects.ce_version_client import (
-    CeVersionUnavailable,
-    get_ce_client,
-    get_pinned_latest_version,
-)
-from weave_backend.projects.model import (
-    NewProject,
-    ProjectExists,
-    create_project,
-    find_existing_project_iri,
-    slugify,
-)
+from weave_backend.projects.ce_version_client import CeVersionUnavailable, get_ce_client
+from weave_backend.projects.governance import NewProjectShell, create_project_shell
+from weave_backend.projects.model import ProjectExists, find_existing_project_iri, slugify
 from weave_backend.requests.ce_read import (
     CeReadUnavailable,
     compute_blast_radius,
@@ -152,17 +143,15 @@ async def _auto_create_project(
     existing = await find_existing_project_iri(conn, tenant_id=tenant_id, slug=slug)
     if existing is not None:
         return existing
-    pinned_version = await get_pinned_latest_version(ce_client, headers=headers)
+    # ADR-009 Decision #1: same shared create-shell as direct create
+    # (`routers/projects.py::create_project_route`) -- CE-pin +
+    # governance-cascade resolution can't drift between the two paths.
     try:
-        project = await create_project(
+        project, _governance = await create_project_shell(
             conn,
-            NewProject(
-                tenant_id=tenant_id,
-                slug=slug,
-                name=name,
-                description=None,
-                pinned_graph_version_iri=pinned_version,
-            ),
+            ce_client=ce_client,
+            fields=NewProjectShell(tenant_id=tenant_id, slug=slug, name=name),
+            headers=headers,
         )
     except ProjectExists as exc:
         return exc.existing_iri

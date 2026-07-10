@@ -23,7 +23,14 @@ COMMIT_TIMEOUT_SECONDS = 0.5
 #: mirrors `repo_bootstrap.service.BUILD_SERVICE_PRINCIPAL_IRI`.
 BUILD_PRINCIPAL_IRI = "urn:weave:principal:service:build-engine"
 
-Phase = Literal["running", "halted_turn_cap", "halted_hitl", "complete"]
+Phase = Literal[
+    "running",
+    "halted_turn_cap",
+    "halted_hitl",
+    "halted_config_error",
+    "halted_budget_breach",
+    "complete",
+]
 
 
 class TaskState(BaseModel):
@@ -48,8 +55,12 @@ class StateSpine(BaseModel):
 
     def next_ready_task(self) -> TaskState | None:
         """AC-1 pseudocode's `next_ready_task` -- the first task not yet
-        `Done`/`Blocked`. M1 has no priority/parallelism scheduling beyond
-        list order (out of this task's AC scope).
+        `Done`/`Blocked`/`revision`. M1 has no priority/parallelism
+        scheduling beyond list order (out of this task's AC scope).
+        `revision` (AC-5: self-verify found a violated rule) is excluded
+        the same way `Blocked` is -- redispatching it immediately would
+        retry against the same violation with no rework step in between;
+        resubmission is a documented future extension, not built here.
 
         TASK-009/FR-043: a task held on a missing predecessor dep-summary
         (`hold_reason` set) is also skipped -- otherwise every remaining
@@ -57,7 +68,10 @@ class StateSpine(BaseModel):
         cap instead of making progress on the rest of the backlog.
         """
         for task in self.tasks:
-            if task.status not in ("Done", "Blocked") and task.hold_reason is None:
+            if (
+                task.status not in ("Done", "Blocked", "revision")
+                and task.hold_reason is None
+            ):
                 return task
         return None
 

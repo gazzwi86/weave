@@ -265,3 +265,175 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/audit/compliance.py --> <!-- at: 2026-07-08T05:11:53.820200+00:00 -->
 
 <!-- stale: packages/backend/src/weave_backend/projects/ce_version_client.py --> <!-- at: 2026-07-08T05:12:15.791344+00:00 -->
+
+<!-- stale: packages/backend/migrations/0017_standards.sql --> <!-- at: 2026-07-09T14:12:06.310056+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/__init__.py --> <!-- at: 2026-07-09T14:12:26.051509+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_effective.py --> <!-- at: 2026-07-09T14:13:16.983787+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_generation_hook.py --> <!-- at: 2026-07-09T14:13:39.935195+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/standards.py --> <!-- at: 2026-07-09T14:13:51.679899+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/models.py --> <!-- at: 2026-07-09T14:14:02.056272+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/effective.py --> <!-- at: 2026-07-09T14:14:13.484239+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/generation_hook.py --> <!-- at: 2026-07-09T14:14:31.501343+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_store.py --> <!-- at: 2026-07-09T14:14:49.541319+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/store.py --> <!-- at: 2026-07-09T14:15:16.955784+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/standards/ce_client.py --> <!-- at: 2026-07-09T14:16:01.408906+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/standards.py --> <!-- at: 2026-07-09T14:16:39.850676+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/__init__.py --> <!-- at: 2026-07-09T14:17:01.277094+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_standards_router.py --> <!-- at: 2026-07-09T14:17:25.474920+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_standards_api.py --> <!-- at: 2026-07-09T14:18:11.119949+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/generation/service.py --> <!-- at: 2026-07-09T14:19:55.415847+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_generation_service.py --> <!-- at: 2026-07-09T14:26:05.207055+00:00 -->
+
+<!-- stale: packages/backend/migrations/0018_v1_pm_tables.sql --> <!-- at: 2026-07-09T15:13:43.763621+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/__init__.py --> <!-- at: 2026-07-09T15:14:00.532079+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/contributors.py --> <!-- at: 2026-07-09T15:14:15.939452+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/bindings.py --> <!-- at: 2026-07-09T15:14:29.758173+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/cost_events.py --> <!-- at: 2026-07-09T15:15:00.759325+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/prompts.py --> <!-- at: 2026-07-09T15:15:15.120646+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_contributors.py --> <!-- at: 2026-07-09T15:15:35.472930+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_bindings.py --> <!-- at: 2026-07-09T15:15:53.474840+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_cost_events.py --> <!-- at: 2026-07-09T15:16:11.641964+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_prompts.py --> <!-- at: 2026-07-09T15:16:28.293352+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_static_no_raw_sql.py --> <!-- at: 2026-07-09T15:16:56.353148+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_v1_pm_tables.py --> <!-- at: 2026-07-09T15:17:42.769941+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/auth/dependencies.py --> <!-- at: 2026-07-09T15:44:54.412910+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_rbac.py --> <!-- at: 2026-07-09T15:45:25.181027+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/rbac.py --> <!-- at: 2026-07-09T15:47:33.676696+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_project_role_guard.py --> <!-- at: 2026-07-09T15:54:28.146803+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_auth_dependencies.py --> <!-- at: 2026-07-09T16:07:39.697378+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_build_cost.py --> <!-- at: 2026-07-09T16:39:09.646388+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_orchestrator.py --> <!-- at: 2026-07-09T16:39:54.505098+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/tasks.py --> <!-- at: 2026-07-09T16:41:48.416856+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/state_spine.py --> <!-- at: 2026-07-09T16:42:05.290899+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/cost.py --> <!-- at: 2026-07-09T16:42:32.251184+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/billing/metering.py --> <!-- at: 2026-07-09T16:42:52.105845+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/orchestrator.py --> <!-- at: 2026-07-09T16:43:26.754050+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_build_costs.py --> <!-- at: 2026-07-09T17:51:45.486958+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_costs_api.py --> <!-- at: 2026-07-09T17:53:06.974893+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/build/costs.py --> <!-- at: 2026-07-09T18:07:50.579142+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/briefs/store.py --> <!-- at: 2026-07-09T18:08:14.018538+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/costs.py --> <!-- at: 2026-07-09T18:18:01.367166+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/costs.py --> <!-- at: 2026-07-09T18:18:19.180984+00:00 -->
+
+<!-- stale: packages/backend/migrations/0019_projects_archived_at.sql --> <!-- at: 2026-07-09T19:41:35.351323+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_governance.py --> <!-- at: 2026-07-09T19:43:07.273832+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_pm_surface_api.py --> <!-- at: 2026-07-09T19:43:42.870233+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/projects/governance.py --> <!-- at: 2026-07-09T19:44:13.222876+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/projects.py --> <!-- at: 2026-07-09T19:45:25.998185+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/projects.py --> <!-- at: 2026-07-09T19:46:00.266049+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/request_governance.py --> <!-- at: 2026-07-09T19:46:09.238065+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_projects_router.py --> <!-- at: 2026-07-09T19:47:00.788294+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_requests_governance.py --> <!-- at: 2026-07-09T19:47:41.766002+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/contributors.py --> <!-- at: 2026-07-09T20:18:03.418982+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_contributors.py --> <!-- at: 2026-07-09T20:18:20.882889+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/project_settings.py --> <!-- at: 2026-07-09T20:22:20.668468+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_settings.py --> <!-- at: 2026-07-09T20:22:53.944337+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/projects/grid.py --> <!-- at: 2026-07-09T20:24:42.156851+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_projects_grid.py --> <!-- at: 2026-07-09T21:02:17.456332+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_settings_router.py --> <!-- at: 2026-07-09T21:08:37.103646+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_contributors_router.py --> <!-- at: 2026-07-09T21:10:42.515277+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_ce_diff_client.py --> <!-- at: 2026-07-09T23:09:54.093424+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_pin_router.py --> <!-- at: 2026-07-09T23:10:23.493005+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_model.py --> <!-- at: 2026-07-09T23:10:43.812103+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/project_pin.py --> <!-- at: 2026-07-09T23:12:06.102934+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/projects/model.py --> <!-- at: 2026-07-09T23:13:18.122790+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_pin.py --> <!-- at: 2026-07-09T23:13:39.420310+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_connectors_client.py --> <!-- at: 2026-07-10T00:30:17.195249+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/connectors/__init__.py --> <!-- at: 2026-07-10T00:30:34.416006+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/connectors/client.py --> <!-- at: 2026-07-10T00:30:49.941824+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_project_bindings_router.py --> <!-- at: 2026-07-10T00:32:40.058763+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/bindings.py --> <!-- at: 2026-07-10T00:32:58.105655+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/project_bindings.py --> <!-- at: 2026-07-10T00:33:18.061946+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_generation_api.py --> <!-- at: 2026-07-10T01:08:30.656139+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_repo_bootstrap_secrets.py --> <!-- at: 2026-07-10T02:01:22.334406+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/repo_bootstrap/secrets.py --> <!-- at: 2026-07-10T02:02:01.464874+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_source_control.py --> <!-- at: 2026-07-10T02:03:22.180172+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/source_control.py --> <!-- at: 2026-07-10T02:04:59.909212+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_schemas_source_control.py --> <!-- at: 2026-07-10T02:06:00.942037+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/source_control.py --> <!-- at: 2026-07-10T02:06:16.577596+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_source_control_router.py --> <!-- at: 2026-07-10T02:07:37.693756+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/source_control.py --> <!-- at: 2026-07-10T02:08:01.992516+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_source_control_api.py --> <!-- at: 2026-07-10T02:34:54.836482+00:00 -->

@@ -184,3 +184,52 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   parent commit to its tree (`GET /git/commits/{parent_sha}` → `tree.sha`). Recorded here because
   BE-009 reuses `commit_workspace` — the single fix protects it too; no separate BE-009 action.
 - **Classification:** interface / cross-task (one fix closes both).
+
+## XT-BE013-1 — `context_iri=project_iri` never parses under `settings/scope.py`'s IRI grammar (cascade dead beyond company)
+
+- **Severity:** High · **Status:** PARTIALLY RESOLVED (`86eeb3b`/`e06642b`, `feature/BE-V1-EPIC-002`).
+  The production-breaking half is fixed: `build/cost.py::resolve_rate_card` had NO fallback so every
+  real dispatch produced an empty card / `RateCardConfigError` — now catches `InvalidScopeIri` and
+  falls back to company scope like `resolve_budget_cap` does (both tested against the real project
+  IRI). The **remaining half is DEFERRED to a schema follow-up** (ADR-013): domain/project-level
+  overrides stay unreachable until `projects` gains a `domain_id` column AND `settings/scope.py`
+  parses a project/domain scope IRI. Same root cause as ADR-012 — ONE `projects.domain_id` migration
+  + grammar extension closes XT-BE013-1's remainder, ADR-012's dormant role overlay, and this cap
+  cascade. Phase-gate ratification item.
+- **Affects:** BE-V1-TASK-013 (AC-3 — Company→Domain→Project budget-cap cascade), BE-V1-TASK-012
+  (rate-card resolution, `build/cost.py:64`, same pattern — no cascade AC was claimed there so it
+  wasn't caught, but it has the identical gap), BE-V1-TASK-019 (Dashboard "capped at Domain" tile —
+  will never render anything but "capped at Company").
+- **Found by:** BE-V1-TASK-013 QA (traced `resolve_budget_cap` -> `settings/scope.py:scope_of`
+  against the real `build_project_iri` format).
+- **Symptom:** every real project IRI in this codebase is `urn:weave:project:{tenant_id}:{slug}`
+  (`projects/model.py:build_project_iri`). `settings/scope.py`'s cascade grammar only recognises
+  `urn:weave:tenant:{tid}:company` / `:domain:{did}` / `:ws:{wid}` / `:ws:{wid}:project:{pid}`.
+  Calling `resolve_setting(..., context_iri=<real project_iri>)` therefore always raises
+  `InvalidScopeIri` and falls straight back to the tenant's company scope — domain- and
+  project-level overrides of `build.budget.cap_usd` (and `build.rate_card`) are silently
+  unreachable in production. `resolve_budget_cap`'s own docstring self-discloses this
+  ("...inert until a follow-up threads a domain-aware project IRI") but it isn't flagged as a
+  known-gap anywhere outward-facing (DoD, progress summary).
+- **Root cause:** two IRI grammars from different specs (Build's `urn:weave:project:{tid}:{slug}`
+  vs Platform-Settings' `urn:weave:tenant:{tid}:...`) were never reconciled; TASK-013's unit test
+  proves the cascade machinery in isolation with a fabricated IRI that conforms to the *settings*
+  grammar, not the one the orchestrator/router actually pass — a tautological test relative to the
+  real call path.
+- **Action:** either (a) extend `settings/scope.py`'s grammar to parse Build project IRIs (thread
+  a domain-aware project IRI per the docstring's own suggestion), or (b) have Build resolve/pass a
+  settings-scope-shaped context IRI at the call site. Either way, AC-3 needs a real fix plus a test
+  that exercises the actual production project_iri shape, not a fabricated one.
+- **Classification:** interface / spec gap (two unreconciled IRI grammars).
+
+## XT-BE004-1 — codegen injection: unescaped CE-fetched `fn_iri`/`fn.name` in SDK emitters
+- **Severity:** SERIOUS (security) · **Status:** RESOLVED (`bb2aea0`) — two-layer fix (charset-reject at IR + percent-encode at template) · **affects:** [BE-V1-TASK-005]
+- `fn.fn_iri` (CE `/api/functions` JSON, NOT IRI-syntax-constrained) interpolates unescaped into an
+  executable string literal in `sdkgen/templates/typescript/index.ts.j2:29` + `templates/python/client.py.j2:32`.
+  A crafted value breaks out → injects code that passes real tsc/mypy silently → arbitrary code in every
+  downstream consumer's build. QA red tests `7c23481` pin it.
+- **Fix:** validate/reject `fn_iri`+`fn.name` against a safe IRI/identifier charset in `ir.py::map_fn`
+  (IR boundary, named error like `UnmappableConstraint`) — not template-level escaping alone.
+- **TASK-005 HELD** until this lands (SDK Trigger API wires this pipeline into a live CE-driven path).
+- **General lesson:** any codegen from external/registry data MUST validate identifiers at the IR boundary
+  before emission; the compile gate (tsc/mypy) does NOT catch injected valid code.

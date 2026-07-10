@@ -7,17 +7,80 @@ and agent principals (no branching on `principal_type` anywhere below).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
+import logging
+from collections.abc import Callable, Coroutine, Sequence
+from enum import StrEnum
 from typing import Annotated, Any
 
 import asyncpg
 from fastapi import Depends, HTTPException
 
-from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.audit.emitter import AuditEmitter, AuditEvent, default_audit_emitter
+from weave_backend.auth.dependencies import Principal, RoleGrant, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.pm.contributors import get_role as get_contributor_role
 from weave_backend.tenancy.workspaces import get_workspace
 
+log = logging.getLogger(__name__)
+
 ROLE_RANK: dict[str, int] = {"read": 0, "author": 1, "publish": 2, "admin": 3}
+
+
+class ProjectAction(StrEnum):
+    """TASK-011: mutation actions gated by `require_project_role`. Reads
+    carry no guard (AC-5) -- tenant membership via `get_current_principal`
+    is sufficient.
+    """
+
+    SETTINGS = "settings"
+    CONTRIBUTORS = "contributors"
+    BINDINGS = "bindings"
+    BACKLOG = "backlog"
+    SPECS = "specs"
+    GENERATE = "generate"
+    PROMPT = "prompt"
+
+
+#: TASK-011 AC-1/AC-2: `admin`'s action set is a strict superset of `editor`'s.
+PROJECT_ROLE_ACTIONS: dict[str, frozenset[ProjectAction]] = {
+    "admin": frozenset(ProjectAction),
+    "editor": frozenset(
+        {ProjectAction.BACKLOG, ProjectAction.SPECS, ProjectAction.GENERATE, ProjectAction.PROMPT}
+    ),
+}
+
+#: TASK-011 AC-4: role names in the JWT `roles` claim that overlay a
+#: tenant/domain-wide admin grant over any per-project role.
+_OVERLAY_ROLES = frozenset({"admin", "owner"})
+
+
+class InsufficientProjectRole(HTTPException):
+    def __init__(self, action: ProjectAction) -> None:
+        super().__init__(status_code=403, detail={"error": "forbidden", "action": action.value})
+
+
+def project_role_allows(role: str | None, action: ProjectAction) -> bool:
+    if role is None:
+        return False
+    return action in PROJECT_ROLE_ACTIONS.get(role, frozenset())
+
+
+def has_admin_grant(roles: Sequence[RoleGrant], *, domain: str | None) -> bool:
+    """TASK-011 AC-4: a tenant-scope admin/owner grant always overlays; a
+    domain-scope grant overlays only when `domain` (the project's
+    `domain_iri`) is given and matches. `domain=None` at the route boundary
+    is the honest M1 state -- `projects` carries no `domain_iri` column yet
+    (see ADR) -- so only tenant-scope grants are live in production; the
+    domain branch is unit-tested directly against AC-4's spec.
+    """
+    for grant in roles:
+        if grant.role not in _OVERLAY_ROLES:
+            continue
+        if grant.scope == "tenant":
+            return True
+        if grant.scope == "domain" and domain is not None and grant.domain_iri == domain:
+            return True
+    return False
 
 
 class InsufficientRole(HTTPException):
@@ -102,6 +165,95 @@ def require_workspace_role(
                 user_sub=principal.sub,
                 min_role=min_role,
             )
+        return principal
+
+    return _dependency
+
+
+async def _emit_denial_best_effort(
+    conn: asyncpg.Connection,
+    principal: Principal,
+    *,
+    project_iri: str,
+    action: ProjectAction,
+    audit_emitter: AuditEmitter,
+) -> None:
+    """AC-6: PLAT-AUDIT-1 write is best-effort -- a broken audit sink must
+    never turn a legitimate 403 into a 500. No reusable never-raise wrapper
+    exists elsewhere in this codebase (every other call site does a bare
+    `await ...emit(...)`); this is the guard's own boundary.
+    """
+    try:
+        await audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="authz_denied",
+                actor_iri=principal.principal_iri,
+                subject_iri=project_iri,
+                payload={"action": action.value},
+                engine="build",
+            ),
+        )
+    except Exception:
+        log.warning("authz_denied audit emit failed", exc_info=True)
+
+
+async def enforce_project_role(
+    conn: asyncpg.Connection,
+    principal: Principal,
+    *,
+    project_iri: str,
+    action: ProjectAction,
+    audit_emitter: AuditEmitter = default_audit_emitter,
+) -> None:
+    """TASK-011 AC-1/AC-2/AC-4/AC-6: `admin`/`editor` per-project roles
+    (via `pm.contributors`), overlaid by a tenant admin/owner JWT grant
+    (AC-4). `domain=None` -- see `has_admin_grant`'s docstring for the M1
+    `domain_iri` gap. A tenant-admin grant short-circuits before any DB
+    lookup: AC-4 requires this to allow even with no contributor row.
+    """
+    if has_admin_grant(principal.roles, domain=None):
+        return
+    role = await get_contributor_role(
+        conn,
+        tenant_id=principal.tenant_id,
+        project_iri=project_iri,
+        principal_iri=principal.principal_iri,
+    )
+    if project_role_allows(role, action):
+        return
+    await _emit_denial_best_effort(
+        conn, principal, project_iri=project_iri, action=action, audit_emitter=audit_emitter
+    )
+    raise InsufficientProjectRole(action)
+
+
+def require_project_role(
+    action: ProjectAction,
+) -> Callable[..., Coroutine[Any, Any, Principal]]:
+    """Dependency factory: `Depends(require_project_role(ProjectAction.X))`
+    on a `{project_iri}`-path route. No new endpoint ships in this task --
+    every future PM mutation route wires through this.
+    """
+
+    async def _dependency(
+        project_iri: str,
+        principal: Annotated[Principal, Depends(get_current_principal)],
+    ) -> Principal:
+        # Catch-then-re-raise-outside-the-block, not a bare propagate: a
+        # raised exception in flight when `tenant_connection`'s `async with`
+        # exits rolls its whole transaction back (`conn.transaction()`,
+        # ADR-010) -- including the `authz_denied` row AC-6 requires to
+        # survive the very 403 it's logging.
+        denial: InsufficientProjectRole | None = None
+        async with tenant_connection(principal.tenant_id) as conn:
+            try:
+                await enforce_project_role(conn, principal, project_iri=project_iri, action=action)
+            except InsufficientProjectRole as exc:
+                denial = exc
+        if denial is not None:
+            raise denial
         return principal
 
     return _dependency

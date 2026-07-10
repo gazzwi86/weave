@@ -1,6 +1,7 @@
 """HTTP client for CE-VERSION-1 (``GET /api/ontology/versions``, contracts.md
 Sec. CE-VERSION-1) -- picks the ``is_latest`` entry's ``version_iri`` to pin
-a new project to (AC-1).
+a new project to (AC-1) -- and CE-DIFF-1 (``GET /api/ontology/diff``,
+TASK-016), which reuses the same client/retry machinery below.
 
 CE and Build share one FastAPI app for M1 (no separate deployed service
 yet), so the default base URL is this same process; ``CE_API_BASE_URL``
@@ -21,6 +22,7 @@ import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator
+from typing import Any, cast
 
 import httpx
 
@@ -125,3 +127,40 @@ async def get_versions(
     """
     body = await _fetch_versions_body(client, headers=headers)
     return _extract_versions(body)
+
+
+class CeDiffUnavailable(Exception):
+    """CE-DIFF-1 unreachable after retries -- callers turn this into the 503
+    ``diff_unavailable`` response (TASK-016 AC-2) rather than showing an
+    empty diff.
+    """
+
+
+async def get_ontology_diff(
+    client: httpx.AsyncClient,
+    *,
+    from_version: str,
+    to_version: str,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """TASK-016 AC-1: fetch ``GET /api/ontology/diff?from=&to=`` (CE-DIFF-1),
+    return the raw body unchanged. Callers read ``versions`` (the
+    contracts.md breaking-span amendment) defensively via ``.get(...)`` --
+    CE's own ``DiffResponse``/``VersionEntry`` don't emit it yet, so it may
+    be absent; Build must never derive breakingness itself.
+    """
+    last_error: Exception | None = None
+    for _attempt in range(_MAX_ATTEMPTS):
+        try:
+            response = await client.get(
+                "/api/ontology/diff",
+                params={"from": from_version, "to": to_version},
+                headers=headers,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            last_error = exc
+            log.warning("ce_diff_unavailable_attempt", extra={"error": str(exc)})
+            continue
+        return cast("dict[str, Any]", response.json())
+    raise CeDiffUnavailable("CE-DIFF-1 unreachable after retries") from last_error

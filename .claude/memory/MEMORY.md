@@ -9,6 +9,9 @@
 - [AWS access via named profile gazzwi86](reference_aws_profile.md) — AWS_PROFILE=gazzwi86 (pre-authed); never hunt AWS key/secret env vars
 - [QA preflight vs parallel lanes](process_qa-preflight-vs-parallel-lanes.md) — QA agent needs the task summary to exist before it validates; ADV-004 lanes can't write state, so coordinator pre-writes the summary from the lane receipt before launching QA
 - [Tenancy realignment — workspace ≡ company (2026-07-08)](decision_tenancy-workspace-alignment.md) — spec wins over intra-tenant sub-workspaces; operator-console provisioning; 10 roles + project grants; publish notifies members
-- [GitHub Actions unavailable until 2026-08-01](project_ci_credits_outage.md) — CI credits exhausted; gates use local verification + waiver until reset
+- [GitHub Actions CI RESTORED 2026-07-10](project_ci_credits_outage.md) — CI back early; waiver LIFTED, run CI gates for real; expect main red post-merge (#48/#49 + lane branches), fix before stacking
 - [Never delete descoped task briefs](feedback_never-delete-descoped-briefs.md) — post-v1 descopes move briefs to post-v1/tasks/, never delete
 - [Ask decisions in-flight, don't defer](feedback_ask-decisions-in-flight.md) — blocking decision surfaces mid-task → AskUserQuestion immediately, never report-and-wait
+- [projects table has no domain_id (2026-07-10)](project_projects-domain-id-gap.md) — kills every domain/project-scoped cascade (roles/budget/rate-card); one migration + scope-grammar extension closes ADR-012 + ADR-013 + XT-BE013-1; phase-gate item
+- [Parallel lanes cap = 5 (2026-07-10)](feedback_parallel-lanes-cap-5.md) — user raised /implement concurrent lanes from 3 to 5, dependency-graph gated; ADV-004 isolation rules still hold; docker interim = 1 lane on shared stack
+- [Docker test marker (2026-07-10)](reference_docker-test-marker.md) — use `-m "integration and docker and not stack"`; plain marker pulls a stack test that runs `docker compose down -v` mid-run and corrupts the shared fixture

@@ -22,7 +22,7 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.build.dep_summary import DepSummary, write_dep_summary
-from weave_backend.build.orchestrator import run_dark_factory
+from weave_backend.build.orchestrator import OrchestratorDeps, run_dark_factory
 from weave_backend.build.state_spine import (
     StateSpine,
     TaskState,
@@ -35,7 +35,7 @@ from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.projects.model import NewProject, create_project
 from weave_backend.repo_bootstrap.drivers import RepoHandle
-from weave_backend.repo_bootstrap.store import set_project_repo
+from weave_backend.repo_bootstrap.store import set_feature_dispatch_held, set_project_repo
 
 pytestmark = [
     pytest.mark.integration,
@@ -48,10 +48,30 @@ def _unique_tenant(label: str) -> str:
     return f"{label}-{uuid.uuid4().hex[:8]}"
 
 
+async def _empty_rate_card(_conn: object, *, tenant_id: str, project_iri: str) -> dict[str, object]:
+    return {}
+
+
+async def _always_ok_preflight(
+    _conn: object, *, tenant_id: str, project_iri: str, run_id: str, phase: str
+) -> None:
+    """The seeded project's `source_control_token_secret_ref`
+    ("weave/scm-token") is never created in LocalStack Secrets Manager --
+    real `default_preflight` would halt the run fail-closed on it (AC-2)
+    before any dispatch, unrelated to what this test covers (loop
+    mechanics/dispatch_count). Same no-op stub convention as
+    `test_orchestrator.py`'s `_always_ok_preflight`.
+    """
+
+
 async def _seed_project_with_repo(tenant_id: str, slug: str) -> str:
     """A project row with its repo handle already set -- `ensure_project_repo`
     (TASK-010) takes the idempotent short-circuit path for it, so
     `run_dark_factory` never needs a real SCM token or GitHub call here.
+    `feature_dispatch_held` is pre-set `False` (already scaffolded and
+    released) so `run_dark_factory`'s dispatch loop isn't held pending
+    human env-verification approval -- same precedent as
+    `test_self_verify_handoff.py`'s `_seed_released_project`.
     """
     async with tenant_connection(tenant_id) as conn:
         project = await create_project(
@@ -74,6 +94,9 @@ async def _seed_project_with_repo(tenant_id: str, slug: str) -> str:
             repo=RepoHandle(
                 repo_id="acme/repo", url="https://scm/acme/repo", default_branch="main"
             ),
+        )
+        await set_feature_dispatch_held(
+            conn, tenant_id=tenant_id, project_iri=project.project_iri, held=False
         )
     return project.project_iri
 
@@ -110,7 +133,15 @@ async def test_one_pdac_cycle_commits_state_spine_dispatch_count_1(platform_stac
             turn_cap=60,
         )
         spine.tasks.append(TaskState(id="t-1", status="Queued"))
-        await run_dark_factory(conn, spine, tenant_id=tenant_id)
+        # TASK-012 (ADR-008) made run-start rate-card resolution mandatory and
+        # fail-closed; the no-op PDAC stub here carries no usage, so cost
+        # attribution never fires. Stub the resolver (empty card) so this
+        # spine round-trip test needs no settings-table fixture, mirroring
+        # test_orchestrator.py's `_empty_rate_card`.
+        deps = OrchestratorDeps(
+            resolve_rate_card_fn=_empty_rate_card, preflight_fn=_always_ok_preflight
+        )
+        await run_dark_factory(conn, spine, tenant_id=tenant_id, deps=deps)
 
     async with tenant_connection(tenant_id) as conn:
         reloaded = await load_state_spine(conn, tenant_id=tenant_id, project_iri=project_iri)

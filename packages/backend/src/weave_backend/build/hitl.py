@@ -28,6 +28,13 @@ _TENANT_ADMINS_SQL = (
 
 _ACTION_OUTCOMES = {"approve": "resumed", "reject": "halted", "amend": "replan"}
 
+#: TASK-006 AC-7: `rich_scaffold` fires its env-verification gate with
+#: `task_id=f"env_verification:{project_iri}"` (rich_scaffold.py) -- a
+#: pseudo-task, never a `build.store` row. Same literal on both sides
+#: (no shared constant module -- two short-lived string producers, not
+#: worth a new module for).
+_ENV_VERIFICATION_TASK_PREFIX = "env_verification:"
+
 
 class HitlGateClosedError(Exception):
     """AC-5: the audit service is unreachable at gate-evaluation time -- the
@@ -131,7 +138,19 @@ async def handle_hitl_response(
     """AC-4/AC-6: apply an approve/reject/amend HITL action, enforcing
     no-self-approval (`SelfApprovalNotPermitted`) via `PLAT-IDENTITY-1`, then
     persist the outcome to `PLAT-AUDIT-1`.
+
+    TASK-006 AC-7: an `env_verification:{project_iri}` task_id is a
+    rich-scaffold pseudo-task with no `build.store` row -- an `approve` on
+    it routes to `approve_env_verification` (the sole writer that releases
+    `feature_dispatch_held`) instead of the task-status path below, so this
+    one existing web HITL surface is the release path (brief's API
+    Contracts: "no new public endpoint").
     """
+    if ctx.action == "approve" and ctx.task_id.startswith(_ENV_VERIFICATION_TASK_PREFIX):
+        return await _release_env_verification(
+            conn, ctx, resolve_principal=resolve_principal, audit_emitter=audit_emitter
+        )
+
     task = store.get_task(ctx.tenant_id, ctx.task_id)
     if task is None:
         raise TaskNotFound(ctx.task_id)
@@ -158,6 +177,44 @@ async def handle_hitl_response(
             event_type="hitl_response",
             actor_iri=ctx.approving_principal_iri,
             subject_iri=task_iri(ctx.tenant_id, ctx.task_id),
+            payload={"action": ctx.action},
+            engine="build",
+        ),
+    )
+    return {"action": _ACTION_OUTCOMES[ctx.action]}
+
+
+async def _release_env_verification(
+    conn: Any,
+    ctx: HitlResponseContext,
+    *,
+    resolve_principal: Any,
+    audit_emitter: AuditEmitter,
+) -> dict[str, str]:
+    """TASK-006 AC-7: deferred import -- `rich_scaffold` imports this
+    module (`fire_hitl_gate`/`SelfApprovalNotPermitted`), so importing it
+    back at module scope here would be circular. `approve_env_verification`
+    raises the same `SelfApprovalNotPermitted` this module defines, so the
+    router's existing `except SelfApprovalNotPermitted` handler (403) needs
+    no change.
+    """
+    from weave_backend.repo_bootstrap.rich_scaffold import approve_env_verification
+
+    project_iri = ctx.task_id[len(_ENV_VERIFICATION_TASK_PREFIX) :]
+    await approve_env_verification(
+        conn,
+        project_iri=project_iri,
+        tenant_id=ctx.tenant_id,
+        approving_principal_iri=ctx.approving_principal_iri,
+        resolve_principal=resolve_principal,
+    )
+    await audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=ctx.tenant_id,
+            event_type="hitl_response",
+            actor_iri=ctx.approving_principal_iri,
+            subject_iri=project_iri,
             payload={"action": ctx.action},
             engine="build",
         ),

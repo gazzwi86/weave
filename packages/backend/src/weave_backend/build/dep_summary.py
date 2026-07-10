@@ -12,12 +12,19 @@ from typing import Any
 import asyncpg
 from pydantic import BaseModel, Field
 
+from weave_backend.schemas.tasks import SelfVerificationLine
+
 
 class DepSummary(BaseModel):
     task_id: str
     decisions: list[str] = Field(default_factory=list)
     edge_cases: list[str] = Field(default_factory=list)
     outputs: list[str] = Field(default_factory=list)
+    #: BE-TASK-006 AC-4: the agent's self-verification block, attached to
+    #: the handoff record so a successor task's PLAN can see what the
+    #: predecessor checked -- `None` when self_verify() never ran (no
+    #: applicable rules, the M1 default).
+    self_verification: list[SelfVerificationLine] | None = None
 
 
 async def write_dep_summary(

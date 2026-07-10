@@ -247,3 +247,69 @@ async def test_default_audit_health_check_fails_closed_on_pool_error() -> None:
         healthy = await default_audit_health_check()
 
     assert healthy is False
+
+
+async def test_hitl_approve_on_env_verification_task_releases_hold() -> None:
+    """TASK-006 AC-7: `POST /api/tasks/{task_id}/hitl` approve on an
+    `env_verification:{project_iri}` pseudo-task is the release path -- it
+    has no `build.store` row, so this must route to
+    `approve_env_verification` rather than `TaskNotFound`.
+    """
+
+    class _Human:
+        type = "human"
+
+    resolve_principal = AsyncMock(return_value=_Human())
+    release = AsyncMock()
+
+    with patch("weave_backend.repo_bootstrap.rich_scaffold.set_feature_dispatch_held", release):
+        outcome = await handle_hitl_response(
+            None,
+            HitlResponseContext(
+                tenant_id="t1",
+                task_id="env_verification:urn:weave:project:t1:acme",
+                approving_principal_iri="urn:weave:principal:user:u1",
+                action="approve",
+            ),
+            resolve_principal=resolve_principal,
+            audit_emitter=_FakeAuditEmitter(),
+        )
+
+    assert outcome == {"action": "resumed"}
+    release.assert_awaited_once_with(
+        None,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        held=False,
+    )
+
+
+async def test_hitl_approve_on_env_verification_task_rejects_non_human() -> None:
+    """D9: a service/agent principal approving its own scaffold is the
+    self-approval `approve_env_verification` rejects -- the hold must stay
+    unreleased.
+    """
+
+    class _Agent:
+        type = "agent"
+
+    resolve_principal = AsyncMock(return_value=_Agent())
+    release = AsyncMock()
+
+    with (
+        patch("weave_backend.repo_bootstrap.rich_scaffold.set_feature_dispatch_held", release),
+        pytest.raises(SelfApprovalNotPermitted),
+    ):
+        await handle_hitl_response(
+            None,
+            HitlResponseContext(
+                tenant_id="t1",
+                task_id="env_verification:urn:weave:project:t1:acme",
+                approving_principal_iri="urn:weave:principal:agent:build-engine",
+                action="approve",
+            ),
+            resolve_principal=resolve_principal,
+            audit_emitter=_FakeAuditEmitter(),
+        )
+
+    release.assert_not_awaited()

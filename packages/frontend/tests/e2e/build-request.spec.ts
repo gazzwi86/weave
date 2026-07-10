@@ -3,12 +3,27 @@ import type { Page } from "@playwright/test";
 
 // Mirrors auth.spec.ts's flow against the mock OIDC provider -- same
 // duplication call as billing.spec.ts/compliance.spec.ts.
-async function loginAndGoToBuild(page: Page): Promise<void> {
+async function login(page: Page): Promise<void> {
   await page.goto("/build");
   await page.getByRole("button", { name: "Sign in with Weave" }).click();
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/build$/);
+}
+
+// TASK-015 moved this request form under a project (/build/projects/[id]/request,
+// EPIC-002's Registry now owns bare /build) -- create one via the Registry's
+// "New project" modal (AC-8) to reach it, same as a real user would.
+async function loginAndGoToBuildRequest(page: Page): Promise<void> {
+  await login(page);
+  await page.getByRole("button", { name: "New project" }).click();
+  await page.getByLabel("Name").fill(`E2E request test ${Date.now()}`);
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page).toHaveURL(/\/build\/projects\/.+\/settings$/);
+
+  const settingsUrl = page.url();
+  const requestUrl = settingsUrl.replace(/\/settings$/, "/request");
+  await page.goto(requestUrl);
 }
 
 // Build engine intake: the form renders, and a "draft_spec_only" submission
@@ -19,7 +34,7 @@ async function loginAndGoToBuild(page: Page): Promise<void> {
 test("build form renders and a draft_spec_only submission shows the drafting status", async ({
   page,
 }) => {
-  await loginAndGoToBuild(page);
+  await loginAndGoToBuildRequest(page);
 
   const prompt = page.getByLabel("What should Weave build?");
   const runMode = page.getByLabel("Run mode");

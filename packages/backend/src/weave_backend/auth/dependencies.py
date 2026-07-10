@@ -10,19 +10,46 @@ route depending on `get_current_principal` gets it for free.)
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from httpx import AsyncClient
 from opentelemetry import trace
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError
 
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.auth.verify import TokenTtlExceeded, TokenVerificationError, verify_access_token
 from weave_backend.observability.context import principal_iri_var, tenant_id_var
 from weave_backend.observability.tracing import add_tenant_attributes
 from weave_backend.tenancy.sessions import get_session_version
+
+
+class RoleGrant(BaseModel):
+    """TASK-011 / PLAT-IDENTITY-1: one entry of the JWT `roles` claim -- a
+    tenant-wide grant (`scope="tenant"`) or a domain/project-scoped grant.
+    `role` is an open string (e.g. "admin"/"owner"/"editor"); this shape does
+    not enumerate the vocabulary, only validates the claim's structure.
+    """
+
+    scope: Literal["tenant", "domain", "project"]
+    role: str
+    domain_iri: str | None = None
+    project_iri: str | None = None
+
+
+def _parse_roles_claim(raw: object) -> list[RoleGrant]:
+    """Law 13: the `roles` claim is untrusted input -- shape-validate it,
+    never cast. Malformed input degrades to "no grants" rather than 500ing
+    the request: an authz overlay is additive-only, so losing it just falls
+    through to the narrower per-resource role check, never over-grants.
+    """
+    if not isinstance(raw, list):
+        return []
+    try:
+        return [RoleGrant.model_validate(item) for item in raw]
+    except ValidationError:
+        return []
 
 
 class Principal(BaseModel):
@@ -35,6 +62,9 @@ class Principal(BaseModel):
     #: "human" or "agent" (PLAT-TASK-004 AC-2/AC-3) -- defaults to "human"
     #: for tokens issued before this claim existed.
     principal_type: str = "human"
+    #: PLAT-IDENTITY-1 tenant/domain/project-scoped grants (TASK-011).
+    #: Empty for tokens issued before this claim existed.
+    roles: list[RoleGrant] = Field(default_factory=list)
 
 
 class UnauthorisedError(Exception):
@@ -96,6 +126,7 @@ async def get_current_principal(
         principal_iri=claims["principal_iri"],
         session_version=int(claims.get("session_version", "0")),
         principal_type=claims.get("principal_type", "human"),
+        roles=_parse_roles_claim(claims.get("roles")),
     )
 
     current_session_version = await get_session_version(principal.tenant_id, principal.sub)

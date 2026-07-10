@@ -76,12 +76,23 @@ async def run_query_unscoped(query: str) -> dict[str, Any]:
     return result
 
 
-async def load_graph(named_graph_iri: str, turtle_data: str) -> None:
-    """PUT triples into a specific named graph via the Graph Store Protocol."""
+async def load_graph(
+    named_graph_iri: str, turtle_data: str, *, content_type: str = "text/turtle"
+) -> None:
+    """PUT triples into a specific named graph via the Graph Store Protocol.
+
+    `content_type` defaults to Turtle; the CE write path (`operations/pipeline.py`)
+    passes `application/n-triples` instead -- N-Triples needs no qname/prefix
+    computation, which is what made rdflib's Turtle serializer the write-path
+    hotspot (see ADR-004 follow-up). Oxigraph stores triples in its own
+    internal representation regardless of ingest format, so this has no
+    effect on what any `Accept: text/turtle` reader (e.g. `fetch_graph_turtle`)
+    gets back.
+    """
     response = await _get_client().put(
         f"{oxigraph_url()}/store",
         params={"graph": named_graph_iri},
-        headers={"Content-Type": "text/turtle"},
+        headers={"Content-Type": content_type},
         content=turtle_data,
     )
     response.raise_for_status()
@@ -97,6 +108,23 @@ async def fetch_graph_turtle(named_graph_iri: str) -> str:
         f"{oxigraph_url()}/store",
         params={"graph": named_graph_iri},
         headers={"Accept": "text/turtle"},
+    )
+    if response.status_code == 404:
+        return ""
+    response.raise_for_status()
+    return response.text
+
+
+async def fetch_graph_ntriples(named_graph_iri: str) -> str:
+    """GET a graph's content as N-Triples -- same semantics as
+    `fetch_graph_turtle` (404 -> empty string) but requests the cheaper wire
+    format for the CE write path's clone step, which only needs to round-trip
+    through rdflib, not be human-read.
+    """
+    response = await _get_client().get(
+        f"{oxigraph_url()}/store",
+        params={"graph": named_graph_iri},
+        headers={"Accept": "application/n-triples"},
     )
     if response.status_code == 404:
         return ""

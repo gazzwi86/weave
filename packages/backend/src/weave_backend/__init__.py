@@ -22,6 +22,7 @@ from weave_backend.routers.authoring import router as authoring_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
+from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
@@ -34,6 +35,10 @@ from weave_backend.routers.layout import router as layout_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
+from weave_backend.routers.project_bindings import router as project_bindings_router
+from weave_backend.routers.project_contributors import router as project_contributors_router
+from weave_backend.routers.project_pin import router as project_pin_router
+from weave_backend.routers.project_settings import router as project_settings_router
 from weave_backend.routers.projects import router as projects_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
@@ -41,8 +46,10 @@ from weave_backend.routers.requests import router as requests_router
 from weave_backend.routers.runs import router as runs_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
+from weave_backend.routers.source_control import router as source_control_router
 from weave_backend.routers.sparql import router as sparql_router
 from weave_backend.routers.specs import router as specs_router
+from weave_backend.routers.standards import router as standards_router
 from weave_backend.routers.tasks import router as tasks_router
 from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
@@ -87,7 +94,13 @@ app.include_router(layout_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
+app.include_router(project_contributors_router)
+app.include_router(project_bindings_router)
+app.include_router(project_settings_router)
+app.include_router(project_pin_router)
+app.include_router(source_control_router)
 app.include_router(briefs_router)
+app.include_router(costs_router)
 app.include_router(generation_router)
 app.include_router(deploy_router)
 app.include_router(specs_router)
@@ -97,6 +110,7 @@ app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
 app.include_router(gates_router)
+app.include_router(standards_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one
