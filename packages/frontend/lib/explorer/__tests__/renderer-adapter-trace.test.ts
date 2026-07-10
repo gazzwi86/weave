@@ -54,4 +54,21 @@ describe("createRendererAdapter -- TASK-028 trace-highlight seam", () => {
     cy.fireRemove({ id: () => "n2" });
     expect(handler).toHaveBeenCalledTimes(1);
   });
+
+  // AC-3: pan/zoom don't touch cytoscape classes at all (native viewport
+  // ops), and neither filter-visibility nor a colour overlay's apply/
+  // remove cycle ever call removeClass("explorer-trace") -- a pinned
+  // trace survives all of them because they're on separate seams.
+  it("trace class is untouched by a filter-visibility apply and a colour-overlay activate/deactivate cycle", () => {
+    const cy = fakeCy();
+    const allNodes = fakeCollection();
+    cy.nodes.mockReturnValue(allNodes);
+    const adapter = createRendererAdapter(cy);
+
+    adapter.applyFilterVisibility({ hiddenNodeIds: ["n2"], dimmedNodeIds: [] }, 0.18);
+    adapter.applyNodeColours({ n1: "red" }, "grey");
+    adapter.clearNodeColours();
+
+    expect(allNodes.removeClass).not.toHaveBeenCalledWith("explorer-trace");
+  });
 });
