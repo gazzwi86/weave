@@ -39,6 +39,12 @@ class Project(BaseModel):
     # shows "TBD" on unset rather than fabricating a value.
     signoff_roles: list[str] | None = None
     target_date: date | None = None
+    # TASK-005 (migration 0017): SDK-generation bookkeeping (BE-SDK-1).
+    # `last_sdk_version_iri` is unset until a project's first SDK
+    # generation succeeds (AC-4: no prior version means the breaking-span
+    # check is skipped entirely).
+    last_sdk_version_iri: str | None = None
+    sdk_generation_count: int = 0
 
 
 class NewProject(BaseModel):
@@ -152,7 +158,8 @@ async def get_project(
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         "SELECT project_iri, name, pinned_graph_version_iri, created_at,"
-        " demo_output_location_ref, write_back_complete, write_back_artefact_iri"
+        " demo_output_location_ref, write_back_complete, write_back_artefact_iri,"
+        " last_sdk_version_iri, sdk_generation_count"
         " FROM projects WHERE tenant_id = $1 AND project_iri = $2",
         tenant_id,
         project_iri,
@@ -167,6 +174,27 @@ async def get_project(
         demo_output_location_ref=row["demo_output_location_ref"],
         write_back_complete=row["write_back_complete"],
         write_back_artefact_iri=row["write_back_artefact_iri"],
+        last_sdk_version_iri=row["last_sdk_version_iri"],
+        sdk_generation_count=row["sdk_generation_count"],
+    )
+
+
+async def update_project_sdk_generation(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, last_sdk_version_iri: str
+) -> None:
+    """TASK-005 AC-5: bump `last_sdk_version_iri` + `sdk_generation_count`
+    together -- called inside the same transaction as the SCM commit and the
+    `generation_runs` status update, so a crash between them cannot desync
+    the bookkeeping from what actually landed in the repo.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    await conn.execute(
+        "UPDATE projects SET last_sdk_version_iri = $1,"
+        " sdk_generation_count = sdk_generation_count + 1"
+        " WHERE tenant_id = $2 AND project_iri = $3",
+        last_sdk_version_iri,
+        tenant_id,
+        project_iri,
     )
 
 
