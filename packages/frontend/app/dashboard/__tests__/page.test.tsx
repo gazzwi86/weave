@@ -71,6 +71,12 @@ describe("DashboardPage", () => {
     expect(ceCalls).toEqual([]);
   });
 
+  it("AC-8: renders the PromptBar trigger", async () => {
+    render(await DashboardPage());
+
+    expect(screen.getByTestId("prompt-bar-trigger")).toBeInTheDocument();
+  });
+
   it("keeps the existing whoami principal check intact", async () => {
     render(await DashboardPage());
 

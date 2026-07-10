@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { PromptBarContainer } from "@/components/dashboard/prompt-bar-container";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
 import type { WidgetOut } from "@/components/dashboard/types";
 import { auth } from "@/auth";
@@ -75,6 +76,7 @@ export default async function DashboardPage() {
       >
         View audit compliance
       </Link>
+      <PromptBarContainer />
       <div className="w-full max-w-[1440px] px-[var(--space-5)]">
         <WidgetGrid widgets={widgets} />
       </div>
