@@ -9,8 +9,11 @@ connection rather than through an HTTP client.
 
 from __future__ import annotations
 
+import shlex
 import shutil
+import subprocess
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,6 +22,43 @@ import pytest
 from weave_backend.build.qa_agent import CommandOutcome
 from weave_backend.build.qa_suite import QAProject, QARunContext, run_full_qa_suite
 from weave_backend.db.pool import tenant_connection
+
+_EVIDENCE_TRUNCATE_CHARS = 500
+
+
+def _make_run_command(directory: Path) -> Callable[[str], CommandOutcome]:
+    """Factory for a `qa_agent.run_command`-compatible callable pinned to
+    `directory` via `cwd=`, without a process-wide `os.chdir`.
+
+    `qa_agent.run_command` shells out relative to the process CWD, and a
+    prior version of this test used `monkeypatch.chdir` for that. Under
+    `mutmut run`, every mutated-function call re-resolves `source_paths`
+    against the *current* CWD (`mutmut/__main__.py::record_trampoline_hit`)
+    -- a process-wide chdir mid-test made every subsequent DB call (which
+    passes through mutated `weave_backend.db.pool` code) crash with
+    `FileNotFoundError: 'src'` once CWD pointed at `tmp_path`. Passing an
+    explicit `cwd` to `subprocess.run` keeps the real-tool-execution
+    guarantee (FR-047) without ever touching process CWD.
+    """
+
+    def _run(cmd: str) -> CommandOutcome:
+        try:
+            result = subprocess.run(
+                shlex.split(cmd), cwd=directory, capture_output=True, text=True, check=False
+            )
+        except FileNotFoundError as exc:
+            return CommandOutcome(
+                status="NOT_VERIFIED", evidence=str(exc)[:_EVIDENCE_TRUNCATE_CHARS]
+            )
+        if result.returncode == 0:
+            return CommandOutcome(status="PASS", returncode=0)
+        return CommandOutcome(
+            status="FAIL",
+            evidence=result.stderr[:_EVIDENCE_TRUNCATE_CHARS],
+            returncode=result.returncode,
+        )
+
+    return _run
 
 pytestmark = [
     pytest.mark.integration,
@@ -65,25 +105,33 @@ async def test_records_one_gate_row_per_applicable_category(platform_stack: Path
 
 
 async def test_runs_real_coverage_and_lint_against_fixture_project(
-    platform_stack: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    platform_stack: Path, tmp_path: Path
 ) -> None:
     """Small seeded repo, real `pytest --cov` and `ruff check .` -- proves
     the cmd-based categories genuinely shell out (Law F: no simulated
     result), same precedent as `test_qa_agent.py` for the M1 DoD gate.
+
+    Pins the fixture repo via `subprocess.run(cwd=...)` (see
+    `_make_run_command`) rather than `monkeypatch.chdir` -- a process-wide
+    chdir here breaks mutmut's mutation-strict lane (see that helper's
+    docstring).
     """
     (tmp_path / "tiny.py").write_text("def add(a: int, b: int) -> int:\n    return a + b\n")
     (tmp_path / "test_tiny.py").write_text(
         "from tiny import add\n\n\ndef test_add() -> None:\n    assert add(1, 2) == 3\n"
     )
     (tmp_path / "pyproject.toml").write_text("[tool.ruff]\nline-length = 100\n")
-    monkeypatch.chdir(tmp_path)
 
     tenant_id = f"tenant-qa-{uuid.uuid4().hex[:8]}"
     run_ctx = _run_ctx(tenant_id)
     project = QAProject(has_ui=False, slo=None)
 
-    async with tenant_connection(tenant_id) as conn:
-        result = await run_full_qa_suite(conn, run_ctx=run_ctx, project=project)
+    with patch(
+        "weave_backend.build.qa_suite.qa_agent.run_command",
+        side_effect=_make_run_command(tmp_path),
+    ):
+        async with tenant_connection(tenant_id) as conn:
+            result = await run_full_qa_suite(conn, run_ctx=run_ctx, project=project)
 
     categories = {c["category"]: c["verdict"] for c in result["categories"]}
     assert categories["coverage"] == "passed"
