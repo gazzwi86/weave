@@ -194,3 +194,18 @@ validation) — same typed-output guarantee (rejects off-shape), zero new deps, 
 tool-calling is ever genuinely wanted, that's a SEPARATE infra task: add a `complete_tool()` method to the
 shared 3-provider ModelProvider interface (Anthropic tool_use blocks, Bedrock tool config, an Ollama shim) —
 a real architecture change touching router.py/nl_parser.py callers, not something to fold into a feature task.
+
+## MORNING ARCHITECT: TASK-028 brief self-contradicts on scope + live-traversal-client follow-up
+`constitution-engine/v1/tasks/TASK-028.md` is internally inconsistent: the dated "Scope correction (2026-07-08
+red-team)" prose says TASK-028 OWNS the live traversal client (SPARQL fetch walking the closure + canvas
+highlight + beyond-depth-cap badges, delivers orphaned M1 AC-6/AC-7, unlocks TASK-030) and names 4 tests — but
+the AC table, Test Requirements, pseudocode, DoD, and cost estimate ($0.32) describe ONLY config + drift-guard +
+overlay-consuming-a-traceResult, with NO traversal-client tests/pseudocode. The correction was added to prose,
+never propagated to the tables.
+- **Coordinator interim (overnight):** built TASK-028 NARROW (per the testable AC/DoD of record — overlay consumes
+  the in-memory closure walk / fixture, not a live SPARQL client). Zero rework either way (overlay is identical).
+- **ARCHITECT (morning):** reconcile the brief — update AC/DoD/cost to match wherever the live client lands.
+- **FOLLOW-UP TASK to file (HARD prerequisite for TASK-030):** the live SPARQL traversal client — CE-READ-1 fetch
+  that walks the ADR-018 closure, highlights results on canvas, badges beyond-depth-cap, delivering M1 TASK-013
+  AC-6/AC-7. This preserves the scope-correction's intent (unblock 030) in its own testable task. NOTE also blocked
+  end-to-end by the 11/13 undeclared SHACL closure predicates (see CE-028 ontology follow-up above).
