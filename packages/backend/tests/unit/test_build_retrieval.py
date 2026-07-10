@@ -21,6 +21,7 @@ from weave_backend.build.retrieval import (
     RETRIEVAL_SETTINGS_KEY,
     RetrievalConfig,
     SeedSetExceedsCapError,
+    _logged_unknown_predicates,
     predicate_class,
     resolve_retrieval_config,
     retrieve_slice,
@@ -200,6 +201,14 @@ def test_predicate_class_structural_known() -> None:
 def test_predicate_class_unknown_falls_back_to_annotation_and_logs_once(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    # `predicate_class`'s log-once dedup is a module-level set that outlives
+    # a single test process. mutmut's runner calls `pytest.main()` twice in
+    # the same interpreter (once for stats collection, once for the
+    # clean-tree sanity check) -- a prior in-process run of this test leaves
+    # `_UNKNOWN_PREDICATE` already marked logged, so the second run sees 0
+    # warnings. Reset it so the test is idempotent under repeated in-process
+    # runs, not just isolated `pytest` invocations.
+    _logged_unknown_predicates.discard(_UNKNOWN_PREDICATE)
     with caplog.at_level(logging.WARNING):
         first = predicate_class(_UNKNOWN_PREDICATE)
         second = predicate_class(_UNKNOWN_PREDICATE)
