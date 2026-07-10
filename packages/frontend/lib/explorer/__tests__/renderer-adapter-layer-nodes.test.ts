@@ -42,3 +42,30 @@ describe("createRendererAdapter -- TASK-020 addLayerNodes/removeElements", () =>
     expect(cy.remove).toHaveBeenCalledWith(removable);
   });
 });
+
+// TASK-020: use-filter-panel needs the full currently-on-canvas element set
+// (nodes + edges, in CytoscapeElement shape) to feed computeFilterVisibility --
+// adapter is the single source of truth (reflects layer add/remove, expand/
+// collapse etc), never a stale copy of what load() was first called with.
+describe("createRendererAdapter -- TASK-020 listElements", () => {
+  it("returns every node and edge currently on the canvas as CytoscapeElement", () => {
+    const cy = fakeCy();
+    const nodeData: Record<string, string> = { label: "Revenue", bpmo_kind: "Concept" };
+    cy.nodes.mockReturnValue(
+      fakeCollection({
+        map: vi.fn((fn) => [fn({ id: () => "n1", data: (key: string) => nodeData[key] })]),
+      })
+    );
+    const edgeData: Record<string, string> = { label: "governedBy", source: "n1", target: "n2" };
+    cy.edges.mockReturnValue(
+      fakeCollection({
+        map: vi.fn((fn) => [fn({ id: () => "e1", data: (key: string) => edgeData[key] })]),
+      })
+    );
+
+    expect(createRendererAdapter(cy).listElements()).toEqual([
+      { data: { id: "n1", label: "Revenue", bpmo_kind: "Concept", key_properties: undefined } },
+      { data: { id: "e1", label: "governedBy", source: "n1", target: "n2" } },
+    ]);
+  });
+});

@@ -54,6 +54,7 @@ describe("ExplorerCanvas", () => {
         applyFilterVisibility: vi.fn(),
         addLayerNodes: vi.fn(() => []),
         removeElements: vi.fn(),
+        listElements: vi.fn(() => []),
       },
     });
 

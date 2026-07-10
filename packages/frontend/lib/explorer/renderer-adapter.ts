@@ -81,6 +81,12 @@ export interface RendererAdapter {
   /** TASK-020 AC-6: removes elements by id (layer toggle-off). No-op for
    * an id not currently on the canvas. */
   removeElements(ids: string[]): void;
+  /** TASK-020: every node + edge currently on the canvas, in the same
+   * CytoscapeElement shape `load`/`addLayerNodes` accept -- the source
+   * use-filter-panel.ts feeds computeFilterVisibility. Reads the adapter's
+   * live state (not a cached copy of the initial load) so it reflects
+   * later layer add/remove and neighbour expand/collapse. */
+  listElements(): CytoscapeElement[];
 }
 
 export interface FilterVisibility {
@@ -311,7 +317,7 @@ type ViewportMethods = Pick<RendererAdapter, "load" | "getViewport" | "setLayout
 type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes" | "applyFilterVisibility">;
 type QueryMethods = Pick<
   RendererAdapter,
-  "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes"
+  "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes" | "listElements"
 >;
 
 function createViewportMethods(cy: AdaptableCy): ViewportMethods {
@@ -380,6 +386,25 @@ function createQueryMethods(cy: AdaptableCy): QueryMethods {
     },
     listNodes() {
       return cy.nodes().map((node) => ({ id: node.id(), ...readNodeData(node) }));
+    },
+    listElements() {
+      const nodes = cy.nodes().map((node) => ({
+        data: {
+          id: node.id(),
+          label: node.data("label") as string | undefined,
+          bpmo_kind: node.data("bpmo_kind") as string | undefined,
+          key_properties: node.data("key_properties") as Record<string, string> | undefined,
+        },
+      }));
+      const edges = cy.edges().map((edge) => ({
+        data: {
+          id: edge.id(),
+          label: edge.data("label") as string | undefined,
+          source: edge.data("source") as string,
+          target: edge.data("target") as string,
+        },
+      }));
+      return [...nodes, ...edges];
     },
   };
 }

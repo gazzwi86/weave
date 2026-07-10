@@ -27,6 +27,7 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    listElements: vi.fn(() => []),
     applyFilterVisibility: vi.fn(),
     ...overrides,
   };
