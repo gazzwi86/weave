@@ -72,12 +72,25 @@ no path to satisfy ONB-V1-TASK-001's DoR. **ONB-V1 (all 5 tasks) is blocked unti
 
 ## Follow-up tasks to file (tracked, not blocking)
 
+- **mock-OIDC roles-claim fixture gap (recurring, test-infra):** `mock_oidc/tokens.py::issue_token_pair`
+  has no `roles`-claim parameter, so every HTTP-driven test gets `principal.roles == []`. Any role-gated
+  feature can only prove role-appropriateness at the store/unit level, never end-to-end over real HTTP
+  (hit first in PLAT-010 AC-8; will recur in PLAT-027/030 role work + any RBAC route). FILE a small
+  test-infra task to add a `roles` param to the shared issuer so role-gated ACs get real-token E2E proof.
+  Coordinator accepted store-level proof for PLAT-010; this closes the gap for future role tasks.
+
 - **CE-020 property filters (AC-4/AC-5) ship data-latent by design.** evalFilter logic + UI built
   correct + tested, but the M1 bulk graph load (`map-rows-to-elements.ts`) only sets id/label/bpmo_kind;
   `key_properties` is lazy-loaded per-node on click, never at bulk load. So property filters match
   nothing until a follow-up plumbs a **bounded** key_properties set into the bulk load over CE-READ-1
   (10k-node perf-sensitive — bound it). FILE this as a CE task; property filters go live when it lands.
   Chose this over scope-creeping the SPARQL query into the filters-panel task.
+- **14-icon authoring task (NEW, design-agent-owned):** D-2 of CE-020 cites `--shape-kind-*` = 14
+  hand-drawn SVG icons (silhouette + inner glyph, strict stroke/corner rules per iconography.md) that
+  DO NOT EXIST — no tokens, no sprite file. This is asset-authoring, not engineer wiring; iconography.md
+  says this set resolves PRD OQ-08 (still open). CE-020 ships colour+label legend now (satisfies WCAG
+  1.4.1 / AC-8) with a shape-glyph seam for drop-in. FILE a design-owned task to author the 14 icons;
+  legends/nodes get shape glyphs when it lands. `--shape-kind-*` are icon IDs, NOT CSS tokens.
 - **iconography.md token-naming discrepancy:** specs hyphenated `--shape-kind-*`, but shipped
   `--color-kind-*` are no-hyphen (`businessdomain`). PLAT-026 (design-system authority) is resolving to
   the shipped no-hyphen convention in its component library; iconography.md needs a spec-fix to match.

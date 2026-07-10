@@ -233,3 +233,24 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **TASK-005 HELD** until this lands (SDK Trigger API wires this pipeline into a live CE-driven path).
 - **General lesson:** any codegen from external/registry data MUST validate identifiers at the IR boundary
   before emission; the compile gate (tsc/mypy) does NOT catch injected valid code.
+
+## XT-PLAT010-1 — dashboard widget refresh route: IDOR sibling + AC-7 read-path staleness gap
+- **Severity:** SERIOUS (authorization) + MODERATE (spec-conformance) · **Status:** OPEN — sent back to Engineer · **affects:** [PLAT-V1-TASK-011, PLAT-V1-TASK-014, PLAT-V1-TASK-016]
+- `refresh_widget_route` (`packages/backend/src/weave_backend/dashboard/router.py`) checks `scope`
+  but not `owner_principal_iri`, unlike its sibling `delete_widget_route` (which the engineer
+  self-caught and fixed). Any tenant member can trigger a refresh on -- and thereby mutate
+  `status`/`fetched_at` and observe them for -- another user's private `scope='user'` starter
+  widget by id-guessing a v4 UUID. Proof (red): `test_refresh_other_users_starter_is_not_found`.
+- Separately, AC-7's "stale even without a failed refresh" clause is not honoured on the GET read
+  path -- `derive_status()` (the pure age-aware function) is only called inside the refresh flow,
+  never in `list_widgets_route`. A widget written `fresh` and never refreshed again stays `fresh`
+  forever in every GET response regardless of `fetched_at` age. Proof (red):
+  `test_stale_bound_renders_on_read_without_failed_refresh`.
+- **Action:** Engineer mirrors the delete-route owner guard onto refresh, and wires `derive_status`
+  into `list_widgets_route` (and the frontend `widget-tile.tsx` render path, which also trusts
+  `widget.status` verbatim).
+- **General lesson:** when a route pair shares an ownership model (delete/refresh both act on a
+  single widget by id), fixing an IDOR on one sibling route is not sufficient -- grep every other
+  route touching the same resource for the same missing guard, per team-lead's original ask.
+  Downstream tasks touching refresh-adjacent or read-path widget code (011/014/016) should confirm
+  this fix landed before building on top of it.

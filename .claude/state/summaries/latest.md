@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T13:40:55+00:00
+Captured at: 2026-07-10T14:33:24+00:00
 Event: pre-compact
 
 ## Current State
@@ -725,7 +725,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Widget-state foundation + fixed CE-sourced default dashboard (E1-S0, E1-S6)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-010.md",
       "retry_count": 0
@@ -1042,7 +1042,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
-      "status": "in_progress",
+      "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-012.md",
       "retry_count": 0
@@ -1091,7 +1091,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-015",
       "title": "Filters & Layers Panel (entity, relationship, property, governed-content)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-020.md",
       "retry_count": 0
@@ -1559,7 +1559,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
       "title": "Storybook design-system foundation (atomic component library, R13)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-026.md",
       "retry_count": 0
@@ -1841,7 +1841,6 @@ Event: pre-compact
     }
   ]
 }
-
 
 ## Last Phase Summary
 
