@@ -26,6 +26,7 @@ from weave_backend.build.orchestrator import (
     TaskHeld,
     _dispatch_one,
     default_dispatch_pdac,
+    load_task_context,
     run_dark_factory,
 )
 from weave_backend.build.self_verify import self_verify
@@ -498,6 +499,131 @@ async def test_ac2_anatomy_loaded_into_task_context_before_delegate() -> None:
 
     assert task.context == [anatomy_md]
     assert seen_context == [anatomy_md], "AC-2: DELEGATE must see the anatomy already loaded"
+
+
+async def _noop_audit_edge(_conn: Any, _event: Any) -> None:
+    return None
+
+
+class _RaisingDriver:
+    """`read_file` raises -- proves `load_task_context`'s best-effort swallow
+    (task brief: "a driver error... never halts dispatch") without depending
+    on `httpx`/`AuthError` wiring. Every other `ScmDriver` member is a
+    `NotImplementedError` stub purely to satisfy the structural type (same
+    convention as `_NoAnatomyDriver` above).
+    """
+
+    async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+        raise NotImplementedError
+
+    async def write_initial_commit(
+        self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+    ) -> None:
+        raise NotImplementedError
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        raise NotImplementedError
+
+    async def commit_files(
+        self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        raise RuntimeError("provider rejected token (status 401)")
+
+
+class _NoRepoConnection:
+    """`fetchrow` always misses the `projects` row -- QA edge case: a task
+    dispatched before `ensure_project_repo` has ever run (no repo
+    provisioned yet). `load_task_context` must no-op, not raise.
+    """
+
+    async def fetchrow(self, query: str, *_args: Any) -> dict[str, Any] | None:
+        return None
+
+
+async def test_load_task_context_noop_when_no_repo_row() -> None:
+    """QA edge case (AC-2 best-effort corollary): no `projects` repo row
+    yet -- `fetch_project_repo_row` returns `None` -- leaves `task.context`
+    untouched and does not raise.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _unreachable_secret(_ref: str) -> str | None:
+        raise AssertionError("get_secret should not be called -- no repo row")
+
+    await load_task_context(
+        _NoRepoConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_unreachable_secret,
+            driver_for=lambda _provider: (_ for _ in ()).throw(AssertionError("unreachable")),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
+
+
+async def test_load_task_context_noop_when_token_unresolved() -> None:
+    """QA edge case: `get_secret` returns `None` (token ref unset or the
+    secret was rotated out) -- `load_task_context` must no-op rather than
+    call `driver_for`/`read_file` with an empty token.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _no_secret(_ref: str) -> str | None:
+        return None
+
+    await load_task_context(
+        _FakeConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_no_secret,
+            driver_for=lambda _provider: (_ for _ in ()).throw(
+                AssertionError("driver_for should not be called -- no token")
+            ),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
+
+
+async def test_load_task_context_swallows_driver_error() -> None:
+    """QA edge case (AC-2 best-effort corollary): the SCM driver raises
+    (auth rejection, network error, etc.) -- `load_task_context` logs and
+    leaves `task.context` untouched rather than propagating the exception
+    and halting dispatch.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    await load_task_context(
+        _FakeConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_fake_secret,
+            driver_for=lambda _provider: _RaisingDriver(),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
 
 
 def test_next_ready_task_skips_held_task() -> None:
