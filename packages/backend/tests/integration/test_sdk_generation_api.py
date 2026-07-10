@@ -464,19 +464,6 @@ async def test_should_leave_repo_and_bookkeeping_unchanged_on_failure(
     assert run.status == "failed"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "QA-TASK-005-1: ADR-006 Sec3 promises 'nothing lands' / no desync between the SCM "
-        "commit and projects bookkeeping -- but _generate_and_commit's fail-closed except "
-        "block (sdk_commit.py L98-106) only wraps generate_sdk + _commit_generated_sdk. A "
-        "failure in the bookkeeping update that runs AFTER a successful commit_workspace is "
-        "NOT caught: it propagates uncaught, the commit has already landed, and the run is "
-        "left stuck (never marked failed). Desired fix: extend the try/except to also cover "
-        "the post-commit bookkeeping transaction, and record commit_sha in the failure "
-        "payload so an orphaned commit is discoverable. Remove this marker once fixed."
-    ),
-    strict=True,
-)
 async def test_bookkeeping_failure_after_successful_commit_leaves_run_unresolved(
     platform_stack: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -484,8 +471,9 @@ async def test_bookkeeping_failure_after_successful_commit_leaves_run_unresolved
     pre-commit pipeline failure): pins the DESIRED behaviour -- a failure in
     the bookkeeping step that runs after a successful `commit_workspace`
     should still resolve the run to `failed` (with the orphaned `commit_sha`
-    recorded), matching ADR-006 Sec3's no-desync guarantee. Currently xfails;
-    see QA report for TASK-005 (finding QA-TASK-005-1).
+    recorded), matching ADR-006 Sec3's no-desync guarantee. Fixed for
+    QA-TASK-005-1: `_generate_and_commit`'s fail-closed except now also
+    covers the post-commit bookkeeping transaction.
     """
     tenant_id = _unique_tenant("bookkeeping-fail")
     project_iri = await _seed_project(

@@ -114,17 +114,31 @@ async def _generate_and_commit(
             )
         return
 
-    async with tenant_connection(tenant_id) as conn:
-        await update_project_sdk_generation(
-            conn,
-            tenant_id=tenant_id,
-            project_iri=project.project_iri,
-            last_sdk_version_iri=pin.version_iri,
-        )
-        await update_sdk_run_status(
-            conn,
-            tenant_id=tenant_id,
-            run_id=run_id,
-            status="passed",
-            payload={"package_version": package_version, "commit_sha": commit_sha},
-        )
+    try:
+        async with tenant_connection(tenant_id) as conn:
+            await update_project_sdk_generation(
+                conn,
+                tenant_id=tenant_id,
+                project_iri=project.project_iri,
+                last_sdk_version_iri=pin.version_iri,
+            )
+            await update_sdk_run_status(
+                conn,
+                tenant_id=tenant_id,
+                run_id=run_id,
+                status="passed",
+                payload={"package_version": package_version, "commit_sha": commit_sha},
+            )
+    except Exception as exc:  # fail-closed: commit already landed (git has no
+        # rollback) -- ADR-006 Sec3's no-desync guarantee means the run must
+        # still resolve to "failed" rather than vanish into a stuck "running"
+        # state, with commit_sha recorded so the orphaned commit is
+        # discoverable.
+        async with tenant_connection(tenant_id) as conn:
+            await update_sdk_run_status(
+                conn,
+                tenant_id=tenant_id,
+                run_id=run_id,
+                status="failed",
+                payload={"failure_cause": str(exc), "commit_sha": commit_sha},
+            )
