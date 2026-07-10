@@ -89,6 +89,7 @@ async def run_ingest_job(
                         confidence=candidate.confidence,
                         matched_iri=matched_iri,
                         reason=candidate.reason,
+                        source_span=candidate.source_span,
                     ),
                 )
 

@@ -21,9 +21,23 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
+from weave_backend.ai.providers import ModelProvider
+
+# Module-level import (not a call inside the route) so a test can
+# `patch("weave_backend.routers.ingest._select_provider", side_effect=...)`
+# to simulate provider-unavailable -- same seam `routers/requests.py` uses.
+from weave_backend.ai.router import _select_provider
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
+from weave_backend.ingest.confidence import resolve_confidence_threshold
 from weave_backend.ingest.corpus import corpus_bucket, corpus_key, hash_content
+
+# `DocumentExtractor` re-exported off `extractors` (not imported from
+# `document_extractor` directly) -- `extractors.py` and `document_extractor.py`
+# import each other (registry vs. `ExtractedCandidate`); importing via
+# `extractors` here guarantees it's the one that starts the load, so its
+# bottom-of-file import resolves before `document_extractor` needs it back.
+from weave_backend.ingest.extractors import DocumentExtractor
 from weave_backend.ingest.jobs import summarize_proposal_statuses
 from weave_backend.ingest.store import (
     NewJob,
@@ -69,6 +83,15 @@ def _kind_for_ext(ext: str) -> str:
     return _EXT_KIND.get(ext.lower(), "unknown")
 
 
+async def get_ai_provider() -> ModelProvider | None:
+    """Real requests get `None` here and fall back to `_select_provider()`
+    inside the route (ADR-024's synchronous 503 preflight); docker-integration
+    tests override this dependency to inject a stub provider instead (Law F --
+    never a live Anthropic/Bedrock call in tests).
+    """
+    return None
+
+
 def _context_fields(
     source_system: str | None, owner: str | None, date_of_truth: str | None,
     sensitivity: str | None, context: str | None,
@@ -87,6 +110,7 @@ async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 op
     background_tasks: BackgroundTasks,
     principal: Annotated[Principal, Depends(get_current_principal)],
     file: Annotated[UploadFile, File()],
+    provider: Annotated[ModelProvider | None, Depends(get_ai_provider)] = None,
     source_system: Annotated[str | None, Form()] = None,
     owner: Annotated[str | None, Form()] = None,
     date_of_truth: Annotated[str | None, Form()] = None,
@@ -100,6 +124,16 @@ async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 op
         raise HTTPException(
             status_code=422, detail={"error": "upload_rejected", "message": str(exc)}
         ) from exc
+
+    # AC-002-06 / ADR-024: cheap synchronous provider-availability probe
+    # *before* any write (S3 artefact, prov entity, job row) -- extraction
+    # itself stays backgrounded so this never touches the 2000ms upload
+    # budget (AC-001-01).
+    if provider is None:
+        try:
+            provider = _select_provider()
+        except Exception as exc:  # any construction failure means "unavailable"
+            raise HTTPException(status_code=503, detail={"error": "model_unavailable"}) from exc
 
     workspace_id = await get_active_workspace(principal.tenant_id, principal.sub)
     if workspace_id is None:
@@ -141,7 +175,12 @@ async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 op
             ),
         )
 
-    background_tasks.add_task(run_ingest_job, job_id, tenant_id=principal.tenant_id)
+    background_tasks.add_task(
+        run_ingest_job,
+        job_id,
+        tenant_id=principal.tenant_id,
+        registry={"doc": DocumentExtractor(provider=provider)},
+    )
     return UploadArtefactResponse(artefact_iri=artefact_iri, job_id=job_id)
 
 
@@ -186,6 +225,11 @@ async def list_proposals_route(
         rows = await list_proposals_for_job(
             conn, tenant_id=principal.tenant_id, job_id=job_id, limit=fetch_limit, offset=offset
         )
+        # AC-002-04: resolved server-side so the frontend never hardcodes the
+        # threshold or has to pre-select which proposal is flagged.
+        threshold = await resolve_confidence_threshold(
+            conn, tenant_id=principal.tenant_id, workspace_id=job.workspace_id
+        )
 
     has_more = limit is not None and len(rows) > limit
     if limit is not None:
@@ -196,6 +240,7 @@ async def list_proposals_route(
             ProposalResponse(
                 id=row.id, ops=row.ops, confidence=row.confidence, matched_iri=row.matched_iri,
                 reason=row.reason, status=row.status, source_span=row.source_span,
+                low_confidence=row.confidence < threshold,
             )
             for row in rows
         ],

@@ -1,6 +1,6 @@
-"""Pluggable extractor interface (brief: "registry[job.kind]"). This task
-ships only the no-op fixture extractor -- doc/image/archimate/bpmn/rml
-extractors are TASK-013+.
+"""Pluggable extractor interface (brief: "registry[job.kind]"). TASK-013
+ships the `doc` extractor (`DocumentExtractor`) -- image/archimate/bpmn/rml
+extractors remain future work.
 """
 
 from __future__ import annotations
@@ -39,7 +39,17 @@ class NoOpExtractor:
         return []
 
 
-#: `job.kind` -> extractor. Empty for now (no real extractor ships in this
-#: task) -- `worker.py` falls back to `NoOpExtractor` for any unregistered
-#: kind, so every job still reaches `awaiting-review` rather than failing.
-DEFAULT_REGISTRY: dict[str, Extractor] = {}
+# Bottom import: `document_extractor.py` imports `ExtractedCandidate` from
+# this module at its own top level, so importing `DocumentExtractor` up top
+# here would be circular. Self-aliased (`as DocumentExtractor`) so mypy's
+# implicit-reexport check treats this as an intentional re-export --
+# `routers/ingest.py` imports it from here (not from `document_extractor`
+# directly) to keep this module first in the load order.
+from weave_backend.ingest.document_extractor import (  # noqa: E402
+    DocumentExtractor as DocumentExtractor,
+)
+
+#: `job.kind` -> extractor. `worker.py` falls back to `NoOpExtractor` for any
+#: unregistered kind, so every job still reaches `awaiting-review` rather
+#: than failing.
+DEFAULT_REGISTRY: dict[str, Extractor] = {"doc": DocumentExtractor()}
