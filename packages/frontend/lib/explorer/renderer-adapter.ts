@@ -78,6 +78,11 @@ export interface RendererAdapter {
 export interface FilterVisibility {
   hiddenNodeIds: string[];
   dimmedNodeIds: string[];
+  /** AC-3: relationship-type-off edges, hidden directly by id -- these
+   * connect two still-visible nodes, so they're not reachable via
+   * hiddenNodeIds' incident-edge hide. Optional: callers with no
+   * relationship toggles active can omit it. */
+  hiddenEdgeIds?: string[];
 }
 
 export interface CyCollection {
@@ -185,15 +190,22 @@ function applyHighlight(cy: AdaptableCy, nodeIds: string[], dimOpacity: number):
 function applyFilterVisibilityOn(cy: AdaptableCy, visibility: FilterVisibility, dimOpacity: number): void {
   const hiddenIds = new Set(visibility.hiddenNodeIds);
   const dimmedIds = new Set(visibility.dimmedNodeIds);
+  const hiddenEdgeIds = new Set(visibility.hiddenEdgeIds ?? []);
 
   const hiddenNodes = cy.nodes().filter((node) => hiddenIds.has(node.id()));
   const visibleNodes = cy.nodes().not(hiddenNodes);
-  const hiddenEdges = hiddenNodes.connectedEdges();
-  const visibleEdges = cy.edges().not(hiddenEdges);
+  // AC-1: edges incident to a hidden node. AC-3: edges hidden directly by id
+  // (relationship-type-off) -- their endpoint nodes stay visible, so
+  // connectedEdges() alone never reaches them. Hidden separately, same batch.
+  const incidentEdges = hiddenNodes.connectedEdges();
+  const incidentEdgeIds = new Set(incidentEdges.map((edge) => edge.id()));
+  const explicitHiddenEdges = cy.edges().filter((edge) => hiddenEdgeIds.has(edge.id()));
+  const visibleEdges = cy.edges().filter((edge) => !incidentEdgeIds.has(edge.id()) && !hiddenEdgeIds.has(edge.id()));
 
   cy.batch(() => {
     hiddenNodes.hide();
-    hiddenEdges.hide();
+    incidentEdges.hide();
+    explicitHiddenEdges.hide();
     visibleNodes.show();
     visibleEdges.show();
 

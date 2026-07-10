@@ -17,7 +17,7 @@ describe("createRendererAdapter -- TASK-020 applyFilterVisibility", () => {
       not: vi.fn(() => fakeCollection({ length: 0 })),
     });
     cy.nodes.mockReturnValue(fakeCollection({ filter: vi.fn(() => fakeCollection({ length: 0 })), not: vi.fn(() => visibleNodes) }));
-    cy.edges.mockReturnValue(fakeCollection({ not: vi.fn(() => fakeCollection()) }));
+    cy.edges.mockReturnValue(fakeCollection());
     return visibleNodes;
   }
 
@@ -30,7 +30,9 @@ describe("createRendererAdapter -- TASK-020 applyFilterVisibility", () => {
     hiddenNodes.connectedEdges = vi.fn(() => incidentEdges);
 
     cy.nodes.mockReturnValue(fakeCollection({ filter: vi.fn(() => hiddenNodes), not: vi.fn(() => visibleNodes) }));
-    cy.edges.mockReturnValue(fakeCollection({ not: vi.fn(() => visibleEdges) }));
+    // implementation calls cy.edges().filter() twice: explicit-hidden-by-id
+    // first, then the visible-edges exclusion pass.
+    cy.edges.mockReturnValue(fakeCollection({ filter: vi.fn().mockReturnValueOnce(fakeCollection()).mockReturnValueOnce(visibleEdges) }));
 
     createRendererAdapter(cy).applyFilterVisibility({ hiddenNodeIds: ["off1"], dimmedNodeIds: [] }, 0.18);
 
@@ -47,7 +49,7 @@ describe("createRendererAdapter -- TASK-020 applyFilterVisibility", () => {
     const visibleNodes = fakeCollection({ filter: vi.fn(() => dimmedNodes), not: vi.fn(() => restoredNodes) });
 
     cy.nodes.mockReturnValue(fakeCollection({ filter: vi.fn(() => fakeCollection({ length: 0 })), not: vi.fn(() => visibleNodes) }));
-    cy.edges.mockReturnValue(fakeCollection({ not: vi.fn(() => fakeCollection()) }));
+    cy.edges.mockReturnValue(fakeCollection());
 
     createRendererAdapter(cy).applyFilterVisibility({ hiddenNodeIds: [], dimmedNodeIds: ["orphan1"] }, 0.18);
 
@@ -62,5 +64,23 @@ describe("createRendererAdapter -- TASK-020 applyFilterVisibility", () => {
     createRendererAdapter(cy).applyFilterVisibility({ hiddenNodeIds: [], dimmedNodeIds: [] }, 0.18);
 
     expect(cy.batch).toHaveBeenCalledTimes(1);
+  });
+
+  // AC-3: relationship-type toggle hides edges of a predicate directly --
+  // those edges are not incident to any hidden node (both endpoint nodes
+  // stay visible), so hiddenNodeIds alone can't reach them.
+  it("hides edge ids given directly via hiddenEdgeIds, leaving their endpoint nodes visible (AC-3)", () => {
+    const cy = fakeCy();
+    const explicitHiddenEdges = fakeCollection();
+    const visibleEdges = fakeCollection();
+    const visibleNodes = fakeCollection({ filter: vi.fn(() => fakeCollection({ length: 0 })), not: vi.fn(() => fakeCollection()) });
+
+    cy.nodes.mockReturnValue(fakeCollection({ filter: vi.fn(() => fakeCollection({ length: 0 })), not: vi.fn(() => visibleNodes) }));
+    cy.edges.mockReturnValue(fakeCollection({ filter: vi.fn().mockReturnValueOnce(explicitHiddenEdges).mockReturnValueOnce(visibleEdges) }));
+
+    createRendererAdapter(cy).applyFilterVisibility({ hiddenNodeIds: [], dimmedNodeIds: [], hiddenEdgeIds: ["s|pred|o"] }, 0.18);
+
+    expect(explicitHiddenEdges.hide).toHaveBeenCalledTimes(1);
+    expect(visibleEdges.show).toHaveBeenCalledTimes(1);
   });
 });
