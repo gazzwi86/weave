@@ -15,7 +15,7 @@ from weave_backend.schemas.tasks import SelfVerificationLine
 
 def default_applicable_rules() -> list[str]:
     """No M1 agent-role rule registry exists yet -- documented gap
-    (ADR-015), not built here. Every dispatch gets zero applicable rules,
+    (ADR-018), not built here. Every dispatch gets zero applicable rules,
     making self-verify a structural no-op until a registry lands.
     """
     return []
