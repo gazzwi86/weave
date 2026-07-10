@@ -55,3 +55,37 @@ async def get_scm_token(secret_id: str) -> str | None:
     fail-closed `repo_auth_invalid` error, never a Weave-internal fallback.
     """
     return await asyncio.to_thread(_fetch_sync, secret_id)
+
+
+def build_scm_secret_ref(*, tenant_id: str, project_iri: str, provider: str) -> str:
+    """TASK-023 (E2-S6, FR-061/B9) AC-2: the Secrets Manager reference name
+    for a project's source-control token. Extends the existing tested
+    `weave/{tenant}/scm/{provider}/token` convention
+    (`test_repo_bootstrap.py`'s `_seed_scm_token`) with the project slug
+    (from `urn:weave:project:{tenant}:{slug}`, TASK-001's IRI grammar) --
+    the un-scoped convention collides across two projects in the same
+    tenant on the same provider, which contradicts AC-2's "project scope"
+    requirement. See ADR-002 (build-engine decisions).
+    """
+    slug = project_iri.rsplit(":", 1)[-1]
+    return f"weave/{tenant_id}/scm/{slug}/{provider}/token"
+
+
+def _put_sync(secret_id: str, value: str) -> None:
+    client = _secrets_client()
+    try:
+        client.create_secret(Name=secret_id, SecretString=value)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "ResourceExistsException":
+            raise
+        client.put_secret_value(SecretId=secret_id, SecretString=value)
+
+
+async def put_scm_token(secret_id: str, value: str) -> None:
+    """TASK-023 AC-1/AC-2: writes the source-control token to Secrets
+    Manager, creating it on first configure and replacing it on every
+    subsequent "replace token" PUT. The value is never returned, logged, or
+    persisted anywhere else -- callers persist only `secret_id` (the
+    reference).
+    """
+    await asyncio.to_thread(_put_sync, secret_id, value)
