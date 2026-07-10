@@ -229,7 +229,7 @@
     {
       "id": "BE-V1-EPIC-002",
       "title": "Project Registry & Settings",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-008",
@@ -1243,7 +1243,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "CE-BRAND-1 Conformance Gate as Sixth Safety Gate (E8-S1, FR-029 M2)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-002.md",
       "retry_count": 0
@@ -1298,7 +1298,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-012",
       "title": "Full QA Category Suite (E12-S3, FR-054)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md",
       "retry_count": 0
@@ -1487,7 +1487,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Source-Control Provider Config UI (E2-S6, FR-061/B9)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-015"
       ],

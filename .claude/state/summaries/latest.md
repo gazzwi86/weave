@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T01:03:12+00:00
+Captured at: 2026-07-10T02:24:22+00:00
 Event: pre-compact
 
 ## Current State
@@ -1250,7 +1250,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "CE-BRAND-1 Conformance Gate as Sixth Safety Gate (E8-S1, FR-029 M2)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-002.md",
       "retry_count": 0
@@ -1305,7 +1305,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-012",
       "title": "Full QA Category Suite (E12-S3, FR-054)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md",
       "retry_count": 0
@@ -1481,20 +1481,20 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "External-Space Bindings (FR-010): Confluence/Jira/ServiceNow by Reference",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-010",
         "BE-V1-TASK-015"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-022.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-023",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Source-Control Provider Config UI (E2-S6, FR-061/B9)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-015"
       ],

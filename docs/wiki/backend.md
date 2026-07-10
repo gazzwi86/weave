@@ -419,3 +419,21 @@ Related: [frontend](frontend.md), [infra-terraform](infra-terraform.md), [shared
 <!-- stale: packages/backend/src/weave_backend/routers/project_bindings.py --> <!-- at: 2026-07-10T00:33:18.061946+00:00 -->
 
 <!-- stale: packages/backend/tests/integration/test_generation_api.py --> <!-- at: 2026-07-10T01:08:30.656139+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_repo_bootstrap_secrets.py --> <!-- at: 2026-07-10T02:01:22.334406+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/repo_bootstrap/secrets.py --> <!-- at: 2026-07-10T02:02:01.464874+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_pm_source_control.py --> <!-- at: 2026-07-10T02:03:22.180172+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/pm/source_control.py --> <!-- at: 2026-07-10T02:04:59.909212+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_schemas_source_control.py --> <!-- at: 2026-07-10T02:06:00.942037+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/schemas/source_control.py --> <!-- at: 2026-07-10T02:06:16.577596+00:00 -->
+
+<!-- stale: packages/backend/tests/unit/test_source_control_router.py --> <!-- at: 2026-07-10T02:07:37.693756+00:00 -->
+
+<!-- stale: packages/backend/src/weave_backend/routers/source_control.py --> <!-- at: 2026-07-10T02:08:01.992516+00:00 -->
+
+<!-- stale: packages/backend/tests/integration/test_source_control_api.py --> <!-- at: 2026-07-10T02:34:54.836482+00:00 -->

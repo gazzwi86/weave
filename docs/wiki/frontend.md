@@ -359,3 +359,13 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/route.ts --> <!-- at: 2026-07-10T01:00:01.131956+00:00 -->
 
 <!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/[bindingId]/route.ts --> <!-- at: 2026-07-10T01:00:11.757790+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/source-control/__tests__/route.test.ts --> <!-- at: 2026-07-10T02:11:59.066949+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/source-control/route.ts --> <!-- at: 2026-07-10T02:13:07.245150+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/source-control-tab.test.tsx --> <!-- at: 2026-07-10T02:15:02.173564+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/source-control-card.tsx --> <!-- at: 2026-07-10T02:15:32.770772+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/source-control-tab.tsx --> <!-- at: 2026-07-10T02:15:54.828025+00:00 -->
