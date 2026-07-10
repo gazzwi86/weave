@@ -275,3 +275,15 @@ run failed via fresh conn + records commit_sha. strict-xfail proof test flipped 
   server-side-capable interception layer (MSW/route-handler mock). Non-trivial test-architecture — a focused
   follow-up, not a TASK-010 re-fold. MUST land before EPIC-001's ui_verify --full close gate passes.
 - **Classification:** test-architecture / Law B (real E2E asserting backend state).
+
+## XT-CE012-1 — ingest proposals list silently truncates at 50 (pagination unwired)
+- **Severity:** Major (data-integrity — reviewer cannot reach proposal #51) · **Status:** retry-1 in progress (ce012-eng)
+- **Affects:** CE-V1-TASK-012 (`routers/ingest.py::list_proposals_route`); **downstream consumers TASK-013
+  (doc-extractor), TASK-014 (embeddings), TASK-019 (Import & Ingest page)** all render/consume this list endpoint
+  — a real document plausibly yields 50+ extraction candidates, so not a theoretical edge case.
+- **Found by:** CE-012 QA (seeded 51 proposals, only 50 returned; proof test `b5016bc`).
+- **Symptom:** `GET /api/ingest/jobs/{id}/proposals` never overrides the store's `limit=50` default + exposes no
+  pagination query params + `ProposalsListResponse` has no has_more/total → proposals past #50 permanently
+  invisible (unreviewable/unacceptable). Summary counts are correct (unbounded query), so the gap is silent.
+- **Fix (retry-1):** surface limit/cursor query params on the route + has_more/total on the response schema.
+  Store layer already has the params; router just never surfaced them (incomplete wiring, not a design gap).
