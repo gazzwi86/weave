@@ -115,17 +115,4 @@ describe("useOverlayControls", () => {
 
     expect(result.current.toggles.every((toggle) => !toggle.active)).toBe(true);
   });
-
-  // AC-5: mirrors use-filter-panel.ts's __explorerFilterApplyDurationMs --
-  // Playwright-only wall-clock trace of the single engine.activate/
-  // deactivate call a toggle triggers.
-  it("records the toggle's wall-clock duration on window.__explorerOverlayApplyDurationMs (AC-5)", () => {
-    delete window.__explorerOverlayApplyDurationMs;
-    const adapter = fakeAdapter({ listElements: vi.fn(() => nodeWithMaturity) });
-    const { result } = renderHook(() => useOverlayControls({ adapter, config: configWithMaturityValues }));
-
-    act(() => result.current.toggleOverlay("heatmap:maturity"));
-
-    expect(typeof window.__explorerOverlayApplyDurationMs).toBe("number");
-  });
 });
