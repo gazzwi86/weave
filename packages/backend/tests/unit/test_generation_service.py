@@ -322,6 +322,59 @@ async def test_generate_app_fails_closed_when_ce_brand_unreachable() -> None:
     ]
 
 
+async def test_generate_app_fails_closed_when_voice_rules_endpoint_5xxs_after_tokens_ok() -> None:
+    """AC-5 edge case (QA): the existing fail-closed test only exercises a
+    connection-refused on the FIRST call (`/api/brand/tokens`). This proves
+    the same fail-closed behaviour holds when `/api/brand/tokens` succeeds
+    but the SECOND call (`/api/brand/voice-rules`) 5xxs -- `raise_for_status`
+    raises `httpx.HTTPStatusError`, a subclass of `httpx.HTTPError`, so it
+    must hit the same `except httpx.HTTPError` fail-closed path (AC-5), not
+    slip through as an unhandled exception or a false pass. Also pins AC-4's
+    "nothing commits" at the DB-write level (`insert_generation_run`), not
+    just the git-commit level the existing test checks.
+    """
+
+    class _Response5xx(_Response):
+        def raise_for_status(self) -> None:
+            request = httpx.Request("GET", "https://ce.test")
+            raise httpx.HTTPStatusError(
+                "server error",
+                request=request,
+                response=httpx.Response(503, request=request),
+            )
+
+    class _VoiceRules5xxCeClient(_FakeCeClient):
+        async def get(self, path: str) -> _Response:
+            self.paths.append(path)
+            if path == "/api/brand/voice-rules":
+                return _Response5xx([])
+            return await super().get(path)
+
+    ce_client = _VoiceRules5xxCeClient()
+    brand_records: list[dict[str, object]] = []
+    workspaces: list[str] = []
+    deps, _ = _deps(workspaces=workspaces, brand_records=brand_records)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()) as insert_run,
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        await generate_app(AsyncMock(), _ctx(ce_client), deps)
+
+    assert excinfo.value.evidence["reason"] == "ce_unavailable"
+    assert "/api/brand/tokens" in ce_client.paths
+    assert "/api/brand/voice-rules" in ce_client.paths
+    assert not Path(workspaces[0]).exists()
+    assert brand_records == [
+        {"tenant_id": "t1", "status": "failed", "reason": "ce_unavailable", "not_verified": True}
+    ]
+    insert_run.assert_not_awaited()  # AC-4: no generation_runs write on gate failure
+
+
 async def test_generate_app_commits_nothing_when_brand_gate_fails_after_five_passes() -> None:
     """AC-4: a brand-gate failure after all 5 M1 gates pass still commits
     nothing -- atomicity of the six-gate set matches the M1 five-gate
