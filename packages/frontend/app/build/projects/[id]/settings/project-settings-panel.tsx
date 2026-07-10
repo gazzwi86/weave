@@ -6,9 +6,10 @@ import { BindingSlots } from "./binding-slots";
 import { ContributorsTab } from "./contributors-tab";
 import { GovernanceForm } from "./governance-form";
 import { PinUpgradeSection } from "./pin-upgrade-section";
+import { SourceControlTab } from "./source-control-tab";
 import { useProjectSettings } from "./use-project-settings";
 
-const TABS = ["Governance", "Connections", "Contributors"] as const;
+const TABS = ["Governance", "Connections", "Contributors", "Source control"] as const;
 type Tab = (typeof TABS)[number];
 
 function TabList({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => void }): React.JSX.Element {
@@ -30,9 +31,27 @@ function TabList({ active, onSelect }: { active: Tab; onSelect: (tab: Tab) => vo
   );
 }
 
+function StatusBanners({ error, saved }: { error: string | null; saved: boolean }): React.JSX.Element {
+  return (
+    <>
+      {error && (
+        <p id="settings-error" role="alert" className="text-[var(--color-danger)]">
+          {error}
+        </p>
+      )}
+      {saved && (
+        <p role="status" className="text-[var(--color-success)]">
+          Saved.
+        </p>
+      )}
+    </>
+  );
+}
+
 /** TASK-015 project settings page (AC-1..AC-7, EPIC-002). Governance
  * (model tier + cost cap) is read-only for non-admins (AC-4); Connections
- * (AC-7) and Contributors (AC-5) are separate tabs. */
+ * (AC-7), Contributors (AC-5), and Source control (TASK-023) are separate
+ * tabs. */
 export function ProjectSettingsPanel({
   projectId,
   tenantRole,
@@ -48,16 +67,7 @@ export function ProjectSettingsPanel({
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
       <TabList active={tab} onSelect={setTab} />
-      {settings.error && (
-        <p id="settings-error" role="alert" className="text-[var(--color-danger)]">
-          {settings.error}
-        </p>
-      )}
-      {settings.saved && (
-        <p role="status" className="text-[var(--color-success)]">
-          Saved.
-        </p>
-      )}
+      <StatusBanners error={settings.error} saved={settings.saved} />
       {tab === "Governance" && settings.values && settings.source && (
         <>
           <GovernanceForm
@@ -78,6 +88,9 @@ export function ProjectSettingsPanel({
       )}
       {tab === "Contributors" && (
         <ContributorsTab projectId={projectId} canManage={settings.canManage} />
+      )}
+      {tab === "Source control" && (
+        <SourceControlTab projectId={projectId} canManage={settings.canManage} />
       )}
     </div>
   );
