@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T21:19:34+00:00
+Captured at: 2026-07-10T21:44:46+00:00
 Event: pre-compact
 
 ## Current State
@@ -1042,17 +1042,17 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-012.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "CE-V1-TASK-013",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Conversational Document Ingest Agent (E12-S1, USER PRIORITY)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-012"
       ],
@@ -1101,7 +1101,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "Overlay Engine + Heatmap + Domain Colouring",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-020"
       ],
@@ -1182,7 +1182,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "Closure Config Wiring + Drift Guard + Pinned Impact Overlay",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-021"
       ],
