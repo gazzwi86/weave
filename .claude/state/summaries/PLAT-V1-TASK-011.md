@@ -49,3 +49,14 @@ files), /simplify nothing. Backend SSE/budget/gate-order docker-integration gree
 
 TASK-012 (Declarative intent→component mapping — the REAL resolver; also inherits the relocated happy-path E2E),
 TASK-013 (Refine widget). NOTE: EPIC-001 also carries XT-PLAT010-2 (dashboard E2E) as a close-gate blocker.
+
+## QA PASS (2026-07-11, retry 0) — TASK-011 CLOSES
+task011-qa PASS, adversarial. Verified by re-run: gate ORDER budget→resolver (budget in own tenant_connection,
+returns before resolver; `test_budget_gate_blocks_before_model_call`); mid-stream cap rollback (zero
+widget_instances survive); real SSE (StreamingResponse text/event-stream, proxy passthrough, fetch+ReadableStream
+client — not EventSource); no 2nd cost path (enforce_budget/record_token_usage from billing.gate/metering, M1
+PLAT-BILLING-1). AC-8: prompt-bar tokens-only, Cmd+K guard tested BOTH ways (no-op /dashboard, works /ce),
+hide-after-3. 26 unit + 21 docker (20+1 QA edge `b56aa31` CeMetricsUnavailable rollback) + 600 frontend green;
+ruff/mypy(448)/eslint/tsc clean; anthropic|bedrock zero. Coverage met-by-inference (PROJ-013 docker+cov segfault).
+E2E 2/3 real pass + happy-path fixme→TASK-012. retry=0.
+**Flag:** task011-qa did NOT run ui_verify/axe/Lighthouse (docker churn ate time) — code-read a11y only → follow-up UI gate at epic close. **Docker: the shared stack vanished 3× mid-QA (not by QA) — real docker-lane collision.**

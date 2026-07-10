@@ -209,3 +209,15 @@ never propagated to the tables.
   that walks the ADR-018 closure, highlights results on canvas, badges beyond-depth-cap, delivering M1 TASK-013
   AC-6/AC-7. This preserves the scope-correction's intent (unblock 030) in its own testable task. NOTE also blocked
   end-to-end by the 11/13 undeclared SHACL closure predicates (see CE-028 ontology follow-up above).
+
+## OPS: docker-lane collision (stack removed 3× mid-QA) + ce013 doc-parsing dep
+- **Docker collision:** during TASK-011 QA, the shared `weave-plat-v1-epic-001-postgres-1`/`redis-1` stack was
+  fully REMOVED 3× (not by the QA agent) — cost real time, could false-fail lanes. Two docker lanes ran
+  concurrently (TASK-011 QA + CE-013). ROOT: lanes not using distinct COMPOSE_PROJECT_NAME, or a stack-teardown
+  test (`docker compose down -v`), or a lingering process. MORNING: enforce per-lane COMPOSE_PROJECT_NAME + port
+  isolation (the deferred compose-parameterization PR), OR strictly serialize docker lanes to 1 at a time.
+- **ui_verify follow-up:** TASK-011 QA did NOT run ui_verify/axe/Lighthouse (docker churn ate time) — a11y/token
+  by code-read only. Run the automated UI gate at EPIC-001 epic-close (once docker host is stable).
+- **CE-013 new dep:** ce013 added a document-parsing dependency to `packages/backend/pyproject.toml`+`uv.lock`
+  (uncommitted at its 3rd death) + a `document_parsing.py`. Law A (common-stack-first) — the continuation must
+  JUSTIFY the dep (or use stdlib) + document it; flag if it's an exotic add needing bus-factor acknowledgement.
