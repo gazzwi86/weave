@@ -18,6 +18,12 @@ function kindStyle(kind: NodeKind): cytoscape.StylesheetStyle {
  * duplicated. Border colour is a design token, not an ad-hoc hex (Law 20). */
 export const EXPLORER_HIGHLIGHT_CLASS = "explorer-highlight";
 
+/** TASK-028 AC-3/AC-7: pinned impact/dependency trace -- a distinct amber
+ * overlay (design-system: docs/standards/design/data-viz.md), deliberately
+ * separate from the cyan spotlight class above, so "this is the impact
+ * chain" never reads as "this is selected". */
+export const EXPLORER_TRACE_CLASS = "explorer-trace";
+
 const CSS_VAR_PATTERN = /^var\((--[\w-]+)\)$/;
 
 /** Exported for the overlay colour seam (renderer-adapter-colour.ts) --
@@ -77,6 +83,10 @@ export function buildStylesheet(palette: NodeKind[]): cytoscape.StylesheetStyle[
     {
       selector: `node.${EXPLORER_HIGHLIGHT_CLASS}`,
       style: { "border-width": 3, "border-color": "var(--color-accent-primary)" },
+    },
+    {
+      selector: `node.${EXPLORER_TRACE_CLASS}`,
+      style: { "border-width": 3, "border-color": "var(--color-warn)" },
     },
   ];
 }

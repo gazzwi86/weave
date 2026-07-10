@@ -1,4 +1,4 @@
-import { EXPLORER_HIGHLIGHT_CLASS, readCssToken } from "./build-stylesheet";
+import { EXPLORER_HIGHLIGHT_CLASS, EXPLORER_TRACE_CLASS, readCssToken } from "./build-stylesheet";
 import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
 import type { CytoscapeElement } from "./types";
 
@@ -98,6 +98,22 @@ export interface RendererAdapter {
    * is stylesheet-driven (bpmo_kind selector), never an inline override
    * itself, and reasserts the moment the override is cleared. */
   clearNodeColours(): void;
+  /** TASK-028 AC-3/AC-7: the pinned-impact trace seam -- a border class
+   * (EXPLORER_TRACE_CLASS), deliberately separate from the "colour"
+   * background-colour seam above, so a pin coexists with an active colour
+   * overlay instead of competing for the same channel. */
+  setTraceHighlight(nodeIds: string[]): void;
+  /** TASK-028 AC-4: clears the trace class from every node. */
+  clearTraceHighlight(): void;
+  /** TASK-028 AC-5: live hidden state for the pin legend's hidden-by-
+   * filters count -- reads cytoscape's actual rendered state, correct
+   * after any filter apply without a separate subscription. */
+  isHidden(nodeId: string): boolean;
+  /** TASK-028 AC-4: native cytoscape `remove` event -- fires for any
+   * removal path (explicit removeElements, layer toggle-off, a future
+   * delete flow), so the pin's source-delete auto-clear doesn't need to
+   * know which caller removed the node. Returns an unsubscribe. */
+  onElementRemoved(handler: (id: string) => void): () => void;
 }
 
 export interface FilterVisibility {
@@ -120,6 +136,12 @@ export interface CyCollection {
   filter(fn: (ele: CyCollection) => boolean): CyCollection;
   connectedEdges(): CyCollection;
   addClass(className: string): void;
+  /** TASK-028: clears a class -- the trace-highlight seam's un-apply. */
+  removeClass(className: string): void;
+  /** TASK-028 AC-5: true if this element (or an ancestor) is display:none
+   * -- native cytoscape visibility read, source of truth for the pin
+   * legend's hidden-by-filters count. */
+  hidden(): boolean;
   closedNeighborhood(): CyCollection;
   position(): { x: number; y: number };
   /** TASK-020 AC-1: real hide/show (display:none), distinct from the
@@ -448,6 +470,21 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     clearNodeColours() {
       clearNodeColoursOn(cy);
+    },
+    setTraceHighlight(nodeIds) {
+      cy.batch(() => {
+        cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+        nodeIds.forEach((nodeId) => cy.getElementById(nodeId).addClass(EXPLORER_TRACE_CLASS));
+      });
+    },
+    clearTraceHighlight() {
+      cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+    },
+    isHidden(nodeId) {
+      return cy.getElementById(nodeId).hidden();
+    },
+    onElementRemoved(handler) {
+      return wireEvent(cy, "remove", () => true, (evt) => handler((evt.target as CyCollection).id()));
     },
   };
 }
