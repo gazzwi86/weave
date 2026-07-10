@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 import asyncpg
@@ -100,3 +102,50 @@ async def get_task_brief(
         content=parsed,
         created_at=row["created_at"],
     )
+
+
+@dataclass(frozen=True)
+class BriefEstimate:
+    """TASK-013 (ADR-008 #4): the forecast-formula's brief-side input --
+    every project brief's own cost estimate, `task_id`-keyed for the
+    costs-endpoint LEFT JOIN against `cost_events.rollup`'s per-task rows.
+    """
+
+    task_id: str
+    brief_estimate_tokens: int | None
+    estimated_cost_usd: Decimal | None
+
+
+def _to_brief_estimate(task_id: str, content: dict[str, Any]) -> BriefEstimate:
+    cost_estimate = content.get("cost_estimate") or {}
+    tokens_in_k = cost_estimate.get("estimated_tokens_input_k")
+    tokens_out_k = cost_estimate.get("estimated_tokens_output_k")
+    cost_usd = cost_estimate.get("estimated_cost_usd")
+    brief_estimate_tokens = (
+        int((tokens_in_k + tokens_out_k) * 1000)
+        if tokens_in_k is not None and tokens_out_k is not None
+        else None
+    )
+    return BriefEstimate(
+        task_id=task_id,
+        brief_estimate_tokens=brief_estimate_tokens,
+        estimated_cost_usd=Decimal(str(cost_usd)) if cost_usd is not None else None,
+    )
+
+
+async def estimates(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
+) -> list[BriefEstimate]:
+    """Every brief's cost estimate for a project, `task_id`-keyed."""
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        "SELECT task_id, content FROM task_briefs WHERE tenant_id = $1 AND project_iri = $2",
+        tenant_id,
+        project_iri,
+    )
+    result = []
+    for row in rows:
+        content = row["content"]
+        parsed = json.loads(content) if isinstance(content, str) else content
+        result.append(_to_brief_estimate(row["task_id"], parsed))
+    return result

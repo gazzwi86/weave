@@ -38,3 +38,13 @@ export function getSessionClaims(jwt: string | undefined): SessionClaims {
   if (!sub) return { role: null, tenantId };
   return { role: sub === "admin" ? "admin" : "author", tenantId };
 }
+
+/** Reads the `principal_iri` claim (issued directly by mock_oidc --
+ * `identity/registry.py::human_principal_iri`) so callers can match the
+ * signed-in user against a project's contributor rows (TASK-015 AC-4):
+ * `ProjectSettingsResponse` carries no role field to read instead. */
+export function getPrincipalIri(jwt: string | undefined): string | null {
+  const payload = jwt ? decodePayload(jwt) : null;
+  if (!payload) return null;
+  return typeof payload.principal_iri === "string" ? payload.principal_iri : null;
+}

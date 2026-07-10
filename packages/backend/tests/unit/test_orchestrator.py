@@ -8,13 +8,17 @@ the DB-round-trip proof lives in `tests/integration/test_runs_api.py`.
 
 from __future__ import annotations
 
+import functools
 import logging
+from decimal import Decimal
 from typing import Any
 
 import pytest
 
 from weave_backend.build import model_routing
 from weave_backend.build import store as task_store
+from weave_backend.build.cost import ModelRate, RateCardConfigError, record_dispatch_cost
+from weave_backend.build.costs import BudgetBreach
 from weave_backend.build.dep_summary import DepSummary
 from weave_backend.build.hitl import HitlGateContext
 from weave_backend.build.orchestrator import (
@@ -32,7 +36,7 @@ from weave_backend.build.state_spine import (
 )
 from weave_backend.build.typed_result import handle_agent_result
 from weave_backend.repo_bootstrap.service import RepoBootstrapDeps
-from weave_backend.schemas.tasks import TypedResult
+from weave_backend.schemas.tasks import DispatchUsage, TypedResult
 
 _TENANT = "tenant-orch"
 _PROJECT_IRI = f"urn:weave:project:{_TENANT}:acme"
@@ -66,6 +70,15 @@ class _FakeConnection:
         if "FROM dep_summaries" in query:
             return self._dep_summary_row
         raise AssertionError(f"unexpected fetchrow: {query}")
+
+    async def fetch(self, query: str, *_args: Any) -> list[dict[str, Any]]:
+        # TASK-013: `check_budget`'s default `resolve_budget_cap` reads the
+        # settings cascade every checkpoint (unlike the turn cap, resolved
+        # once) -- no cap seeded here means `SettingNotFound` -> unmetered,
+        # so the existing turn-cap/resume tests are unaffected.
+        if "scope_iri = ANY($2)" in query:
+            return []
+        raise AssertionError(f"unexpected fetch: {query}")
 
     async def execute(self, query: str, *args: Any) -> None:
         self.executed.append((query, args))
@@ -105,6 +118,16 @@ async def _always_pass(conn: Any, *, tenant_id: str, project_iri: str, task: Tas
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
 
 
+async def _empty_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+    """TASK-012: pre-existing tests here don't exercise cost attribution --
+    their dispatches carry no `usage`, so `record_dispatch_cost_fn` is never
+    invoked. Stubbed so `run_dark_factory`'s mandatory rate-card resolution
+    (AC-4) doesn't need real settings-table fixtures unrelated to what these
+    tests are about.
+    """
+    return {}
+
+
 @pytest.fixture(autouse=True)
 def _reset_task_store() -> None:
     task_store.reset_for_tests()
@@ -122,7 +145,10 @@ async def test_orchestrator_halts_at_turn_cap_60() -> None:
         hitl_calls.append(ctx)
 
     deps = OrchestratorDeps(
-        repo_deps=_repo_deps(), dispatch_pdac_fn=_always_pass, fire_hitl_gate_fn=_fake_hitl
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
     )
     conn = _FakeConnection()
 
@@ -177,6 +203,7 @@ async def test_either_cap_halt_routes_to_hitl_with_state_preserved() -> None:
         repo_deps=_repo_deps(),
         dispatch_pdac_fn=_always_fail_logic,
         handle_agent_result_fn=_handle_agent_result,
+        resolve_rate_card_fn=_empty_rate_card,
     )
     conn = _FakeConnection()
 
@@ -213,7 +240,11 @@ async def test_resume_from_codify_checkpoint_after_crash() -> None:
         calls.append(task.id)
         return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
 
-    deps = OrchestratorDeps(repo_deps=_repo_deps(), dispatch_pdac_fn=_tracking_pass)
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_tracking_pass,
+        resolve_rate_card_fn=_empty_rate_card,
+    )
     conn = _FakeConnection()
 
     result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
@@ -327,7 +358,10 @@ async def test_turn_cap_never_re_resolved_mid_run(monkeypatch: pytest.MonkeyPatc
     tasks = [TaskState(id=f"t{i}", status="Queued") for i in range(3)]
     spine = _spine(turn_cap=2, tasks=tasks)
     deps = OrchestratorDeps(
-        repo_deps=_repo_deps(), dispatch_pdac_fn=_always_pass, fire_hitl_gate_fn=_fake_hitl
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
     )
 
     result = await run_dark_factory(_FakeConnection(), spine, tenant_id=_TENANT, deps=deps)
@@ -367,7 +401,11 @@ async def test_run_dark_factory_propagates_commit_timeout_not_swallowed(
 
     task = TaskState(id="t1", status="Queued")
     spine = _spine(turn_cap=10, tasks=[task])
-    deps = OrchestratorDeps(repo_deps=_repo_deps(), dispatch_pdac_fn=_always_pass)
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        resolve_rate_card_fn=_empty_rate_card,
+    )
 
     with pytest.raises(StateSpineCommitTimeout):
         await run_dark_factory(
@@ -401,3 +439,184 @@ async def test_state_spine_commit_blocks_on_timeout() -> None:
 
     assert len(audit_calls) == 1
     assert audit_calls[0].event_type == "state_spine_commit_timeout"
+
+
+async def test_persist_one_cost_event_per_agent_dispatch() -> None:
+    """TASK-012 AC-1: a dispatch returning a usage block persists one
+    `cost_events` row -- proven through the real dispatch loop (the wrap
+    point in `_dispatch_one`), not a mocked call.
+    """
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+    usage = DispatchUsage(
+        agent_role="delegate", model="claude-sonnet-5", tokens_in=1000, tokens_out=500
+    )
+
+    async def _dispatch_with_usage(
+        _conn: Any, *, tenant_id: str, project_iri: str, task: TaskState
+    ) -> Any:
+        return (
+            TypedResult(status="PASS", retry_recommended=False, usage=usage),
+            DepSummary(task_id=task.id),
+        )
+
+    async def _stub_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return {
+            "claude-sonnet-5": ModelRate(
+                usd_per_1k_in=Decimal("0.003"), usd_per_1k_out=Decimal("0.015")
+            )
+        }
+
+    emitted: list[Any] = []
+
+    async def _stub_emit(ctx: Any, _usage: Any, _cost: Any) -> None:
+        emitted.append(ctx)
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_dispatch_with_usage,
+        resolve_rate_card_fn=_stub_rate_card,
+        record_dispatch_cost_fn=functools.partial(record_dispatch_cost, emit_billing_fn=_stub_emit),
+    )
+
+    await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    cost_inserts = [row for row in conn.executed if "INSERT INTO cost_events" in row[0]]
+    assert len(cost_inserts) == 1
+    _query, args = cost_inserts[0]
+    assert args == (
+        _TENANT, _PROJECT_IRI, "t1", "run-1", "delegate", "claude-sonnet-5", 1000, 500,
+        Decimal("0.0105"),
+    )
+    assert len(emitted) == 1
+
+
+async def test_default_dispatch_pdac_stub_records_no_cost_event() -> None:
+    """No token spend for the current no-op PDAC stub (TASK-007/008 not yet
+    built) -- `usage` stays `None`, so the wrap point never fabricates a row.
+    """
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+
+    async def _stub_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return {}
+
+    def _unreachable_cost_recorder(*_a: Any, **_kw: Any) -> Any:
+        raise AssertionError("no usage on the result -- cost recorder must not be invoked")
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        resolve_rate_card_fn=_stub_rate_card,
+        record_dispatch_cost_fn=_unreachable_cost_recorder,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.dispatch_count == 1
+    assert result.tasks[0].status == "Done"
+
+
+async def test_halt_run_at_start_when_rate_card_unresolvable() -> None:
+    """TASK-012 AC-4: a rate-card config error halts the RUN before any
+    dispatch -- zero dispatch cycles, HITL fired, halted phase persisted --
+    the same fail-closed posture as the model-routing halt, but run-scoped.
+    """
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+    hitl_calls: list[HitlGateContext] = []
+
+    async def _fake_hitl(_conn: Any, ctx: HitlGateContext, **_kw: Any) -> None:
+        hitl_calls.append(ctx)
+
+    async def _boom_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        raise RateCardConfigError(frozenset({"claude-fable-5"}))
+
+    async def _unreachable_dispatch(*_a: Any, **_kw: Any) -> Any:
+        raise AssertionError("no dispatch should run when the rate card is unresolvable")
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_unreachable_dispatch,
+        resolve_rate_card_fn=_boom_rate_card,
+        fire_hitl_gate_fn=_fake_hitl,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.dispatch_count == 0
+    assert result.phase == "halted_config_error"
+    assert len(hitl_calls) == 1
+    assert task.status == "Queued"
+
+
+async def test_halt_run_at_next_checkpoint_when_budget_cascade_breached() -> None:
+    """TASK-013 AC-4: the budget check runs beside the existing turn-cap
+    checkpoint, right after each dispatch commits -- a breach halts before
+    the next task dispatches, never invented as a second checkpoint concept.
+    """
+    task1 = TaskState(id="t1", status="Queued")
+    task2 = TaskState(id="t2", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task1, task2])
+    conn = _FakeConnection()
+    hitl_calls: list[HitlGateContext] = []
+
+    async def _fake_hitl(_conn: Any, ctx: HitlGateContext, **_kw: Any) -> None:
+        hitl_calls.append(ctx)
+
+    async def _breach(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return BudgetBreach(cap_usd=Decimal("10"), spent_usd=Decimal("12"), level="domain")
+
+    notify_calls: list[Any] = []
+
+    async def _fake_notify(_conn: Any, *, tenant_id: str, project_iri: str, breach: Any) -> None:
+        notify_calls.append(breach)
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
+        check_budget_fn=_breach,
+        notify_budget_breach_fn=_fake_notify,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.dispatch_count == 1
+    assert result.phase == "halted_budget_breach"
+    assert result.tasks[0].status == "Done"
+    assert result.tasks[1].status == "Queued"  # never dispatched
+    assert len(hitl_calls) == 1
+    assert hitl_calls[0].evidence == "budget_breach_at_domain"
+    assert len(notify_calls) == 1
+
+
+async def test_stay_halted_when_budget_notify_emit_fails() -> None:
+    """TASK-013 AC-5: a `PLAT-NOTIFY-1` emit failure never un-halts the run
+    -- the halted phase is already committed before the best-effort notify.
+    """
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+
+    async def _breach(_conn: Any, *, tenant_id: str, project_iri: str) -> Any:
+        return BudgetBreach(cap_usd=Decimal("10"), spent_usd=Decimal("12"), level="company")
+
+    async def _boom_notify(_conn: Any, *, tenant_id: str, project_iri: str, breach: Any) -> None:
+        raise ConnectionError("notify pipeline unreachable")
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        resolve_rate_card_fn=_empty_rate_card,
+        check_budget_fn=_breach,
+        notify_budget_breach_fn=_boom_notify,
+    )
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.phase == "halted_budget_breach"

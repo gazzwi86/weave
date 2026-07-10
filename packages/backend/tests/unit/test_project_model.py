@@ -22,6 +22,7 @@ from weave_backend.projects.model import (
     find_existing_project_iri,
     get_project,
     slugify,
+    update_project_pin,
     update_project_publish,
     update_project_write_back,
 )
@@ -192,3 +193,21 @@ async def test_update_project_write_back_sets_complete_and_artefact_iri() -> Non
     assert "write_back_complete" in query
     assert "write_back_artefact_iri" in query
     assert args == ("urn:weave:artefact:t1:run-1", "t1", "urn:weave:project:t1:acme")
+
+
+async def test_update_project_pin_sets_pinned_graph_version_iri() -> None:
+    """TASK-016 AC-4: single-column pin update -- mirrors
+    `update_project_write_back`'s pattern.
+    """
+    conn = _FakeConnection()
+
+    await update_project_pin(
+        conn,
+        tenant_id="t1",
+        project_iri="urn:weave:project:t1:acme",
+        pinned_graph_version_iri="urn:weave:version:v2",
+    )
+
+    [(query, args)] = conn.executed
+    assert "pinned_graph_version_iri" in query
+    assert args == ("urn:weave:version:v2", "t1", "urn:weave:project:t1:acme")

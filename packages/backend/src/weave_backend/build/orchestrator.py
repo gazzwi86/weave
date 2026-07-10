@@ -12,15 +12,23 @@ handoff) without generating any code/spec content.
 
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import asyncpg
 
 from weave_backend.briefs.store import get_task_brief
 from weave_backend.build import store as task_store
+from weave_backend.build.cost import (
+    DispatchCostContext,
+    RateCardConfigError,
+    record_dispatch_cost,
+    resolve_rate_card,
+)
+from weave_backend.build.costs import BudgetBreach, check_budget, notify_budget_breach
 from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, write_dep_summary
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
@@ -94,6 +102,16 @@ class OrchestratorDeps:
     dispatch_pdac_fn: DispatchFn = default_dispatch_pdac
     fire_hitl_gate_fn: Any = fire_hitl_gate
     handle_agent_result_fn: Any = handle_agent_result
+    #: TASK-012 (ADR-008): resolved once at run start (AC-4), then bound
+    #: onto `record_dispatch_cost_fn` via `functools.partial` before the
+    #: loop -- `_dispatch_one` never takes a 6th parameter for it (Law E).
+    resolve_rate_card_fn: Any = resolve_rate_card
+    record_dispatch_cost_fn: Any = record_dispatch_cost
+    #: TASK-013 (FR-008): read beside the existing turn-cap checkpoint below,
+    #: not a second checkpoint concept -- a breach halts before the next
+    #: task dispatches.
+    check_budget_fn: Any = check_budget
+    notify_budget_breach_fn: Any = notify_budget_breach
 
 
 DEFAULT_ORCHESTRATOR_DEPS = OrchestratorDeps()
@@ -115,6 +133,22 @@ async def _dispatch_one(
     result, dep_summary = await deps.dispatch_pdac_fn(
         conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
     )
+
+    # TASK-012 AC-1: every dispatch with an attributable usage block records
+    # one cost_events row, PASS or FAIL alike -- a FAIL still burned tokens.
+    # No usage (e.g. the current no-op PDAC stub) means no row: honest,
+    # since the stub itself calls no agent SDK.
+    if result.usage is not None:
+        await deps.record_dispatch_cost_fn(
+            conn,
+            DispatchCostContext(
+                tenant_id=tenant_id,
+                project_iri=spine.project_iri,
+                task_id=task.id,
+                run_id=spine.run_id,
+            ),
+            result.usage,
+        )
 
     if result.status == "FAIL":
         if task_store.get_task(tenant_id, task.id) is None:
@@ -153,6 +187,69 @@ async def _halt_turn_cap(
     await commit_state_spine(conn, spine)
 
 
+async def _halt_rate_card_error(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+    exc: RateCardConfigError,
+) -> None:
+    """TASK-012 AC-4: same run-halt HITL path as `_halt_turn_cap` -- fires
+    before `ensure_project_repo`/the dispatch loop even start, so
+    `dispatch_count` stays 0.
+    """
+    spine.phase = "halted_config_error"
+    await deps.fire_hitl_gate_fn(
+        conn,
+        HitlGateContext(
+            tenant_id=tenant_id,
+            task_id=f"run:{spine.run_id}",
+            submitting_principal_iri=BUILD_PRINCIPAL_IRI,
+            evidence=f"rate_card_unresolvable:{','.join(sorted(exc.missing_models))}",
+        ),
+    )
+    await commit_state_spine(conn, spine)
+
+
+async def _halt_budget_breach(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+    breach: BudgetBreach,
+) -> None:
+    """TASK-013 AC-4/AC-5: unlike `_halt_turn_cap`/`_halt_rate_card_error`,
+    the halt is committed *before* notifying -- a `PLAT-NOTIFY-1` emit
+    failure (AC-5) must never leave the run un-halted. Both the HITL-gate
+    evidence trail and the budget notify are therefore best-effort after
+    the commit, each independently guarded.
+    """
+    spine.phase = "halted_budget_breach"
+    await commit_state_spine(conn, spine)
+
+    try:
+        await deps.fire_hitl_gate_fn(
+            conn,
+            HitlGateContext(
+                tenant_id=tenant_id,
+                task_id=f"run:{spine.run_id}",
+                submitting_principal_iri=BUILD_PRINCIPAL_IRI,
+                evidence=f"budget_breach_at_{breach.level}",
+            ),
+        )
+    except Exception:
+        log.warning("budget_breach_hitl_notify_failed", extra={"project_iri": spine.project_iri})
+
+    try:
+        await deps.notify_budget_breach_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri, breach=breach
+        )
+    except Exception:
+        log.warning("budget_breach_notify_failed", extra={"project_iri": spine.project_iri})
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -165,11 +262,29 @@ async def run_dark_factory(
     committing after every cycle. `spine.dispatch_count`/`turn_cap` are
     already resumed/resolved by the caller (`start_or_resume_run`) -- the
     cap is read once at run start, never re-read mid-run.
+
+    TASK-012 AC-4: the rate card is resolved once, before step 0 -- an
+    unresolvable card halts the run fail-closed, before any dispatch.
     """
+    try:
+        rate_card = await deps.resolve_rate_card_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri
+        )
+    except RateCardConfigError as exc:
+        await _halt_rate_card_error(conn, spine, tenant_id=tenant_id, deps=deps, exc=exc)
+        return spine
+    deps = replace(
+        deps,
+        record_dispatch_cost_fn=functools.partial(
+            deps.record_dispatch_cost_fn, rate_card=rate_card
+        ),
+    )
+
     await ensure_project_repo(
         conn, project_iri=spine.project_iri, tenant_id=tenant_id, deps=deps.repo_deps
     )
 
+    breach: BudgetBreach | None = None
     while spine.dispatch_count < spine.turn_cap:
         task = spine.next_ready_task()
         if task is None:
@@ -179,7 +294,15 @@ async def run_dark_factory(
         spine.dispatch_count += 1
         await commit_state_spine(conn, spine)
 
-    if spine.phase == "running" and spine.dispatch_count >= spine.turn_cap:
+        breach = await deps.check_budget_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri
+        )
+        if breach is not None:
+            break
+
+    if breach is not None:
+        await _halt_budget_breach(conn, spine, tenant_id=tenant_id, deps=deps, breach=breach)
+    elif spine.phase == "running" and spine.dispatch_count >= spine.turn_cap:
         await _halt_turn_cap(conn, spine, tenant_id=tenant_id, deps=deps)
     else:
         # AC-8: the `phase == "complete"` transition (empty/exhausted

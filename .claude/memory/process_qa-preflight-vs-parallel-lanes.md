@@ -11,13 +11,19 @@ if absent). This collides with **ADV-004 parallel-lane discipline**, under which
 write `.claude/state/**` (coordinator owns all state) and the `/implement` loop's CODIFY step (write
 summary) normally runs *after* ASSESS (QA), not before.
 
-**Why:** in the serial `/implement` loop the engineer/coordinator writes the summary before QA is
-invoked, so the preflight never trips. In parallel lanes the lane finishes code-only (no state write),
-so QA trips the preflight on first launch and wastes a round.
+**Why:** this trips in SERIAL lanes too, not just parallel — confirmed 2026-07-10 on BE-V1-TASK-012.
+When the coordinator (correctly, per state-discipline) tells the engineer subagent NOT to write
+`.claude/state/**`, no summary gets written, so QA hard-fails preflight even though the code is fine.
+The loop's CODIFY-writes-summary-AFTER-QA ordering directly contradicts the QA agent's
+summary-must-exist-BEFORE preflight. The old assumption ("in serial the engineer writes it first") is
+wrong once engineers are barred from state.
 
-**How to apply:** when a parallel lane reports done, the coordinator **pre-writes**
-`.claude/state/summaries/<TASK-ID>.md` from the lane's completion receipt (decisions, deviations,
-migration-collision notes, downstream context) in the **main repo** checkout, THEN launches QA — and
-tells the QA agent the summary is at the main-repo path and not to re-block on the worktree's copy (the
-summary lives on main, not the feature branch). See [[project_harness-refinement]] and the ADV-004 lane
-rules.
+**How to apply (ALL lanes, serial + parallel):** the coordinator **pre-writes**
+`.claude/state/summaries/<TASK-ID>.md` (namespaced ID, e.g. `BE-V1-TASK-012.md`) from the engineer's
+completion receipt — what shipped, decisions, deviations/ADRs, coverage/gates, commits, downstream
+context — in the **main repo** checkout, THEN launches QA. Never rely on the engineer to write it.
+Finalize/expand at CODIFY. Watch two adjacent traps seen the same session: (1) engineers repeatedly
+hit the 100-tool-use cap and leave work UNCOMMITTED — resume with a commit-FIRST instruction and
+verify the tree on every engineer return; (2) summary filename must be the namespaced ID
+(`BE-V1-TASK-NNN.md`), not the brief-local `TASK-NNN.md`. See [[project_harness-refinement]] and the
+ADV-004 lane rules.

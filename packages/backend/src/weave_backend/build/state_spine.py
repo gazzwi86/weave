@@ -23,7 +23,14 @@ COMMIT_TIMEOUT_SECONDS = 0.5
 #: mirrors `repo_bootstrap.service.BUILD_SERVICE_PRINCIPAL_IRI`.
 BUILD_PRINCIPAL_IRI = "urn:weave:principal:service:build-engine"
 
-Phase = Literal["running", "halted_turn_cap", "halted_hitl", "complete"]
+Phase = Literal[
+    "running",
+    "halted_turn_cap",
+    "halted_hitl",
+    "halted_config_error",
+    "halted_budget_breach",
+    "complete",
+]
 
 
 class TaskState(BaseModel):

@@ -271,3 +271,101 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/playwright.config.ts --> <!-- at: 2026-07-09T04:49:22.148587+00:00 -->
 
 <!-- stale: packages/frontend/tests/e2e/global-search.spec.ts --> <!-- at: 2026-07-09T04:58:35.074832+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/backend-proxy.ts --> <!-- at: 2026-07-09T21:44:57.515234+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:45:30.994891+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/route.ts --> <!-- at: 2026-07-09T21:46:31.661561+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/settings/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:47:17.470691+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/settings/route.ts --> <!-- at: 2026-07-09T21:47:38.285642+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:48:17.362945+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/[principalIri]/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:48:31.659264+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/route.ts --> <!-- at: 2026-07-09T21:48:55.554265+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/contributors/[principalIri]/route.ts --> <!-- at: 2026-07-09T21:49:06.447743+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/__tests__/route.test.ts --> <!-- at: 2026-07-09T21:49:40.155005+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/route.ts --> <!-- at: 2026-07-09T21:49:56.139038+00:00 -->
+
+<!-- stale: packages/frontend/app/build/__tests__/registry-grid.test.tsx --> <!-- at: 2026-07-09T21:51:28.497892+00:00 -->
+
+<!-- stale: packages/frontend/app/build/use-project-grid.ts --> <!-- at: 2026-07-09T21:51:46.534967+00:00 -->
+
+<!-- stale: packages/frontend/app/build/project-card.tsx --> <!-- at: 2026-07-09T21:52:03.918189+00:00 -->
+
+<!-- stale: packages/frontend/app/build/registry-grid.tsx --> <!-- at: 2026-07-09T21:52:24.034885+00:00 -->
+
+<!-- stale: packages/frontend/app/build/__tests__/new-project-modal.test.tsx --> <!-- at: 2026-07-09T21:56:23.307631+00:00 -->
+
+<!-- stale: packages/frontend/app/build/new-project-modal.tsx --> <!-- at: 2026-07-09T21:56:49.653961+00:00 -->
+
+<!-- stale: packages/frontend/app/build/new-project-form.tsx --> <!-- at: 2026-07-09T21:58:54.126964+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/derive-role.test.ts --> <!-- at: 2026-07-09T22:00:09.083746+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/derive-role.ts --> <!-- at: 2026-07-09T22:00:26.004567+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/contributors-tab.test.tsx --> <!-- at: 2026-07-09T22:01:00.201519+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/contributors-tab.tsx --> <!-- at: 2026-07-09T22:05:04.399304+00:00 -->
+
+<!-- stale: packages/frontend/lib/build/backend-proxy.test.ts --> <!-- at: 2026-07-09T22:09:10.645980+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/project-settings-panel.test.tsx --> <!-- at: 2026-07-09T22:10:44.088436+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/governance-form.tsx --> <!-- at: 2026-07-09T22:11:04.901559+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/binding-slots.tsx --> <!-- at: 2026-07-09T22:11:56.280406+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/use-project-settings.ts --> <!-- at: 2026-07-09T22:12:38.294852+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/project-settings-panel.tsx --> <!-- at: 2026-07-09T22:12:53.377028+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/page.tsx --> <!-- at: 2026-07-09T22:16:39.636658+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/project-settings.spec.ts --> <!-- at: 2026-07-09T22:20:18.556754+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-diff/__tests__/route.test.ts --> <!-- at: 2026-07-09T23:16:27.987681+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-upgrade/__tests__/route.test.ts --> <!-- at: 2026-07-09T23:16:45.689210+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-diff/route.ts --> <!-- at: 2026-07-09T23:17:35.592643+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/pin-upgrade/route.ts --> <!-- at: 2026-07-09T23:17:48.836009+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/pin-upgrade-section.test.tsx --> <!-- at: 2026-07-09T23:24:51.774447+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/pin-upgrade-section.tsx --> <!-- at: 2026-07-09T23:25:29.003849+00:00 -->
+
+<!-- stale: packages/frontend/tests/e2e/pin-upgrade.spec.ts --> <!-- at: 2026-07-09T23:31:31.682809+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/binding-slots.test.tsx --> <!-- at: 2026-07-10T00:45:11.078029+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/bind-dialog.tsx --> <!-- at: 2026-07-10T00:46:34.999434+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/binding-card.tsx --> <!-- at: 2026-07-10T00:55:28.931784+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/__tests__/route.test.ts --> <!-- at: 2026-07-10T00:59:17.026447+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/[bindingId]/__tests__/route.test.ts --> <!-- at: 2026-07-10T00:59:30.804031+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/route.ts --> <!-- at: 2026-07-10T01:00:01.131956+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/bindings/[bindingId]/route.ts --> <!-- at: 2026-07-10T01:00:11.757790+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/source-control/__tests__/route.test.ts --> <!-- at: 2026-07-10T02:11:59.066949+00:00 -->
+
+<!-- stale: packages/frontend/app/api/build/projects/[id]/source-control/route.ts --> <!-- at: 2026-07-10T02:13:07.245150+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/__tests__/source-control-tab.test.tsx --> <!-- at: 2026-07-10T02:15:02.173564+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/source-control-card.tsx --> <!-- at: 2026-07-10T02:15:32.770772+00:00 -->
+
+<!-- stale: packages/frontend/app/build/projects/[id]/settings/source-control-tab.tsx --> <!-- at: 2026-07-10T02:15:54.828025+00:00 -->

@@ -11,11 +11,26 @@ from pydantic import BaseModel, model_validator
 FailureClass = Literal["logic", "syntax", "dependency", "spec_ambiguity"]
 
 
+class DispatchUsage(BaseModel):
+    """TASK-012 (ADR-008): the Agent SDK usage block a dispatch returns,
+    scoped to the role/model that ran. Optional on `TypedResult` -- `None`
+    for dispatches with no attributable spend (e.g. the current no-op PDAC
+    stub, TASK-007/008 not yet built), so `build/cost.py`'s wrap point never
+    fabricates a `cost_events` row for work that burned no tokens.
+    """
+
+    agent_role: str
+    model: str
+    tokens_in: int
+    tokens_out: int
+
+
 class TypedResult(BaseModel):
     status: Literal["PASS", "FAIL"]
     failure_class: FailureClass | None = None
     evidence: str | None = None
     retry_recommended: bool
+    usage: DispatchUsage | None = None
 
     @model_validator(mode="after")
     def _require_failure_class_on_fail(self) -> TypedResult:

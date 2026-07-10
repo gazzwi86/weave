@@ -19,6 +19,7 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.dependencies import Principal
 from weave_backend.projects.ce_version_client import CeVersionUnavailable
+from weave_backend.projects.governance import GovernanceSnapshot
 from weave_backend.projects.model import Project, ProjectExists
 from weave_backend.requests.ce_read import CeReadUnavailable
 from weave_backend.requests.store import RequestRecord
@@ -287,7 +288,7 @@ async def test_sign_off_project_creation_failure_leaves_request_pending() -> Non
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.request_governance.get_pinned_latest_version",
+            "weave_backend.routers.request_governance.create_project_shell",
             AsyncMock(side_effect=CeVersionUnavailable("down")),
         ),
         pytest.raises(HTTPException) as exc_info,
@@ -334,17 +335,21 @@ async def test_sign_off_all_approved_creates_project_unit() -> None:
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.request_governance.get_pinned_latest_version",
-            AsyncMock(return_value="urn:weave:version:v1"),
-        ),
-        patch(
-            "weave_backend.routers.request_governance.create_project",
+            "weave_backend.routers.request_governance.create_project_shell",
             AsyncMock(
-                return_value=Project(
-                    project_iri="urn:weave:project:t1:build-a-widget-tracker",
-                    name="build a widget tracker",
-                    pinned_graph_version_iri="urn:weave:version:v1",
-                    created_at="2026-07-01T00:00:00Z",  # type: ignore[arg-type]
+                return_value=(
+                    Project(
+                        project_iri="urn:weave:project:t1:build-a-widget-tracker",
+                        name="build a widget tracker",
+                        pinned_graph_version_iri="urn:weave:version:v1",
+                        created_at="2026-07-01T00:00:00Z",  # type: ignore[arg-type]
+                    ),
+                    GovernanceSnapshot(
+                        model_tier="standard",
+                        model_tier_source="default",
+                        cap_usd=None,
+                        cap_source=None,
+                    ),
                 )
             ),
         ),
@@ -430,17 +435,21 @@ async def test_sign_off_approves_with_no_extracted_entities_zero_required() -> N
             AsyncMock(return_value=None),
         ),
         patch(
-            "weave_backend.routers.request_governance.get_pinned_latest_version",
-            AsyncMock(return_value="urn:weave:version:v1"),
-        ),
-        patch(
-            "weave_backend.routers.request_governance.create_project",
+            "weave_backend.routers.request_governance.create_project_shell",
             AsyncMock(
-                return_value=Project(
-                    project_iri="urn:weave:project:t1:no-entity-request",
-                    name="no entity request",
-                    pinned_graph_version_iri="urn:weave:version:v1",
-                    created_at="2026-07-01T00:00:00Z",  # type: ignore[arg-type]
+                return_value=(
+                    Project(
+                        project_iri="urn:weave:project:t1:no-entity-request",
+                        name="no entity request",
+                        pinned_graph_version_iri="urn:weave:version:v1",
+                        created_at="2026-07-01T00:00:00Z",  # type: ignore[arg-type]
+                    ),
+                    GovernanceSnapshot(
+                        model_tier="standard",
+                        model_tier_source="default",
+                        cap_usd=None,
+                        cap_source=None,
+                    ),
                 )
             ),
         ),
