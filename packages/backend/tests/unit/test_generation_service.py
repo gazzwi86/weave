@@ -89,6 +89,7 @@ class _FakeDriver:
         self.create_repo = AsyncMock()
         self.write_initial_commit = AsyncMock()
         self.commit_workspace = AsyncMock(return_value="sha-123")
+        self.apply_branch_protection = AsyncMock()
 
 
 class _FakeCeClient:

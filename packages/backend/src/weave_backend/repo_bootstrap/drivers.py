@@ -51,6 +51,8 @@ class ScmDriver(Protocol):
         self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
     ) -> str: ...
 
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None: ...
+
 
 def _raise_if_auth_error(response: httpx.Response) -> None:
     if response.status_code in (401, 403):
@@ -72,6 +74,21 @@ async def _get_checked(
     response = await client.get(path, headers=headers)
     _raise_if_auth_error(response)
     return response
+
+
+async def _put_checked(
+    client: httpx.AsyncClient, path: str, body: dict[str, object], headers: dict[str, str]
+) -> httpx.Response:
+    response = await client.put(path, json=body, headers=headers)
+    _raise_if_auth_error(response)
+    return response
+
+
+#: TASK-006 AC-6: one reviewer, no force-push, required status check on the
+#: harness CI job (`rich_scaffold`'s `ci_workflow` step names this context).
+#: A minimal, provider-agnostic default -- not user-configurable in M1
+#: (Implementation Hints name no per-project policy surface for this).
+_REQUIRED_STATUS_CHECK_CONTEXT = "weave-harness-check"
 
 
 def _read_workspace_files(workspace: str) -> dict[str, str]:
@@ -197,6 +214,28 @@ class GitHubDriver:
         )
         return commit_sha
 
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        """TASK-006 AC-6: one PUT sets the default branch's protection rule
+        set (required review + required status check + no force-push via
+        `enforce_admins`). `ScaffoldFailed` (rich_scaffold.py) turns any
+        rejection -- auth or otherwise -- into the AC-8 named-step halt.
+        """
+        headers = {"Authorization": f"token {token}"}
+        await _put_checked(
+            self._client,
+            f"/repos/{repo.repo_id}/branches/{repo.default_branch}/protection",
+            {
+                "required_status_checks": {
+                    "strict": True,
+                    "contexts": [_REQUIRED_STATUS_CHECK_CONTEXT],
+                },
+                "enforce_admins": True,
+                "required_pull_request_reviews": {"required_approving_review_count": 1},
+                "restrictions": None,
+            },
+            headers,
+        )
+
 
 class GitLabDriver:
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
@@ -264,6 +303,23 @@ class GitLabDriver:
             headers,
         )
         return str(response.json()["id"])
+
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        """TASK-006 AC-6: GitLab's Protected Branches API is one POST --
+        access level 40 (Maintainer) for both push and merge, same policy
+        intent as the GitHub side's required-review + no-direct-push rule.
+        """
+        headers = {"PRIVATE-TOKEN": token}
+        await _post_checked(
+            self._client,
+            f"/projects/{repo.repo_id}/protected_branches",
+            {
+                "name": repo.default_branch,
+                "push_access_level": 40,
+                "merge_access_level": 40,
+            },
+            headers,
+        )
 
 
 def get_scm_driver(provider: str) -> ScmDriver:
