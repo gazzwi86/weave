@@ -77,6 +77,45 @@ async def test_should_keep_ceremony_gate_closed_when_a_ceremony_step_errors() ->
     assert kwargs["event_type"] == "ceremony_halted"
 
 
+async def test_should_halt_ceremony_when_qa_full_returns_fail_verdict_not_exception() -> None:
+    """AC-2/AC-4 edge case: `qa_full` can halt via its own `FAIL` result
+    (data path), not just via a raised exception -- distinct from the
+    exception-based halt test above and from `coverage_audit`'s halt. The
+    loop must stop before `coverage_audit` runs at all.
+    """
+    qa_run_fn = AsyncMock(return_value={"result": "FAIL", "categories": []})
+
+    outcome = await run_phase_ceremony(
+        None, _CTX, project=QAProject(), qa_run_fn=qa_run_fn, notify=AsyncMock()
+    )
+
+    assert outcome["ceremony"] == "halted"
+    assert outcome["reason"] == "qa_full"
+    gate_names = [row["gate"] for row in outcome["gate_rows"]]
+    assert "coverage_audit" not in gate_names
+
+
+async def test_mutation_critical_finding_blocks_approve_not_halt() -> None:
+    """Pseudocode: "< gate => RED (blocks approve like CRITICAL)" -- a
+    failing mutation command must NOT halt the ceremony loop (unlike
+    qa_full/coverage_audit); it surfaces as `approve_blocked=True`, same
+    as the security-finding path.
+    """
+
+    def _mutation_fail(cmd: str) -> SimpleNamespace:
+        if "mutmut" in cmd:
+            return SimpleNamespace(status="FAIL", evidence="surviving mutants", returncode=1)
+        return SimpleNamespace(status="PASS", evidence="", returncode=0)
+
+    with patch("weave_backend.build.qa_agent.run_command", side_effect=_mutation_fail):
+        outcome = await run_phase_ceremony(
+            None, _CTX, project=QAProject(), qa_run_fn=AsyncMock(return_value={"result": "PASS"})
+        )
+
+    assert outcome["ceremony"] == "awaiting_hitl"
+    assert outcome["approve_blocked"] is True
+
+
 async def test_should_halt_ceremony_when_coverage_audit_fails() -> None:
     """`coverage_audit`'s literal "halt" verdict DOES stop the loop (unlike
     security/mutation) -- insufficient spec coverage is a broken-evidence
