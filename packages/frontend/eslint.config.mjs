@@ -6,6 +6,17 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import sonarjs from "eslint-plugin-sonarjs";
 
+import { dumbComponentRule, appLayerBoundaryRule } from "./components/tooling/lint-import-boundary.ts";
+import { tokenConformanceRule } from "./components/tooling/lint-tokens.ts";
+
+const weavePlugin = {
+  rules: {
+    "token-conformance": tokenConformanceRule,
+    "dumb-component-imports": dumbComponentRule,
+    "app-layer-boundary": appLayerBoundaryRule,
+  },
+};
+
 const eslintConfig = defineConfig([...nextVitals, ...nextTs, sonarjs.configs.recommended, {
   rules: {
     complexity: ["error", 10],
@@ -15,6 +26,25 @@ const eslintConfig = defineConfig([...nextVitals, ...nextTs, sonarjs.configs.rec
     "sonarjs/no-duplicate-string": ["warn", { threshold: 3 }],
     "sonarjs/no-identical-functions": "error",
     "no-console": ["warn", { allow: ["warn", "error"] }],
+  },
+}, {
+  // Design-system gate (TASK-026): scoped to the new atomic-design layers
+  // only -- components/{ui,shell,explorer,dashboard,marketing} predate this
+  // rule and carry their own pre-existing literals (e.g. Cytoscape canvas
+  // geometry, which isn't a CSS token at all). Retrofitting them is a
+  // separate, unscoped task, not this one.
+  files: ["components/{atoms,molecules,organisms,templates,pages}/**/*.{ts,tsx}"],
+  ignores: ["**/*.stories.tsx", "**/*.test.ts", "**/*.test.tsx"],
+  plugins: { weave: weavePlugin },
+  rules: {
+    "weave/token-conformance": "error",
+    "weave/dumb-component-imports": "error",
+  },
+}, {
+  files: ["app/**/*.{ts,tsx}"],
+  plugins: { weave: weavePlugin },
+  rules: {
+    "weave/app-layer-boundary": "error",
   },
 }, // Override default ignores of eslint-config-next.
 globalIgnores([

@@ -10,19 +10,27 @@ import { tokenConformanceRule } from "./lint-tokens";
  * shape `context.filename` actually has in `npm run lint` (see ADV note:
  * a rule keyed on a relative-path prefix silently no-ops on absolute paths).
  */
-function lint(filename: string, code: string, ruleId: string, rule: unknown) {
-  const linter = new Linter();
+// Real, cwd-anchored absolute paths -- ESLint's flat-config `files` glob
+// matches relative-to-cwd, so a fabricated path outside the repo tree
+// (e.g. "/Users/dev/weave/...") never matches and the rule silently no-ops.
+// Anchoring to process.cwd() reproduces the exact context.filename shape
+// `npm run lint` hands the rule.
+const ROOT = process.cwd();
+
+function lint(relativePath: string, code: string, ruleId: string, rule: unknown) {
+  const linter = new Linter({ cwd: ROOT } as never);
   return linter.verify(code, {
+    files: ["**/*.tsx"],
     languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
     plugins: { weave: { rules: { [ruleId]: rule } } },
     rules: { [`weave/${ruleId}`]: "error" },
-  } as never, filename);
+  } as never, `${ROOT}/${relativePath}`);
 }
 
 describe("wired ESLint rules fire on absolute paths", () => {
   it("token-conformance reports a raw hex literal", () => {
     const messages = lint(
-      "/Users/dev/weave/packages/frontend/components/atoms/Foo.tsx",
+      "components/atoms/Foo.tsx",
       'const c = "bg-[#ff0000]";',
       "token-conformance",
       tokenConformanceRule
@@ -33,7 +41,7 @@ describe("wired ESLint rules fire on absolute paths", () => {
 
   it("token-conformance is silent on var(--token) usage", () => {
     const messages = lint(
-      "/Users/dev/weave/packages/frontend/components/atoms/Foo.tsx",
+      "components/atoms/Foo.tsx",
       'const c = "bg-[var(--color-accent-primary)]";',
       "token-conformance",
       tokenConformanceRule
@@ -43,7 +51,7 @@ describe("wired ESLint rules fire on absolute paths", () => {
 
   it("dumb-component-imports reports a data-fetch import in an organism", () => {
     const messages = lint(
-      "/Users/dev/weave/packages/frontend/components/organisms/NavRail.tsx",
+      "components/organisms/NavRail.tsx",
       'import useSWR from "swr";',
       "dumb-component-imports",
       dumbComponentRule
@@ -54,7 +62,7 @@ describe("wired ESLint rules fire on absolute paths", () => {
 
   it("app-layer-boundary reports app/** importing a raw organism", () => {
     const messages = lint(
-      "/Users/dev/weave/packages/frontend/app/dashboard/page.tsx",
+      "app/dashboard/page.tsx",
       'import { NavRail } from "@/components/organisms/NavRail";',
       "app-layer-boundary",
       appLayerBoundaryRule
