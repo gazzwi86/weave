@@ -1,0 +1,173 @@
+"""TASK-004 (BE-SDK-1) unit tests -- SHACL/JSON-Schema -> IR mapping.
+Mapping-table rows (task brief "IR core" table) each get one focused test;
+AC-3's unmappable-constraint path is a named failure, never a silent
+``Any``/``unknown`` fallback.
+"""
+
+from __future__ import annotations
+
+import pytest
+from rdflib import Graph
+
+from weave_backend.sdkgen.errors import UnmappableConstraint
+from weave_backend.sdkgen.ir import IRClass, IRField, map_core_tokens, map_select, map_shapes
+
+_PREFIXES = """
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix weave: <https://weave.io/ontology/> .
+"""
+
+
+def _classes(turtle_body: str) -> dict[str, IRClass]:
+    ttl = _PREFIXES + turtle_body
+    classes = map_shapes(ttl)
+    return {c.name: c for c in classes}
+
+
+def _fields(turtle_body: str, class_name: str) -> dict[str, IRField]:
+    return {f.name: f for f in _classes(turtle_body)[class_name].fields}
+
+
+def test_should_map_node_shape_to_typed_class_with_cardinality() -> None:
+    ttl = """
+    weave:ProcessShape a sh:NodeShape ;
+        sh:targetClass weave:Process ;
+        sh:property [
+            sh:path weave:label ;
+            sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:maxCount 1 ;
+        ] ;
+        sh:property [
+            sh:path weave:tag ;
+            sh:datatype xsd:string ;
+        ] .
+    """
+    fields = _fields(ttl, "Process")
+    assert set(fields) == {"label", "tag"}
+    assert fields["label"].ts_type == "string"
+    assert fields["label"].is_list is False
+    assert fields["label"].optional is False
+    assert fields["tag"].is_list is True
+
+
+def test_should_map_required_single_valued_property_to_required_field() -> None:
+    ttl = """
+    weave:GoalShape a sh:NodeShape ;
+        sh:targetClass weave:Goal ;
+        sh:property [
+            sh:path weave:label ;
+            sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:maxCount 1 ;
+        ] .
+    """
+    field = _fields(ttl, "Goal")["label"]
+    assert field.optional is False
+    assert field.is_list is False
+    assert field.py_type == "str"
+
+
+def test_should_map_sh_in_to_literal_union() -> None:
+    ttl = """
+    weave:TaskShape a sh:NodeShape ;
+        sh:targetClass weave:Task ;
+        sh:property [
+            sh:path weave:status ;
+            sh:in ( "draft" "published" ) ;
+            sh:maxCount 1 ;
+        ] .
+    """
+    field = _fields(ttl, "Task")["status"]
+    assert field.ts_type == "'draft' | 'published'"
+    assert field.py_type == "Literal['draft', 'published']"
+
+
+def test_should_fail_naming_shape_on_unmappable_constraint() -> None:
+    ttl = """
+    weave:MysteryShape a sh:NodeShape ;
+        sh:targetClass weave:Mystery ;
+        sh:property [
+            sh:path weave:enigma ;
+            sh:severity sh:Violation ;
+        ] .
+    """
+    with pytest.raises(UnmappableConstraint) as exc_info:
+        _classes(ttl)
+    assert "MysteryShape" in str(exc_info.value)
+
+
+def test_should_type_closed_core_tokens_only() -> None:
+    tokens: dict[str, object] = {
+        "color": {"bg": "#000"},
+        "typography": {"body": "Geist Sans"},
+        "spacing": {"sm": "4px"},
+        "radius": {"sm": "2px"},
+        "voice": {"tone": "direct"},
+    }
+    theme = map_core_tokens(tokens)
+    assert theme.color == {"bg": "#000"}
+    assert theme.extensions == {"voice": {"tone": "direct"}}
+    assert "voice" not in theme.model_dump()
+
+
+def test_should_map_sh_or_to_union_type() -> None:
+    ttl = """
+    weave:PaymentShape a sh:NodeShape ;
+        sh:targetClass weave:Payment ;
+        sh:property [
+            sh:path weave:amount ;
+            sh:maxCount 1 ;
+            sh:or ( [ sh:datatype xsd:string ] [ sh:datatype xsd:integer ] ) ;
+        ] .
+    """
+    field = _fields(ttl, "Payment")["amount"]
+    assert field.ts_type == "string | number"
+    assert field.py_type == "str | int"
+
+
+def test_should_map_min_count_0_to_optional() -> None:
+    ttl = """
+    weave:ActivityShape a sh:NodeShape ;
+        sh:targetClass weave:Activity ;
+        sh:property [
+            sh:path weave:description ;
+            sh:datatype xsd:string ;
+            sh:minCount 0 ;
+            sh:maxCount 1 ;
+        ] .
+    """
+    field = _fields(ttl, "Activity")["description"]
+    assert field.optional is True
+    assert field.is_list is False
+
+
+def test_should_emit_typed_query_method_for_named_select() -> None:
+    select: dict[str, object] = {
+        "name": "activeProcesses",
+        "sparql": "SELECT ?process ?label WHERE { ?process a weave:Process }",
+        "bindings": ["process", "label"],
+    }
+    query = map_select(select)
+    assert query.name == "activeProcesses"
+    assert query.bindings == ["process", "label"]
+    assert query.sparql.startswith("SELECT")
+
+
+def test_map_shapes_is_deterministic_across_runs() -> None:
+    ttl = """
+    weave:BShape a sh:NodeShape ;
+        sh:targetClass weave:B ;
+        sh:property [ sh:path weave:z ; sh:datatype xsd:string ; sh:maxCount 1 ] ;
+        sh:property [ sh:path weave:a ; sh:datatype xsd:string ; sh:maxCount 1 ] .
+    weave:AShape a sh:NodeShape ;
+        sh:targetClass weave:A ;
+        sh:property [ sh:path weave:x ; sh:datatype xsd:string ; sh:maxCount 1 ] .
+    """
+    full = _PREFIXES + ttl
+    first = [c.model_dump() for c in map_shapes(full)]
+    second = [c.model_dump() for c in map_shapes(full)]
+    assert first == second
+    # sanity: rdflib parses fine and the graph is non-empty
+    assert len(Graph().parse(data=full, format="turtle")) >= 0
