@@ -223,7 +223,7 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **Classification:** interface / spec gap (two unreconciled IRI grammars).
 
 ## XT-BE004-1 — codegen injection: unescaped CE-fetched `fn_iri`/`fn.name` in SDK emitters
-- **Severity:** SERIOUS (security) · **Status:** OPEN — blocks TASK-004 (retry 1) · **affects:** [BE-V1-TASK-005]
+- **Severity:** SERIOUS (security) · **Status:** RESOLVED (`bb2aea0`) — two-layer fix (charset-reject at IR + percent-encode at template) · **affects:** [BE-V1-TASK-005]
 - `fn.fn_iri` (CE `/api/functions` JSON, NOT IRI-syntax-constrained) interpolates unescaped into an
   executable string literal in `sdkgen/templates/typescript/index.ts.j2:29` + `templates/python/client.py.j2:32`.
   A crafted value breaks out → injects code that passes real tsc/mypy silently → arbitrary code in every

@@ -47,3 +47,10 @@ tests written + collect-verified (4), docker/integration lane NOT run (coordinat
   provenance regen — needs TASK-004 ✓ AND TASK-001 which is on EPIC-002 branch — so TASK-005 must
   branch off / merge EPIC-002+EPIC-008, note for lane sequencing), **TASK-009** (Anatomy Indexer).
 - `validate.py` alone at 73% cov (defensive error branches) — noted, aggregate 87% ≥ 80%.
+
+## Retry 1 (2026-07-10) — VERDICT: PASS
+QA FAIL was a SERIOUS codegen injection (XT-BE004-1): unescaped `fn_iri`/`fn.name` → executable string
+literal, passed tsc/mypy silently. Fixed TWO layers (advisor-consulted): `ir.py::map_fn` rejects unsafe
+`fn_iri` (safe-IRI charset) + `name` (safe-identifier) via `UnsafeFunctionIdentifier`; `escape_iri_literal`
+Jinja filter percent-encodes the string-literal position. QA's 2 red tests now pass + 4 new charset/escape
+tests. sdkgen 35 / full lane 765 pass, ruff/mypy/bandit clean. Commit `bb2aea0`. retry=1/3.
