@@ -289,6 +289,32 @@ async def test_hold_task_in_ready_when_predecessor_summary_missing() -> None:
     assert task.hold_reason == "dep_summary_missing"
 
 
+@pytest.mark.xfail(
+    reason="TASK-009/AC-2 not implemented -- see QA failure report (crux completeness gap)",
+    strict=True,
+)
+async def test_ac2_anatomy_loaded_into_task_context_before_delegate() -> None:
+    """TASK-009/AC-2 (QA gap-pinning red test -- see QA failure report): the
+    task brief's pseudocode has PLAN read the repo's `ANATOMY.md` via
+    `scm_driver.read` and prepend it to `task.context` before DELEGATE, so
+    the delegate agent loads context instead of re-discovering it. Neither
+    `TaskState` nor `default_dispatch_pdac` carries any anatomy/context
+    channel today -- `load_task_context` was never implemented. This test
+    pins the gap so a real fix turns it green instead of the gap being
+    silently reintroduced.
+    """
+    task = TaskState(id="t1", status="Queued")
+    conn = _FakeConnection(dep_summary_row={"task_id": "t1"})
+
+    await default_dispatch_pdac(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task)
+
+    assert hasattr(task, "context"), (
+        "AC-2: TaskState has no field to carry the repo's ANATOMY.md content "
+        "into the DELEGATE prompt -- load_task_context (task brief pseudocode) "
+        "is unimplemented"
+    )
+
+
 def test_next_ready_task_skips_held_task() -> None:
     """AC-6 (loop-progress corollary): a held task must not spin the
     dispatch loop -- `next_ready_task` skips it so the rest of the backlog
