@@ -1,4 +1,4 @@
-import { EXPLORER_HIGHLIGHT_CLASS } from "./build-stylesheet";
+import { EXPLORER_HIGHLIGHT_CLASS, readCssToken } from "./build-stylesheet";
 import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
 import type { CytoscapeElement } from "./types";
 
@@ -444,7 +444,7 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
       removeElementsOn(cy, ids);
     },
     applyNodeColours(colourByNodeId, fallbackColour) {
-      applyNodeColoursOn(cy, colourByNodeId, fallbackColour);
+      applyNodeColoursOn(cy, colourByNodeId, fallbackColour, readCssToken);
     },
     clearNodeColours() {
       clearNodeColoursOn(cy);
