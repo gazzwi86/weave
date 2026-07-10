@@ -31,6 +31,11 @@ export interface UseFilterPanelResult {
   filterState: FilterState;
   /** null until the first recompute (adapter not ready yet). */
   visibility: FilterVisibilityResult | null;
+  /** Distinct kind tokens / predicate IRIs present on canvas -- drives the
+   * panel's toggle lists (a toggled-off type stays listed, since hiding is
+   * a style change, never a listElements() removal). */
+  entityTypes: string[];
+  relTypes: string[];
   layerStatus: Record<GovernedLayer, LayerStatus>;
   toggleEntityType: (kindIri: string) => void;
   toggleRelType: (predicateIri: string) => void;
@@ -66,26 +71,99 @@ function toggleArrayValue(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
 }
 
-// AC-1/AC-2/AC-3/AC-4/AC-5/AC-7: visibility is derived from the adapter's
-// live element set (useMemo, not effect-owned state, so a toggle never
-// risks a cascading re-render) -- applying it to the canvas is the one
-// external-system sync this hook owns.
+function distinctSorted(values: (string | undefined)[]): string[] {
+  return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
+}
+
+interface AppliedVisibility {
+  visibility: FilterVisibilityResult | null;
+  entityTypes: string[];
+  relTypes: string[];
+}
+
+// AC-1/AC-2/AC-3/AC-4/AC-5/AC-7: visibility (and the panel's toggle lists)
+// are derived from the adapter's live element set in one useMemo (not
+// effect-owned state, so a toggle never risks a cascading re-render) --
+// applying visibility to the canvas is the one external-system sync this
+// hook owns.
 function useAppliedVisibility(
   adapter: RendererAdapter | null,
   filterState: FilterState,
   dimOpacity: number
-): FilterVisibilityResult | null {
-  const visibility = useMemo<FilterVisibilityResult | null>(() => {
-    if (!adapter) return null;
-    return computeFilterVisibility(adapter.listElements(), filterState);
+): AppliedVisibility {
+  const applied = useMemo<AppliedVisibility>(() => {
+    if (!adapter) return { visibility: null, entityTypes: [], relTypes: [] };
+    const elements = adapter.listElements();
+    return {
+      visibility: computeFilterVisibility(elements, filterState),
+      entityTypes: distinctSorted(elements.map((el) => el.data.bpmo_kind)),
+      relTypes: distinctSorted(elements.filter((el) => el.data.source !== undefined).map((el) => el.data.label)),
+    };
   }, [adapter, filterState]);
 
   useEffect(() => {
-    if (!adapter || !visibility) return;
-    adapter.applyFilterVisibility(visibility, dimOpacity);
-  }, [adapter, visibility, dimOpacity]);
+    if (!adapter || !applied.visibility) return;
+    adapter.applyFilterVisibility(applied.visibility, dimOpacity);
+  }, [adapter, applied.visibility, dimOpacity]);
 
-  return visibility;
+  return applied;
+}
+
+interface LayerToggle {
+  layerStatus: Record<GovernedLayer, LayerStatus>;
+  toggleLayer: (layer: GovernedLayer) => void;
+}
+
+// AC-6: fetches a governed layer via CE-READ-1 and mutates the canvas only
+// through the addLayerNodes/removeElements adapter seam (ADR-014). Split out
+// of useFilterPanel to keep that hook under the Law E line budget.
+function useLayerToggle(
+  adapter: RendererAdapter | null,
+  filterState: FilterState,
+  setFilterState: (updater: (state: FilterState) => FilterState) => void,
+  config: ExplorerConfig,
+  fetchLayerNodes: NonNullable<UseFilterPanelOptions["fetchLayerNodes"]>
+): LayerToggle {
+  const [layerStatus, setLayerStatus] = useState<Record<GovernedLayer, LayerStatus>>(EMPTY_LAYER_STATUS);
+  // Ids each layer added, so toggling off removes exactly what was added
+  // (shared-with-base-graph ids, deduped by addLayerNodes, are never here).
+  const layerElementIdsRef = useRef<Record<GovernedLayer, string[]>>({ glossary: [], brand: [], governance: [] });
+
+  const turnLayerOff = useCallback(
+    (layer: GovernedLayer, adapterRef: RendererAdapter) => {
+      adapterRef.removeElements(layerElementIdsRef.current[layer]);
+      layerElementIdsRef.current[layer] = [];
+      setLayerStatus((prev) => ({ ...prev, [layer]: "off" }));
+      setFilterState((state) => ({ ...state, layersOn: state.layersOn.filter((l) => l !== layer) }));
+    },
+    [setFilterState]
+  );
+
+  const turnLayerOn = useCallback(
+    (layer: GovernedLayer, adapterRef: RendererAdapter) => {
+      fetchLayerNodes(layerKindIri(layer, config), layerPredicate(layer, config), config.ceTimeoutMs).then((result) => {
+        if (result.type !== "ok" || result.elements.length === 0) {
+          setLayerStatus((prev) => ({ ...prev, [layer]: "empty" }));
+          return;
+        }
+        layerElementIdsRef.current[layer] = adapterRef.addLayerNodes(result.elements);
+        setLayerStatus((prev) => ({ ...prev, [layer]: "on" }));
+        setFilterState((state) => ({ ...state, layersOn: [...state.layersOn, layer] }));
+      });
+    },
+    [config, fetchLayerNodes, setFilterState]
+  );
+
+  const toggleLayer = useCallback(
+    (layer: GovernedLayer) => {
+      if (!adapter) return;
+      if (filterState.layersOn.includes(layer)) turnLayerOff(layer, adapter);
+      else turnLayerOn(layer, adapter);
+    },
+    [adapter, filterState.layersOn, turnLayerOff, turnLayerOn]
+  );
+
+  return { layerStatus, toggleLayer };
 }
 
 /** TASK-020: owns FilterState. Every toggle/property-filter/layer change
@@ -100,11 +178,8 @@ export function useFilterPanel({
   fetchLayerNodes = defaultFetchLayerNodes,
 }: UseFilterPanelOptions): UseFilterPanelResult {
   const [filterState, setFilterState] = useState<FilterState>(createFilterState);
-  const [layerStatus, setLayerStatus] = useState<Record<GovernedLayer, LayerStatus>>(EMPTY_LAYER_STATUS);
-  // Ids each layer added, so toggling off removes exactly what was added
-  // (shared-with-base-graph ids, deduped by addLayerNodes, are never here).
-  const layerElementIdsRef = useRef<Record<GovernedLayer, string[]>>({ glossary: [], brand: [], governance: [] });
-  const visibility = useAppliedVisibility(adapter, filterState, config.spotlightDimOpacity);
+  const { visibility, entityTypes, relTypes } = useAppliedVisibility(adapter, filterState, config.spotlightDimOpacity);
+  const { layerStatus, toggleLayer } = useLayerToggle(adapter, filterState, setFilterState, config, fetchLayerNodes);
 
   const toggleEntityType = useCallback((kindIri: string) => {
     setFilterState((state) => ({ ...state, entityTypesOff: toggleArrayValue(state.entityTypesOff, kindIri) }));
@@ -118,36 +193,15 @@ export function useFilterPanel({
     setFilterState((state) => ({ ...state, propertyFilters: filters }));
   }, []);
 
-  const turnLayerOff = useCallback((layer: GovernedLayer, adapterRef: RendererAdapter) => {
-    adapterRef.removeElements(layerElementIdsRef.current[layer]);
-    layerElementIdsRef.current[layer] = [];
-    setLayerStatus((prev) => ({ ...prev, [layer]: "off" }));
-    setFilterState((state) => ({ ...state, layersOn: state.layersOn.filter((l) => l !== layer) }));
-  }, []);
-
-  const turnLayerOn = useCallback(
-    (layer: GovernedLayer, adapterRef: RendererAdapter) => {
-      fetchLayerNodes(layerKindIri(layer, config), layerPredicate(layer, config), config.ceTimeoutMs).then((result) => {
-        if (result.type !== "ok" || result.elements.length === 0) {
-          setLayerStatus((prev) => ({ ...prev, [layer]: "empty" }));
-          return;
-        }
-        layerElementIdsRef.current[layer] = adapterRef.addLayerNodes(result.elements);
-        setLayerStatus((prev) => ({ ...prev, [layer]: "on" }));
-        setFilterState((state) => ({ ...state, layersOn: [...state.layersOn, layer] }));
-      });
-    },
-    [config, fetchLayerNodes]
-  );
-
-  const toggleLayer = useCallback(
-    (layer: GovernedLayer) => {
-      if (!adapter) return;
-      if (filterState.layersOn.includes(layer)) turnLayerOff(layer, adapter);
-      else turnLayerOn(layer, adapter);
-    },
-    [adapter, filterState.layersOn, turnLayerOff, turnLayerOn]
-  );
-
-  return { filterState, visibility, layerStatus, toggleEntityType, toggleRelType, setPropertyFilters, toggleLayer };
+  return {
+    filterState,
+    visibility,
+    entityTypes,
+    relTypes,
+    layerStatus,
+    toggleEntityType,
+    toggleRelType,
+    setPropertyFilters,
+    toggleLayer,
+  };
 }

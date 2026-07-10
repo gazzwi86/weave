@@ -111,6 +111,14 @@ describe("useFilterPanel", () => {
     expect(result.current.visibility?.isEmpty).toBe(true);
   });
 
+  it("exposes the distinct entity types and relationship types present on canvas (drives panel controls)", () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoConnectedNodes) });
+    const { result } = renderHook(() => useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }));
+
+    expect(result.current.entityTypes).toEqual(["Process"]);
+    expect(result.current.relTypes).toEqual(["relatesTo"]);
+  });
+
   it("fetches and overlays a governed layer's content on toggle-on (AC-6)", async () => {
     const layerElements: CytoscapeElement[] = [{ data: { id: "https://weave.io/entity/term-1", label: "Revenue" } }];
     const fetchLayerNodes = vi.fn<(...args: unknown[]) => Promise<FetchLayerNodesResult>>(() =>
