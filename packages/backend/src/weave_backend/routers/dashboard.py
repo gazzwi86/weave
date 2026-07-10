@@ -22,12 +22,34 @@ from weave_backend.schemas.dashboard import (
     WidgetListResponse,
     WidgetOut,
     WidgetRefreshResponse,
+    WidgetStatus,
 )
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 def _to_widget_out(row: store.WidgetRow) -> WidgetOut:
+    """AC-7 clause 2: re-derive `status` by age on every read, not just after
+    a refresh attempt. Only when `fetched_at` is set -- a never-fetched
+    widget has no payload to go stale, and `derive_status`'s
+    `fetch_failed=False` path has no "never attempted" case of its own (it
+    would otherwise default to `fresh`, clobbering the stored `unavailable`).
+    """
+    status: WidgetStatus = row.status  # type: ignore[assignment]
+    pending_fields: list[str] = []
+    if row.fetched_at is not None:
+        derived = derive_status(
+            spec_field=row.spec.bindings["field"],
+            state=WidgetFetchState(
+                last_result=row.last_result,
+                fetched_at=row.fetched_at,
+                refresh_interval_s=row.refresh_interval_s,
+            ),
+            fetch_failed=False,
+            now=store.utcnow(),
+        )
+        status, pending_fields = derived.status, derived.pending_fields
+
     return WidgetOut(
         id=row.id,
         scope=row.scope,  # type: ignore[arg-type]
@@ -35,8 +57,8 @@ def _to_widget_out(row: store.WidgetRow) -> WidgetOut:
         position=row.position,
         last_result=row.last_result,
         fetched_at=row.fetched_at,
-        status=row.status,  # type: ignore[arg-type]
-        pending_fields=[],
+        status=status,
+        pending_fields=pending_fields,
         suggested=row.suggested,
     )
 
@@ -129,11 +151,7 @@ async def delete_widget_route(
     """
     async with tenant_connection(principal.tenant_id) as conn:
         row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
-        if (
-            row is None
-            or row.scope != "user"
-            or row.owner_principal_iri != principal.principal_iri
-        ):
+        if row is None or row.scope != "user" or row.owner_principal_iri != principal.principal_iri:
             raise HTTPException(status_code=404)
         deleted = await store.delete_widget(
             conn, tenant_id=principal.tenant_id, widget_id=widget_id
