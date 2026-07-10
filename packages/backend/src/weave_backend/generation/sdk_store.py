@@ -27,6 +27,15 @@ class SdkGenerationRun:
     payload: dict[str, Any]
 
 
+def _row_to_run(row: asyncpg.Record) -> SdkGenerationRun:
+    return SdkGenerationRun(
+        run_id=str(row["run_id"]),
+        project_iri=row["project_iri"],
+        status=row["status"],
+        payload=json.loads(row["payload"]),
+    )
+
+
 async def insert_sdk_generation_run(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
 ) -> SdkGenerationRun:
@@ -35,7 +44,16 @@ async def insert_sdk_generation_run(
     PDAC task backs it) -- filled with a descriptive placeholder, never read
     back.
     """
-    raise NotImplementedError
+    row = await conn.fetchrow(
+        """
+        INSERT INTO generation_runs (tenant_id, project_iri, task_id, status, run_kind)
+        VALUES ($1, $2, 'sdk-generation', 'queued', 'sdk')
+        RETURNING run_id, project_iri, status, payload
+        """,
+        tenant_id,
+        project_iri,
+    )
+    return _row_to_run(row)
 
 
 async def lock_latest_sdk_run(
@@ -47,20 +65,74 @@ async def lock_latest_sdk_run(
     request's `FOR UPDATE` blocks until the first's insert transaction
     commits, then it re-reads and correctly sees the just-inserted row.
     """
-    raise NotImplementedError
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, project_iri, status, payload
+        FROM generation_runs
+        WHERE tenant_id = $1 AND project_iri = $2 AND run_kind = 'sdk'
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE
+        """,
+        tenant_id,
+        project_iri,
+    )
+    return _row_to_run(row) if row is not None else None
 
 
 async def get_sdk_run(
     conn: asyncpg.Connection, *, tenant_id: str, run_id: str
 ) -> SdkGenerationRun | None:
-    raise NotImplementedError
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, project_iri, status, payload
+        FROM generation_runs
+        WHERE tenant_id = $1 AND run_id = $2 AND run_kind = 'sdk'
+        """,
+        tenant_id,
+        run_id,
+    )
+    return _row_to_run(row) if row is not None else None
 
 
 async def get_latest_sdk_run(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
 ) -> SdkGenerationRun | None:
     """AC-7: `GET .../sdk-generations/latest`."""
-    raise NotImplementedError
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, project_iri, status, payload
+        FROM generation_runs
+        WHERE tenant_id = $1 AND project_iri = $2 AND run_kind = 'sdk'
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        tenant_id,
+        project_iri,
+    )
+    return _row_to_run(row) if row is not None else None
+
+
+async def ensure_sdk_run(
+    conn: asyncpg.Connection, *, tenant_id: str, run_id: str, project_iri: str
+) -> None:
+    """`_generate_and_commit` (sdk_trigger.py) can run against a `run_id`
+    that was never inserted via `insert_sdk_generation_run` (`run_sdk_generation`
+    called directly, skipping the trigger route's own insert) -- idempotent
+    insert-or-noop so the later `update_sdk_run_status` UPDATE always has a
+    row to land on. `ON CONFLICT (run_id) DO NOTHING` never clobbers an
+    already-`breaking_hold` row on the ack-resume path.
+    """
+    await conn.execute(
+        """
+        INSERT INTO generation_runs (tenant_id, run_id, project_iri, task_id, status, run_kind)
+        VALUES ($1, $2, $3, 'sdk-generation', 'running', 'sdk')
+        ON CONFLICT (run_id) DO NOTHING
+        """,
+        tenant_id,
+        run_id,
+        project_iri,
+    )
 
 
 async def update_sdk_run_status(
@@ -75,13 +147,14 @@ async def update_sdk_run_status(
     is just another `payload` key (`payload={"commit_sha": ..., ...}`), same
     as `package_version`/`breaking_hold` below.
     """
-    raise NotImplementedError
-
-
-def _row_to_run(row: asyncpg.Record) -> SdkGenerationRun:
-    return SdkGenerationRun(
-        run_id=str(row["run_id"]),
-        project_iri=row["project_iri"],
-        status=row["status"],
-        payload=json.loads(row["payload"]),
+    await conn.execute(
+        """
+        UPDATE generation_runs
+        SET status = $1, payload = $2::jsonb
+        WHERE tenant_id = $3 AND run_id = $4 AND run_kind = 'sdk'
+        """,
+        status,
+        json.dumps(payload or {}),
+        tenant_id,
+        run_id,
     )
