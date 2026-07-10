@@ -246,3 +246,81 @@ async def test_qa_suite_records_run_id_on_gate_rows() -> None:
         await run_full_qa_suite(object(), run_ctx=run_ctx, project=project)
 
     assert all(f.run_id == "run-1" for f in captured)
+
+
+async def test_qa_suite_fails_ac_mapping_when_mapped_test_name_absent_from_tree() -> None:
+    """AC-4 edge case: the brief maps an AC to a test *name*, but that name
+    isn't actually present in `project.test_names` (e.g. the test was
+    renamed or deleted after the brief was written). The AC must still be
+    reported unmapped -- a stale mapping is not a substitute for "test
+    present in test tree" (distinct from the existing test's simpler
+    "no mapping at all" case).
+    """
+    project = QAProject(
+        has_ui=False,
+        slo=None,
+        task_briefs=(
+            {
+                "acceptance_criteria": [{"id": "AC-1"}],
+                "ac_to_test_map": [{"ac_id": "AC-1", "test_name": "test_renamed_away"}],
+            },
+        ),
+        test_names=frozenset({"test_thing"}),  # note: does not contain "test_renamed_away"
+    )
+    with (
+        patch(
+            "weave_backend.build.qa_suite.qa_agent.run_command",
+            return_value=CommandOutcome(status="PASS"),
+        ),
+        patch("weave_backend.build.gates.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.build.gates.gate_store.insert_gate_result", AsyncMock()),
+    ):
+        result = await run_full_qa_suite(object(), run_ctx=_RUN_CTX, project=project)
+
+    mapping = _category(result, "ac_test_mapping")
+    assert mapping["verdict"] == "failed"
+    assert mapping["evidence"]["unmapped_ac_ids"] == ["AC-1"]
+
+
+async def test_qa_suite_edge_case_extension_must_not_pass_a_genuine_test_failure() -> None:
+    """QA finding TASK-007-F1 (logic): `_run_edge_case_extension`'s
+    evidence-empty heuristic (`ponytail:` comment in qa_suite.py) reads
+    "FAIL with empty evidence" as passed, intending to cover pytest's
+    "no tests collected" case (exit 5, empty stderr). But a *genuine*
+    edge-case test failure has the identical shape at this layer: pytest
+    reports assertion failures to stdout, not stderr, so `CommandOutcome
+    .evidence` (which only captures stderr) is empty for real failures
+    too -- `qa_agent.run_command` demonstrated empirically: exit 1, empty
+    stderr, for `assert False`.
+
+    This test pins the safe behaviour (a FAIL exit must never become a
+    "passed" verdict) and is expected to currently FAIL against
+    `_run_edge_case_extension` -- see the QA report for TASK-007. It
+    should go green once the Engineer fixes the heuristic (e.g. by
+    threading the real exit code through `CommandOutcome`, per the
+    ponytail comment's own stated upgrade path, rather than keying off
+    evidence emptiness).
+    """
+
+    def _fake_run_command(cmd: str) -> CommandOutcome:
+        if cmd.startswith("pytest -m edge_case_extension"):
+            # Real pytest failure shape (verified empirically): nonzero
+            # exit, empty stderr -- failure detail lands on stdout, which
+            # CommandOutcome does not capture.
+            return CommandOutcome(status="FAIL", evidence="")
+        return CommandOutcome(status="PASS")
+
+    project = QAProject(has_ui=False, slo=None)
+    with (
+        patch("weave_backend.build.qa_suite.qa_agent.run_command", side_effect=_fake_run_command),
+        patch("weave_backend.build.gates.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.build.gates.gate_store.insert_gate_result", AsyncMock()),
+    ):
+        result = await run_full_qa_suite(object(), run_ctx=_RUN_CTX, project=project)
+
+    edge = _category(result, "edge_case_extension")
+    assert edge["verdict"] == "failed", (
+        "a genuine pytest FAIL (nonzero exit) must not be silently reported "
+        "as passed just because stderr happened to be empty -- TASK-007-F1"
+    )
+    assert result["result"] == "FAIL"
