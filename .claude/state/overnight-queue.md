@@ -221,3 +221,12 @@ never propagated to the tables.
 - **CE-013 new dep:** ce013 added a document-parsing dependency to `packages/backend/pyproject.toml`+`uv.lock`
   (uncommitted at its 3rd death) + a `document_parsing.py`. Law A (common-stack-first) — the continuation must
   JUSTIFY the dep (or use stdlib) + document it; flag if it's an exotic add needing bus-factor acknowledgement.
+
+## CORRECTION: docker collision is fixable NOW (compose is already parameterized)
+`packages/backend/docker-compose.yml` already parameterizes ALL ports via env (`${WEAVE_PG_PORT:-5432}`,
+`${WEAVE_REDIS_PORT:-6379}`, `${WEAVE_OXIGRAPH_PORT:-7878}`, `${WEAVE_LOCALSTACK_PORT:-4566}`). So per-lane docker
+isolation needs NO new PR — each docker lane just exports distinct `COMPOSE_PROJECT_NAME` + a distinct port block
+before `docker compose up -d`. The 3× stack-removal collision happened because concurrent docker lanes used the
+DEFAULT project name + ports (shared stack). CHEAP FIX (apply going forward): coordinator assigns each docker lane
+a COMPOSE_PROJECT_NAME + WEAVE_*_PORT block (like migration blocks). Supersedes the "compose port-parameterization
+PR deferred" assumption in the ADV-004 lane rules — the parameterization already shipped.
