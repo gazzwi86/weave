@@ -24,6 +24,13 @@ const LABEL_CLASS = "text-[length:var(--text-body-sm)] text-[var(--color-text-de
 const SECTION_CLASS = "space-y-[var(--space-2)]";
 const HEADING_CLASS = "text-[length:var(--text-caption)] text-[var(--color-text-subtle)]";
 
+// Dock: left edge, below CanvasToolbar's top-left row -- D-1..D-6 only
+// pin the legend/toolbar corners, so this panel's own placement is an
+// engineering choice, not a cited design requirement. --space-10 clears
+// the toolbar's own height without hard-coding a raw px offset.
+const SHELL_CLASS =
+  "absolute left-[var(--space-4)] top-[var(--space-10)] z-[var(--z-panel)] w-80 max-h-[calc(100%-var(--space-10)-var(--space-4))] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)] shadow-[var(--shadow-panel)]";
+
 // AC-1/AC-3: one checkbox per kind/predicate present on canvas -- checked
 // means "visible" (i.e. NOT in the off list), matching the toggle's own
 // off-list semantics so a fresh canvas load starts everything checked.
@@ -187,29 +194,32 @@ export function FilterPanel({
   onToggleLayer,
 }: FilterPanelProps) {
   return (
-    <div data-testid="explorer-filter-panel" className="space-y-[var(--space-4)]">
-      <div className={SECTION_CLASS}>
-        <h3 className={HEADING_CLASS}>Entity types</h3>
-        <TypeToggleList
-          items={entityTypes}
-          offList={filterState.entityTypesOff}
-          onToggle={onToggleEntityType}
-          displayLabel={(kind) => kind}
-        />
-      </div>
-      <div className={SECTION_CLASS}>
-        <h3 className={HEADING_CLASS}>Relationship types</h3>
-        <TypeToggleList
-          items={relTypes}
-          offList={filterState.relTypesOff}
-          onToggle={onToggleRelType}
-          displayLabel={lastIriSegment}
-        />
-      </div>
-      <PropertyFilterBuilder filters={filterState.propertyFilters} onSetPropertyFilters={onSetPropertyFilters} />
-      <div className={SECTION_CLASS}>
-        <h3 className={HEADING_CLASS}>Layers</h3>
-        <LayerToggleList layerStatus={layerStatus} onToggleLayer={onToggleLayer} />
+    <div data-testid="explorer-filter-panel" className={SHELL_CLASS}>
+      <h3 className={HEADING_CLASS}>Filters &amp; layers</h3>
+      <div className="mt-[var(--space-3)] space-y-[var(--space-4)]">
+        <div className={SECTION_CLASS}>
+          <h3 className={HEADING_CLASS}>Entity types</h3>
+          <TypeToggleList
+            items={entityTypes}
+            offList={filterState.entityTypesOff}
+            onToggle={onToggleEntityType}
+            displayLabel={(kind) => kind}
+          />
+        </div>
+        <div className={SECTION_CLASS}>
+          <h3 className={HEADING_CLASS}>Relationship types</h3>
+          <TypeToggleList
+            items={relTypes}
+            offList={filterState.relTypesOff}
+            onToggle={onToggleRelType}
+            displayLabel={lastIriSegment}
+          />
+        </div>
+        <PropertyFilterBuilder filters={filterState.propertyFilters} onSetPropertyFilters={onSetPropertyFilters} />
+        <div className={SECTION_CLASS}>
+          <h3 className={HEADING_CLASS}>Layers</h3>
+          <LayerToggleList layerStatus={layerStatus} onToggleLayer={onToggleLayer} />
+        </div>
       </div>
     </div>
   );
