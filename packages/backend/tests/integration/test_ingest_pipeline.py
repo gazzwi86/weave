@@ -1,13 +1,15 @@
-"""CE-V1-TASK-012 docker-integration tests: the ingest spine against a real
-Postgres + Oxigraph + LocalStack S3 stack (AC-001-01/-05/-06/-07/-09).
+"""CE-V1-TASK-012/013 docker-integration tests: the ingest spine against a
+real Postgres + Oxigraph + LocalStack S3 stack (AC-001-01/-05/-06/-07/-09,
+AC-002-02/-04/-05/-06).
 
-No real extractor ships this task (`DEFAULT_REGISTRY` is empty -- see
-`ingest/extractors.py`), so a real upload's worker run always yields zero
-proposals. The accept/reject scenarios below seed a job + proposal directly
+The TASK-012 accept/reject scenarios below seed a job + proposal directly
 via `ingest.store` (same "insert state, then hit the HTTP endpoint" pattern
 `test_operations_apply.py` uses for idempotency-lock/outbox scenarios) --
-this is the only way to exercise accept/reject until TASK-013+ ships a real
-extractor.
+this predates TASK-013's real `DocumentExtractor` and stays a valid, cheaper
+way to exercise accept/reject without a live LLM call. The TASK-013 tests
+near the bottom of this file drive a real upload through the real extractor,
+stubbing the AI provider via `app.dependency_overrides[get_ai_provider]`
+(Law F -- never a live Anthropic/Bedrock call in tests).
 
 `no-second-mutation-path-ingest` (AC-001-08) is a pure import-graph scan --
 it's a unit test (`tests/unit/test_ingest_no_second_mutation_path.py`), not
@@ -16,16 +18,20 @@ a docker scenario; nothing about it needs a live stack.
 
 from __future__ import annotations
 
+import json
 import shutil
 import time
 import uuid
+import zipfile
 from collections.abc import AsyncIterator
+from io import BytesIO
 from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from weave_backend import app
+from weave_backend.ai.providers import ModelProvider
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
 from weave_backend.ingest.store import (
@@ -49,6 +55,7 @@ from weave_backend.operations.ingest_provenance import (
 )
 from weave_backend.operations.provenance import prov_graph_iri
 from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
+from weave_backend.routers.ingest import get_ai_provider
 from weave_backend.storage.tenant_objects import s3_client
 from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
@@ -453,3 +460,235 @@ async def test_ingest_tables_rls_backstop_blocks_unscoped_select(
         await clear_graph(prov_graph_iri(workspace_a.named_graph_iri))
         await clear_graph(workspace_b.named_graph_iri)
         await clear_graph(prov_graph_iri(workspace_b.named_graph_iri))
+
+
+# --- TASK-013: real `DocumentExtractor` wiring (AC-002-02/-04/-05/-06) -----
+
+
+class _StubExtractionProvider(ModelProvider):
+    """AI-provider double for these tests -- Law F: never a live Anthropic/
+    Bedrock call. Always returns the same canned extraction JSON regardless
+    of prompt (the stub content of `_minimal_docx()` is irrelevant).
+    """
+
+    def __init__(self, response: str) -> None:
+        self._response = response
+
+    def complete(self, model_id: str, prompt: str, **kwargs: object) -> str:
+        return self._response
+
+
+def _candidate(
+    *, kind: str, label: str, confidence: float, span: str = "Intro", ref: str = "p1"
+) -> dict[str, object]:
+    return {
+        "kind": kind, "label": label, "confidence": confidence, "span": span,
+        "reason": "extracted",
+        "ops": [{"op": "add_node", "ref": ref, "kind": kind, "label": label}],
+    }
+
+
+def _candidates_json(*candidates: dict[str, object]) -> str:
+    return json.dumps({"candidates": list(candidates)})
+
+
+def _minimal_docx() -> bytes:
+    """A docx is a zip of XML parts (OOXML) -- the smallest one
+    `document_parsing.py::parse_simple` can read. Its text is irrelevant
+    here since the AI provider is stubbed.
+    """
+    xml = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b"<w:body><w:p><w:r><w:t>Billing Team owns invoicing.</w:t></w:r></w:p></w:body>"
+        b"</w:document>"
+    )
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr("word/document.xml", xml)
+    return buf.getvalue()
+
+
+async def _upload_with_stub_provider(
+    client: AsyncClient, *, headers: dict[str, str], response: str
+) -> dict[str, object]:
+    app.dependency_overrides[get_ai_provider] = lambda: _StubExtractionProvider(response)
+    try:
+        http_response = await client.post(
+            "/api/ingest/artefacts",
+            files={
+                "file": (
+                    "policy.docx", _minimal_docx(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+            headers=headers,
+        )
+    finally:
+        del app.dependency_overrides[get_ai_provider]
+    assert http_response.status_code == 201, http_response.text
+    body: dict[str, object] = http_response.json()
+    return body
+
+
+async def test_document_extractor_produces_proposals_with_source_span_and_prov_chain(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """TASK-013 wiring: `DEFAULT_REGISTRY["doc"]` really runs, `source_span`
+    survives worker -> proposal row -> API response, and AC-002-05's prov
+    chain (one activity, two prov moments) holds when the accepted proposal
+    came from real extraction rather than a seeded row.
+    """
+    _ensure_corpus_bucket()
+    tenant_id = _unique_tenant("ingest-extract")
+    workspace = await _make_workspace(tenant_id, label="ingest")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, workspace=workspace, user_sub="u-author", role="author"
+    )
+    candidate_json = _candidates_json(
+        _candidate(kind="Actor", label="Billing Team", confidence=0.9, span="Intro")
+    )
+
+    try:
+        upload = await _upload_with_stub_provider(client, headers=headers, response=candidate_json)
+        job_id = upload["job_id"]
+
+        job_status = await client.get(f"/api/ingest/jobs/{job_id}", headers=headers)
+        assert job_status.status_code == 200
+        assert job_status.json()["status"] == "awaiting-review", job_status.json()
+
+        proposals = await client.get(f"/api/ingest/jobs/{job_id}/proposals", headers=headers)
+        rows = proposals.json()["proposals"]
+        assert len(rows) == 1
+        assert rows[0]["source_span"] == "Intro"
+        proposal_id = rows[0]["id"]
+
+        accept = await client.post(f"/api/ingest/proposals/{proposal_id}/accept", headers=headers)
+        assert accept.status_code == 200, accept.text
+        activity_iri = accept.json()["activity_iri"]
+
+        prov_turtle = await fetch_graph_turtle(prov_graph_iri(workspace.named_graph_iri))
+        assert activity_iri in prov_turtle
+        assert "http://www.w3.org/ns/prov#used" in prov_turtle
+        # One activity, two prov moments -- exactly one startedAtTime for it
+        # (same counting-by-predicate proxy the TASK-012 accept test uses).
+        assert prov_turtle.count("http://www.w3.org/ns/prov#startedAtTime") == 1
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(prov_graph_iri(workspace.named_graph_iri))
+
+
+async def test_document_mentioned_twice_merges_to_one_node_on_accept(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-002-02: no dedup logic in the extractor -- a document mentioning
+    the same entity twice yields two ordinary `add_node` proposals; the
+    existing CE-WRITE-1 accept-time merge (`find_existing_by_label_kind`,
+    `operations/graph_ops.py`) is what collapses them to one node once both
+    are accepted.
+    """
+    _ensure_corpus_bucket()
+    tenant_id = _unique_tenant("ingest-dedup")
+    workspace = await _make_workspace(tenant_id, label="ingest")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, workspace=workspace, user_sub="u-author", role="author"
+    )
+    candidate_json = _candidates_json(
+        _candidate(kind="Actor", label="Billing Team", confidence=0.9, ref="p1"),
+        _candidate(kind="Actor", label="Billing Team", confidence=0.85, ref="p2"),
+    )
+
+    try:
+        upload = await _upload_with_stub_provider(client, headers=headers, response=candidate_json)
+        job_id = upload["job_id"]
+
+        proposals = await client.get(f"/api/ingest/jobs/{job_id}/proposals", headers=headers)
+        rows = proposals.json()["proposals"]
+        assert len(rows) == 2, "extractor emits one proposal per mention -- no extractor dedup"
+
+        for row in rows:
+            accept = await client.post(
+                f"/api/ingest/proposals/{row['id']}/accept", headers=headers
+            )
+            assert accept.status_code == 200, accept.text
+
+        draft_turtle = await fetch_graph_turtle(workspace.named_graph_iri)
+        assert draft_turtle.count("Billing Team") == 1, (
+            "second accept should have merged into the first node "
+            "(find_existing_by_label_kind), not created a duplicate"
+        )
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(prov_graph_iri(workspace.named_graph_iri))
+
+
+async def test_low_confidence_proposal_flagged_by_resolved_threshold(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-002-04: `low_confidence` is computed server-side against the
+    resolved threshold (default 0.6, `ingest/confidence.py`) -- never a
+    hardcoded frontend comparison.
+    """
+    _ensure_corpus_bucket()
+    tenant_id = _unique_tenant("ingest-lowconf")
+    workspace = await _make_workspace(tenant_id, label="ingest")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, workspace=workspace, user_sub="u-author", role="author"
+    )
+    candidate_json = _candidates_json(
+        _candidate(kind="Actor", label="Confident Team", confidence=0.9, ref="p1"),
+        _candidate(kind="Actor", label="Unsure Team", confidence=0.3, ref="p2"),
+    )
+
+    try:
+        upload = await _upload_with_stub_provider(client, headers=headers, response=candidate_json)
+        job_id = upload["job_id"]
+
+        proposals = await client.get(f"/api/ingest/jobs/{job_id}/proposals", headers=headers)
+        by_label = {
+            row["ops"][0]["label"]: row["low_confidence"] for row in proposals.json()["proposals"]
+        }
+        assert by_label == {"Confident Team": False, "Unsure Team": True}
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(prov_graph_iri(workspace.named_graph_iri))
+
+
+async def test_upload_503s_and_writes_nothing_when_model_unavailable(
+    client: AsyncClient, platform_stack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC-002-06 / ADR-024: the upload route probes provider availability
+    *before* any write -- a construction failure returns 503 and leaves
+    zero rows in `ingest_jobs` and zero objects in the corpus bucket under
+    this tenant's prefix. Extraction stays backgrounded otherwise (ADR-024),
+    so this is a synchronous preflight, not a job-status failure.
+    """
+    _ensure_corpus_bucket()
+    tenant_id = _unique_tenant("ingest-unavailable")
+    workspace = await _make_workspace(tenant_id, label="ingest")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, workspace=workspace, user_sub="u-author", role="author"
+    )
+    monkeypatch.setattr(
+        "weave_backend.routers.ingest._select_provider",
+        lambda: (_ for _ in ()).throw(RuntimeError("no api key")),
+    )
+
+    try:
+        response = await client.post(
+            "/api/ingest/artefacts",
+            files={"file": ("policy.docx", _minimal_docx(), "application/octet-stream")},
+            headers=headers,
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == {"error": "model_unavailable"}
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch("SELECT id FROM ingest_jobs WHERE tenant_id = $1", tenant_id)
+        assert rows == []
+        listing = s3_client().list_objects_v2(Bucket=_CORPUS_BUCKET, Prefix=f"{tenant_id}/")
+        assert listing.get("Contents", []) == []
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(prov_graph_iri(workspace.named_graph_iri))
