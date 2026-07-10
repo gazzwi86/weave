@@ -46,9 +46,19 @@ class RepoInfo(BaseModel):
     default_branch: str
 
 
+class StalenessInfo(BaseModel):
+    """TASK-009/FR-036: pin lag vs CE-VERSION-1's latest. `stale` is
+    `"unknown"` (never a fabricated `false`) when CE was unreachable.
+    """
+
+    lag: int | None
+    stale: bool | Literal["unknown"]
+
+
 class ProjectResponse(BaseModel):
     project_iri: str
     name: str
     pinned_graph_version_iri: str
     created_at: datetime
     repo: RepoInfo | None = None
+    staleness: StalenessInfo

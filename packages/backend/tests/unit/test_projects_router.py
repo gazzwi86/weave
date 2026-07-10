@@ -191,12 +191,19 @@ async def test_get_project_route_returns_project_when_found() -> None:
             "weave_backend.routers.projects.fetch_project_repo_row",
             AsyncMock(return_value=not_bootstrapped),
         ),
+        patch(
+            "weave_backend.routers.projects.get_staleness",
+            AsyncMock(return_value={"lag": 0, "stale": False}),
+        ),
     ):
-        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+        result = await get_project_route(
+            "urn:weave:project:t1:acme-corp", _PRINCIPAL, httpx.AsyncClient()
+        )
 
     assert result.project_iri == "urn:weave:project:t1:acme-corp"
     assert result.name == "Acme Corp"
     assert result.repo is None
+    assert result.staleness.stale is False
 
 
 async def test_get_project_route_includes_repo_once_bootstrapped() -> None:
@@ -225,8 +232,14 @@ async def test_get_project_route_includes_repo_once_bootstrapped() -> None:
             "weave_backend.routers.projects.fetch_project_repo_row",
             AsyncMock(return_value=repo_row),
         ),
+        patch(
+            "weave_backend.routers.projects.get_staleness",
+            AsyncMock(return_value={"lag": 0, "stale": False}),
+        ),
     ):
-        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+        result = await get_project_route(
+            "urn:weave:project:t1:acme-corp", _PRINCIPAL, httpx.AsyncClient()
+        )
 
     assert result.repo is not None
     assert result.repo.provider == "github"
@@ -257,8 +270,14 @@ async def test_get_project_route_repo_is_none_when_not_bootstrapped() -> None:
             "weave_backend.routers.projects.fetch_project_repo_row",
             AsyncMock(return_value=repo_row),
         ),
+        patch(
+            "weave_backend.routers.projects.get_staleness",
+            AsyncMock(return_value={"lag": 0, "stale": False}),
+        ),
     ):
-        result = await get_project_route("urn:weave:project:t1:acme-corp", _PRINCIPAL)
+        result = await get_project_route(
+            "urn:weave:project:t1:acme-corp", _PRINCIPAL, httpx.AsyncClient()
+        )
 
     assert result.repo is None
 
@@ -272,7 +291,39 @@ async def test_get_project_route_raises_404_when_not_found() -> None:
         ),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await get_project_route("urn:weave:project:t1:missing", _PRINCIPAL)
+        await get_project_route("urn:weave:project:t1:missing", _PRINCIPAL, httpx.AsyncClient())
 
     assert exc_info.value.status_code == 404
     assert exc_info.value.detail == {"error": "not_found"}  # type: ignore[comparison-overlap]
+
+
+async def test_get_project_route_includes_staleness_from_pinned_version() -> None:
+    """TASK-009/AC-3/AC-4: `GET /api/projects/{id}` rides the pin's
+    staleness alongside the existing fields (API Contracts).
+    """
+    found = Project(
+        project_iri="urn:weave:project:t1:acme-corp",
+        name="Acme Corp",
+        pinned_graph_version_iri="urn:weave:version:v2",
+        created_at=datetime.now(UTC),
+    )
+    mock_staleness = AsyncMock(return_value={"lag": 3, "stale": True})
+
+    with (
+        patch("weave_backend.routers.projects.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.projects.get_project", AsyncMock(return_value=found)),
+        patch(
+            "weave_backend.routers.projects.fetch_project_repo_row",
+            AsyncMock(return_value=None),
+        ),
+        patch("weave_backend.routers.projects.get_staleness", mock_staleness),
+    ):
+        result = await get_project_route(
+            "urn:weave:project:t1:acme-corp", _PRINCIPAL, httpx.AsyncClient()
+        )
+
+    assert result.staleness.lag == 3
+    assert result.staleness.stale is True
+    mock_staleness.assert_awaited_once()
+    assert mock_staleness.await_args is not None
+    assert mock_staleness.await_args.kwargs["pinned_graph_version_iri"] == "urn:weave:version:v2"
