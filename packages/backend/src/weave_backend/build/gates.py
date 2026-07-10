@@ -54,7 +54,7 @@ _CASCADE_STEPS: tuple[tuple[str, str], ...] = (
 
 @dataclass(frozen=True)
 class GateRecord:
-    """Grouped input for `_record_gate` (Law E 5-parameter budget)."""
+    """Grouped input for `record_gate` (Law E 5-parameter budget)."""
 
     tenant_id: str
     actor_iri: str
@@ -65,11 +65,15 @@ class GateRecord:
     payload: dict[str, Any] = field(default_factory=dict)
     task_id: str | None = None
     project_iri: str | None = None
+    run_id: str | None = None
 
 
-async def _record_gate(conn: asyncpg.Connection, record: GateRecord) -> None:
+async def record_gate(conn: asyncpg.Connection, record: GateRecord) -> None:
     """Audit chain first, then `gate_results` -- both land before the
-    caller's HTTP response (Design Decisions).
+    caller's HTTP response (Design Decisions). Public: BE-TASK-007's
+    `qa_suite` module reuses this exact extension seam (Design Decisions
+    -- "extends the FR-047 runner pattern") instead of duplicating the
+    audit+persist pairing.
     """
     await default_audit_emitter.emit(
         conn,
@@ -91,6 +95,7 @@ async def _record_gate(conn: asyncpg.Connection, record: GateRecord) -> None:
             payload=record.payload,
             task_id=record.task_id,
             project_iri=record.project_iri,
+            run_id=record.run_id,
         ),
     )
 
@@ -151,7 +156,7 @@ async def run_dor_gate(
         else:
             update_task_status(tenant_id, task_id, "Ready")
 
-    await _record_gate(
+    await record_gate(
         conn,
         GateRecord(
             tenant_id=tenant_id,
@@ -184,7 +189,7 @@ async def run_dod_gate(
         if outcome.status != "PASS":
             overall = "FAIL"
 
-    await _record_gate(
+    await record_gate(
         conn,
         GateRecord(
             tenant_id=tenant_id,
@@ -226,7 +231,7 @@ async def run_pre_scaffold_gate(
             actor_iri=actor_iri,
         )
 
-    await _record_gate(
+    await record_gate(
         conn,
         GateRecord(
             tenant_id=tenant_id,
