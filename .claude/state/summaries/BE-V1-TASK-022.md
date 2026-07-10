@@ -90,3 +90,30 @@ epic-close `ui_verify`, not a task-blocking defect.
 Full Lighthouse / axe / `ui_verify.sh` re-run deferred: task already has a hard logic FAIL: this
 task returns to the Engineer regardless, and the DoD's "no ui_verify run yet, epic-close only"
 note already covers UI-gate timing. Re-run those once the AC-3 timeout fix lands.
+
+## QA-retry fix (2026-07-10) — AC-3 per-read timeout, commit `c93cd97`
+
+`_read_health` in `routers/project_bindings.py` wraps the connector health call in
+`asyncio.wait_for(..., timeout=_HEALTH_READ_TIMEOUT_SECONDS)` (0.05s). The brief specifies a
+"short per-read timeout" and a p95 <= 400ms budget for the whole GET but no exact figure; 50ms
+was chosen to (a) clear QA's isolation test with margin (test bound: total elapsed < 0.1s while
+one connector sleeps 0.3s) and (b) stay comfortably inside the 400ms request budget with several
+rows read in parallel via the existing `asyncio.gather`. Timeout resolves to the same
+"unavailable" path as any other health-read failure (the existing broad `except Exception` catch
+already covers `TimeoutError`/`asyncio.TimeoutError`, which are the same type on Python 3.12).
+
+One-line, one-function change — no other code touched.
+
+Verification: QA's `test_list_bindings_route_isolates_slow_health_read_from_the_others` now
+passes (was 0.30s, now ~0.05s). Full backend unit lane (`-m "not docker"`): 848 passed, 0 failed.
+Docker lane, correct CI-equivalent command `-m "integration and docker and not stack"` (the
+plain `-m "integration and docker"` the task brief text used pulls in `test_dev_stack_healthy.py`,
+which is `stack`-marked and does its own `docker compose down -v` mid-session, killing the shared
+`platform_stack` fixture for every alphabetically-later test file — a pre-existing test-suite
+lifecycle hazard, documented in `pyproject.toml`'s marker registry and already excluded in
+`.github/workflows/ci.yml`, unrelated to this fix): 205 passed, 1 failed, 850 deselected. The 1
+failure (`test_one_pdac_cycle_commits_state_spine_dispatch_count_1` in `test_runs_api.py`) is
+unrelated to bindings/health/connectors — reproduces in isolation with bindings code untouched,
+so it's a pre-existing environment flake in this sandbox, not caused by this fix. Bindings-specific
+docker tests (`test_v1_pm_tables.py`, `test_generation_api.py`) all green (12/12).
+ruff/mypy/bandit clean on the changed file.
