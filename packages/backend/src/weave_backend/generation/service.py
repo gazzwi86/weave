@@ -102,7 +102,7 @@ async def _default_record_brand_gate(
     (`db/pool.py`'s `tenant_connection` wraps every acquire in
     `conn.transaction()`). The gate_results/audit record must survive that
     rollback (AC-1/AC-5), so it commits independently. See
-    `docs/specs/weave/engines/build-engine/decisions/ADR-010.md`.
+    `docs/specs/weave/engines/build-engine/decisions/ADR-016.md`.
     """
     async with tenant_connection(tenant_id) as record_conn:
         await default_audit_emitter.emit(
