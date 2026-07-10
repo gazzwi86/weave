@@ -9,13 +9,11 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from httpx import AsyncClient
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.dashboard import store
-from weave_backend.dashboard.ce_metrics import (
-    CeMetricsUnavailable,
-    get_ce_metrics_client,
-)
+from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.default_tiles import resolve_starter_role
 from weave_backend.dashboard.status import WidgetFetchState, derive_status
@@ -74,6 +72,7 @@ async def list_widgets_route(
 async def refresh_widget_route(
     widget_id: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
+    ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
 ) -> WidgetRefreshResponse:
     """AC-4/AC-7: refresh attempt against CE-METRICS-1. Failure never blanks
     the tile -- prior `last_result`/`fetched_at` are retained and `status`
@@ -88,12 +87,11 @@ async def refresh_widget_route(
         fetch_failed = False
         last_result = row.last_result
         fetched_at = row.fetched_at
-        async for client in get_ce_metrics_client():
-            try:
-                last_result = await fetch_ce_metric(client, row.spec.bindings)
-                fetched_at = store.utcnow()
-            except CeMetricsUnavailable:
-                fetch_failed = True
+        try:
+            last_result = await fetch_ce_metric(ce_client, row.spec.bindings)
+            fetched_at = store.utcnow()
+        except CeMetricsUnavailable:
+            fetch_failed = True
 
         derived = derive_status(
             spec_field=field_name,
