@@ -242,6 +242,11 @@ def map_fn(fn_schema: dict[str, object]) -> IRFunction:
     parameters = fn_schema.get("parameters")
     properties = parameters.get("properties", {}) if isinstance(parameters, dict) else {}
     required = set(parameters.get("required", [])) if isinstance(parameters, dict) else set()
+    # Required params sorted before optional ones: both TS and Python
+    # function signatures reject an optional/default parameter before a
+    # required one, so this ordering is a syntax requirement, not a style
+    # choice -- alphabetical within each group keeps it deterministic (AC-1).
+    ordered_names = sorted(properties, key=lambda p: (p not in required, p))
     params = [
         IRParam(
             name=pname,
@@ -249,7 +254,7 @@ def map_fn(fn_schema: dict[str, object]) -> IRFunction:
             py_type=t[1],
             required=pname in required,
         )
-        for pname in sorted(properties)
+        for pname in ordered_names
     ]
     returns = fn_schema.get("returns")
     return_ts, return_py = _json_schema_type(returns) if isinstance(returns, dict) else (

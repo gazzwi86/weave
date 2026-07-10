@@ -10,7 +10,14 @@ import pytest
 from rdflib import Graph
 
 from weave_backend.sdkgen.errors import UnmappableConstraint
-from weave_backend.sdkgen.ir import IRClass, IRField, map_core_tokens, map_select, map_shapes
+from weave_backend.sdkgen.ir import (
+    IRClass,
+    IRField,
+    map_core_tokens,
+    map_fn,
+    map_select,
+    map_shapes,
+)
 
 _PREFIXES = """
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
@@ -171,3 +178,37 @@ def test_map_shapes_is_deterministic_across_runs() -> None:
     assert first == second
     # sanity: rdflib parses fine and the graph is non-empty
     assert len(Graph().parse(data=full, format="turtle")) >= 0
+
+
+def test_should_emit_one_typed_method_per_registry_function() -> None:
+    """AC-4, and a TS/Python syntax requirement: required params must sort
+    before optional ones, or the emitted function signature is invalid
+    (`fn(b?: string, a: string)` is a TS syntax error). Alphabetical within
+    each group keeps ordering deterministic across runs (AC-1).
+    """
+    # "amount" is required but alphabetically last of the three -- a plain
+    # `sorted(properties)` would put it after the optional params and
+    # produce an invalid signature; picking names this way is what makes
+    # the assertion actually exercise the required-before-optional rule
+    # instead of passing by alphabetical coincidence.
+    fn_schema: dict[str, object] = {
+        "name": "calculateTotal",
+        "fn_iri": "weave:calculateTotal",
+        "parameters": {
+            "properties": {
+                "amount": {"type": "number"},
+                "currency": {"type": "string"},
+                "zebra": {"type": "string"},
+            },
+            "required": ["zebra"],
+        },
+        "returns": {"type": "number"},
+    }
+
+    fn = map_fn(fn_schema)
+
+    assert [p.name for p in fn.params] == ["zebra", "amount", "currency"]
+    assert [p.required for p in fn.params] == [True, False, False]
+    assert fn.name == "calculateTotal"
+    assert fn.fn_iri == "weave:calculateTotal"
+    assert fn.return_ts == "number"
