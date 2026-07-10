@@ -165,3 +165,22 @@ fills → GET /api/dashboard/widgets?scope=user asserts the new suggested=false 
 PLAT-V1-TASK-012's brief** — when TASK-012 (real resolver) is built, its engineer MUST include this happy-path
 E2E. Per never-delete-descoped-briefs: relocated, not dropped. Coordinator-approved option A (avoids
 fake-resolver theater; keeps Law B honest).
+
+## Follow-up: 11 of 13 ADR-018 closure predicates lack SHACL shapes — CE-028 (governed ontology decision)
+`ontology/shapes/framework.shacl.ttl` declares only 2 of the 13 ADR-018 impact-closure relationship predicates
+as `sh:property` shapes (performedBy, servesGoal). The other 11 (dependsOn, runsOn, accesses, consumes,
+triggeredBy, hasStep, hasField, governedBy, produces, realizes, partOf) are undeclared → `GET /api/ontology/types`
+won't serve them → CE-028's drift guard correctly detects this as REAL drift → impact-traversal is inert
+end-to-end against the currently-shipped CE until the shapes land. CE-028 builds+tests the guard against fixtures
+(clean + missing-predicate) and surfaces it LOUD (banner + disabled traversal, exactly AC-2). NOT fixed by CE-028:
+TASK-004's shapes file has a written decision against speculative relationship shapes, and adding sh:class ranges
+from ADR-018's table is a governed ontology change with validation risk (could newly fail seed data). ACTION
+(governed): complete the 11 closure-predicate SHACL shapes when backend ontology completion is scheduled — same
+degrade-gracefully pattern as CE-020/021's data gaps. Not a surprise at QA/demo: the guard makes it visible.
+
+## Clarification: sandbox has NO Postgres for live-server E2E (affects XT-PLAT010-2 + all UI-epic E2E)
+The Playwright webServer (real uvicorn) throws `ConnectionRefusedError` to Postgres in this sandbox — there's no
+DB for the live E2E backend. So NO browser E2E that touches a DB route can run here (prompt-bar, dashboard-widgets,
+explorer filters/overlays all fail the same way). They TYPE-CHECK now + run at epic-close ui_verify (real env).
+XT-PLAT010-2's fix (rewrite dashboard E2E against real backend) is still correct but ALSO only verifiable at
+epic-close, not in-sandbox. Don't treat these E2E sandbox failures as code defects.
