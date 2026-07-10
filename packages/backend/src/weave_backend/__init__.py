@@ -35,6 +35,7 @@ from weave_backend.routers.layout import router as layout_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
+from weave_backend.routers.project_bindings import router as project_bindings_router
 from weave_backend.routers.project_contributors import router as project_contributors_router
 from weave_backend.routers.project_pin import router as project_pin_router
 from weave_backend.routers.project_settings import router as project_settings_router
@@ -93,6 +94,7 @@ app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(project_contributors_router)
+app.include_router(project_bindings_router)
 app.include_router(project_settings_router)
 app.include_router(project_pin_router)
 app.include_router(briefs_router)
