@@ -35,6 +35,13 @@ _ACTION_OUTCOMES = {"approve": "resumed", "reject": "halted", "amend": "replan"}
 #: worth a new module for).
 _ENV_VERIFICATION_TASK_PREFIX = "env_verification:"
 
+#: TASK-005 AC-2/AC-3 (BE-SDK-1 delivery): `run_sdk_generation` fires this
+#: gate with `task_id=f"sdk_generation:{run_id}"` (`generation/sdk_trigger.py`)
+#: when a CE-DIFF-1 breaking span is found -- same "no shared constant
+#: module, same literal on both sides" convention as
+#: `_ENV_VERIFICATION_TASK_PREFIX` above.
+_SDK_GENERATION_TASK_PREFIX = "sdk_generation:"
+
 
 class HitlGateClosedError(Exception):
     """AC-5: the audit service is unreachable at gate-evaluation time -- the
@@ -150,6 +157,10 @@ async def handle_hitl_response(
         return await _release_env_verification(
             conn, ctx, resolve_principal=resolve_principal, audit_emitter=audit_emitter
         )
+    if ctx.action == "approve" and ctx.task_id.startswith(_SDK_GENERATION_TASK_PREFIX):
+        return await _release_sdk_breaking_hold(
+            conn, ctx, resolve_principal=resolve_principal, audit_emitter=audit_emitter
+        )
 
     task = store.get_task(ctx.tenant_id, ctx.task_id)
     if task is None:
@@ -215,6 +226,44 @@ async def _release_env_verification(
             event_type="hitl_response",
             actor_iri=ctx.approving_principal_iri,
             subject_iri=project_iri,
+            payload={"action": ctx.action},
+            engine="build",
+        ),
+    )
+    return {"action": _ACTION_OUTCOMES[ctx.action]}
+
+
+async def _release_sdk_breaking_hold(
+    conn: Any,
+    ctx: HitlResponseContext,
+    *,
+    resolve_principal: Any,
+    audit_emitter: AuditEmitter,
+) -> dict[str, str]:
+    """TASK-005 AC-3: deferred import -- `generation.sdk_trigger` imports
+    this module (`fire_hitl_gate`/`SelfApprovalNotPermitted`), so importing
+    it back at module scope here would be circular. `approve_sdk_breaking_ack`
+    raises the same `SelfApprovalNotPermitted` this module defines, so the
+    router's existing `except SelfApprovalNotPermitted` handler (403) needs
+    no change.
+    """
+    from weave_backend.generation.sdk_trigger import SdkAckDeps, approve_sdk_breaking_ack
+
+    run_id = ctx.task_id[len(_SDK_GENERATION_TASK_PREFIX) :]
+    await approve_sdk_breaking_ack(
+        conn,
+        run_id=run_id,
+        tenant_id=ctx.tenant_id,
+        approving_principal_iri=ctx.approving_principal_iri,
+        ack_deps=SdkAckDeps(resolve_principal=resolve_principal),
+    )
+    await audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=ctx.tenant_id,
+            event_type="hitl_response",
+            actor_iri=ctx.approving_principal_iri,
+            subject_iri=run_id,
             payload={"action": ctx.action},
             engine="build",
         ),
