@@ -11,7 +11,7 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export function Card({ className, selected, ...props }: CardProps) {
   return (
     <div
-      aria-selected={selected || undefined}
+      data-selected={selected || undefined}
       className={cn(
         "rounded-[var(--radius-lg)] border p-[var(--space-4)]",
         selected
