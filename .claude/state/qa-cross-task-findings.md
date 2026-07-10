@@ -313,3 +313,15 @@ Still an EPIC-001-close blocker (ui_verify --full); now a straightforward rewrit
   which removes the control from tab order — so the mutual-exclusion tooltip never reaches keyboard/SR users
   (the code comment wrongly claims it stays focusable). Not a WCAG-AA failure (disabled controls are exempt),
   axe doesn't flag it. Fix: swap `disabled` → `aria-disabled="true"` on both to keep the sibling focusable.
+
+## XT-OVERLAY-ENGINE-1 — activate() leaks onElementRemoved subscription on same-id re-activate
+- **Severity:** Minor (not reachable today) · **Status:** OPEN · **Affects:** TASK-021 (owns overlay-engine.ts —
+  the dedup fix belongs there), TASK-030 (a real "re-run impact on same node" UI first makes it reachable).
+- **Found by:** CE-028 QA (reading overlay-engine.ts).
+- **Symptom:** `OverlayEngine.activate()` overwrites an existing same-`id` entry WITHOUT calling `remove()` first,
+  so the prior overlay's `onElementRemoved` subscription stays alive → re-pinning the same source without
+  unpinning first double-fires the "Pinned trace source deleted" notice on the next delete. NOT reachable via any
+  tested/specified AC-4 flow (single pin→delete→clear only).
+- **Fix:** in `overlay-engine.ts::activate()`, `remove(id)` an existing same-id entry before overwriting (dedupe).
+- **Tripwire:** CE-028 QA test `bd83895` asserts the current (buggy) double-fire as expected-today — when
+  overlay-engine is fixed, that test goes RED (signal to update it alongside the fix).

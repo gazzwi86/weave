@@ -50,3 +50,15 @@ e6b212d c800abb 5294a8d.
 
 EPIC-016 has TASK-030 (M2 Release-Gate Suite) remaining, blocked_by many (022/024/026/027/028/029) → NOT ready →
 **CE-016 lane PARKS after this QA.** TASK-030 also gated on the live-traversal-client follow-up.
+
+## QA PASS (2026-07-11, retry 0) — TASK-028 CLOSES
+task028-qa PASS (narrow scope), adversarial: read source per AC + ran the E2E itself. AC-6 `isReversedLeg`
+confirmed IMPORTED by traversal-walk.ts (not re-implemented) — mirror-by-construction; property test walks every
+pair both ways. Drift guard both directions (missing→drift, extra→OK; never silent). Pinned overlay REUSES
+TASK-021 OverlayEngine (types+public API only, no fork); exclusiveGroup undefined (coexists w/ colour overlay).
+E2E `explorer-pinned-impact.spec.ts` ran green in real chromium (in-file fixture, no backend). tsc/lint clean,
+734/734 vitest. **Coverage corrected: 91.92% stmts / 82.32% branch** (engineer's "97%" was an overstatement;
+still clears ≥80%; use-pinned-impact.ts 66%/pinned-impact-overlay.ts 75% branch = NODE_ENV prod-guard + trivial
+ternaries, lines 100%). QA edge tripwire `bd83895`. **UI gates (Lighthouse/axe/ui_verify) N/A** — pin is
+dev-hook-only (NODE_ENV-production early-return, zero prod trigger); DEFERRED to TASK-030 when a real pin-trigger
+UI lands (must gate Lighthouse-100 + axe-zero + WCAG-1.4.1 trace-border colour-alone check + SR announce). retry=0.
