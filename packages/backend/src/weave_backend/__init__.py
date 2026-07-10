@@ -7,6 +7,7 @@ from weave_backend.auth.dependencies import UnauthorisedError, unauthorised_exce
 from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.briefs.ce_read_client import close_ce_read_client
+from weave_backend.dashboard.ce_metrics import close_ce_metrics_client
 from weave_backend.db.pool import close_app_pool
 from weave_backend.deploy.ce_write_client import close_ce_write_client
 from weave_backend.observability.middleware import (
@@ -23,6 +24,7 @@ from weave_backend.routers.billing import harness_router as billing_harness_rout
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.costs import router as costs_router
+from weave_backend.routers.dashboard import router as dashboard_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
@@ -101,6 +103,7 @@ app.include_router(project_pin_router)
 app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
+app.include_router(dashboard_router)
 app.include_router(generation_router)
 app.include_router(deploy_router)
 app.include_router(specs_router)
@@ -130,6 +133,7 @@ assert_all_routes_guarded(app)
 @app.on_event("shutdown")
 async def _close_db_pool() -> None:
     await close_app_pool()
+    await close_ce_metrics_client()
     await close_oidc_client()
     await close_ce_client()
     await close_ce_read_client()
