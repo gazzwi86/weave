@@ -27,7 +27,7 @@ from weave_backend import app
 from weave_backend.auth.dependencies import Principal, RoleGrant, get_current_principal
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
-from weave_backend.generation import sdk_trigger
+from weave_backend.generation import sdk_commit, sdk_trigger
 from weave_backend.generation.sdk_store import (
     get_sdk_run,
     insert_sdk_generation_run,
@@ -56,8 +56,7 @@ _FAKE_TOKEN = "tok-sdk"
 # hand-bumping this bookkeeping column directly, bypassing the pipeline --
 # reused across three tests so DRY it into one constant (also dodges E501).
 _SET_LAST_SDK_VERSION_SQL = (
-    "UPDATE projects SET last_sdk_version_iri = $1 "
-    "WHERE tenant_id = $2 AND project_iri = $3"
+    "UPDATE projects SET last_sdk_version_iri = $1 WHERE tenant_id = $2 AND project_iri = $3"
 )
 
 
@@ -128,9 +127,7 @@ def _ce_diff_client(*, breaking_version: str | None) -> httpx.AsyncClient:
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/ontology/diff"
-        versions = (
-            [{"version_iri": breaking_version, "breaking": True}] if breaking_version else []
-        )
+        versions = [{"version_iri": breaking_version, "breaking": True}] if breaking_version else []
         return httpx.Response(200, json={"versions": versions})
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://ce.test")
@@ -333,7 +330,7 @@ async def test_should_persist_ack_row_and_proceed_after_approval(
             conn, tenant_id=tenant_id, sub="approver-sdk", display_name="Approver"
         )
 
-    monkeypatch.setattr(sdk_trigger, "generate_sdk", lambda _pin: _generated_sdk(tmp_path))
+    monkeypatch.setattr(sdk_commit, "generate_sdk", lambda _pin: _generated_sdk(tmp_path))
 
     async with tenant_connection(tenant_id) as conn:
         await sdk_trigger.approve_sdk_breaking_ack(
@@ -413,7 +410,7 @@ async def test_should_stamp_provenance_and_commit_atomically(
             ),
         )
 
-    monkeypatch.setattr(sdk_trigger, "generate_sdk", lambda _pin: _generated_sdk(tmp_path))
+    monkeypatch.setattr(sdk_commit, "generate_sdk", lambda _pin: _generated_sdk(tmp_path))
 
     async with tenant_connection(tenant_id) as conn:
         await sdk_trigger.run_sdk_generation(
@@ -449,7 +446,7 @@ async def test_should_leave_repo_and_bookkeeping_unchanged_on_failure(
     tenant_id = _unique_tenant("failure")
     project_iri = await _seed_project(tenant_id)
     driver = _StubDriver()
-    monkeypatch.setattr(sdk_trigger, "generate_sdk", _poisoned)
+    monkeypatch.setattr(sdk_commit, "generate_sdk", _poisoned)
 
     async with tenant_connection(tenant_id) as conn:
         await sdk_trigger.run_sdk_generation(
@@ -476,7 +473,10 @@ async def test_should_return_latest_generation_status(client: AsyncClient) -> No
     async with tenant_connection(tenant_id) as conn:
         run = await insert_sdk_generation_run(conn, tenant_id=tenant_id, project_iri=project_iri)
         await update_sdk_run_status(
-            conn, tenant_id=tenant_id, run_id=run.run_id, status="passed",
+            conn,
+            tenant_id=tenant_id,
+            run_id=run.run_id,
+            status="passed",
             payload={"package_version": "v1+build.1"},
         )
     tokens = await issue_token_pair(sub=sub, tenant_id=tenant_id)

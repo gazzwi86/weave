@@ -238,6 +238,16 @@ per-task reports.
   `pytest-cov`, `coverage.py`, or `asyncpg`'s C extension, and either pin a working version
   combination or document a permanent `--no-cov` carve-out for `@pytest.mark.docker` in
   `docs/standards/testing-py.md`.
+- **Raised again in:** BE-V1-TASK-005 (SDK-generation delivery, 2026-07-11) — same exit 139,
+  narrowed further this time: crash site isn't fixture-specific, it's ANY `asyncpg` connect that
+  reaches `connect_utils._create_ssl_connection` while a `--cov` tracer is active (reproduced via
+  `db/migrate.py::run_migrations` AND separately via `db/pool.py::get_app_pool` from an unrelated
+  `mock_oidc/tokens.py` call, both under plain `tests/unit` — so it's not integration-only, not
+  session-fixture-only). Also tried `COVERAGE_CORE=sysmon` (PEP 669 sys.monitoring core, not just
+  the legacy C tracer) — still segfaults, so it's not a ctrace-specific bug either. Worked around
+  the same way as BE-V1-TASK-001: coverage number reported from the unit lane (which passed under
+  `--cov` for the *fake-connection* tests), correctness proven by a `--cov`-free full docker-lane
+  pass (9/9 green).
 - **Deadline:** before the next milestone's phase-gate remediation sweep (bundle with PROJ-010/011).
 
 ## PROJ-014 — test_runs_api::test_one_pdac_cycle_commits_state_spine_dispatch_count_1 intermittent flake
