@@ -150,3 +150,29 @@ test("should bind jira board see health badge end end", async ({ page }) => {
   const removedBody = (await afterRemove.json()) as { items: { system: string }[] };
   expect(removedBody.items.some((b) => b.system === "jira")).toBe(false);
 });
+
+// TASK-023 (E2-S6, FR-061/B9) AC-1, Law B: configuring source control
+// actually persists provider + a secret *reference* to the backend, proven
+// via an independent GET -- and the raw token value must never come back
+// in that (or any) response body.
+test("should configure source control and never echo the token end to end", async ({ page }) => {
+  await loginAs(page, "admin@weave.local");
+  const projectId = await createProject(page);
+  const sentinelToken = `ghp_e2e-sentinel-${Date.now()}`;
+
+  await page.getByRole("tab", { name: "Source control" }).click();
+  await page.getByLabel(/provider/i).selectOption("github");
+  await page.getByLabel(/token/i).fill(sentinelToken);
+  await page.getByRole("button", { name: /configure|save/i }).click();
+  await expect(page.getByText(/weave\/.+\/token/)).toBeVisible();
+
+  // Backend-state proof: an independent GET returns the provider + a
+  // secret reference, and the sentinel token string never appears in it.
+  const settings = await page.request.get(`/api/build/projects/${projectId}/source-control`);
+  expect(settings.ok()).toBe(true);
+  const body = (await settings.json()) as { provider: string; token_secret_ref: string };
+  expect(body.provider).toBe("github");
+  expect(body.token_secret_ref).toBeTruthy();
+  const responseText = JSON.stringify(body);
+  expect(responseText).not.toContain(sentinelToken);
+});
