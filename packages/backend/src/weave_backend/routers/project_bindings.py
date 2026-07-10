@@ -29,6 +29,11 @@ from weave_backend.schemas.bindings import (
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
+# AC-3 / API Contract: "a slow connector degrades one badge, not the request"
+# (p95 <= 400ms for the whole GET). 50ms per read keeps several rows well
+# inside that budget while still giving a real connector room to answer.
+_HEALTH_READ_TIMEOUT_SECONDS = 0.05
+
 
 async def _read_health(connector_ref: str) -> HealthResponse:
     """AC-3: per-row isolation -- one slow/broken connector's health read
@@ -37,8 +42,10 @@ async def _read_health(connector_ref: str) -> HealthResponse:
     fake "ok".
     """
     try:
-        health = await default_connector_client.health(connector_ref)
-    except Exception:  # AC-3: every failure mode -> unavailable, isolated per row
+        health = await asyncio.wait_for(
+            default_connector_client.health(connector_ref), timeout=_HEALTH_READ_TIMEOUT_SECONDS
+        )
+    except Exception:  # AC-3: every failure mode (incl. timeout) -> unavailable, isolated per row
         return HealthResponse(status="unavailable")
     return HealthResponse(
         status=health.status,
