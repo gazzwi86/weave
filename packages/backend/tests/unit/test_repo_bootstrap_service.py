@@ -81,6 +81,14 @@ class _FakeDriver:
     ) -> str:
         return "sha-fake"
 
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        return None
+
+    async def commit_files(
+        self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+    ) -> str:
+        return "sha-fake"
+
 
 def _deps(
     *, token: str | None = _FAKE_TOKEN, driver: _FakeDriver | None = None

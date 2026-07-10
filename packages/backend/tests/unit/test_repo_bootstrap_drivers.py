@@ -243,6 +243,43 @@ async def test_github_driver_commit_workspace_resolves_commit_to_tree_sha_for_ba
     assert tree_bodies[0]["base_tree"] == "resolved-tree-sha"
 
 
+async def test_github_driver_apply_branch_protection_puts_protection_rules() -> None:
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.url.path, json.loads(request.content)))
+        assert request.method == "PUT"
+        return httpx.Response(200, json={})
+
+    driver = GitHubDriver(client=_mock_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="acme/weave-acme-corp",
+        url="https://github.com/acme/weave-acme-corp",
+        default_branch="main",
+    )
+
+    await driver.apply_branch_protection(repo, token=_FAKE_GH)
+
+    assert calls[0][0] == "/repos/acme/weave-acme-corp/branches/main/protection"
+    assert calls[0][1]["enforce_admins"] is True
+    assert calls[0][1]["required_pull_request_reviews"]["required_approving_review_count"] == 1
+
+
+async def test_github_driver_apply_branch_protection_raises_auth_error_on_403() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={"message": "Forbidden"})
+
+    driver = GitHubDriver(client=_mock_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="acme/weave-acme-corp",
+        url="https://github.com/acme/weave-acme-corp",
+        default_branch="main",
+    )
+
+    with pytest.raises(AuthError):
+        await driver.apply_branch_protection(repo, token="bad")
+
+
 def _gitlab_client(handler: httpx.MockTransport) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=handler, base_url="https://gitlab.com/api/v4")
 
@@ -335,3 +372,35 @@ async def test_gitlab_driver_commit_workspace_creates_branch_via_start_branch(
     assert body["actions"] == [
         {"action": "create", "file_path": "openapi.yaml", "content": "openapi: 3.1.0\n"}
     ]
+
+
+async def test_gitlab_driver_apply_branch_protection_posts_protected_branch() -> None:
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v4/projects/42/protected_branches"
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(201, json={"name": "main"})
+
+    driver = GitLabDriver(client=_gitlab_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="42", url="https://gitlab.com/acme/weave-acme-corp", default_branch="main"
+    )
+
+    await driver.apply_branch_protection(repo, token=_FAKE_GL)
+
+    assert captured["body"]["name"] == "main"
+    assert captured["body"]["push_access_level"] == 40
+
+
+async def test_gitlab_driver_apply_branch_protection_raises_auth_error_on_401() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"message": "401 Unauthorized"})
+
+    driver = GitLabDriver(client=_gitlab_client(httpx.MockTransport(handler)))
+    repo = RepoHandle(
+        repo_id="42", url="https://gitlab.com/acme/weave-acme-corp", default_branch="main"
+    )
+
+    with pytest.raises(AuthError):
+        await driver.apply_branch_protection(repo, token="bad")
