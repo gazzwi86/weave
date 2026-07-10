@@ -73,7 +73,9 @@ export function ProjectSettingsPanel({
           <PinUpgradeSection projectId={projectId} canManage={settings.canManage} />
         </>
       )}
-      {tab === "Connections" && <BindingSlots />}
+      {tab === "Connections" && (
+        <BindingSlots projectId={projectId} canManage={settings.canManage} />
+      )}
       {tab === "Contributors" && (
         <ContributorsTab projectId={projectId} canManage={settings.canManage} />
       )}
