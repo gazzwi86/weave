@@ -154,3 +154,14 @@ documented `--no-cov` carve-out for the docker integration lane per `docs/standa
 carve-out note already exists on PROJ-013 in qa-project-issues.md). Prioritize before a 4th task hits it —
 recurring drag on backend QA confidence. Not blocking task DONE (functional correctness proven by the docker
 tests; only the % is unmeasurable), but worth fixing at the phase gate or sooner.
+
+## Relocation: happy-path generate E2E → PLAT-V1-TASK-012 (not TASK-011)
+PLAT-V1-TASK-011's intent resolver (`dashboard/intent.py::resolve()`) is an intentional STUB that always raises
+`ProviderUnavailable` — the REAL classifier is PLAT-V1-TASK-012 (Declarative intent→component mapping,
+blocked_by TASK-011). Playwright E2E runs against a live uvicorn, so the in-process `dependency_overrides` fake
+resolver can't reach it → every prompt 503s. So TASK-011's E2E covers only the ACHIEVABLE real path (prompt →
+provider_503 renders correctly in browser — genuine Law-B). **The happy-path E2E (real generation → widget
+fills → GET /api/dashboard/widgets?scope=user asserts the new suggested=false row) is RELOCATED to
+PLAT-V1-TASK-012's brief** — when TASK-012 (real resolver) is built, its engineer MUST include this happy-path
+E2E. Per never-delete-descoped-briefs: relocated, not dropped. Coordinator-approved option A (avoids
+fake-resolver theater; keeps Law B honest).
