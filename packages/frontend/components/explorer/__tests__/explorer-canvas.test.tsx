@@ -52,6 +52,8 @@ describe("ExplorerCanvas", () => {
         collapseNode: vi.fn(),
         hasExpandedNeighbours: vi.fn(() => false),
         applyFilterVisibility: vi.fn(),
+        addLayerNodes: vi.fn(() => []),
+        removeElements: vi.fn(),
       },
     });
 

@@ -73,6 +73,14 @@ export interface RendererAdapter {
    * every node not listed is shown / restored to full opacity, so a toggle
    * "back on" is just re-applying with a smaller set. */
   applyFilterVisibility(visibility: FilterVisibility, dimOpacity: number): void;
+  /** TASK-020 AC-6: adds governed-layer nodes/edges, skipping any element
+   * already on the canvas (a layer node may coincide with a base-graph
+   * node) -- returns the ids actually added, so the caller can track
+   * exactly what a later `removeElements` should undo. */
+  addLayerNodes(elements: CytoscapeElement[]): string[];
+  /** TASK-020 AC-6: removes elements by id (layer toggle-off). No-op for
+   * an id not currently on the canvas. */
+  removeElements(ids: string[]): void;
 }
 
 export interface FilterVisibility {
@@ -182,6 +190,19 @@ function applySpotlight(cy: AdaptableCy, nodeId: string, dimOpacity: number): bo
 function applyHighlight(cy: AdaptableCy, nodeIds: string[], dimOpacity: number): void {
   cy.elements().style({ opacity: dimOpacity });
   nodeIds.forEach((nodeId) => cy.getElementById(nodeId).style({ opacity: 1 }));
+}
+
+// TASK-020 AC-6: dedupe against what's already on the canvas (a layer node
+// may coincide with a base-graph node) before adding.
+function addLayerNodesOn(cy: AdaptableCy, elements: CytoscapeElement[]): string[] {
+  const newElements = elements.filter((el) => cy.getElementById(el.data.id).length === 0);
+  if (newElements.length > 0) cy.add(newElements);
+  return newElements.map((el) => el.data.id);
+}
+
+function removeElementsOn(cy: AdaptableCy, ids: string[]): void {
+  const idSet = new Set(ids);
+  cy.remove(cy.elements().filter((el) => idSet.has(el.id())));
 }
 
 /** TASK-020 AC-1/AC-3/AC-4/AC-7: one batched pass -- hide/show operate on
@@ -379,6 +400,12 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     hasExpandedNeighbours(nodeId) {
       return hasExpandedNeighboursOn(cy, nodeId);
+    },
+    addLayerNodes(elements) {
+      return addLayerNodesOn(cy, elements);
+    },
+    removeElements(ids) {
+      removeElementsOn(cy, ids);
     },
   };
 }
