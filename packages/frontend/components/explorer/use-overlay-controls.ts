@@ -8,6 +8,16 @@ import { createDomainColouringOverlay } from "@/lib/explorer/overlays/domain-col
 import { createHeatmapOverlay } from "@/lib/explorer/overlays/heatmap-overlay";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
+declare global {
+  interface Window {
+    /** Playwright-only introspection hook (AC-5 perf spec) -- mirrors
+     * use-filter-panel.ts's __explorerFilterApplyDurationMs: wall-clock ms
+     * of the single engine.activate/deactivate call a toggle triggers.
+     * Dev-only, never in production. */
+    __explorerOverlayApplyDurationMs?: number;
+  }
+}
+
 export interface OverlayToggle {
   id: string;
   label: string;
@@ -70,6 +80,7 @@ export function useOverlayControls({ adapter, config }: UseOverlayControlsOption
   const toggleOverlay = useCallback(
     (id: string) => {
       if (!adapter) return;
+      const startedAt = performance.now();
       if (engine.isActive(id)) {
         engine.deactivate(id, adapter);
       } else {
@@ -77,6 +88,9 @@ export function useOverlayControls({ adapter, config }: UseOverlayControlsOption
         if (!entry) return;
         engine.activate(entry.overlay, adapter);
       }
+      // AC-5 perf trace -- dev-only, see the __explorerOverlayApplyDurationMs
+      // hook doc comment above.
+      if (process.env.NODE_ENV !== "production") window.__explorerOverlayApplyDurationMs = performance.now() - startedAt;
       forceRender();
     },
     [adapter, engine, overlays]
