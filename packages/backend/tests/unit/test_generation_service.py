@@ -99,6 +99,7 @@ class _FakeDriver:
         self.commit_workspace = AsyncMock(return_value="sha-123")
         self.apply_branch_protection = AsyncMock()
         self.commit_files = AsyncMock(return_value="sha-123")
+        self.read_file = AsyncMock(return_value=None)
 
 
 class _Response:

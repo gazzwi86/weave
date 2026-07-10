@@ -89,6 +89,9 @@ class _FakeDriver:
     ) -> str:
         return "sha-fake"
 
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        return None
+
 
 def _deps(
     *, token: str | None = _FAKE_TOKEN, driver: _FakeDriver | None = None

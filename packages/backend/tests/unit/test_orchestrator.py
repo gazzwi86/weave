@@ -37,6 +37,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import handle_agent_result
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed
 from weave_backend.repo_bootstrap.service import RepoBootstrapDeps
 from weave_backend.schemas.tasks import DispatchUsage, TypedResult
@@ -99,21 +100,60 @@ class _FakeConnection:
         self.executed.append((query, args))
 
 
-def _repo_deps() -> RepoBootstrapDeps:
-    # Never reached: `_REPO_ROW` already has a full repo handle, so
-    # `ensure_project_repo` takes the idempotent short-circuit (AC-3 of
-    # TASK-010) before touching get_secret/driver_for.
-    async def _unreachable_secret(_ref: str) -> str | None:
-        raise AssertionError("get_secret should not be called (existing repo row)")
+class _NoAnatomyDriver:
+    """`_repo_deps()`'s `driver_for` stub -- `ensure_project_repo` never
+    reaches it (see below), but TASK-009/AC-2's `load_task_context` does,
+    on every dispatch cycle. No `ANATOMY.md` committed -- `read_file`
+    returns `None`, leaving `task.context` untouched (harmless no-op for
+    the many pre-existing tests that don't care about anatomy loading).
+    Every other `ScmDriver` member is a `NotImplementedError` stub purely
+    to satisfy the structural type -- none is reachable here (same
+    convention as `test_rich_scaffold.py`'s `_FakeDriver`).
+    """
 
-    def _unreachable_driver(_provider: str) -> Any:
-        raise AssertionError("driver_for should not be called (existing repo row)")
+    async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+        raise NotImplementedError
+
+    async def write_initial_commit(
+        self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+    ) -> None:
+        raise NotImplementedError
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        raise NotImplementedError
+
+    async def commit_files(
+        self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        return None
+
+
+def _repo_deps() -> RepoBootstrapDeps:
+    # `ensure_project_repo`/`rich_scaffold`'s own SCM calls (create_repo
+    # et al.) are never reached: `_REPO_ROW` already has a full repo
+    # handle, so `ensure_project_repo` takes the idempotent short-circuit
+    # (AC-3 of TASK-010) before touching them. `load_task_context`
+    # (TASK-009/AC-2) DOES reach `get_secret`/`driver_for` though, on
+    # every dispatch cycle -- both return harmless no-op values.
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    def _fake_driver(_provider: str) -> _NoAnatomyDriver:
+        return _NoAnatomyDriver()
 
     async def _noop_audit(_conn: Any, _event: Any) -> None:
         return None
 
     return RepoBootstrapDeps(
-        get_secret=_unreachable_secret, driver_for=_unreachable_driver, emit_audit=_noop_audit
+        get_secret=_fake_secret, driver_for=_fake_driver, emit_audit=_noop_audit
     )
 
 
@@ -389,30 +429,75 @@ async def test_hold_task_in_ready_when_predecessor_summary_missing() -> None:
     assert task.hold_reason == "dep_summary_missing"
 
 
-@pytest.mark.xfail(
-    reason="TASK-009/AC-2 not implemented -- see QA failure report (crux completeness gap)",
-    strict=True,
-)
 async def test_ac2_anatomy_loaded_into_task_context_before_delegate() -> None:
-    """TASK-009/AC-2 (QA gap-pinning red test -- see QA failure report): the
-    task brief's pseudocode has PLAN read the repo's `ANATOMY.md` via
-    `scm_driver.read` and prepend it to `task.context` before DELEGATE, so
-    the delegate agent loads context instead of re-discovering it. Neither
-    `TaskState` nor `default_dispatch_pdac` carries any anatomy/context
-    channel today -- `load_task_context` was never implemented. This test
-    pins the gap so a real fix turns it green instead of the gap being
-    silently reintroduced.
+    """AC-2: `should load anatomy into task context before delegate` --
+    `_dispatch_one` calls `load_task_context` (task brief pseudocode)
+    before `dispatch_pdac_fn` (the PLAN->DELEGATE->ASSESS->CODIFY cycle),
+    so a `scm_driver.read` hit on the repo's `ANATOMY.md` lands in
+    `task.context` before DELEGATE ever runs -- not just that the field
+    exists, but that real content flows through it.
     """
+    anatomy_md = "# Repository Anatomy\n\n| Area | Files | Wiki |\n|---|---|---|\n"
+
+    class _AnatomyDriver:
+        """Only `read_file` is reachable via `load_task_context` -- the rest
+        are `NotImplementedError` stubs purely to satisfy `ScmDriver`."""
+
+        async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+            raise NotImplementedError
+
+        async def write_initial_commit(
+            self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+        ) -> None:
+            raise NotImplementedError
+
+        async def commit_workspace(
+            self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+        ) -> str:
+            raise NotImplementedError
+
+        async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+            raise NotImplementedError
+
+        async def commit_files(
+            self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+        ) -> str:
+            raise NotImplementedError
+
+        async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+            assert path == "ANATOMY.md"
+            return anatomy_md
+
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    async def _noop_audit(_conn: Any, _event: Any) -> None:
+        return None
+
+    seen_context: list[str] = []
+
+    async def _capture_context(
+        _conn: Any, *, tenant_id: str, project_iri: str, task: TaskState
+    ) -> tuple[TypedResult, Any]:
+        seen_context.extend(task.context)
+        return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
     task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
     conn = _FakeConnection(dep_summary_row={"task_id": "t1"})
-
-    await default_dispatch_pdac(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task)
-
-    assert hasattr(task, "context"), (
-        "AC-2: TaskState has no field to carry the repo's ANATOMY.md content "
-        "into the DELEGATE prompt -- load_task_context (task brief pseudocode) "
-        "is unimplemented"
+    deps = OrchestratorDeps(
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_fake_secret,
+            driver_for=lambda _provider: _AnatomyDriver(),
+            emit_audit=_noop_audit,
+        ),
+        dispatch_pdac_fn=_capture_context,
     )
+
+    await _dispatch_one(conn, spine, task, tenant_id=_TENANT, deps=deps)
+
+    assert task.context == [anatomy_md]
+    assert seen_context == [anatomy_md], "AC-2: DELEGATE must see the anatomy already loaded"
 
 
 def test_next_ready_task_skips_held_task() -> None:
