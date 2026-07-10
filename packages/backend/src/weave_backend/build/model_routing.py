@@ -12,12 +12,15 @@ from weave_backend.ai.config import MODEL_ROUTING_TABLE
 
 #: PLAN is judgement-heavy/low-volume (fable); DELEGATE/ASSESS/CODIFY are
 #: generation/volume work (sonnet) -- CLAUDE.md Stack section, mirrored
-#: from the task brief's `MODEL_ROUTING` table.
+#: from the task brief's `MODEL_ROUTING` table. TASK-003 (ADR-005, FR-045):
+#: `investigator` is volume/generation work like DELEGATE/ASSESS/CODIFY --
+#: never a hardcoded model literal at the dispatch site.
 ROLE_TIER: dict[str, str] = {
     "plan": "fable",
     "delegate": "sonnet",
     "assess": "sonnet",
     "codify": "sonnet",
+    "investigator": "sonnet",
 }
 
 #: Never a hand-copied model-id set -- derived from the one place
