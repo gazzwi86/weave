@@ -464,19 +464,28 @@ async def test_should_leave_repo_and_bookkeeping_unchanged_on_failure(
     assert run.status == "failed"
 
 
+@pytest.mark.xfail(
+    reason=(
+        "QA-TASK-005-1: ADR-006 Sec3 promises 'nothing lands' / no desync between the SCM "
+        "commit and projects bookkeeping -- but _generate_and_commit's fail-closed except "
+        "block (sdk_commit.py L98-106) only wraps generate_sdk + _commit_generated_sdk. A "
+        "failure in the bookkeeping update that runs AFTER a successful commit_workspace is "
+        "NOT caught: it propagates uncaught, the commit has already landed, and the run is "
+        "left stuck (never marked failed). Desired fix: extend the try/except to also cover "
+        "the post-commit bookkeeping transaction, and record commit_sha in the failure "
+        "payload so an orphaned commit is discoverable. Remove this marker once fixed."
+    ),
+    strict=True,
+)
 async def test_bookkeeping_failure_after_successful_commit_leaves_run_unresolved(
     platform_stack: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Edge case (not in the AC-6 test mapping, which only pokes a
-    pre-commit pipeline failure): `_generate_and_commit`'s fail-closed
-    `except Exception` block only wraps `generate_sdk` + `_commit_generated_sdk`
-    (sdk_commit.py L98-106). A failure raised by the bookkeeping update that
-    runs AFTER a successful `commit_workspace` is NOT caught, so it propagates
-    uncaught out of `run_sdk_generation` -- the run is left at whatever status
-    it had before this call (never `failed`), `projects.last_sdk_version_iri`
-    is never updated, yet the SCM commit already landed. This documents the
-    current (imperfect) behaviour so a future fix has a red test to turn
-    green -- see QA report for TASK-005.
+    pre-commit pipeline failure): pins the DESIRED behaviour -- a failure in
+    the bookkeeping step that runs after a successful `commit_workspace`
+    should still resolve the run to `failed` (with the orphaned `commit_sha`
+    recorded), matching ADR-006 Sec3's no-desync guarantee. Currently xfails;
+    see QA report for TASK-005 (finding QA-TASK-005-1).
     """
     tenant_id = _unique_tenant("bookkeeping-fail")
     project_iri = await _seed_project(
@@ -501,25 +510,24 @@ async def test_bookkeeping_failure_after_successful_commit_leaves_run_unresolved
 
     monkeypatch.setattr(sdk_commit, "update_project_sdk_generation", _poisoned_bookkeeping)
 
-    with pytest.raises(RuntimeError, match="db connection dropped post-commit"):
-        await sdk_trigger.run_sdk_generation(
-            tenant_id=tenant_id, run_id="gen-bookkeeping-fail", project_iri=project_iri,
-            deps=_repo_deps(driver),
-        )
+    # Desired: run_sdk_generation swallows the post-commit bookkeeping error
+    # the same way it swallows a pre-commit pipeline error -- it must not
+    # propagate uncaught.
+    await sdk_trigger.run_sdk_generation(
+        tenant_id=tenant_id, run_id="gen-bookkeeping-fail", project_iri=project_iri,
+        deps=_repo_deps(driver),
+    )
 
-    # The commit already landed -- the repo is NOT left unchanged, contrary
-    # to AC-6's literal wording ("leave the repo... unchanged"). This is the
-    # gap: AC-6 as coded only holds for pre-commit failures.
+    # The commit already landed (git has no rollback) -- but ADR-006 Sec3's
+    # no-desync promise means the run must still resolve to "failed" with the
+    # orphaned commit_sha recorded, not vanish into a stuck "running" state.
     assert len(driver.commits) == 1
 
     async with tenant_connection(tenant_id) as conn:
-        project = await get_project(conn, tenant_id=tenant_id, project_iri=project_iri)
         run = await get_sdk_run(conn, tenant_id=tenant_id, run_id="gen-bookkeeping-fail")
-    assert project is not None
-    assert project.last_sdk_version_iri is None  # bookkeeping never landed
-    assert project.sdk_generation_count == 0
     assert run is not None
-    assert run.status == "running"  # never advanced to "failed" -- stuck
+    assert run.status == "failed"
+    assert run.payload.get("commit_sha")  # orphaned commit must be discoverable
 
 
 async def test_should_return_latest_generation_status(client: AsyncClient) -> None:
