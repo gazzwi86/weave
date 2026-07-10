@@ -363,6 +363,51 @@ async def test_ingest_jobs_and_proposals_are_invisible_cross_tenant(
         await clear_graph(prov_graph_iri(workspace_a.named_graph_iri))
 
 
+async def test_proposals_beyond_fifty_are_reachable_via_the_list_endpoint(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-001-04: 'paginated proposal rows' must mean every proposal is
+    reachable, not just the first 50 -- `list_proposals_for_job`'s
+    `limit=50` default is never overridden nor exposed as a router query
+    param, so a job with 51+ proposals would silently hide the tail from
+    every reviewer with no cursor/`has_more` signal that truncation
+    happened. QA edge case added for TASK-012 (Category 5).
+    """
+    tenant_id = _unique_tenant("ingest-page")
+    workspace = await _make_workspace(tenant_id, label="ingest")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, workspace=workspace, user_sub="u-author", role="author"
+    )
+    ops: list[dict[str, object]] = [
+        {"op": "add_node", "ref": "p1", "kind": "Process", "label": "Invoicing"}
+    ]
+    proposal_count = 51
+
+    async with tenant_connection(tenant_id) as conn:
+        job_id = await insert_job(
+            conn,
+            NewJob(
+                tenant_id=tenant_id, workspace_id=workspace.id,
+                artefact_iri="urn:weave:instances:artefact-pagination-fixture", kind="doc",
+            ),
+        )
+        for _ in range(proposal_count):
+            await insert_proposal(
+                conn, NewProposal(tenant_id=tenant_id, job_id=job_id, ops=ops, confidence=0.9)
+            )
+
+    response = await client.get(f"/api/ingest/jobs/{job_id}/proposals", headers=headers)
+
+    assert response.status_code == 200
+    returned = response.json()["proposals"]
+    assert len(returned) == proposal_count, (
+        f"only {len(returned)}/{proposal_count} proposals reachable -- "
+        "list_proposals_route never overrides list_proposals_for_job's limit=50 default nor "
+        "exposes a pagination query param, so proposals past #50 are permanently invisible to "
+        "any reviewer (AC-001-04 'paginated proposal rows')"
+    )
+
+
 async def test_ingest_tables_rls_backstop_blocks_unscoped_select(
     platform_stack: Path,
 ) -> None:
