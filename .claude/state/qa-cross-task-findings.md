@@ -287,3 +287,12 @@ run failed via fresh conn + records commit_sha. strict-xfail proof test flipped 
   invisible (unreviewable/unacceptable). Summary counts are correct (unbounded query), so the gap is silent.
 - **Fix (retry-1):** surface limit/cursor query params on the route + has_more/total on the response schema.
   Store layer already has the params; router just never surfaced them (incomplete wiring, not a design gap).
+
+### XT-PLAT010-2 — fix path CLARIFIED (2026-07-11)
+plat011-eng3 confirmed the Playwright infra spins a REAL uvicorn backend (:8000 health-gated) + mock-OIDC
+(:9001) via `playwright.config.ts` webServer — NOT docker/mocked. `dashboard-widgets.spec.ts` already runs
+against it. So the fix for XT-PLAT010-2 is NOT a new interception layer: DROP the `page.route()` mock of
+`GET /api/dashboard/widgets` (which fails because DashboardPage is a Server Component — SSR fetch, not browser),
+and assert against the REAL seeded backend (seed widgets, load /dashboard, assert the real tiles render).
+Same real-backend pattern TASK-011's `test_prompt_to_widget_stream` uses (generate → GET widgets → assert).
+Still an EPIC-001-close blocker (ui_verify --full); now a straightforward rewrite, not a test-arch overhaul.
