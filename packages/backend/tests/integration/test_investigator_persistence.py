@@ -29,7 +29,7 @@ pytestmark = [
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
 
-_RAW_SUBGRAPH = "RAW SUBGRAPH CONTENT " * 200  # stands in for what must never leak out
+_RAW_SUBGRAPH = "RAW SUBGRAPH CONTENT " * 90  # ~1980 chars: under the 500-token/2000-char cap
 
 
 def _unique_tenant(label: str) -> str:
