@@ -21,6 +21,7 @@ from weave_backend.briefs.store import get_task_brief
 from weave_backend.generation.engineer_agent import build_generation_prompt, generate_workspace
 from weave_backend.generation.gates import GATE_PIPELINE, GateFailure, GateResult
 from weave_backend.generation.store import NewGenerationRun, insert_generation_run
+from weave_backend.pm.bindings import get_all as get_bindings
 from weave_backend.projects.model import get_project
 from weave_backend.repo_bootstrap.drivers import RepoHandle, ScmDriver, get_scm_driver
 from weave_backend.repo_bootstrap.secrets import get_scm_token
@@ -193,6 +194,20 @@ async def _load_standards_addendum(
     return addendum
 
 
+async def _load_external_bindings(
+    conn: asyncpg.Connection, ctx: GenerationContext
+) -> list[dict[str, str]]:
+    """AC-6: refs only (system/space_ref/connector_ref) -- never
+    credentials, delivery stays Platform-owned. No bindings is a normal
+    state (empty list), not an error.
+    """
+    bindings = await get_bindings(conn, tenant_id=ctx.tenant_id, project_iri=ctx.project_iri)
+    return [
+        {"system": b.system, "space_ref": b.space_ref, "connector_ref": b.connector_ref}
+        for b in bindings
+    ]
+
+
 async def generate_app(
     conn: asyncpg.Connection, ctx: GenerationContext, deps: GenerationDeps = DEFAULT_DEPS
 ) -> dict[str, object]:
@@ -211,10 +226,12 @@ async def generate_app(
     # 503 mapping, generation never proceeds without graph context.
     bpmo = await get_bpmo_context(ctx.ce_client, ctx.project_iri)
     addendum = await _load_standards_addendum(conn, ctx)
+    external_bindings = await _load_external_bindings(conn, ctx)
     bpmo = {
         **bpmo,
         "standards_section": addendum.standards_section,
         "stack_pins": addendum.stack_pins,
+        "external_bindings": external_bindings,
     }
 
     repo_row = _require_bootstrapped_repo(

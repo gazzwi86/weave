@@ -27,6 +27,7 @@ from weave_backend.generation.service import (
     ProjectNotFoundError,
     generate_app,
 )
+from weave_backend.pm.bindings import Binding
 from weave_backend.projects.model import Project
 from weave_backend.repo_bootstrap.store import ProjectRepoRow
 from weave_backend.standards.models import StandardRecord
@@ -317,6 +318,62 @@ async def test_generate_app_injects_stack_pins_into_generation_context(
 
     assert calls[0]["bpmo"]["stack_pins"] == {"frontend": "nextjs"}
     assert "frontend_framework" in calls[0]["prompt"]
+
+
+async def test_generate_app_exposes_external_bindings_in_run_context() -> None:
+    """AC-6 (TASK-022): the project's bound external spaces (system + refs,
+    never credentials) are folded into the bpmo run context so agents know
+    *where* to target -- delivery itself stays Platform-owned.
+    """
+    calls: list[dict[str, Any]] = []
+    deps, _ = _deps(calls=calls)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    binding = Binding(
+        binding_id="b-1",
+        project_iri="urn:weave:project:t1:acme",
+        system="jira",
+        connector_ref="jira-1",
+        space_ref="ACME",
+        created_by="urn:weave:principal:user:admin-1",
+        created_at=datetime(2026, 7, 1, tzinfo=UTC),
+    )
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
+        patch(f"{_MODULE}.get_bindings", AsyncMock(return_value=[binding])),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+    ):
+        await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert calls[0]["bpmo"]["external_bindings"] == [
+        {"system": "jira", "space_ref": "ACME", "connector_ref": "jira-1"}
+    ]
+
+
+async def test_generate_app_external_bindings_empty_when_none_bound() -> None:
+    """No bindings is a normal state, not an error -- an empty list, not a
+    missing key or an exception.
+    """
+    calls: list[dict[str, Any]] = []
+    deps, _ = _deps(calls=calls)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.get_bpmo_context", AsyncMock(return_value={"entity_kinds": ["widget"]})),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.load_effective_standards", AsyncMock(return_value=([], []))),
+        patch(f"{_MODULE}.get_bindings", AsyncMock(return_value=[])),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+    ):
+        await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert calls[0]["bpmo"]["external_bindings"] == []
 
 
 async def test_generate_app_falls_back_to_demo_default_for_conflicting_stack_pin_axis(
