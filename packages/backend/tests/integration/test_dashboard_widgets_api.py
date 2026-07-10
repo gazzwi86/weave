@@ -371,3 +371,42 @@ async def test_widget_state_cross_tenant_isolation(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200
     assert resp.json()["widgets"] == []
+
+
+async def test_stale_bound_renders_on_read_for_user_scope_starters(client: AsyncClient) -> None:
+    """QA edge case (re-QA, AC-7 clause 2): the retry-1 fix wired
+    `derive_status` into `list_widgets_route` for every row it returns, but
+    the only proof on file (`test_stale_bound_renders_on_read_without_...`)
+    exercises `scope=tenant_default` tiles. `scope=user` starter rows go
+    through the exact same `_to_widget_out` helper -- confirm the age bound
+    also fires there, not just for the fixed default tiles.
+    """
+    tenant_id = _unique_tenant("dash-stale-read-user")
+    owner_iri = human_principal_iri("u-stale-read-user")
+    tokens = await issue_token_pair(sub="u-stale-read-user", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        widget_id = rows[0].id
+        # Same 20-minutes-ago simulation as the tenant_default proof --
+        # default refresh_interval_s is 300s, so this is well past the 2x
+        # (10 min) staleness bound.
+        await conn.execute(
+            "UPDATE widget_instances SET last_result = '4'::jsonb, status = 'fresh',"
+            " fetched_at = now() - interval '20 minutes' WHERE id = $1",
+            widget_id,
+        )
+
+    resp = await client.get(
+        "/api/dashboard/widgets",
+        params={"scope": "user"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 200
+    widget = next(w for w in resp.json()["widgets"] if w["id"] == widget_id)
+    assert widget["status"] == "stale"
