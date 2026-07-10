@@ -59,3 +59,15 @@ Core/config/token: c385cde 47865e0 40ec91c ef12af6 05f12a2 a841275 · hook/panel
 ## Dependencies unlocked (within EPIC-016)
 
 TASK-028 (blocked_by TASK-021) — next in EPIC-016.
+
+## QA PASS (2026-07-11, retry 0) — TASK-021 CLOSES
+
+task021-qa PASS, clean first pass. 7/7 ACs verified against running code (D-1 shell reuse confirmed REAL by
+source read — CanvasLegend `overlay` prop renders 2nd section in same glass panel; RendererAdapter EXTENDED with
+applyNodeColours/clearNodeColours delegating to renderer-adapter-colour.ts, NOT forked). 688/688 Vitest, tsc
+clean, eslint 0 errors, coverage all files 96.5-100%. Token grep clean (zero hex/px in the 7 files). axe-clean
+(2 real scans). Edge test `aa91506` (zero domain-membership edges). E2E deferred to epic-close ui_verify
+(sandbox timeout reproduces on merged TASK-020 baseline — infra, endorsed).
+Non-blocking: (1) disabled-toggle a11y nit — native `disabled` removes from tab order contra the comment;
+PRE-EXISTING (mirrors filter-panel.tsx LayerToggleList), not a WCAG fail (disabled exempt), fix = aria-disabled
+→ logged follow-up; (2) PO honesty — heatmap all-grey until vocab+key_properties land (accepted gaps).

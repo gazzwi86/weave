@@ -296,3 +296,20 @@ against it. So the fix for XT-PLAT010-2 is NOT a new interception layer: DROP th
 and assert against the REAL seeded backend (seed widgets, load /dashboard, assert the real tiles render).
 Same real-backend pattern TASK-011's `test_prompt_to_widget_stream` uses (generate → GET widgets → assert).
 Still an EPIC-001-close blocker (ui_verify --full); now a straightforward rewrite, not a test-arch overhaul.
+
+## XT-CE-KEYPROPS-1 — CE-READ-1 bulk graph load carries no key_properties (blocks real property/heatmap data)
+- **Severity:** Major (feature-latent) · **Status:** OPEN — formalized per aggregation rule (2 tasks hit it: TASK-020, TASK-021)
+- **Affects:** CE-V1-TASK-020 (property filters ship data-latent), CE-V1-TASK-021 (heatmap all-grey until it lands),
+  + any future Explorer feature needing per-node property values.
+- **Symptom:** `map-rows-to-elements.ts` only sets id/label/bpmo_kind at bulk graph load; `key_properties` is
+  lazy-fetched per-node on click, never in the bulk CE-READ-1 SPARQL rows. So property filters + heatmap value
+  colouring have no data to act on end-to-end — mechanism proven, user payoff not live.
+- **Fix:** plumb a BOUNDED key_properties set into the bulk graph-load query over CE-READ-1 (10k-node perf-sensitive
+  — bound it). Its own CE task (out of scope for a filters/overlay panel task).
+
+## A11Y-FILTERPANEL-1 — disabled toggles unreachable by keyboard (aria-disabled swap)
+- **Severity:** Minor (a11y polish, not WCAG-AA fail) · **Status:** OPEN · **Owner:** filter-panel.tsx origin (predates TASK-021)
+- `overlay-panel.tsx` OverlayToggleRow + `filter-panel.tsx` LayerToggleList (:169) use native HTML `disabled`,
+  which removes the control from tab order — so the mutual-exclusion tooltip never reaches keyboard/SR users
+  (the code comment wrongly claims it stays focusable). Not a WCAG-AA failure (disabled controls are exempt),
+  axe doesn't flag it. Fix: swap `disabled` → `aria-disabled="true"` on both to keep the sibling focusable.
