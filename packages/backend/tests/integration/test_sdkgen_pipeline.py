@@ -64,6 +64,7 @@ _FUNCTION_SCHEMAS = {
 _TOKENS = {"color": {"bg": "#0a0a0a"}, "typography": {}, "spacing": {}, "radius": {}}
 
 _POISONED_TEMPLATES_DIR = Path(__file__).parent / "fixtures" / "sdkgen_poisoned_templates"
+_GOLDEN_DIR = Path(__file__).parent / "fixtures" / "sdkgen_golden"
 
 
 def _handler(
@@ -102,14 +103,15 @@ def _tree_files(root: Path) -> dict[str, bytes]:
     }
 
 
-def test_generate_sdk_emits_identical_sdk_for_identical_pinned_inputs() -> None:
-    """AC-1: two runs against the same pinned CE inputs produce byte-
-    identical staging trees (golden-file discipline -- run twice, diff).
+def test_generate_sdk_matches_committed_golden_fixture() -> None:
+    """AC-1: pinned CE inputs emit a staging tree byte-identical to the
+    committed golden fixture (tests/integration/fixtures/sdkgen_golden/) --
+    catches template regressions that two live runs, being equally
+    regressed, would not.
     """
-    first = generate_sdk(_PIN, _stub_client())
-    second = generate_sdk(_PIN, _stub_client())
+    staging = generate_sdk(_PIN, _stub_client())
 
-    assert _tree_files(first) == _tree_files(second)
+    assert _tree_files(staging) == _tree_files(_GOLDEN_DIR)
 
 
 def test_generate_sdk_emits_one_typed_method_per_registry_function() -> None:
