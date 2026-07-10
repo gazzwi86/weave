@@ -80,7 +80,7 @@ def _request(key: str) -> ApplyRequest:
 async def test_concurrent_replays_apply_the_mutation_exactly_once(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
@@ -116,7 +116,7 @@ async def test_concurrent_replays_of_a_violating_batch_return_422_not_500(
     reconstruct as `ApplyResponse`, and 500. Violations must be cached too,
     and reconstructed as `ViolationsResponse` on replay.
     """
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
 
     redis_client = FakeRedis()

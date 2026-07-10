@@ -57,7 +57,7 @@ async def test_apply_against_a_published_version_target_raises_published_target_
         pipeline, "get_version", AsyncMock(return_value=_published_version())
     )
     fetch_spy = AsyncMock(return_value="")
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", fetch_spy)
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", fetch_spy)
 
     with pytest.raises(pipeline.PublishedTargetError):
         await pipeline.apply_operations_request(
@@ -83,7 +83,7 @@ async def test_apply_against_a_draft_version_target_is_unaffected(
         workspace_id="w1",
     )
     monkeypatch.setattr(pipeline, "get_version", AsyncMock(return_value=draft_version))
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.3.0", "0.3.0"))
     )

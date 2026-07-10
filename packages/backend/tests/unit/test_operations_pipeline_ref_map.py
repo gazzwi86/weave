@@ -36,7 +36,7 @@ def ctx() -> pipeline.ApplyContext:
 async def test_apply_response_returns_the_real_minted_iri_for_every_ref(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))

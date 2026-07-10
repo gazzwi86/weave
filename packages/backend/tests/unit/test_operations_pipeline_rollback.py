@@ -71,7 +71,7 @@ async def test_warning_only_batch_commits_with_advisories_populated(
     *pipeline* actually commits a Warning/Info-only batch and surfaces the
     advisories in the response, rather than treating any non-empty result
     list as blocking."""
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
@@ -102,7 +102,7 @@ async def test_mixed_violation_and_warning_batch_still_blocks_commit(
     still 422 (discard the scratch graph) if it trips even one Violation --
     the presence of a Warning must never demote a Violation to "advisory
     only, commit anyway" (AC-001-02 wins over AC-001-03 when both fire)."""
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     load_graph_spy = AsyncMock()
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
@@ -126,7 +126,7 @@ async def test_mixed_violation_and_warning_batch_still_blocks_commit(
 async def test_shacl_violation_never_writes_to_oxigraph(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     load_graph_spy = AsyncMock()
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
@@ -140,7 +140,7 @@ async def test_shacl_violation_never_writes_to_oxigraph(
 async def test_failure_writing_version_snapshot_leaves_working_graph_untouched(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=CANARY_TURTLE))
     load_graph_spy = AsyncMock(side_effect=ConnectionError("oxigraph unreachable"))
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(
@@ -159,7 +159,7 @@ async def test_failure_promoting_working_graph_leaves_it_at_pre_request_state(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
     load_graph_spy = AsyncMock(side_effect=[None, ConnectionError("oxigraph unreachable")])
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=CANARY_TURTLE))
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
@@ -189,7 +189,7 @@ async def test_failure_writing_prov_activity_leaves_working_graph_unpromoted(
     roll it back. It must now run, and fail, before promotion is ever
     attempted."""
     load_graph_spy = AsyncMock()
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=CANARY_TURTLE))
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
@@ -214,7 +214,7 @@ async def test_failure_enqueueing_audit_event_leaves_working_graph_unpromoted(
     same-transaction outbox insert, not the real hash-chain emit -- but it
     must still run, and fail, before promotion (AC-001-10 unchanged)."""
     load_graph_spy = AsyncMock()
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=CANARY_TURTLE))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=CANARY_TURTLE))
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
@@ -243,7 +243,7 @@ async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one
     principal (`ctx.principal_iri`) instead; the claimed actor is only kept
     as secondary context in the audit payload.
     """
-    monkeypatch.setattr(pipeline, "fetch_graph_turtle", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
     monkeypatch.setattr(
         pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
