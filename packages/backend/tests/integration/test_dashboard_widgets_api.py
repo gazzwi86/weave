@@ -165,6 +165,39 @@ async def test_refresh_failure_sets_stale_retains_payload(client: AsyncClient) -
     assert row.last_result == 4
 
 
+async def test_stale_bound_renders_on_read_without_failed_refresh(client: AsyncClient) -> None:
+    """QA edge case (AC-7 clause 2): "a payload older than 2x refresh_interval_s
+    SHALL render the stale badge even without a failed refresh" is a *read-path*
+    requirement, not just a `derive_status` unit-test fact. A widget written
+    `fresh` that then ages past the 2x bound must come back `stale` from
+    `GET /api/dashboard/widgets` on its own -- nothing ever calls CE again.
+    """
+    tenant_id = _unique_tenant("dash-stale-read")
+    tokens = await issue_token_pair(sub="u-stale-read", tenant_id=tenant_id)
+    async with tenant_connection(tenant_id) as conn:
+        await store.seed_tenant_default_tiles(conn, tenant_id=tenant_id)
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="tenant_default", owner_principal_iri=None
+        )
+        widget_id = rows[0].id
+        # Simulate a fresh write from long ago -- refresh_interval_s defaults
+        # to 300s, so 20 minutes ago is well past the 2x (10 min) bound.
+        await conn.execute(
+            "UPDATE widget_instances SET last_result = '4'::jsonb, status = 'fresh',"
+            " fetched_at = now() - interval '20 minutes' WHERE id = $1",
+            widget_id,
+        )
+
+    resp = await client.get(
+        "/api/dashboard/widgets",
+        params={"scope": "tenant_default"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 200
+    widget = next(w for w in resp.json()["widgets"] if w["id"] == widget_id)
+    assert widget["status"] == "stale"
+
+
 async def test_metrics_error_renders_unavailable_state(client: AsyncClient) -> None:
     """AC-4: a widget with no prior payload that fails its first refresh
     renders `unavailable`, not a 500.
@@ -256,19 +289,68 @@ async def test_delete_other_users_starter_is_not_found(client: AsyncClient) -> N
     assert resp.status_code == 404
 
 
+async def test_refresh_other_users_starter_is_not_found(client: AsyncClient) -> None:
+    """QA edge case (AC-8/IDOR sibling of the delete-route fix): a tenant
+    member must not be able to trigger a refresh -- and thereby mutate
+    `status`/`fetched_at` and observe them -- on another user's private
+    `scope='user'` widget by id-guessing. `delete_widget_route` checks
+    `owner_principal_iri`; `refresh_widget_route` must apply the same
+    owner-only gate, not just tenant scoping.
+    """
+    tenant_id = _unique_tenant("dash-refresh-idor")
+    owner_iri = human_principal_iri("u-refresh-owner")
+    other_tokens = await issue_token_pair(sub="u-refresh-other", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+    widget_id = rows[0].id
+
+    app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
+        {"entity_count_by_kind": {"Process": 4}}
+    )
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/refresh",
+        headers={"Authorization": f"Bearer {other_tokens.access_token}"},
+    )
+    assert resp.status_code == 404
+
+
 async def test_widget_tables_rls_enforced(client: AsyncClient) -> None:
-    """AC-1: `widget_instances` FORCE ROW LEVEL SECURITY bites even with no
-    tenant_id WHERE clause at all -- DB-level backstop, not just app-layer
-    filtering (precedent: test_gates_api.py::test_gate_results_rls_tenant_isolation).
+    """AC-1: FORCE ROW LEVEL SECURITY bites even with no tenant_id WHERE
+    clause at all -- DB-level backstop, not just app-layer filtering
+    (precedent: test_gates_api.py::test_gate_results_rls_tenant_isolation).
+    Covers all three new tables, not just `widget_instances` -- a widget's
+    library-item and refinement rows are exactly as tenant-sensitive as the
+    widget row itself.
     """
     tenant_a = _unique_tenant("dash-rls-a")
     tenant_b = _unique_tenant("dash-rls-b")
     async with tenant_connection(tenant_a) as conn:
         await store.seed_tenant_default_tiles(conn, tenant_id=tenant_a)
+        widget_row = await conn.fetchrow("SELECT id FROM widget_instances LIMIT 1")
+        await conn.execute(
+            "INSERT INTO widget_library_items"
+            " (tenant_id, name, spec, author_principal_iri)"
+            " VALUES ($1, 'Test item', '{}'::jsonb, 'urn:test:author')",
+            tenant_a,
+        )
+        await conn.execute(
+            "INSERT INTO widget_refinements"
+            " (tenant_id, widget_instance_id, step, prompt, spec)"
+            " VALUES ($1, $2, 0, 'test prompt', '{}'::jsonb)",
+            tenant_a,
+            widget_row["id"],
+        )
 
     async with tenant_connection(tenant_b) as conn:
-        rows = await conn.fetch("SELECT id FROM widget_instances")
-    assert rows == []
+        assert await conn.fetch("SELECT id FROM widget_instances") == []
+        assert await conn.fetch("SELECT id FROM widget_library_items") == []
+        assert await conn.fetch("SELECT id FROM widget_refinements") == []
 
 
 async def test_widget_state_cross_tenant_isolation(client: AsyncClient) -> None:
