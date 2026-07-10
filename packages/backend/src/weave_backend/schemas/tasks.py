@@ -25,12 +25,23 @@ class DispatchUsage(BaseModel):
     tokens_out: int
 
 
+class SelfVerificationLine(BaseModel):
+    """BE-TASK-006 AC-4/AC-5 (build-engine EPIC-011): one applicable rule's
+    self-reported compliance status, part of the agent's handoff record.
+    """
+
+    rule: str
+    status: Literal["complied", "violated", "n/a"]
+    note: str = ""
+
+
 class TypedResult(BaseModel):
     status: Literal["PASS", "FAIL"]
     failure_class: FailureClass | None = None
     evidence: str | None = None
     retry_recommended: bool
     usage: DispatchUsage | None = None
+    self_verification: list[SelfVerificationLine] | None = None
 
     @model_validator(mode="after")
     def _require_failure_class_on_fail(self) -> TypedResult:
