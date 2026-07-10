@@ -70,17 +70,19 @@ test.describe("prompt bar (TASK-011 AC-8, AC-4)", () => {
     await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
-  // Happy-path slice of AC-8/AC-2/AC-3 (skeleton -> widget fill -> footer)
-  // and the Law B backend-state check (newly generated, suggested=false
-  // widget appears via GET /api/dashboard/widgets?scope=user) both need a
-  // real classifying resolver. TASK-011's own resolver seam
-  // (dashboard/intent.py::resolve) is a deliberate stub that always raises
-  // ProviderUnavailable until TASK-012 fills it in -- see that module's
-  // docstring and this task's `unlocks: [TASK-012, ...]`. A WEAVE_ENV-gated
-  // stand-in resolver here would be throwaway scaffolding TASK-012
-  // immediately supersedes (its own dev target already wires a real local
-  // Ollama resolver -- see root Makefile), so this is left pending rather
-  // than faked. Re-enable once TASK-012 lands.
+  // RELOCATED to PLAT-V1-TASK-012, not deleted (team-lead call, logged
+  // against TASK-012). Happy-path slice of AC-8/AC-2/AC-3 (skeleton -> widget
+  // fill -> footer) plus the Law B backend-state check (newly generated,
+  // suggested=false widget appears via GET /api/dashboard/widgets?scope=user)
+  // both need a real classifying resolver. dashboard/intent.py::resolve is a
+  // deliberate stub that ALWAYS raises ProviderUnavailable -- not env-gated
+  // like billing.py's harness_router, and Playwright drives a real
+  // subprocess uvicorn, so an in-process dependency_overrides fake resolver
+  // can't reach it either. No seam to make this real without TASK-012 itself
+  // (a WEAVE_ENV-gated stand-in here would be throwaway scaffolding TASK-012
+  // immediately supersedes -- its own dev target already wires a real local
+  // Ollama resolver, see root Makefile). This intent moves to TASK-012's own
+  // test file when that resolver lands.
   test.fixme(
     "prompt-to-widget-stream: skeleton fills to a real widget, backend row exists (Law B)",
     async () => {
