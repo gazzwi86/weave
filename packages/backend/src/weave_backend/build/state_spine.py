@@ -42,6 +42,10 @@ class TaskState(BaseModel):
     #: dep-summary (`"dep_summary_missing"`) -- stored in the same JSONB
     #: `tasks` blob, no migration needed.
     hold_reason: str | None = None
+    #: TASK-009/AC-2: the repo's `ANATOMY.md` (task brief pseudocode's
+    #: `task.context.prepend(anatomy)`), loaded before DELEGATE -- same
+    #: JSONB `tasks` blob, no migration needed.
+    context: list[str] = Field(default_factory=list)
 
 
 class StateSpine(BaseModel):

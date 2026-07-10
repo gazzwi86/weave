@@ -1,8 +1,8 @@
 """TASK-009 (build-engine EPIC-008) FR-031/AC-1: anatomy/wiki auto-index for
 generated repos -- so a delegate agent loads context instead of
-re-discovering it (AC-2, `generation/service.py`). Shallow, language-aware
-scan (task brief's implementation hint): exported top-level
-functions/classes only, no full parse, no docstring extraction.
+re-discovering it (AC-2, `build/orchestrator.py`'s `load_task_context`).
+Shallow, language-aware scan (task brief's implementation hint): exported
+top-level functions/classes only, no full parse, no docstring extraction.
 
 `refresh_anatomy` is filesystem-only (no DB, no network) so it runs inside
 `generate_app`'s staging workspace, before `_commit_workspace` -- the

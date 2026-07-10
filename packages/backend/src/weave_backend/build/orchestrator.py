@@ -41,6 +41,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import AgentResultContext, handle_agent_result
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed, rich_scaffold
 from weave_backend.repo_bootstrap.service import (
     DEFAULT_DEPS as DEFAULT_REPO_DEPS,
@@ -103,6 +104,44 @@ async def default_dispatch_pdac(
             raise TaskHeld(missing_dep_id=dep_id)
 
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
+
+async def load_task_context(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    project_iri: str,
+    task: TaskState,
+    repo_deps: RepoBootstrapDeps,
+) -> None:
+    """TASK-009/AC-2 PLAN pre-step (task brief pseudocode): prepend the
+    repo's `ANATOMY.md` into `task.context` before DELEGATE, so the
+    delegate agent loads context instead of re-discovering it (FR-031's
+    payoff). Best-effort throughout: no repo provisioned yet, no
+    `ANATOMY.md` committed yet (fresh scaffold), no resolvable token, or a
+    driver error all leave `task.context` untouched -- an anatomy load must
+    never halt the dispatch loop.
+    """
+    row = await fetch_project_repo_row(conn, tenant_id=tenant_id, project_iri=project_iri)
+    if row is None or row.repo_provider is None or row.repo_id is None:
+        return
+    token = await repo_deps.get_secret(row.source_control_token_secret_ref or "")
+    if not token:
+        return
+    repo = RepoHandle(
+        repo_id=row.repo_id,
+        url=row.repo_url or "",
+        default_branch=row.repo_default_branch or "main",
+    )
+    try:
+        anatomy = await repo_deps.driver_for(row.repo_provider).read_file(
+            repo, path="ANATOMY.md", token=token
+        )
+    except Exception:
+        log.warning("anatomy_context_load_failed", extra={"task_id": task.id})
+        return
+    if anatomy:
+        task.context.insert(0, anatomy)
 
 
 async def default_preflight(
@@ -170,10 +209,19 @@ async def _dispatch_one(
     deps: OrchestratorDeps,
 ) -> None:
     """One PLAN->DELEGATE->ASSESS->CODIFY cycle for `task`, mutating it and
-    `spine` in place. FAIL routes through TASK-005's retry/HITL machinery
-    (AC-2/AC-6); PASS writes the dep summary before marking the task Done
-    (AC-4, non-skippable CODIFY).
+    `spine` in place. `load_task_context` (TASK-009/AC-2) loads the repo's
+    anatomy index into `task.context` before dispatch, so DELEGATE sees it.
+    FAIL routes through TASK-005's retry/HITL machinery (AC-2/AC-6); PASS
+    writes the dep summary before marking the task Done (AC-4, non-skippable
+    CODIFY).
     """
+    await load_task_context(
+        conn,
+        tenant_id=tenant_id,
+        project_iri=spine.project_iri,
+        task=task,
+        repo_deps=deps.repo_deps,
+    )
     try:
         result, dep_summary = await deps.dispatch_pdac_fn(
             conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
