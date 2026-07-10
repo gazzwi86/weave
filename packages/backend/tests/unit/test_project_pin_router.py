@@ -210,10 +210,14 @@ def _pin_upgrade_role_guard() -> object:
     ]
     assert len(matches) == 1, "expected exactly one POST .../pin-upgrade route"
     api_route = cast(APIRoute, matches[0])
+    # Matched on the closure's `action` freevar, not `__qualname__`: mutmut 3.x
+    # rewrites every mutated module into `x_funcname__mutmut_N` trampoline
+    # dispatch functions, which changes a nested closure's runtime qualname
+    # even in the unmutated baseline pass. Freevar names survive that rewrite.
     guard_calls = [
         dep.call
         for dep in api_route.dependant.dependencies
-        if getattr(dep.call, "__qualname__", "") == "require_project_role.<locals>._dependency"
+        if "action" in getattr(getattr(dep.call, "__code__", None), "co_freevars", ())
     ]
     assert len(guard_calls) == 1, "upgrade_pin_route must Depends() on require_project_role(...)"
     return guard_calls[0]
