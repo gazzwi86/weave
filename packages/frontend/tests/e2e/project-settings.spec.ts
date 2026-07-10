@@ -117,3 +117,36 @@ test("should manage contributors from settings tab", async ({ page }) => {
   const removedBody = (await afterRemove.json()) as { items: { principal_iri: string }[] };
   expect(removedBody.items.some((c) => c.principal_iri === contributorIri)).toBe(false);
 });
+
+// TASK-022 (FR-010) AC-1/AC-3/AC-5, Law B: binding a Jira space from the
+// Connections tab actually creates a row via the real backend, proven via
+// an independent GET (not the page's own fetch) before/after bind and
+// after remove. NOTE: requires the backend process to have
+// `BUILD_CONNECTOR_STUB_INSTANCES` seeded with a `jira-1` instance
+// (connectors/client.py's PLAT-CONNECTOR-1 stub seam) -- not yet wired
+// into the dev-stack launch config, so this is Law-B-shaped but not
+// runnable until that seeding lands (see TASK-022 receipt).
+test("should bind jira board see health badge end end", async ({ page }) => {
+  await loginAs(page, "admin@weave.local");
+  const projectId = await createProject(page);
+
+  await page.getByRole("tab", { name: "Connections" }).click();
+  await page.getByRole("button", { name: "Bind Jira" }).click();
+  await page.getByLabel(/connector instance/i).fill("jira-1");
+  await page.getByLabel(/space/i).fill("ACME");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+  await expect(page.getByText("OK")).toBeVisible();
+
+  const afterBind = await page.request.get(`/api/build/projects/${projectId}/bindings`);
+  const boundBody = (await afterBind.json()) as { items: { system: string; space_ref: string }[] };
+  expect(boundBody.items.some((b) => b.system === "jira" && b.space_ref === "ACME")).toBe(true);
+
+  await page.getByRole("button", { name: "Remove Jira binding" }).click();
+  await page.getByRole("button", { name: "Confirm remove" }).click();
+  await expect(page.getByText("ACME")).toHaveCount(0);
+
+  const afterRemove = await page.request.get(`/api/build/projects/${projectId}/bindings`);
+  const removedBody = (await afterRemove.json()) as { items: { system: string }[] };
+  expect(removedBody.items.some((b) => b.system === "jira")).toBe(false);
+});

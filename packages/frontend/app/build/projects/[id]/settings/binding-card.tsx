@@ -55,12 +55,17 @@ function BindingCard({
       <div className="flex items-center gap-[var(--space-2)]">
         {binding && <HealthBadge status={binding.health.status} />}
         {canManage && !binding && (
-          <Button type="button" variant="secondary" onClick={onBind}>
+          <Button type="button" variant="secondary" onClick={onBind} aria-label={`Bind ${label}`}>
             Bind
           </Button>
         )}
         {canManage && binding && (
-          <Button type="button" variant="secondary" onClick={() => onRemove(binding)}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => onRemove(binding)}
+            aria-label={`Remove ${label} binding`}
+          >
             Remove
           </Button>
         )}
