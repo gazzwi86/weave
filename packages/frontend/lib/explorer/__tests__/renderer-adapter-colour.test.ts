@@ -53,4 +53,24 @@ describe("createRendererAdapter -- TASK-021 colour seam", () => {
     expect(cy.batch).toHaveBeenCalledTimes(1);
     expect(allNodes.style).toHaveBeenCalledWith({ "background-color": "" });
   });
+
+  // Cytoscape draws to <canvas> and never resolves CSS custom properties
+  // itself (same reason resolveStylesheetTokens exists for the base
+  // stylesheet, build-stylesheet.ts) -- overlays hand applyNodeColours raw
+  // `var(--token)` strings (heatmap-overlay.ts, domain-colouring-overlay.ts),
+  // so the seam must resolve them against the real DOM cascade before they
+  // reach `.style()`, or nodes render broken in a real browser.
+  it("resolves var(--token) colours to their real DOM value before styling (AC-1/AC-3)", () => {
+    document.documentElement.style.setProperty("--color-heat-1", "#abc123");
+    const cy = fakeCy();
+    const mappedNodes = fakeCollection();
+    const fallbackNodes = fakeCollection();
+    cy.nodes.mockReturnValue(
+      fakeCollection({ filter: vi.fn().mockReturnValueOnce(mappedNodes).mockReturnValueOnce(fallbackNodes) })
+    );
+
+    createRendererAdapter(cy).applyNodeColours({ n1: "var(--color-heat-1)" }, "var(--color-heat-none)");
+
+    expect(mappedNodes.style).toHaveBeenCalledWith({ "background-color": "#abc123" });
+  });
 });
