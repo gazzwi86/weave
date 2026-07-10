@@ -37,8 +37,9 @@ export function CommandPalette() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      // TASK-011 AC-8: the dashboard's own PromptBar owns Cmd+K there --
-      // global search stays reachable via its trigger button, no double-bind.
+      // Cmd+K is context-scoped -- dashboard PromptBar owns it on /dashboard
+      // (AC-8, TASK-011); global entity-search palette owns it elsewhere.
+      // Global search stays reachable there via its trigger button, no double-bind.
       if (pathname?.startsWith("/dashboard")) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
