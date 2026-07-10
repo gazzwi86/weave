@@ -55,3 +55,14 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   `tenant_connection` / `update_sdk_run_status` bare-name attrs) with no readability or safety
   gain. No Python file-length linter enforces this locally (ruff has no such rule). Left as one
   cohesive module with this waiver.
+
+## `renderer-adapter.ts` (`packages/frontend/lib/explorer/renderer-adapter.ts`)
+
+- **Threshold:** file ≤ 300 lines (Law E) — ESLint `max-lines` severity is WARN (not error) for TS.
+- **Actual:** 330 lint-counted / 436 raw (CE-V1-TASK-020, EPIC-015).
+- **Reason:** the single Cytoscape↔app adapter seam — was already over (323 lines at e74dbe8, prior
+  task) before TASK-020 added the batched filter-visibility apply (+115). It's one cohesive
+  imperative-graph-mutation boundary (all `cy.batch`/hide/show/style calls funnel here by design, so
+  the rest of the app never touches Cytoscape directly). Splitting it fragments that single-seam
+  invariant. WARN-level, pre-existing violation class. **Follow-up queued:** extract the
+  filter-visibility apply into a sibling module before it grows further (tracked in overnight-queue).

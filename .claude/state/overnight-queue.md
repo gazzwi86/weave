@@ -105,3 +105,19 @@ no path to satisfy ONB-V1-TASK-001's DoR. **ONB-V1 (all 5 tasks) is blocked unti
   sonnet agent, coordinator-reviewed before commit to main [skip ci].
 - 5-lane plan: BE-005 (bk·docker), CE-020 filters (fe), CE-012 ingest-spine (bk·docker),
   PLAT-010 widget-state (fe), PLAT-026 design-system (fe). Docker capped at 2 (BE-005 + CE-012).
+
+## Epics ready to close (batch: /anatomy refresh once, then ui_verify + PR + CI + auto-merge)
+
+- **CE-V1-EPIC-015 (Filters & Layers Panel) — COMPLETE, QA PASS, ready to close.** Single-task epic
+  (TASK-020 only). Frontend, non-risky → AUTO-MERGE eligible (CI-green + code-review-clean). UI epic →
+  needs `ui_verify --full` at close. Branch `feature/CE-V1-EPIC-015` HEAD `d0468aa` (24 commits +
+  token gap-fill 6590851 + QA edge test d0468aa). Base main. Pre-push needs `/anatomy refresh` first.
+  Follow-up: extract renderer-adapter.ts filter-visibility apply (Law E WARN, waivered).
+
+## Parallel-session collision — RESOLVED (2026-07-11 ~05:00 AEST)
+2nd /implement session ran same-named agents in same worktrees for a window, then went dormant (~4h no
+activity confirmed via source-file mtimes). Reconciled: discarded orphaned 83-file `ruff format` sweep in
+weave-PLAT-V1-EPIC-001; committed CE-020's legit z-index token gap-fill to CE-015 (6590851). All 4 lane
+worktrees clean + committed HEADs green. LESSON: never run two /implement sessions on the same repo — they
+share worktrees + progress.json + agent names and clobber each other. a351d70 (CE-012 in_progress, no
+trailer) was likely this session's spine-surgery EDIT-3, benign.
