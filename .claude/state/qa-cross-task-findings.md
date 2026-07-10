@@ -276,8 +276,8 @@ run failed via fresh conn + records commit_sha. strict-xfail proof test flipped 
   follow-up, not a TASK-010 re-fold. MUST land before EPIC-001's ui_verify --full close gate passes.
 - **Classification:** test-architecture / Law B (real E2E asserting backend state).
 
-## XT-CE012-1 — ingest proposals list silently truncates at 50 (pagination unwired)
-- **Severity:** Major (data-integrity — reviewer cannot reach proposal #51) · **Status:** retry-1 in progress (ce012-eng)
+## XT-CE012-1 — ingest proposals list silently truncates at 50 (pagination unwired) — RESOLVED (2026-07-11)
+- **Severity:** Major · **Status:** RESOLVED `8bf66d7` (limit/offset query params + has_more field; red test b5016bc green)
 - **Affects:** CE-V1-TASK-012 (`routers/ingest.py::list_proposals_route`); **downstream consumers TASK-013
   (doc-extractor), TASK-014 (embeddings), TASK-019 (Import & Ingest page)** all render/consume this list endpoint
   — a real document plausibly yields 50+ extraction candidates, so not a theoretical edge case.

@@ -104,3 +104,16 @@ Working tree at commit time: `tests/integration/test_ingest_pipeline.py` (new, u
 from prior RED/GREEN passes) fixed for type-checking and the startedAtTime assertion bug;
 `ADR-022` added; `qa-project-issues.md` PROJ-013 updated with third occurrence. See git
 log for the RED/GREEN commits (`34`/`35` in task tracker) that preceded this pass.
+
+## QA PASS after retry 1 (2026-07-11) — TASK-012 CLOSES
+
+QA round-1 FAIL on AC-001-04 (pagination silently truncated proposals at 50 → #51 unreachable). Everything
+else (single mutation path CE-WRITE-1, tenant RLS backstop, ADR-022 activity-reuse, migration safety) was
+adversarially confirmed solid. Retry-1: `8bf66d7` — `list_proposals_for_job.limit` now optional (None = no LIMIT
+= route default fetches all); route added limit/offset query params (fetches limit+1 → derives `has_more` w/o
+COUNT); `ProposalsListResponse.has_more` field. accept/reject/upload untouched. QA's red test
+`test_proposals_beyond_fifty_are_reachable_via_the_list_endpoint` (`b5016bc`) now green. `a677da4` — perf
+budgets (upload<2000ms, job GET<200ms, proposals GET<300ms, accept<2800ms; reject unmeasured — no brief number,
+not invented). 8 docker-integration + full unit green, ruff/mypy clean, bandit 2 Medium pre-existing. retry=1/3.
+**Discipline note:** ce012 did NOT touch .claude/state this pass (learned from first-pass slip); its earlier
+lane-branch state commit `77c4aac` MUST be excluded when EPIC-012 PRs to main (canonical state is in PRIMARY).
