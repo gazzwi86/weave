@@ -107,6 +107,9 @@ async def list_projects(
     `(created_at, id)`.
     """
     after = _decode_cursor(filters.cursor)
+    # _GRID_QUERY's f-string trips the asyncpg-sqli taint check; see the
+    # S608/B608 comment above it for why this is a false positive.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     rows = await conn.fetch(
         _GRID_QUERY,
         tenant_id,
