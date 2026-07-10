@@ -32,6 +32,8 @@ function fakeAdapter(
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
     listElements: vi.fn(() => []),
+    applyNodeColours: vi.fn(),
+    clearNodeColours: vi.fn(),
     applyFilterVisibility: vi.fn(),
     ...overrides,
   };

@@ -47,6 +47,8 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
     listElements: vi.fn(() => []),
+    applyNodeColours: vi.fn(),
+    clearNodeColours: vi.fn(),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
     fireRightClick: (nodeId: string, position: { x: number; y: number }) => rightClickHandler?.(nodeId, position),

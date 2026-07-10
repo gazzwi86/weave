@@ -1,4 +1,5 @@
 import { EXPLORER_HIGHLIGHT_CLASS } from "./build-stylesheet";
+import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
 import type { CytoscapeElement } from "./types";
 
 /** TASK-005 AC-3: one immediate neighbour of an expanded node, as returned
@@ -87,6 +88,16 @@ export interface RendererAdapter {
    * live state (not a cached copy of the initial load) so it reflects
    * later layer add/remove and neighbour expand/collapse. */
   listElements(): CytoscapeElement[];
+  /** TASK-021 AC-4/AC-7: the colour overlay seam -- Overlay Engine is the
+   * only caller. One batched pass groups nodes by target colour (bounded
+   * by distinct colours, never a per-node loop); any node id not present
+   * in `colourByNodeId` gets `fallbackColour`. */
+  applyNodeColours(colourByNodeId: Record<string, string>, fallbackColour: string): void;
+  /** TASK-021 AC-4: clears every inline colour override in one batched
+   * pass -- this IS "restore prior colouring" (AC-4), since kind colouring
+   * is stylesheet-driven (bpmo_kind selector), never an inline override
+   * itself, and reasserts the moment the override is cleared. */
+  clearNodeColours(): void;
 }
 
 export interface FilterVisibility {
@@ -431,6 +442,12 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     removeElements(ids) {
       removeElementsOn(cy, ids);
+    },
+    applyNodeColours(colourByNodeId, fallbackColour) {
+      applyNodeColoursOn(cy, colourByNodeId, fallbackColour);
+    },
+    clearNodeColours() {
+      clearNodeColoursOn(cy);
     },
   };
 }

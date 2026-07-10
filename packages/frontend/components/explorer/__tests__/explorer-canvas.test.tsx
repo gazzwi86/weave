@@ -59,6 +59,8 @@ describe("ExplorerCanvas", () => {
         addLayerNodes: vi.fn(() => []),
         removeElements: vi.fn(),
         listElements: vi.fn(() => []),
+        applyNodeColours: vi.fn(),
+        clearNodeColours: vi.fn(),
       },
     });
 
