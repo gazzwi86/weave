@@ -4,13 +4,13 @@ title: "Task: TASK-016 — AI Diagram / Image-to-Data Ingest"
 description: "E12-S3 (FR-040): vision-model extraction of BPMO entities + relationships from
   uploaded diagrams/images, routed through the same per-proposal review + CE-WRITE-1 commit
   flow as E12-S1; unreadable image proposes nothing."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, vision]
+tags: [constitution-engine, arch, task, post-v1, ingest, vision]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
 priority: Should Have
 entity: constitution-engine
 epic: EPIC-012
-milestone: v1
+milestone: post-v1
 created: 2026-07-08
 blocked_by: [TASK-013]
 unlocks: [TASK-019]

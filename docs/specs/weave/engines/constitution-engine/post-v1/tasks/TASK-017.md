@@ -4,13 +4,13 @@ title: "Task: TASK-017 — Structured-Data Import: R2RML + RML (morph-kgc), OCEL
 description: "E12-S4 (FR-041): morph-kgc executes user-supplied R2RML/RML mappings over uploaded
   dumps (SQLite/CSV/JSON/XML), per-row SHACL skip-and-report through CE-WRITE-1; ships the OCEL
   2.0 reference RML mapping (ADR-010). No live connection strings (ADR-012)."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, r2rml, rml, ocel]
+tags: [constitution-engine, arch, task, post-v1, ingest, r2rml, rml, ocel]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
 priority: Should Have
 entity: constitution-engine
 epic: EPIC-012
-milestone: v1
+milestone: post-v1
 created: 2026-07-08
 blocked_by: [TASK-012]
 unlocks: [TASK-019]

@@ -19,13 +19,76 @@ _(none yet)_
 
 ## Spec-review gaps (block an engine's lanes)
 
-_(none yet)_
+### ONB (onboarding) — CRITICAL, mechanical. **DECISION NEEDED.**
+The 15 M1 onboarding task briefs (`docs/specs/weave/engines/onboarding/m1/tasks/TASK-001..015`,
+fully written) are NOT registered in `progress.json` — no `onboarding` base task group, no
+`onboarding/phase-1` phase_plan entry (every other engine has both base + `-v1` groups). So the M1
+onboarding foundation (TourEngine, beacon machinery, anchor registry, checklist self-mark) is
+unbuilt, and every ONB-V1 task's DoR names that M1 machinery as a hard prerequisite → the loop has
+no path to satisfy ONB-V1-TASK-001's DoR. **ONB-V1 (all 5 tasks) is blocked until M1 is built.**
+- Fix is mechanical (register the 15 briefs into progress.json `tasks[]` + add `onboarding/phase-1`),
+  but building ONB M1 is ~15 extra tasks and M1 is not strictly "M2/V1" scope.
+- **Question for user:** build the ONB M1 foundation now (unlocks all onboarding), or skip
+  onboarding this run? Onboarding lanes are off tonight either way; CE+PLAT fill all 5 lanes.
+- Task-brief CONTENT is excellent/red-team-hardened — this is purely a spine-registration gap.
+- Non-blocking warnings (fix later): onboarding.md M2-window roadmap section thin (no entry/exit/HITL
+  gate vs siblings); PRD stories E2-S1/E2-S3/E3-S1 not amended for M2-window surfaces; tech-spec
+  m2-delta.md + invariants.md still `status: Draft`; TASK-004 mis-cites `GET /api/validate` as a
+  contracts.md entry (it's CE-internal).
 
 ## Escalations (spec-ambiguity / design forks / gate concerns)
 
-_(none yet)_
+### PLAT spec-review gaps (sr-platform) — morning remediation
+1. **EPIC-011 (design system) + EPIC-012 (marketing) tagged milestone "v1" — which is NOT a defined
+   milestone** (cascade has only M1/M2/v1.0/post-v1; real v1.0 goal = managed connectors only, doesn't
+   include these). No phase-gate exit criteria to sign off TASK-026/027/028/029/030. **DECISION:** fold
+   EPIC-011/012 into v1.0 scope with amended exit criteria, OR give "v1" its own Goal/entry-exit/gate in
+   the roadmap. Coordinator is BUILDING TASK-026 tonight anyway (content is complete, user-priority,
+   library needed regardless); this only blocks the epic CLOSE gate → held for morning either way.
+2. **TASK-023** uses superseded status enum `healthy/degraded/offline`; canonical is
+   `connected/degraded/disconnected` (data-model.md CHECK constraint). Unbuildable as written. Not a
+   root (nothing blocked_by it). Fix the brief before TASK-023 is scheduled. Also `adr_refs: []` should
+   list ADR-013/ADR-014 (cited in body); orphan `PLAT-NOTIFY-1` citation.
+3. **TASK-027 + TASK-030** hard-code role literal `workspace_admin`/`compliance_officer` — contradicts
+   the canonical 10-role table AND the workspace-drop tenancy decision
+   ([[decision_tenancy-workspace-alignment]]). No snake_case role-slug convention exists anywhere =
+   systemic. These tasks are ABOUT removing stale workspace language yet use it. Needs: (a) establish a
+   role-slug convention in the spec, (b) fix both briefs. Blocks 027/030 (downstream of 026).
+4. Cosmetic (fix anytime): PLAT-010/011/012/013/014/015/016/017/024 frontmatter `milestone: v1` but
+   owning epics are `M2` in roadmap — label-only, Gate M2 covers the work. TASK-021 unit-test count
+   self-inconsistent (says 8, table names 5). Test-section format split across briefs.
+
+## Scope decisions (user-approved via MCQ, 2026-07-10 ~20:40 AEST)
+
+- **CE ingest (EPIC-012):** KEEP in v1 → TASK-012 (spine) + 013 (conversational doc-ingest, USER
+  PRIORITY) + 014 (corpus/retrieval). **DEFER to post-v1** → 015 (ArchiMate/BPMN), 016 (AI
+  diagram/image-to-data), 017 (R2RML structured-data), 018 (SKOS). Briefs MOVED to
+  `constitution-engine/post-v1/tasks/` (never deleted). 019 (Import & Ingest page) stays v1 but its
+  brief must be trimmed to the doc-ingest-only surface when it's built (follow-up).
+- **CE Phase-2 gate:** user's "build doc-ingest" = go-ahead; TASK-012 opened treating M1-green as
+  sufficient. Roadmap prose still shows a stale Phase-2→v1.0 gate → one-line reconcile owed (queue).
+- **Onboarding:** register the 15 M1 briefs + BUILD the ONB M1 foundation now (user chose build-now
+  over skip). ONB M1 backfills lanes as they free; ONB-V1 unblocks once M1 done.
+
+## Follow-up tasks to file (tracked, not blocking)
+
+- **CE-020 property filters (AC-4/AC-5) ship data-latent by design.** evalFilter logic + UI built
+  correct + tested, but the M1 bulk graph load (`map-rows-to-elements.ts`) only sets id/label/bpmo_kind;
+  `key_properties` is lazy-loaded per-node on click, never at bulk load. So property filters match
+  nothing until a follow-up plumbs a **bounded** key_properties set into the bulk load over CE-READ-1
+  (10k-node perf-sensitive — bound it). FILE this as a CE task; property filters go live when it lands.
+  Chose this over scope-creeping the SPARQL query into the filters-panel task.
+- **iconography.md token-naming discrepancy:** specs hyphenated `--shape-kind-*`, but shipped
+  `--color-kind-*` are no-hyphen (`businessdomain`). PLAT-026 (design-system authority) is resolving to
+  the shipped no-hyphen convention in its component library; iconography.md needs a spec-fix to match.
+- **Cross-lane note:** CE-020 + PLAT-026 both edit `globals.css`/design tokens on separate branches →
+  trivial additive merge-reconcile expected at PR time; PLAT-026's definitions are canonical. Watched.
 
 ## Notes / decisions the coordinator made autonomously (FYI, can be reverted)
 
 - EPIC-008 TASK-005: SDK-gen persistence = widen `generation_runs` (migration 0031, ADR-022),
   user-approved via MCQ before going out. Its epic PR will land in **HELD PRs** (migration).
+- Spine surgery (descope 015-018 + register 15 ONB M1 + mark CE-012 in_progress) delegated to a
+  sonnet agent, coordinator-reviewed before commit to main [skip ci].
+- 5-lane plan: BE-005 (bk·docker), CE-020 filters (fe), CE-012 ingest-spine (bk·docker),
+  PLAT-010 widget-state (fe), PLAT-026 design-system (fe). Docker capped at 2 (BE-005 + CE-012).

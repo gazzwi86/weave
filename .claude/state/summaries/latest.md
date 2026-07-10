@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T13:04:52+00:00
+Captured at: 2026-07-10T13:40:55+00:00
 Event: pre-compact
 
 ## Current State
@@ -13,6 +13,7 @@ Event: pre-compact
     "constitution-engine/phase-1",
     "build-engine/phase-1",
     "build-engine-v1/phase-1",
+    "onboarding/phase-1",
     "constitution-engine-v1/phase-1",
     "onboarding-v1/phase-1",
     "weave-platform-v1/phase-1"
@@ -316,6 +317,41 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-001",
       "title": "Request Studio v2 (form polish, successor of BE-EPIC-001)",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-001",
+      "title": "Hammerbarn Demo Workspace",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-002",
+      "title": "Guided Tours & Contextual Overlays",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-003",
+      "title": "Role-Tailored Onboarding Paths",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-004",
+      "title": "Hands-On Exercises",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-005",
+      "title": "Onboarding Checklist & Activation",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-006",
+      "title": "Training Library",
+      "status": "backlog"
+    },
+    {
+      "id": "ONB-EPIC-007",
+      "title": "Help Launcher",
       "status": "backlog"
     }
   ],
@@ -1006,7 +1042,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-012.md",
       "retry_count": 0
@@ -1038,55 +1074,6 @@ Event: pre-compact
       "retry_count": 0
     },
     {
-      "id": "CE-V1-TASK-015",
-      "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Structured Model Import: ArchiMate Exchange Format + BPMN",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-012"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-015.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-V1-TASK-016",
-      "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "AI Diagram / Image-to-Data Ingest",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-013"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-016.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-V1-TASK-017",
-      "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "Structured-Data Import: R2RML + RML (morph-kgc), OCEL Reference Mapping",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-012"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-017.md",
-      "retry_count": 0
-    },
-    {
-      "id": "CE-V1-TASK-018",
-      "engine": "constitution-engine-v1",
-      "epic": "CE-V1-EPIC-012",
-      "title": "SKOS Cross-Notation Reconciliation",
-      "status": "backlog",
-      "blocked_by": [
-        "CE-V1-TASK-012",
-        "CE-V1-TASK-015"
-      ],
-      "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-018.md",
-      "retry_count": 0
-    },
-    {
       "id": "CE-V1-TASK-019",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
@@ -1094,11 +1081,7 @@ Event: pre-compact
       "status": "backlog",
       "blocked_by": [
         "CE-V1-TASK-013",
-        "CE-V1-TASK-014",
-        "CE-V1-TASK-015",
-        "CE-V1-TASK-016",
-        "CE-V1-TASK-017",
-        "CE-V1-TASK-018"
+        "CE-V1-TASK-014"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-019.md",
       "retry_count": 0
@@ -1664,9 +1647,201 @@ Event: pre-compact
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-024.md",
       "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-001",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-001",
+      "title": "Onboarding State Store & /api/onboarding/* Router Foundation",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-001.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-002",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-001",
+      "title": "hammerbarn-seed CLI: compile + apply canonical seed via CE-WRITE-1",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-002.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-003",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-002",
+      "title": "Anchor Registry + Content Config Package with CI Checks",
+      "status": "backlog",
+      "blocked_by": [],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-003.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-004",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-001",
+      "title": "Sandbox Provisioning, Canonical Template & Three Isolation Boundaries",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-002"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-004.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-005",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-001",
+      "title": "Reset Demo: blue/green re-fork with known-state guarantee",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-004"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-005.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-006",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-003",
+      "title": "Role-Path Resolution: 10\u21924 mapping, choose-path, change-path",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-006.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-007",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-002",
+      "title": "Tour Engine: Driver.js wrapper + CE/Explorer guided tours",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-003",
+        "ONB-TASK-006"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-007.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-008",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-002",
+      "title": "Beacons & Welcome Modals with server-side dismissal",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-003"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-008.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-009",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-004",
+      "title": "Hands-On Exercises CE-01/02/03/03b + GE-01/02 with contract-signal checks",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-003",
+        "ONB-TASK-004",
+        "ONB-TASK-006"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-009.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-010",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-005",
+      "title": "Onboarding Checklist Widget on the Dashboard",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-003",
+        "ONB-TASK-006"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-010.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-011",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-005",
+      "title": "Activation Detection: poll-first recorder with exactly-once fire + outbox",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-006"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-011.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-012",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-006",
+      "title": "Training Library & What's New",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-001",
+        "ONB-TASK-003"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-012.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-013",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-007",
+      "title": "Help Launcher & Contextual Help Panel",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-007",
+        "ONB-TASK-008",
+        "ONB-TASK-010",
+        "ONB-TASK-012"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-013.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-014",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-003",
+      "title": "Role\u2192Starter-Widget Mapping handed to Platform",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-003",
+        "ONB-TASK-006"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-014.md",
+      "retry_count": 0
+    },
+    {
+      "id": "ONB-TASK-015",
+      "engine": "onboarding",
+      "epic": "ONB-EPIC-001",
+      "title": "M1 Exit-Criteria E2E Suite (Gate 1 evidence)",
+      "status": "backlog",
+      "blocked_by": [
+        "ONB-TASK-005",
+        "ONB-TASK-009",
+        "ONB-TASK-011",
+        "ONB-TASK-013"
+      ],
+      "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-015.md",
+      "retry_count": 0
     }
   ]
 }
+
 
 ## Last Phase Summary
 

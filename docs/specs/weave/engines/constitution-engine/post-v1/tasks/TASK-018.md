@@ -4,13 +4,13 @@ title: "Task: TASK-018 — SKOS Cross-Notation Reconciliation"
 description: "E12-S5 (FR-042): collapse entities ingested from multiple notations that denote
   the same concept into ONE canonical punned owl:Class + skos:Concept (decision B1), merge
   proposals above 0.85 similarity, human-confirmed, SHACL-blocked conflicts surfaced."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, skos, reconciliation]
+tags: [constitution-engine, arch, task, post-v1, ingest, skos, reconciliation]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
 priority: Should Have
 entity: constitution-engine
 epic: EPIC-012
-milestone: v1
+milestone: post-v1
 created: 2026-07-08
 blocked_by: [TASK-012, TASK-015]
 unlocks: [TASK-019]
