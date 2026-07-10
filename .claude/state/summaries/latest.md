@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T02:24:22+00:00
+Captured at: 2026-07-10T02:54:49+00:00
 Event: pre-compact
 
 ## Current State
@@ -236,7 +236,7 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-002",
       "title": "Project Registry & Settings",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-008",
@@ -1295,7 +1295,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-011",
       "title": "Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md",
       "retry_count": 0
@@ -1308,7 +1308,7 @@ Event: pre-compact
       "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-008",
@@ -1494,7 +1494,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Source-Control Provider Config UI (E2-S6, FR-061/B9)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-015"
       ],

@@ -46,3 +46,10 @@ pending.
 ## Dependencies
 
 - **blocked_by:** [] · No downstream unlock recorded; the run-log storage this streams to lands in TASK-008.
+
+## Retry 1 (2026-07-10) — VERDICT: PASS
+QA FAIL (edge_case_extension masked real test failures — reported "passed" on nonzero exit with empty
+stderr). Fixed: `returncode` threaded through `CommandOutcome` (`qa_agent.py`); `_run_edge_case_extension`
+now keys off exit code (5=n_a, other nonzero=failed), not evidence-emptiness. QA red test `d0d43a9` now
+passes. M1 DoD gate unaffected (27 tests green). Full unit lane 719, +2 gap tests (perf NOT_VERIFIED,
+browser passed=False). Commits `6787135` fix, `81a88c7` gap tests. retry=1/3.
