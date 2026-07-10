@@ -221,3 +221,15 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   settings-scope-shaped context IRI at the call site. Either way, AC-3 needs a real fix plus a test
   that exercises the actual production project_iri shape, not a fabricated one.
 - **Classification:** interface / spec gap (two unreconciled IRI grammars).
+
+## XT-BE004-1 — codegen injection: unescaped CE-fetched `fn_iri`/`fn.name` in SDK emitters
+- **Severity:** SERIOUS (security) · **Status:** OPEN — blocks TASK-004 (retry 1) · **affects:** [BE-V1-TASK-005]
+- `fn.fn_iri` (CE `/api/functions` JSON, NOT IRI-syntax-constrained) interpolates unescaped into an
+  executable string literal in `sdkgen/templates/typescript/index.ts.j2:29` + `templates/python/client.py.j2:32`.
+  A crafted value breaks out → injects code that passes real tsc/mypy silently → arbitrary code in every
+  downstream consumer's build. QA red tests `7c23481` pin it.
+- **Fix:** validate/reject `fn_iri`+`fn.name` against a safe IRI/identifier charset in `ir.py::map_fn`
+  (IR boundary, named error like `UnmappableConstraint`) — not template-level escaping alone.
+- **TASK-005 HELD** until this lands (SDK Trigger API wires this pipeline into a live CE-driven path).
+- **General lesson:** any codegen from external/registry data MUST validate identifiers at the IR boundary
+  before emission; the compile gate (tsc/mypy) does NOT catch injected valid code.
