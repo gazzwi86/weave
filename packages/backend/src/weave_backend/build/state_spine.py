@@ -51,11 +51,15 @@ class StateSpine(BaseModel):
 
     def next_ready_task(self) -> TaskState | None:
         """AC-1 pseudocode's `next_ready_task` -- the first task not yet
-        `Done`/`Blocked`. M1 has no priority/parallelism scheduling beyond
-        list order (out of this task's AC scope).
+        `Done`/`Blocked`/`revision`. M1 has no priority/parallelism
+        scheduling beyond list order (out of this task's AC scope).
+        `revision` (AC-5: self-verify found a violated rule) is excluded
+        the same way `Blocked` is -- redispatching it immediately would
+        retry against the same violation with no rework step in between;
+        resubmission is a documented future extension, not built here.
         """
         for task in self.tasks:
-            if task.status not in ("Done", "Blocked"):
+            if task.status not in ("Done", "Blocked", "revision"):
                 return task
         return None
 

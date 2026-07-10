@@ -290,7 +290,10 @@ async def test_codify_writes_dep_summary_before_task_done() -> None:
 
     assert any("dep_summaries" in query for query, _args in conn.executed)
     assert task.status == "Done"
-    assert task.codify_checkpoint == summary.model_dump()
+    # BE-TASK-006 AC-4: self_verify_fn stamps self_verification onto the
+    # summary before it's persisted (default rules == [], so always []).
+    expected = summary.model_copy(update={"self_verification": []})
+    assert task.codify_checkpoint == expected.model_dump()
 
     # Failure-path: if the write itself fails, Done must never be reached.
     class _FailingConn(_FakeConnection):

@@ -33,6 +33,7 @@ from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, writ
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
 from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
+from weave_backend.build.self_verify import default_applicable_rules, self_verify
 from weave_backend.build.state_spine import (
     BUILD_PRINCIPAL_IRI,
     StateSpine,
@@ -140,6 +141,11 @@ class OrchestratorDeps:
     #: cycle in this loop). A no-op-safe stub in tests (no required refs
     #: configured -> nothing to check, nothing to halt).
     preflight_fn: Any = default_preflight
+    #: BE-TASK-006 AC-4/AC-5: checked on every PASS before Done. No-op-safe
+    #: by default -- `default_applicable_rules` returns [] (no M1 rule
+    #: registry yet), so self_verify() always reports compliant.
+    self_verify_fn: Any = self_verify
+    applicable_rules_fn: Any = default_applicable_rules
 
 
 DEFAULT_ORCHESTRATOR_DEPS = OrchestratorDeps()
@@ -192,11 +198,13 @@ async def _dispatch_one(
         return
 
     summary = dep_summary if dep_summary is not None else DepSummary(task_id=task.id)
+    verify_outcome = deps.self_verify_fn(result.self_verification, deps.applicable_rules_fn())
+    summary = summary.model_copy(update={"self_verification": verify_outcome.lines})
     await write_dep_summary(
         conn, tenant_id=tenant_id, project_iri=spine.project_iri, summary=summary
     )
     task.codify_checkpoint = summary.model_dump()
-    task.status = "Done"
+    task.status = "Done" if verify_outcome.compliant else "revision"
 
 
 async def _halt_turn_cap(
