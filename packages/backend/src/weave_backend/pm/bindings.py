@@ -11,6 +11,18 @@ from datetime import datetime
 import asyncpg
 
 
+class DuplicateBinding(Exception):
+    """Raised when `(tenant_id, project_iri, system, space_ref)` already
+    exists (AC-4) -- the router turns this into a 409 with a friendly
+    conflict message.
+    """
+
+    def __init__(self, system: str, space_ref: str) -> None:
+        super().__init__(f"binding already exists for {system}:{space_ref}")
+        self.system = system
+        self.space_ref = space_ref
+
+
 @dataclass(frozen=True)
 class NewBinding:
     """Grouped to satisfy Law E's 5-parameter cap (mirrors `briefs/store.py`'s
@@ -64,21 +76,24 @@ async def put(conn: asyncpg.Connection, *, tenant_id: str, binding: NewBinding) 
     UNIQUE -- one binding per target system+space per project; the DB
     constraint is the enforcement backstop (AC-5).
     """
-    row = await conn.fetchrow(
-        """
-        INSERT INTO external_bindings
-            (tenant_id, project_iri, system, connector_ref, space_ref, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING binding_id, project_iri, system, connector_ref, space_ref,
-            created_by, created_at
-        """,
-        tenant_id,
-        binding.project_iri,
-        binding.system,
-        binding.connector_ref,
-        binding.space_ref,
-        binding.created_by,
-    )
+    try:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO external_bindings
+                (tenant_id, project_iri, system, connector_ref, space_ref, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING binding_id, project_iri, system, connector_ref, space_ref,
+                created_by, created_at
+            """,
+            tenant_id,
+            binding.project_iri,
+            binding.system,
+            binding.connector_ref,
+            binding.space_ref,
+            binding.created_by,
+        )
+    except asyncpg.UniqueViolationError as exc:
+        raise DuplicateBinding(binding.system, binding.space_ref) from exc
     return _from_row(row)
 
 
