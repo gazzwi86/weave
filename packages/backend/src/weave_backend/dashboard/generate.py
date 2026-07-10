@@ -26,6 +26,7 @@ from weave_backend.dashboard import store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.intent import ProviderUnavailable, Resolver, SourceNotGA
+from weave_backend.dashboard.keyword_table import provisional_spec_from_keywords
 from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
     SseDataPayload,
@@ -49,6 +50,15 @@ DASHBOARD_BUDGET_WORKSPACE_ID = "_dashboard"
 #: define one) -- metering is wired for real here, priced at $0 until a
 #: pricing task lands. ponytail.
 GENERATION_COST_USD = 0.0
+
+#: AC-3 latency contingency (ADR-012 "confidence flag", m2-delta.md §3).
+#: Deliberately a deploy-time flag, not a per-request `asyncio.wait(timeout=)`
+#: race -- racing the resolver would make the *number* of `spec` events
+#: timing-dependent (0.9s resolver -> one spec, 1.1s -> two), which breaks
+#: the SSE order invariant (AC-2: exactly one spec, then data*, then
+#: terminal) by construction. Flip only if prod p95 telemetry shows the real
+#: spec-p95 exceeding the 1s target; tests toggle it via monkeypatch.
+USE_PROVISIONAL_SPEC_FALLBACK = False
 
 
 class MidStreamCap(Exception):
@@ -153,6 +163,13 @@ async def generate_widget_stream(
                 SseErrorPayload(state="budget_cap", reason=_cap_message(exc)).model_dump_json(),
             )
             return
+
+    # AC-3: provisional spec first (same "spec" event grammar -- no client
+    # change), immediately replaced once the real resolver returns. Only
+    # when the deploy-time fallback flag is on (see its docstring above).
+    if USE_PROVISIONAL_SPEC_FALLBACK:
+        provisional = provisional_spec_from_keywords(request.prompt)
+        yield _sse("spec", provisional.model_dump_json())
 
     # Resolver classifies (category + data shape); registry-GA-ness is
     # decided inside the resolver itself (m2-delta.md §3 gate order).

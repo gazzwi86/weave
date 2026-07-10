@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
@@ -16,14 +17,18 @@ from weave_backend.dashboard import store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.default_tiles import resolve_starter_role
+from weave_backend.dashboard.generate import GenerateRequest, generate_widget_stream
+from weave_backend.dashboard.intent import Resolver, get_dashboard_agent_resolver
 from weave_backend.dashboard.status import WidgetFetchState, derive_status
 from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
+    GenerateWidgetRequest,
     WidgetListResponse,
     WidgetOut,
     WidgetRefreshResponse,
     WidgetStatus,
 )
+from weave_backend.tenancy.sessions import get_redis
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -136,6 +141,34 @@ async def refresh_widget_route(
             ),
         )
     return WidgetRefreshResponse(status=derived.status, fetched_at=fetched_at)
+
+
+@router.post("/widgets/generate")
+async def generate_widget_route(
+    body: GenerateWidgetRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
+    resolver: Annotated[Resolver, Depends(get_dashboard_agent_resolver)],
+) -> StreamingResponse:
+    """AC-1..AC-8 (TASK-011): SSE widget-generation pipeline. Gate order is
+    budget -> resolver -> registry -> fetch, all inside `generate_widget_stream`
+    (m2-delta.md §3) -- this route only wires collaborators, same
+    `StreamingResponse` pattern as `routers/requests.py::stream_request_route`.
+    """
+    redis = get_redis()
+    return StreamingResponse(
+        generate_widget_stream(
+            GenerateRequest(
+                tenant_id=principal.tenant_id,
+                principal_iri=principal.principal_iri,
+                prompt=body.prompt,
+            ),
+            resolver=resolver,
+            ce_client=ce_client,
+            redis=redis,
+        ),
+        media_type="text/event-stream",
+    )
 
 
 @router.delete("/widgets/{widget_id}", status_code=204)
