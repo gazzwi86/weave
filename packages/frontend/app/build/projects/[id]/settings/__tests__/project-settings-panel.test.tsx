@@ -149,17 +149,21 @@ describe("ProjectSettingsPanel", () => {
     expect(screen.queryByRole("button", { name: /review upgrade/i })).not.toBeInTheDocument();
   });
 
-  it("renders three disabled binding-slot cards (AC-7)", async () => {
-    stubFetchSequence(jsonResponse(SETTINGS), jsonResponse(CONTRIBUTORS));
+  it("renders three bindable system cards for an admin (AC-7, TASK-022)", async () => {
+    stubFetchSequence(jsonResponse(SETTINGS), jsonResponse(CONTRIBUTORS), jsonResponse({ items: [] }));
     render(
       <ProjectSettingsPanel projectId="p-1" tenantRole="admin" principalIri="urn:weave:principal:user:owner" />
     );
 
     await waitFor(() => expect(screen.getByDisplayValue("standard")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("tab", { name: "Connections" }));
-    expect(screen.getAllByText(/available when connectors ship/i)).toHaveLength(3);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Bind Confluence" })).toBeInTheDocument()
+    );
     expect(screen.getByText("Confluence")).toBeInTheDocument();
     expect(screen.getByText("Jira")).toBeInTheDocument();
     expect(screen.getByText("ServiceNow")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bind Jira" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bind ServiceNow" })).toBeInTheDocument();
   });
 });
