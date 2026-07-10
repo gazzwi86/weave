@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { evalFilter, evalFilters } from "../filter-state";
+import { createFilterState, evalFilter, evalFilters } from "../filter-state";
+import type { FilterState } from "../filter-state";
 import type { CytoscapeElementData } from "../types";
 
 // AC-4/AC-5: property filters read only already-loaded element data
@@ -75,5 +76,27 @@ describe("evalFilters", () => {
 
   it("returns true for an empty filter list (no filters applied)", () => {
     expect(evalFilters(node, [])).toBe(true);
+  });
+});
+
+// QA edge case (DoD: "FilterState is serialisable to JSON unchanged" --
+// TASK-026 stores it verbatim in explorer_saved_views.definition, but no
+// existing test asserted round-trip equality; only the type comment claimed
+// it). Guards against a future field regressing to a Set/Map/function,
+// which JSON.stringify would silently drop or corrupt.
+describe("FilterState JSON round-trip (DoD serialisability requirement)", () => {
+  it("round-trips an empty state unchanged through JSON.stringify/parse", () => {
+    const state = createFilterState();
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+  });
+
+  it("round-trips a populated state (all four fields) unchanged", () => {
+    const state: FilterState = {
+      entityTypesOff: ["Policy", "Concept"],
+      relTypesOff: ["https://weave.example/governs"],
+      propertyFilters: [{ typeIri: "process", path: "status", op: "eq", value: "active" }],
+      layersOn: ["glossary", "governance"],
+    };
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
 });
