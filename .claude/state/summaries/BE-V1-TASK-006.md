@@ -44,3 +44,10 @@ written (unrun, coordinator-serialized). QA pending.
 - **blocked_by:** [] · This is EPIC-011's ready task; EPIC-011 also has TASK-003 (needs TASK-001 on
   EPIC-002 base — resolvable since this worktree branched off EPIC-002). On QA PASS, Lane D continues to 003.
 - **Cross-lane:** shares `gates.py::record_gate` refactor with EPIC-012 → merge conflict at CI-reset restack.
+
+## Retry 1 (2026-07-10) — VERDICT: PASS
+QA FAIL was a test-tier gap (both safety cruxes already PASS). Retry: wired the AC-7 env-verification
+release route through the HITL gate (`cd60f40`, human-gated `approve_env_verification` — spot-check at
+phase-gate security review); added the 5 brief-mandated integration tests (`f4314b0` preflight-row+HITL-halt,
+`babbb0e` rich-scaffold+hold-until-approved, `7b96014` self-verify-handoff, collect 5); fixed the false
+test_preflight.py comment (`3d53ed7`). Unit lane 900 pass, ruff/mypy clean. QA edge test 35aa248. retry=1/3.

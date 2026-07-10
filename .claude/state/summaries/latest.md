@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T04:35:51+00:00
+Captured at: 2026-07-10T05:34:17+00:00
 Event: pre-compact
 
 ## Current State
@@ -1272,10 +1272,10 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "BE-SDK-1 Generator Core: Fetch → IR → TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-005",
@@ -1298,7 +1298,7 @@ Event: pre-compact
       "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-007",
@@ -1327,7 +1327,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-009.md",
       "retry_count": 0

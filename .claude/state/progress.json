@@ -1288,7 +1288,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-011",
       "title": "Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md",
       "retry_count": 1
