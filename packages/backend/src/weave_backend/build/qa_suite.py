@@ -157,6 +157,9 @@ def _run_perf_vs_slo(project: QAProject) -> tuple[str, dict[str, Any]]:
     return verdict, {"measured_ms": measured, "budget_ms": budget}
 
 
+_PYTEST_NO_TESTS_COLLECTED = 5
+
+
 def _run_edge_case_extension(_project: QAProject) -> tuple[str, dict[str, Any]]:
     """Implementation Hints: the QA agent proposes+runs edge-case tests
     for uncovered boundaries; verdict comes from those tests executing,
@@ -164,16 +167,21 @@ def _run_edge_case_extension(_project: QAProject) -> tuple[str, dict[str, Any]]:
     scope -- no AC covers it -- so this runner just executes whatever
     `edge_case_extension`-marked tests already exist.
 
-    ponytail: a nonzero exit with no stderr (pytest's "no tests
-    collected", exit code 5) is read as passed rather than failed --
-    `qa_agent.CommandOutcome` doesn't carry the exit code, so this is a
-    heuristic, not an exact check. Upgrade: thread the real exit code
-    through `CommandOutcome` if this needs to be exact.
+    TASK-007-F1 fix: verdict is keyed off the real subprocess exit code
+    (`CommandOutcome.returncode`), never off whether `evidence` happens to
+    be empty -- pytest writes assertion failures to stdout, which
+    `CommandOutcome` never captures, so a genuine failure and pytest's
+    "no tests collected" case (exit 5) were otherwise indistinguishable.
+    Exit 5 means no edge-case tests exist yet (genuinely not-yet-
+    applicable) -- `n_a`, not a suite-failing verdict. Any other nonzero
+    exit is a real failure.
     """
     outcome = qa_agent.run_command("pytest -m edge_case_extension")
     if outcome.status == "NOT_VERIFIED":
         raise ToolUnavailable("edge_case_extension")
-    if outcome.status == "FAIL" and outcome.evidence:
+    if outcome.returncode == _PYTEST_NO_TESTS_COLLECTED:
+        return "n_a", {"reason": "no edge-case tests collected yet"}
+    if outcome.status == "FAIL":
         return "failed", {"evidence": outcome.evidence}
     return "passed", {}
 
