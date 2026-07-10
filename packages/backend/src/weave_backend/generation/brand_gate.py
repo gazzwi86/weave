@@ -25,6 +25,7 @@ import httpx
 
 from weave_backend.generation.gates import GateFailure, GateResult
 from weave_backend.settings.resolver import SettingNotFound, resolve_setting
+from weave_backend.settings.scope import InvalidScopeIri
 
 if TYPE_CHECKING:
     from weave_backend.generation.service import GenerationContext
@@ -106,11 +107,16 @@ def decide_brand_gate(
 async def _resolve_pass_bar(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
 ) -> float:
+    # `InvalidScopeIri` alongside `SettingNotFound`: `projects` has no
+    # `domain_id` yet (tracked gap, see MEMORY.md
+    # project_projects-domain-id-gap), so a bare `urn:weave:project:...`
+    # IRI can't walk a real PLAT-SETTINGS-1 cascade -- same fallback
+    # precedent as `build/typed_result.py`'s `get_retry_ceiling`.
     try:
         resolved = await resolve_setting(
             conn, tenant_id=tenant_id, key=_PASS_BAR_SETTING_NAME, context_iri=project_iri
         )
-    except SettingNotFound:
+    except (SettingNotFound, InvalidScopeIri):
         return DEFAULT_PASS_BAR
     return float(resolved.value)
 

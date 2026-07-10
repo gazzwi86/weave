@@ -1,11 +1,16 @@
-"""BE-TASK-008 (build-engine EPIC-008) unit tests for `generate_app`'s
-orchestration logic -- 404s, CE-READ-1 grounding (AC-1), atomic gate
-pipeline (AC-3), the secret-scan audit event (AC-4), workspace cleanup, and
-the AC-8 "CE-BRAND-1 never called in M1" guard. `get_project`/
-`get_task_brief`/`fetch_project_repo_row` are patched directly (same
-domain-function-patching pattern as `test_tasks_router.py`) so this test
-needs no real Postgres connection -- end-to-end proof against real
-Postgres/LocalStack lives in `tests/integration/test_generation_api.py`.
+"""BE-TASK-008 (build-engine EPIC-008) + TASK-002 (E8-S1) unit tests for
+`generate_app`'s orchestration logic -- 404s, CE-READ-1 grounding (AC-1),
+atomic gate pipeline (AC-3), the secret-scan audit event (AC-4), workspace
+cleanup, and the CE-BRAND-1 conformance gate registered 6th (TASK-002
+AC-1/AC-4/AC-5). `get_project`/`get_task_brief`/`fetch_project_repo_row` are
+patched directly (same domain-function-patching pattern as
+`test_tasks_router.py`) so this test needs no real Postgres connection --
+end-to-end proof against real Postgres/LocalStack lives in
+`tests/integration/test_generation_api.py`.
+
+TASK-008's original `test_generate_app_never_calls_ce_brand_tokens_endpoint`
+(the "AC-8 guard") is deleted here: TASK-002's entire purpose is to make the
+pipeline call CE-BRAND-1, which directly inverts that M1-only invariant.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from weave_backend.briefs.ce_read_client import CeReadUnavailable
@@ -71,23 +77,39 @@ class _FakeDriver:
         self.commit_workspace = AsyncMock(return_value="sha-123")
 
 
+class _Response:
+    """`httpx.Response`-shaped stand-in -- `body` defaults to the CE-READ-1
+    grounding shape; brand-gate paths get a passing-by-default body (empty
+    VoiceRules -> AC-6's "zero normal rules -> score 1.0" edge) so existing
+    non-brand tests don't need to know about the 6th gate.
+    """
+
+    def __init__(self, body: object) -> None:
+        self._body = body
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> object:
+        return self._body
+
+
 class _FakeCeClient:
-    """Records every path `.get()` is called with (AC-8 guard)."""
+    """Records every path `.get()` is called with -- TASK-002 brand-gate
+    calls (`/api/brand/tokens`, `/api/brand/voice-rules`) are dispatched
+    alongside the pre-existing CE-READ-1 grounding shape.
+    """
 
     def __init__(self) -> None:
         self.paths: list[str] = []
 
-    async def get(self, path: str) -> Any:
+    async def get(self, path: str) -> _Response:
         self.paths.append(path)
-
-        class _Response:
-            def raise_for_status(self) -> None:
-                return None
-
-            def json(self) -> dict[str, object]:
-                return {"entity_kinds": ["widget"]}
-
-        return _Response()
+        if path == "/api/brand/tokens":
+            return _Response({})
+        if path == "/api/brand/voice-rules":
+            return _Response([])
+        return _Response({"entity_kinds": ["widget"]})
 
 
 def _ctx(ce_client: Any = None) -> GenerationContext:
@@ -99,9 +121,12 @@ def _ctx(ce_client: Any = None) -> GenerationContext:
     )
 
 
-def _deps(*, driver: _FakeDriver | None = None, workspaces: list[str] | None = None) -> tuple[
-    GenerationDeps, list[dict[str, object]]
-]:
+def _deps(
+    *,
+    driver: _FakeDriver | None = None,
+    workspaces: list[str] | None = None,
+    brand_records: list[dict[str, object]] | None = None,
+) -> tuple[GenerationDeps, list[dict[str, object]]]:
     emitted: list[dict[str, object]] = []
     driver = driver or _FakeDriver()
 
@@ -119,11 +144,18 @@ def _deps(*, driver: _FakeDriver | None = None, workspaces: list[str] | None = N
     async def fake_get_secret(_ref: str) -> str:
         return "tok-1"
 
+    async def fake_record_brand_gate(
+        tenant_id: str, ctx: Any, status: str, payload: dict[str, object]
+    ) -> None:
+        if brand_records is not None:
+            brand_records.append({"tenant_id": tenant_id, "status": status, **payload})
+
     deps = GenerationDeps(
         generate_workspace_fn=fake_generate_workspace,
         driver_for=lambda _provider: driver,
         get_secret=fake_get_secret,
         emit_audit=fake_emit_audit,
+        record_brand_gate=fake_record_brand_gate,
     )
     return deps, emitted
 
@@ -175,7 +207,10 @@ async def test_generate_app_commits_and_returns_gates_passed_on_all_pass() -> No
     assert outcome == {
         "commit_sha": "sha-123",
         "branch": "build/acme/task-1",
-        "gates_passed": [{"gate": "secret_scan", "status": "PASS"}],
+        "gates_passed": [
+            {"gate": "secret_scan", "status": "PASS"},
+            {"gate": "brand", "status": "PASS", "score": 1.0},
+        ],
     }
     assert any(event["event_type"] == "generation_complete" for event in emitted)
 
@@ -220,13 +255,15 @@ async def test_generate_app_emits_secret_scan_fail_audit_on_secret_scan_gate_fai
     assert emitted[0]["event_type"] == "secret_scan_fail"
 
 
-async def test_generate_app_never_calls_ce_brand_tokens_endpoint() -> None:
-    """AC-7/AC-8: the M1 gate pipeline never queries CE-BRAND-1 -- an
-    explicit, intentionally-preserved guard (task brief's implementation
-    hint), not merely an absence-of-evidence check.
+async def test_generate_app_runs_brand_gate_sixth_and_records_score_row() -> None:
+    """AC-1: TASK-002 supersedes TASK-008's M1-only "never calls CE-BRAND-1"
+    guard (deleted) -- the brand gate is now the 6th step, queries both
+    CE-BRAND-1 endpoints, and records a gate_results row via
+    `deps.record_brand_gate`.
     """
     ce_client = _FakeCeClient()
-    deps, _ = _deps()
+    brand_records: list[dict[str, object]] = []
+    deps, _ = _deps(brand_records=brand_records)
     gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
     with (
         patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
@@ -235,6 +272,85 @@ async def test_generate_app_never_calls_ce_brand_tokens_endpoint() -> None:
         patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
         patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
     ):
+        outcome = await generate_app(AsyncMock(), _ctx(ce_client), deps)
+
+    assert "/api/brand/tokens" in ce_client.paths
+    assert "/api/brand/voice-rules" in ce_client.paths
+    gates_passed = cast("list[dict[str, object]]", outcome["gates_passed"])
+    assert gates_passed[-1] == {"gate": "brand", "status": "PASS", "score": 1.0}
+    assert brand_records == [
+        {
+            "tenant_id": "t1",
+            "status": "passed",
+            "score": 1.0,
+            "critical_failures": [],
+            "rules_evaluated": 0,
+        }
+    ]
+
+
+async def test_generate_app_fails_closed_when_ce_brand_unreachable() -> None:
+    """AC-5: CE-BRAND-1 unreachable -> the gate is recorded `not_verified`
+    and fails closed (never passes on an unevaluable result).
+    """
+
+    class _DownCeClient(_FakeCeClient):
+        async def get(self, path: str) -> _Response:
+            self.paths.append(path)
+            if path == "/api/brand/tokens":
+                raise httpx.ConnectError("connection refused")
+            return await super().get(path)
+
+    ce_client = _DownCeClient()
+    brand_records: list[dict[str, object]] = []
+    workspaces: list[str] = []
+    deps, _ = _deps(workspaces=workspaces, brand_records=brand_records)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        pytest.raises(GateFailure) as excinfo,
+    ):
         await generate_app(AsyncMock(), _ctx(ce_client), deps)
 
-    assert "/api/brand/tokens" not in ce_client.paths
+    assert excinfo.value.evidence["reason"] == "ce_unavailable"
+    assert not Path(workspaces[0]).exists()
+    assert brand_records == [
+        {"tenant_id": "t1", "status": "failed", "reason": "ce_unavailable", "not_verified": True}
+    ]
+
+
+async def test_generate_app_commits_nothing_when_brand_gate_fails_after_five_passes() -> None:
+    """AC-4: a brand-gate failure after all 5 M1 gates pass still commits
+    nothing -- atomicity of the six-gate set matches the M1 five-gate
+    behaviour.
+    """
+
+    class _CriticalFailCeClient(_FakeCeClient):
+        async def get(self, path: str) -> _Response:
+            self.paths.append(path)
+            if path == "/api/brand/voice-rules":
+                return _Response(
+                    [{"id": "voice-1", "severity": "critical", "assertion": {"kind": "unknown"}}]
+                )
+            return await super().get(path)
+
+    ce_client = _CriticalFailCeClient()
+    workspaces: list[str] = []
+    deps, _ = _deps(workspaces=workspaces)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        pytest.raises(GateFailure) as excinfo,
+    ):
+        await generate_app(AsyncMock(), _ctx(ce_client), deps)
+
+    assert excinfo.value.evidence["critical_failures"] == ["voice-1"]
+    assert deps.driver_for("github").commit_workspace.await_count == 0  # type: ignore[attr-defined]
+    assert workspaces, "generate_workspace_fn was never invoked"
+    assert not Path(workspaces[0]).exists()
