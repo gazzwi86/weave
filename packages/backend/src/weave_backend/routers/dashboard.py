@@ -80,7 +80,9 @@ async def refresh_widget_route(
     """
     async with tenant_connection(principal.tenant_id) as conn:
         row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
-        if row is None:
+        if row is None or (
+            row.scope == "user" and row.owner_principal_iri != principal.principal_iri
+        ):
             raise HTTPException(status_code=404)
 
         field_name = row.spec.bindings["field"]
