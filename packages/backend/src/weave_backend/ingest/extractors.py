@@ -18,6 +18,10 @@ class ExtractedCandidate:
     ops: list[dict[str, Any]]
     confidence: float
     reason: str = ""
+    #: TASK-013 pitfall: source_span locators must survive into the proposal
+    #: row now -- TASK-014's citations read them. `None` for extractors (e.g.
+    #: NoOpExtractor) that never emit spans.
+    source_span: str | None = None
 
 
 class Extractor(Protocol):
