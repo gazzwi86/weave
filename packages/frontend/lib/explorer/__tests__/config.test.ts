@@ -39,3 +39,35 @@ describe("DEFAULT_EXPLORER_CONFIG -- TASK-005 additions", () => {
     expect(DEFAULT_EXPLORER_CONFIG.expandConfirmThreshold).toBe(500);
   });
 });
+
+// TASK-021: heatmap/domain-colouring overlay config -- design-token colours,
+// never literals inlined at the overlay call sites (Implementation Hints).
+describe("DEFAULT_EXPLORER_CONFIG -- TASK-021 additions", () => {
+  it("defaults heatNoneColour to the heat-ramp grey fallback token", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.heatNoneColour).toBe("var(--color-heat-none)");
+  });
+
+  it("defaults domainNoneColour to the kind-fallback token", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.domainNoneColour).toBe("var(--color-kind-fallback)");
+  });
+
+  it("defaults domainPalette to the 6-slot series token ramp", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.domainPalette).toEqual([
+      "var(--color-series-1)",
+      "var(--color-series-2)",
+      "var(--color-series-3)",
+      "var(--color-series-4)",
+      "var(--color-series-5)",
+      "var(--color-series-6)",
+    ]);
+  });
+
+  // Dependencies: brief names prototype-findings.md as the source of real
+  // value->colour vocabularies -- that file isn't present in this worktree
+  // (flagged to team-lead). Empty is a real, tested state: AC-6 covers zero
+  // mappings for a dimension with an all-grey overlay + legend notice, so
+  // this ships correctly and gets real entries once the source is found.
+  it("defaults heatmapMappings to empty pending the prototype value vocabulary", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.heatmapMappings).toEqual({});
+  });
+});

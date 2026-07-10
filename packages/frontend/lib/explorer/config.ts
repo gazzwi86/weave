@@ -1,4 +1,5 @@
 import { FCOSE_PARAMS } from "./fcose-params";
+import type { HeatmapMapping } from "./overlays/heatmap-overlay";
 
 /** Tunable Explorer canvas config (AC-2/AC-6: no magic numbers in
  * components -- every threshold/timeout routes through this object). */
@@ -43,6 +44,23 @@ export interface ExplorerConfig {
   governanceLayerKind: string;
   governanceLayerPredicate: string;
   brandLayerKind: string;
+  /** TASK-021 AC-1/AC-6: grey fallback for a heatmap-overlay node with no
+   * match on the active dimension. */
+  heatNoneColour: string;
+  /** TASK-021: grey fallback for a domain-colouring-overlay node with no
+   * domain-membership edge -- reuses the kind-fallback token (same "no
+   * data" grey already used elsewhere on the canvas). */
+  domainNoneColour: string;
+  /** TASK-021 AC-3: categorical series palette, cycled when there are more
+   * domains than colours. */
+  domainPalette: string[];
+  /** TASK-021 Dependencies: prototype value->colour mappings, one entry per
+   * heatmap dimension (maturity/investment/strategy/lifecycle). Empty here
+   * -- the brief's source file (prototype-findings.md) isn't present in
+   * this worktree (flagged to team-lead). Empty is a real, tested state:
+   * AC-6 covers "no data for this dimension" with an all-grey overlay +
+   * legend notice, so this ships correctly pending real entries. */
+  heatmapMappings: Record<string, HeatmapMapping>;
 }
 
 export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
@@ -61,4 +79,15 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   governanceLayerKind: "Policy",
   governanceLayerPredicate: "https://weave.example/ontology/bpmo#governedBy",
   brandLayerKind: "",
+  heatNoneColour: "var(--color-heat-none)",
+  domainNoneColour: "var(--color-kind-fallback)",
+  domainPalette: [
+    "var(--color-series-1)",
+    "var(--color-series-2)",
+    "var(--color-series-3)",
+    "var(--color-series-4)",
+    "var(--color-series-5)",
+    "var(--color-series-6)",
+  ],
+  heatmapMappings: {},
 });
