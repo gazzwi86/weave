@@ -148,6 +148,52 @@ async def test_qa_suite_fails_perf_category_over_budget() -> None:
     assert result["result"] == "FAIL"
 
 
+async def test_qa_suite_perf_category_not_verified_when_slo_missing_measurement() -> None:
+    """Coverage for `_run_perf_vs_slo`'s NOT_VERIFIED branch -- an SLO is
+    declared but no measurement was ever taken (`measured_ms`/`budget_ms`
+    absent), so the category can't be verified rather than silently
+    passing or failing.
+    """
+    project = QAProject(has_ui=False, slo={})
+    with (
+        patch(
+            "weave_backend.build.qa_suite.qa_agent.run_command",
+            return_value=CommandOutcome(status="PASS"),
+        ),
+        patch("weave_backend.build.gates.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.build.gates.gate_store.insert_gate_result", AsyncMock()),
+    ):
+        result = await run_full_qa_suite(object(), run_ctx=_RUN_CTX, project=project)
+
+    perf = _category(result, "perf")
+    assert perf["verdict"] == "not_verified"
+    assert result["result"] == "FAIL"
+
+
+async def test_qa_suite_fails_browser_category_when_playwright_run_failed() -> None:
+    """Coverage for `_run_browser_backend`'s `passed is False` branch --
+    distinct from the "ran fine but no backend assertion" branch already
+    covered above.
+    """
+    project = QAProject(
+        has_ui=True, slo=None, browser_result={"passed": False, "backend_assertions": 3}
+    )
+    with (
+        patch(
+            "weave_backend.build.qa_suite.qa_agent.run_command",
+            return_value=CommandOutcome(status="PASS"),
+        ),
+        patch("weave_backend.build.gates.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.build.gates.gate_store.insert_gate_result", AsyncMock()),
+    ):
+        result = await run_full_qa_suite(object(), run_ctx=_RUN_CTX, project=project)
+
+    browser = _category(result, "browser_backend")
+    assert browser["verdict"] == "failed"
+    assert browser["evidence"]["reason"] == "playwright_run_failed"
+    assert result["result"] == "FAIL"
+
+
 async def test_qa_suite_fails_lint_category_on_nonzero_exit() -> None:
     """Coverage for `_cmd_runner`'s FAIL branch."""
 
