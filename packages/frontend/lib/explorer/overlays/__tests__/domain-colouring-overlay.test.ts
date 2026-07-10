@@ -92,6 +92,19 @@ describe("createDomainColouringOverlay", () => {
     expect(adapter.applyNodeColours).toHaveBeenCalledWith({}, "var(--color-kind-fallback)");
   });
 
+  // Edge case: zero membership edges loaded at all (distinct from the case
+  // above, which still has a domain node in the graph). No domains, no
+  // colours, no crash, no false-positive "cycled" note.
+  it("handles zero domain-membership edges without crashing and shows an empty legend", () => {
+    const adapter = fakeAdapter([{ data: { id: "n1" } }, { data: { id: "n2" } }]);
+    const overlay = createDomainColouringOverlay(CONFIG);
+
+    expect(() => overlay.apply(adapter)).not.toThrow();
+
+    expect(adapter.applyNodeColours).toHaveBeenCalledWith({}, "var(--color-kind-fallback)");
+    expect(overlay.legend()).toEqual({ title: "Domain colouring", entries: [], note: undefined });
+  });
+
   it("restores prior colouring by clearing node colours on remove (AC-4)", () => {
     const adapter = fakeAdapter([]);
     const overlay = createDomainColouringOverlay(CONFIG);
