@@ -178,6 +178,41 @@ async def apply_refresh_result(
     )
 
 
+async def insert_generated_widget(
+    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str, spec: WidgetSpec
+) -> str:
+    """TASK-011 AC-2/AC-5: insert a freshly-generated `scope='user'` widget
+    row inside the caller's already-open transaction. The caller raises
+    `MidStreamCap` (generate.py) after this to roll the transaction back --
+    this function does no error handling of its own, by design.
+
+    ponytail: the next `position` is read then inserted in the same
+    transaction, not under an explicit lock -- two concurrent first-time
+    generations for the same user could in principle race on one position
+    (rare, low-stakes UI ordering only, not a correctness/tenancy issue).
+    Upgrade path: `SELECT ... FOR UPDATE` if that shows up in practice.
+    """
+    position = await conn.fetchval(
+        "SELECT COALESCE(MAX(\"position\"), -1) + 1 FROM widget_instances"
+        " WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2",
+        tenant_id,
+        owner_principal_iri,
+    )
+    widget_id = await conn.fetchval(
+        """
+        INSERT INTO widget_instances
+            (tenant_id, scope, owner_principal_iri, spec, "position", status)
+        VALUES ($1, 'user', $2, $3::jsonb, $4, 'fresh')
+        RETURNING id
+        """,
+        tenant_id,
+        owner_principal_iri,
+        spec.model_dump_json(),
+        position,
+    )
+    return str(widget_id)
+
+
 async def delete_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:
     """AC-8: starter removal / unpin. User-scope + owner-only is enforced by
     the caller (router checks ``owner_principal_iri`` before calling this).

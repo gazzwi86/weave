@@ -56,3 +56,36 @@ class WidgetListResponse(BaseModel):
 class WidgetRefreshResponse(BaseModel):
     status: WidgetStatus
     fetched_at: datetime | None = None
+
+
+class GenerateWidgetRequest(BaseModel):
+    """Law 13: `POST /api/dashboard/widgets/generate` request body."""
+
+    prompt: str = Field(min_length=1)
+
+
+class SseDataPayload(BaseModel):
+    """TASK-011 (m2-delta.md §3): the SSE `data` event payload. The `spec`
+    event reuses `WidgetSpec` directly -- no wrapper needed there.
+    """
+
+    rows: Any
+    partial: bool = False
+
+
+class SseDonePayload(BaseModel):
+    token_count: int
+    widget_id: str
+
+
+#: Closed set of SSE terminal error states (m2-delta.md §3/§6). `source_not_ga`
+#: and `unsatisfiable` are deliberately distinct -- conflating them is a
+#: review Blocker (Design Decisions table, TASK-011 brief).
+SseErrorState = Literal[
+    "budget_cap", "provider_503", "source_not_ga", "unsatisfiable", "unavailable"
+]
+
+
+class SseErrorPayload(BaseModel):
+    state: SseErrorState
+    reason: str
