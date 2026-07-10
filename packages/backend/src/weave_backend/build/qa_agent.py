@@ -20,12 +20,17 @@ _EVIDENCE_TRUNCATE_CHARS = 500
 class CommandOutcome:
     status: str  # "PASS" | "FAIL" | "NOT_VERIFIED"
     evidence: str = ""
+    returncode: int | None = None  # real subprocess exit code; None if never ran (NOT_VERIFIED)
 
 
 def run_command(cmd: str) -> CommandOutcome:
     """Runs `cmd` via `subprocess.run` (not `.call` -- Implementation Hints)
     with `capture_output=True` so a failing command's stderr is available
-    for the audit `evidence` field, truncated to 500 chars.
+    for the audit `evidence` field, truncated to 500 chars. `returncode` is
+    threaded through so callers can distinguish exit-code shades of FAIL
+    (e.g. pytest's "no tests collected" exit 5) instead of guessing from
+    whether stderr happened to be empty (TASK-007-F1 -- pytest failures
+    land on stdout, which this outcome never captures).
     """
     try:
         result = subprocess.run(  # noqa: S603 -- cmd is a fixed DoD command, not user input
@@ -34,5 +39,9 @@ def run_command(cmd: str) -> CommandOutcome:
     except FileNotFoundError as exc:
         return CommandOutcome(status="NOT_VERIFIED", evidence=str(exc)[:_EVIDENCE_TRUNCATE_CHARS])
     if result.returncode == 0:
-        return CommandOutcome(status="PASS")
-    return CommandOutcome(status="FAIL", evidence=result.stderr[:_EVIDENCE_TRUNCATE_CHARS])
+        return CommandOutcome(status="PASS", returncode=0)
+    return CommandOutcome(
+        status="FAIL",
+        evidence=result.stderr[:_EVIDENCE_TRUNCATE_CHARS],
+        returncode=result.returncode,
+    )
