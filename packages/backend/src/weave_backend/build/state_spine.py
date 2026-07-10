@@ -31,6 +31,10 @@ class TaskState(BaseModel):
     status: str
     blocked_by: list[str] = Field(default_factory=list)
     codify_checkpoint: dict[str, Any] | None = None
+    #: TASK-009/FR-043: set when PLAN held the task on a missing predecessor
+    #: dep-summary (`"dep_summary_missing"`) -- stored in the same JSONB
+    #: `tasks` blob, no migration needed.
+    hold_reason: str | None = None
 
 
 class StateSpine(BaseModel):
@@ -46,9 +50,14 @@ class StateSpine(BaseModel):
         """AC-1 pseudocode's `next_ready_task` -- the first task not yet
         `Done`/`Blocked`. M1 has no priority/parallelism scheduling beyond
         list order (out of this task's AC scope).
+
+        TASK-009/FR-043: a task held on a missing predecessor dep-summary
+        (`hold_reason` set) is also skipped -- otherwise every remaining
+        dispatch cycle re-selects the same held task and spins to the turn
+        cap instead of making progress on the rest of the backlog.
         """
         for task in self.tasks:
-            if task.status not in ("Done", "Blocked"):
+            if task.status not in ("Done", "Blocked") and task.hold_reason is None:
                 return task
         return None
 

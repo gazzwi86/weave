@@ -8,7 +8,6 @@ the DB-round-trip proof lives in `tests/integration/test_runs_api.py`.
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import pytest
@@ -19,6 +18,7 @@ from weave_backend.build.dep_summary import DepSummary
 from weave_backend.build.hitl import HitlGateContext
 from weave_backend.build.orchestrator import (
     OrchestratorDeps,
+    TaskHeld,
     _dispatch_one,
     default_dispatch_pdac,
     run_dark_factory,
@@ -260,26 +260,45 @@ async def test_codify_writes_dep_summary_before_task_done() -> None:
     assert other_task.status == "Queued"
 
 
-async def test_plan_warns_and_proceeds_when_predecessor_summary_missing(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """AC-5: a missing predecessor summary logs `missing_handoff` and the
-    task dispatches anyway -- M1 never holds on a miss.
+async def test_plan_raises_task_held_when_predecessor_summary_missing() -> None:
+    """TASK-009/AC-6: a missing predecessor summary raises `TaskHeld` --
+    replaces the M1 warn-and-proceed stub (FR-043 no longer best-effort).
     """
     task = TaskState(id="t2", status="Queued", blocked_by=["t1"])
     conn = _FakeConnection(dep_summary_row=None)
 
-    with caplog.at_level(logging.WARNING, logger="weave_backend.build.orchestrator"):
-        result, summary = await default_dispatch_pdac(
-            conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task
-        )
+    with pytest.raises(TaskHeld) as exc_info:
+        await default_dispatch_pdac(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task)
+    assert exc_info.value.missing_dep_id == "t1"
 
-    assert result.status == "PASS"
-    assert summary is not None
-    warnings = [r for r in caplog.records if r.message == "missing_handoff"]
-    assert len(warnings) == 1
-    assert warnings[0].__dict__["task_id"] == "t2"
-    assert warnings[0].__dict__["missing_summary"] == "t1"
+
+async def test_hold_task_in_ready_when_predecessor_summary_missing() -> None:
+    """AC-6: `should hold task in Ready when predecessor dep summary
+    missing` -- `_dispatch_one` catches `TaskHeld` and holds the task in
+    `Ready` with `hold_reason="dep_summary_missing"` rather than failing
+    the cycle or marking it Done.
+    """
+    task = TaskState(id="t2", status="Queued", blocked_by=["t1"])
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection(dep_summary_row=None)
+    deps = OrchestratorDeps(repo_deps=_repo_deps(), dispatch_pdac_fn=default_dispatch_pdac)
+
+    await _dispatch_one(conn, spine, task, tenant_id=_TENANT, deps=deps)
+
+    assert task.status == "Ready"
+    assert task.hold_reason == "dep_summary_missing"
+
+
+def test_next_ready_task_skips_held_task() -> None:
+    """AC-6 (loop-progress corollary): a held task must not spin the
+    dispatch loop -- `next_ready_task` skips it so the rest of the backlog
+    still makes progress.
+    """
+    held = TaskState(id="t1", status="Ready", hold_reason="dep_summary_missing")
+    next_up = TaskState(id="t2", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[held, next_up])
+
+    assert spine.next_ready_task() is next_up
 
 
 async def test_model_routing_miss_halts_task_not_silent_invoke(

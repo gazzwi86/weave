@@ -51,13 +51,23 @@ DispatchResult = tuple[TypedResult, DepSummary | None]
 DispatchFn = Callable[..., Awaitable[DispatchResult]]
 
 
+class TaskHeld(Exception):
+    """TASK-009/FR-043: raised by PLAN when a predecessor's dep-summary is
+    missing -- replaces the M1 best-effort warn-and-continue path. Caught
+    by `_dispatch_one`, never by `default_dispatch_pdac`'s own caller.
+    """
+
+    def __init__(self, *, missing_dep_id: str) -> None:
+        super().__init__(f"dep summary missing for predecessor {missing_dep_id}")
+        self.missing_dep_id = missing_dep_id
+
+
 async def default_dispatch_pdac(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, task: TaskState
 ) -> DispatchResult:
-    """AC-5/AC-6 stub PDAC step: resolve every role's model, best-effort
-    load the task's brief, and best-effort load predecessor dep summaries
-    (warn, never hold, on a miss). Returns a PASS with an empty dep summary
-    -- DELEGATE/ASSESS/CODIFY content generation is out of scope here.
+    """AC-6 PDAC step: resolve every role's model, best-effort load the
+    task's brief, and read each predecessor's dep summary -- a miss raises
+    `TaskHeld` (FR-043; no longer best-effort/warn-and-continue).
     """
     for role in PDAC_ROLES:
         try:
@@ -79,7 +89,7 @@ async def default_dispatch_pdac(
         if not await dep_summary_exists(
             conn, tenant_id=tenant_id, project_iri=project_iri, task_id=dep_id
         ):
-            log.warning("missing_handoff", extra={"task_id": task.id, "missing_summary": dep_id})
+            raise TaskHeld(missing_dep_id=dep_id)
 
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
 
@@ -112,9 +122,18 @@ async def _dispatch_one(
     (AC-2/AC-6); PASS writes the dep summary before marking the task Done
     (AC-4, non-skippable CODIFY).
     """
-    result, dep_summary = await deps.dispatch_pdac_fn(
-        conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
-    )
+    try:
+        result, dep_summary = await deps.dispatch_pdac_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
+        )
+    except TaskHeld as exc:
+        task.status = "Ready"
+        task.hold_reason = "dep_summary_missing"
+        log.info(
+            "task_held",
+            extra={"task_id": task.id, "missing_summary": exc.missing_dep_id},
+        )
+        return
 
     if result.status == "FAIL":
         if task_store.get_task(tenant_id, task.id) is None:
