@@ -78,6 +78,37 @@ describe("createPinnedImpactOverlay (TASK-028 AC-3/AC-4/AC-5/AC-7)", () => {
     expect(notify).toHaveBeenCalledWith("Pinned trace source deleted");
   });
 
+  // Edge case (QA-added): OverlayEngine.activate() does not call remove()
+  // on an existing entry before overwriting the same id (overlay-engine.ts
+  // is TASK-021's file, out of this task's scope to change) -- so re-pinning
+  // the same source node without unpinning first leaves the FIRST overlay's
+  // onElementRemoved subscription live. Both subscriptions then fire on the
+  // next source-delete event, so the "Pinned trace source deleted" notice
+  // fires twice for one deletion. Not reachable via AC-4's own tested flow
+  // (single pin -> delete -> clear), but a real risk once a "re-run impact
+  // analysis on the same node" UI action lands (TASK-030 territory) --
+  // documented here, not fixed here (QA adds tests, never implementation).
+  it("re-pinning the same source without unpinning leaks the first subscription (known engine gap)", () => {
+    const removedHandlers: Array<(id: string) => void> = [];
+    const adapter = fakeAdapter({
+      onElementRemoved: vi.fn((handler: (id: string) => void) => {
+        removedHandlers.push(handler);
+        return vi.fn();
+      }),
+    });
+    const engine = new OverlayEngine();
+    const notify = vi.fn();
+
+    engine.activate(createPinnedImpactOverlay(TRACE, engine, notify), adapter);
+    engine.activate(createPinnedImpactOverlay(TRACE, engine, notify), adapter);
+
+    expect(removedHandlers).toHaveLength(2); // both apply() calls registered a listener
+
+    removedHandlers.forEach((handler) => handler("urn:Policy1"));
+
+    expect(notify).toHaveBeenCalledTimes(2); // one deletion, two notices -- the leak
+  });
+
   // AC-5: legend's hidden-by-filters count is a live read (via the adapter
   // captured at apply-time), not a snapshot -- so it reflects a filter
   // change that happens after the trace was pinned, no re-apply needed.
