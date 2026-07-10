@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from weave_backend.sdkgen.emit_typescript import emit_typescript
-from weave_backend.sdkgen.ir import SdkModel
+from weave_backend.sdkgen.ir import IRFunction, SdkModel
 from weave_backend.sdkgen.validate import validate_typescript
 
 
@@ -63,3 +63,33 @@ def test_emitted_typescript_passes_tsc_noemit(tmp_path: Path, sample_sdk_model: 
     emit_typescript(sample_sdk_model, tmp_path)
 
     validate_typescript(tmp_path)  # raises GenerationValidationError on failure
+
+
+def test_emitted_typescript_does_not_let_fn_iri_break_out_of_string_literal(
+    tmp_path: Path, sample_sdk_model: SdkModel
+) -> None:
+    """QA edge case (TASK-004 security check): ``fn_iri`` comes from CE's
+    ``GET /api/functions/{iri}`` JSON response -- a JSON string, not an
+    IRI-syntax-constrained value -- and ``index.ts.j2`` interpolates it
+    unescaped inside a double-quoted JS string
+    (``throw new NotExecutableUntilPostV1("{{ fn.fn_iri }}")``). A crafted
+    ``fn_iri`` containing a quote can break out of that literal and inject
+    an arbitrary, independently-valid statement -- which then *passes*
+    ``tsc --noEmit`` (AC-7 does not catch this, because the injected code is
+    itself well-typed TypeScript). This is a codegen injection vector, not a
+    compile error, so the AC-7 validator gate is not a safety net for it.
+    """
+    payload = 'weave:x"); var pwned = 1; ("'
+    poisoned_fn = IRFunction(
+        name="safeName", fn_iri=payload, params=[], return_ts="number", return_py="int"
+    )
+    model = sample_sdk_model.model_copy(update={"functions": [poisoned_fn]})
+
+    emit_typescript(model, tmp_path)
+    index_ts = (tmp_path / "index.ts").read_text()
+
+    assert "var pwned = 1;" not in index_ts, (
+        "fn_iri injected an executable statement into the emitted SDK -- "
+        "emit_typescript.py must escape/validate fn.fn_iri before interpolating "
+        "it into a JS string literal (see QA failure report TASK-004)"
+    )

@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from weave_backend.sdkgen.emit_python import emit_python
-from weave_backend.sdkgen.ir import SdkModel
+from weave_backend.sdkgen.ir import IRFunction, SdkModel
 from weave_backend.sdkgen.validate import validate_python
 
 
@@ -60,3 +60,31 @@ def test_emitted_python_passes_mypy_strict(tmp_path: Path, sample_sdk_model: Sdk
     emit_python(sample_sdk_model, tmp_path)
 
     validate_python(tmp_path)  # raises GenerationValidationError on failure
+
+
+def test_emitted_python_does_not_let_fn_iri_break_out_of_string_literal(
+    tmp_path: Path, sample_sdk_model: SdkModel
+) -> None:
+    """QA edge case (TASK-004 security check): same injection vector as the
+    TypeScript emitter (see ``test_sdkgen_emit_typescript.py``) --
+    ``client.py.j2`` interpolates ``fn.fn_iri`` unescaped inside a
+    double-quoted Python string
+    (``raise NotExecutableUntilPostV1("{{ fn.fn_iri }}")``). A crafted
+    ``fn_iri`` containing a quote breaks out of the literal and injects an
+    arbitrary statement that still passes ``mypy --strict`` (AC-7 does not
+    catch this -- the injected code is itself well-typed Python).
+    """
+    payload = 'weave:x"); pwned = __import__("os").system("id"); ("'
+    poisoned_fn = IRFunction(
+        name="safeName", fn_iri=payload, params=[], return_ts="number", return_py="int"
+    )
+    model = sample_sdk_model.model_copy(update={"functions": [poisoned_fn]})
+
+    emit_python(model, tmp_path)
+    client_py = (tmp_path / "client.py").read_text()
+
+    assert 'pwned = __import__("os")' not in client_py, (
+        "fn_iri injected an executable statement into the emitted SDK -- "
+        "emit_python.py must escape/validate fn.fn_iri before interpolating "
+        "it into a Python string literal (see QA failure report TASK-004)"
+    )
