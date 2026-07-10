@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess  # nosec B404 -- validator invocation is the point (tsc/mypy), Law F local-only
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -46,15 +47,24 @@ def validate_typescript(ts_dir: Path) -> None:
 
 
 def validate_python(py_dir: Path) -> None:
-    """AC-7: ``mypy --strict`` over the emitted Python staging dir."""
+    """AC-7: ``mypy --strict`` over the emitted Python staging dir.
+
+    ``--cache-dir`` is pointed outside ``py_dir``: the default behaviour
+    writes a ``.mypy_cache`` directory into the current working directory,
+    which -- since ``py_dir`` is the SDK's own staging tree -- would
+    otherwise be committed straight into the generated SDK package (and
+    break AC-1 byte-identical-output, since the cache embeds its own
+    internal timestamps).
+    """
     mypy = shutil.which("mypy") or "mypy"
-    result = subprocess.run(  # noqa: S603 # nosec B603 -- fixed argv, no shell, no untrusted input
-        [mypy, "--strict", "."],
-        cwd=py_dir,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    with tempfile.TemporaryDirectory(prefix="weave-sdkgen-mypy-cache-") as cache_dir:
+        result = subprocess.run(  # noqa: S603 # nosec B603 -- fixed argv, no shell, no untrusted input
+            [mypy, "--strict", f"--cache-dir={cache_dir}", "."],
+            cwd=py_dir,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
     if result.returncode != 0:
         raise GenerationValidationError("mypy --strict", result.stdout + result.stderr)
 
