@@ -41,10 +41,15 @@ from weave_backend.schemas.dashboard import (
 #: `record_token_usage` verbatim (Design Decisions: "any re-implementation
 #: is a review Blocker") -- `resolve_setting`'s ancestor-chain cascade still
 #: correctly falls through to the tenant's company-level cap, since it walks
-#: by IRI string, not by checking the workspace exists. Upgrade path: give
+#: by IRI string, not by checking the workspace exists. Must be UUID-shaped
+#: (not e.g. `"_dashboard"`) -- `enforce_budget`'s 80%-utilisation notify
+#: path queries `workspace_members.workspace_id`, a real `UUID` column, and
+#: asyncpg rejects a non-UUID literal before the query can even run zero
+#: rows. The nil UUID guarantees that lookup harmlessly finds no admins
+#: (there's no real workspace here to notify). Upgrade path: give
 #: `BillingScope` a real company-scope constructor if a second tenant-wide
 #: (non-workspace) caller shows up.
-DASHBOARD_BUDGET_WORKSPACE_ID = "_dashboard"
+DASHBOARD_BUDGET_WORKSPACE_ID = "00000000-0000-0000-0000-000000000000"
 
 #: AC-7: no real per-token pricing table exists yet (none of TASK-008/012/013
 #: define one) -- metering is wired for real here, priced at $0 until a
