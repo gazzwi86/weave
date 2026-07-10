@@ -9,10 +9,11 @@ from __future__ import annotations
 import pytest
 from rdflib import Graph
 
-from weave_backend.sdkgen.errors import UnmappableConstraint
+from weave_backend.sdkgen.errors import UnmappableConstraint, UnsafeFunctionIdentifier
 from weave_backend.sdkgen.ir import (
     IRClass,
     IRField,
+    escape_iri_literal,
     map_core_tokens,
     map_fn,
     map_select,
@@ -212,3 +213,55 @@ def test_should_emit_one_typed_method_per_registry_function() -> None:
     assert fn.name == "calculateTotal"
     assert fn.fn_iri == "weave:calculateTotal"
     assert fn.return_ts == "number"
+
+
+def test_map_fn_rejects_fn_iri_outside_safe_charset() -> None:
+    """XT-BE004-1: ``fn_iri`` is CE-FUNCTION-1 JSON, not IRI-syntax-
+    constrained -- a value with a quote/space/semicolon must be rejected
+    at the IR boundary, not passed through to the emitter templates.
+    """
+    fn_schema: dict[str, object] = {
+        "name": "safeName",
+        "fn_iri": 'weave:x"); var pwned = 1; ("',
+        "parameters": {"properties": {}, "required": []},
+        "returns": {"type": "number"},
+    }
+
+    with pytest.raises(UnsafeFunctionIdentifier):
+        map_fn(fn_schema)
+
+
+def test_escape_iri_literal_leaves_safe_iri_untouched() -> None:
+    """The template-facing second layer of defense: a legitimate IRI must
+    render byte-identical, or every existing golden-output assertion
+    breaks.
+    """
+    assert escape_iri_literal("weave:calculateTotal") == "weave:calculateTotal"
+
+
+def test_escape_iri_literal_percent_encodes_unsafe_characters() -> None:
+    """XT-BE004-1: quotes/spaces/semicolons/parens must be percent-encoded
+    so a malicious value can never reassemble into readable injected
+    source inside the template's quoted string literal.
+    """
+    escaped = escape_iri_literal('weave:x"); var pwned = 1; ("')
+
+    assert "var pwned = 1;" not in escaped
+    assert '"' not in escaped
+    assert " " not in escaped
+
+
+def test_map_fn_rejects_name_outside_safe_charset() -> None:
+    """XT-BE004-1: ``name`` lands in a method-*identifier* position in
+    both emitter templates, which cannot be escaped -- an unsafe value
+    must be rejected here, not just at fn_iri's string-literal position.
+    """
+    fn_schema: dict[str, object] = {
+        "name": 'safe"); var pwned = 1; ("',
+        "fn_iri": "weave:calculateTotal",
+        "parameters": {"properties": {}, "required": []},
+        "returns": {"type": "number"},
+    }
+
+    with pytest.raises(UnsafeFunctionIdentifier):
+        map_fn(fn_schema)

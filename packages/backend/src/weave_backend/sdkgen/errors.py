@@ -23,6 +23,20 @@ class UnmappableConstraint(SdkGenerationError):
         super().__init__(f"unmappable constraint on shape {shape}: {constraint}")
 
 
+class UnsafeFunctionIdentifier(SdkGenerationError):
+    """Security (XT-BE004-1): a ``CE-FUNCTION-1`` function's ``fn_iri`` or
+    ``name`` contains a character outside the safe IRI/identifier charset.
+    Both values are interpolated unescaped into a generated-code string
+    literal by the emitter templates, so an unvalidated value is a codegen
+    injection vector -- this is raised instead of letting the value through.
+    """
+
+    def __init__(self, field: str, value: str) -> None:
+        self.field = field
+        self.value = value
+        super().__init__(f"unsafe {field} for generated function: {value!r}")
+
+
 class CeFetchError(SdkGenerationError):
     """AC-6: a CE-READ-1 / CE-FUNCTION-1 / CE-BRAND-1 input was unreachable.
     Raised before any staging directory is created, so the pipeline fails

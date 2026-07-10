@@ -9,7 +9,7 @@ from pathlib import Path
 
 import jinja2
 
-from weave_backend.sdkgen.ir import SdkModel
+from weave_backend.sdkgen.ir import SdkModel, escape_iri_literal
 
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates" / "typescript"
 _TEMPLATE_FILES = (
@@ -30,12 +30,16 @@ def _env() -> jinja2.Environment:
     # literal string `Promise&lt;Row[]&gt;`, or `"` in a string literal ->
     # `&#34;`). There is no HTML-injection surface: output is written
     # straight to a .ts file, never rendered in a browser DOM.
-    return jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML
+    env = jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML
         loader=jinja2.FileSystemLoader(_TEMPLATES_DIR),
         undefined=jinja2.StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    # XT-BE004-1: percent-encode any character outside the safe IRI charset
+    # before it lands inside the quoted string literal in index.ts.j2.
+    env.filters["escape_iri_literal"] = escape_iri_literal
+    return env
 
 
 def emit_typescript(ir: SdkModel, into: Path) -> None:

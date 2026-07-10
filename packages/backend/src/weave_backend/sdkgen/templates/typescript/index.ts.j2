@@ -30,7 +30,7 @@ export class WeaveClient {
 {% endfor %}
 {% for fn in functions %}
   {{ fn.name }}({% for p in fn.params %}{{ p.name }}{{ '' if p.required else '?' }}: {{ p.ts_type }}{% if not loop.last %}, {% endif %}{% endfor %}): {{ fn.return_ts }} {
-    throw new NotExecutableUntilPostV1("{{ fn.fn_iri }}");
+    throw new NotExecutableUntilPostV1("{{ fn.fn_iri | escape_iri_literal }}");
   }
 
 {% endfor %}

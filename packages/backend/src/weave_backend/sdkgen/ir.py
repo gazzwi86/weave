@@ -13,13 +13,41 @@ without this, byte-identical golden-file output would be a coin flip.
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel
 from rdflib import Graph
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, SH
 from rdflib.term import Node
 
-from weave_backend.sdkgen.errors import UnmappableConstraint
+from weave_backend.sdkgen.errors import UnmappableConstraint, UnsafeFunctionIdentifier
+
+#: XT-BE004-1: both emitter templates interpolate ``fn.fn_iri``/``fn.name``
+#: unescaped into a generated-code string literal (``throw new
+#: NotExecutableUntilPostV1("{{ fn.fn_iri }}")`` / the Python equivalent).
+#: ``fn_iri``/``name`` come from CE's ``/api/functions`` JSON response --
+#: not IRI-syntax-constrained -- so an unvalidated value is a codegen
+#: injection vector. Charsets below are allow-lists (RDF ``IRIREF``-safe
+#: characters for the IRI; a plain identifier charset for the method name),
+#: enforced once at the IR boundary so every emitter is protected.
+_SAFE_IRI_RE = re.compile(r"^[A-Za-z0-9:/#\-_.~%]+$")
+_SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SAFE_IRI_CHAR_RE = re.compile(r"[A-Za-z0-9:/#\-_.~%]")
+
+
+def escape_iri_literal(value: str) -> str:
+    """Second layer of defense for XT-BE004-1: ``map_fn`` already rejects an
+    unsafe ``fn_iri`` for real CE-sourced data, but an :class:`IRFunction`
+    can also be built directly (e.g. by another future emitter/caller)
+    without going through ``map_fn``. Both emitter templates quote this
+    value literally (``"{{ fn.fn_iri | escape_iri_literal }}"``), so any
+    character outside the safe IRI charset is percent-encoded here -- this
+    is what actually prevents a crafted value from closing the string
+    literal or reassembling into readable injected source, regardless of
+    which path the value took to reach the template.
+    """
+    return "".join(c if _SAFE_IRI_CHAR_RE.match(c) else f"%{ord(c):02X}" for c in value)
 
 #: Mapping table (task brief, IR core section) -- XSD local name -> (TS, Python).
 _DATATYPE_MAP: dict[str, tuple[str, str]] = {
@@ -261,9 +289,23 @@ def map_fn(fn_schema: dict[str, object]) -> IRFunction:
         "unknown",
         "object",
     )
+    name = str(fn_schema["name"])
+    fn_iri = str(fn_schema["fn_iri"])
+    # XT-BE004-1: ``name`` is interpolated into a method-*identifier*
+    # position (``def {{ fn.name }}(``) in both emitter templates, which
+    # cannot be string-escaped -- an unsafe value must be rejected here,
+    # at the IR boundary, before it ever reaches a template. ``fn_iri``
+    # lands in a string-literal position, so the emitters additionally
+    # JSON-encode it (``| tojson``); validating it here too means a bad
+    # CE-FUNCTION-1 response fails loudly at mapping time instead of
+    # silently reaching codegen.
+    if not _SAFE_IDENTIFIER_RE.match(name):
+        raise UnsafeFunctionIdentifier("name", name)
+    if not _SAFE_IRI_RE.match(fn_iri):
+        raise UnsafeFunctionIdentifier("fn_iri", fn_iri)
     return IRFunction(
-        name=str(fn_schema["name"]),
-        fn_iri=str(fn_schema["fn_iri"]),
+        name=name,
+        fn_iri=fn_iri,
         params=params,
         return_ts=return_ts,
         return_py=return_py,

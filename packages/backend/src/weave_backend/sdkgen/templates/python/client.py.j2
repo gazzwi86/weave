@@ -31,6 +31,6 @@ class WeaveClient:
     def {{ fn.name }}(
         self{% for p in fn.params %}, {{ p.name }}: {{ p.py_type }}{{ '' if p.required else ' | None = None' }}{% endfor %}
     ) -> {{ fn.return_py }}:
-        raise NotExecutableUntilPostV1("{{ fn.fn_iri }}")
+        raise NotExecutableUntilPostV1("{{ fn.fn_iri | escape_iri_literal }}")
 
 {% endfor %}
