@@ -184,7 +184,7 @@ async def test_should_compute_package_version_from_generation_count(
 ) -> None:
     """AC-5: `{ce_version_tag}+build.{n}` -- project's `sdk_generation_count`
     is 2 going in, so the third build is `v1+build.3`."""
-    from weave_backend.generation import sdk_trigger
+    from weave_backend.generation import sdk_commit, sdk_trigger
 
     project = _project()
     staging = tmp_path / "staging"
@@ -235,9 +235,9 @@ async def test_should_compute_package_version_from_generation_count(
     async def fake_update_sdk_run_status(_conn: Any, **kwargs: Any) -> None:
         status_updates.append(kwargs)
 
-    monkeypatch.setattr(sdk_trigger, "generate_sdk", lambda _pin: generated)
-    monkeypatch.setattr(sdk_trigger, "update_sdk_run_status", fake_update_sdk_run_status)
-    monkeypatch.setattr(sdk_trigger, "tenant_connection", lambda _tenant_id: _AsyncCM(conn))
+    monkeypatch.setattr(sdk_commit, "generate_sdk", lambda _pin: generated)
+    monkeypatch.setattr(sdk_commit, "update_sdk_run_status", fake_update_sdk_run_status)
+    monkeypatch.setattr(sdk_commit, "tenant_connection", lambda _tenant_id: _AsyncCM(conn))
 
     await sdk_trigger._generate_and_commit(
         tenant_id=_TENANT,
