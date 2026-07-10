@@ -131,3 +131,10 @@ test runs effectively dark-mode so does NOT catch this. **ACTION (design authori
 hex for the 5 unaliased series stops (AA/1.4.11 on white), same process kind colours got their light variants.
 MUST land before any light-mode ship of the Explorer canvas. Coordinator approved dark-only-for-now (option 2)
 — dark-first product, decorative fill, honest code-comment + report flag. Related: iconography/token follow-ups.
+
+## Follow-up: heatmap value→colour mappings source missing — CE-021 (low-sev)
+CE-V1-TASK-021's brief sources heatmap value→colour lists from `prototype-findings.md`, which exists only in
+the old `.history` folder, not on this branch or in docs. Engineer ships `heatmapMappings` EMPTY (commented) —
+a valid AC-6 state ("no data for this dimension → all-grey + legend notice, no error", tested). Overlay shows
+all-grey until real value→colour pairs are filled in. ACTION: recover the mappings from prototype-findings.md
+(or have design author them) + wire into config. Non-blocking; the empty state is honest + tested.
