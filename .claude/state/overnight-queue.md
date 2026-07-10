@@ -144,3 +144,13 @@ PLAT-V1-TASK-011 adds a `usePathname` guard to `components/shell/command-palette
 entity-search Cmd+K no-ops on `/dashboard` (dashboard PromptBar owns Cmd+K there — AC-8). PLAT-V1-TASK-027
 (App shell v2 chrome refit, parked/spec-blocked) touches this same shell — it MUST preserve the context-scoped
 Cmd+K guard (don't silently re-break it). Coordinator approved the guard (cleanest AC-8 impl, only shared-file edit).
+
+## PRIORITY: PROJ-013 — pytest-cov + asyncpg segfault (3rd task hit, escalating)
+`pytest-cov` + `asyncpg` SSL-connect under the coverage tracer segfaults (exit 139) inside the
+`platform_stack` fixture — now hit by BE-TASK-001, BE-V1-TASK-001, AND CE-V1-TASK-012. Blocks a merged
+coverage number on every docker-lane task (unit-lane coverage looks low because the DB/HTTP paths only the
+docker lane exercises can't be instrumented). **ACTION (test-infra, HITL-gated):** either a real fix, or a
+documented `--no-cov` carve-out for the docker integration lane per `docs/standards/testing-py.md` (the
+carve-out note already exists on PROJ-013 in qa-project-issues.md). Prioritize before a 4th task hits it —
+recurring drag on backend QA confidence. Not blocking task DONE (functional correctness proven by the docker
+tests; only the % is unmeasurable), but worth fixing at the phase gate or sooner.

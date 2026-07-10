@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T19:36:48+00:00
+Captured at: 2026-07-10T20:53:31+00:00
 Event: pre-compact
 
 ## Current State
@@ -725,17 +725,17 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Widget-state foundation + fixed CE-sourced default dashboard (E1-S0, E1-S6)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-010.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "PLAT-V1-TASK-011",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Generative widget pipeline: prompt bar + SSE stream + budget/meter/audit (E1-S1, E1-S7)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "PLAT-V1-TASK-010"
       ],
@@ -1042,7 +1042,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Ingest Foundation: Artefact Upload, Job Lifecycle, Proposal Store",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-012.md",
       "retry_count": 0
