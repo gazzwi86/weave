@@ -109,7 +109,7 @@ def test_generate_sdk_matches_committed_golden_fixture() -> None:
     catches template regressions that two live runs, being equally
     regressed, would not.
     """
-    staging = generate_sdk(_PIN, _stub_client())
+    staging = generate_sdk(_PIN, _stub_client()).staging
 
     assert _tree_files(staging) == _tree_files(_GOLDEN_DIR)
 
@@ -118,7 +118,7 @@ def test_generate_sdk_emits_one_typed_method_per_registry_function() -> None:
     """AC-4: the CE-FUNCTION-1 registry fixture has two functions; the
     emitted TS and Python clients get one typed method each.
     """
-    staging = generate_sdk(_PIN, _stub_client())
+    staging = generate_sdk(_PIN, _stub_client()).staging
 
     index_ts = (staging / "ts" / "index.ts").read_text()
     client_py = (staging / "py" / "client.py").read_text()

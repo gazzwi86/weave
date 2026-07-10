@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
@@ -59,9 +60,20 @@ def _fetch_ir(pin: CeVersionPin, ce_client: CeClient) -> SdkModel:
     )
 
 
-def generate_sdk(pin: CeVersionPin, ce_client: CeClient | None = None) -> Path:
+@dataclass(frozen=True)
+class GeneratedSdk:
+    """TASK-005: the pipeline's full result -- `staging` for the SCM commit,
+    `ir` so `collect_iris` can walk `classes[].iri`/`functions[].fn_iri`
+    without re-scanning the emitted files (Implementation Hints).
+    """
+
+    staging: Path
+    ir: SdkModel
+
+
+def generate_sdk(pin: CeVersionPin, ce_client: CeClient | None = None) -> GeneratedSdk:
     """The BE-SDK-1 core pipeline (task brief pseudocode): fetch -> IR ->
-    emit TS/Python/OpenAPI -> validate -> return the staging directory.
+    emit TS/Python/OpenAPI -> validate -> return the staging directory + IR.
 
     ``ce_client`` is injectable for tests (fixture-registry / atomicity /
     poisoned-template integration tests all pass a stub); production
@@ -80,4 +92,4 @@ def generate_sdk(pin: CeVersionPin, ce_client: CeClient | None = None) -> Path:
     except Exception:  # cleanup-then-reraise: any emit/validate failure discards staging
         shutil.rmtree(staging, ignore_errors=True)
         raise
-    return staging
+    return GeneratedSdk(staging=staging, ir=ir)

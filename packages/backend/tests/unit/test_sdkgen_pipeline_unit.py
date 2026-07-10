@@ -70,7 +70,7 @@ def test_generate_sdk_calls_all_five_ce_fetches_before_returning_staging_dir() -
     transport = httpx.MockTransport(handle)
     stub = CeClient(httpx.Client(transport=transport, base_url="https://ce.test"))
 
-    staging = generate_sdk(CeVersionPin(version_iri="urn:weave:ce:v1"), stub)
+    staging = generate_sdk(CeVersionPin(version_iri="urn:weave:ce:v1"), stub).staging
 
     assert (staging / "ts").is_dir()
     assert (staging / "py").is_dir()
