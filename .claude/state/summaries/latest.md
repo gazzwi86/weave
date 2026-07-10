@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T05:34:17+00:00
+Captured at: 2026-07-10T13:04:52+00:00
 Event: pre-compact
 
 ## Current State
@@ -195,42 +195,42 @@ Event: pre-compact
     },
     {
       "id": "CE-V1-EPIC-015",
-      "title": "Filters & Layers · M2",
+      "title": "Filters & Layers \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-016",
-      "title": "Visual Overlays · M2",
+      "title": "Visual Overlays \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-020",
-      "title": "Version Views & Diff · M2",
+      "title": "Version Views & Diff \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-017",
-      "title": "Visual Editing on the Canvas · M2",
+      "title": "Visual Editing on the Canvas \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-019",
-      "title": "Saved Views & Layout · M2",
+      "title": "Saved Views & Layout \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-018",
-      "title": "Async Share & Comments · M2",
+      "title": "Async Share & Comments \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-022",
-      "title": "Model-Completeness Map · M2 (new)",
+      "title": "Model-Completeness Map \u00b7 M2 (new)",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-021",
-      "title": "Embeddable Canvas Component GE-CANVAS-1 · force mode M2, c4 mode post-v1",
+      "title": "Embeddable Canvas Component GE-CANVAS-1 \u00b7 force mode M2, c4 mode post-v1",
       "status": "backlog"
     },
     {
@@ -246,7 +246,7 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-011",
       "title": "Dark-Factory Execution Engine",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-012",
@@ -480,7 +480,7 @@ Event: pre-compact
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003",
@@ -493,7 +493,7 @@ Event: pre-compact
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL→SELECT Query and SPARQL Editor",
+      "title": "NL\u2192SELECT Query and SPARQL Editor",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003"
@@ -710,7 +710,7 @@ Event: pre-compact
       "id": "PLAT-V1-TASK-012",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
-      "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
+      "title": "Declarative intent\u2192component mapping + change visualisation (E1-S2)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-011"
@@ -941,7 +941,7 @@ Event: pre-compact
       "id": "CE-V1-TASK-005",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
-      "title": "Tenant-Scoped Governance Shapes (NL→SHACL, Isolation, Cache Invalidation)",
+      "title": "Tenant-Scoped Governance Shapes (NL\u2192SHACL, Isolation, Cache Invalidation)",
       "status": "backlog",
       "blocked_by": [
         "CE-V1-TASK-001"
@@ -1260,7 +1260,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-011",
       "title": "BPMO Retrieval Under 200-Node Cap + Investigator Runs (ADR-005, FR-051)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-001"
       ],
@@ -1271,7 +1271,7 @@ Event: pre-compact
       "id": "BE-V1-TASK-004",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
-      "title": "BE-SDK-1 Generator Core: Fetch → IR → TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
+      "title": "BE-SDK-1 Generator Core: Fetch \u2192 IR \u2192 TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
       "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
@@ -1282,7 +1282,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "BE-SDK-1 Trigger API, breaking:true Ack Flow, Provenance + Regeneration (E8-S5, FR-059)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-004",
         "BE-V1-TASK-001"
@@ -1295,7 +1295,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-011",
       "title": "Orchestrator Hardening: Preflight, Self-Verification, Rich Scaffold + Env-Verification Gate (E11-S6/S7)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-006.md",
       "retry_count": 1
@@ -1327,10 +1327,10 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "Anatomy Indexer, Staleness, Release Plan + M1-Stub Upgrades (E8-S3/S4, E9-S2, FR-043/FR-055)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-009.md",
-      "retry_count": 0
+      "retry_count": 2
     },
     {
       "id": "BE-V1-TASK-010",
@@ -1467,7 +1467,7 @@ Event: pre-compact
       "id": "BE-V1-TASK-021",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
-      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run",
+      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt \u2192 Dark-Factory Run",
       "status": "backlog",
       "blocked_by": [
         "BE-V1-TASK-012",
@@ -1585,7 +1585,7 @@ Event: pre-compact
       "id": "PLAT-V1-TASK-027",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
-      "title": "App shell v2 — V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
+      "title": "App shell v2 \u2014 V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1609,7 +1609,7 @@ Event: pre-compact
       "id": "PLAT-V1-TASK-029",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-009",
-      "title": "Audit & compliance surfaces v2 — tiles/charts rebuild (R8)",
+      "title": "Audit & compliance surfaces v2 \u2014 tiles/charts rebuild (R8)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1621,7 +1621,7 @@ Event: pre-compact
       "id": "PLAT-V1-TASK-030",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-004",
-      "title": "Settings completeness — Members + notification preferences (R9 + R7 copy)",
+      "title": "Settings completeness \u2014 Members + notification preferences (R9 + R7 copy)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1633,7 +1633,7 @@ Event: pre-compact
       "id": "CE-V1-TASK-031",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-023",
-      "title": "Instance browser v2 — browse/search + SHACL drawer + glass chat aside (R3)",
+      "title": "Instance browser v2 \u2014 browse/search + SHACL drawer + glass chat aside (R3)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1645,7 +1645,7 @@ Event: pre-compact
       "id": "CE-V1-TASK-032",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-024",
-      "title": "Query & ask v2 — lifecycle states + Graph/Table/Raw + speech input (R5)",
+      "title": "Query & ask v2 \u2014 lifecycle states + Graph/Table/Raw + speech input (R5)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1657,7 +1657,7 @@ Event: pre-compact
       "id": "BE-V1-TASK-024",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-001",
-      "title": "Build request form v2 — labelled fields + visible request record (R11)",
+      "title": "Build request form v2 \u2014 labelled fields + visible request record (R11)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-026"
