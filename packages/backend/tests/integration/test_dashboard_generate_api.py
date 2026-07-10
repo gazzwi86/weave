@@ -222,6 +222,31 @@ async def test_midstream_cap_halts_and_rolls_back(
     assert rows == []
 
 
+async def test_ce_metrics_unavailable_rolls_back_widget(client: AsyncClient) -> None:
+    """Edge case (QA-added, not in the original AC-5 test): the fetch-time
+    `CeMetricsUnavailable` path (CE-METRICS-1 unreachable mid-stream) shares
+    the same `try`/`async with tenant_connection` block as the budget-cap
+    rollback (AC-5) -- but only the budget-cap branch had a test proving the
+    rollback actually holds. This proves the CE-METRICS-1-down branch rolls
+    back the just-inserted widget row exactly the same way, not just that it
+    emits the right named error state.
+    """
+    tenant_id = _unique_tenant("dash-gen-cedown")
+    tokens = await issue_token_pair(sub="u-gen-cedown", tenant_id=tenant_id)
+    app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
+    app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
+        {"entity_count_by_kind": {"Process": 4}}, status_code=503
+    )
+
+    events = await _generate(client, tokens)
+
+    assert [e for e, _ in events] == ["spec", "error"]
+    assert events[-1][1]["state"] == "unavailable"
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch("SELECT id FROM widget_instances WHERE tenant_id = $1", tenant_id)
+    assert rows == []
+
+
 async def test_provider_503_named_state(client: AsyncClient) -> None:
     """AC-4: the AI provider being down is its own named terminal state,
     distinct from every other error."""
