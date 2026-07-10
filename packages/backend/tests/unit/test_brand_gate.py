@@ -8,7 +8,16 @@ covered end-to-end via `generate_app` in `test_generation_service.py` and
 
 from __future__ import annotations
 
-from weave_backend.generation.brand_gate import EvaluatedRule, decide_brand_gate, evaluate_rule
+from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+from weave_backend.generation.brand_gate import (
+    EvaluatedRule,
+    decide_brand_gate,
+    evaluate_rule,
+    run_brand_gate,
+)
+from weave_backend.settings.resolver import ResolvedSetting
 
 
 def _rule(status: str, severity: str = "normal", rule_id: str = "r1") -> EvaluatedRule:
@@ -67,21 +76,74 @@ def test_should_score_1_0_when_zero_normal_rules_and_no_critical_failures() -> N
     assert critical_failures == []
 
 
-def test_evaluate_rule_token_scan_passes_clean_workspace(tmp_path: object) -> None:
-    from pathlib import Path
-
-    staging = Path(str(tmp_path))
+def test_evaluate_rule_token_scan_passes_clean_workspace(tmp_path: Path) -> None:
+    staging = tmp_path
     (staging / "widget.tsx").write_text("export const Widget = () => <div className='a' />;\n")
     rule = {"id": "tok-1", "severity": "critical", "assertion": {"kind": "token_scan"}}
     evaluated = evaluate_rule(rule, staging_dir=str(staging))
     assert evaluated.status == "passed"
 
 
-def test_evaluate_rule_token_scan_fails_on_raw_hex_literal(tmp_path: object) -> None:
-    from pathlib import Path
-
-    staging = Path(str(tmp_path))
+def test_evaluate_rule_token_scan_fails_on_raw_hex_literal(tmp_path: Path) -> None:
+    staging = tmp_path
     (staging / "widget.css").write_text(".widget { color: #ff00aa; }\n")
     rule = {"id": "tok-1", "severity": "critical", "assertion": {"kind": "token_scan"}}
     evaluated = evaluate_rule(rule, staging_dir=str(staging))
     assert evaluated.status == "failed"
+
+
+class _FakeResponse:
+    def __init__(self, body: object) -> None:
+        self._body = body
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> object:
+        return self._body
+
+
+class _FakeCeClient:
+    def __init__(self, voice_rules: list[dict[str, object]]) -> None:
+        self._voice_rules = voice_rules
+
+    async def get(self, path: str) -> _FakeResponse:
+        if path == "/api/brand/voice-rules":
+            return _FakeResponse(self._voice_rules)
+        return _FakeResponse({})
+
+
+async def test_run_brand_gate_uses_the_resolved_pass_bar_not_the_default(
+    tmp_path: Path,
+) -> None:
+    """AC-3: `pass_bar` resolves via PLAT-SETTINGS-1 -- proves the resolved
+    value is actually used, not merely the DEFAULT_PASS_BAR fallback tested
+    everywhere else (that fallback only proves `SettingNotFound` handling).
+    A 60% score fails the 0.90 default but passes a resolved 0.50 bar.
+    """
+    voice_rules: list[dict[str, object]] = [
+        {"id": "n1", "severity": "normal", "assertion": {"kind": "token_scan"}},
+        {"id": "n2", "severity": "normal", "assertion": {"kind": "unmapped"}},
+    ]
+    ctx = type(
+        "Ctx",
+        (),
+        {
+            "tenant_id": "t1",
+            "project_iri": "urn:weave:project:t1:acme",
+            "ce_client": _FakeCeClient(voice_rules),
+        },
+    )()
+    record = AsyncMock()
+    resolved = ResolvedSetting(
+        key="build.brand.pass_bar", value=0.50, resolved_at="t1", resolved_from_iri="urn:x"
+    )
+    with patch(
+        "weave_backend.generation.brand_gate.resolve_setting",
+        AsyncMock(return_value=resolved),
+    ):
+        result = await run_brand_gate(AsyncMock(), ctx, workspace=str(tmp_path), record=record)
+
+    assert result.score == 0.5
+    assert result.status == "PASS"
+    record.assert_awaited_once()

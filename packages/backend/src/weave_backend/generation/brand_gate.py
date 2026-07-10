@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 #: in the cascade (same pattern as `requests/cost.py`'s DEFAULT_COST_CAP_USD).
 DEFAULT_PASS_BAR = 0.90
 
-_PASS_BAR_SETTING_NAME = "build.brand.pass_bar"  # noqa: S105 -- a settings key, not a secret
+_PASS_BAR_SETTING_NAME = "build.brand.pass_bar"  # noqa: S105 -- settings key, not a secret  # nosec B105
 
 #: ponytail: token conformance MVP is a regex pass for literal hex colours /
 #: raw px values in generated UI files, not a full closed-core allowlist
