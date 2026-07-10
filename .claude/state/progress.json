@@ -718,10 +718,10 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Widget-state foundation + fixed CE-sourced default dashboard (E1-S0, E1-S6)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-010.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "PLAT-V1-TASK-011",
@@ -1094,7 +1094,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "Overlay Engine + Heatmap + Domain Colouring",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-020"
       ],

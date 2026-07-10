@@ -100,3 +100,19 @@ proofs). **Cross-task finding logged:** `XT-PLAT010-1` in `.claude/state/qa-cros
 before building on top of it.
 
 **Status: task remains open, back with Engineer for the two fixes above, then re-QA.**
+
+## Re-QA after retry-1 (2026-07-11): PASS (feature) + XT-PLAT010-2 (E2E-arch, EPIC-001-close blocker)
+
+Both retry-1 fixes VERIFIED CORRECT: refresh-route IDOR (`d2edd5d`, owner guard mirrors delete, no 4th
+unguarded route) + AC-7 read-path (`3dafbff`, `_to_widget_out` calls derive_status gated on fetched_at,
+never-fetched stays unavailable — no regression). Full regression: unit 947/947, docker-integration 235/235,
+frontend 577/577, ruff/mypy clean, eslint 0. QA edge test `4e4597f` (AC-7 read-path covers scope=user starters).
+
+**NEW defect XT-PLAT010-2 (does NOT block task done — feature proven at unit+integration — but BLOCKS EPIC-001
+close):** `tests/e2e/dashboard-widgets.spec.ts` (TASK-010's own `af388d8`) mocks `GET /api/dashboard/widgets`
+via `page.route()`, but `app/dashboard/page.tsx` DashboardPage is a Next.js SERVER Component → the fetch runs
+server-side in SSR, never browser-side, so page.route() intercepts nothing. The E2E asserts fixture literals
+(128, "Counts pending") only the dead mock supplies → times out → proves ONLY login+whoami, not widget render
+(Law B violation). Knock-on: the dashboard axe a11y test runs against the degraded zero-widget render. Fix =
+test-architecture (real seeded backend + real asserted values, OR MSW/server-side interception). retry=1/3.
+**TASK-010 DONE** (feature correct); E2E honesty enforced at EPIC-001's ui_verify --full close gate.

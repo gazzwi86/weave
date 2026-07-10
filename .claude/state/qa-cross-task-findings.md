@@ -261,3 +261,17 @@ BE-V1-TASK-005: `_generate_and_commit` post-commit bookkeeping ran outside the f
 desync if it threw after commit_workspace (git commit landed, run never marked failed, last_sdk_version_iri
 stale) — violated ADR-006 §3. Fixed `e9580f0`: extended fail-closed to cover post-commit bookkeeping, marks
 run failed via fresh conn + records commit_sha. strict-xfail proof test flipped to green. RESOLVED.
+
+## XT-PLAT010-2 — dashboard E2E mocks a server-component fetch via page.route() (proves nothing)
+- **Severity:** Major (Law B honest-E2E) · **Status:** OPEN — **BLOCKS EPIC-001 close (ui_verify --full)**
+- **Affects:** PLAT-V1-TASK-010 (owns `tests/e2e/dashboard-widgets.spec.ts`, `af388d8`); the axe a11y test
+  that runs against the same degraded render; TASK-011/014/016 (EPIC-001) inherit the honest-E2E gate.
+- **Found by:** PLAT-010 re-QA (ran the spec — getByText("Entities in model") times out; real backend
+  renders zero tiles, fixture never applies).
+- **Symptom:** `page.route()` mock of `GET /api/dashboard/widgets` intercepts nothing because `DashboardPage`
+  is a Next.js Server Component (fetch runs server-side in SSR, not the browser). The E2E proves only
+  login+whoami, not widget rendering. Asserts fixture literals (128, "Counts pending") only the dead mock supplies.
+- **Action:** rebuild the dashboard E2E to assert against a REAL seeded backend (real values), or introduce a
+  server-side-capable interception layer (MSW/route-handler mock). Non-trivial test-architecture — a focused
+  follow-up, not a TASK-010 re-fold. MUST land before EPIC-001's ui_verify --full close gate passes.
+- **Classification:** test-architecture / Law B (real E2E asserting backend state).

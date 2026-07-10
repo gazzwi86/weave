@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T19:13:09+00:00
+Captured at: 2026-07-10T19:36:48+00:00
 Event: pre-compact
 
 ## Current State
@@ -242,7 +242,7 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-008",
       "title": "Artefact Generation",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-011",
@@ -1101,7 +1101,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "Overlay Engine + Heatmap + Domain Colouring",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-020"
       ],
@@ -1265,13 +1265,13 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
       "title": "BE-SDK-1 Trigger API, breaking:true Ack Flow, Provenance + Regeneration (E8-S5, FR-059)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-004",
         "BE-V1-TASK-001"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-005.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-006",
@@ -1559,10 +1559,10 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
       "title": "Storybook design-system foundation (atomic component library, R13)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-026.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "PLAT-V1-TASK-027",
