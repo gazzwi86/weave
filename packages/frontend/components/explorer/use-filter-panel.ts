@@ -14,6 +14,16 @@ import { fetchLayerNodes as defaultFetchLayerNodes, type FetchLayerNodesResult }
 import { WEAVE_ONTOLOGY_NS } from "@/lib/explorer/map-rows-to-elements";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
+declare global {
+  interface Window {
+    /** Playwright-only introspection hook (AC-7 perf spec) -- wall-clock ms
+     * of the single adapter.applyFilterVisibility batch call a toggle
+     * triggers, measured in-browser via performance.now() so IPC
+     * round-trips don't skew the reading. Dev-only, never in production. */
+    __explorerFilterApplyDurationMs?: number;
+  }
+}
+
 export type LayerStatus = "off" | "on" | "empty";
 
 export interface UseFilterPanelOptions {
@@ -107,7 +117,11 @@ function useAppliedVisibility(
 
   useEffect(() => {
     if (!adapter || !applied.visibility) return;
+    const startedAt = performance.now();
     adapter.applyFilterVisibility(applied.visibility, dimOpacity);
+    // AC-7 perf trace -- dev-only, see the __explorerFilterApplyDurationMs
+    // hook doc comment above.
+    if (process.env.NODE_ENV !== "production") window.__explorerFilterApplyDurationMs = performance.now() - startedAt;
   }, [adapter, applied.visibility, dimOpacity]);
 
   return applied;

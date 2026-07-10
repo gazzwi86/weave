@@ -182,4 +182,15 @@ describe("useFilterPanel", () => {
     expect(adapter.removeElements).toHaveBeenCalledWith(["https://weave.io/entity/term-1"]);
     expect(result.current.layerStatus.glossary).toBe("off");
   });
+
+  // AC-7: records the single applyFilterVisibility batch call's wall-clock
+  // duration on window for the Playwright perf spec to read -- see
+  // explorer-filters-layers.spec.ts's "filter apply p95" test.
+  it("records the applyFilterVisibility batch call's duration for the AC-7 perf trace", () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoConnectedNodes) });
+
+    renderHook(() => useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }));
+
+    expect(typeof window.__explorerFilterApplyDurationMs).toBe("number");
+  });
 });
