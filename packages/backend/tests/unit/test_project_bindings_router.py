@@ -8,8 +8,11 @@ must come from this unit lane (PROJ-013: the docker/asyncpg lane can't run
 
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
@@ -181,6 +184,52 @@ async def test_delete_binding_route_removes_a_binding() -> None:
         await delete_binding_route(_PROJECT_IRI, "b-1", _PRINCIPAL)
 
     delete_mock.assert_awaited_once_with(None, tenant_id=_PRINCIPAL.tenant_id, binding_id="b-1")
+
+
+async def test_list_bindings_route_isolates_slow_health_read_from_the_others() -> None:
+    """QA edge case for TASK-022's brief-named integration test `should
+    isolate slow health read to one badge` (AC-3; API Contract: "a slow
+    connector degrades one badge, not the request"; Implementation Hints:
+    "short per-read timeout ... one slow connector must not drag the
+    tab"). RED on purpose: `_read_health` has no timeout, so
+    `list_bindings_route`'s `asyncio.gather` waits for the slowest
+    connector before returning ANY row. This is the objective evidence
+    for the QA failure report -- do not silence/xfail it; the fix is a
+    per-read timeout in `_read_health`, not a test change.
+    """
+    slow_binding = replace(_BINDING, binding_id="b-2", connector_ref="jira-2", space_ref="OTHER")
+
+    async def _health(connector_ref: str) -> ConnectorHealth:
+        if connector_ref == "jira-2":
+            await asyncio.sleep(0.3)
+        return ConnectorHealth(
+            status="ok", last_sync=None, last_error=None, error_count=0, skipped_count=0
+        )
+
+    with (
+        patch(
+            "weave_backend.routers.project_bindings.tenant_connection", _fake_tenant_connection
+        ),
+        patch(
+            "weave_backend.routers.project_bindings.get_all",
+            AsyncMock(return_value=[_BINDING, slow_binding]),
+        ),
+        patch(
+            "weave_backend.routers.project_bindings.default_connector_client.health",
+            AsyncMock(side_effect=_health),
+        ),
+    ):
+        started = time.monotonic()
+        result = await list_bindings_route(_PROJECT_IRI, _PRINCIPAL)
+        elapsed = time.monotonic() - started
+
+    fast_health = next(item for item in result.items if item.connector_ref == "jira-1").health
+    assert fast_health.status == "ok"
+    assert elapsed < 0.1, (
+        f"list_bindings_route took {elapsed:.3f}s -- a slow connector health read "
+        "is blocking the whole request instead of degrading only its own badge "
+        "(missing per-read timeout in _read_health, AC-3 isolation)"
+    )
 
 
 async def test_bindings_guard_403s_editor_without_bindings_action() -> None:
