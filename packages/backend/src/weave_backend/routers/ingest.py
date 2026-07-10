@@ -9,7 +9,16 @@ from __future__ import annotations
 import os
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
@@ -159,13 +168,27 @@ async def get_job_route(
 
 @router.get("/jobs/{job_id}/proposals", response_model=ProposalsListResponse)
 async def list_proposals_route(
-    job_id: str, principal: Annotated[Principal, Depends(get_current_principal)]
+    job_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    limit: Annotated[int | None, Query(ge=1, le=500)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ProposalsListResponse:
+    """AC-001-04: no query params -> every proposal (never silently
+    truncated); an explicit `limit` returns a page plus `has_more` so a
+    caller can detect + page past it.
+    """
     async with tenant_connection(principal.tenant_id) as conn:
         job = await get_job(conn, tenant_id=principal.tenant_id, job_id=job_id)
         if job is None:
             raise HTTPException(status_code=404, detail={"error": "job_not_found"})
-        rows = await list_proposals_for_job(conn, tenant_id=principal.tenant_id, job_id=job_id)
+        fetch_limit = limit + 1 if limit is not None else None
+        rows = await list_proposals_for_job(
+            conn, tenant_id=principal.tenant_id, job_id=job_id, limit=fetch_limit, offset=offset
+        )
+
+    has_more = limit is not None and len(rows) > limit
+    if limit is not None:
+        rows = rows[:limit]
 
     return ProposalsListResponse(
         proposals=[
@@ -174,7 +197,8 @@ async def list_proposals_route(
                 reason=row.reason, status=row.status,
             )
             for row in rows
-        ]
+        ],
+        has_more=has_more,
     )
 
 

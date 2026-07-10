@@ -197,20 +197,23 @@ async def get_proposal(
 
 
 async def list_proposals_for_job(
-    conn: asyncpg.Connection, *, tenant_id: str, job_id: str, limit: int = 50, offset: int = 0
+    conn: asyncpg.Connection, *, tenant_id: str, job_id: str, limit: int | None = None,
+    offset: int = 0,
 ) -> list[ProposalRow]:
+    """AC-001-04: `limit=None` (the route's default) fetches every proposal
+    for the job -- a 51+ proposal job must not silently cap with no way for
+    a reviewer to reach the tail. Pass an explicit `limit` for a page.
+    """
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
-    rows = await conn.fetch(
-        """
-        SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at
-        FROM ingest_proposals WHERE tenant_id = $1 AND job_id = $2
-        ORDER BY created_at ASC LIMIT $3 OFFSET $4
-        """,
-        tenant_id,
-        job_id,
-        limit,
-        offset,
+    query = (
+        "SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at "
+        "FROM ingest_proposals WHERE tenant_id = $1 AND job_id = $2 ORDER BY created_at ASC"
     )
+    args: list[object] = [tenant_id, job_id]
+    if limit is not None:
+        query += f" LIMIT ${len(args) + 1} OFFSET ${len(args) + 2}"
+        args += [limit, offset]
+    rows = await conn.fetch(query, *args)
     return [_to_proposal_row(row) for row in rows]
 
 

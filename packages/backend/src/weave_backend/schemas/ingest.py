@@ -43,6 +43,9 @@ class ProposalResponse(BaseModel):
 
 class ProposalsListResponse(BaseModel):
     proposals: list[ProposalResponse]
+    #: AC-001-04: true only when an explicit `limit` truncated this page --
+    #: the no-param default returns everything, so `has_more` is False then.
+    has_more: bool = False
 
 
 class AcceptProposalResponse(BaseModel):
