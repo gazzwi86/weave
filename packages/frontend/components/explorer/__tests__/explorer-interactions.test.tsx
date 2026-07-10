@@ -38,6 +38,7 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),
+    applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
     fireRightClick: (nodeId: string, position: { x: number; y: number }) => rightClickHandler?.(nodeId, position),
     ...overrides,

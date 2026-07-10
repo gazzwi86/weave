@@ -65,6 +65,19 @@ export interface RendererAdapter {
    * same data expandNode/collapseNode maintain, so it's correct across
    * remounts of any consuming hook/component. */
   hasExpandedNeighbours(nodeId: string): boolean;
+  /** TASK-020 AC-1/AC-3/AC-4/AC-7: applies a filter-state change as one
+   * batched transaction -- hiddenNodeIds (+ their incident edges) get a
+   * real hide (display:none, AC-1's entity-type-off); dimmedNodeIds get
+   * opacity only, still visible (AC-3's orphaned-by-relationship-toggle
+   * nodes, or AC-4's property-filter non-matches). Both sets are absolute:
+   * every node not listed is shown / restored to full opacity, so a toggle
+   * "back on" is just re-applying with a smaller set. */
+  applyFilterVisibility(visibility: FilterVisibility, dimOpacity: number): void;
+}
+
+export interface FilterVisibility {
+  hiddenNodeIds: string[];
+  dimmedNodeIds: string[];
 }
 
 export interface CyCollection {
@@ -79,6 +92,11 @@ export interface CyCollection {
   addClass(className: string): void;
   closedNeighborhood(): CyCollection;
   position(): { x: number; y: number };
+  /** TASK-020 AC-1: real hide/show (display:none), distinct from the
+   * opacity-based dim used elsewhere -- an entity-type-off node must not
+   * still occupy layout space. */
+  hide(): void;
+  show(): void;
 }
 
 interface CyEvent {
@@ -93,12 +111,16 @@ export interface AdaptableCy {
   layout(options: { name: string } & Record<string, unknown>): { run(): void };
   elements(): CyCollection;
   nodes(): CyCollection;
+  edges(): CyCollection;
   getElementById(id: string): CyCollection;
   on(event: string, handler: (evt: CyEvent) => void): void;
   off(event: string, handler: (evt: CyEvent) => void): void;
   animate(position: { center: { eles: CyCollection } }, options: { duration: number }): void;
   add(elements: CytoscapeElement[]): void;
   remove(collection: CyCollection): void;
+  /** TASK-020 AC-7: one render pass for every style/visibility mutation
+   * inside `fn` -- required for the 300ms @ 10k-node filter-apply budget. */
+  batch(fn: () => void): void;
 }
 
 function readNodeData(node: CyCollection): NodeData {
@@ -155,6 +177,30 @@ function applySpotlight(cy: AdaptableCy, nodeId: string, dimOpacity: number): bo
 function applyHighlight(cy: AdaptableCy, nodeIds: string[], dimOpacity: number): void {
   cy.elements().style({ opacity: dimOpacity });
   nodeIds.forEach((nodeId) => cy.getElementById(nodeId).style({ opacity: 1 }));
+}
+
+/** TASK-020 AC-1/AC-3/AC-4/AC-7: one batched pass -- hide/show operate on
+ * whole node/edge collections (never a per-node loop), keeping the
+ * 300ms @ 10k-node filter-apply budget. */
+function applyFilterVisibilityOn(cy: AdaptableCy, visibility: FilterVisibility, dimOpacity: number): void {
+  const hiddenIds = new Set(visibility.hiddenNodeIds);
+  const dimmedIds = new Set(visibility.dimmedNodeIds);
+
+  const hiddenNodes = cy.nodes().filter((node) => hiddenIds.has(node.id()));
+  const visibleNodes = cy.nodes().not(hiddenNodes);
+  const hiddenEdges = hiddenNodes.connectedEdges();
+  const visibleEdges = cy.edges().not(hiddenEdges);
+
+  cy.batch(() => {
+    hiddenNodes.hide();
+    hiddenEdges.hide();
+    visibleNodes.show();
+    visibleEdges.show();
+
+    const dimmedNodes = visibleNodes.filter((node) => dimmedIds.has(node.id()));
+    dimmedNodes.style({ opacity: dimOpacity });
+    visibleNodes.not(dimmedNodes).style({ opacity: 1 });
+  });
 }
 
 function neighbourEdgeData(nodeId: string, neighbour: NeighbourElement): { id: string; source: string; target: string; label: string } {
@@ -229,7 +275,7 @@ function collapseNodeOn(cy: AdaptableCy, nodeId: string): void {
 }
 
 type ViewportMethods = Pick<RendererAdapter, "load" | "getViewport" | "setLayout" | "centerOn">;
-type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes">;
+type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes" | "applyFilterVisibility">;
 type QueryMethods = Pick<
   RendererAdapter,
   "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes"
@@ -264,6 +310,9 @@ function createOpacityMethods(cy: AdaptableCy): OpacityMethods {
     },
     highlightNodes(nodeIds, dimOpacity) {
       applyHighlight(cy, nodeIds, dimOpacity);
+    },
+    applyFilterVisibility(visibility, dimOpacity) {
+      applyFilterVisibilityOn(cy, visibility, dimOpacity);
     },
   };
 }
