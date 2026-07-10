@@ -42,10 +42,18 @@ def test_ci_pr_gates_pass(repo_root: Path) -> None:
     missing = REQUIRED_QUALITY_JOBS - jobs.keys()
     assert not missing, f"CI is missing required quality-gate jobs: {missing}"
 
-    for job_name in ("api", "web", "mutation", "secrets"):
+    for job_name in ("api", "web", "secrets"):
         assert jobs[job_name].get("timeout-minutes", 999) <= 10, (
             f"{job_name} job must report within the 10-minute PR-check budget"
         )
+
+    # mutation gets its own, larger budget: the corpus (~13.4k mutants) outgrew the
+    # 10-min window (PR48 timed out twice at 96% complete, no code defect -- see
+    # ci.yml's mutation job comment). Sharded 2-way in parallel + timeout raised to
+    # match, per explicit operator direction (this session).
+    assert jobs["mutation"].get("timeout-minutes", 999) <= 20, (
+        "mutation job must report within the 20-minute PR-check budget"
+    )
 
     # Mutation is a single 60% bar (ADV-005) enforced in two tiers that differ in
     # depth, not in the bar: per-PR runs unit-only (fast, BLOCKING); `mutation-strict`
