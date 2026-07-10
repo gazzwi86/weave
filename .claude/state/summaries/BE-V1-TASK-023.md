@@ -73,3 +73,35 @@ constraint as sibling specs in this file — requires the live dev stack).
    transaction, but worth flagging), `GET` would return an empty string for those two fields rather
    than erroring. Judged acceptable: the row write and audit emit share one `tenant_connection`
    transaction in the router.
+
+## QA findings (2026-07-10)
+
+**Status: PASS.** AC-1 (token never echoed) independently re-verified across every code path —
+GET/PUT success, 404, 422 validation failure, unhandled 500, and the frontend proxy — no leak found.
+Full detail in the QA report; summary below.
+
+- **Gap found + closed by QA**: the brief's AC-to-Test Mapping table labels AC-1/AC-2/AC-6
+  "Integration", but the Engineer's tests only called the route functions directly with a mocked DB
+  and a mocked `put_scm_token` (`tests/unit/test_source_control_router.py`) — FastAPI's real
+  `response_model` serialization, a real Postgres round trip, and a real LocalStack Secrets Manager
+  write were never exercised. QA added
+  `packages/backend/tests/integration/test_source_control_api.py` (2 tests, `pytest.mark.integration`
+  + `pytest.mark.docker`, pattern matches `test_project_role_guard.py`): PUT-then-GET over real
+  HTTP/DB/LocalStack proving the sentinel token never appears in either response body and the
+  `projects` row carries only the reference; non-admin PUT denied 403 over real HTTP. Both pass
+  locally (`uv run pytest tests/integration/test_source_control_api.py -m integration`, 2 passed).
+- **Independently re-run, not trusted from self-report**: backend 18 unit tests (router 6 + schemas
+  4 + pm/DAL 8) + 8 in `test_repo_bootstrap_secrets.py`, all green; frontend 12/12 Vitest green;
+  ruff/mypy/bandit clean (bandit's one Low finding in `_secrets_client()`'s LocalStack dummy creds is
+  pre-existing, confirmed via direct bandit scan of the 4 changed files — no new finding); full
+  project lint 0 errors / 142 pre-existing warnings (none new, confirmed via pre-commit hook run).
+- **WARN (design, non-blocking)**: `ConfiguredCard`'s `configuredBy`/`configuredAt` paragraph uses
+  `--text-caption` and no `--font-mono`, where the brief's Tokens/type-scale section specifies
+  `--font-mono`/`--text-body` for these values (`source-control-card.tsx:166-171`). Still a valid
+  design token (not a hardcoded value) — a token-choice deviation, not a Category 15 hard FAIL.
+  Save-success has no `aria-live="polite"` toast (brief's Accessibility section asks for one) —
+  current UX relies on the card re-rendering to the new reference name instead.
+  Recommend the Engineer address both in a follow-up, non-blocking commit.
+- **Deferred per task scope, not skipped**: Lighthouse-100 and live axe-core run at epic-close
+  `ui_verify --full` (explicit instruction for this task); no dedicated k6/perf harness exists yet
+  for this endpoint (flagged, not fabricated as passing).
