@@ -64,10 +64,17 @@ describe("DEFAULT_EXPLORER_CONFIG -- TASK-021 additions", () => {
 
   // Dependencies: brief names prototype-findings.md as the source of real
   // value->colour vocabularies -- that file isn't present in this worktree
-  // (flagged to team-lead). Empty is a real, tested state: AC-6 covers zero
-  // mappings for a dimension with an all-grey overlay + legend notice, so
-  // this ships correctly and gets real entries once the source is found.
-  it("defaults heatmapMappings to empty pending the prototype value vocabulary", () => {
-    expect(DEFAULT_EXPLORER_CONFIG.heatmapMappings).toEqual({});
+  // (flagged to team-lead). The four FR-015 dimensions are known structure
+  // (not part of the missing file), so they're populated with empty value
+  // maps -- gives the overlay panel four real toggles to render (Law 17)
+  // while each one still hits AC-6's all-grey/no-data-note state until the
+  // real vocab lands.
+  it("defaults heatmapMappings to the four FR-015 dimensions with empty value vocab", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.heatmapMappings).toEqual({
+      maturity: { path: "maturity", values: {} },
+      investment: { path: "investment", values: {} },
+      strategy: { path: "strategy", values: {} },
+      lifecycle: { path: "lifecycle", values: {} },
+    });
   });
 });

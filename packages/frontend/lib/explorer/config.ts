@@ -55,11 +55,14 @@ export interface ExplorerConfig {
    * domains than colours. */
   domainPalette: string[];
   /** TASK-021 Dependencies: prototype value->colour mappings, one entry per
-   * heatmap dimension (maturity/investment/strategy/lifecycle). Empty here
-   * -- the brief's source file (prototype-findings.md) isn't present in
-   * this worktree (flagged to team-lead). Empty is a real, tested state:
-   * AC-6 covers "no data for this dimension" with an all-grey overlay +
-   * legend notice, so this ships correctly pending real entries. */
+   * heatmap dimension (maturity/investment/strategy/lifecycle -- the FR-015
+   * dimension list is known structure, unlike the value vocab). Each
+   * dimension's `values` map is empty here -- the brief's source file
+   * (prototype-findings.md) isn't present in this worktree (flagged to
+   * team-lead). Empty values is a real, tested state: AC-6 covers "no data
+   * for this dimension" with an all-grey overlay + legend notice, so this
+   * ships correctly pending real entries -- and non-empty top-level keys
+   * mean the overlay panel still renders all four toggles (Law 17). */
   heatmapMappings: Record<string, HeatmapMapping>;
 }
 
@@ -89,5 +92,10 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
     "var(--color-series-5)",
     "var(--color-series-6)",
   ],
-  heatmapMappings: {},
+  heatmapMappings: {
+    maturity: { path: "maturity", values: {} },
+    investment: { path: "investment", values: {} },
+    strategy: { path: "strategy", values: {} },
+    lifecycle: { path: "lifecycle", values: {} },
+  },
 });
