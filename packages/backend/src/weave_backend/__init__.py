@@ -46,6 +46,7 @@ from weave_backend.routers.requests import router as requests_router
 from weave_backend.routers.runs import router as runs_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
+from weave_backend.routers.source_control import router as source_control_router
 from weave_backend.routers.sparql import router as sparql_router
 from weave_backend.routers.specs import router as specs_router
 from weave_backend.routers.standards import router as standards_router
@@ -97,6 +98,7 @@ app.include_router(project_contributors_router)
 app.include_router(project_bindings_router)
 app.include_router(project_settings_router)
 app.include_router(project_pin_router)
+app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
 app.include_router(generation_router)
