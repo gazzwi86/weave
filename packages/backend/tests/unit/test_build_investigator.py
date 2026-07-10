@@ -83,3 +83,31 @@ def test_truncate_tokens_caps_at_max() -> None:
 
 def test_truncate_tokens_leaves_short_text_untouched() -> None:
     assert truncate_tokens("short", max_tokens=500) == "short"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_investigator_does_not_persist_on_agent_run_failure() -> None:
+    # edge case (QA): a failed agent run must not leave a partial/garbage
+    # summary row behind -- read-only-ness also means "no side effect on
+    # error", not just "no write tools while it happened to succeed".
+    save_calls: list[dict[str, Any]] = []
+
+    async def _failing_agent_run(**_kwargs: Any) -> InvestigatorResult:
+        raise RuntimeError("agent runtime unavailable")
+
+    async def _save(*_args: Any, **kwargs: Any) -> None:
+        save_calls.append(kwargs)
+
+    request = InvestigatorRequest(
+        tenant_id="acme",
+        project_iri="urn:weave:tenant:acme:ws:1:project:p",
+        question="what depends on this?",
+        caller_is_investigator=False,
+    )
+
+    with pytest.raises(RuntimeError):
+        await dispatch_investigator(
+            None, request, agent_run_fn=_failing_agent_run, save_summary_fn=_save
+        )
+
+    assert save_calls == []

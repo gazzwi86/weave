@@ -147,6 +147,23 @@ async def test_should_error_loudly_when_seed_set_alone_exceeds_cap() -> None:
 
 
 @pytest.mark.asyncio
+async def test_should_not_truncate_or_error_when_seed_set_exactly_at_cap() -> None:
+    # edge case (QA): guard is `> cap`, not `>= cap` -- 200 seeds is the
+    # boundary where the guard must NOT fire and truncation must NOT be
+    # reported, since nothing was actually dropped.
+    seeds = [f"urn:seed{i:04d}" for i in range(200)]
+
+    result = await retrieve_slice(
+        seed_iris=seeds, neighbours_fn=_fixture_neighbours_fn({}), cfg=_DEFAULT_CFG
+    )
+
+    assert len(result.nodes) == 200
+    assert result.truncated is False
+    assert result.dropped_count == 0
+    assert set(result.nodes) == set(seeds)
+
+
+@pytest.mark.asyncio
 async def test_should_resolve_weights_and_max_hops_from_settings() -> None:
     conn = _FakeSettingsConnection()
     await set_setting(
