@@ -6,6 +6,8 @@ import { CommandPalette } from "../command-palette";
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  // Not "/dashboard" -- that route's PromptBar owns Cmd+K instead (AC-8).
+  usePathname: () => "/ce",
 }));
 
 function stubSearchFetch(): void {
@@ -85,5 +87,17 @@ describe("CommandPalette", () => {
 
     await waitFor(() => expect(screen.getByText("Search unavailable.")).toBeInTheDocument());
     expect(screen.queryByText("No results.")).not.toBeInTheDocument();
+  });
+
+  // TASK-011 AC-8: the dashboard's PromptBar owns Cmd+K on /dashboard --
+  // the global palette must not also react there (no double-bind).
+  it("does not open on Cmd+K when the route is /dashboard", async () => {
+    const navigation = await import("next/navigation");
+    vi.spyOn(navigation, "usePathname").mockReturnValue("/dashboard");
+
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

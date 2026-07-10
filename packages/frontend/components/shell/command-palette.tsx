@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { SearchResultItem } from "./search-result-item";
@@ -33,9 +33,13 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const { results, error } = useEntitySearch(query);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // TASK-011 AC-8: the dashboard's own PromptBar owns Cmd+K there --
+      // global search stays reachable via its trigger button, no double-bind.
+      if (pathname?.startsWith("/dashboard")) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         setOpen((prev) => !prev);
@@ -43,7 +47,7 @@ export function CommandPalette() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [pathname]);
 
   function handleSelect(iri: string) {
     setOpen(false);
