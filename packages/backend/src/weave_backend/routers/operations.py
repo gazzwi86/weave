@@ -22,6 +22,7 @@ from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
     InvalidTargetError,
+    ProvExtra,
     PublishedTargetError,
     apply_operations_request,
 )
@@ -98,7 +99,12 @@ async def _reject_foreign_target(
 
 
 async def _run_apply(
-    conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, body: ApplyRequest
+    conn: asyncpg.Connection,
+    *,
+    principal: Principal,
+    workspace_id: str,
+    body: ApplyRequest,
+    prov_extra: ProvExtra | None = None,
 ) -> _ApplyOutcome:
     # XT-002 / ADR-003: cheapest check first -- a spike run never gets to
     # write back, regardless of role or target, so reject before any DB
@@ -132,6 +138,7 @@ async def _run_apply(
         # the PROV-O actor-type literal, defaulting anything unrecognised to
         # "human" rather than trusting an arbitrary claim value.
         principal_type="agent" if principal.principal_type == "agent" else "human",
+        prov_extra=prov_extra,
     )
     try:
         return await apply_operations_request(ctx, body, get_redis())
