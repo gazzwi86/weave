@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-10T02:54:49+00:00
+Captured at: 2026-07-10T03:22:15+00:00
 Event: pre-compact
 
 ## Current State
@@ -1305,7 +1305,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-012",
       "title": "Full QA Category Suite (E12-S3, FR-054)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-007.md",
       "retry_count": 1
@@ -1315,7 +1315,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-012",
       "title": "Spec-Coverage Audit + Phase-Gate Ceremony (E12-S4/S5, FR-052/FR-053)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-007"
       ],
