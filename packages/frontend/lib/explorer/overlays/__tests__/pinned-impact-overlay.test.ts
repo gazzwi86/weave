@@ -8,6 +8,7 @@ import { createPinnedImpactOverlay, type PinnedTraceResult } from "../pinned-imp
 function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
   return {
     listNodes: vi.fn(() => []),
+    listElements: vi.fn(() => []),
     setTraceHighlight: vi.fn(),
     clearTraceHighlight: vi.fn(),
     isHidden: vi.fn(() => false),
