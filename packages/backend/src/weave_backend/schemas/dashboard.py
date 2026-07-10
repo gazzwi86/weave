@@ -64,6 +64,13 @@ class GenerateWidgetRequest(BaseModel):
     prompt: str = Field(min_length=1)
 
 
+class ExamplePromptsResponse(BaseModel):
+    """TASK-011 AC-8: `GET /api/dashboard/widgets/example-prompts` response."""
+
+    prompts: list[str]
+    hide_after: int
+
+
 class SseDataPayload(BaseModel):
     """TASK-011 (m2-delta.md §3): the SSE `data` event payload. The `spec`
     event reuses `WidgetSpec` directly -- no wrapper needed there.

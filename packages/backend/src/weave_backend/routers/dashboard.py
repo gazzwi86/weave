@@ -17,11 +17,16 @@ from weave_backend.dashboard import store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.default_tiles import resolve_starter_role
+from weave_backend.dashboard.example_prompts import (
+    EXAMPLE_PROMPTS_HIDE_AFTER,
+    example_prompts_for_role,
+)
 from weave_backend.dashboard.generate import GenerateRequest, generate_widget_stream
 from weave_backend.dashboard.intent import Resolver, get_dashboard_agent_resolver
 from weave_backend.dashboard.status import WidgetFetchState, derive_status
 from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
+    ExamplePromptsResponse,
     GenerateWidgetRequest,
     WidgetListResponse,
     WidgetOut,
@@ -141,6 +146,20 @@ async def refresh_widget_route(
             ),
         )
     return WidgetRefreshResponse(status=derived.status, fetched_at=fetched_at)
+
+
+@router.get("/widgets/example-prompts", response_model=ExamplePromptsResponse)
+async def example_prompts_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> ExamplePromptsResponse:
+    """AC-8: role-tailored, GA-scoped prompts for the empty prompt bar.
+    Static path declared ahead of `/widgets/{widget_id}` below so it can
+    never be shadowed by that param route.
+    """
+    role = resolve_starter_role([grant.role for grant in principal.roles])
+    return ExamplePromptsResponse(
+        prompts=example_prompts_for_role(role), hide_after=EXAMPLE_PROMPTS_HIDE_AFTER
+    )
 
 
 @router.post("/widgets/generate")
