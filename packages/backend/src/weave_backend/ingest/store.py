@@ -23,6 +23,11 @@ class NewJob:
     artefact_iri: str
     kind: str
     context: dict[str, str] = field(default_factory=dict)
+    #: TASK-013: S3 corpus key + content type computed at upload time, so a
+    #: real extractor (DocumentExtractor) can re-fetch the artefact bytes.
+    #: `None` for kinds with no extractor that needs the original bytes.
+    corpus_key: str | None = None
+    content_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,6 +44,8 @@ class JobRow:
     error: str | None
     created_at: datetime
     updated_at: datetime
+    corpus_key: str | None = None
+    content_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +70,9 @@ class NewProposal:
     confidence: float
     matched_iri: str | None = None
     reason: str = ""
+    #: TASK-013: locator (e.g. page/heading-path) for the source text this
+    #: candidate was extracted from -- TASK-014 citations depend on it.
+    source_span: str | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +86,7 @@ class ProposalRow:
     reason: str
     status: str
     created_at: datetime
+    source_span: str | None = None
 
 
 def _to_job_row(row: asyncpg.Record) -> JobRow:
@@ -93,6 +104,8 @@ def _to_job_row(row: asyncpg.Record) -> JobRow:
         error=row["error"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        corpus_key=row["corpus_key"],
+        content_type=row["content_type"],
     )
 
 
@@ -108,6 +121,7 @@ def _to_proposal_row(row: asyncpg.Record) -> ProposalRow:
         reason=row["reason"],
         status=row["status"],
         created_at=row["created_at"],
+        source_span=row["source_span"],
     )
 
 
@@ -115,8 +129,9 @@ async def insert_job(conn: asyncpg.Connection, fields: NewJob) -> str:
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         """
-        INSERT INTO ingest_jobs (tenant_id, workspace_id, artefact_iri, kind, context)
-        VALUES ($1, $2, $3, $4, $5::jsonb)
+        INSERT INTO ingest_jobs
+            (tenant_id, workspace_id, artefact_iri, kind, context, corpus_key, content_type)
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
         RETURNING id
         """,
         fields.tenant_id,
@@ -124,6 +139,8 @@ async def insert_job(conn: asyncpg.Connection, fields: NewJob) -> str:
         fields.artefact_iri,
         fields.kind,
         json.dumps(fields.context),
+        fields.corpus_key,
+        fields.content_type,
     )
     return str(row["id"])  # INSERT ... RETURNING always yields a row
 
@@ -133,7 +150,8 @@ async def get_job(conn: asyncpg.Connection, *, tenant_id: str, job_id: str) -> J
     row = await conn.fetchrow(
         """
         SELECT id, tenant_id, workspace_id, artefact_iri, kind, status, context,
-               activity_iri, extractor_iri, error, created_at, updated_at
+               activity_iri, extractor_iri, error, created_at, updated_at,
+               corpus_key, content_type
         FROM ingest_jobs WHERE tenant_id = $1 AND id = $2
         """,
         tenant_id,
@@ -167,8 +185,9 @@ async def insert_proposal(conn: asyncpg.Connection, fields: NewProposal) -> str:
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         """
-        INSERT INTO ingest_proposals (tenant_id, job_id, ops, confidence, matched_iri, reason)
-        VALUES ($1, $2, $3::jsonb, $4, $5, $6)
+        INSERT INTO ingest_proposals
+            (tenant_id, job_id, ops, confidence, matched_iri, reason, source_span)
+        VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)
         RETURNING id
         """,
         fields.tenant_id,
@@ -177,6 +196,7 @@ async def insert_proposal(conn: asyncpg.Connection, fields: NewProposal) -> str:
         fields.confidence,
         fields.matched_iri,
         fields.reason,
+        fields.source_span,
     )
     return str(row["id"])  # INSERT ... RETURNING always yields a row
 
@@ -187,7 +207,8 @@ async def get_proposal(
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         """
-        SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at
+        SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at,
+               source_span
         FROM ingest_proposals WHERE tenant_id = $1 AND id = $2
         """,
         tenant_id,
@@ -206,7 +227,8 @@ async def list_proposals_for_job(
     """
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     query = (
-        "SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at "
+        "SELECT id, tenant_id, job_id, ops, confidence, matched_iri, reason, status, created_at, "
+        "source_span "
         "FROM ingest_proposals WHERE tenant_id = $1 AND job_id = $2 ORDER BY created_at ASC"
     )
     args: list[object] = [tenant_id, job_id]

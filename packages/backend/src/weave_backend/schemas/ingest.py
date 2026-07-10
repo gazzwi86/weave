@@ -39,6 +39,14 @@ class ProposalResponse(BaseModel):
     matched_iri: str | None
     reason: str
     status: str
+    #: TASK-013: locator (e.g. page/heading-path) for the source text this
+    #: candidate was extracted from -- `None` for non-document extractors.
+    source_span: str | None = None
+    #: TASK-013 AC-002-04: `confidence < resolved threshold` (PLAT-SETTINGS-1
+    #: `ingest.confidence_flag_threshold`, default 0.6) -- computed server-side
+    #: so the frontend never hardcodes the threshold or pre-selects a flagged
+    #: proposal for accept.
+    low_confidence: bool = False
 
 
 class ProposalsListResponse(BaseModel):

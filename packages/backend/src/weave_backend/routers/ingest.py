@@ -137,6 +137,7 @@ async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 op
             NewJob(
                 tenant_id=principal.tenant_id, workspace_id=workspace_id, artefact_iri=artefact_iri,
                 kind=_kind_for_ext(ext), context=context_fields,
+                corpus_key=key, content_type=file.content_type or "application/octet-stream",
             ),
         )
 
@@ -194,7 +195,7 @@ async def list_proposals_route(
         proposals=[
             ProposalResponse(
                 id=row.id, ops=row.ops, confidence=row.confidence, matched_iri=row.matched_iri,
-                reason=row.reason, status=row.status,
+                reason=row.reason, status=row.status, source_span=row.source_span,
             )
             for row in rows
         ],
