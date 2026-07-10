@@ -1474,13 +1474,13 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "External-Space Bindings (FR-010): Confluence/Jira/ServiceNow by Reference",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-010",
         "BE-V1-TASK-015"
       ],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-022.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "BE-V1-TASK-023",

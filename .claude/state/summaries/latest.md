@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-09T23:45:02+00:00
+Captured at: 2026-07-10T01:03:12+00:00
 Event: pre-compact
 
 ## Current State
@@ -1407,7 +1407,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "Ontology Pin Upgrade (FR-012): CE-DIFF-1 Diff + Explicit Confirm",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-014"
       ],
@@ -1481,7 +1481,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-002",
       "title": "External-Space Bindings (FR-010): Confluence/Jira/ServiceNow by Reference",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "BE-V1-TASK-010",
         "BE-V1-TASK-015"
