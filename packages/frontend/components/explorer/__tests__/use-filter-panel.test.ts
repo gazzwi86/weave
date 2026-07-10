@@ -119,6 +119,19 @@ describe("useFilterPanel", () => {
     expect(result.current.relTypes).toEqual(["relatesTo"]);
   });
 
+  it("clears all toggled-off entity types in one call (AC-2 empty-state recovery)", () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoConnectedNodes) });
+    const { result } = renderHook(() => useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }));
+
+    act(() => result.current.toggleEntityType("Process"));
+    expect(result.current.visibility?.isEmpty).toBe(true);
+
+    act(() => result.current.clearEntityTypesOff());
+
+    expect(result.current.filterState.entityTypesOff).toEqual([]);
+    expect(result.current.visibility?.isEmpty).toBe(false);
+  });
+
   it("fetches and overlays a governed layer's content on toggle-on (AC-6)", async () => {
     const layerElements: CytoscapeElement[] = [{ data: { id: "https://weave.io/entity/term-1", label: "Revenue" } }];
     const fetchLayerNodes = vi.fn<(...args: unknown[]) => Promise<FetchLayerNodesResult>>(() =>

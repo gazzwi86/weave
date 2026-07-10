@@ -39,6 +39,10 @@ export interface UseFilterPanelResult {
   layerStatus: Record<GovernedLayer, LayerStatus>;
   toggleEntityType: (kindIri: string) => void;
   toggleRelType: (predicateIri: string) => void;
+  /** AC-2 empty-state recovery: the "all entity types off" empty-state's
+   * fix action -- restores every type in one setState rather than making
+   * the caller toggle each one back on individually. */
+  clearEntityTypesOff: () => void;
   setPropertyFilters: (filters: PropertyFilter[]) => void;
   toggleLayer: (layer: GovernedLayer) => void;
 }
@@ -189,6 +193,10 @@ export function useFilterPanel({
     setFilterState((state) => ({ ...state, relTypesOff: toggleArrayValue(state.relTypesOff, predicateIri) }));
   }, []);
 
+  const clearEntityTypesOff = useCallback(() => {
+    setFilterState((state) => ({ ...state, entityTypesOff: [] }));
+  }, []);
+
   const setPropertyFilters = useCallback((filters: PropertyFilter[]) => {
     setFilterState((state) => ({ ...state, propertyFilters: filters }));
   }, []);
@@ -201,6 +209,7 @@ export function useFilterPanel({
     layerStatus,
     toggleEntityType,
     toggleRelType,
+    clearEntityTypesOff,
     setPropertyFilters,
     toggleLayer,
   };
