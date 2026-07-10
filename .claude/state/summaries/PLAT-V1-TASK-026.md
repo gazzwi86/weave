@@ -58,3 +58,23 @@ likely PARKS after 026 pending morning remediation, freeing a frontend lane slot
 ## Dependencies unlocked (within EPIC-011)
 
 TASK-027/028/029/030 (screen rollout) — but 027/030 blocked on the role-slug remediation.
+
+## QA PASS after retry 1 (2026-07-11)
+
+Round-1 QA (plat026-qa) FAILed on AC-2: `weave/token-conformance` ESLint rule didn't fire on the atoms
+layer — its `files` glob targeted `components/atoms/**` (doesn't exist); real atoms live in `components/ui/**`.
+The rule's own integration test passed against a FABRICATED path while real Button/Input/Badge could regress
+unchecked (classic green-test-dead-enforcement). Retry-1 (`4ad0094` + `a373191`):
+- **AC-2 glob fix:** added `ui` to the glob (`components/{atoms,molecules,organisms,templates,pages,ui}/**`);
+  integration test retargeted to the real `components/ui/` path. **Adversarially re-verified:** injecting
+  `#ff0000` into `components/ui/button.tsx` now ERRORS on real `npx eslint`, reverts silent.
+- **Coverage:** CanvasToolbar (75→100%), CommandBar (77.77→100%), BellPanel (66.66→100%) via interaction tests.
+- **globalIgnores:** added `storybook-static/**` + `coverage/**` (eslint.config.mjs:74-75).
+Full suite 733/733 green, lint 0 errors, tsc clean. retry=1/3. **TASK-026 DONE.**
+
+## Epic status — EPIC-011 stays OPEN + close-gate BLOCKED (morning)
+
+TASK-026 (foundation) done; 027/028/029/030 (screen rollout) remain. **027 + 030 blocked** on the
+workspace_admin role-slug remediation (queued). **EPIC-011 milestone "v1" is UNDEFINED in the roadmap** →
+no phase-gate exit criteria → the epic CANNOT close/merge until the user defines the gate (fold EPIC-011/012
+into v1.0 with exit criteria, or give "v1" its own gate). Building was endorsed; CLOSE is held for morning.
