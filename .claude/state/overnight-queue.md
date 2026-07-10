@@ -121,3 +121,13 @@ weave-PLAT-V1-EPIC-001; committed CE-020's legit z-index token gap-fill to CE-01
 worktrees clean + committed HEADs green. LESSON: never run two /implement sessions on the same repo — they
 share worktrees + progress.json + agent names and clobber each other. a351d70 (CE-012 in_progress, no
 trailer) was likely this session's spine-surgery EDIT-3, benign.
+
+## Follow-up: light-mode-safe series palette (design authority) — CE-021
+`--color-series-1..6` (domain-colouring overlay fills, CE-V1-TASK-021) ship DARK-MODE ONLY. color.md's
+brand-spectrum stops (teal/magenta/purple/amber/lime + cyan) have dark hex only — light-mode was only ever
+computed for accent-primary/hover/soft. On a LIGHT Explorer canvas, adjacent domain fills (e.g. amber #fbbf24
+vs lime #a3e635) are near-white + fail WCAG 1.4.11 (non-text contrast) — indistinguishable. The jsdom axe
+test runs effectively dark-mode so does NOT catch this. **ACTION (design authority):** compute light-mode-safe
+hex for the 5 unaliased series stops (AA/1.4.11 on white), same process kind colours got their light variants.
+MUST land before any light-mode ship of the Explorer canvas. Coordinator approved dark-only-for-now (option 2)
+— dark-first product, decorative fill, honest code-comment + report flag. Related: iconography/token follow-ups.
