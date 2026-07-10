@@ -28,6 +28,7 @@ from weave_backend.build.orchestrator import (
     default_dispatch_pdac,
     run_dark_factory,
 )
+from weave_backend.build.self_verify import self_verify
 from weave_backend.build.state_spine import (
     Phase,
     StateSpine,
@@ -321,6 +322,39 @@ async def test_codify_writes_dep_summary_before_task_done() -> None:
     with pytest.raises(RuntimeError):
         await _dispatch_one(_FailingConn(), other_spine, other_task, tenant_id=_TENANT, deps=deps)
     assert other_task.status == "Queued"
+
+
+async def test_dispatch_one_stops_for_revision_when_self_verify_reports_violated() -> None:
+    """QA edge case (BE-TASK-006 AC-5): `default_applicable_rules()` is a
+    structural no-op today (ADR-018), so this path never fires in
+    production yet -- but the *wiring* in `_dispatch_one` (not just
+    `self_verify()` in isolation, already covered by
+    `test_self_verify.py`) must still fail closed the moment a rule
+    registry starts returning entries. Injects `applicable_rules_fn`/
+    `self_verify_fn` via `OrchestratorDeps` to simulate that future state
+    and asserts the task lands on `"revision"`, never `"Done"`.
+    """
+    summary = DepSummary(task_id="t1", decisions=["chose X"], outputs=["a.py"])
+
+    async def _pass_with_summary(
+        conn: Any, *, tenant_id: str, project_iri: str, task: TaskState
+    ) -> Any:
+        return TypedResult(status="PASS", retry_recommended=False), summary
+
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection()
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_pass_with_summary,
+        applicable_rules_fn=lambda: ["some-rule"],
+        self_verify_fn=lambda _self_verification, _rules: self_verify(None, ["some-rule"]),
+    )
+
+    await _dispatch_one(conn, spine, task, tenant_id=_TENANT, deps=deps)
+
+    assert task.status == "revision"
+    assert task.status != "Done"
 
 
 async def test_plan_warns_and_proceeds_when_predecessor_summary_missing(
