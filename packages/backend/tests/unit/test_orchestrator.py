@@ -151,7 +151,10 @@ async def _always_ok_preflight(
     mandatory preflight calls (AC-1) don't need real project/secrets
     fixtures unrelated to what these tests are about. The real wiring
     (`default_preflight`) is proven by `tests/unit/test_preflight.py` and
-    `tests/integration/test_preflight.py`.
+    `tests/integration/test_preflight_wiring.py` (named `..._wiring` --
+    `test_preflight.py` collides on module basename with the unit-test
+    file of the same name; pytest's rootless import mode requires unique
+    basenames across `tests/unit/` and `tests/integration/`).
     """
 
 
