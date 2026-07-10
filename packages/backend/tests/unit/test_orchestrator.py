@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from weave_backend.build import model_routing
+from weave_backend.build import orchestrator as orchestrator_module
 from weave_backend.build import store as task_store
 from weave_backend.build.cost import ModelRate, RateCardConfigError, record_dispatch_cost
 from weave_backend.build.costs import BudgetBreach
@@ -35,6 +36,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import handle_agent_result
+from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed
 from weave_backend.repo_bootstrap.service import RepoBootstrapDeps
 from weave_backend.schemas.tasks import DispatchUsage, TypedResult
 
@@ -49,6 +51,12 @@ _REPO_ROW = {
     "repo_url": "https://scm/acme/repo",
     "repo_default_branch": "main",
     "repo_id": "acme/repo",
+    # BE-TASK-006 AC-7: pre-existing tests model an *already-verified*
+    # project (env-verification approved, held released) so `rich_scaffold`
+    # takes its idempotent short-circuit and the dispatch loop runs exactly
+    # as it did before AC-7 existed -- the held/pending case gets its own
+    # dedicated tests below.
+    "feature_dispatch_held": False,
 }
 
 
@@ -58,13 +66,19 @@ class _FakeConnection:
     brief/dep-summary reads) without a real Postgres connection.
     """
 
-    def __init__(self, *, dep_summary_row: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        dep_summary_row: dict[str, Any] | None = None,
+        repo_row: dict[str, Any] | None = None,
+    ) -> None:
         self.executed: list[tuple[str, tuple[Any, ...]]] = []
         self._dep_summary_row = dep_summary_row
+        self._repo_row = repo_row if repo_row is not None else _REPO_ROW
 
     async def fetchrow(self, query: str, *_args: Any) -> dict[str, Any] | None:
         if "FROM projects" in query:
-            return dict(_REPO_ROW)
+            return dict(self._repo_row)
         if "FROM task_briefs" in query:
             return None
         if "FROM dep_summaries" in query:
@@ -644,3 +658,68 @@ async def test_stay_halted_when_budget_notify_emit_fails() -> None:
     result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
 
     assert result.phase == "halted_budget_breach"
+
+
+async def test_scaffold_failure_halts_naming_the_step(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC-8: a rich-scaffold step failure halts the run fail-closed and
+    names the failing step in the HITL evidence trail -- no feature task
+    is ever dispatched.
+    """
+
+    async def _boom_scaffold(_conn: Any, *, project_iri: str, tenant_id: str, deps: Any) -> None:
+        raise ScaffoldFailed("branch_protection", RuntimeError("scm rejected request"))
+
+    monkeypatch.setattr(orchestrator_module, "rich_scaffold", _boom_scaffold)
+
+    hitl_calls: list[HitlGateContext] = []
+
+    async def _fake_hitl(_conn: Any, ctx: HitlGateContext, **_kw: Any) -> None:
+        hitl_calls.append(ctx)
+
+    spine = _spine(turn_cap=10, tasks=[TaskState(id="t1", status="Queued")])
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
+    )
+    conn = _FakeConnection()
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.phase == "halted_hitl"
+    assert result.dispatch_count == 0
+    assert result.tasks[0].status == "Queued"  # never dispatched
+    assert len(hitl_calls) == 1
+    assert hitl_calls[0].evidence == "scaffold_step_failed:branch_protection"
+
+
+async def test_env_verification_pending_holds_all_feature_dispatch() -> None:
+    """AC-7: a freshly-scaffolded project (`feature_dispatch_held = True`,
+    the env-verification gate already fired inside `rich_scaffold`) halts
+    the run before the dispatch loop -- no feature task runs while the
+    hold is in place, and no second HITL gate is fired here (the gate was
+    already fired by `rich_scaffold` itself).
+    """
+    hitl_calls: list[HitlGateContext] = []
+
+    async def _fake_hitl(_conn: Any, ctx: HitlGateContext, **_kw: Any) -> None:
+        hitl_calls.append(ctx)
+
+    spine = _spine(turn_cap=10, tasks=[TaskState(id="t1", status="Queued")])
+    deps = OrchestratorDeps(
+        repo_deps=_repo_deps(),
+        dispatch_pdac_fn=_always_pass,
+        fire_hitl_gate_fn=_fake_hitl,
+        resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
+    )
+    conn = _FakeConnection(repo_row={**_REPO_ROW, "feature_dispatch_held": True})
+
+    result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
+
+    assert result.phase == "halted_hitl"
+    assert result.dispatch_count == 0
+    assert result.tasks[0].status == "Queued"  # never dispatched
+    assert len(hitl_calls) == 0  # already fired inside rich_scaffold, not re-fired here

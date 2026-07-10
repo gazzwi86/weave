@@ -41,12 +41,12 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import AgentResultContext, handle_agent_result
+from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed, rich_scaffold
 from weave_backend.repo_bootstrap.service import (
     DEFAULT_DEPS as DEFAULT_REPO_DEPS,
 )
 from weave_backend.repo_bootstrap.service import (
     RepoBootstrapDeps,
-    ensure_project_repo,
 )
 from weave_backend.repo_bootstrap.store import fetch_project_repo_row
 from weave_backend.schemas.tasks import TypedResult
@@ -295,6 +295,76 @@ async def _halt_preflight_failed(conn: asyncpg.Connection, spine: StateSpine) ->
     await commit_state_spine(conn, spine)
 
 
+async def _halt_scaffold_failed(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+    exc: ScaffoldFailed,
+) -> None:
+    """BE-TASK-006 AC-8: a rich-scaffold step failed -- halt fail-closed,
+    naming the step (`exc.step`) in the HITL evidence trail.
+    """
+    spine.phase = "halted_hitl"
+    await deps.fire_hitl_gate_fn(
+        conn,
+        HitlGateContext(
+            tenant_id=tenant_id,
+            task_id=f"run:{spine.run_id}",
+            submitting_principal_iri=BUILD_PRINCIPAL_IRI,
+            evidence=f"scaffold_step_failed:{exc.step}",
+        ),
+    )
+    await commit_state_spine(conn, spine)
+
+
+async def _halt_env_verification_pending(conn: asyncpg.Connection, spine: StateSpine) -> None:
+    """BE-TASK-006 AC-7: `rich_scaffold` already fired the env-verification
+    HITL gate -- this only needs to persist the halt. No feature task is
+    dispatched while `feature_dispatch_held` is `True` (the loop's dispatch
+    guard, checked once at run start -- one boolean, not a new FSM state).
+    """
+    spine.phase = "halted_hitl"
+    await commit_state_spine(conn, spine)
+
+
+async def _scaffold_and_check_hold(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """AC-6/AC-7/AC-8 as one unit, kept out of `run_dark_factory` to stay
+    under its complexity budget: run the rich-scaffold step, then the
+    env-verification hold check. Returns `True` if the run halted (a
+    scaffold step failed, or the project is still holding feature
+    dispatch pending human approval) -- `False` means clear to enter the
+    dispatch loop.
+    """
+    try:
+        await rich_scaffold(
+            conn, project_iri=spine.project_iri, tenant_id=tenant_id, deps=deps.repo_deps
+        )
+    except ScaffoldFailed as exc:
+        await _halt_scaffold_failed(conn, spine, tenant_id=tenant_id, deps=deps, exc=exc)
+        return True
+
+    # AC-7: a freshly (or still-pending) scaffolded project holds every
+    # feature task until a human approves the env-verification gate --
+    # checked once here, not re-checked per dispatch cycle (it cannot
+    # change mid-run; only `approve_env_verification`, called outside this
+    # loop, releases it).
+    repo_row = await fetch_project_repo_row(
+        conn, tenant_id=tenant_id, project_iri=spine.project_iri
+    )
+    if repo_row is not None and repo_row.feature_dispatch_held:
+        await _halt_env_verification_pending(conn, spine)
+        return True
+    return False
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -337,9 +407,8 @@ async def run_dark_factory(
         await _halt_preflight_failed(conn, spine)
         return spine
 
-    await ensure_project_repo(
-        conn, project_iri=spine.project_iri, tenant_id=tenant_id, deps=deps.repo_deps
-    )
+    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+        return spine
 
     breach: BudgetBreach | None = None
     while spine.dispatch_count < spine.turn_cap:
