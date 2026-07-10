@@ -2,15 +2,21 @@ import type { HTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type CardProps = HTMLAttributes<HTMLDivElement>;
+export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  /** Selected state (AC-4 "selected"): accent border + soft accent wash. */
+  selected?: boolean;
+}
 
 /** Surface container — tokenised background, border, radius, padding. */
-export function Card({ className, ...props }: CardProps) {
+export function Card({ className, selected, ...props }: CardProps) {
   return (
     <div
+      aria-selected={selected || undefined}
       className={cn(
-        "rounded-[var(--radius-lg)] border border-[var(--color-border)]",
-        "bg-[var(--color-surface)] p-[var(--space-4)]",
+        "rounded-[var(--radius-lg)] border p-[var(--space-4)]",
+        selected
+          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-soft)]"
+          : "border-[var(--color-border)] bg-[var(--color-surface)]",
         className
       )}
       {...props}

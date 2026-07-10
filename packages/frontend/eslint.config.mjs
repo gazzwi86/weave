@@ -28,6 +28,15 @@ const eslintConfig = defineConfig([...nextVitals, ...nextTs, sonarjs.configs.rec
     "no-console": ["warn", { allow: ["warn", "error"] }],
   },
 }, {
+  // TASK-026 AC-4 mandates story export names of exactly pascalState(state)
+  // (e.g. the "error" state -> `Error`), which collides with the JS global
+  // `Error` constructor name -- the collision is a naming export, not an
+  // actual shadowing bug, so this rule is scoped off for story files only.
+  files: ["**/*.stories.tsx"],
+  rules: {
+    "sonarjs/no-globals-shadowing": "off",
+  },
+}, {
   // Design-system gate (TASK-026): scoped to the new atomic-design layers
   // only -- components/{ui,shell,explorer,dashboard,marketing} predate this
   // rule and carry their own pre-existing literals (e.g. Cytoscape canvas
