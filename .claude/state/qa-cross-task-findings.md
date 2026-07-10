@@ -254,3 +254,10 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
   route touching the same resource for the same missing guard, per team-lead's original ask.
   Downstream tasks touching refresh-adjacent or read-path widget code (011/014/016) should confirm
   this fix landed before building on top of it.
+
+
+## QA-TASK-005-1 — RESOLVED (2026-07-11)
+BE-V1-TASK-005: `_generate_and_commit` post-commit bookkeeping ran outside the fail-closed try/except →
+desync if it threw after commit_workspace (git commit landed, run never marked failed, last_sdk_version_iri
+stale) — violated ADR-006 §3. Fixed `e9580f0`: extended fail-closed to cover post-commit bookkeeping, marks
+run failed via fresh conn + records commit_sha. strict-xfail proof test flipped to green. RESOLVED.

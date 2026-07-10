@@ -39,22 +39,6 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   would add four unrequested wrapper components for a form this small, purely to dodge a line
   count, with no readability or reuse benefit. Left as one component with this waiver.
 
-## `sdk_trigger.py` (`packages/backend/src/weave_backend/generation/sdk_trigger.py`)
-
-- **Threshold:** file ≤ 300 lines (Law E).
-- **Actual:** 353 physical lines (BE-V1-TASK-005, EPIC-008).
-- **Reason:** one cohesive single-transaction SDK-delivery flow — `trigger_sdk_generation` /
-  `run_sdk_generation` / `approve_sdk_breaking_ack` and their commit machinery
-  (`_generate_and_commit`, `_commit_generated_sdk`) all funnel to the **single `commit_workspace`
-  call site**, which is an explicit DoD invariant (verified holds) and a security-relevant
-  atomicity guarantee. ~40% of the file is docstring/comment (house "explain the why" style), so
-  the code-only count is comfortably under 300. A minimal split (moving `_commit_generated_sdk` +
-  helpers to a new module) removes only ~48 lines — still over cap — while a fuller split would
-  fragment one atomic operation across files, obscure the single-commit-site invariant, and force
-  retargeting of already-committed test monkeypatches (`sdk_trigger.generate_sdk` /
-  `tenant_connection` / `update_sdk_run_status` bare-name attrs) with no readability or safety
-  gain. No Python file-length linter enforces this locally (ruff has no such rule). Left as one
-  cohesive module with this waiver.
 
 ## `renderer-adapter.ts` (`packages/frontend/lib/explorer/renderer-adapter.ts`)
 
