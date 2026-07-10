@@ -128,6 +128,18 @@ async def _empty_rate_card(_conn: Any, *, tenant_id: str, project_iri: str) -> A
     return {}
 
 
+async def _always_ok_preflight(
+    _conn: Any, *, tenant_id: str, project_iri: str, run_id: str, phase: str
+) -> None:
+    """BE-TASK-006: pre-existing tests here don't exercise the preflight
+    credential check -- stubbed as a no-op so `run_dark_factory`'s new
+    mandatory preflight calls (AC-1) don't need real project/secrets
+    fixtures unrelated to what these tests are about. The real wiring
+    (`default_preflight`) is proven by `tests/unit/test_preflight.py` and
+    `tests/integration/test_preflight.py`.
+    """
+
+
 @pytest.fixture(autouse=True)
 def _reset_task_store() -> None:
     task_store.reset_for_tests()
@@ -149,6 +161,7 @@ async def test_orchestrator_halts_at_turn_cap_60() -> None:
         dispatch_pdac_fn=_always_pass,
         fire_hitl_gate_fn=_fake_hitl,
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
     conn = _FakeConnection()
 
@@ -204,6 +217,7 @@ async def test_either_cap_halt_routes_to_hitl_with_state_preserved() -> None:
         dispatch_pdac_fn=_always_fail_logic,
         handle_agent_result_fn=_handle_agent_result,
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
     conn = _FakeConnection()
 
@@ -244,6 +258,7 @@ async def test_resume_from_codify_checkpoint_after_crash() -> None:
         repo_deps=_repo_deps(),
         dispatch_pdac_fn=_tracking_pass,
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
     conn = _FakeConnection()
 
@@ -362,6 +377,7 @@ async def test_turn_cap_never_re_resolved_mid_run(monkeypatch: pytest.MonkeyPatc
         dispatch_pdac_fn=_always_pass,
         fire_hitl_gate_fn=_fake_hitl,
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
 
     result = await run_dark_factory(_FakeConnection(), spine, tenant_id=_TENANT, deps=deps)
@@ -405,6 +421,7 @@ async def test_run_dark_factory_propagates_commit_timeout_not_swallowed(
         repo_deps=_repo_deps(),
         dispatch_pdac_fn=_always_pass,
         resolve_rate_card_fn=_empty_rate_card,
+        preflight_fn=_always_ok_preflight,
     )
 
     with pytest.raises(StateSpineCommitTimeout):
@@ -478,6 +495,7 @@ async def test_persist_one_cost_event_per_agent_dispatch() -> None:
         dispatch_pdac_fn=_dispatch_with_usage,
         resolve_rate_card_fn=_stub_rate_card,
         record_dispatch_cost_fn=functools.partial(record_dispatch_cost, emit_billing_fn=_stub_emit),
+        preflight_fn=_always_ok_preflight,
     )
 
     await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
@@ -511,6 +529,7 @@ async def test_default_dispatch_pdac_stub_records_no_cost_event() -> None:
         dispatch_pdac_fn=_always_pass,
         resolve_rate_card_fn=_stub_rate_card,
         record_dispatch_cost_fn=_unreachable_cost_recorder,
+        preflight_fn=_always_ok_preflight,
     )
 
     result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
@@ -582,6 +601,7 @@ async def test_halt_run_at_next_checkpoint_when_budget_cascade_breached() -> Non
         resolve_rate_card_fn=_empty_rate_card,
         check_budget_fn=_breach,
         notify_budget_breach_fn=_fake_notify,
+        preflight_fn=_always_ok_preflight,
     )
 
     result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)
@@ -615,6 +635,7 @@ async def test_stay_halted_when_budget_notify_emit_fails() -> None:
         resolve_rate_card_fn=_empty_rate_card,
         check_budget_fn=_breach,
         notify_budget_breach_fn=_boom_notify,
+        preflight_fn=_always_ok_preflight,
     )
 
     result = await run_dark_factory(conn, spine, tenant_id=_TENANT, deps=deps)

@@ -32,6 +32,7 @@ from weave_backend.build.costs import BudgetBreach, check_budget, notify_budget_
 from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, write_dep_summary
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
+from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
 from weave_backend.build.state_spine import (
     BUILD_PRINCIPAL_IRI,
     StateSpine,
@@ -46,6 +47,7 @@ from weave_backend.repo_bootstrap.service import (
     RepoBootstrapDeps,
     ensure_project_repo,
 )
+from weave_backend.repo_bootstrap.store import fetch_project_repo_row
 from weave_backend.schemas.tasks import TypedResult
 
 log = logging.getLogger(__name__)
@@ -92,6 +94,28 @@ async def default_dispatch_pdac(
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
 
 
+async def default_preflight(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, run_id: str, phase: str
+) -> None:
+    """BE-TASK-006 AC-1: resolves the project's required refs (a data
+    table -- `required_refs`) from the project row, then runs the
+    existence-only preflight check. Real wiring behind `OrchestratorDeps`
+    so tests inject a no-op stub instead of touching Secrets Manager.
+    """
+    row = await fetch_project_repo_row(conn, tenant_id=tenant_id, project_iri=project_iri)
+    token_ref = row.source_control_token_secret_ref if row is not None else None
+    await preflight(
+        conn,
+        PreflightRequest(
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            run_id=run_id,
+            phase=phase,
+            refs=required_refs(token_ref),
+        ),
+    )
+
+
 @dataclass(frozen=True)
 class OrchestratorDeps:
     """Groups the loop's injectable collaborators (Law E 5-param budget) --
@@ -112,6 +136,10 @@ class OrchestratorDeps:
     #: task dispatches.
     check_budget_fn: Any = check_budget
     notify_budget_breach_fn: Any = notify_budget_breach
+    #: BE-TASK-006 AC-1: run start + every phase boundary (each dispatch
+    #: cycle in this loop). A no-op-safe stub in tests (no required refs
+    #: configured -> nothing to check, nothing to halt).
+    preflight_fn: Any = default_preflight
 
 
 DEFAULT_ORCHESTRATOR_DEPS = OrchestratorDeps()
@@ -250,6 +278,15 @@ async def _halt_budget_breach(
         log.warning("budget_breach_notify_failed", extra={"project_iri": spine.project_iri})
 
 
+async def _halt_preflight_failed(conn: asyncpg.Connection, spine: StateSpine) -> None:
+    """BE-TASK-006 AC-2: `preflight()` already fired the HITL gate and named
+    the missing critical ref (`RunHalted`'s message) before raising -- this
+    only needs to persist the halt, not re-fire the gate.
+    """
+    spine.phase = "halted_hitl"
+    await commit_state_spine(conn, spine)
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -280,6 +317,18 @@ async def run_dark_factory(
         ),
     )
 
+    try:
+        await deps.preflight_fn(
+            conn,
+            tenant_id=tenant_id,
+            project_iri=spine.project_iri,
+            run_id=spine.run_id,
+            phase="run_start",
+        )
+    except RunHalted:
+        await _halt_preflight_failed(conn, spine)
+        return spine
+
     await ensure_project_repo(
         conn, project_iri=spine.project_iri, tenant_id=tenant_id, deps=deps.repo_deps
     )
@@ -290,6 +339,17 @@ async def run_dark_factory(
         if task is None:
             spine.phase = "complete"
             break
+        try:
+            await deps.preflight_fn(
+                conn,
+                tenant_id=tenant_id,
+                project_iri=spine.project_iri,
+                run_id=spine.run_id,
+                phase="phase_boundary",
+            )
+        except RunHalted:
+            await _halt_preflight_failed(conn, spine)
+            return spine
         await _dispatch_one(conn, spine, task, tenant_id=tenant_id, deps=deps)
         spine.dispatch_count += 1
         await commit_state_spine(conn, spine)
