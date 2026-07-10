@@ -184,3 +184,13 @@ DB for the live E2E backend. So NO browser E2E that touches a DB route can run h
 explorer filters/overlays all fail the same way). They TYPE-CHECK now + run at epic-close ui_verify (real env).
 XT-PLAT010-2's fix (rewrite dashboard E2E against real backend) is still correct but ALSO only verifiable at
 epic-close, not in-sandbox. Don't treat these E2E sandbox failures as code defects.
+
+## Follow-up: native tool-calling on ModelProvider (deferred — CE-013 used JSON+Pydantic instead)
+CE-V1-TASK-013's brief specified "typed tool output" but the repo has ZERO tool-calling infra —
+`ai/providers.py::ModelProvider.complete()` is plain-text in/out across all 3 providers (Anthropic/Bedrock/
+Ollama), and Ollama doesn't share Anthropic's tool-calling API. Coordinator approved option B: extraction uses
+the proven `authoring/nl_parser.py` pattern (prompt-for-JSON → fence-strip → json.loads → strict Pydantic
+validation) — same typed-output guarantee (rejects off-shape), zero new deps, ADR'd in-task. If native
+tool-calling is ever genuinely wanted, that's a SEPARATE infra task: add a `complete_tool()` method to the
+shared 3-provider ModelProvider interface (Anthropic tool_use blocks, Bedrock tool config, an Ollama shim) —
+a real architecture change touching router.py/nl_parser.py callers, not something to fold into a feature task.
