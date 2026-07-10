@@ -48,6 +48,26 @@ def _fetch_sync(secret_id: str) -> str | None:
     return cast("str | None", response.get("SecretString"))
 
 
+def _describe_sync(secret_id: str) -> bool:
+    client = _secrets_client()
+    try:
+        client.describe_secret(SecretId=secret_id)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+            return False
+        raise
+    return True
+
+
+async def describe_secret(secret_id: str) -> bool:
+    """TASK-006 AC-3: existence-only check via Secrets Manager's
+    `describe_secret` -- never `get_secret_value`. Returns whether
+    `secret_id` resolves; never the secret's value, so a preflight check can
+    never leak a credential into logs/gate rows/API responses.
+    """
+    return await asyncio.to_thread(_describe_sync, secret_id)
+
+
 async def get_scm_token(secret_id: str) -> str | None:
     """Fetches the source-control provider token by its Secrets Manager
     reference (`projects.source_control_token_secret_ref`). Returns `None`
