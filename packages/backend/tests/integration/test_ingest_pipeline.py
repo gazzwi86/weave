@@ -17,6 +17,7 @@ a docker scenario; nothing about it needs a live stack.
 from __future__ import annotations
 
 import shutil
+import time
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -163,13 +164,16 @@ async def test_artefact_upload_creates_prov_entity_and_no_draft_individual(
     )
 
     try:
+        started = time.monotonic()
         response = await client.post(
             "/api/ingest/artefacts",
             files={"file": ("doc.pdf", b"%PDF-1.4 fake content", "application/pdf")},
             headers=headers,
         )
+        elapsed_ms = (time.monotonic() - started) * 1000
 
         assert response.status_code == 201, response.text
+        assert elapsed_ms < 2000, f"AC-001-01: upload took {elapsed_ms:.1f}ms, budget is 2000ms"
         body = response.json()
         assert body["artefact_iri"]
         assert body["job_id"]
@@ -231,9 +235,12 @@ async def test_accepted_proposal_carries_prov_used_and_reuses_activity(
     try:
         _job_id, proposal_id = await _seed_awaiting_review_job(tenant_id, workspace, ops=ops)
 
+        started = time.monotonic()
         response = await client.post(f"/api/ingest/proposals/{proposal_id}/accept", headers=headers)
+        elapsed_ms = (time.monotonic() - started) * 1000
 
         assert response.status_code == 200, response.text
+        assert elapsed_ms < 2800, f"AC-001-05: accept took {elapsed_ms:.1f}ms, budget is 2800ms"
         body = response.json()
         assert body["version_iri"].startswith(f"{workspace.named_graph_iri}:v")
 
@@ -321,8 +328,11 @@ async def test_rejected_proposal_kept_for_audit_and_counted_in_job_summary(
         assert proposal_row is not None
         assert proposal_row.status == "rejected"
 
+        started = time.monotonic()
         job_response = await client.get(f"/api/ingest/jobs/{job_id}", headers=headers)
+        elapsed_ms = (time.monotonic() - started) * 1000
         assert job_response.status_code == 200
+        assert elapsed_ms < 200, f"job GET took {elapsed_ms:.1f}ms, budget is 200ms"
         assert job_response.json()["summary"] == {"committed": 0, "rejected": 1, "skipped": 0}
     finally:
         await clear_graph(workspace.named_graph_iri)
@@ -396,9 +406,12 @@ async def test_proposals_beyond_fifty_are_reachable_via_the_list_endpoint(
                 conn, NewProposal(tenant_id=tenant_id, job_id=job_id, ops=ops, confidence=0.9)
             )
 
+    started = time.monotonic()
     response = await client.get(f"/api/ingest/jobs/{job_id}/proposals", headers=headers)
+    elapsed_ms = (time.monotonic() - started) * 1000
 
     assert response.status_code == 200
+    assert elapsed_ms < 300, f"proposals GET took {elapsed_ms:.1f}ms, budget is 300ms"
     returned = response.json()["proposals"]
     assert len(returned) == proposal_count, (
         f"only {len(returned)}/{proposal_count} proposals reachable -- "
