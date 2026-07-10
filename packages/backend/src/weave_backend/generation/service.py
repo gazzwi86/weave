@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import asyncpg
 import httpx
 
+from weave_backend.anatomy.indexer import refresh_anatomy
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.briefs.ce_read_client import get_bpmo_context
 from weave_backend.briefs.store import get_task_brief
@@ -229,6 +230,11 @@ async def generate_app(
         gate_results.append(
             await run_brand_gate(conn, ctx, workspace, deps.record_brand_gate)
         )
+
+        # FR-031/AC-1: refresh the anatomy index into the same staging tree
+        # gates just passed -- a scan failure here fails the whole run, so
+        # no stale-index commit ever lands (Design Decisions table).
+        refresh_anatomy(workspace)
 
         target = _CommitTarget(
             entity=ctx.project_iri.split(":")[-1],

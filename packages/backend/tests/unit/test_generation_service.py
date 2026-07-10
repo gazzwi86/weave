@@ -15,6 +15,7 @@ pipeline call CE-BRAND-1, which directly inverts that M1-only invariant.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -34,6 +35,7 @@ from weave_backend.generation.service import (
     generate_app,
 )
 from weave_backend.projects.model import Project
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.store import ProjectRepoRow
 
 _MODULE = "weave_backend.generation.service"
@@ -213,6 +215,44 @@ async def test_generate_app_commits_and_returns_gates_passed_on_all_pass() -> No
         ],
     }
     assert any(event["event_type"] == "generation_complete" for event in emitted)
+
+
+async def test_generate_app_commits_anatomy_index_in_same_commit_set() -> None:
+    """FR-031/AC-1: `ANATOMY.md` + `docs/wiki/` land in the workspace before
+    it's committed -- same commit set as the generated app, not a follow-up.
+    """
+    committed_paths: list[str] = []
+
+    async def _capture_commit_workspace(
+        _repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        del branch, message, token
+        committed_paths.extend(str(p) for p in Path(workspace).rglob("*") if p.is_file())
+        return "sha-123"
+
+    driver = _FakeDriver()
+    driver.commit_workspace = AsyncMock(side_effect=_capture_commit_workspace)
+    deps, _ = _deps(driver=driver)
+    original_generate = deps.generate_workspace_fn
+
+    async def _generate_with_source_file(*, prompt: str, output_dir: str, bpmo: Any) -> None:
+        await original_generate(prompt=prompt, output_dir=output_dir, bpmo=bpmo)
+        Path(output_dir, "backend", "app.py").parent.mkdir(parents=True, exist_ok=True)
+        Path(output_dir, "backend", "app.py").write_text("def handler():\n    pass\n")
+
+    deps = replace(deps, generate_workspace_fn=_generate_with_source_file)
+    gate_pipeline = (lambda _workspace: GateResult(gate="secret_scan"),)
+    with (
+        patch(f"{_MODULE}.get_project", AsyncMock(return_value=_project())),
+        patch(f"{_MODULE}.get_task_brief", AsyncMock(return_value=_brief())),
+        patch(f"{_MODULE}.fetch_project_repo_row", AsyncMock(return_value=_repo_row())),
+        patch(f"{_MODULE}.GATE_PIPELINE", gate_pipeline),
+        patch(f"{_MODULE}.insert_generation_run", AsyncMock()),
+    ):
+        await generate_app(AsyncMock(), _ctx(), deps)
+
+    assert any(p.endswith("ANATOMY.md") for p in committed_paths)
+    assert any("docs/wiki" in p for p in committed_paths)
 
 
 async def test_generate_app_cleans_up_workspace_on_gate_failure() -> None:
