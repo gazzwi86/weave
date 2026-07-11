@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T09:46:37+00:00
+Captured at: 2026-07-11T10:04:11+00:00
 Event: pre-compact
 
 ## Current State
@@ -257,7 +257,7 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-004",
       "title": "Kanban & Task Management",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-005",
@@ -1402,7 +1402,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-004",
       "title": "Kanban Board, Task Tree & Filters (FR-015/016/017)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-011"
       ],
@@ -1426,7 +1426,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
       "title": "Project Dashboard (FR-013): Per-Tile Isolated Status View",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-013",
         "BE-V1-TASK-014"
