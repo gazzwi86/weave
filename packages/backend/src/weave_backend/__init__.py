@@ -7,6 +7,7 @@ from weave_backend.auth.dependencies import UnauthorisedError, unauthorised_exce
 from weave_backend.auth.oidc_client import close_oidc_client
 from weave_backend.auth.public import assert_all_routes_guarded, public
 from weave_backend.briefs.ce_read_client import close_ce_read_client
+from weave_backend.dashboard.ce_metrics import close_ce_metrics_client
 from weave_backend.db.pool import close_app_pool
 from weave_backend.deploy.ce_write_client import close_ce_write_client
 from weave_backend.observability.middleware import (
@@ -27,6 +28,7 @@ from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.comments import router as comments_router
 from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.dashboard import router as dashboard_router
+from weave_backend.routers.dashboard_refine import router as dashboard_refine_router
 from weave_backend.routers.decisions import router as decisions_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.events import router as events_router
@@ -47,6 +49,7 @@ from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
 from weave_backend.routers.project_bindings import router as project_bindings_router
 from weave_backend.routers.project_contributors import router as project_contributors_router
+from weave_backend.routers.project_dashboard import router as project_dashboard_router
 from weave_backend.routers.project_pin import router as project_pin_router
 from weave_backend.routers.project_settings import router as project_settings_router
 from weave_backend.routers.projects import router as projects_router
@@ -124,6 +127,8 @@ app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
 app.include_router(dashboard_router)
+app.include_router(dashboard_refine_router)
+app.include_router(project_dashboard_router)
 app.include_router(generation_router)
 app.include_router(sdk_generation_router)
 app.include_router(deploy_router)
@@ -160,6 +165,7 @@ assert_all_routes_guarded(app)
 @app.on_event("shutdown")
 async def _close_db_pool() -> None:
     await close_app_pool()
+    await close_ce_metrics_client()
     await close_oidc_client()
     await close_ce_client()
     await close_ce_read_client()
