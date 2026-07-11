@@ -22,6 +22,9 @@ DEFAULTS: dict[str, float] = {
     "dashboard.growth.long_window_days": 90,
     "dashboard.billing.burn_rate_alert_pct": 90,
     "dashboard.billing.refresh_lag_minutes": 5,
+    # PLAT-V1-TASK-024 (E2-S9): recent-edits collaboration widget.
+    "dashboard.collaboration.retain_rows": 50,
+    "dashboard.collaboration.tail": 20,
 }
 
 

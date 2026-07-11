@@ -17,7 +17,15 @@ import httpx
 
 from weave_backend.audit.listing import list_entries
 from weave_backend.billing.usage import get_usage_summary
-from weave_backend.dashboard import availability, ce_metrics, coverage_gap, ops_health, snapshots
+from weave_backend.dashboard import (
+    activity_feed,
+    availability,
+    ce_metrics,
+    coverage_gap,
+    events_proxy,
+    ops_health,
+    snapshots,
+)
 from weave_backend.dashboard.thresholds import threshold
 
 #: AC-1: the closed set of contract IDs a category may cite. S10's
@@ -50,6 +58,10 @@ class BindingContext:
     conn: asyncpg.Connection
     ce_client: httpx.AsyncClient
     ce_headers: dict[str, str] | None = None
+    #: PLAT-V1-TASK-024: the widget instance's own prior `last_result`
+    #: (ADR-013 SWR row) -- only `collaboration-activity` reads this; every
+    #: other binding ignores it, so the shared `FetchFn` signature holds.
+    prior_result: Any = None
 
 
 @dataclass(frozen=True)
@@ -325,6 +337,80 @@ async def _onboarding_progress(ctx: BindingContext) -> BindingResult:
     return BindingResult(shape="ranked", status="fresh", rows={"completeness_pct": pct})
 
 
+async def _collaboration_activity(ctx: BindingContext) -> BindingResult:
+    """PLAT-V1-TASK-024 (E2-S9, M2 portion): recent-edits widget bound to
+    the CE-EVENT-1 seq feed via the in-process `events_proxy` (AC-1),
+    re-baselining through CE-READ-1 on `410 Gone` (AC-3), and degrading
+    to the retained prior rows with `status="stale"` on error (AC-4).
+    """
+    prior = ctx.prior_result if isinstance(ctx.prior_result, dict) else {}
+    retain = int(
+        await threshold(
+            ctx.conn,
+            tenant_id=ctx.tenant_id,
+            context_iri=ctx.context_iri,
+            key="dashboard.collaboration.retain_rows",
+        )
+    )
+    tail = int(
+        await threshold(
+            ctx.conn,
+            tenant_id=ctx.tenant_id,
+            context_iri=ctx.context_iri,
+            key="dashboard.collaboration.tail",
+        )
+    )
+    try:
+        cursor = prior.get("last_seq")
+        if cursor is None:
+            baseline = await events_proxy.proxy_events(
+                ctx.conn, tenant_id=ctx.tenant_id, since_seq=0, limit=1
+            )
+            cursor = max(baseline.latest_seq - tail, 0)
+        page = await events_proxy.proxy_events(
+            ctx.conn, tenant_id=ctx.tenant_id, since_seq=cursor, limit=retain
+        )
+        if page.gone:
+            reseed_rows = await coverage_gap.recently_updated_entities(
+                ctx.ce_client, limit=retain, headers=ctx.ce_headers
+            )
+            fresh_baseline = await events_proxy.proxy_events(
+                ctx.conn, tenant_id=ctx.tenant_id, since_seq=0, limit=1
+            )
+            return BindingResult(
+                shape="events",
+                status="fresh",
+                rows=reseed_rows,
+                meta={
+                    "last_seq": fresh_baseline.latest_seq,
+                    "truncated": True,
+                    "notice": "history truncated — showing activity from now",
+                },
+            )
+        # AC-2: entity deep-link, same `/resource/{iri}` convention as
+        # `coverage_gap.contraventions`.
+        new_rows = [
+            {**dict(row), "href": f"/resource/{row['entity_iri']}"} for row in page.rows
+        ]
+    except httpx.HTTPError:
+        # AC-4: feed/proxy erred or timed out -- keep the last successful
+        # render, never blank or fabricate rows.
+        return BindingResult(
+            shape="events", status="stale", rows=prior.get("rows"), meta=prior
+        )
+    prior_rows_raw = prior.get("rows")
+    prior_rows: list[dict[str, Any]] = prior_rows_raw if isinstance(prior_rows_raw, list) else []
+    # `latest_seq` from the response is authoritative -- never `max(rows)`
+    # (a `limit`-truncated page would silently skip events).
+    rows = activity_feed.merge_newest_first(new_rows, prior_rows, retain=retain)
+    return BindingResult(
+        shape="events",
+        status="fresh",
+        rows=rows,
+        meta={"last_seq": page.latest_seq, "contributors": activity_feed.top_contributors(rows)},
+    )
+
+
 CATEGORIES: dict[str, Binding] = {
     "ontology-health": Binding(
         contracts=["CE-METRICS-1"], shapes=["scalar", "categorical"], fetch=_ontology_health
@@ -355,6 +441,9 @@ CATEGORIES: dict[str, Binding] = {
     ),
     "onboarding-progress": Binding(
         contracts=["CE-METRICS-1"], shapes=["ranked"], fetch=_onboarding_progress
+    ),
+    "collaboration-activity": Binding(
+        contracts=["CE-EVENT-1", "CE-READ-1"], shapes=["events"], fetch=_collaboration_activity
     ),
 }
 

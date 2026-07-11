@@ -91,3 +91,43 @@ async def contraventions(
         for row in body.get("rows", [])
         if row.get("entity_iri")
     ]
+
+
+#: PLAT-V1-TASK-024 AC-3: the graph carries no per-entity modified-timestamp
+#: predicate (no PROV `generatedAtTime` on assertions today), so the 410
+#: re-baseline cannot order by true recency. This reuses the same real
+#: `POST /api/sparql` surface and `instances/browse.py`'s label-ordered
+#: pattern -- a bounded, honestly-labelled substitute, not a fabricated
+#: recency signal (see ADR-025). Upgrade path: a PROV timestamp predicate.
+_RECENTLY_UPDATED_QUERY_TEMPLATE = """
+PREFIX weave: <https://weave.io/ontology/>
+SELECT DISTINCT ?entity_iri ?label
+WHERE {{
+  GRAPH ?g {{
+    ?entity_iri weave:label ?label .
+  }}
+}}
+ORDER BY LCASE(?label)
+LIMIT {limit}
+"""
+
+
+async def recently_updated_entities(
+    client: httpx.AsyncClient, *, limit: int, headers: dict[str, str] | None = None
+) -> list[dict[str, Any]]:
+    """AC-3: CE-READ-1 re-seed rows for the 410 re-baseline -- `{entity_iri,
+    label}` per row, deep-linkable the same way as `contraventions`.
+    """
+    query = _RECENTLY_UPDATED_QUERY_TEMPLATE.format(limit=limit)
+    response = await client.post("/api/sparql", json={"query": query}, headers=headers)
+    response.raise_for_status()
+    body = response.json()
+    return [
+        {
+            "entity_iri": row.get("entity_iri"),
+            "label": row.get("label"),
+            "href": f"/resource/{row.get('entity_iri')}",
+        }
+        for row in body.get("rows", [])
+        if row.get("entity_iri")
+    ]

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
-from weave_backend.dashboard import store
+from weave_backend.dashboard import bindings, store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.default_tiles import resolve_starter_role
@@ -34,7 +35,19 @@ from weave_backend.schemas.dashboard import (
     WidgetRefreshResponse,
     WidgetStatus,
 )
+from weave_backend.settings.scope import company_iri
 from weave_backend.tenancy.sessions import get_redis
+
+#: PLAT-V1-TASK-024: a category-registry status never maps 1:1 onto
+#: `WidgetStatus` (`not_yet_available` -> `source_not_ga`); everything
+#: else already shares the same literal spelling.
+_CATEGORY_STATUS_MAP: dict[str, WidgetStatus] = {
+    "fresh": "fresh",
+    "stale": "stale",
+    "pending": "pending",
+    "unavailable": "unavailable",
+    bindings.NOT_YET_AVAILABLE: "source_not_ga",
+}
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -101,6 +114,43 @@ async def list_widgets_route(
     return WidgetListResponse(widgets=[_to_widget_out(row) for row in rows])
 
 
+async def _refresh_category_widget(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    row: store.WidgetRow,
+    ce_client: AsyncClient,
+) -> WidgetRefreshResponse:
+    """PLAT-V1-TASK-024: the registry-driven counterpart of the CE-METRICS-1
+    path above -- `collaboration-activity` (and any future CATEGORIES entry)
+    resolves through `bindings.resolve_category` instead of a per-widget
+    field fetch. Reuses the same `apply_refresh_result` write path (ADR-013
+    SWR row), so cursor/rows persist server-side, cross-device (AC-7).
+    """
+    ctx = bindings.BindingContext(
+        tenant_id=tenant_id,
+        context_iri=company_iri(tenant_id),
+        conn=conn,
+        ce_client=ce_client,
+        prior_result=row.last_result,
+    )
+    result = await bindings.resolve_category(row.spec.bindings["category"], ctx)
+    status = _CATEGORY_STATUS_MAP.get(result.status, "unavailable")
+    last_result = (
+        {"rows": result.rows, **(result.meta or {})}
+        if result.rows is not None
+        else row.last_result
+    )
+    fetched_at = store.utcnow() if status == "fresh" else row.fetched_at
+    await store.apply_refresh_result(
+        conn,
+        tenant_id=tenant_id,
+        widget_id=row.id,
+        outcome=store.RefreshOutcome(last_result=last_result, status=status, fetched_at=fetched_at),
+    )
+    return WidgetRefreshResponse(status=status, fetched_at=fetched_at)
+
+
 @router.post("/widgets/{widget_id}/refresh", response_model=WidgetRefreshResponse)
 async def refresh_widget_route(
     widget_id: str,
@@ -117,6 +167,11 @@ async def refresh_widget_route(
             row.scope == "user" and row.owner_principal_iri != principal.principal_iri
         ):
             raise HTTPException(status_code=404)
+
+        if row.spec.bindings.get("category") is not None:
+            return await _refresh_category_widget(
+                conn, tenant_id=principal.tenant_id, row=row, ce_client=ce_client
+            )
 
         field_name = row.spec.bindings["field"]
         fetch_failed = False
