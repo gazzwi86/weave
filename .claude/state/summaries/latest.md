@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T07:10:46+00:00
+Captured at: 2026-07-11T07:26:41+00:00
 Event: pre-compact
 
 ## Current State
@@ -177,7 +177,7 @@ Event: pre-compact
     {
       "id": "CE-V1-EPIC-009",
       "title": "Provenance & Version Lifecycle",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-V1-EPIC-010",
@@ -978,7 +978,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
       "title": "Tenant-Scoped Governance Shapes (NL→SHACL, Isolation, Cache Invalidation)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-001"
       ],
@@ -1012,7 +1012,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-009",
       "title": "CE-EVENT-1 Change-Feed (Beta Transport)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-008.md",
       "retry_count": 0
