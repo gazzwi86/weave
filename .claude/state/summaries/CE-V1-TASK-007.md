@@ -53,3 +53,15 @@ unit suite green (shared oxigraph_client regression clean). mypy 0/433, ruff 0. 
 **AC-007-04 intent-vs-literal:** SPARQL count-diff replaces literal `diff_graphs` reuse — intent (internal, correct
 counts, NOT CE-DIFF-1 HTTP) preserved; QA/architect confirm the trade. re-QA focus: added/removed/MODIFIED semantics
 match diff_graphs across edge cases.
+
+## Re-QA PASS (2026-07-11, a58827, retry 2) — CE-V1-TASK-007 CLOSES
+Focused re-QA of the retry-2 SPARQL count-diff. **AC-007-04 correctness PROVEN**: read diff_graphs source, compared
+line-for-line to `_delta_query` SPARQL (algebraically identical — modified only when exactly 1 removed + 1 added per (s,p),
+else plain add/remove). 5 new edge tests `3a08b01` (never-published→all-added; pure-swap→modified=1; empty→all-removed;
+identical→zero; multi-valued-swap 1rm/2add→NOT collapse, added=2/removed=1/modified=0) ALL PASS vs real Oxigraph; 11/11
+integration. **AC-007-05 perf re-verified: cold 55.4ms / cached 5.4ms @100k.** oxigraph_client regression clean
+(run_query_multi added+deleted same cycle, run_query_unscoped body untouched, sole caller unaffected). 949 unit green.
+All 6 ACs PASS. retry=2. **WARN XT-CE007-2 (fix before EPIC-005 close):** code/tests cite "ADR-023" 4× but NO
+constitution-engine ADR-023 exists (real ADR-023 = ingest DocumentExtractor). Write the actual CE ADR for the
+SPARQL-count-diff deviation OR renumber citations. Also: 3 test_v1_pm_tables failures = pre-existing full-suite docker
+contention flakiness (pass in isolation), NOT a CE-007 regression.

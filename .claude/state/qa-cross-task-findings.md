@@ -356,3 +356,10 @@ Turtle (`fetch_graph_turtle`) + `Graph().parse()` (rdflib) on every cold call �
 for the write path, now on read. Smoke-tested clean at 1k (cold 45ms) → genuine scale bug. **Fix in-flight (retry 2):**
 compute the delta COUNTS via SPARQL (no whole-graph Turtle fetch+parse) — preserves AC-007-04's "internal, not CE-DIFF-1
 HTTP" intent but DEVIATES from literal "reuse diff_graphs"; QA/architect confirm intent-met. Status: FIXING.
+
+## XT-CE007-2: dangling ADR-023 citation on CE-005 branch (fix before EPIC-005 close) — 2026-07-11
+CE-007's `aggregate_metrics.py` + 3 test files cite "ADR-023" for the SPARQL-count-diff deviation, but NO
+constitution-engine ADR-023 exists (real ADR-023 belongs to ingest/DocumentExtractor). Governance gap (Law 10 requires the
+deviation-from-brief record). FIX at EPIC-005 close: write `docs/specs/weave/engines/constitution-engine/decisions/ADR-0NN-metrics-sparql-count-diff.md`
+(next free number) documenting "SPARQL count-diff replaces literal diff_graphs reuse for AC-007-04, perf-driven, count-parity
+proven vs diff_graphs across 5 edge cases" + repoint the 4 citations. Non-blocking for the task (correctness independently proven). Status: OPEN.
