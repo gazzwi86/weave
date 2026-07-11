@@ -96,6 +96,24 @@ async def test_no_tenant_shapes_committed_yet_validates_framework_only(
     assert any(str(EX.proc1) == v.focus_node for v in violations)
 
 
+async def test_automatable_shape_is_enforced_even_without_tenant_shapes() -> None:
+    """AC-005-06: `weave:AutomatableShape` is part of the shape set every
+    validation runs against -- framework-wide, whether or not the tenant
+    has committed any custom shapes of their own (default-absent is fine;
+    a non-boolean value, once asserted, is not).
+    """
+    graph = Graph()
+    graph.add((EX.proc1, RDF.type, WEAVE.Process))
+    graph.add((EX.proc1, WEAVE.label, Literal("Onboarding", datatype=XSD.string)))
+    graph.add((EX.proc1, WEAVE.performedBy, EX.actor1))
+    graph.add((EX.actor1, RDF.type, WEAVE.Actor))
+    graph.add((EX.proc1, WEAVE.automatable, Literal("yes")))  # not xsd:boolean
+
+    results = await shacl.validate_graph_for_tenant(graph, tenant_id="t1", redis_client=None)
+
+    assert any(r.severity == "Violation" and r.path == str(WEAVE.automatable) for r in results)
+
+
 async def test_redis_client_none_falls_back_to_framework_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
