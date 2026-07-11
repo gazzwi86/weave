@@ -12,8 +12,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
-from weave_backend.build.dashboard import ProjectNotFound, UnknownTile
-from weave_backend.routers.dashboard import get_dashboard_tile_route
 
 from weave_backend.auth.dependencies import Principal
 from weave_backend.build.costs import (
@@ -22,10 +20,12 @@ from weave_backend.build.costs import (
     ResolvedCap,
     RollupUnavailable,
 )
+from weave_backend.build.dashboard import ProjectNotFound, UnknownTile
 from weave_backend.build.state_spine import StateSpine, TaskState
 from weave_backend.generation.store import RecentRun
 from weave_backend.projects.model import Project
 from weave_backend.repo_bootstrap.store import ProjectRepoRow
+from weave_backend.routers.dashboard import get_dashboard_tile_route
 
 _PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
 _MODULE = "weave_backend.routers.dashboard"
