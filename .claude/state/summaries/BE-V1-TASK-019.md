@@ -43,6 +43,18 @@ tsc 0 · eslint 0-err (154+ pre-existing warns elsewhere) · ruff 0 · mypy 0 ·
 
 ## Commits (feature/BE-V1-EPIC-003, not pushed): e6683d6 (endpoints) · 7f67469 (UI) · 7c8f73f (clock_timestamp) · 2b22893 (url-encode+E2E fixes) · d7dfff6 (migration renumber 0033→0065, HEAD).
 
+## QA PASS (2026-07-11, a39369a, retry 0) — BE-V1-TASK-019 CLOSES
+Adversarial QA, all 6 ACs self-run. **Per-tile isolation CONFIRMED both layers** (6 independent handlers, no aggregate query;
+6× independent useTile + per-tile TileBoundary; E2E stub-503 positively asserts 5 siblings still visible). **Migration 0065
+correct** (sorts after 0064; **tautology-checked** — reverted default to now() live → new tie test FAILED 5/5, restored →
+passed). **Caught a real gap:** the shipped AC-3 test used 2 autocommit inserts (own txns) → never exercised the now() tie →
+would pass with OR without the fix; QA added `test_demo_tile_breaks_same_transaction_tie_via_clock_timestamp` (one explicit
+txn, tautology-verified) `9d33577`. Tenant-scoping JWT-only all 6 endpoints (RLS + explicit filter). Backend integration 3/3,
+unit 13/13, frontend 5/5. ruff 0, mypy 0/270, tsc 0, eslint 0. AC-6 note: SelfImprovementCard is props-only (perma-hidden
+until Platform BE-SELFIMPROVE-1 exists) — spec-compliant "degrades to hidden", not a gap. retry=0.
+**Deferred (WARN):** Lighthouse/axe/ui_verify not run this pass (scoped out) — run `ui_verify.sh --full` on /build dashboard
+route before EPIC-003 close.
+
 ## Epic status — EPIC-003 NOT closed
-TASK-019 done; **TASK-021 (Direct Project Prompt, FR-065) remains** (unlocked by this task). EPIC-003 closes after BE-021.
-At close → HELD PR (migration 0065 = schema tier). Restack onto green main then.
+TASK-019 done; **TASK-021 (Direct Project Prompt, FR-065) remains** (unlocked by this task, same branch). EPIC-003 closes after
+BE-021. At close → HELD PR (migration 0065 = schema tier) + run ui_verify --full on the dashboard route. Restack onto green main then.

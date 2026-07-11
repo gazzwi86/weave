@@ -1419,7 +1419,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
       "title": "Project Dashboard (FR-013): Per-Tile Isolated Status View",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-013",
         "BE-V1-TASK-014"
