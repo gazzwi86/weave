@@ -29,3 +29,25 @@ def touches_function_signature(operations: Sequence[Op]) -> bool:
         if isinstance(op, AddNodeOp) and _expand(op.kind) == WEAVE.Function:
             return True
     return False
+
+
+def existing_signature_edit_targets(operations: Sequence[Op]) -> set[str]:
+    """AC-009-04: subject IRIs of signature-predicate edges that name a node
+    NOT created in this same batch -- i.e. a candidate in-place edit of an
+    already-existing function. `graph_ops._resolve_ref` treats any
+    `subject_ref` absent from the batch's local `AddNodeOp.ref`s as a
+    literal, pre-existing IRI (same resolution rule the apply pipeline
+    itself uses), so this reuses that exact distinction to tell "defining a
+    brand-new function" (AC-009-01, never flagged) apart from "editing a
+    published one in place" (AC-009-04). Whether a candidate is actually a
+    *published* `weave:Function` is a graph question the pipeline resolves
+    separately (a cheap ASK against the latest published version graph).
+    """
+    local_refs = {op.ref for op in operations if isinstance(op, AddNodeOp)}
+    return {
+        op.subject_ref
+        for op in operations
+        if isinstance(op, AddEdgeOp)
+        and _expand(op.predicate) in _SIGNATURE_PREDICATES
+        and op.subject_ref not in local_refs
+    }
