@@ -107,6 +107,28 @@ def build_list_entries(
     return entries
 
 
+async def _resolve_latest_iri(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> str:
+    """AC-009-01: a just-defined function lands in the tenant *draft* graph
+    via CE-WRITE-1 (publish is a separate, later step) -- so reads must
+    surface the newest version *including* drafts. This differs from
+    CE-VERSION-1's `?version=latest` alias (`versioning.resolve_version`),
+    which is published-only (AC-002-08) and stays that way for the
+    AC-009-04 immutability check.
+    """
+    page = await versioning.list_versions(
+        conn,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
+        page=versioning.Page(number=1, size=1),
+        include_drafts=True,
+    )
+    if not page.versions:
+        raise versioning.VersionNotFound("latest")
+    return page.versions[0].version_iri
+
+
 async def _resolve_previous_published(
     conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, latest_iri: str
 ) -> str | None:
@@ -129,8 +151,8 @@ async def _resolve_previous_published(
 async def list_functions(
     conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
 ) -> list[FunctionListEntry]:
-    latest_iri = await versioning.resolve_version(
-        conn, tenant_id=tenant_id, workspace_id=workspace_id, version="latest"
+    latest_iri = await _resolve_latest_iri(
+        conn, tenant_id=tenant_id, workspace_id=workspace_id
     )
     graph = await _load_graph(latest_iri)
     previous_iri = await _resolve_previous_published(
@@ -160,8 +182,8 @@ def _derive_json_schema(graph: Graph, signature: SignatureOut) -> dict[str, obje
 async def get_function(
     conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, fn_iri: str
 ) -> FunctionDetail | None:
-    latest_iri = await versioning.resolve_version(
-        conn, tenant_id=tenant_id, workspace_id=workspace_id, version="latest"
+    latest_iri = await _resolve_latest_iri(
+        conn, tenant_id=tenant_id, workspace_id=workspace_id
     )
     graph = await _load_graph(latest_iri)
     fn = URIRef(fn_iri)
