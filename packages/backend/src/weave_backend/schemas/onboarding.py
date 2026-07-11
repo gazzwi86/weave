@@ -88,6 +88,15 @@ class SavedResponse(BaseModel):
     saved: bool
 
 
+class SandboxOut(BaseModel):
+    """TASK-004 AC-004-02: `POST /api/onboarding/sandbox` -- idempotent
+    ensure-mine response.
+    """
+
+    workspace_id: str
+    reused: bool
+
+
 class DeletedResponse(BaseModel):
     deleted: bool
 
