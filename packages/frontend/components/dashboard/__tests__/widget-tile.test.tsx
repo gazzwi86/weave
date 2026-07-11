@@ -46,6 +46,46 @@ function barWidget(overrides: Partial<WidgetOut> = {}): WidgetOut {
   };
 }
 
+function activityFeedWidget(overrides: Partial<WidgetOut> = {}): WidgetOut {
+  return {
+    id: "w-3",
+    scope: "tenant_default",
+    spec: {
+      component_type: "activity_feed",
+      title: "Recent edits",
+      data_source_contracts: ["CE-EVENT-1", "CE-READ-1"],
+      bindings: { category: "collaboration-activity" },
+      column_span: 6,
+    },
+    position: 2,
+    last_result: {
+      rows: [
+        {
+          actor: "alice@acme.com",
+          entity_iri: "urn:acme:process:onboarding",
+          label: "Onboarding process",
+          href: "/resource/urn:acme:process:onboarding",
+          version_iri: "urn:acme:version:7",
+          created_at: "2026-07-10T11:00:00Z",
+        },
+        {
+          actor: "bob@acme.com",
+          entity_iri: "urn:acme:goal:grow",
+          label: "Grow revenue",
+          href: "/resource/urn:acme:goal:grow",
+          version_iri: null,
+          created_at: "2026-07-10T10:00:00Z",
+        },
+      ],
+    },
+    fetched_at: "2026-07-10T12:00:00Z",
+    status: "fresh",
+    pending_fields: [],
+    suggested: false,
+    ...overrides,
+  };
+}
+
 describe("WidgetTile", () => {
   it("AC-3: renders a kpi_card's title and numeric value", () => {
     render(<WidgetTile widget={kpiWidget()} />);
@@ -91,5 +131,40 @@ describe("WidgetTile", () => {
     render(<WidgetTile widget={kpiWidget()} />);
 
     expect(screen.getByText(/CE-METRICS-1/)).toBeInTheDocument();
+  });
+
+  it("AC-2: activity_feed renders one row per edit with actor, entity label+id, and a deep link", () => {
+    render(<WidgetTile widget={activityFeedWidget()} />);
+
+    expect(screen.getByText("alice@acme.com")).toBeInTheDocument();
+    expect(screen.getByText("Onboarding process")).toBeInTheDocument();
+    expect(screen.getByText("urn:acme:process:onboarding")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /onboarding process/i });
+    expect(link).toHaveAttribute("href", "/resource/urn:acme:process:onboarding");
+  });
+
+  it("AC-2: activity_feed marks a null version_iri row as Draft via icon+text, not colour alone", () => {
+    render(<WidgetTile widget={activityFeedWidget()} />);
+
+    expect(screen.getByText(/draft/i)).toBeInTheDocument();
+  });
+
+  it("activity_feed footer cites both CE-EVENT-1 and CE-READ-1 contracts", () => {
+    render(<WidgetTile widget={activityFeedWidget()} />);
+
+    expect(screen.getByText(/CE-EVENT-1/)).toBeInTheDocument();
+    expect(screen.getByText(/CE-READ-1/)).toBeInTheDocument();
+  });
+
+  it("AC-3: 410 re-baseline notice renders as a named-reason tile, not a blank feed", () => {
+    render(
+      <WidgetTile
+        widget={activityFeedWidget({
+          last_result: { rows: [], truncated: true, notice: "Feed re-baselined" },
+        })}
+      />
+    );
+
+    expect(screen.getByText(/re-baselined/i)).toBeInTheDocument();
   });
 });
