@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import type { NodeKind } from "@/lib/explorer/types";
+import type { NodeKind, RelKind } from "@/lib/explorer/types";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,15 @@ function lastSegment(iri: string): string {
 interface BackendKindEntry {
   iri: string;
   label: string;
+}
+
+interface BackendRelationshipEntry {
+  path: string;
+  name: string;
+}
+
+function toRelKind(entry: BackendRelationshipEntry): RelKind {
+  return { id: lastSegment(entry.path), label: entry.name };
 }
 
 /** The 14 per-kind tokens from docs/standards/design/color.md (OQ-08 table)
@@ -69,6 +78,9 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json(body, { status: upstream.status });
   }
 
-  const body = (await upstream.json()) as { kinds: BackendKindEntry[] };
-  return NextResponse.json({ kinds: body.kinds.map(toNodeKind) }, { status: 200 });
+  const body = (await upstream.json()) as { kinds: BackendKindEntry[]; relationships: BackendRelationshipEntry[] };
+  return NextResponse.json(
+    { kinds: body.kinds.map(toNodeKind), relTypes: body.relationships.map(toRelKind) },
+    { status: 200 }
+  );
 }
