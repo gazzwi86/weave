@@ -326,3 +326,14 @@ their own project) from EPIC-002/TASK-011/023, untouched by BE-020. Blocks any B
 config (NOT general login — BE-019's dashboard E2E passed fine). Fix options: (a) grant creator a contributor/owner row on
 project creation, or (b) seed admin a tenant-wide grant that covers SETTINGS. HIGH priority — surface to user (real RBAC gap
 + gates part of Build E2E). Diff-verified BE-020 didn't touch rbac/contributors/mock_oidc/source_control/projects.
+
+## PROJ-010 — project creation 503 `ce_version_unavailable` blocks Build E2E (2026-07-11)
+BE-017 QA/build found: creating a project 503s with `ce_version_unavailable` (GET /api/ontology/versions returns no published
+version) BEFORE any feature code runs. Reproduced on the unmodified `project-settings.spec.ts` (6/6 same fail). This is
+UPSTREAM of PROJ-009 (which is the later source-control-config 403). Two shared-infra/seed gaps now block the Build E2E suite:
+**PROJ-010 (no seeded published CE version → project create 503)** then **PROJ-009 (creator lacks contributor grant → 403 on
+source-control)**. Consequence: NO Build UI task (BE-017/019/020) can currently get a real green Playwright E2E through the
+full create→configure flow — all fall back to E2E-met-by-inference (backend integration proves real state). NOTE BE-019's
+dashboard E2E DID pass — its flow seeds/needs no published CE version + no source-control step. Fix = the Build E2E harness
+seed must publish a CE ontology version + grant the creating admin a project role (or these two flows must not require them).
+HIGH priority — gates Law-B E2E for the Build engine at phase close. Surface to user with PROJ-009.
