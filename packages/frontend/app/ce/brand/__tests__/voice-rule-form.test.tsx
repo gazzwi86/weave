@@ -100,4 +100,38 @@ describe("VoiceRuleForm", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/assertion value/i)).toHaveAttribute("aria-invalid", "true");
   });
+
+  // EDGE CASE (QA, TASK-004): handleSubmit has no try/finally around
+  // submitAddNode (unlike app/ce/chat/guided-form.tsx's reference pattern),
+  // so a thrown/rejected fetch (network failure, or a non-JSON error body
+  // res.json() can't parse) skips setSubmitting(false). Save stays disabled
+  // forever with no error shown and no retry short of a full page reload
+  // (which loses the user's typed values). RED repro test: documents the
+  // current (broken) behavior; should start passing once the Engineer wraps
+  // the await in try/finally.
+  it("re-enables Save after a network failure so the user can retry (regression repro)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("/api/auth/session")) {
+          return jsonResponse(200, { user: { email: "brand-owner@example.com" } });
+        }
+        throw new TypeError("Failed to fetch");
+      })
+    );
+    render(<VoiceRuleForm onCommitted={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/rule id/i), { target: { value: "no-jargon" } });
+    fireEvent.change(screen.getByLabelText(/severity/i), { target: { value: "critical" } });
+    fireEvent.change(screen.getByLabelText(/assertion type/i), { target: { value: "forbidden-term" } });
+    fireEvent.change(screen.getByLabelText(/assertion value/i), { target: { value: "synergy" } });
+
+    const saveButton = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    // BUG: currently never re-enables -- setSubmitting(false) is skipped
+    // when submitAddNode throws.
+    await waitFor(() => expect(saveButton).not.toBeDisabled(), { timeout: 2000 });
+  });
 });
