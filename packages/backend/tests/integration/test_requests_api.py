@@ -110,7 +110,11 @@ async def test_create_request_streams_sections_and_persists_draft(
 
     create_response = await client.post(
         "/api/requests",
-        json={"prompt": "build a widget tracker", "run_mode": "draft_spec_only"},
+        json={
+            "prompt": "build a widget tracker",
+            "run_mode": "draft_spec_only",
+            "name": "Widget tracker",
+        },
         headers=headers,
     )
     assert create_response.status_code == 202
@@ -161,7 +165,11 @@ async def test_stream_returns_404_for_other_tenants_request(
 
     create_response = await client.post(
         "/api/requests",
-        json={"prompt": "build a widget tracker", "run_mode": "draft_spec_only"},
+        json={
+            "prompt": "build a widget tracker",
+            "run_mode": "draft_spec_only",
+            "name": "Widget tracker",
+        },
         headers=headers_a,
     )
     assert create_response.status_code == 202
@@ -195,7 +203,11 @@ async def test_request_degrades_gracefully_when_ce_unreachable(
 
     create_response = await client.post(
         "/api/requests",
-        json={"prompt": "build a widget", "run_mode": "draft_spec_only"},
+        json={
+            "prompt": "build a widget",
+            "run_mode": "draft_spec_only",
+            "name": "Widget",
+        },
         headers=headers,
     )
     assert create_response.status_code == 202
@@ -366,7 +378,7 @@ async def _setup_typeahead_workspace(client: AsyncClient) -> dict[str, str]:
         },
         headers=headers,
     )
-    assert apply_response.status_code == 200
+    assert apply_response.status_code == 201
     return headers
 
 
