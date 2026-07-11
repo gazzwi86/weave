@@ -27,12 +27,28 @@ class CreateRequestBody(BaseModel):
     prompt: str = Field(default="")
     run_mode: str = Field(default="")
     description: str | None = None
+    #: TASK-024 AC-1/AC-4: human-facing request name, required 1-200 chars.
+    name: str = Field(default="")
+    #: TASK-024 AC-2/AC-6: grounding-entity IRIs, resolved via CE-READ-1.
+    grounding_entity_iris: list[str] = Field(default_factory=list)
+    #: TASK-024 AC-5: required (kebab-case) unless run_mode == draft_spec_only.
+    target_repo_name: str | None = None
 
 
 class CreateRequestResponse(BaseModel):
     request_id: str
     status: str
     stream_url: str
+
+
+class ProvenanceLink(BaseModel):
+    """TASK-024 AC-7: one entity/version deep link on the visible request
+    record -- `/ce/resource/{iri}` per grounding entity, or (when none are
+    selected) `/ce/versions/{iri}` for the pinned `CE-VERSION-1` graph.
+    """
+
+    iri: str
+    href: str
 
 
 class RequestStatusResponse(BaseModel):
@@ -42,6 +58,34 @@ class RequestStatusResponse(BaseModel):
     graph_context: str
     draft_content: dict[str, Any] | None
     created_at: datetime
+    #: TASK-024 AC-7: visible request record fields.
+    name: str = ""
+    grounding_entity_iris: list[str] = Field(default_factory=list)
+    target_repo_name: str | None = None
+    #: TASK-024 AC-7: always at least one link, unless CE-READ-1 was
+    #: unreachable at draft time (`graph_context == "unavailable"` -- no
+    #: valid pinned-version IRI exists to link, so the record legitimately
+    #: carries zero links in that degraded case).
+    provenance_links: list[ProvenanceLink] = Field(default_factory=list)
+
+
+class TypeaheadEntity(BaseModel):
+    """One `GET /api/ontology/entities/typeahead` result (AC-2)."""
+
+    iri: str
+    label: str
+    kind: str
+
+
+class TypeaheadResponse(BaseModel):
+    results: list[TypeaheadEntity]
+
+
+#: TASK-024 AC-5: kebab-case, 3-100 chars, mirrors project-slug shape.
+TARGET_REPO_NAME_PATTERN = r"^[a-z0-9-]{3,100}$"
+
+#: TASK-024 AC-4: name required, 1-200 chars.
+NAME_MAX_LENGTH = 200
 
 
 class BlastRadiusResponse(BaseModel):

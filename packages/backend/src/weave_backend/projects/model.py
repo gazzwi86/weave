@@ -60,6 +60,10 @@ class NewProject(BaseModel):
     pinned_graph_version_iri: str
     source_control_provider: str | None = None
     source_control_token_secret_ref: str | None = None
+    #: TASK-024 AC-5/design decision B9: kebab-case name hint for the NEW
+    #: repo BE-TASK-010's bootstrap creates -- never a selector against an
+    #: existing repo. `None` when the request omitted it (draft_spec_only).
+    repo_name_hint: str | None = None
 
 
 def slugify(name: str) -> str:
@@ -119,9 +123,9 @@ async def create_project(conn: asyncpg.Connection, fields: NewProject) -> Projec
             INSERT INTO projects (
                 project_iri, tenant_id, slug, name, description,
                 pinned_graph_version_iri, source_control_provider,
-                source_control_token_secret_ref
+                source_control_token_secret_ref, repo_name_hint
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING project_iri, name, pinned_graph_version_iri, created_at
             """,
             project_iri,
@@ -132,6 +136,7 @@ async def create_project(conn: asyncpg.Connection, fields: NewProject) -> Projec
             fields.pinned_graph_version_iri,
             fields.source_control_provider,
             fields.source_control_token_secret_ref,
+            fields.repo_name_hint,
         )
     except asyncpg.UniqueViolationError as exc:
         # Race-condition duplicate (pseudocode): another request for the

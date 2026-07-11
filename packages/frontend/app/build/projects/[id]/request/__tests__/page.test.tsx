@@ -17,6 +17,9 @@ const ACCEPTED = {
 };
 
 function fillAndSubmit(): void {
+  fireEvent.change(screen.getByLabelText("Request name"), {
+    target: { value: "Expense tracker" },
+  });
   fireEvent.change(screen.getByLabelText("What should Weave build?"), {
     target: { value: "an expense tracker" },
   });
@@ -36,11 +39,17 @@ describe("BuildPage", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<BuildPage />);
+    fireEvent.change(screen.getByLabelText("Request name"), {
+      target: { value: "Expense tracker" },
+    });
     fireEvent.change(screen.getByLabelText("What should Weave build?"), {
       target: { value: "an expense tracker" },
     });
     fireEvent.change(screen.getByLabelText("Run mode"), {
       target: { value: "spec_to_build" },
+    });
+    fireEvent.change(screen.getByLabelText("Target repo name"), {
+      target: { value: "expense-tracker" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Request application" }));
 
@@ -54,7 +63,13 @@ describe("BuildPage", () => {
     );
     const [, init] = fetchMock.mock.calls[0] ?? [];
     const body = JSON.parse(init?.body as string) as unknown;
-    expect(body).toEqual({ prompt: "an expense tracker", run_mode: "spec_to_build" });
+    expect(body).toEqual({
+      prompt: "an expense tracker",
+      run_mode: "spec_to_build",
+      name: "Expense tracker",
+      grounding_entity_iris: [],
+      target_repo_name: "expense-tracker",
+    });
   });
 
   it("polls every 2s until a terminal status and renders draft_content", async () => {
