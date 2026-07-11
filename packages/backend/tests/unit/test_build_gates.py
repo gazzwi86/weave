@@ -205,7 +205,12 @@ async def test_dod_gate_pass_logged_to_audit() -> None:
 # --- Pre-scaffold gate --------------------------------------------------
 
 
-async def test_pre_scaffold_gate_records_findings_and_proceeds_on_missing_prd() -> None:
+async def test_pre_scaffold_gate_blocks_scaffolding_on_critical_cascade_gap() -> None:
+    """TASK-009/AC-7: `should block scaffolding on critical cascade gap` --
+    replaces the M1 always-PROCEED stub. Missing PRD/roadmap/tech-spec/
+    impl-ready are all critical (Implementation Hints); BLOCKED names the
+    first failing step in cascade order.
+    """
     task_store.upsert_project_spec(_TENANT, _PROJECT_IRI, brief_present=True)
 
     with (
@@ -217,12 +222,14 @@ async def test_pre_scaffold_gate_records_findings_and_proceeds_on_missing_prd() 
             object(), tenant_id=_TENANT, actor_iri=_ACTOR_IRI, project_iri=_PROJECT_IRI
         )
 
-    assert result["result"] == "PROCEED"
+    assert result["result"] == "BLOCKED"
+    assert result["failing_step"] == "prd"
     failing_steps = {finding["step"] for finding in result["findings"]}
     assert failing_steps == {"prd", "roadmap", "tech_spec", "impl_ready"}
 
 
-async def test_pre_scaffold_critical_gap_fires_notify_and_proceeds() -> None:
+async def test_pre_scaffold_critical_gap_fires_blocking_notify_and_records_blocked_row() -> None:
+    """TASK-009/AC-8: `should fire blocking notify and record BLOCKED row`."""
     task_store.upsert_project_spec(
         _TENANT,
         _PROJECT_IRI,
@@ -233,6 +240,45 @@ async def test_pre_scaffold_critical_gap_fires_notify_and_proceeds() -> None:
         impl_ready_flag=True,
     )
     mock_notify = AsyncMock()
+    mock_insert = AsyncMock()
+
+    with (
+        patch("weave_backend.build.gates.notify_tenant_admins", mock_notify),
+        patch("weave_backend.build.gates.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.build.gates.gate_store.insert_gate_result", mock_insert),
+    ):
+        result = await run_pre_scaffold_gate(
+            object(), tenant_id=_TENANT, actor_iri=_ACTOR_IRI, project_iri=_PROJECT_IRI
+        )
+
+    assert result["result"] == "BLOCKED"
+    assert result["failing_step"] == "tech_spec"
+    mock_notify.assert_awaited_once()
+    assert mock_notify.await_args is not None
+    assert mock_notify.await_args.kwargs["event_type"] == "spec_gap_critical"
+    assert mock_notify.await_args.kwargs["payload"]["failing_step"] == "tech_spec"
+    assert mock_notify.await_args.kwargs["payload"]["blocking"] is True
+    mock_insert.assert_awaited_once()
+    assert mock_insert.await_args is not None
+    inserted_row = mock_insert.await_args.args[1]
+    assert inserted_row.result == "BLOCKED"
+
+
+async def test_pre_scaffold_proceeds_with_recorded_findings_when_gaps_are_non_critical() -> None:
+    """TASK-009/AC-7: `should proceed with recorded findings when gaps are
+    non-critical` -- a full cascade plus a stale-pin finding still PROCEEDs,
+    the finding is recorded for visibility, not dropped.
+    """
+    task_store.upsert_project_spec(
+        _TENANT,
+        _PROJECT_IRI,
+        brief_present=True,
+        prd_present=True,
+        roadmap_present=True,
+        tech_spec_present=True,
+        impl_ready_flag=True,
+    )
+    mock_notify = AsyncMock()
 
     with (
         patch("weave_backend.build.gates.notify_tenant_admins", mock_notify),
@@ -240,11 +286,19 @@ async def test_pre_scaffold_critical_gap_fires_notify_and_proceeds() -> None:
         patch("weave_backend.build.gates.gate_store.insert_gate_result", AsyncMock()),
     ):
         result = await run_pre_scaffold_gate(
-            object(), tenant_id=_TENANT, actor_iri=_ACTOR_IRI, project_iri=_PROJECT_IRI
+            object(),
+            tenant_id=_TENANT,
+            actor_iri=_ACTOR_IRI,
+            project_iri=_PROJECT_IRI,
+            staleness={"lag": 3, "stale": True},
         )
 
     assert result["result"] == "PROCEED"
-    mock_notify.assert_awaited_once()
-    assert mock_notify.await_args is not None
-    assert mock_notify.await_args.kwargs["event_type"] == "spec_gap_critical"
-    assert mock_notify.await_args.kwargs["payload"]["failing_step"] == "tech_spec"
+    assert result["findings"] == [
+        {
+            "step": "staleness",
+            "reason": "pinned graph version is 3 version(s) behind latest",
+            "critical": False,
+        }
+    ]
+    mock_notify.assert_not_awaited()

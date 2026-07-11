@@ -59,6 +59,24 @@ async def get_checked(
     return response
 
 
+async def get_optional(
+    client: httpx.AsyncClient,
+    path: str,
+    headers: dict[str, str],
+    *,
+    params: dict[str, str] | None = None,
+) -> httpx.Response | None:
+    """Same as `get_checked`, but a 404 is a normal miss (`None`), not an
+    error -- TASK-009/AC-2's `read_file` (a not-yet-committed `ANATOMY.md`
+    on a freshly scaffolded repo is expected, never a failure).
+    """
+    response = await client.get(path, headers=headers, params=params)
+    if response.status_code == 404:
+        return None
+    _raise_if_auth_error(response)
+    return response
+
+
 async def put_checked(
     client: httpx.AsyncClient, path: str, body: dict[str, object], headers: dict[str, str]
 ) -> httpx.Response:

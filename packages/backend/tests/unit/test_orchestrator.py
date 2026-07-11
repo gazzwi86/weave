@@ -9,7 +9,6 @@ the DB-round-trip proof lives in `tests/integration/test_runs_api.py`.
 from __future__ import annotations
 
 import functools
-import logging
 from decimal import Decimal
 from typing import Any
 
@@ -24,8 +23,10 @@ from weave_backend.build.dep_summary import DepSummary
 from weave_backend.build.hitl import HitlGateContext
 from weave_backend.build.orchestrator import (
     OrchestratorDeps,
+    TaskHeld,
     _dispatch_one,
     default_dispatch_pdac,
+    load_task_context,
     run_dark_factory,
 )
 from weave_backend.build.self_verify import self_verify
@@ -37,6 +38,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import handle_agent_result
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed
 from weave_backend.repo_bootstrap.service import RepoBootstrapDeps
 from weave_backend.schemas.tasks import DispatchUsage, TypedResult
@@ -99,21 +101,60 @@ class _FakeConnection:
         self.executed.append((query, args))
 
 
-def _repo_deps() -> RepoBootstrapDeps:
-    # Never reached: `_REPO_ROW` already has a full repo handle, so
-    # `ensure_project_repo` takes the idempotent short-circuit (AC-3 of
-    # TASK-010) before touching get_secret/driver_for.
-    async def _unreachable_secret(_ref: str) -> str | None:
-        raise AssertionError("get_secret should not be called (existing repo row)")
+class _NoAnatomyDriver:
+    """`_repo_deps()`'s `driver_for` stub -- `ensure_project_repo` never
+    reaches it (see below), but TASK-009/AC-2's `load_task_context` does,
+    on every dispatch cycle. No `ANATOMY.md` committed -- `read_file`
+    returns `None`, leaving `task.context` untouched (harmless no-op for
+    the many pre-existing tests that don't care about anatomy loading).
+    Every other `ScmDriver` member is a `NotImplementedError` stub purely
+    to satisfy the structural type -- none is reachable here (same
+    convention as `test_rich_scaffold.py`'s `_FakeDriver`).
+    """
 
-    def _unreachable_driver(_provider: str) -> Any:
-        raise AssertionError("driver_for should not be called (existing repo row)")
+    async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+        raise NotImplementedError
+
+    async def write_initial_commit(
+        self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+    ) -> None:
+        raise NotImplementedError
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        raise NotImplementedError
+
+    async def commit_files(
+        self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        return None
+
+
+def _repo_deps() -> RepoBootstrapDeps:
+    # `ensure_project_repo`/`rich_scaffold`'s own SCM calls (create_repo
+    # et al.) are never reached: `_REPO_ROW` already has a full repo
+    # handle, so `ensure_project_repo` takes the idempotent short-circuit
+    # (AC-3 of TASK-010) before touching them. `load_task_context`
+    # (TASK-009/AC-2) DOES reach `get_secret`/`driver_for` though, on
+    # every dispatch cycle -- both return harmless no-op values.
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    def _fake_driver(_provider: str) -> _NoAnatomyDriver:
+        return _NoAnatomyDriver()
 
     async def _noop_audit(_conn: Any, _event: Any) -> None:
         return None
 
     return RepoBootstrapDeps(
-        get_secret=_unreachable_secret, driver_for=_unreachable_driver, emit_audit=_noop_audit
+        get_secret=_fake_secret, driver_for=_fake_driver, emit_audit=_noop_audit
     )
 
 
@@ -360,26 +401,241 @@ async def test_dispatch_one_stops_for_revision_when_self_verify_reports_violated
     assert task.status != "Done"
 
 
-async def test_plan_warns_and_proceeds_when_predecessor_summary_missing(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """AC-5: a missing predecessor summary logs `missing_handoff` and the
-    task dispatches anyway -- M1 never holds on a miss.
+async def test_plan_raises_task_held_when_predecessor_summary_missing() -> None:
+    """TASK-009/AC-6: a missing predecessor summary raises `TaskHeld` --
+    replaces the M1 warn-and-proceed stub (FR-043 no longer best-effort).
     """
     task = TaskState(id="t2", status="Queued", blocked_by=["t1"])
     conn = _FakeConnection(dep_summary_row=None)
 
-    with caplog.at_level(logging.WARNING, logger="weave_backend.build.orchestrator"):
-        result, summary = await default_dispatch_pdac(
-            conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task
-        )
+    with pytest.raises(TaskHeld) as exc_info:
+        await default_dispatch_pdac(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI, task=task)
+    assert exc_info.value.missing_dep_id == "t1"
 
-    assert result.status == "PASS"
-    assert summary is not None
-    warnings = [r for r in caplog.records if r.message == "missing_handoff"]
-    assert len(warnings) == 1
-    assert warnings[0].__dict__["task_id"] == "t2"
-    assert warnings[0].__dict__["missing_summary"] == "t1"
+
+async def test_hold_task_in_ready_when_predecessor_summary_missing() -> None:
+    """AC-6: `should hold task in Ready when predecessor dep summary
+    missing` -- `_dispatch_one` catches `TaskHeld` and holds the task in
+    `Ready` with `hold_reason="dep_summary_missing"` rather than failing
+    the cycle or marking it Done.
+    """
+    task = TaskState(id="t2", status="Queued", blocked_by=["t1"])
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection(dep_summary_row=None)
+    deps = OrchestratorDeps(repo_deps=_repo_deps(), dispatch_pdac_fn=default_dispatch_pdac)
+
+    await _dispatch_one(conn, spine, task, tenant_id=_TENANT, deps=deps)
+
+    assert task.status == "Ready"
+    assert task.hold_reason == "dep_summary_missing"
+
+
+async def test_ac2_anatomy_loaded_into_task_context_before_delegate() -> None:
+    """AC-2: `should load anatomy into task context before delegate` --
+    `_dispatch_one` calls `load_task_context` (task brief pseudocode)
+    before `dispatch_pdac_fn` (the PLAN->DELEGATE->ASSESS->CODIFY cycle),
+    so a `scm_driver.read` hit on the repo's `ANATOMY.md` lands in
+    `task.context` before DELEGATE ever runs -- not just that the field
+    exists, but that real content flows through it.
+    """
+    anatomy_md = "# Repository Anatomy\n\n| Area | Files | Wiki |\n|---|---|---|\n"
+
+    class _AnatomyDriver:
+        """Only `read_file` is reachable via `load_task_context` -- the rest
+        are `NotImplementedError` stubs purely to satisfy `ScmDriver`."""
+
+        async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+            raise NotImplementedError
+
+        async def write_initial_commit(
+            self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+        ) -> None:
+            raise NotImplementedError
+
+        async def commit_workspace(
+            self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+        ) -> str:
+            raise NotImplementedError
+
+        async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+            raise NotImplementedError
+
+        async def commit_files(
+            self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+        ) -> str:
+            raise NotImplementedError
+
+        async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+            assert path == "ANATOMY.md"
+            return anatomy_md
+
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    async def _noop_audit(_conn: Any, _event: Any) -> None:
+        return None
+
+    seen_context: list[str] = []
+
+    async def _capture_context(
+        _conn: Any, *, tenant_id: str, project_iri: str, task: TaskState
+    ) -> tuple[TypedResult, Any]:
+        seen_context.extend(task.context)
+        return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
+    task = TaskState(id="t1", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[task])
+    conn = _FakeConnection(dep_summary_row={"task_id": "t1"})
+    deps = OrchestratorDeps(
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_fake_secret,
+            driver_for=lambda _provider: _AnatomyDriver(),
+            emit_audit=_noop_audit,
+        ),
+        dispatch_pdac_fn=_capture_context,
+    )
+
+    await _dispatch_one(conn, spine, task, tenant_id=_TENANT, deps=deps)
+
+    assert task.context == [anatomy_md]
+    assert seen_context == [anatomy_md], "AC-2: DELEGATE must see the anatomy already loaded"
+
+
+async def _noop_audit_edge(_conn: Any, _event: Any) -> None:
+    return None
+
+
+class _RaisingDriver:
+    """`read_file` raises -- proves `load_task_context`'s best-effort swallow
+    (task brief: "a driver error... never halts dispatch") without depending
+    on `httpx`/`AuthError` wiring. Every other `ScmDriver` member is a
+    `NotImplementedError` stub purely to satisfy the structural type (same
+    convention as `_NoAnatomyDriver` above).
+    """
+
+    async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
+        raise NotImplementedError
+
+    async def write_initial_commit(
+        self, repo: RepoHandle, *, boilerplate: dict[str, str], token: str
+    ) -> None:
+        raise NotImplementedError
+
+    async def commit_workspace(
+        self, repo: RepoHandle, *, workspace: str, branch: str, message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def apply_branch_protection(self, repo: RepoHandle, *, token: str) -> None:
+        raise NotImplementedError
+
+    async def commit_files(
+        self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        raise RuntimeError("provider rejected token (status 401)")
+
+
+class _NoRepoConnection:
+    """`fetchrow` always misses the `projects` row -- QA edge case: a task
+    dispatched before `ensure_project_repo` has ever run (no repo
+    provisioned yet). `load_task_context` must no-op, not raise.
+    """
+
+    async def fetchrow(self, query: str, *_args: Any) -> dict[str, Any] | None:
+        return None
+
+
+async def test_load_task_context_noop_when_no_repo_row() -> None:
+    """QA edge case (AC-2 best-effort corollary): no `projects` repo row
+    yet -- `fetch_project_repo_row` returns `None` -- leaves `task.context`
+    untouched and does not raise.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _unreachable_secret(_ref: str) -> str | None:
+        raise AssertionError("get_secret should not be called -- no repo row")
+
+    await load_task_context(
+        _NoRepoConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_unreachable_secret,
+            driver_for=lambda _provider: (_ for _ in ()).throw(AssertionError("unreachable")),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
+
+
+async def test_load_task_context_noop_when_token_unresolved() -> None:
+    """QA edge case: `get_secret` returns `None` (token ref unset or the
+    secret was rotated out) -- `load_task_context` must no-op rather than
+    call `driver_for`/`read_file` with an empty token.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _no_secret(_ref: str) -> str | None:
+        return None
+
+    await load_task_context(
+        _FakeConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_no_secret,
+            driver_for=lambda _provider: (_ for _ in ()).throw(
+                AssertionError("driver_for should not be called -- no token")
+            ),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
+
+
+async def test_load_task_context_swallows_driver_error() -> None:
+    """QA edge case (AC-2 best-effort corollary): the SCM driver raises
+    (auth rejection, network error, etc.) -- `load_task_context` logs and
+    leaves `task.context` untouched rather than propagating the exception
+    and halting dispatch.
+    """
+    task = TaskState(id="t1", status="Queued")
+
+    async def _fake_secret(_ref: str) -> str | None:
+        return "tok-fake"
+
+    await load_task_context(
+        _FakeConnection(),
+        tenant_id=_TENANT,
+        project_iri=_PROJECT_IRI,
+        task=task,
+        repo_deps=RepoBootstrapDeps(
+            get_secret=_fake_secret,
+            driver_for=lambda _provider: _RaisingDriver(),
+            emit_audit=_noop_audit_edge,
+        ),
+    )
+
+    assert task.context == []
+
+
+def test_next_ready_task_skips_held_task() -> None:
+    """AC-6 (loop-progress corollary): a held task must not spin the
+    dispatch loop -- `next_ready_task` skips it so the rest of the backlog
+    still makes progress.
+    """
+    held = TaskState(id="t1", status="Ready", hold_reason="dep_summary_missing")
+    next_up = TaskState(id="t2", status="Queued")
+    spine = _spine(turn_cap=10, tasks=[held, next_up])
+
+    assert spine.next_ready_task() is next_up
 
 
 async def test_model_routing_miss_halts_task_not_silent_invoke(

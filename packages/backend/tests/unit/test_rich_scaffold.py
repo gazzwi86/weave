@@ -95,6 +95,9 @@ class _FakeDriver:
             raise RuntimeError("commit rejected")
         return "sha-fake"
 
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        raise NotImplementedError
+
 
 def _deps(*, driver: _FakeDriver | None = None) -> tuple[RepoBootstrapDeps, list[AuditEvent]]:
     emitted: list[AuditEvent] = []
