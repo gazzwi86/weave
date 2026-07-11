@@ -64,9 +64,9 @@ describe("SectionRail", () => {
     expect(screen.getByRole("link", { name: /Workspaces/ })).toBeInTheDocument();
   });
 
-  it("renders nothing for sections without a rail (Home)", () => {
+  it("renders the Home rail's Notifications entry (AC-4 nav reachability)", () => {
     pathname = "/dashboard";
-    const { container } = render(<SectionRail role="admin" />);
-    expect(container).toBeEmptyDOMElement();
+    render(<SectionRail role="admin" />);
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute("href", "/notifications");
   });
 });

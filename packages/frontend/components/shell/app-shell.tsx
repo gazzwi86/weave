@@ -46,7 +46,7 @@ export function AppShell({ children, role = null, tenantId = null }: AppShellPro
           <Nav />
         </div>
         <div className="flex items-center gap-[var(--space-2)]">
-          <NotificationCenter />
+          <NotificationCenter role={role} />
           <HelpLauncher />
           {/* next-auth's built-in signout confirmation page — zero custom code. */}
           <Link
