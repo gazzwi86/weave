@@ -308,3 +308,67 @@ async def test_should_return_none_when_captures_manifest_missing(
     )
 
     assert read_back is None
+
+
+async def test_should_serve_console_log_content_route_for_finished_run(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-4: `GET .../console-log` proxies the S3-persisted log by
+    `log_location_ref` -- the frontend Console tab's only route into S3
+    content (a browser cannot read S3 directly).
+    """
+    tenant_id = _unique_tenant("tenant-taskdet-consoleroute")
+    s3 = _ensure_bucket()
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+    project_iri = await _create_project(client, headers)
+    task_id = "task-console-route"
+    run_id = await _seed_run(tenant_id, project_iri, task_id, status="passed")
+    key = f"tenant/{tenant_id}/runs/{run_id}/run.ndjson"
+    put_object(s3, _ARTEFACT_BUCKET, key, b'{"event": "started"}\n')
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "UPDATE generation_runs SET log_location_ref = $1"
+            " WHERE tenant_id = $2 AND run_id = $3",
+            f"s3://{_ARTEFACT_BUCKET}/{key}",
+            tenant_id,
+            run_id,
+        )
+
+    response = await client.get(
+        f"/api/projects/{project_iri}/tasks/{task_id}/console-log", headers=headers
+    )
+
+    assert response.status_code == 200
+    assert '"event": "started"' in (response.json()["log"] or "")
+
+
+async def test_should_serve_captures_content_route_or_honest_absence(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-3: `GET .../captures` proxies the manifest for a task with a run,
+    and returns `{"manifest": null}` -- never a 404/500 -- for a task with
+    no run at all.
+    """
+    tenant_id = _unique_tenant("tenant-taskdet-capsroute")
+    s3 = _ensure_bucket()
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+    project_iri = await _create_project(client, headers)
+    task_id = "task-captures-route"
+    run_id = await _seed_run(tenant_id, project_iri, task_id, status="passed")
+    key = f"tenant/{tenant_id}/runs/{run_id}/captures/manifest.json"
+    manifest = {"default": f"tenant/{tenant_id}/runs/{run_id}/captures/default.png"}
+    put_object(s3, _ARTEFACT_BUCKET, key, json.dumps(manifest).encode())
+
+    response = await client.get(
+        f"/api/projects/{project_iri}/tasks/{task_id}/captures", headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["manifest"]["default"].endswith("default.png")
+
+    no_run_response = await client.get(
+        f"/api/projects/{project_iri}/tasks/task-never-run/captures", headers=headers
+    )
+    assert no_run_response.status_code == 200
+    assert no_run_response.json()["manifest"] is None
