@@ -386,3 +386,6 @@ Proactive fix before any TS7 bump: template → `"bundler"`/`"node16"` + matchin
 stubs synthesise_briefs_fn but NOT the S3 write → in the non-docker `api` job (no LocalStack) it makes a real boto call → fail.
 Passed in QA's docker env (LocalStack up) — a test-isolation defect QA missed. Fix: inject/mmock the S3 seam so the unit test
 runs without LocalStack (or mark it docker). BE-021 test bug, on feature/BE-V1-EPIC-003. Fix in flight → rides #64.
+
+## XT-BE021-TESTSEAM RESOLVED (2026-07-11, commit 9ce2ebd8)
+Root: _synthesise_prompt_briefs -> run_dor_gate -> audit emit -> get_signing_key (real secretsmanager boto to LocalStack:4566). Patched get_signing_key in 2 unit tests (test_synthesise_typed_brief + test_hold_prompt_run). Sibling-proofed the WHOLE unit suite hermetic via a POISONED endpoint (LOCALSTACK_ENDPOINT_URL=http://127.0.0.1:1) — all boto clients honour that env var; full pytest -m "not docker and not e2e" green against it. Pushed to feature/BE-V1-EPIC-003 -> #64 re-CI. **Lesson: unit tests that trigger the audit/gate path make a real secretsmanager call; mock get_signing_key. Poisoned-endpoint env var is the hermeticity proof.**
