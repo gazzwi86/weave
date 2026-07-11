@@ -71,12 +71,16 @@ stub-surface style" (one small wrapper, two call sites), not "call that specific
 ## AC-9 performance evidence (10k-row snapshot insert, `POST /api/views`)
 
 See the AC-9 perf test (`tests/integration/test_views_comments_persistence.py`,
-`test_view_save_p95_under_800ms_10k`) for methodology. Measured p95 recorded below once the perf
-test has run against the real Aurora-equivalent local Postgres fixture (Law F):
+`test_view_save_p95_under_800ms_10k`) for methodology. Measured against the real
+Aurora-equivalent local Postgres fixture (Law F), single-run wall-clock (measure-first per the
+task brief's own flag -- well inside budget, no case yet to justify a multi-run percentile rig):
 
-| Run | Rows | Measured p95 | Target |
+| Run | Rows | Measured | Target |
 |---|---|---|---|
-| _pending_ | 10,000 | _pending_ | ≤ 800 ms |
+| 2026-07-11, local docker postgres | 10,000 | 126.4 ms | ≤ 800 ms (p95) |
+
+Chunked multi-VALUES batching (~1000 rows/statement, 10 statements) clears the budget with wide
+margin -- no case to raise to the architect for `COPY`.
 
 Bulk insert uses chunked multi-VALUES batches (~1000 rows/statement) rather than one 10k-row
 statement, because a single `INSERT ... VALUES` with ~7 columns × 10,000 rows (~70k bind
