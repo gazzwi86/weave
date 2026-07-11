@@ -86,6 +86,32 @@ def _bare_activity_op(ref: str) -> dict[str, object]:
     return {"op": "add_node", "ref": ref, "kind": "Activity", "label": f"Activity {ref}"}
 
 
+def _bare_actor_op(ref: str) -> dict[str, object]:
+    """An `Actor` add with a `label` (framework's own `ActorShape` requires
+    it) but no `description` -- passes framework-only validation and only
+    trips a tenant shape that separately targets `weave:Actor`.
+    """
+    return {"op": "add_node", "ref": ref, "kind": "Actor", "label": f"Actor {ref}"}
+
+
+#: A *second*, differently-targeted tenant shape (Actor, not Activity) --
+#: reuses `weave:description` (already known-predicate-safe) on a different
+#: `sh:targetClass` so the edge test below doesn't need to discover a new
+#: predicate to prove two shapes coexist.
+_ACTOR_DESCRIPTION_REQUIRED_SHAPE_TTL = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix weave: <https://weave.io/ontology/> .
+<https://weave.io/instances/shape-actor-description-required> a sh:NodeShape ;
+    sh:targetClass weave:Actor ;
+    sh:property [
+        sh:path weave:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Actor must carry a description."@en ;
+    ] .
+"""
+
+
 @pytest.fixture
 async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
     mock_transport = ASGITransport(app=mock_oidc_app)
@@ -207,6 +233,58 @@ async def test_tenant_a_shape_does_not_leak_into_tenant_b_writes(
         await clear_graph(workspace_a.named_graph_iri)
         await clear_graph(workspace_b.named_graph_iri)
         await clear_graph(tenant_shapes_graph_iri(tenant_a))
+
+
+async def test_second_shape_commit_does_not_replace_first_shape_same_tenant(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Edge case (QA-added): `commit_tenant_shape` writes via `append_graph`
+    (additive), never `load_graph` (replace-whole-graph) -- per
+    `operations/governance_shapes.py`'s own module docstring. Committing a
+    *second*, differently-targeted shape must not silently drop the first:
+    both must still be independently enforced afterwards.
+    """
+    tenant_id = _unique_tenant("gov-multi-shape")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        first_commit = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _DESCRIPTION_REQUIRED_SHAPE_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert first_commit.status_code == 201, first_commit.text
+
+        second_commit = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _ACTOR_DESCRIPTION_REQUIRED_SHAPE_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert second_commit.status_code == 201, second_commit.text
+
+        # The second (Actor) shape is enforced...
+        actor_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_actor_op("actor1")], "actor": "urn:weave:principal:t"},
+            headers=headers,
+        )
+        assert actor_response.status_code == 422, actor_response.text
+
+        # ...and the first (Activity) shape is *still* enforced, proving the
+        # second commit did not replace the tenant's shapes graph.
+        activity_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_activity_op("act1")], "actor": "urn:weave:principal:t"},
+            headers=headers,
+        )
+        assert activity_response.status_code == 422, activity_response.text
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(tenant_shapes_graph_iri(tenant_id))
 
 
 async def test_shape_commit_stamps_prov_o_with_llm_generator_and_human_approver(
