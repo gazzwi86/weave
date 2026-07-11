@@ -52,3 +52,12 @@ QA added 2 edge tests `dc4f5b7` (datatype-generic coercion). WARNs: brand PROV t
 **AC-003-06 = REAL undelivered req** (not deferrable): brief DoD "contract+perf" + m2-delta §9 unconditional p95 ≤400ms
 @100k for both /api/brand/tokens + /api/brand/voice-rules. Prior engineer conflated CE latency NFR w/ Build's separate
 conformance gate. Fix in-flight: extend scripts/benchmarks/ce-perf/ w/ brand corpus + locust p95. retry=1.
+
+## QA retry 1 → PASS — CE-V1-TASK-003 CLOSES (2026-07-11)
+AC-003-06 perf DELIVERED via the established ADR-004 in-process p95-benchmark pattern (repo's accepted perf approach —
+`scripts/benchmarks/ce-perf/run_benchmark.py` precedent; NOT literal locust, which repo has no dep for). `run_brand_benchmark.py`
+(225 lines) + unit guard `test_ce_brand_perf_benchmark.py`. **REAL 100k-triple run: /api/brand/tokens p95=4.12ms,
+/api/brand/voice-rules p95=4.05ms (~80x under 400ms bar)**, 2 independent runs, cache-evicted-per-sample (genuine cold reads),
+verified not-a-cheat (filler triples different rdf:type → real graph scan). Brand PROV-O test `test_brand_standard_commit_writes_a_prov_activity`
+added + passing (10/10 brand suite). mypy 0/435, ruff 0. Commit `1ac7900`. Round-1 PASS on everything else + blast-radius clean.
+retry=1. HEAD 1ac7900.

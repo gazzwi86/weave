@@ -260,3 +260,11 @@ CE-V1-TASK-008 (events), CE-V1-TASK-009 (functions, in-flight), CE-V1-TASK-010.
 locust file) covering all 5 M2 endpoints + reconcile §6↔§9 — CE-003's in-flight brand benchmark is the natural seed; OR
 (b) explicitly descope M2 per-endpoint p95 gating to a dedicated perf task/ADR + record it (unblocks all 5 DoDs now,
 perf verified later). Until decided, these tasks are done-except-perf.
+
+### PROJ-002 UPDATE (2026-07-11): DOWNGRADED — not a systemic block.
+CE-003 proved the perf half is satisfiable per-task via the EXISTING ADR-004 in-process p95-benchmark pattern
+(`scripts/benchmarks/ce-perf/run_benchmark.py`), NOT literal locust. Real 100k p95 = 4-5ms for brand endpoints. So
+"locust" in the briefs = loose wording for "p95 perf benchmark", satisfied by the ADR-004 pattern. Each M2 task delivers
+its own `run_<x>_benchmark.py` extending the pattern (CE-003 done; CE-007 retrying same way). **Residual (architect, non-blocking):**
+reconcile testing-strategy §6 (names only 4 old endpoints, implies CI-locust) vs m2-delta §9 (5 M2 endpoints "measured like §1")
+— decide whether a CI-gated perf lane is also wanted, or the in-process dev benchmark is the accepted gate. NOT blocking task DoDs.
