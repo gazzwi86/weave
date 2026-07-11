@@ -38,3 +38,27 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   branching logic (cyclomatic 1) -- fragmenting each field into its own single-field component
   would add four unrequested wrapper components for a form this small, purely to dodge a line
   count, with no readability or reuse benefit. Left as one component with this waiver.
+
+
+## `renderer-adapter.ts` (`packages/frontend/lib/explorer/renderer-adapter.ts`)
+
+- **Threshold:** file ≤ 300 lines (Law E) — ESLint `max-lines` severity is WARN (not error) for TS.
+- **Actual:** 330 lint-counted / 436 raw (CE-V1-TASK-020, EPIC-015).
+- **Reason:** the single Cytoscape↔app adapter seam — was already over (323 lines at e74dbe8, prior
+  task) before TASK-020 added the batched filter-visibility apply (+115). It's one cohesive
+  imperative-graph-mutation boundary (all `cy.batch`/hide/show/style calls funnel here by design, so
+  the rest of the app never touches Cytoscape directly). Splitting it fragments that single-seam
+  invariant. WARN-level, pre-existing violation class. **Follow-up queued:** extract the
+  filter-visibility apply into a sibling module before it grows further (tracked in overnight-queue).
+
+## `start_or_resume_run` (`packages/backend/src/weave_backend/build/state_spine.py`)
+
+- **Threshold:** params ≤ 5 (Law E).
+- **Actual:** 6 (`conn`, `tenant_id`, `project_iri`, `run_id`, `turn_cap`, `prompt_context`).
+- **Reason:** BE-V1-TASK-021 (FR-065) adds `prompt_context` (the direct-project-prompt payload
+  that also carries the "is this a prompt-triggered run" signal — a non-`None` value implies
+  `trigger="prompt"`, so no separate `trigger` param was added). The other five params are
+  each independent identity/config values a caller must supply (`conn` DI, `tenant_id`,
+  `project_iri`, a fresh `run_id`, and the resolved `turn_cap`) — grouping them into a
+  dataclass would add an unrequested wrapper layer for a single call site
+  (`routers/runs.py`, `routers/prompts.py`). Left as a waiver rather than restructuring.

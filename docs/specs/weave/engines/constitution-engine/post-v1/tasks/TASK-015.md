@@ -4,13 +4,13 @@ title: "Task: TASK-015 — Structured Model Import: ArchiMate Exchange Format + 
 description: "E12-S2 (FR-039): deterministic converters from ArchiMate Exchange XML and BPMN
   (BBO) to RDF, element-type→BPMO kind mapping shipped as versioned data, per-notation
   well-formedness SHACL, unmapped→Concept flagged, partial-commit skip-and-report."
-tags: [constitution-engine, arch, task, milestone-v1, ingest, archimate, bpmn]
+tags: [constitution-engine, arch, task, post-v1, ingest, archimate, bpmn]
 timestamp: 2026-07-08T00:00:00Z
 status: Backlog
 priority: Should Have
 entity: constitution-engine
 epic: EPIC-012
-milestone: v1
+milestone: post-v1
 created: 2026-07-08
 blocked_by: [TASK-012]
 unlocks: [TASK-014, TASK-018, TASK-019]

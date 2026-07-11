@@ -227,16 +227,16 @@ per-task reports.
 - **Raised in:** BE-TASK-001 (M1 Project Bootstrap Stub, 2026-07) — logged as a cross-task finding
   but never written to `qa-cross-task-findings.md`. **Raised again in:** BE-V1-TASK-001 (Standards
   Catalogue QA pass, 2026-07-10) — same command, same exit 139, on
-  `tests/integration/test_standards_api.py`. **Raised a third time in:** CE-V1-TASK-012 (ingest
-  pipeline docker-integration tests, 2026-07-10/11) — same command, same exit 139, on
-  `tests/integration/test_ingest_pipeline.py`; reproduced both standalone and with `--cov-append`
-  onto existing unit-lane coverage data, so it's not an append-order artifact either. Per
-  aggregation rule (QA Law #11), escalating here instead of repeating a fourth time in a per-task
-  report.
+  `tests/integration/test_standards_api.py`. Per aggregation rule (QA Law #11), escalating here
+  instead of repeating a third time in a per-task report. **Raised a third time:** BE-V1-TASK-005
+  (SDK-generation delivery, 2026-07-11) — narrowed further: the crash is not fixture-specific, it is
+  ANY `asyncpg` connect reaching `connect_utils._create_ssl_connection` under an active `--cov`
+  tracer (reproduced via both `db/migrate.py::run_migrations` and `db/pool.py::get_app_pool` from
+  plain `tests/unit`, so not integration- or session-fixture-only). Same workaround.
 - **Consequence:** DB/HTTP-path statements in repo-layer files (`standards/store.py` 57%,
   `standards/ce_client.py` 31% measured unit-only) can only be coverage-measured from the unit
   lane's mocked/fake-connection tests; the docker lane proves correctness (all green) but cannot
-  currently contribute to the coverage percentage. All three tasks worked around it by reporting
+  currently contribute to the coverage percentage. Both tasks worked around it by reporting
   coverage from the unit lane alone plus a `--cov`-free docker-lane pass for correctness.
 - **Owner:** Engineer (or Scaffold-phase, if it's a pinned-version mismatch) — bisect whether it's
   `pytest-cov`, `coverage.py`, or `asyncpg`'s C extension, and either pin a working version
@@ -247,3 +247,154 @@ per-task reports.
 ## PROJ-014 — test_runs_api::test_one_pdac_cycle_commits_state_spine_dispatch_count_1 intermittent flake
 
 - **Severity:** Low · **Status:** OPEN (watch). Fails intermittently even in isolation (docker lane), no bindings/feature code path involved. First traced 2026-07-10 (BE-V1-TASK-022 AC-3 retry). Pre-existing sandbox flake, not a regression. Phase-gate: reproduce + root-cause the PDAC dispatch-count assertion.
+
+## PROJ-002: no locust perf infrastructure exists repo-wide — blocks M2 perf DoD (escalated 2026-07-11, 2nd occurrence)
+`m2-delta.md` §9 pins p95 targets (cold ≤500ms / cached ≤100ms @100k) for 5 M2 endpoints — `/api/events`, `/api/functions`,
+`/api/functions/{iri}`, `/api/brand/*`, `/api/metrics/ontology` — "measured like §1" (the CI-gated ce-perf lane). But NO
+locust harness exists anywhere (`testing-strategy.md` §6 mandates a `performance` workflow + names only 4 OLD endpoints;
+the 5 M2 ones were never added → spec drift between §6 and §9). Each M2 task's brief DoD says "unit+integration+perf" →
+every such task FAILs QA on the perf half with nothing to run.
+**affects:** CE-V1-TASK-003 (brand, perf benchmark being built bespoke acb3de7), CE-V1-TASK-007 (metrics, FAIL this pass),
+CE-V1-TASK-008 (events), CE-V1-TASK-009 (functions, in-flight), CE-V1-TASK-010.
+**DECISION NEEDED (gates the CE M2 backend wave):** (a) build ONE shared locust harness (the `ce-perf` CI lane's missing
+locust file) covering all 5 M2 endpoints + reconcile §6↔§9 — CE-003's in-flight brand benchmark is the natural seed; OR
+(b) explicitly descope M2 per-endpoint p95 gating to a dedicated perf task/ADR + record it (unblocks all 5 DoDs now,
+perf verified later). Until decided, these tasks are done-except-perf.
+
+### PROJ-002 UPDATE (2026-07-11): DOWNGRADED — not a systemic block.
+CE-003 proved the perf half is satisfiable per-task via the EXISTING ADR-004 in-process p95-benchmark pattern
+(`scripts/benchmarks/ce-perf/run_benchmark.py`), NOT literal locust. Real 100k p95 = 4-5ms for brand endpoints. So
+"locust" in the briefs = loose wording for "p95 perf benchmark", satisfied by the ADR-004 pattern. Each M2 task delivers
+its own `run_<x>_benchmark.py` extending the pattern (CE-003 done; CE-007 retrying same way). **Residual (architect, non-blocking):**
+reconcile testing-strategy §6 (names only 4 old endpoints, implies CI-locust) vs m2-delta §9 (5 M2 endpoints "measured like §1")
+— decide whether a CI-gated perf lane is also wanted, or the in-process dev benchmark is the accepted gate. NOT blocking task DoDs.
+
+## PROJ-003: integration/e2e tests SILENTLY DESELECTED without the marker (2026-07-11)
+`packages/backend/pyproject.toml` addopts deselects `integration`/`e2e`-marked tests by DEFAULT — even when a test file
+path is named explicitly. Correct invocation (matches CI `ci.yml`) = `pytest -m "integration and docker and not stack" <path>`.
+Found by PLAT-013: its 7 refine integration tests had NEVER actually run in prior engineer passes ("backend tests pass"
+claims were unit-only) — and hid 2 real test-file bugs (wrong principal-iri format → 403, bad restore assertion).
+**Impact:** any engineer/QA who ran `pytest <path>` WITHOUT the marker got a false green (0 integration tests ran).
+QA subagents are instructed to use the marker (safe). **Mitigation:** all future engineer/QA briefs must run docker-integration
+with `-m "integration and docker and not stack"`; consider a CI/pyproject guard that errors if a named integration file
+collects 0 tests. Non-blocking but corrupts confidence — audit prior task integration claims at phase gate.
+
+## PROJ-004: frontend E2E specs mock BOTH read+write routes → no backend-state assertion (Law B gap) — 2026-07-11
+Many Playwright specs (glossary.spec.ts, ce-query.spec.ts, ce-authoring.spec.ts, + 8 more) `page.route`-mock both the read
+(`/api/proxy/sparql`) AND write (`/api/operations/apply`) routes → a green E2E proves UI WIRING only, not persistence (Law B
+wants a backend-state assertion). Mitigated per-task by backend integration tests hitting the real apply→readback path, but
+the E2E layer itself asserts nothing real. **Follow-up (phase-gate):** add ≥1 un-mocked Playwright spec per UI epic that
+creates via real dev stack + reads back via real SPARQL. Cross-task (repo-wide), non-blocking. Also relevant to XT-PLAT010-2.
+
+## PROJ-005: main RED — EPIC-008 (#54) merged with failing CI (2026-07-11, CRITICAL)
+EPIC-008 was merged (user, held-PR) WITHOUT green CI → `ba818b9` (main) is RED on api/integration/mutation-strict/semgrep.
+Root cause: EPIC-008's SDK-gen tests (`test_sdkgen_pipeline.py`, `test_sdkgen_emit_typescript.py`, `test_sdkgen_pipeline_unit.py`)
+shell out to the frontend `tsc` binary, but the backend CI jobs never install frontend deps → `FileNotFoundError:
+packages/frontend/node_modules/.bin/tsc`; PLUS a cwd-relative path bug (`backend/frontend/...tsc` under mutmut). Also 2
+blocking semgrep findings on main. **Blocks EVERY epic merge** (PR #55 inherits it). Fix in-flight on `fix/ci-green-main`
+(af666d8): robust repo-root tsc-path + install frontend tsc in api/integration/mutation jobs + triage the 2 semgrep findings —
+gates made to RUN+PASS, NOT disabled. LESSON: never merge an epic PR (esp held/migration) before its CI is green; EPIC-008
+#54 should have had CI verified pre-merge.
+
+## XT-CE002-1: create-glossary-term false-succeeds on 201-with-missing-ref_map (2026-07-11, FIXING)
+Reviewer (PR #55): `lib/glossary/create-glossary-term.ts` returns {type:ok, iri:""} when a 201 response's ref_map lacks the
+minted IRI → term "created" with empty IRI. Blocker, false-success (subtler CE-013 class — QA checked status-gating, missed
+the ref_map extraction). Fix in-flight: guard missing ref → return error. Status: FIXING.
+
+## PROJ-007: subagent tool-results polluted with stale cross-worktree replay (2026-07-11, tooling)
+MULTIPLE engineer/QA subagents reported their Bash/tool results repeatedly followed by a large injected "proactive
+expansion" block replaying STALE, irrelevant frontend-lint/command output from OTHER worktrees (EPIC-009/010/004). No
+legitimate instructions in it; agents correctly disregarded it + worked from real command output. Did not corrupt work
+but wastes agent context + risks confusion. FLAG the injection/compression mechanism (headroom? proactive-expansion) for
+a harness look — possible cross-session/worktree cache bleed. Non-blocking.
+
+## PROJ-009 — Build E2E suite blocked by pre-existing RBAC/seed 403 (2026-07-11)
+BE-020's Playwright E2E (and the unmodified `project-settings.spec.ts`) fail at the shared login/setup step: the
+project-creating admin gets **403 Forbidden** saving source-control config. Reproduced on a FRESH migrated+seeded stack
+(`weave-be020e2e`), so NOT stack-pollution — a genuine RBAC/seed-drift bug in shared Build test infra. **Blocks real
+Playwright E2E across Build UI tasks** (BE-017 kanban, BE-019 dashboard will likely hit the same) → those tasks fall back to
+E2E-met-by-inference (backend integration proves real state). Needs a dedicated fix (shared RBAC/seed — likely a role grant
+missing in the seed, or a role-slug drift). Under QA verification (BE-020 QA a3e648c). If confirmed, HIGH priority — it gates
+the phase's Law-B E2E for the whole Build engine. Surfaced to morning HITL.
+
+### PROJ-009 CONFIRMED root cause (BE-020 QA a3e648c, 2026-07-11)
+Traced: `routers/projects.py::create_project_route` never inserts a `pm.contributors` row for the creator, AND mock-oidc's
+`admin@weave.local` seed carries no project-scoped grant. `PUT /source-control` requires `require_project_role(SETTINGS)` =
+`has_admin_grant(roles)` OR a contributors row → a freshly created project's OWN creator gets **403** configuring its
+source-control. This is NOT just a test-infra issue — it's a real RBAC/product defect (a project creator can't configure
+their own project) from EPIC-002/TASK-011/023, untouched by BE-020. Blocks any Build E2E whose setup does source-control
+config (NOT general login — BE-019's dashboard E2E passed fine). Fix options: (a) grant creator a contributor/owner row on
+project creation, or (b) seed admin a tenant-wide grant that covers SETTINGS. HIGH priority — surface to user (real RBAC gap
++ gates part of Build E2E). Diff-verified BE-020 didn't touch rbac/contributors/mock_oidc/source_control/projects.
+
+## PROJ-010 — project creation 503 `ce_version_unavailable` blocks Build E2E (2026-07-11)
+BE-017 QA/build found: creating a project 503s with `ce_version_unavailable` (GET /api/ontology/versions returns no published
+version) BEFORE any feature code runs. Reproduced on the unmodified `project-settings.spec.ts` (6/6 same fail). This is
+UPSTREAM of PROJ-009 (which is the later source-control-config 403). Two shared-infra/seed gaps now block the Build E2E suite:
+**PROJ-010 (no seeded published CE version → project create 503)** then **PROJ-009 (creator lacks contributor grant → 403 on
+source-control)**. Consequence: NO Build UI task (BE-017/019/020) can currently get a real green Playwright E2E through the
+full create→configure flow — all fall back to E2E-met-by-inference (backend integration proves real state). NOTE BE-019's
+dashboard E2E DID pass — its flow seeds/needs no published CE version + no source-control step. Fix = the Build E2E harness
+seed must publish a CE ontology version + grant the creating admin a project role (or these two flows must not require them).
+HIGH priority — gates Law-B E2E for the Build engine at phase close. Surface to user with PROJ-009.
+
+## PLAT-TOKEN-1 + XT-PLAT027-E2E (PLAT-027 QA follow-ups, non-blocking, 2026-07-11)
+- **PLAT-TOKEN-1:** `components/shell/command-palette.tsx` (max-w-[560px]) + `avatar-menu.tsx` (max-w-[240px]) hard-code px
+  widths; siblings use token-scale (max-w-xl/xs). `components/shell/**` is structurally exempt from weave/token-conformance
+  (pre-existing TASK-026 carve-out). Narrow (width only). → design-debt sweep.
+- **XT-PLAT027-E2E:** bell-panel-day-grouping.spec.ts mocks the notifications API wholesale → Law-B gap (asserts mocked POST,
+  not real backend read:true). → add a real GET /api/notifications assertion at phase-gate (PLAT-NOTIFY-1 backend test = TASK-007).
+- PLAT-027 finding #1 (section-rail SSR/hydration mismatch) is being FIXED before EPIC-011 merge (not deferred).
+
+## XT-PLAT027-ROLE — client role-name drift (M1 "admin" vs spec "workspace_admin") (2026-07-11)
+#63 review (🟡 minor, non-blocking): `components/shell/section-rail.tsx` role-gates on M1 `role === "admin"`, but AC-6's
+`can-suppress.ts` checks spec vocab `["workspace_admin","compliance_officer"]`. Under M1's actual "admin" role the CLIENT-SIDE
+AC-6 non-suppressibility guard (audit.chain.invalid can't be muted) won't fire → a mute control could render it shouldn't.
+**Backend PUT endpoint is the real control** (client gate = UX/defence-in-depth, not the security boundary); QA passed AC-6 on
+spec-role tests; code comment acknowledges the gap (fixes when M1 adopts spec role vocab / PLAT-SETTINGS-1). Part of the broader
+**role-slug harmonization** (already in the morning-HITL batch + relates to PROJ-009 RBAC). Merged #63 non-blocking; harmonize
+at phase-gate.
+
+## PROJ-011 — TS 5.9 removed moduleResolution=node10 -> sdkgen tsc red across ALL branches (2026-07-11)
+CI api/mutation jobs globally provision `typescript@5`, now resolving TS **5.9.x**, which REMOVED the `moduleResolution:
+"node10"` option. The sdkgen template still emits `node10` -> sdkgen tests that shell out to `tsc --noEmit` fail (TS5108) on
+EVERY PR: `test_sdkgen_emit_typescript::test_emitted_typescript_passes_tsc_noemit` +
+`test_sdkgen_pipeline_unit::...five_ce_fetches...`. Pure external toolchain drift (like the #56 red-main saga), NOT any
+feature's fault. Blocks CI on #64 + every open/future lane PR. Fix in flight = main hotfix `fix/sdkgen-tsc-moduleresolution`
+(aa8463c): update the sdkgen tsconfig template moduleResolution -> bundler/node16 (or pin TS 5.8). Once merged -> rebase #64 +
+all lanes onto fixed main. RESOLVED-PENDING-MERGE.
+
+## EPIC-003 #64 — review-CLEAR + HELD (migrations 0065/0067); CI-red is PROJ-011 only (2026-07-11)
+cavecrew review CLEAR (migrations forward-only/RLS, AC-2 reader-403+audit, AC-5 no-2nd-cost-path, __init__ router union clean,
+SQL parameterized). api/mutation red = PROJ-011 (sdkgen TS drift, not EPIC-003 code); web/integration/semgrep/secrets pass.
+-> HELD for human merge after the PROJ-011 hotfix lands + #64 rebases onto green main.
+
+## PROJ-011 RETRACTED (2026-07-11) — was a local-env misdiagnosis
+The `moduleResolution=node10 removed` TS5108 fires only under **TypeScript 7** (the coordinator's local nvm `tsc` = 7.0.2).
+CI pins `typescript@5` (=5.9.3) which accepts the sdkgen template's `moduleResolution: "node"` fine — both sdkgen tsc tests
+PASS in CI. My local `WEAVE_TSC_BIN=tsc` repro used the machine's TS7 → false alarm. **No sdkgen CI break.** Low-pri follow-up
+(non-urgent): move the sdkgen tsconfig template to `"bundler"`/`"node16"` before CI ever bumps to a TS7-era pin (node resolution
+is gone there) + update the golden fixture — logged as **PROJ-012** below.
+
+## PROJ-012 (low-pri) — sdkgen TS template will break under TS7
+`sdkgen/templates/typescript/tsconfig.json.j2` uses `moduleResolution: "node"`, removed in TS7. Not breaking today (CI pins TS5).
+Proactive fix before any TS7 bump: template → `"bundler"`/`"node16"` + matching `module` + update golden fixture test. Phase-gate/backlog.
+
+## XT-BE021-TESTSEAM (REAL #64 blocker, 2026-07-11) — unit test hits LocalStack unmocked
+#64 api + mutation(a/b) all red on ONE test: `tests/unit/test_prompts_router.py::test_synthesise_typed_brief_from_prompt_before_delegate`
+→ `botocore EndpointConnectionError: http://localhost:4566/`. `_synthesise_prompt_briefs` persists the brief to S3; the unit test
+stubs synthesise_briefs_fn but NOT the S3 write → in the non-docker `api` job (no LocalStack) it makes a real boto call → fail.
+Passed in QA's docker env (LocalStack up) — a test-isolation defect QA missed. Fix: inject/mmock the S3 seam so the unit test
+runs without LocalStack (or mark it docker). BE-021 test bug, on feature/BE-V1-EPIC-003. Fix in flight → rides #64.
+
+## XT-BE021-TESTSEAM RESOLVED (2026-07-11, commit 9ce2ebd8)
+Root: _synthesise_prompt_briefs -> run_dor_gate -> audit emit -> get_signing_key (real secretsmanager boto to LocalStack:4566). Patched get_signing_key in 2 unit tests (test_synthesise_typed_brief + test_hold_prompt_run). Sibling-proofed the WHOLE unit suite hermetic via a POISONED endpoint (LOCALSTACK_ENDPOINT_URL=http://127.0.0.1:1) — all boto clients honour that env var; full pytest -m "not docker and not e2e" green against it. Pushed to feature/BE-V1-EPIC-003 -> #64 re-CI. **Lesson: unit tests that trigger the audit/gate path make a real secretsmanager call; mock get_signing_key. Poisoned-endpoint env var is the hermeticity proof.**
+
+## PROJ-014 — unit tests hitting the network pass in docker-up envs but red in CI api job (2026-07-11)
+RECURRING: a test marked UNIT (not docker/e2e) makes a real network call (oxigraph httpx, LocalStack/secretsmanager boto,
+audit get_signing_key). It PASSES in QA's docker env or any local run left with WEAVE_KEEP_STACK=1 docker up, but the CI api
+job runs pytest -m "not docker and not e2e" with NO services then ConnectError then api + mutation red. Hit: XT-BE021-TESTSEAM
+(get_signing_key boto, #64), test_governance_shapes::test_commit_tenant_shape (oxigraph httpx, #65). Mitigation (standing
+policy): every reconcile-verify + QA MUST run pytest -m "not docker and not e2e" with endpoints POISONED
+(LOCALSTACK_ENDPOINT_URL/OXIGRAPH_URL=http://127.0.0.1:1) or docker fully DOWN, never trust a run with a live stack. Unit tests
+needing a service must mock the client or be marked docker. Phase-gate: audit tests/unit for unmocked network seams.
