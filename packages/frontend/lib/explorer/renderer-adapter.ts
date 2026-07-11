@@ -50,6 +50,14 @@ export interface RendererAdapter {
    * trigger), never for a double-click on a node or edge -- mirrors
    * onNodeRightClick's target-matching for the opposite target. */
   onBackgroundDoubleClick(handler: (position: { x: number; y: number }) => void): () => void;
+  /** TASK-023 AC-6: fires once an edgehandles drag releases on a valid
+   * target node, with the two node ids -- draw-edge's trigger, mirroring
+   * onBackgroundDoubleClick's quick-add trigger. Discards edgehandles' own
+   * auto-added edge immediately (the real edge, carrying the user's chosen
+   * relationship type, is added later by commitOp once the rel-type picker
+   * resolves) -- this method's sole job is signalling which two nodes to
+   * connect. */
+  onEdgeDrawComplete(handler: (sourceId: string, targetId: string) => void): () => void;
   getNodeData(nodeId: string): NodeData | undefined;
   listNodes(): ListedNode[];
   centerOn(nodeId: string, durationMs: number): void;
@@ -197,6 +205,20 @@ function wireDragFree(
 // XT-008: pulled out of createRendererAdapter's returned object to keep that
 // function under Law E's line budget -- same shape wireTap/wireDragFree
 // already use (standalone fn taking `cy`, thin delegator below).
+// TASK-023 AC-6: cytoscape-edgehandles' "ehcomplete" fires with extra
+// positional args (sourceNode, targetNode, addedEdge) beyond the usual evt
+// object -- optional params here keep this assignable to AdaptableCy's
+// generic `on`/`off` (evt: CyEvent) => void shape while still reading them.
+function wireEdgeDrawComplete(cy: AdaptableCy, handler: (sourceId: string, targetId: string) => void): () => void {
+  const listener = (_evt: CyEvent, sourceNode?: CyCollection, targetNode?: CyCollection, addedEdge?: CyCollection) => {
+    if (!sourceNode || !targetNode) return;
+    if (addedEdge) cy.remove(addedEdge);
+    handler(sourceNode.id(), targetNode.id());
+  };
+  cy.on("ehcomplete", listener);
+  return () => cy.off("ehcomplete", listener);
+}
+
 function applySpotlight(cy: AdaptableCy, nodeId: string, dimOpacity: number): boolean {
   const node = cy.getElementById(nodeId);
   if (node.length === 0) return false;
@@ -456,6 +478,9 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     ...createQueryMethods(cy),
     onNodeDragEnd(handler) {
       return wireDragFree(cy, handler);
+    },
+    onEdgeDrawComplete(handler) {
+      return wireEdgeDrawComplete(cy, handler);
     },
     expandNode(nodeId, neighbours) {
       return expandNodeOn(cy, nodeId, neighbours);

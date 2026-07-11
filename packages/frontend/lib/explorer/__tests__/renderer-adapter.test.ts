@@ -177,6 +177,45 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  // TASK-023 AC-6: an edgehandles drag release is draw-edge's trigger --
+  // fires with the two node ids so the caller can open the rel-type picker.
+  it("onEdgeDrawComplete() fires with source and target node ids", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onEdgeDrawComplete(handler);
+    cy.fireEdgeDrawComplete("n1", "n2");
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith("n1", "n2");
+  });
+
+  // edgehandles auto-adds its own edge on drag release -- this task's real
+  // edge (carrying the user's chosen relationship type) is added later by
+  // commitOp, so the library's placeholder must be discarded immediately.
+  it("onEdgeDrawComplete() removes edgehandles' own auto-added edge", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const addedEdge = fakeCollection();
+
+    adapter.onEdgeDrawComplete(vi.fn());
+    cy.fireEdgeDrawComplete("n1", "n2", addedEdge);
+
+    expect(cy.remove).toHaveBeenCalledExactlyOnceWith(addedEdge);
+  });
+
+  it("onEdgeDrawComplete()'s returned unregister function stops future calls", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    const unregister = adapter.onEdgeDrawComplete(handler);
+    unregister();
+    cy.fireEdgeDrawComplete("n1", "n2");
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("getNodeData() reads the already-loaded label/bpmoKind for a known node", () => {
     const cy = fakeCy();
     const node = fakeCollection({

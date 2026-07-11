@@ -25,7 +25,8 @@ function fakeAdapter(
       { id: "n2", label: "Invoice", bpmoKind: "Process" },
     ]),
     centerOn: vi.fn(),
-    onNodeDragEnd: vi.fn(() => vi.fn()),
+    onNodeDragEnd: vi.fn(() => vi.fn()),    onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),

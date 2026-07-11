@@ -53,7 +53,8 @@ describe("ExplorerCanvas", () => {
         getNodeData: vi.fn(),
         listNodes: vi.fn(() => []),
         centerOn: vi.fn(),
-        onNodeDragEnd: vi.fn(() => vi.fn()),
+        onNodeDragEnd: vi.fn(() => vi.fn()),        onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
         expandNode: vi.fn(() => []),
         collapseNode: vi.fn(),
         hasExpandedNeighbours: vi.fn(() => false),
