@@ -391,3 +391,23 @@ mutation a/b pass, all blocking green, review-clear. Multi-tenancy tier → your
 mutation a/b pass, all blocking green, review-CLEAR. Migration 0068 schema tier → your merge. **ALL 3 HELD PRs now fully green + review-clean + ready: #64 (EPIC-003, migr 0065/0067), #65 (CE-EPIC-005, multi-tenancy), #67 (EPIC-001, migr 0068).** Phase build-engine-v1/phase-1 complete on merge → run /phase-gate.
 
 ### Caveat for morning: #64/#65 show mergeable=UNKNOWN (pushed before #66 BE-EPIC-005 merged). If GitHub reports a conflict at merge (likely just __init__.py router union), restack: in the worktree `git fetch origin main && git merge origin/main`, resolve routers-union, re-run the 5 CI-discipline checks, `git push --force-with-lease`. #67 = MERGEABLE, clean. Merge order does not matter (independent epics); restack any that conflict after the first lands.
+
+---
+## 2026-07-11 (late eve) — ALL-ENGINES v1 build resumed (user: "plod on till all v1 complete")
+
+**Scope (user-set):** complete every non-post-v1 backlog task across CE, PLAT, ONB (BE done). Batch phase-gate to the END across all engines — do NOT phase-gate per-engine.
+**Merge policy (user-relaxed 2026-07-11):** auto-merge any epic PR CI-green (ignore ce-perf + mutation-strict noise) + review-clean, INCLUDING migrations/schema/auth/multi-tenancy. Only HARNESS PRs held for human.
+**Strategy (user-approved):** PARTIAL-EPIC PRs — the 4 prior-run branches are mid-epic with cross-epic circular deps; land their BUILT tasks, defer unbuilt ones to fresh tasks off main. Breaks the deadlock (CE-016's TASK-021 ⇄ CE-020/022/018).
+
+**Crons (session-only, 7-day expiry — NOT durable):** ca00e4f4 /compact @30min · 65bbaa34 /implement all-engines @5h · d557a251 main-CI guardian @5h (auto-fix+push, ignores ce-perf/mutation-strict). ⚠️ If session dies, crons die — offered user a committed GitHub Actions scheduled workflow for durable guardian; awaiting decision.
+
+**Wave 1 (running) — 4 partial-epic reconcile lanes:**
+- CE-V1-EPIC-012 → land TASK-012/013; migrations 0040/0041→0069/0070; defer 014/019
+- CE-V1-EPIC-016 → land TASK-020/021/028; no new migration; defer 030 (release-gate)
+- PLAT-V1-EPIC-001 → land TASK-010/011/012/013; migrations 0045/0046→0071/0072; defer 014/015
+- CE-V1-EPIC-017 → ASSESS-first (STALE/UNCLEAR); land TASK-023 if coherent+tested, else report; defer 024
+
+**Wave 2 (after wave-1 merges unblock deps):** fresh tasks off main — CE-010(EPIC-007), CE-022(020), CE-027(022), CE-026(018), CE-031(023), CE-032(024), PLAT-028/029/030, PLAT-014/015, ONB-002/003/006, ONB-V1-001, etc. Fan out ≤5 lanes, max-unlock first, docker ≤1-2 lanes serial.
+
+**Open flags for human (surface at return):**
+- Connectors epic PLAT-V1-EPIC-007 (TASK-006/018/019/020/021/022/025: Atlassian/ServiceNow/Slack/OAuth) — CLAUDE.md says managed connectors "deferred to v1.0". Ambiguous whether that = current v1 scope or post-v1. HOLDING these until confirmed. Everything else proceeds.
