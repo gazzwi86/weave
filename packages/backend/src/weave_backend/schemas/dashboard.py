@@ -69,6 +69,34 @@ class WidgetListResponse(BaseModel):
     widgets: list[WidgetOut]
 
 
+class PublishRequest(BaseModel):
+    """TASK-015 AC-1: publish a pinned `scope='user'` widget to the tenant
+    library. `widget_id` must be a widget the caller owns (404 otherwise).
+    """
+
+    widget_id: str
+    name: str = Field(min_length=1)
+    description: str | None = None
+
+
+class LibraryItemOut(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    author_principal_iri: str
+    published_at: datetime
+    component_type: ComponentType
+    data_source_contracts: list[str]
+    #: TASK-015 AC-6: same "source engine not yet available" tag the
+    #: honest-state matrix uses elsewhere -- computed at read time, never
+    #: stored, so a library item ages the same way a widget's own status does.
+    source_available: bool
+
+
+class LibraryListResponse(BaseModel):
+    items: list[LibraryItemOut]
+
+
 class WidgetRefreshResponse(BaseModel):
     status: WidgetStatus
     fetched_at: datetime | None = None

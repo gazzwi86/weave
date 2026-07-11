@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
@@ -15,6 +16,7 @@ from httpx import AsyncClient
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.dashboard import store
+from weave_backend.dashboard.availability import source_available
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
 from weave_backend.dashboard.default_tiles import resolve_starter_role
@@ -26,11 +28,15 @@ from weave_backend.dashboard.generate import GenerateRequest, generate_widget_st
 from weave_backend.dashboard.intent import Resolver, get_dashboard_agent_resolver
 from weave_backend.dashboard.status import WidgetFetchState, derive_status
 from weave_backend.db.pool import tenant_connection
+from weave_backend.rbac import ROLE_RANK, check_role
 from weave_backend.schemas.dashboard import (
     ExamplePromptsResponse,
     GenerateWidgetRequest,
+    LibraryItemOut,
+    LibraryListResponse,
     OrderPatchRequest,
     OrderPatchResponse,
+    PublishRequest,
     UpdateWidgetSpecRequest,
     WidgetListResponse,
     WidgetOut,
@@ -313,3 +319,140 @@ async def delete_widget_route(
                 subject_iri=f"urn:weave:tenant:{principal.tenant_id}:widget:{widget_id}",
             ),
         )
+
+
+def _to_library_item_out(item: store.LibraryItemRow) -> LibraryItemOut:
+    return LibraryItemOut(
+        id=item.id,
+        name=item.name,
+        description=item.description,
+        author_principal_iri=item.author_principal_iri,
+        published_at=item.published_at,
+        component_type=item.spec.component_type,
+        data_source_contracts=item.spec.data_source_contracts,
+        source_available=source_available(item.spec.data_source_contracts),
+    )
+
+
+async def _require_tenant_author(conn: asyncpg.Connection, principal: Principal) -> None:
+    """TASK-015 AC-2: dashboard is tenant-scoped (workspace == tenant, no
+    `workspace_id` -- m2-delta §4), so authority comes from the JWT's
+    tenant-scope role grants (PLAT-IDENTITY-1), not `workspace_members`.
+    A caller with no tenant-scope grant at all is rejected the same as an
+    insufficient one, via `check_role`'s `None` handling. The 403 is
+    audited (denial) -- the caller must catch-and-re-raise this *outside*
+    its `tenant_connection` block (rbac.py `require_project_role`'s
+    documented pattern), or `conn.transaction()` rolls the audit write
+    back along with everything else on the way out.
+    """
+    best_role: str | None = None
+    for grant in principal.roles:
+        if grant.scope != "tenant":
+            continue
+        if best_role is None or ROLE_RANK.get(grant.role, -1) > ROLE_RANK.get(best_role, -1):
+            best_role = grant.role
+    try:
+        check_role(best_role, "author")
+    except HTTPException:
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="authz_denied",
+                actor_iri=principal.principal_iri,
+                subject_iri=f"urn:weave:tenant:{principal.tenant_id}:dashboard:library",
+                payload={"action": "publish"},
+            ),
+        )
+        raise
+
+
+async def _publish_within_txn(
+    conn: asyncpg.Connection, principal: Principal, body: PublishRequest
+) -> store.LibraryItemRow:
+    row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=body.widget_id)
+    if row is None or row.scope != "user" or row.owner_principal_iri != principal.principal_iri:
+        raise HTTPException(status_code=404)
+    item = await store.publish_widget(
+        conn,
+        tenant_id=principal.tenant_id,
+        publish=store.PublishInput(
+            name=body.name,
+            description=body.description,
+            spec=row.spec,
+            author_principal_iri=principal.principal_iri,
+        ),
+    )
+    await default_audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=principal.tenant_id,
+            event_type="dashboard.library.published",
+            actor_iri=principal.principal_iri,
+            subject_iri=f"urn:weave:tenant:{principal.tenant_id}:library:{item.id}",
+        ),
+    )
+    return item
+
+
+@router.post("/library", response_model=LibraryItemOut, status_code=201)
+async def publish_widget_route(
+    body: PublishRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> LibraryItemOut:
+    # Catch-then-re-raise-outside-the-block (rbac.py precedent): a denial
+    # raised straight through `tenant_connection`'s `async with` rolls its
+    # own just-written `authz_denied` audit row back with it.
+    denial: HTTPException | None = None
+    item: store.LibraryItemRow | None = None
+    async with tenant_connection(principal.tenant_id) as conn:
+        try:
+            await _require_tenant_author(conn, principal)
+        except HTTPException as exc:
+            denial = exc
+        else:
+            item = await _publish_within_txn(conn, principal, body)
+    if denial is not None:
+        raise denial
+    if item is None:  # pragma: no cover -- unreachable: denial is None iff item was set above
+        raise HTTPException(status_code=500)
+    return _to_library_item_out(item)
+
+
+@router.get("/library", response_model=LibraryListResponse)
+async def list_library_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> LibraryListResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        items = await store.list_library_items(conn, tenant_id=principal.tenant_id)
+    return LibraryListResponse(items=[_to_library_item_out(item) for item in items])
+
+
+@router.post("/library/{item_id}/add", response_model=WidgetOut, status_code=201)
+async def add_library_item_route(
+    item_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> WidgetOut:
+    async with tenant_connection(principal.tenant_id) as conn:
+        item = await store.get_library_item(conn, tenant_id=principal.tenant_id, item_id=item_id)
+        if item is None:
+            raise HTTPException(status_code=404)
+        widget_id = await store.add_library_item(
+            conn,
+            tenant_id=principal.tenant_id,
+            owner_principal_iri=principal.principal_iri,
+            item=item,
+        )
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="dashboard.library.added",
+                actor_iri=principal.principal_iri,
+                subject_iri=f"urn:weave:tenant:{principal.tenant_id}:library:{item_id}",
+            ),
+        )
+        row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        if row is None:
+            raise HTTPException(status_code=404)
+    return _to_widget_out(row)
