@@ -12,6 +12,11 @@ function cardinality(prop: PropertyShape): string {
   return `${prop.min_count ?? 0}..${prop.max_count ?? "*"}`;
 }
 
+/** Singular/plural noun for a count -- e.g. "1 property" / "2 properties". */
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function ShapeList({ heading, shapes }: { heading: string; shapes: PropertyShape[] }) {
   if (shapes.length === 0) {
     return null;
@@ -84,11 +89,22 @@ function KindRow({ kind, colour, expanded, onToggle }: KindRowProps) {
           className="h-[var(--space-2)] w-[var(--space-2)] shrink-0 self-center rounded-full"
           style={{ backgroundColor: colour }}
         />
-        <span className="font-[var(--font-weight-medium)] text-[var(--color-text-default)]">
-          {kind.label}
+        <span className="flex flex-col">
+          <span className="font-[var(--font-weight-medium)] text-[var(--color-text-default)]">
+            {kind.label}
+          </span>
+          {kind.description && (
+            <span
+              data-testid={`kind-row-description-${kindId(kind.iri)}`}
+              className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]"
+            >
+              {kind.description}
+            </span>
+          )}
         </span>
         <span className="ml-auto text-[var(--color-text-muted)]">
-          {properties} properties · {relationships} relationships
+          {countLabel(properties, "property", "properties")} ·{" "}
+          {countLabel(relationships, "relationship", "relationships")}
         </span>
       </button>
       {expanded && <KindDetail kind={kind} />}
@@ -99,7 +115,9 @@ function KindRow({ kind, colour, expanded, onToggle }: KindRowProps) {
 /** Ontology / Types (IA §2.1): the BPMO kinds served by the authoritative
  * GET /api/ontology/types (CE-READ-1) — never a hand-copied list. View-only
  * browse in M1; clicking a kind expands its property/relationship shapes
- * inline. The catalogue carries no descriptions, so none are rendered.
+ * inline. Each row shows the kind's skos:definition description (TASK-011)
+ * when the backend provides one; extension kinds without one render no
+ * secondary line.
  */
 export default function CeTypesPage() {
   const { kinds, colourByKindId, loading, loadError } = useTypes();

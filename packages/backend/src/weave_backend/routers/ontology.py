@@ -75,6 +75,7 @@ async def ontology_types_route(
                 iri=k.iri,
                 label=k.label,
                 properties=[_property_shape_model(p) for p in k.properties],
+                description=k.description,
             )
             for k in kinds
         ],
