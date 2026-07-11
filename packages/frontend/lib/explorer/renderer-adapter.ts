@@ -1,5 +1,6 @@
 import { EXPLORER_HIGHLIGHT_CLASS, EXPLORER_TRACE_CLASS, readCssToken } from "./build-stylesheet";
 import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
+import { clearDiffOverlayOn, setDiffOverlayOn, type DiffOverlayAssignment } from "./renderer-adapter-diff";
 import type { CytoscapeElement } from "./types";
 
 /** TASK-005 AC-3: one immediate neighbour of an expanded node, as returned
@@ -114,6 +115,13 @@ export interface RendererAdapter {
    * delete flow), so the pin's source-delete auto-clear doesn't need to
    * know which caller removed the node. Returns an unsubscribe. */
   onElementRemoved(handler: (id: string) => void): () => void;
+  /** TASK-022 AC-3/AC-8: the diff overlay's border-colour + glyph seam --
+   * deliberately separate from the "colour" background-colour seam
+   * (applyNodeColours), so a diff coexists with the trace overlay and
+   * shares only the OverlayEngine's "colour" exclusiveGroup with heatmap. */
+  setDiffOverlay(assignments: DiffOverlayAssignment[]): void;
+  /** TASK-022 AC-8: clears every diff class + glyph label in one batch. */
+  clearDiffOverlay(): void;
 }
 
 export interface FilterVisibility {
@@ -485,6 +493,12 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     onElementRemoved(handler) {
       return wireEvent(cy, "remove", () => true, (evt) => handler((evt.target as CyCollection).id()));
+    },
+    setDiffOverlay(assignments) {
+      setDiffOverlayOn(cy, assignments);
+    },
+    clearDiffOverlay() {
+      clearDiffOverlayOn(cy);
     },
   };
 }
