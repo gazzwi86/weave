@@ -43,6 +43,7 @@ from weave_backend.routers.project_contributors import router as project_contrib
 from weave_backend.routers.project_pin import router as project_pin_router
 from weave_backend.routers.project_settings import router as project_settings_router
 from weave_backend.routers.projects import router as projects_router
+from weave_backend.routers.prompts import router as prompts_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
@@ -117,6 +118,7 @@ app.include_router(query_router)
 app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
+app.include_router(prompts_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
