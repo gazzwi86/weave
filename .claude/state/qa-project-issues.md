@@ -278,3 +278,10 @@ claims were unit-only) — and hid 2 real test-file bugs (wrong principal-iri fo
 QA subagents are instructed to use the marker (safe). **Mitigation:** all future engineer/QA briefs must run docker-integration
 with `-m "integration and docker and not stack"`; consider a CI/pyproject guard that errors if a named integration file
 collects 0 tests. Non-blocking but corrupts confidence — audit prior task integration claims at phase gate.
+
+## PROJ-004: frontend E2E specs mock BOTH read+write routes → no backend-state assertion (Law B gap) — 2026-07-11
+Many Playwright specs (glossary.spec.ts, ce-query.spec.ts, ce-authoring.spec.ts, + 8 more) `page.route`-mock both the read
+(`/api/proxy/sparql`) AND write (`/api/operations/apply`) routes → a green E2E proves UI WIRING only, not persistence (Law B
+wants a backend-state assertion). Mitigated per-task by backend integration tests hitting the real apply→readback path, but
+the E2E layer itself asserts nothing real. **Follow-up (phase-gate):** add ≥1 un-mocked Playwright spec per UI epic that
+creates via real dev stack + reads back via real SPARQL. Cross-task (repo-wide), non-blocking. Also relevant to XT-PLAT010-2.

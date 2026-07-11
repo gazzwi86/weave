@@ -32,3 +32,11 @@ tsc 0 · lint 0 (158 pre-existing warns) · coverage changed glossary files 87.6
 Last task. On QA PASS: coordinator runs `ui_verify --full` (covers AC-002-06 Lighthouse/axe), restacks branch onto ba818b9,
 opens the FIRST epic PR (frontend + CE-001's shared graph_ops punning change). **XT-WRITEPATH-1:** EPIC-003 merges FIRST
 (clean); EPIC-004 (CE-003 datatype) hand-unions the graph_ops seam at ITS later merge. Non-risky frontend → auto-merge eligible.
+
+## QA PASS (2026-07-11, a4707a, retry 0) — CE-V1-TASK-002 CLOSES → EPIC-003 COMPLETE
+All 6 ACs PASS. 422 silent-resolve guard CONFIRMED absent (createGlossaryTerm resolves type:ok ONLY on 201; handleSubmit
+gates onCreated on result.type==ok). Chat-503 isolation genuine (no shared imports/state). Mount /ce/glossary confirmed.
+No second write path (FR-003, generic apply). axe-clean, tokens-only. QA added 2 edge tests `b662562` (500-guard, multi-field
+422). E2E couldn't run live (pkill'd infra) → met-by-inference + backend `test_glossary_apply.py` proves real create→201→
+readback persistence. 103/103 unit sweep. WARN (non-blocking, PROJ-004): frontend E2E mocks both routes → no backend-state
+assertion (Law B) — repo-wide pattern in 8+ specs. AC-002-06 Lighthouse → epic-close ui_verify. retry=0.
