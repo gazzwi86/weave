@@ -45,10 +45,11 @@ declare global {
     /** Playwright-only introspection hook (TASK-003 E2E) -- Cytoscape
      * renders to <canvas>, so a node has no DOM element a test can click or
      * inspect computed style on. Exposes the node's real on-screen pixel
-     * centre (for a genuine `page.mouse.click`) and its current opacity
-     * (for asserting AC-1/AC-6 spotlight dimming) by id. Dev-only, never in
-     * production. */
-    __explorerNodeInfo?: (nodeId: string) => { x: number; y: number; opacity: number } | undefined;
+     * centre (for a genuine `page.mouse.click`), its current opacity
+     * (for asserting AC-1/AC-6 spotlight dimming), and whether it's
+     * display:none (TASK-020 AC-1: real hide, not just dimmed) by id.
+     * Dev-only, never in production. */
+    __explorerNodeInfo?: (nodeId: string) => { x: number; y: number; opacity: number; visible: boolean } | undefined;
   }
 }
 
@@ -135,14 +136,19 @@ function resetDevIntrospection(): void {
   delete window.__explorerNodeInfo;
 }
 
-function nodeInfoLookup(cy: CyLike): (nodeId: string) => { x: number; y: number; opacity: number } | undefined {
+function nodeInfoLookup(cy: CyLike): (nodeId: string) => { x: number; y: number; opacity: number; visible: boolean } | undefined {
   return (nodeId: string) => {
     const rect = cy.container()?.getBoundingClientRect();
     if (!rect) return undefined;
     const element = (cy as unknown as CyNodeIntrospection).getElementById(nodeId);
     if (element.length === 0) return undefined;
     const position = element.renderedPosition();
-    return { x: rect.left + position.x, y: rect.top + position.y, opacity: Number(element.style("opacity")) };
+    return {
+      x: rect.left + position.x,
+      y: rect.top + position.y,
+      opacity: Number(element.style("opacity")),
+      visible: element.style("display") !== "none",
+    };
   };
 }
 
