@@ -50,13 +50,12 @@ def embed_and_index_artefact(  # noqa: PLR0913 -- Law E waiver: pure orchestrati
 
     lines = []
     for passage, vector in zip(passages, vectors, strict=True):
-        index.put(
-            tenant_id,
-            passage.id,
-            vector,
-            meta={"artefact_iri": artefact_iri, "locator": passage.locator, "text": passage.text},
-        )
-        lines.append(
-            json.dumps({"id": passage.id, "locator": passage.locator, "text": passage.text}).encode()
-        )
+        meta: dict[str, object] = {
+            "artefact_iri": artefact_iri,
+            "locator": passage.locator,
+            "text": passage.text,
+        }
+        index.put(tenant_id, passage.id, vector, meta=meta)
+        row = {"id": passage.id, "locator": passage.locator, "text": passage.text}
+        lines.append(json.dumps(row).encode())
     write_passages_jsonl(tenant_id, artefact_hash, lines)
