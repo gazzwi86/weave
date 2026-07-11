@@ -113,6 +113,8 @@ async def test_commit_tenant_shape_appends_bumps_version_and_audits(
 ) -> None:
     append_spy = AsyncMock()
     monkeypatch.setattr(governance_shapes, "append_graph", append_spy)
+    prov_append_spy = AsyncMock()
+    monkeypatch.setattr(provenance, "append_graph", prov_append_spy)
     enqueue_spy = AsyncMock()
     monkeypatch.setattr(governance_shapes, "enqueue", enqueue_spy)
     redis = FakeRedis()
