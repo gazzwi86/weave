@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "../app-shell";
@@ -58,5 +58,35 @@ describe("AppShell", () => {
     );
 
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+  });
+
+  // AC-7: "Sign out" lives inside the avatar menu, never a bare header link.
+  it("has no bare header Sign out link", () => {
+    pathname = "/dashboard";
+    render(
+      <AppShell role="admin" userName="Ada Lovelace">
+        <p>page content</p>
+      </AppShell>
+    );
+
+    expect(screen.queryByRole("link", { name: /sign out/i })).not.toBeInTheDocument();
+  });
+
+  // AC-7: profile name, canonical role, help link, and Sign out all render
+  // inside the avatar menu.
+  it("opens the avatar menu showing profile name, role, help link, and Sign out", () => {
+    pathname = "/dashboard";
+    render(
+      <AppShell role="admin" userName="Ada Lovelace">
+        <p>page content</p>
+      </AppShell>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(screen.getByText("admin")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /help/i })).toHaveAttribute("href", "/help");
+    expect(screen.getByRole("link", { name: /sign out/i })).toHaveAttribute("href", "/api/auth/signout");
   });
 });

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 import { PUBLIC_PATHS } from "@/lib/public-paths";
 
+import { AvatarMenu } from "./avatar-menu";
 import { CommandPalette } from "./command-palette";
 import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
@@ -19,9 +20,11 @@ export interface AppShellProps {
   role?: string | null;
   /** Tenant chip next to the brand (IA §3 workspace switcher slot). */
   tenantId?: string | null;
+  /** Display name from the OIDC profile (session.user.name), AC-7. */
+  userName?: string | null;
 }
 
-export function AppShell({ children, role = null, tenantId = null }: AppShellProps) {
+export function AppShell({ children, role = null, tenantId = null, userName = null }: AppShellProps) {
   const pathname = usePathname();
   const isPublic = PUBLIC_PATHS.has(pathname);
 
@@ -48,14 +51,7 @@ export function AppShell({ children, role = null, tenantId = null }: AppShellPro
         <div className="flex items-center gap-[var(--space-2)]">
           <NotificationCenter role={role} />
           <HelpLauncher />
-          {/* next-auth's built-in signout confirmation page — zero custom code. */}
-          <Link
-            href="/api/auth/signout"
-            prefetch={false}
-            className="text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-          >
-            Sign out
-          </Link>
+          <AvatarMenu userName={userName ?? "Signed in"} role={role} />
         </div>
       </header>
       <CommandPalette />
