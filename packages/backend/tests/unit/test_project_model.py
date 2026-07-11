@@ -144,6 +144,8 @@ async def test_get_project_returns_project_when_found() -> None:
             demo_output_location_ref="s3://weave-artefacts/t1/run-1/",
             write_back_complete=True,
             write_back_artefact_iri="urn:weave:artefact:t1:run-1",
+            last_sdk_version_iri=None,
+            sdk_generation_count=0,
         )
     )
 
@@ -154,6 +156,8 @@ async def test_get_project_returns_project_when_found() -> None:
     assert project.demo_output_location_ref == "s3://weave-artefacts/t1/run-1/"
     assert project.write_back_complete is True
     assert project.write_back_artefact_iri == "urn:weave:artefact:t1:run-1"
+    assert project.last_sdk_version_iri is None
+    assert project.sdk_generation_count == 0
 
 
 async def test_get_project_returns_none_when_not_found() -> None:

@@ -48,6 +48,8 @@ class ScmDriver(Protocol):
         self, repo: RepoHandle, *, files: dict[str, str], message: str, token: str
     ) -> str: ...
 
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None: ...
+
 
 def get_scm_driver(provider: str) -> ScmDriver:
     """AC-7: the single provider-string branch point -- callers never

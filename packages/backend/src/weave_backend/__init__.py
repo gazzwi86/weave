@@ -21,6 +21,7 @@ from weave_backend.routers.auth import router as auth_router
 from weave_backend.routers.authoring import router as authoring_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
+from weave_backend.routers.brand import router as brand_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.deploy import router as deploy_router
@@ -45,6 +46,7 @@ from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
 from weave_backend.routers.runs import router as runs_router
+from weave_backend.routers.sdk_generation import router as sdk_generation_router
 from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
 from weave_backend.routers.source_control import router as source_control_router
@@ -88,6 +90,7 @@ app.include_router(settings_router)
 app.include_router(sparql_router)
 app.include_router(operations_router)
 app.include_router(ontology_router)
+app.include_router(brand_router)
 app.include_router(identity_router)
 app.include_router(instances_router)
 app.include_router(search_router)
@@ -103,6 +106,7 @@ app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
 app.include_router(generation_router)
+app.include_router(sdk_generation_router)
 app.include_router(deploy_router)
 app.include_router(functions_router)
 app.include_router(specs_router)

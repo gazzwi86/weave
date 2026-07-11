@@ -43,6 +43,9 @@ async def insert_generation_run(
 class GenerationRun:
     """BE-TASK-009: the persisted row the deploy flow looks up by
     `commit_sha` to find the `run_id` it publishes an artefact under.
+
+    `deploy_sequence`/`feature_flags` (TASK-009 migration `0021`, ADR-020):
+    per-run release-plan inputs -- nullable, population deferred (see ADR).
     """
 
     run_id: str
@@ -50,6 +53,8 @@ class GenerationRun:
     task_id: str
     branch: str
     commit_sha: str
+    deploy_sequence: list[str] | None = None
+    feature_flags: list[str] | None = None
 
 
 async def get_generation_run_by_commit_sha(

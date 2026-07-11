@@ -3,17 +3,25 @@ introspected live from the cached SHACL shapes graph (never a hand-copied
 list -- `.claude/rules/ontology-standards.md`). A `sh:property` with
 `sh:datatype` is a literal attribute; one with no `sh:datatype` (typically
 carrying `sh:class`) is a relationship to another kind.
+
+`framework.shacl.ttl` also carries framework-level classes that are not
+BPMO kinds (e.g. `weave:BrandStandard`/`weave:VoiceRule`, TASK-003
+ADR-022) -- `list_kinds` filters to `BPMO_KINDS` so those still validate
+at CE-WRITE-1 commit without leaking into this guided-form catalogue.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rdflib import Graph
+from rdflib import Graph, Namespace
 from rdflib.namespace import SH, SKOS
 from rdflib.term import Node
 
+from weave_backend.authoring.bpmo import BPMO_KINDS
 from weave_backend.operations.shacl import shapes_graph
+
+WEAVE = Namespace("https://weave.io/ontology/")
 
 _SEVERITY_LABELS = {
     str(SH.Violation): "Violation",
@@ -87,6 +95,12 @@ def list_kinds() -> list[Kind]:
     for shape_node in graph.subjects(SH.targetClass, None):
         target_class = graph.value(shape_node, SH.targetClass)
         iri = str(target_class)
+        # AC-004-05 guard against namespace collisions: match the full
+        # `weave:` IRI, not just the local name -- EPIC-003's
+        # `GlossaryTermShape` targets `skos:Concept`, whose local name
+        # ("Concept") collides with the BPMO kind `weave:Concept`.
+        if not iri.startswith(WEAVE) or _local_name(iri) not in BPMO_KINDS:
+            continue
         properties = [
             _property_shape(graph, prop_node)
             for prop_node in graph.objects(shape_node, SH.property)

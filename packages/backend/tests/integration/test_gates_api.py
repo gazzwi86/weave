@@ -198,7 +198,9 @@ async def test_dod_gate_records_result_to_audit_on_fail_with_command_details(
 # wire path. Closing that gap here.
 
 
-async def test_pre_scaffold_gate_route_persists_and_proceeds(client: AsyncClient) -> None:
+async def test_pre_scaffold_gate_route_persists_and_blocks_on_critical_gap(
+    client: AsyncClient,
+) -> None:
     tenant_id = f"tenant-gates-{uuid.uuid4().hex[:8]}"
     project_iri = _unique_project_iri("proj")
     task_store.upsert_project_spec(tenant_id, project_iri, brief_present=True, prd_present=True)
@@ -211,7 +213,8 @@ async def test_pre_scaffold_gate_route_persists_and_proceeds(client: AsyncClient
 
     assert response.status_code == 200
     body = response.json()
-    assert body["result"] == "PROCEED"
+    assert body["result"] == "BLOCKED"
+    assert body["failing_step"] == "roadmap"
     failing_steps = {finding["step"] for finding in body["findings"]}
     assert failing_steps == {"roadmap", "tech_spec", "impl_ready"}
 
