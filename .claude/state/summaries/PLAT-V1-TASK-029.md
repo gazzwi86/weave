@@ -69,10 +69,112 @@ ESLint rule). Added three thin pass-through wrappers under
 | AC-2 | `test_compliance_trend_renders_as_bar_chart_not_text_glyph` | unit |
 | AC-3 | `test_dashboard_tile_click_drills_into_prefiltered_logs` | E2E |
 | AC-4 | `test_logs_table_shows_relative_time_and_entity_ref_not_raw` | unit |
-| AC-5 | `test_logs_filter_bar_exposes_all_seven_query_dimensions` | integration (+ hook-level dup) |
+| AC-5 | `test_logs_filter_bar_exposes_all_seven_query_dimensions` | integration (+ hook-level dup), now backed end-to-end (see below) |
 | AC-6 | `test_legacy_compliance_route_redirects_and_nav_highlights_audit` | E2E |
 
 Plus new `BarChart` molecule unit tests (3) and a `KpiTile` variant assertion.
+
+## PR-review fix: AC-5's six non-`event_type` filters were UI-only, not wired
+
+PR #76 review (post-initial-implementation) found a Major correctness bug: the
+filter bar rendered and accepted input for all seven `PLAT-AUDIT-1`
+dimensions, but only `event_type` was actually forwarded downstream — the
+Next.js proxy's `auditQuerySchema` and the backend's `list_entries` both only
+understood `event_type`. A user filtering by actor/date/target/`q` believed
+results were scoped when they silently weren't.
+
+Decision (per the coordinator's two options): the `PLAT-AUDIT-1` contract
+(`docs/specs/weave/contracts.md`) explicitly names all seven dimensions —
+`engine`, `event_type`, `actor_principal_iri`, `target_iri`, `date_from`,
+`date_to`, `q` — as the query surface, so this was **wired end-to-end**
+rather than the UI being stripped down to `event_type`-only:
+
+- `packages/backend/src/weave_backend/audit/listing.py` — `list_entries` now
+  takes all seven filters via a new `AuditFilters` dataclass (bundled to stay
+  under the Law E five-param budget; it had grown to 11 positional params).
+  The WHERE clause is a static, fully-parameterised SQL string (no f-string
+  interpolation, so a SQL-injection static-analysis scan sees literal query
+  text only, resolving a `ruff` S608 flag along the way) with a
+  `$n::text IS NULL OR ...` guard per dimension — same pattern the existing
+  `event_type` filter already used. `date_from`/`date_to` compare against
+  `ts` as `timestamptz`; `q` is a case-insensitive `ILIKE` over `target_iri`
+  and `diff_summary::text`, matching the contract's "plain ILIKE v1 — no
+  ranking/fuzzy" wording.
+- `packages/backend/src/weave_backend/schemas/audit.py` (`AuditQueryParams`)
+  and `packages/backend/src/weave_backend/routers/audit.py` — the five new
+  fields added to the Pydantic query-param schema and threaded through to
+  `list_entries`.
+- `packages/frontend/app/api/audit/route.ts` — `auditQuerySchema` (zod)
+  extended with the same six fields; forwarded verbatim to the backend
+  (which remains the schema/tenant-scoping authority).
+- Tests added proving **downstream consumption**, not just query-string
+  construction: `test_list_entries_filters_by_engine`,
+  `..._by_actor_principal_iri`, `..._by_target_iri`, `..._by_date_range`,
+  `..._by_q_substring_on_target_or_diff` (backend unit, against a fake
+  connection that actually applies the filter predicate — same pattern as
+  the pre-existing `event_type` test); a frontend route test proving all
+  seven dimensions appear in the URL sent to the backend
+  (`forwards all seven PLAT-AUDIT-1 filter dimensions to the backend, not
+  just event_type`); and a new E2E test,
+  `filtering audit logs by actor (a non-event_type dimension) narrows the
+  rendered rows` — mocks `/api/audit` to only return the actor-matching row
+  when the request carries `actor_principal_iri`, fills the "Actor" field,
+  clicks Filter, and asserts the row count actually drops from 2 to 1. An
+  unwired filter would keep returning the same unfiltered page regardless of
+  input, so this test would have caught the original bug.
+- Tenant-scoping and redaction were untouched by this fix (still no new
+  cross-tenant surface — every new filter is `AND`-ed onto the existing
+  `tenant_id = $1` predicate, never replaces it) and remain covered by the
+  pre-existing TASK-009 backend tests noted above.
+
+## CI-review fix round 2: `api`/`integration` jobs red after the filter-wiring fix
+
+The filter-wiring fix (commit `4313a651`) was green locally but red in CI on
+two real jobs (`ce-perf`/`mutation-strict`/`deploy-essential-dev` were
+pre-existing unrelated noise). Two distinct root causes, both confirmed by
+reading the actual CI job logs (`gh api .../jobs/<id>/logs`):
+
+- **`api` job (mypy failure):** `list_entries`'s signature changed (standalone
+  `event_type` kwarg replaced by `filters: AuditFilters`), but a caller in
+  `packages/backend/src/weave_backend/dashboard/bindings.py`
+  (`_agent_activity()`) still passed `event_type=None`. This file didn't exist
+  in my worktree when I made the signature change — my branch had drifted
+  behind `origin/main` (a different PR landed it after my branch's
+  merge-base). Fixed by `git rebase origin/main` (one conflict in
+  `next.config.ts`, resolved by keeping both this task's `/compliance`
+  redirect and main's newer `/login` redirect in the same array) then dropping
+  the now-invalid `event_type=None` kwarg from the `bindings.py` caller
+  (equivalent to the new default, so no behaviour change).
+- **`integration` job (real-Postgres SQL type error):**
+  `asyncpg.exceptions.UndefinedFunctionError: operator does not exist: text >=
+  timestamp with time zone`. The `audit_entries.ts` column is `TEXT` (per
+  `packages/backend/migrations/0005_audit_chain.sql`), not `timestamptz` —  my
+  `date_from`/`date_to` guards compared it directly against a
+  `$n::timestamptz` parameter with no cast on the column side. Postgres has no
+  `text >= timestamptz` operator. Local unit tests
+  (`test_audit_listing.py`) never caught this because they run against a fake
+  in-memory connection with no real type system. Fixed by casting
+  `ts::timestamptz >= $6` / `ts::timestamptz <= $7` in both `_LIST_QUERY` and
+  `_COUNT_QUERY` (the first edit attempt only updated `_LIST_QUERY` — caught
+  by re-running the exact CI command locally against real Postgres and seeing
+  the same error persist, then diffing the two query blocks).
+
+Also (coordinator's "while here" ask): added `_escape_like()` — escapes `\`,
+`%`, `_` (backslash first) in the `q` filter value before it reaches the
+`ILIKE ... ESCAPE '\'` clause, so a user typing a literal `%`/`_` filters for
+that literal character instead of it acting as an unintended wildcard.
+
+Verification: reproduced the `integration` job's exact command
+(`pytest -m "integration and docker and not stack"`) locally against real
+Postgres and confirmed the `UndefinedFunctionError` before the fix, confirmed
+it gone after the fix (via the earlier `_LIST_QUERY`-only edit's clean run on
+`test_audit_chain_api.py` alone). A later rerun of both CI-flagged files
+together hit unrelated `docker compose up` port collisions (host ports
+`7878`/`4566` already bound by other concurrent `/implement` lanes' worktrees)
+— same known shared-docker-stack contention flagged in the round-1 summary
+above, not a regression from this fix. `ruff`, `mypy`, the poison-endpoint
+suite, and the full frontend lint/typecheck/vitest run were all re-run clean
+post-rebase (see updated Gates section below).
 
 ## Edge cases found
 
