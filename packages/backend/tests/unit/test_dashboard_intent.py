@@ -231,3 +231,29 @@ def test_default_resolver_is_real_not_a_stub() -> None:
     # unconditionally raises it -- confirmed by the resolve() tests above
     # actually returning results. This test just guards the import stays.
     assert issubclass(ProviderUnavailable, Exception)
+
+
+async def test_resolve_provider_fails_on_retry_attempt(monkeypatch: pytest.MonkeyPatch) -> None:
+    """QA edge case (not in the brief's named fixtures): the first call
+    returns unparseable JSON (triggers the one-retry path, AC-4), and the
+    retry attempt itself hits a real connection failure rather than
+    returning more bad text. `ProviderUnavailable` must still propagate --
+    a provider outage arriving mid-retry must not be silently swallowed
+    into a `None` ("unsatisfiable") decline, which would show the user the
+    wrong error state (decline vs. provider_503 are AC-3/AC-4's two
+    deliberately distinct outcomes).
+    """
+    import weave_backend.dashboard.intent as intent_module
+
+    calls: list[str | Exception] = ["not json", ConnectionError("boom")]
+
+    def _flaky(tier: str, prompt: str, **kwargs: object) -> str:
+        result = calls.pop(0)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(intent_module, "route", _flaky)
+
+    with pytest.raises(ProviderUnavailable):
+        await resolve("show entities by kind")
