@@ -2,21 +2,35 @@
 
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { BarChartSlot as BarChart } from "@/components/templates/BarChartSlot";
+import { KpiTileSlot as KpiTile } from "@/components/templates/KpiTileSlot";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { useCompliance, type ComplianceSummary } from "../compliance/use-compliance";
+import { useCompliance, type ComplianceSummary } from "./compliance/use-compliance";
 
-function ChainStatusBadge({ status }: { status: ComplianceSummary["chain_status"] }) {
-  return status === "valid" ? (
-    <Badge variant="success">valid</Badge>
-  ) : (
-    <Badge variant="danger">broken</Badge>
+function eventLogsHref(category: string): string {
+  return `/audit/logs?event_type=${encodeURIComponent(category)}`;
+}
+
+function DashboardTiles({ summary }: { summary: ComplianceSummary }) {
+  return (
+    <div className="grid grid-cols-2 gap-[var(--space-4)]">
+      <div data-testid="chain-status">
+        <KpiTile
+          label="Chain status"
+          value={summary.chain_status}
+          variant={summary.chain_status === "valid" ? "success" : "danger"}
+        />
+      </div>
+      <div data-testid="entries-checked">
+        <KpiTile label="Entries checked" value={String(summary.entries_checked)} />
+      </div>
+    </div>
   );
 }
 
 function DashboardCard({ summary }: { summary: ComplianceSummary }) {
-  const categories = Object.entries(summary.by_event_category);
+  const categories = Object.keys(summary.by_event_category);
 
   return (
     <Card>
@@ -24,28 +38,17 @@ function DashboardCard({ summary }: { summary: ComplianceSummary }) {
         {summary.period}
       </p>
       <CardContent className="flex flex-col gap-[var(--space-4)]">
-        <p data-testid="chain-status">
-          Chain status: <ChainStatusBadge status={summary.chain_status} />
-        </p>
-        <p data-testid="entries-checked">Entries checked: {summary.entries_checked}</p>
+        <DashboardTiles summary={summary} />
 
         <div>
           <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
             Events by category
           </p>
-          <ul data-testid="event-category-list" className="flex flex-col gap-[var(--space-1)]">
-            {categories.map(([category, count]) => (
-              <li key={category}>
-                <Link
-                  href={`/audit/logs?event_type=${encodeURIComponent(category)}`}
-                  className="text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
-                >
-                  {category}
-                </Link>
-                : {count}
-              </li>
-            ))}
-          </ul>
+          <BarChart
+            categories={categories}
+            series={[{ label: summary.period, values: categories.map((c) => summary.by_event_category[c] ?? 0) }]}
+            hrefFor={eventLogsHref}
+          />
         </div>
 
         <div>
