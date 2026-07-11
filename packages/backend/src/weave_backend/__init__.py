@@ -26,6 +26,7 @@ from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
+from weave_backend.routers.governance import router as governance_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
@@ -71,6 +72,7 @@ install_ce_contract_headers_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(authoring_router)
+app.include_router(governance_router)
 app.include_router(billing_router)
 # QA blocker (PLAT-TASK-008): simulate-ai-call/simulate-run call the real
 # ai_route() and incur real billed spend -- RBAC (author role) alone is not
