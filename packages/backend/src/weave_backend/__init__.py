@@ -57,6 +57,7 @@ from weave_backend.routers.source_control import router as source_control_router
 from weave_backend.routers.sparql import router as sparql_router
 from weave_backend.routers.specs import router as specs_router
 from weave_backend.routers.standards import router as standards_router
+from weave_backend.routers.task_detail import router as task_detail_router
 from weave_backend.routers.tasks import router as tasks_router
 from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
@@ -120,6 +121,7 @@ app.include_router(deploy_router)
 app.include_router(functions_router)
 app.include_router(specs_router)
 app.include_router(tasks_router)
+app.include_router(task_detail_router)
 app.include_router(query_router)
 app.include_router(requests_router)
 app.include_router(request_governance_router)

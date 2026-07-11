@@ -25,6 +25,12 @@ from typing import Any
 import asyncpg
 
 from weave_backend.build import qa_agent
+from weave_backend.build.captures import (
+    CaptureFn,
+    CaptureRunContext,
+    CaptureTask,
+    capture_visual_states,
+)
 from weave_backend.build.gates import GateRecord, record_gate
 
 #: Category names whose runner is a real, potentially slow, external
@@ -56,6 +62,11 @@ class QARunContext:
     project_iri: str
     run_id: str | None = None
     progress_cb: Callable[[str, str], None] | None = None
+    #: AC-7: caller-supplied real S3 client + target bucket. `None` (the
+    #: default, e.g. every existing headless-project test) means the
+    #: captures producer never runs -- same opt-in shape as `browser_result`.
+    s3_client: Any | None = None
+    captures_bucket: str = "weave-artefacts"
 
 
 @dataclass(frozen=True)
@@ -71,6 +82,12 @@ class QAProject:
     task_briefs: tuple[dict[str, Any], ...] = ()
     test_names: frozenset[str] = frozenset()
     browser_result: dict[str, Any] | None = None  # {"passed": bool, "backend_assertions": int}
+    #: AC-7: the task's primary UI surface + the real Playwright-backed
+    #: state driver. `None` capture_fn (headless projects, or a caller not
+    #: yet wired for it) means no manifest is produced -- honest absence,
+    #: never a fabricated one (captures.py's own contract).
+    primary_surface: str = ""
+    capture_fn: CaptureFn | None = None
 
 
 Runner = Callable[[QAProject], tuple[str, dict[str, Any]]]
@@ -231,20 +248,49 @@ async def _record_category(
     )
 
 
+async def _maybe_capture_visual_states(
+    run_ctx: QARunContext, project: QAProject, browser_verdict: str
+) -> None:
+    """BE-V1-TASK-018 AC-7: rides the `browser_backend` Playwright lane --
+    runs once that lane actually passes for a UI-bearing project, never for
+    a headless one (`browser_verdict` is only ever `"passed"` when
+    `_ui_only` let the lane run at all). A capture producer crash never
+    affects the ASSESS verdict (`captures.py`'s own posture), so this is a
+    side effect, not a `CATEGORIES` entry.
+    """
+    if browser_verdict != "passed" or project.capture_fn is None or run_ctx.s3_client is None:
+        return
+    ctx = CaptureRunContext(
+        tenant_id=run_ctx.tenant_id,
+        run_id=run_ctx.run_id or "",
+        s3_client=run_ctx.s3_client,
+        bucket=run_ctx.captures_bucket,
+    )
+    task = CaptureTask(has_ui_surface=project.has_ui, primary_surface=project.primary_surface)
+    await capture_visual_states(ctx, task, project.capture_fn)
+
+
 async def run_full_qa_suite(
     conn: asyncpg.Connection, *, run_ctx: QARunContext, project: QAProject
 ) -> dict[str, Any]:
     """AC-1..AC-6: evaluates all nine categories, records one `gate_results`
     row per category plus one `qa_full` aggregate row, and returns the
-    evidence bundle for the ceremony record.
+    evidence bundle for the ceremony record. AC-7: once `browser_backend`
+    passes, also drives the 8-state visual-capture producer (see
+    `_maybe_capture_visual_states`).
     """
     categories: list[dict[str, Any]] = []
+    browser_verdict = "n_a"
     for name, applicable, runner in CATEGORIES:
         if name in _LONG_LANES and applicable(project) and run_ctx.progress_cb:
             run_ctx.progress_cb(name, "starting")
         verdict, evidence = _evaluate_category(name, applicable, runner, project)
         categories.append({"category": name, "verdict": verdict, "evidence": evidence})
         await _record_category(conn, run_ctx, name, verdict, evidence)
+        if name == "browser_backend":
+            browser_verdict = verdict
+
+    await _maybe_capture_visual_states(run_ctx, project, browser_verdict)
 
     overall = "PASS" if all(c["verdict"] in ("passed", "n_a") for c in categories) else "FAIL"
     await _record_category(conn, run_ctx, "full", overall, {"categories": categories})
