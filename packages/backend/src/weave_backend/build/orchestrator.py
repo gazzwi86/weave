@@ -41,6 +41,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import AgentResultContext, handle_agent_result
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed, rich_scaffold
 from weave_backend.repo_bootstrap.service import (
     DEFAULT_DEPS as DEFAULT_REPO_DEPS,
@@ -62,13 +63,23 @@ DispatchResult = tuple[TypedResult, DepSummary | None]
 DispatchFn = Callable[..., Awaitable[DispatchResult]]
 
 
+class TaskHeld(Exception):
+    """TASK-009/FR-043: raised by PLAN when a predecessor's dep-summary is
+    missing -- replaces the M1 best-effort warn-and-continue path. Caught
+    by `_dispatch_one`, never by `default_dispatch_pdac`'s own caller.
+    """
+
+    def __init__(self, *, missing_dep_id: str) -> None:
+        super().__init__(f"dep summary missing for predecessor {missing_dep_id}")
+        self.missing_dep_id = missing_dep_id
+
+
 async def default_dispatch_pdac(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, task: TaskState
 ) -> DispatchResult:
-    """AC-5/AC-6 stub PDAC step: resolve every role's model, best-effort
-    load the task's brief, and best-effort load predecessor dep summaries
-    (warn, never hold, on a miss). Returns a PASS with an empty dep summary
-    -- DELEGATE/ASSESS/CODIFY content generation is out of scope here.
+    """AC-6 PDAC step: resolve every role's model, best-effort load the
+    task's brief, and read each predecessor's dep summary -- a miss raises
+    `TaskHeld` (FR-043; no longer best-effort/warn-and-continue).
     """
     for role in PDAC_ROLES:
         try:
@@ -90,9 +101,47 @@ async def default_dispatch_pdac(
         if not await dep_summary_exists(
             conn, tenant_id=tenant_id, project_iri=project_iri, task_id=dep_id
         ):
-            log.warning("missing_handoff", extra={"task_id": task.id, "missing_summary": dep_id})
+            raise TaskHeld(missing_dep_id=dep_id)
 
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
+
+async def load_task_context(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    project_iri: str,
+    task: TaskState,
+    repo_deps: RepoBootstrapDeps,
+) -> None:
+    """TASK-009/AC-2 PLAN pre-step (task brief pseudocode): prepend the
+    repo's `ANATOMY.md` into `task.context` before DELEGATE, so the
+    delegate agent loads context instead of re-discovering it (FR-031's
+    payoff). Best-effort throughout: no repo provisioned yet, no
+    `ANATOMY.md` committed yet (fresh scaffold), no resolvable token, or a
+    driver error all leave `task.context` untouched -- an anatomy load must
+    never halt the dispatch loop.
+    """
+    row = await fetch_project_repo_row(conn, tenant_id=tenant_id, project_iri=project_iri)
+    if row is None or row.repo_provider is None or row.repo_id is None:
+        return
+    token = await repo_deps.get_secret(row.source_control_token_secret_ref or "")
+    if not token:
+        return
+    repo = RepoHandle(
+        repo_id=row.repo_id,
+        url=row.repo_url or "",
+        default_branch=row.repo_default_branch or "main",
+    )
+    try:
+        anatomy = await repo_deps.driver_for(row.repo_provider).read_file(
+            repo, path="ANATOMY.md", token=token
+        )
+    except Exception:
+        log.warning("anatomy_context_load_failed", extra={"task_id": task.id})
+        return
+    if anatomy:
+        task.context.insert(0, anatomy)
 
 
 async def default_preflight(
@@ -160,13 +209,31 @@ async def _dispatch_one(
     deps: OrchestratorDeps,
 ) -> None:
     """One PLAN->DELEGATE->ASSESS->CODIFY cycle for `task`, mutating it and
-    `spine` in place. FAIL routes through TASK-005's retry/HITL machinery
-    (AC-2/AC-6); PASS writes the dep summary before marking the task Done
-    (AC-4, non-skippable CODIFY).
+    `spine` in place. `load_task_context` (TASK-009/AC-2) loads the repo's
+    anatomy index into `task.context` before dispatch, so DELEGATE sees it.
+    FAIL routes through TASK-005's retry/HITL machinery (AC-2/AC-6); PASS
+    writes the dep summary before marking the task Done (AC-4, non-skippable
+    CODIFY).
     """
-    result, dep_summary = await deps.dispatch_pdac_fn(
-        conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
+    await load_task_context(
+        conn,
+        tenant_id=tenant_id,
+        project_iri=spine.project_iri,
+        task=task,
+        repo_deps=deps.repo_deps,
     )
+    try:
+        result, dep_summary = await deps.dispatch_pdac_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
+        )
+    except TaskHeld as exc:
+        task.status = "Ready"
+        task.hold_reason = "dep_summary_missing"
+        log.info(
+            "task_held",
+            extra={"task_id": task.id, "missing_summary": exc.missing_dep_id},
+        )
+        return
 
     # TASK-012 AC-1: every dispatch with an attributable usage block records
     # one cost_events row, PASS or FAIL alike -- a FAIL still burned tokens.

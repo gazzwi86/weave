@@ -22,6 +22,85 @@ os.environ.setdefault("WEAVE_ENV", "test")
 import pytest
 
 from weave_backend.db.migrate import run_migrations
+from weave_backend.sdkgen.ir import (
+    CeVersionPin,
+    IRClass,
+    IRField,
+    IRFunction,
+    IRParam,
+    IRQuery,
+    IRTheme,
+    SdkModel,
+)
+
+
+@pytest.fixture
+def sample_sdk_model() -> SdkModel:
+    """TASK-004 (BE-SDK-1): one class, one function, one named query, one
+    theme -- small enough to hand-inspect, varied enough (optional/list/
+    min_length fields; a query row) to exercise every emitter's template
+    branches from a single shared fixture.
+    """
+    process = IRClass(
+        name="Process",
+        iri="weave:Process",
+        fields=[
+            IRField(
+                name="label",
+                path="weave:label",
+                ts_type="string",
+                py_type="str",
+                optional=False,
+                is_list=False,
+            ),
+            IRField(
+                name="tags",
+                path="weave:tags",
+                ts_type="string",
+                py_type="str",
+                optional=False,
+                is_list=True,
+                min_length=1,
+            ),
+            IRField(
+                name="description",
+                path="weave:description",
+                ts_type="string",
+                py_type="str",
+                optional=True,
+                is_list=False,
+            ),
+        ],
+    )
+    calculate_total = IRFunction(
+        name="calculateTotal",
+        fn_iri="weave:calculateTotal",
+        params=[
+            IRParam(name="amount", ts_type="number", py_type="float", required=True),
+            IRParam(name="currency", ts_type="string", py_type="str", required=False),
+        ],
+        return_ts="number",
+        return_py="float",
+    )
+    active_processes = IRQuery(
+        name="activeProcesses",
+        sparql="SELECT ?process ?label WHERE { ?process a weave:Process ; weave:label ?label }",
+        bindings=["process", "label"],
+    )
+    theme = IRTheme(
+        color={"bg": "#0a0a0a"},
+        typography={"body": "Geist Sans"},
+        spacing={"sm": "4px"},
+        radius={"sm": "2px"},
+        extensions={"glow": {"key-surface": "0 0 8px"}},
+    )
+    return SdkModel(
+        classes=[process],
+        functions=[calculate_total],
+        queries=[active_processes],
+        theme=theme,
+        pin=CeVersionPin(version_iri="urn:weave:ce:v1"),
+    )
 
 
 @pytest.fixture(autouse=True)

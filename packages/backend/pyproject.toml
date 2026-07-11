@@ -13,6 +13,7 @@ dependencies = [
     "boto3>=1.43.40",
     "fastapi>=0.139.0",
     "httpx>=0.28.1",
+    "jinja2>=3.1.6",
     "opentelemetry-api>=1.43.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.43.0",
     "opentelemetry-instrumentation-fastapi>=0.64b0",
@@ -21,6 +22,7 @@ dependencies = [
     "pyjwt[crypto]>=2.13.0",
     "pyshacl>=0.31.0",
     "python-multipart>=0.0.20",
+    "pyyaml>=6.0.3",
     "rdflib>=7.6.0",
     "redis>=5",
     "uvicorn[standard]>=0.49.0",
@@ -37,6 +39,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "bandit>=1.9.4",
+    "jsonschema>=4.26.0",
     "mutmut>=3.6.0",
     "mypy>=2.1.0",
     "pytest>=9.1.1",
@@ -44,12 +47,14 @@ dev = [
     "pytest-cov>=7.1.0",
     "pyyaml>=6.0.3",
     "ruff>=0.15.20",
+    "types-jsonschema>=4.26.0.20260518",
     "types-pyyaml>=6.0.12.20260518",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["tests/integration/fixtures/sdkgen_golden"]
 
 [tool.ruff.lint]
 select = [
@@ -107,11 +112,11 @@ module = ["asyncpg.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 # scripts/benchmarks/ce-perf/run_benchmark.py (and run_metrics_benchmark.py,
-# CE-V1-TASK-007) are spike tools outside this package's src/ tree
-# (sys.path-inserted by their tests at collection time), not shipped
-# dependencies with a stub package.
+# CE-V1-TASK-007, and run_brand_benchmark.py, CE-V1-TASK-003) are spike tools
+# outside this package's src/ tree (sys.path-inserted by their tests at
+# collection time), not shipped dependencies with a stub package.
 [[tool.mypy.overrides]]
-module = ["run_benchmark", "run_metrics_benchmark"]
+module = ["run_benchmark", "run_metrics_benchmark", "run_brand_benchmark"]
 ignore_missing_imports = true
 
 # mutmut runs the suite against a mutated copy of the tree under mutants/;

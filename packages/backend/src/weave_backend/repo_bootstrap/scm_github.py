@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 from dataclasses import dataclass
 
@@ -14,6 +15,7 @@ from weave_backend.repo_bootstrap.scm_http import (
     REQUIRED_STATUS_CHECK_CONTEXT,
     RepoHandle,
     get_checked,
+    get_optional,
     patch_checked,
     post_checked,
     put_checked,
@@ -202,3 +204,20 @@ class GitHubDriver:
             },
             headers,
         )
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        """TASK-009/AC-2: reads a single committed file off the repo's
+        default branch via the Contents API, so `load_task_context` can
+        prepend the repo's `ANATOMY.md` into a task's context before
+        DELEGATE. A 404 (file not yet committed) is a normal miss.
+        """
+        headers = {"Authorization": f"token {token}"}
+        response = await get_optional(
+            self._client,
+            f"/repos/{repo.repo_id}/contents/{path}",
+            headers,
+            params={"ref": repo.default_branch},
+        )
+        if response is None:
+            return None
+        return base64.b64decode(response.json()["content"]).decode("utf-8")

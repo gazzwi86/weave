@@ -19,7 +19,7 @@ _NAMED_GRAPH = "urn:weave:tenant:t1:ws:1"
 
 
 def _kind(iri: str, label: str) -> Kind:
-    return Kind(iri=iri, label=label, properties=[])
+    return Kind(iri=iri, label=label, properties=[], description=None)
 
 
 @pytest.mark.asyncio

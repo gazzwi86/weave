@@ -67,9 +67,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", tag: "m2" },
-          { label: "Brand & voice", tag: "m2" },
-          { label: "Rules & policies", href: "/ce/rules", tag: "m1" },
+          { label: "Glossary", href: "/ce/glossary", tag: "built" },
+          { label: "Brand & voice", href: "/ce/brand", tag: "built" },
+          { label: "Rules & policies", href: "/ce/rules", tag: "built" },
           { label: "Strategy & motivation", tag: "m2" },
         ],
       },
@@ -92,7 +92,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         items: [
           { label: "Registry", href: "/build", tag: "built" },
           { label: "Dashboard", tag: "v1.0" },
-          { label: "Kanban", tag: "v1.0" },
+          { label: "Kanban", href: "/build/board", tag: "built" },
           { label: "Task briefs & decisions", tag: "v1.0" },
         ],
       },

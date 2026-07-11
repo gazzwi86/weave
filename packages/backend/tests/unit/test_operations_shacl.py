@@ -162,3 +162,93 @@ def test_list_rules_enumerates_every_framework_shape_including_zero_violation_on
     # also carries an Info-severity `servesGoal` property.
     assert by_iri[str(WEAVE.ProcessShape)].severity == "Violation"
     assert by_iri[str(WEAVE.GoalShape)].severity == "Violation"
+
+
+# TASK-003 (EPIC-004): weave:BrandStandard / weave:VoiceRule -- framework
+# classes, not BPMO kinds (ADR-022), gated by the same `validate_graph`.
+
+
+def test_brand_standard_missing_content_type_is_a_violation() -> None:
+    """AC-003-02: a BrandStandard missing a required property is rejected."""
+    graph = Graph()
+    graph.add((EX.brand1, RDF.type, WEAVE.BrandStandard))
+    graph.add((EX.brand1, WEAVE.effectiveDate, Literal("2026-07-11", datatype=XSD.date)))
+    graph.add((EX.brand1, WEAVE.owner, Literal("Brand Team", datatype=XSD.string)))
+    graph.add((EX.brand1, WEAVE.contentBody, Literal('{"primary":"#111"}', datatype=XSD.string)))
+    # No weave:contentType -- must trip a Violation.
+
+    results = validate_graph(graph)
+
+    violations = [r for r in results if r.severity == "Violation"]
+    assert any(str(EX.brand1) == v.focus_node for v in violations)
+
+
+def test_brand_standard_without_body_or_source_uri_is_a_violation() -> None:
+    """AC-003-02: neither contentBody nor sourceUri present -- sh:or trips."""
+    graph = Graph()
+    graph.add((EX.brand1, RDF.type, WEAVE.BrandStandard))
+    graph.add((EX.brand1, WEAVE.contentType, Literal("color", datatype=XSD.string)))
+    graph.add((EX.brand1, WEAVE.effectiveDate, Literal("2026-07-11", datatype=XSD.date)))
+    graph.add((EX.brand1, WEAVE.owner, Literal("Brand Team", datatype=XSD.string)))
+
+    results = validate_graph(graph)
+
+    violations = [r for r in results if r.severity == "Violation"]
+    assert any(str(EX.brand1) == v.focus_node for v in violations)
+
+
+def test_brand_standard_with_source_uri_only_conforms() -> None:
+    """A logo/asset reference (sourceUri, no contentBody) still satisfies the
+    sh:or -- confirms the disjunct isn't accidentally requiring both."""
+    graph = Graph()
+    graph.add((EX.brand1, RDF.type, WEAVE.BrandStandard))
+    graph.add((EX.brand1, WEAVE.contentType, Literal("logo", datatype=XSD.string)))
+    graph.add((EX.brand1, WEAVE.effectiveDate, Literal("2026-07-11", datatype=XSD.date)))
+    graph.add((EX.brand1, WEAVE.owner, Literal("Brand Team", datatype=XSD.string)))
+    graph.add((EX.brand1, WEAVE.sourceUri, Literal("https://cdn.example.com/logo.svg")))
+
+    results = validate_graph(graph)
+
+    assert [r for r in results if r.severity == "Violation"] == []
+
+
+def test_voice_rule_without_assertion_is_a_violation() -> None:
+    """AC-003-05: a human label alone is not a rule -- assertion is
+    required, not conventional."""
+    graph = Graph()
+    graph.add((EX.rule1, RDF.type, WEAVE.VoiceRule))
+    graph.add((EX.rule1, WEAVE.ruleId, Literal("no-jargon", datatype=XSD.string)))
+    graph.add((EX.rule1, WEAVE.severity, Literal("normal", datatype=XSD.string)))
+    # No weave:assertion -- must trip a Violation.
+
+    results = validate_graph(graph)
+
+    violations = [r for r in results if r.severity == "Violation"]
+    assert any(str(EX.rule1) == v.focus_node for v in violations)
+
+
+def test_voice_rule_with_invalid_severity_is_a_violation() -> None:
+    graph = Graph()
+    graph.add((EX.rule1, RDF.type, WEAVE.VoiceRule))
+    graph.add((EX.rule1, WEAVE.ruleId, Literal("no-jargon", datatype=XSD.string)))
+    graph.add((EX.rule1, WEAVE.severity, Literal("urgent", datatype=XSD.string)))
+    graph.add((EX.rule1, WEAVE.assertion, Literal("max_length(200)", datatype=XSD.string)))
+
+    results = validate_graph(graph)
+
+    violations = [r for r in results if r.severity == "Violation"]
+    assert any(str(EX.rule1) == v.focus_node for v in violations)
+
+
+def test_conforming_voice_rule_has_no_violations() -> None:
+    graph = Graph()
+    graph.add((EX.rule1, RDF.type, WEAVE.VoiceRule))
+    graph.add((EX.rule1, WEAVE.ruleId, Literal("no-jargon", datatype=XSD.string)))
+    graph.add((EX.rule1, WEAVE.severity, Literal("critical", datatype=XSD.string)))
+    graph.add(
+        (EX.rule1, WEAVE.assertion, Literal("forbidden_terms(['synergy'])", datatype=XSD.string))
+    )
+
+    results = validate_graph(graph)
+
+    assert [r for r in results if r.severity == "Violation"] == []
