@@ -300,6 +300,40 @@ async def test_history_restore_no_model_call(client: AsyncClient) -> None:
     assert row.spec.title == _REFINED_SPEC.title
 
 
+async def test_restore_unknown_seq_is_404(client: AsyncClient) -> None:
+    """API Contracts (QA-added edge case): restore's 404-unknown-seq branch
+    is documented but was otherwise untested -- `get_refinement_spec`
+    returning `None` (no such step, e.g. seq never existed or was already
+    evicted by the cap) must 404 without touching `widget_instances`, same
+    as the unknown-widget-id case.
+    """
+    tenant_id = _unique_tenant("dash-refine-restore-404")
+    tokens = await issue_token_pair(sub="u-refine-restore-404", tenant_id=tenant_id)
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-restore-404"))
+    app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
+    app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
+        {"entity_count_by_kind": {"Process": 4}}
+    )
+    events = await _refine(client, tokens, widget_id, prompt="split by severity")
+    assert events[-1][0] == "done"
+
+    async with tenant_connection(tenant_id) as conn:
+        before = await store.get_widget(conn, tenant_id=tenant_id, widget_id=widget_id)
+    assert before is not None
+
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/restore",
+        json={"seq": 999},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 404
+
+    async with tenant_connection(tenant_id) as conn:
+        after = await store.get_widget(conn, tenant_id=tenant_id, widget_id=widget_id)
+    assert after is not None
+    assert after.spec == before.spec
+
+
 async def test_refine_unsatisfiable_declines(client: AsyncClient) -> None:
     """AC-6: a delta the resolver can't match declines with `unsatisfiable`
     and preserves the widget's prior state.
@@ -357,5 +391,56 @@ async def test_refine_unknown_widget_is_404(client: AsyncClient) -> None:
         f"/api/dashboard/widgets/{uuid.uuid4()}/refine",
         json={"prompt": "last 30 days instead"},
         headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 404
+
+
+async def test_refine_non_owner_same_tenant_forbidden(client: AsyncClient) -> None:
+    """AC-6 edge case (QA-added): the brief's "non-owner ... -> 403" branch is
+    otherwise only exercised via `scope='tenant_default'`
+    (`test_refine_forbidden_on_tenant_default`) -- this proves the ownership
+    check also rejects a *different user's own* `scope='user'` widget within
+    the SAME tenant, not just the tenant-default composed tiles. Guards
+    against `_owned_user_widget` regressing to a tenant-only check.
+    """
+    tenant_id = _unique_tenant("dash-refine-nonowner")
+    owner_tokens = await issue_token_pair(sub="u-refine-owner", tenant_id=tenant_id)
+    other_tokens = await issue_token_pair(sub="u-refine-other", tenant_id=tenant_id)
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-owner"))
+
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/refine",
+        json={"prompt": "last 30 days instead"},
+        headers={"Authorization": f"Bearer {other_tokens.access_token}"},
+    )
+    assert resp.status_code == 403
+
+    # The rightful owner is unaffected -- confirms the 403 above is an
+    # ownership check, not e.g. a broken fixture/route.
+    app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
+    app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
+        {"entity_count_by_kind": {"Process": 4}}
+    )
+    owner_events = await _refine(client, owner_tokens, widget_id)
+    assert owner_events[-1][0] == "done"
+
+
+async def test_refine_cross_tenant_widget_id_is_404(client: AsyncClient) -> None:
+    """AC-6 edge case (QA-added): a caller in tenant B guessing a real
+    widget_id that belongs to tenant A must get the same 404 as an unknown
+    id -- never a 403 (which would leak that the id exists at all) and never
+    a 200 (cross-tenant data access). `_owned_user_widget` scopes its lookup
+    by the caller's own `tenant_id`, so a real id from another tenant is
+    indistinguishable from a random uuid.
+    """
+    tenant_a = _unique_tenant("dash-refine-tenant-a")
+    tenant_b = _unique_tenant("dash-refine-tenant-b")
+    widget_id = await _seed_widget(tenant_a, human_principal_iri("u-refine-tenant-a"))
+    tokens_b = await issue_token_pair(sub="u-refine-tenant-b", tenant_id=tenant_b)
+
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/refine",
+        json={"prompt": "last 30 days instead"},
+        headers={"Authorization": f"Bearer {tokens_b.access_token}"},
     )
     assert resp.status_code == 404
