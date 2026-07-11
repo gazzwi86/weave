@@ -19,6 +19,7 @@ import { useLayoutPersistence } from "./use-layout-persistence";
 import { useNeighbourExpansion } from "./use-neighbour-expansion";
 import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
+import { useEventPollWiring } from "./use-event-poll-wiring";
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
 import { useSavedViewsWiring } from "./use-saved-views-wiring";
@@ -199,6 +200,8 @@ function useCanvasChromePanels(
   const overlayControls = useOverlayControls({ adapter, config });
   const versionsPanel = useVersionsPanel({ adapter, engine: overlayControls.engine });
   const savedViewsPanel = useSavedViewsWiring({ adapter, config, filterPanel, overlayControls, domainFocus });
+  // AC-7: draft-mode-only polling -- never while pinned to a read-only version.
+  useEventPollWiring({ adapter, config, active: !versionsPanel.readOnly });
   return { filterPanel, legend, overlayControls, versionsPanel, savedViewsPanel };
 }
 

@@ -24,6 +24,11 @@ vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.f
 // CommentsPanel (TASK-026 AC-6) fetches on mount via SidePanel -- stub so
 // these pre-existing tests don't leak a real fetch() against a relative URL.
 vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
+// useEventPollWiring (TASK-026 AC-7) polls on mount while active (draft
+// mode) -- stub so these pre-existing tests don't leak a real fetch().
+vi.mock("@/lib/explorer/events-client", () => ({
+  fetchEvents: vi.fn().mockResolvedValue({ status: 200, events: [], latest_seq: 0 }),
+}));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
 const NO_RETRY_CONFIG = { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] };
