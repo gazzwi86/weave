@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T09:23:10+00:00
+Captured at: 2026-07-11T09:46:37+00:00
 Event: pre-compact
 
 ## Current State
@@ -272,7 +272,7 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-007",
       "title": "Decision Log",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "ONB-V1-EPIC-002",
@@ -1439,7 +1439,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-007",
       "title": "Decision Log (FR-027): Searchable Read-Only View over PLAT-AUDIT-1",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-011"
       ],
