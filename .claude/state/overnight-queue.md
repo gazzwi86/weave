@@ -1,3 +1,34 @@
+
+# ============================================================
+# ☀️ MORNING BATCH — surface 9am-8pm AEST (2026-07-12)
+# ============================================================
+## PHASE STATUS: M2/V1 near-complete, ready-set EXHAUSTED (only BE-024 left, in QA-retry).
+77/125 tasks done. 15 epics merged to main this session. Autonomous lanes are now BLOCKED — further progress needs your input on the items below.
+
+## A. TWO HELD PRs — READY TO MERGE (your call, both fully green + review-clean):
+   - #64 EPIC-003 (Project Dashboard + Direct Project Prompt) — migrations 0065+0067 (schema tier).
+   - #65 CE-EPIC-005 (governance shapes + Rules/validate + metrics) — multi-tenancy tier.
+   Merging these UNBLOCKS their dependent tasks (currently blocked on code-on-main, PROJ-008).
+
+## B. BLOCKED CHAINS needing a decision to unblock more M2/V1 work:
+   - **PROJ-009 + PROJ-010** (Build E2E infra): project-create 503 (no seeded published CE version) + creator-403 on own source-control. Blocks real Playwright E2E across Build UI (all shipped E2E-met-by-inference). Fix-lane now vs phase-gate batch?
+   - **EPIC-012 CE** (CE-014 blocked_by deferred CE-015) — build CE-015 or descope?
+   - **CE-023 EPIC-017** re-scope (9 ACs, role-threading + inspector organism — L-sized, was laned S/M).
+   - **PLAT-014** (2× overflow — needs re-scope/split).
+   - **ONB M1** (4 prereqs) — 19 ONB tasks backlogged behind them.
+
+## C. GOVERNANCE / DEBT decisions (defaults noted, proceeding unless vetoed):
+   - XT-CE008-AC03: publish-event spec self-contradiction → default: file follow-up task.
+   - PROJ-008: ready-graph = task-done not code-on-main → harness fix (advisor+HITL).
+   - PROJ-006: 3× ADR-022 renumber sweep. role-slug harmonization (XT-PLAT027-ROLE + PROJ-009).
+   - PROJ-012: sdkgen TS template will break under TS7 (low-pri, not breaking today).
+   - build-engine tasks 001-009 milestone-tag consolidation (governance).
+   - UI-gate debt: Lighthouse/axe/ui_verify deferred on BE-017/018/019 + CE-006 + BE-021/024 → phase-gate sweep.
+   - IDEAS.md → default park post-v1 (offer: OKF-vs-RDF/BPMO trade study).
+
+## D. PHASE-GATE (when M2/V1 tasks all closed): /security-review, mutation ≥60%, ui_verify/Lighthouse/axe sweep, PROJ-014 audit of tests/unit for unmocked network seams, docs generation.
+
+## In flight now: BE-024 (EPIC-001, Build Request Form) QA-retry-1 — fixing governance-test regression + repo_name passthrough. On pass → EPIC-001 auto-merges. Then fully blocked pending A/B above.
 # Overnight decision queue — surface 9am–8pm AEST
 
 HITL is paused overnight (user out ~20:20 AEST 2026-07-10 → resume 9am AEST 2026-07-11). Every item
