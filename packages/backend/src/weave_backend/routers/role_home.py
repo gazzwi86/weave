@@ -87,18 +87,16 @@ async def _fetch_live_payload(ctx: BindingContext, level: str) -> dict[str, Any]
 async def _resolve_tile(
     conn: Any, principal: Principal, ctx: BindingContext, level: str
 ) -> tuple[dict[str, Any], WidgetOut]:
-    """AC-5: lazy-create the per-user tile, attempt a live fetch, and
+    """AC-5: lazy-create the tenant-wide tile, attempt a live fetch, and
     persist whichever payload (live or retained-cache) is honest -- one
     write path for both the success and degraded branches.
     """
-    await store.ensure_role_home_tile(
-        conn, tenant_id=principal.tenant_id, owner_principal_iri=principal.principal_iri
-    )
+    await store.ensure_role_home_tile(conn, tenant_id=principal.tenant_id)
     rows = await store.list_widgets(
         conn,
         tenant_id=principal.tenant_id,
         scope="role_home",
-        owner_principal_iri=principal.principal_iri,
+        owner_principal_iri=None,
     )
     tile = rows[0]
     payload = await _fetch_live_payload(ctx, level)

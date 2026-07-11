@@ -226,7 +226,10 @@ async def test_role_home_requires_auth(client: AsyncClient) -> None:
 
 async def test_role_home_tiles_ride_swr_scope(client: AsyncClient) -> None:
     """AC-5 (m2-delta §7): the role-home tile is a real `scope='role_home'`
-    widget_instances row, not a parallel cache.
+    widget_instances row, not a parallel cache. It is tenant-wide (owner
+    NULL, like `tenant_default`) since the cached payload is tenant-scoped
+    CE data; `widget_instances_check1` requires a NULL owner for any scope
+    other than `user`.
     """
     tenant_id = _unique_tenant("rh-swr-scope")
     _override(tenant_id, "read", _ce_stub(_HEALTHY_CE))
@@ -239,4 +242,4 @@ async def test_role_home_tiles_ride_swr_scope(client: AsyncClient) -> None:
             tenant_id,
         )
     assert row is not None
-    assert row["owner_principal_iri"] == "urn:weave:principal:user:u-1"
+    assert row["owner_principal_iri"] is None

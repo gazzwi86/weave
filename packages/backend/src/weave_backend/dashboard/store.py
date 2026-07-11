@@ -124,30 +124,32 @@ _ROLE_HOME_TILE_SPEC = WidgetSpec(
 )
 
 
-async def ensure_role_home_tile(
-    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str
-) -> None:
-    """AC-5: one `scope='role_home'` row per user -- the SWR cache
+async def ensure_role_home_tile(conn: asyncpg.Connection, *, tenant_id: str) -> None:
+    """AC-5: one `scope='role_home'` row per tenant -- the SWR cache
     role-home's degradation rides, same idempotent-insert pattern as
-    `ensure_user_starters` above.
+    `ensure_user_starters` above. Tenant-wide, not per-user: the cached
+    payload is tenant-scoped CE data (ontology health/completeness);
+    role-specific filtering happens in the response builder, not the
+    stored row. `widget_instances_check1` (0071_widget_state.sql) requires
+    `owner_principal_iri IS NULL` for any scope other than `user`, so this
+    follows `tenant_default`'s existing NULL-owner pattern rather than
+    widening that constraint.
     """
     await conn.execute(
         """
-        INSERT INTO widget_instances (tenant_id, scope, owner_principal_iri, spec, "position")
-        VALUES ($1, 'role_home', $2, $3::jsonb, 0)
+        INSERT INTO widget_instances (tenant_id, scope, spec, "position")
+        VALUES ($1, 'role_home', $2::jsonb, 0)
         ON CONFLICT (tenant_id, scope, COALESCE(owner_principal_iri, ''), "position")
         DO NOTHING
         """,
         tenant_id,
-        owner_principal_iri,
         _ROLE_HOME_TILE_SPEC.model_dump_json(),
     )
 
 
-#: TASK-017: role-home tiles are per-user, same as `scope='user'` rows --
-#: `owner_principal_iri` filters both (Design Decisions table: "one SWR
-#: path, no second cache/renderer").
-_OWNER_SCOPED_SCOPES = ("user", "role_home")
+#: `scope='user'` rows are the only owner-scoped rows -- `role_home` (like
+#: `tenant_default`) is a tenant-wide singleton with no owner filter.
+_OWNER_SCOPED_SCOPES = ("user",)
 
 
 async def list_widgets(
