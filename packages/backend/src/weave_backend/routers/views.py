@@ -131,7 +131,9 @@ async def _insert_snapshot_rows(
             f"INSERT INTO explorer_layout_positions ({columns}) VALUES "  # noqa: S608 # nosec B608
             + ", ".join(rows_sql)
         )
-        await conn.execute(sql, *params)
+        # sql = fixed column literals + $N placeholder ordinals only; all row
+        # data is bound via *params (asyncpg) — no untrusted concatenation.
+        await conn.execute(sql, *params)  # nosemgrep
 
 
 @router.post("/views", status_code=201)
