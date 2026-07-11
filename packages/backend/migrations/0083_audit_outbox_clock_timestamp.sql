@@ -1,0 +1,13 @@
+-- fix: integration suite test-isolation regression -- `audit_outbox.created_at`
+-- used `DEFAULT now()`, which returns the *transaction* start time --
+-- identical for every row enqueued inside one transaction (the common case:
+-- a mutation enqueues its outbox row in the same transaction as the write,
+-- and tests/batch paths enqueue several rows back to back). `flush_pending`
+-- (operations/outbox.py) does `ORDER BY created_at` to preserve FIFO
+-- delivery order; with tied timestamps Postgres's tie-break is undefined,
+-- so the "2nd enqueued" row is not reliably the 2nd delivered -- this is
+-- what broke test_outbox_flush_isolates_a_mid_batch_failure_across_real_rows
+-- when run as part of the full integration suite (see migration 0065 for
+-- the identical bug/fix on generation_runs.created_at). clock_timestamp()
+-- is per-statement wall time, so insertion order is always preserved.
+ALTER TABLE audit_outbox ALTER COLUMN created_at SET DEFAULT clock_timestamp();
