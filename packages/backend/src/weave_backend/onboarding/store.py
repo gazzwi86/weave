@@ -1,5 +1,5 @@
 """DB access for onboarding per-(tenant, user) progress state (ADR-003).
-Every query is tenant + user scoped; RLS (migrations/0050_onboarding_state.sql)
+Every query is tenant + user scoped; RLS (migrations/0082_onboarding_state.sql)
 is the belt-and-braces backstop, same pattern as notifications/settings.
 
 ``exercise_completion``/``activation`` are read-only here -- this task's
