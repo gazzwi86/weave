@@ -223,3 +223,24 @@ async def resolve_version(
     if row is None:
         raise VersionNotFound("latest")
     return str(row["version_iri"])
+
+
+async def head_version_iri(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> str | None:
+    """CE-TASK-006 draft-state stamp: the newest `version_iri` for this
+    workspace, draft or published (unlike `resolve_version("latest")`,
+    which only ever sees published rows). `mint_version` inserts exactly
+    one new row per commit before promoting the working graph, so this
+    row's identity changes iff the draft graph's content changed -- a
+    cheap cache key for "has the draft moved" without hashing the graph.
+    `None` when the workspace has never committed.
+    """
+    row = await conn.fetchrow(
+        "SELECT version_iri FROM graph_versions "
+        "WHERE tenant_id = $1 AND workspace_id = $2 "
+        "ORDER BY created_at DESC LIMIT 1",
+        tenant_id,
+        workspace_id,
+    )
+    return str(row["version_iri"]) if row is not None else None
