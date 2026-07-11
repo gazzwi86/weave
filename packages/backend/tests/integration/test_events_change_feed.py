@@ -322,3 +322,38 @@ async def test_weave_app_role_cannot_update_or_delete_change_events(
                 )
     finally:
         await clear_graph(workspace.named_graph_iri)
+
+
+async def test_get_events_returns_410_when_cursor_predates_retention_window(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-008-05 edge case (QA-added, end-to-end gap): no existing test drove
+    the 410 path through the real `GET /api/events` route -- only the pure
+    `_is_cursor_aged_out` logic was unit-tested. Retention is tunable via
+    PLAT-SETTINGS-1 (`events.change_feed.retention_days`); setting it to 0
+    makes the just-written event immediately "expired" without needing to
+    backdate `ts` (which the append-only trigger blocks anyway, even for a
+    superuser -- see the grant test above). A 410 here, not a silent empty
+    page, is the whole point of AC-008-05.
+    """
+    tenant_id, workspace, headers = await _setup_member(client, label="events-retention")
+
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        assert response.status_code == 201
+
+        settings_response = await client.put(
+            "/api/settings/events.change_feed.retention_days",
+            json={"scope_iri": f"urn:weave:tenant:{tenant_id}:company", "value": 0},
+            headers=headers,
+        )
+        assert settings_response.status_code == 200
+
+        page = await client.get("/api/events?since_seq=0&limit=50", headers=headers)
+        assert page.status_code == 410
+    finally:
+        await clear_graph(workspace.named_graph_iri)
