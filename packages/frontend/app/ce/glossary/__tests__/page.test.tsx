@@ -195,4 +195,61 @@ describe("GlossaryPage -- create term", () => {
 
     await waitFor(() => expect(screen.getByText(/created urn:term:obligation/i)).toBeInTheDocument());
   });
+
+  // QA edge case (CE-013 silent-resolve bug class): a non-2xx, non-422
+  // response (e.g. a 500 from a downstream store outage) must never be
+  // read as success -- `createGlossaryTerm` only resolves `type: "ok"` on
+  // a literal 201, so this locks in that the create form shows an error
+  // and never fires `onCreated` (no "created ..." text, browse list never
+  // reloaded) on an unrecognised failure status.
+  it("does not silently resolve on a 500 -- shows an error, never fires onCreated (AC-002-04)", async () => {
+    stubFetch({ searchRows: [], applyResponse: () => jsonResponse(500, {}) });
+    render(<GlossaryPage />);
+    await screen.findByTestId("glossary-browse-list");
+    fireEvent.change(screen.getByLabelText(/search glossary/i), { target: { value: "obligation" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByTestId("glossary-empty-state");
+
+    fireEvent.change(screen.getByLabelText(/definition/i), { target: { value: "A binding duty." } });
+    fireEvent.click(screen.getByRole("button", { name: "Create term" }));
+
+    await expect(screen.findByText(/could not create the term/i)).resolves.toBeInTheDocument();
+    expect(screen.queryByText(/created urn:term/i)).not.toBeInTheDocument();
+  });
+
+  // QA edge case: a 422 naming violations on TWO different fields must
+  // anchor each message to its own field, not just the first/last one --
+  // guards `mapViolations`'s per-path assignment against a regression
+  // that collapses multi-field violations onto a single field.
+  it("maps a 422 with violations on two different fields to their own field errors (AC-002-04)", async () => {
+    stubFetch({
+      searchRows: [],
+      applyResponse: () =>
+        jsonResponse(422, {
+          violations: [
+            {
+              path: "http://www.w3.org/2004/02/skos/core#prefLabel",
+              message: "Duplicate language tag: en.",
+            },
+            {
+              path: "http://www.w3.org/2004/02/skos/core#definition",
+              message: "Definition must not be empty.",
+            },
+          ],
+        }),
+    });
+    render(<GlossaryPage />);
+    await screen.findByTestId("glossary-browse-list");
+    fireEvent.change(screen.getByLabelText(/search glossary/i), { target: { value: "obligation" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await screen.findByTestId("glossary-empty-state");
+
+    fireEvent.change(screen.getByLabelText(/definition/i), { target: { value: "A binding duty." } });
+    fireEvent.click(screen.getByRole("button", { name: "Create term" }));
+
+    await expect(screen.findByText(/duplicate language tag: en/i)).resolves.toBeInTheDocument();
+    expect(screen.getByText(/definition must not be empty/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/preferred label/i)).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText(/^definition/i)).toHaveAttribute("aria-invalid", "true");
+  });
 });
