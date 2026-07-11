@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T11:01:20+00:00
+Captured at: 2026-07-11T12:12:20+00:00
 Event: pre-compact
 
 ## Current State
@@ -262,12 +262,12 @@ Event: pre-compact
     {
       "id": "BE-V1-EPIC-005",
       "title": "Task Brief & Detail",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-003",
       "title": "Project Dashboard",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-007",
@@ -1414,7 +1414,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-005",
       "title": "Run-Log Sink + Task Detail 5-Tab Panel (FR-019/FR-020)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-010"
       ],
@@ -1451,7 +1451,7 @@ Event: pre-compact
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
       "title": "Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-012",
         "BE-V1-TASK-019"
