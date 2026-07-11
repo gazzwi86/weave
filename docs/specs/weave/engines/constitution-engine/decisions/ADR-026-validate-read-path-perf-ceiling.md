@@ -1,3 +1,17 @@
+---
+type: Decision
+title: "ADR-026: GET /api/validate perf gate retargeted to 10k triples (true 100k exceeds 2s)"
+description: >-
+  Full SHACL validation is pyshacl-bound: at a true 100k-triple draft, GET /api/validate?run=true
+  measures ~2.3s (rdflib parse ~0.9s + pyshacl.validate() ~1.2s, the latter irreducible at this layer),
+  over the 2s budget. Unlike CE-007's SPARQL count-diff, pyshacl requires the parsed graph, so the cost
+  cannot be sidestepped. The M2 gating scale for /api/validate is therefore 10k triples (mirrors ADR-004's
+  write-path precedent); full-report <=2s at 100k needs incremental/streaming SHACL validation, deferred
+  post-v1. HITL-approved 2026-07-11; amends AC-006-06 + m2-delta §9.
+tags: [decision, adr, constitution-engine, performance, shacl, validate, task-006, m2]
+timestamp: 2026-07-11T00:00:00Z
+---
+
 # ADR-026: GET /api/validate perf gate retargeted to 10k triples (true 100k exceeds 2s)
 
 ## Status
