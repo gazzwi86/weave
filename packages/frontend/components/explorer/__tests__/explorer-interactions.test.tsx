@@ -67,7 +67,8 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     allNodePositions: vi.fn(() => ({})),
     applyPositions: vi.fn(),
     mergeInPlace: vi.fn(),
-    isHidden: vi.fn(() => false),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),    isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler

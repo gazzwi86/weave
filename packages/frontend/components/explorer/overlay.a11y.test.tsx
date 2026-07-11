@@ -6,8 +6,14 @@ import type { OverlayLegendModel } from "@/lib/explorer/overlay-engine";
 import type { NodeKind } from "@/lib/explorer/types";
 
 import { CanvasLegend } from "./canvas-legend";
+import { CompletenessNotice } from "./completeness-notice";
 import { OverlayPanel } from "./overlay-panel";
+import { SidePanel } from "./side-panel";
 import type { OverlayToggle } from "./use-overlay-controls";
+
+// SidePanel mounts CommentsPanel, which fetches on mount -- stub it so
+// jsdom doesn't leak an unhandled rejection trying to fetch a relative URL.
+vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
 
 // ponytail: see components/ui/ui.a11y.test.tsx -- vitest-axe's matcher
 // augmentation doesn't type-check under vitest 4, so violations are
@@ -44,6 +50,33 @@ describe("overlay a11y", () => {
 
   it("OverlayPanel with a disabled sibling switch has no axe violations", async () => {
     const { container } = render(<OverlayPanel toggles={TOGGLES} onToggleOverlay={vi.fn()} />);
+    await expectNoAxeViolations(container);
+  });
+
+  // TASK-027 AC-7: the gap badge is never colour-only -- its glyph+count
+  // text equivalent lives in the panel's Missing links list, checked here.
+  it("CompletenessNotice error state has no axe violations", async () => {
+    const { container } = render(<CompletenessNotice notice={null} error={true} onRetry={vi.fn()} onDismiss={vi.fn()} />);
+    await expectNoAxeViolations(container);
+  });
+
+  it("SidePanel with missing links has no axe violations", async () => {
+    const { container } = render(
+      <SidePanel
+        state={{
+          status: "loaded",
+          label: "Customer Onboarding",
+          typeLabel: "Process",
+          keyProperties: [],
+          rawIri: null,
+          nodeId: "n1",
+          neighbours: [],
+          gaps: [{ missingLink: "https://weave.example/ontology/bpmo#performedBy", label: "performed by" }],
+        }}
+        onClose={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
     await expectNoAxeViolations(container);
   });
 });

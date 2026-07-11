@@ -45,6 +45,20 @@ async def close_ce_metrics_client() -> None:
         _client_loop = None
 
 
+async def fetch_body(
+    client: httpx.AsyncClient, *, headers: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """TASK-016 S1: the full CE-METRICS-1 payload, all five fields --
+    unlike ``fetch``, which projects to one bound field.
+    """
+    try:
+        response = await client.get("/api/metrics/ontology", headers=headers)
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise CeMetricsUnavailable("CE-METRICS-1 unreachable") from exc
+    return dict(response.json())
+
+
 async def fetch(
     client: httpx.AsyncClient, bindings: dict[str, Any], *, headers: dict[str, str] | None = None
 ) -> Any:

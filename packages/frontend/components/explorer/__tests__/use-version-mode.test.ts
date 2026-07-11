@@ -12,8 +12,8 @@ function fakeAdapter(): RendererAdapter {
     setViewport: vi.fn(),
     allNodePositions: vi.fn(() => ({})),
     applyPositions: vi.fn(),
-    mergeInPlace: vi.fn(),
-  } as unknown as RendererAdapter;
+    mergeInPlace: vi.fn(),    setBadges: vi.fn(),
+    clearBadges: vi.fn(),  } as unknown as RendererAdapter;
 }
 
 describe("useVersionMode", () => {

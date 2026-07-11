@@ -11,6 +11,8 @@ function fakeAdapter(): RendererAdapter {
     removeElements: vi.fn(),
     setDiffOverlay: vi.fn(),
     clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
   } as unknown as RendererAdapter;
 }
 

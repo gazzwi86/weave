@@ -28,8 +28,8 @@ describe("Nav", () => {
     expect(inactive).not.toHaveAttribute("aria-current");
   });
 
-  it("marks Audit trail active on the legacy /compliance route", () => {
-    pathname = "/compliance";
+  it("marks Audit trail active on /audit/compliance (AC-6 canonical route)", () => {
+    pathname = "/audit/compliance";
     render(<Nav />);
     expect(screen.getByRole("link", { name: "Audit trail" })).toHaveAttribute(
       "aria-current",
@@ -46,7 +46,7 @@ describe("SectionRail", () => {
     expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Instances \/ Data/ })).toHaveAttribute(
       "href",
-      "/ce"
+      "/ce/instances"
     );
     // Glossary shipped in TASK-002 -- now a real link, not an M2 placeholder.
     expect(screen.getByRole("link", { name: /Glossary/ })).toHaveAttribute(

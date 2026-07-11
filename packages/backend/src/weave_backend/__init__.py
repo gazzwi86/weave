@@ -45,6 +45,7 @@ from weave_backend.routers.layout import LayoutApiError, layout_api_error_handle
 from weave_backend.routers.layout import router as layout_router
 from weave_backend.routers.metrics import router as metrics_router
 from weave_backend.routers.notifications import router as notifications_router
+from weave_backend.routers.onboarding import router as onboarding_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
 from weave_backend.routers.project_bindings import router as project_bindings_router
@@ -116,6 +117,7 @@ app.include_router(layout_router)
 app.include_router(views_router)
 app.include_router(comments_router)
 app.include_router(notifications_router)
+app.include_router(onboarding_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(project_contributors_router)

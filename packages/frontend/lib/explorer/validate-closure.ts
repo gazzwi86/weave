@@ -1,10 +1,13 @@
 import type { ClosurePredicateEntry } from "./closure-config";
 
-/** Narrow shape drawn from the backend's `PropertyShapeModel` (relationships
- * entry of `GET /api/ontology/types`, CE-READ-1) -- only `path` (the full
- * predicate IRI) matters for drift checking. */
+/** Shape drawn from the backend's `PropertyShapeModel` (relationships entry
+ * of `GET /api/ontology/types`, CE-READ-1) -- `path` (the full predicate
+ * IRI) drives drift checking; `name` (TASK-027) is the sh:name-derived
+ * human label, consumed by humanise-rel-name.ts for the completeness
+ * overlay's missing-link list (never a raw predicate IRI, AC-4). */
 export interface OntologyRelationshipEntry {
   path: string;
+  name?: string;
 }
 
 export interface ClosureValidationResult {

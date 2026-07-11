@@ -67,12 +67,38 @@ export interface SparqlEditorState {
   setVersion: (version: string) => void;
   running: boolean;
   result: QueryResult | null;
+  /** CE-V1-TASK-032 AC-6: the exact executed query text, kept alongside
+   * `result` so "View SPARQL" is available identically for hand-typed runs
+   * (which carry no NL grounding, unlike the ask lifecycle's result). */
+  executedSparql: string | null;
   errorCode: string | null;
   runQuery: () => Promise<void>;
   runPattern: (pattern: string) => Promise<void>;
   explanation: string | null;
   explaining: boolean;
   explainQuery: () => Promise<void>;
+}
+
+interface ExecuteCallbacks {
+  onResult: (result: QueryResult, sparqlText: string | null) => void;
+  onError: (code: string) => void;
+}
+
+/** The fetch + response-shape body of `execute()` -- a free function (not a
+ * hook) so `useSparqlEditor` stays under the per-function line budget
+ * (Law E). */
+async function runSparqlRequest(params: URLSearchParams, sparqlText: string | null, { onResult, onError }: ExecuteCallbacks): Promise<void> {
+  try {
+    const res = await fetch(`/api/sparql?${params.toString()}`);
+    if (!res.ok) {
+      const body = (await res.json()) as { error: string };
+      onError(body.error);
+      return;
+    }
+    onResult(toQueryResult((await res.json()) as SparqlApiResponse), sparqlText);
+  } catch {
+    onError("upstream_unavailable");
+  }
 }
 
 /** CE-TASK-007 AC-007-09/-10/-11/-12/-13/-14: drives the editor's "Run"
@@ -86,34 +112,32 @@ export function useSparqlEditor(): SparqlEditorState {
   const [version, setVersion] = useState("latest");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
+  const [executedSparql, setExecutedSparql] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const { explanation, explaining, explainQuery: explainSparql } = useExplainQuery();
 
-  const execute = useCallback(async (params: URLSearchParams) => {
+  const execute = useCallback(async (params: URLSearchParams, sparqlText: string | null) => {
     setRunning(true);
     setErrorCode(null);
-    try {
-      const res = await fetch(`/api/sparql?${params.toString()}`);
-      if (!res.ok) {
-        const body = (await res.json()) as { error: string };
-        setErrorCode(body.error);
+    await runSparqlRequest(params, sparqlText, {
+      onResult: (queryResult, executed) => {
+        setResult(queryResult);
+        setExecutedSparql(executed);
+      },
+      onError: (code) => {
+        setErrorCode(code);
         setResult(null);
-        return;
-      }
-      setResult(toQueryResult((await res.json()) as SparqlApiResponse));
-    } catch {
-      setErrorCode("upstream_unavailable");
-    } finally {
-      setRunning(false);
-    }
+      },
+    });
+    setRunning(false);
   }, []);
 
   const runQuery = useCallback(
-    () => execute(new URLSearchParams({ query: queryText, version })),
+    () => execute(new URLSearchParams({ query: queryText, version }), queryText),
     [execute, queryText, version]
   );
   const runPattern = useCallback(
-    (pattern: string) => execute(new URLSearchParams({ pattern, version })),
+    (pattern: string) => execute(new URLSearchParams({ pattern, version }), null),
     [execute, version]
   );
 
@@ -126,6 +150,7 @@ export function useSparqlEditor(): SparqlEditorState {
     setVersion,
     running,
     result,
+    executedSparql,
     errorCode,
     runQuery,
     runPattern,

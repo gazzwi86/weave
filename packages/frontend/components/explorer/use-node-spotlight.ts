@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import { fetchNodeProps as defaultFetchNodeProps, type FetchNodePropsResult, type KeyProperty, type NeighbourProps } from "@/lib/explorer/fetch-node-props";
+import type { GapEntry } from "@/lib/explorer/overlays/completeness-overlay";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 
 export type SidePanelState =
@@ -20,6 +21,11 @@ export type SidePanelState =
        * CE-READ-1 call (see renderer-adapter.ts's expandNode). */
       nodeId: string;
       neighbours: NeighbourProps[];
+      /** TASK-027 AC-4: the completeness overlay's missing-link list for
+       * this node, if any -- always present (empty when there's no active
+       * gapIndex entry), never a raw predicate IRI (humanised upstream by
+       * completeness-overlay.ts). */
+      gaps?: GapEntry[];
     }
   | { status: "error"; label: string; typeLabel: string }
   | { status: "not-found" };
@@ -29,6 +35,9 @@ export interface UseNodeSpotlightOptions {
   config: ExplorerConfig;
   /** Test seam -- defaults to the real CE-READ-1 proxy fetch. */
   fetchNodeProps?: (iri: string, timeoutMs: number) => Promise<FetchNodePropsResult>;
+  /** TASK-027: the active completeness overlay's gap index, keyed by
+   * entity_iri -- undefined/absent-key both resolve to an empty gaps list. */
+  gapIndex?: Record<string, GapEntry[]>;
 }
 
 export interface UseNodeSpotlightResult {
@@ -48,7 +57,8 @@ async function loadNodeProps(
   fetchNodeProps: (iri: string, timeoutMs: number) => Promise<FetchNodePropsResult>,
   nodeId: string,
   timeoutMs: number,
-  fallback: { label: string; typeLabel: string }
+  fallback: { label: string; typeLabel: string },
+  gaps: GapEntry[]
 ): Promise<SidePanelState> {
   const result = await fetchNodeProps(nodeId, timeoutMs);
   if (result.type === "error") return panelStateForError(result.status, fallback.label, fallback.typeLabel);
@@ -60,6 +70,7 @@ async function loadNodeProps(
     rawIri: result.data.rawIri,
     nodeId,
     neighbours: result.data.neighbours,
+    gaps,
   };
 }
 
@@ -69,6 +80,7 @@ export function useNodeSpotlight({
   adapter,
   config,
   fetchNodeProps = defaultFetchNodeProps,
+  gapIndex,
 }: UseNodeSpotlightOptions): UseNodeSpotlightResult {
   const [panel, setPanel] = useState<SidePanelState>({ status: "closed" });
   const requestIdRef = useRef(0);
@@ -85,11 +97,11 @@ export function useNodeSpotlight({
       const requestId = ++requestIdRef.current;
       setPanel({ status: "loading", label, typeLabel });
 
-      loadNodeProps(fetchNodeProps, nodeId, config.ceTimeoutMs, { label, typeLabel }).then((next) => {
+      loadNodeProps(fetchNodeProps, nodeId, config.ceTimeoutMs, { label, typeLabel }, gapIndex?.[nodeId] ?? []).then((next) => {
         if (requestId === requestIdRef.current) setPanel(next); // else a newer click superseded this one
       });
     },
-    [adapter, config.spotlightDimOpacity, config.ceTimeoutMs, fetchNodeProps]
+    [adapter, config.spotlightDimOpacity, config.ceTimeoutMs, fetchNodeProps, gapIndex]
   );
 
   const close = useCallback(() => {

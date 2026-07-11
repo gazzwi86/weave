@@ -107,4 +107,38 @@ describe("AuditLogsPage", () => {
     expect(screen.getByTestId(VERIFY_BADGE)).toHaveTextContent("valid");
     expect(screen.getByTestId(VERIFY_BADGE)).toHaveTextContent("42 entries checked");
   });
+
+  // AC-4: test_logs_table_shows_relative_time_and_entity_ref_not_raw
+  it("test_logs_table_shows_relative_time_and_entity_ref_not_raw", async () => {
+    stubAuditFetch();
+
+    render(<AuditLogsPage />);
+    await waitFor(() => expect(screen.getByTestId(ROW)).toBeInTheDocument());
+
+    // Raw ISO timestamp is never primary text -- it's the <time> hover title.
+    expect(screen.queryByText(ENTRY.ts)).not.toBeInTheDocument();
+    const timeEl = screen.getByTestId(ROW).querySelector("time");
+    expect(timeEl).toHaveAttribute("title", ENTRY.ts);
+
+    // Raw actor URN is never bare text -- it's EntityRef's secondary mono id.
+    expect(screen.getByText(ENTRY.actor_principal_iri)).toHaveClass("font-[var(--font-mono)]");
+
+    // Seq column uses tabular-nums.
+    expect(screen.getByText("7")).toHaveClass("tabular-nums");
+  });
+
+  // AC-5: test_logs_filter_bar_exposes_all_seven_query_dimensions
+  it("test_logs_filter_bar_exposes_all_seven_query_dimensions", async () => {
+    stubAuditFetch();
+
+    render(<AuditLogsPage />);
+    await waitFor(() => expect(screen.getByLabelText("Engine")).toBeInTheDocument());
+
+    expect(screen.getByLabelText("Event type")).toBeInTheDocument();
+    expect(screen.getByLabelText("Actor")).toBeInTheDocument();
+    expect(screen.getByLabelText("Target")).toBeInTheDocument();
+    expect(screen.getByLabelText("From")).toBeInTheDocument();
+    expect(screen.getByLabelText("To")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search")).toBeInTheDocument();
+  });
 });

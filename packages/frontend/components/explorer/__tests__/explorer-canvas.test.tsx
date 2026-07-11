@@ -75,7 +75,8 @@ describe("ExplorerCanvas", () => {
     allNodePositions: vi.fn(() => ({})),
     applyPositions: vi.fn(),
     mergeInPlace: vi.fn(),
-        isHidden: vi.fn(() => false),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),        isHidden: vi.fn(() => false),
         onElementRemoved: vi.fn(() => vi.fn()),
       },
     });

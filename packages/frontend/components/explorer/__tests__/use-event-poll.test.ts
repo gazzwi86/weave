@@ -48,6 +48,8 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
     ...overrides,
   };
 }

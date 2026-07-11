@@ -8,21 +8,68 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.notifications import store
+from weave_backend.notifications.defaults import NOTIFICATION_TYPES, default_in_app_types
 from weave_backend.notifications.store import NotificationQuery
+from weave_backend.rbac import resolve_workspace_role
 from weave_backend.schemas.notifications import (
     MarkReadResponse,
     NotificationListResponse,
     NotificationOut,
+    PreferencesResponse,
     PreferencesUpdateRequest,
     PreferencesUpdateResponse,
+    PreferenceTypeOut,
 )
+from weave_backend.tenancy.sessions import get_active_workspace
 
 router = APIRouter(prefix="/api", tags=["notifications"])
+
+
+async def _resolve_principal_role(conn: asyncpg.Connection, principal: Principal) -> str | None:
+    """TASK-030 AC-4: the caller's role in their active workspace, or `None`
+    before their first `/switch` (no workspace to resolve a role in yet) --
+    `default_in_app_types(None)` falls back to the baseline in that case.
+    """
+    workspace_id = await get_active_workspace(principal.tenant_id, principal.sub)
+    if workspace_id is None:
+        return None
+    return await resolve_workspace_role(
+        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id, user_sub=principal.sub
+    )
+
+
+@router.get("/notifications/preferences", response_model=PreferencesResponse)
+async def get_preferences_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> PreferencesResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        role = await _resolve_principal_role(conn, principal)
+        defaults = default_in_app_types(role)
+        types = []
+        for spec in NOTIFICATION_TYPES:
+            stored = await store.get_stored_channels(
+                conn,
+                tenant_id=principal.tenant_id,
+                recipient_iri=principal.principal_iri,
+                event_type=spec.event_type,
+            )
+            in_app_enabled = (
+                "in_app" in stored if stored is not None else spec.event_type in defaults
+            )
+            types.append(
+                PreferenceTypeOut(
+                    event_type=spec.event_type,
+                    group=spec.group,
+                    in_app_enabled=in_app_enabled,
+                )
+            )
+    return PreferencesResponse(types=types)
 
 
 @router.get("/notifications", response_model=NotificationListResponse)
