@@ -29,6 +29,11 @@
   --color-accent-hover: #67e8f9;
   --color-accent-soft: rgba(34, 211, 238, 0.12);
 
+  /* brand gradient (color.md "Brand spectrum + gradient") -- theme-invariant,
+     same stops in dark and light: the palette signature accent (components.md
+     "Command palette" brand moment), never a hardcoded literal in components. */
+  --gradient-accent: linear-gradient(120deg, #22d3ee, #a78bfa);
+
   /* color: semantic status (dark) */
   --color-success: #10b981;
   --color-warn: #f59e0b;

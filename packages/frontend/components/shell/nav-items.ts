@@ -42,7 +42,17 @@ export interface PrimaryNavItem {
 }
 
 export const PRIMARY_NAV: PrimaryNavItem[] = [
-  { label: "Home", href: "/dashboard", prefixes: ["/dashboard"], groups: [] },
+  {
+    label: "Home",
+    href: "/dashboard",
+    prefixes: ["/dashboard", "/notifications"],
+    groups: [
+      {
+        heading: "Home",
+        items: [{ label: "Notifications", href: "/notifications", tag: "built" }],
+      },
+    ],
+  },
   {
     label: "Constitution",
     href: "/ce",
