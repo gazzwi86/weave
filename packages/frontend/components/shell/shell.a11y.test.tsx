@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
-import { DashboardPlaceholder } from "../dashboard/dashboard-placeholder";
+import { WidgetTile } from "../dashboard/widget-tile";
 import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
 
@@ -30,8 +30,28 @@ describe("shell a11y", () => {
     await expectNoAxeViolations(container);
   });
 
-  it("DashboardPlaceholder has no axe violations", async () => {
-    const { container } = render(<DashboardPlaceholder />);
+  it("WidgetTile has no axe violations", async () => {
+    const { container } = render(
+      <WidgetTile
+        widget={{
+          id: "w-1",
+          scope: "tenant_default",
+          spec: {
+            component_type: "kpi_card",
+            title: "Entities in model",
+            data_source_contracts: ["CE-METRICS-1"],
+            bindings: { field: "entity_count_by_kind", aggregate: "sum" },
+            column_span: 3,
+          },
+          position: 0,
+          last_result: 42,
+          fetched_at: "2026-07-10T12:00:00Z",
+          status: "fresh",
+          pending_fields: [],
+          suggested: false,
+        }}
+      />
+    );
     await expectNoAxeViolations(container);
   });
 });

@@ -16,6 +16,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import diff, versioning
 from weave_backend.rbac import enforce_workspace_role
+from weave_backend.rdf import agent_grounding
 from weave_backend.rdf.oxigraph_client import run_query
 from weave_backend.rdf.patterns import NAMED_PATTERNS, ZERO_ROW_MESSAGES
 from weave_backend.rdf.query_rewriter import (
@@ -165,15 +166,123 @@ def _resolve_pattern_query(pattern: str) -> str:
         raise HTTPException(status_code=400, detail={"error": "unknown_pattern"}) from exc
 
 
+#: TASK-010: pattern names whose SELECT text is built per-request from query
+#: params, not a static entry in `NAMED_PATTERNS` -- `authority`/
+#: `escalation`/`coverage_gap` (FR-036/FR-037, ADR-013 M2 descope).
+_AGENT_GROUNDING_PATTERNS = frozenset({"authority", "escalation", "coverage_gap"})
+
+
+@dataclass(frozen=True)
+class PatternGroundingParams:
+    """The optional query params `authority`/`escalation`/`coverage_gap`
+    each read a subset of (Law E's 5-param cap otherwise falls to 6 loose
+    `Query()` args on one dependency function).
+    """
+
+    actor: str | None = None
+    action: str | None = None
+    target: str | None = None
+    process: str | None = None
+    kind: str | None = None
+    required_links: str | None = None
+
+
+def _authority_query_or_400(grounding: PatternGroundingParams) -> str:
+    if not (grounding.actor and grounding.action and grounding.target):
+        raise HTTPException(status_code=400, detail={"error": "missing_authority_params"})
+    try:
+        return agent_grounding.authority_query(grounding.actor, grounding.action, grounding.target)
+    except agent_grounding.InvalidActionError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_action"}) from exc
+    except agent_grounding.InvalidIriError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_iri"}) from exc
+
+
+def _escalation_query_or_400(grounding: PatternGroundingParams) -> str:
+    if not grounding.process:
+        raise HTTPException(status_code=400, detail={"error": "missing_escalation_params"})
+    try:
+        return agent_grounding.escalation_query(grounding.process)
+    except agent_grounding.InvalidIriError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_iri"}) from exc
+
+
+def _coverage_gap_query_or_400(grounding: PatternGroundingParams) -> str:
+    # AC-010-04: default invocation `(Process, [performedBy, governedBy])`.
+    kind = grounding.kind or "Process"
+    links = (grounding.required_links or "performedBy,governedBy").split(",")
+    try:
+        return agent_grounding.coverage_gap_query(kind, links)
+    except agent_grounding.InvalidLinkNameError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_link_name"}) from exc
+
+
+_AGENT_GROUNDING_BUILDERS: dict[str, Any] = {
+    "authority": _authority_query_or_400,
+    "escalation": _escalation_query_or_400,
+    "coverage_gap": _coverage_gap_query_or_400,
+}
+
+
+async def _agent_grounding_response(
+    principal: Principal,
+    *,
+    pattern: str,
+    workspace_id: str | None,
+    version: str,
+    grounding: PatternGroundingParams,
+) -> dict[str, Any]:
+    """FR-036/FR-037: same B3 sanitizer + version-pinned graph resolution as
+    every other pattern (AC-010-06), but `decision` is synthesized in
+    Python from the rows (`agent_grounding.synthesize_decision`), never
+    read off SPARQL row presence -- and a `"deny"` result is passed through
+    the PLAT-SETTINGS-1 tunable (AC-010-02/-03) before it goes out.
+    """
+    query_text = _AGENT_GROUNDING_BUILDERS[pattern](grounding)
+    validate_query(query_text)
+    resolved_workspace_id = workspace_id or await get_active_workspace(
+        principal.tenant_id, principal.sub
+    )
+    if resolved_workspace_id is None:
+        raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
+    graph_iri = await _resolve_query_graph(principal, workspace_id=workspace_id, version=version)
+    results = await run_query(query_text, graph_iri)
+    column_names = results.get("head", {}).get("vars", [])
+    rows = bindings_to_rows(results.get("results", {}).get("bindings", []), column_names)
+    decision = agent_grounding.synthesize_decision(rows)
+    if decision == "deny":
+        async with tenant_connection(principal.tenant_id) as conn:
+            decision = await agent_grounding.resolve_deny_default(
+                conn, tenant_id=principal.tenant_id, workspace_id=resolved_workspace_id
+            )
+    return {"rows": rows, "column_names": column_names, "decision": decision}
+
+
 async def _pattern_response(
-    principal: Principal, *, pattern: str, workspace_id: str | None, version: str
+    principal: Principal,
+    *,
+    pattern: str,
+    workspace_id: str | None,
+    version: str,
+    grounding: PatternGroundingParams | None = None,
 ) -> dict[str, Any]:
     """AC-007-10/-12/-13: stored patterns still pass through
     `validate_query` (the one choke point, ADR-005 #2) and the same
     version-pinned graph resolution as `query=` -- only the response shape
     differs (`{rows, column_names, message?}, ADR-005 #3), matching what
-    the NL query endpoint (`routers/query.py`) also returns.
+    the NL query endpoint (`routers/query.py`) also returns. TASK-010's
+    `authority`/`escalation`/`coverage_gap` are parameterised, so they
+    branch to `_agent_grounding_response` instead (`{rows, column_names,
+    decision}` -- CE-READ-1's authority response convention, no `message`).
     """
+    if pattern in _AGENT_GROUNDING_PATTERNS:
+        return await _agent_grounding_response(
+            principal,
+            pattern=pattern,
+            workspace_id=workspace_id,
+            version=version,
+            grounding=grounding or PatternGroundingParams(),
+        )
     query_text = _resolve_pattern_query(pattern)
     validate_query(query_text)
     graph_iri = await _resolve_query_graph(principal, workspace_id=workspace_id, version=version)
@@ -249,21 +358,68 @@ def _sparql_query_params(
     )
 
 
+def _authority_grounding_params(
+    actor: str | None = Query(default=None),
+    action: str | None = Query(default=None),
+    target: str | None = Query(default=None),
+) -> tuple[str | None, str | None, str | None]:
+    return actor, action, target
+
+
+def _other_grounding_params(
+    process: str | None = Query(default=None),
+    kind: str | None = Query(default=None),
+    required_links: str | None = Query(default=None),
+) -> tuple[str | None, str | None, str | None]:
+    return process, kind, required_links
+
+
+def _pattern_grounding_params(
+    authority: Annotated[
+        tuple[str | None, str | None, str | None], Depends(_authority_grounding_params)
+    ],
+    rest: Annotated[tuple[str | None, str | None, str | None], Depends(_other_grounding_params)],
+) -> PatternGroundingParams:
+    """TASK-010: `authority`/`escalation`/`coverage_gap` query params,
+    split across two small `Depends()` (Law E's 5-param cap -- 6 loose
+    `Query()` args on one function would exceed it).
+    """
+    actor, action, target = authority
+    process, kind, required_links = rest
+    return PatternGroundingParams(
+        actor=actor,
+        action=action,
+        target=target,
+        process=process,
+        kind=kind,
+        required_links=required_links,
+    )
+
+
 @router.get("/sparql")
 async def sparql_select_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
     response: Response,
     params: Annotated[SparqlQueryParams, Depends(_sparql_query_params)],
     pattern: Annotated[str | None, Query()] = None,
+    grounding: Annotated[
+        PatternGroundingParams | None, Depends(_pattern_grounding_params)
+    ] = None,
 ) -> dict[str, Any]:
     """CE-READ-1: AC-003-04 (paginated SELECT-only reads), AC-003-09 (404 on
     an unknown version), AC-003-10 (`Link: rel="next"` past 1000 rows),
     AC-003-15 (`since_version` polling fallback returns a diff instead),
-    AC-007-12 (`pattern=` runs a named stored query instead of `query=`).
+    AC-007-12 (`pattern=` runs a named stored query instead of `query=`),
+    TASK-010 (`pattern=authority|escalation|coverage_gap` runs a
+    parameterised agent-grounding pattern instead of a static one).
     """
     if pattern is not None:
         return await _pattern_response(
-            principal, pattern=pattern, workspace_id=params.workspace_id, version=params.version
+            principal,
+            pattern=pattern,
+            workspace_id=params.workspace_id,
+            version=params.version,
+            grounding=grounding,
         )
 
     if params.since_version is not None:
