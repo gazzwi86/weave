@@ -1,20 +1,15 @@
 import { useEffect, useRef } from "react";
 
 import type { ExplorerConfig } from "@/lib/explorer/config";
-import type { FilterVisibilityResult } from "@/lib/explorer/compute-filter-visibility";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
 import type { NodeKind } from "@/lib/explorer/types";
 
 import { Button } from "../ui/button";
 import { Toast } from "../ui/toast";
-import { CanvasLegend } from "./canvas-legend";
-import { CanvasToolbar } from "./canvas-toolbar";
+import { CanvasFilterChrome } from "./canvas-filter-chrome";
 import { ConfirmDialog } from "./confirm-dialog";
 import { DomainFocusNotice } from "./domain-focus-notice";
-import { EmptyState } from "./empty-state";
-import { FilterPanel } from "./filter-panel";
 import { NodeContextMenu } from "./node-context-menu";
-import { OverlayPanel } from "./overlay-panel";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
@@ -27,6 +22,7 @@ import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotl
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
 import { useSearchOverlay } from "./use-search-overlay";
+import { useVersionsPanel } from "./use-versions-panel";
 
 export interface ExplorerInteractionsProps {
   adapter: RendererAdapter;
@@ -101,78 +97,9 @@ function useContextMenuActions(
   };
 }
 
-// AC-2/AC-5: reuses the M1 CE-error EmptyState with a different message,
-// its Retry button repurposed as the fix action (restore every type /
-// clear the property filters) instead of a network retry.
-function FilterEmptyState({
-  visibility,
-  onClearTypes,
-  onClearPropertyFilters,
-}: {
-  visibility: FilterVisibilityResult | null;
-  onClearTypes: () => void;
-  onClearPropertyFilters: () => void;
-}) {
-  if (visibility?.isEmpty) {
-    return <EmptyState message="All entity types are hidden -- turn one back on to see the graph." onRetry={onClearTypes} />;
-  }
-  if (visibility?.filterMatchEmpty) {
-    return <EmptyState message="No loaded nodes match the current property filters." onRetry={onClearPropertyFilters} />;
-  }
-  return null;
-}
-
-// TASK-020: the shared corner-docked chrome (D-1..D-6) -- search trigger
-// moved into the toolbar (D-3), legend + filters panel mounted alongside
-// it. Extracted so ExplorerInteractions itself stays under Law E's line
-// budget.
-function CanvasFilterChrome({
-  onOpenSearch,
-  filterPanel,
-  legend,
-  overlayControls,
-}: {
-  onOpenSearch: () => void;
-  filterPanel: ReturnType<typeof useFilterPanel>;
-  legend: ReturnType<typeof useCanvasLegend>;
-  overlayControls: ReturnType<typeof useOverlayControls>;
-}) {
-  return (
-    <>
-      <FilterEmptyState
-        visibility={filterPanel.visibility}
-        onClearTypes={filterPanel.clearEntityTypesOff}
-        onClearPropertyFilters={() => filterPanel.setPropertyFilters([])}
-      />
-      <CanvasToolbar>
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          aria-label="Search nodes"
-          data-testid="explorer-search-button"
-          className="rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-        >
-          Search…
-        </button>
-      </CanvasToolbar>
-      <CanvasLegend palette={legend.palette} loading={legend.loading} overlay={overlayControls.legend} />
-      <FilterPanel
-        entityTypes={filterPanel.entityTypes}
-        relTypes={filterPanel.relTypes}
-        filterState={filterPanel.filterState}
-        layerStatus={filterPanel.layerStatus}
-        onToggleEntityType={filterPanel.toggleEntityType}
-        onToggleRelType={filterPanel.toggleRelType}
-        onSetPropertyFilters={filterPanel.setPropertyFilters}
-        onToggleLayer={filterPanel.toggleLayer}
-      />
-      <OverlayPanel toggles={overlayControls.toggles} onToggleOverlay={overlayControls.toggleOverlay} />
-    </>
-  );
-}
 
 interface NodeInteractionOverlaysProps {
-  resetLayout: () => void;
+  resetLayout: (() => void) | undefined;
   panel: ReturnType<typeof useNodeSpotlight>["panel"];
   onClosePanel: () => void;
   onRetryPanel: () => void;
@@ -230,13 +157,15 @@ function NodeInteractionOverlays({
 }: NodeInteractionOverlaysProps) {
   return (
     <>
-      <Button
-        variant="secondary"
-        onClick={resetLayout}
-        className="absolute right-[var(--space-4)] top-[var(--space-4)] z-[var(--z-panel)]"
-      >
-        Reset layout
-      </Button>
+      {resetLayout && (
+        <Button
+          variant="secondary"
+          onClick={resetLayout}
+          className="absolute right-[var(--space-4)] top-[var(--space-4)] z-[var(--z-panel)]"
+        >
+          Reset layout
+        </Button>
+      )}
       <SidePanel state={panel} onClose={onClosePanel} onRetry={onRetryPanel} />
       <SearchOverlay
         open={search.open}
@@ -286,13 +215,23 @@ export function ExplorerInteractions({
   const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
   const legend = useCanvasLegend(fetchPalette);
   const overlayControls = useOverlayControls({ adapter, config });
+  const versionsPanel = useVersionsPanel({ adapter, engine: overlayControls.engine });
   usePinnedImpact({ adapter });
 
   return (
     <>
-      <CanvasFilterChrome onOpenSearch={search.openOverlay} filterPanel={filterPanel} legend={legend} overlayControls={overlayControls} />
+      <CanvasFilterChrome
+        onOpenSearch={search.openOverlay}
+        filterPanel={filterPanel}
+        legend={legend}
+        overlayControls={overlayControls}
+        versionsPanel={versionsPanel}
+      />
       <NodeInteractionOverlays
-        resetLayout={resetLayout}
+        // TASK-022 AC-2: a published version is read-only -- no edit
+        // affordances, so the drag-persisted "Reset layout" action is
+        // hidden while pinned to one.
+        resetLayout={versionsPanel.readOnly ? undefined : resetLayout}
         panel={panel}
         onClosePanel={close}
         onRetryPanel={retry}

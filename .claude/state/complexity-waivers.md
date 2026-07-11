@@ -62,3 +62,16 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   `project_iri`, a fresh `run_id`, and the resolved `turn_cap`) — grouping them into a
   dataclass would add an unrequested wrapper layer for a single call site
   (`routers/runs.py`, `routers/prompts.py`). Left as a waiver rather than restructuring.
+
+## TASK-022 (Versions Panel + Diff) -- two functions over the 50-line function budget
+
+- `ExplorerInteractions` (`packages/frontend/components/explorer/explorer-interactions.tsx`,
+  57 lines) -- already at the file's structural ceiling before TASK-022; wiring `useVersionsPanel`
+  in added 2 lines. Splitting further would require another file-level extraction for a single
+  hook call + JSX composition already delegated to `CanvasFilterChrome`/`NodeInteractionOverlays`.
+  Left as a waiver rather than adding a wrapper component with one call site.
+- `useDiffCompare` (`packages/frontend/components/explorer/use-versions-panel.ts`, 59 lines) --
+  already split out of `useVersionsPanel` (which was 97 lines) to isolate the two-version compare
+  state machine (AC-3/AC-4/AC-6/AC-7: select/clear/run-compare/export, each with its own error
+  path). A further split (e.g. compare-selection vs. export) would separate state that's read
+  together by every caller. Left as a waiver.
