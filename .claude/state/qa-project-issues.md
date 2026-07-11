@@ -389,3 +389,12 @@ runs without LocalStack (or mark it docker). BE-021 test bug, on feature/BE-V1-E
 
 ## XT-BE021-TESTSEAM RESOLVED (2026-07-11, commit 9ce2ebd8)
 Root: _synthesise_prompt_briefs -> run_dor_gate -> audit emit -> get_signing_key (real secretsmanager boto to LocalStack:4566). Patched get_signing_key in 2 unit tests (test_synthesise_typed_brief + test_hold_prompt_run). Sibling-proofed the WHOLE unit suite hermetic via a POISONED endpoint (LOCALSTACK_ENDPOINT_URL=http://127.0.0.1:1) — all boto clients honour that env var; full pytest -m "not docker and not e2e" green against it. Pushed to feature/BE-V1-EPIC-003 -> #64 re-CI. **Lesson: unit tests that trigger the audit/gate path make a real secretsmanager call; mock get_signing_key. Poisoned-endpoint env var is the hermeticity proof.**
+
+## PROJ-014 — unit tests hitting the network pass in docker-up envs but red in CI api job (2026-07-11)
+RECURRING: a test marked UNIT (not docker/e2e) makes a real network call (oxigraph httpx, LocalStack/secretsmanager boto,
+audit get_signing_key). It PASSES in QA's docker env or any local run left with WEAVE_KEEP_STACK=1 docker up, but the CI api
+job runs pytest -m "not docker and not e2e" with NO services then ConnectError then api + mutation red. Hit: XT-BE021-TESTSEAM
+(get_signing_key boto, #64), test_governance_shapes::test_commit_tenant_shape (oxigraph httpx, #65). Mitigation (standing
+policy): every reconcile-verify + QA MUST run pytest -m "not docker and not e2e" with endpoints POISONED
+(LOCALSTACK_ENDPOINT_URL/OXIGRAPH_URL=http://127.0.0.1:1) or docker fully DOWN, never trust a run with a live stack. Unit tests
+needing a service must mock the client or be marked docker. Phase-gate: audit tests/unit for unmocked network seams.
