@@ -39,6 +39,18 @@ tsc 0 · eslint 0 · ruff 0 · mypy 0 (src/+scripts/) · bandit 0 · frontend un
   — cosmetic doc follow-up.
 - **PROJ-010** logged (ce_version_unavailable 503 blocks ALL project creation → blocks project-settings.spec + board.spec).
 
-## Epic status — EPIC-004 = BE-017 sole task → CLOSES on QA-pass
-No migration → auto-merge eligible IF QA passes + E2E-met-by-inference accepted (both PROJ-009 + PROJ-010 are pre-existing
-shared infra). Restack onto green main at close.
+## QA PASS-with-WARN (2026-07-11, afb41c9, retry 0) — BE-V1-TASK-017 CLOSES → EPIC-004 COMPLETE
+Adversarial QA, 6/6 ACs each re-run. AC-5 fix CONFIRMED real (page.tsx `filterIsInvalid` forces visibleCards=[] — double-
+enforced, not silent full-board fallback). Tenant isolation re-verified on docker (cross-tenant JWT → 404 not empty board,
+RLS real round-trip), stack torn down. Mount chain grep-proven. E2E-met-by-inference ACCEPTED (PROJ-010 pre-existing: diff
+d39653b~1..e070575 zero overlap with ce_version_client/projects; project-settings.spec.ts untouched reproduces same 503).
+ruff 0, mypy 0/496, tsc 0, eslint 0-err, vitest 8/8, integration 3/3. Edge test `cc1d256` (empty-string ?filter= → isValid
+false; URLSearchParams.get returns "" not null — real gap). retry=0.
+**WARN (non-blocking, → phase-gate):** Lighthouse/axe/**ui_verify.sh NOT run** (page-affecting, 2 routes + nav). Advisor note:
+board route keys off state_spines (no projects-row join) → **plausibly servable WITHOUT hitting PROJ-010** → these UI gates
+may be runnable independent of the infra block; run before phase-close, don't wave through. ADR-023 decision-#5 wording drift
+(says hold_reason/Blocked, code checks hitl_escalated) — cosmetic doc follow-up.
+
+## Epic status — EPIC-004 = BE-017 sole task → CLOSES
+No migration → auto-merge eligible (E2E-met-by-inference accepted). Restack onto green main → PR → review + CI → auto-merge.
+UI-gate (ui_verify/Lighthouse/axe) deferred to phase-gate sweep (shared UI-gate debt w/ BE-019/020).
