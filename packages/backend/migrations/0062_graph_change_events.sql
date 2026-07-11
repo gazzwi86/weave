@@ -35,6 +35,12 @@ CREATE POLICY tenant_isolation ON graph_change_events
 -- never UPDATE or DELETE by grant alone; the trigger is the real
 -- enforcement since it also binds roles GRANT/REVOKE can't constrain.
 GRANT SELECT, INSERT ON graph_change_events TO weave_app;
+-- BIGSERIAL's implicit sequence isn't covered by the table GRANT above --
+-- weave_app needs USAGE to nextval() it on INSERT (audit_entries/
+-- graph_versions use gen_random_uuid() PKs instead, so this grant has no
+-- precedent to copy; it's the standard pairing for a SERIAL PK owned by a
+-- different role than the inserting role).
+GRANT USAGE, SELECT ON SEQUENCE graph_change_events_seq_seq TO weave_app;
 
 CREATE OR REPLACE FUNCTION graph_change_events_append_only() RETURNS TRIGGER AS $$
 BEGIN
