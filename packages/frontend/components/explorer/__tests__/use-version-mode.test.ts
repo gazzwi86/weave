@@ -9,6 +9,8 @@ function fakeAdapter(): RendererAdapter {
     load: vi.fn(),
     setLayout: vi.fn(),
     clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
   } as unknown as RendererAdapter;
 }
 

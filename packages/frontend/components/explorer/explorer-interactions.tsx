@@ -1,18 +1,22 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ExplorerConfig } from "@/lib/explorer/config";
+import { fetchOntologyTypes } from "@/lib/explorer/fetch-ontology-types";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
 import type { NodeKind } from "@/lib/explorer/types";
+import type { OntologyRelationshipEntry } from "@/lib/explorer/validate-closure";
 
 import { Button } from "../ui/button";
 import { Toast } from "../ui/toast";
 import { CanvasFilterChrome } from "./canvas-filter-chrome";
+import { CompletenessNotice } from "./completeness-notice";
 import { ConfirmDialog } from "./confirm-dialog";
 import { DomainFocusNotice } from "./domain-focus-notice";
 import { NodeContextMenu } from "./node-context-menu";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
+import { useCompletenessOverlay } from "./use-completeness-overlay";
 import { useDomainFocus, type UseDomainFocusOptions } from "./use-domain-focus";
 import { useFilterPanel, type UseFilterPanelOptions } from "./use-filter-panel";
 import { useLayoutPersistence } from "./use-layout-persistence";
@@ -23,6 +27,22 @@ import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
 import { useSearchOverlay } from "./use-search-overlay";
 import { useVersionsPanel } from "./use-versions-panel";
+
+/** TASK-027: relationship labels the completeness overlay humanises
+ * missing links against -- fetched once on mount (the design decision's
+ * "boot-time types palette"; never re-fetched per toggle). A fetch failure
+ * just means IRI-local-segment fallback labels (humanise-rel-name.ts),
+ * never a hard error -- this is a labelling nicety, not the gate query
+ * itself. */
+function useRelationshipLabels(): OntologyRelationshipEntry[] {
+  const [relationships, setRelationships] = useState<OntologyRelationshipEntry[]>([]);
+  useEffect(() => {
+    fetchOntologyTypes(15_000).then((result) => {
+      if (result.type === "ok") setRelationships(result.relationships);
+    });
+  }, []);
+  return relationships;
+}
 
 export interface ExplorerInteractionsProps {
   adapter: RendererAdapter;
@@ -198,7 +218,20 @@ export function ExplorerInteractions({
   fetchLayerNodes,
   fetchPalette,
 }: ExplorerInteractionsProps) {
-  const { panel, openNode, close, retry } = useNodeSpotlight({ adapter, config, fetchNodeProps });
+  const overlayControls = useOverlayControls({ adapter, config });
+  const relationships = useRelationshipLabels();
+  const completenessOverlay = useCompletenessOverlay({
+    adapter,
+    engine: overlayControls.engine,
+    timeoutMs: config.ceTimeoutMs,
+    relationships,
+  });
+  const { panel, openNode, close, retry } = useNodeSpotlight({
+    adapter,
+    config,
+    fetchNodeProps,
+    gapIndex: completenessOverlay.gapIndex,
+  });
   useFocusParam(adapter, config, openNode);
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });
   const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({
@@ -214,7 +247,6 @@ export function ExplorerInteractions({
   const confirmState = neighbourExpansion.state;
   const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
   const legend = useCanvasLegend(fetchPalette);
-  const overlayControls = useOverlayControls({ adapter, config });
   const versionsPanel = useVersionsPanel({ adapter, engine: overlayControls.engine });
   usePinnedImpact({ adapter });
 
@@ -226,6 +258,13 @@ export function ExplorerInteractions({
         legend={legend}
         overlayControls={overlayControls}
         versionsPanel={versionsPanel}
+        completenessOverlay={completenessOverlay}
+      />
+      <CompletenessNotice
+        notice={completenessOverlay.notice}
+        error={completenessOverlay.error}
+        onRetry={completenessOverlay.retry}
+        onDismiss={completenessOverlay.toggle}
       />
       <NodeInteractionOverlays
         // TASK-022 AC-2: a published version is read-only -- no edit
