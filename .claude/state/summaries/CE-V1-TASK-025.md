@@ -48,3 +48,24 @@ integration (real docker, marker-scoped, isolated ports, torn down). Full backen
 TASK-025 is EPIC-019's sole task; all 3 stories (E7-S1 save / E7-S2 shared library / E7-S3 pinned) covered. On QA PASS:
 restack onto green main (likely clean — no shared write-path/shacl overlap; own new tables), push, open PR, drive green +
 review-clean, then **HOLD for human merge** (migration/schema). TASK-026 (UI, EPIC-018) is the next consumer, now unblocked.
+
+## QA PASS (2026-07-11, a11fe44, retry 0) — CE-V1-TASK-025 CLOSES → EPIC-019 COMPLETE
+Adversarial QA, all 9 ACs verified from source + re-run (not self-report). **Tenant-isolation verdict: NO Blocker, RLS
+fail-CLOSED, no leak.** `test_cross_tenant_views_comments_isolation` proves zero tenant-B rows visible across BOTH new tables
++ snapshot rows under tenant-A GUC; foreign view_id → 404 (RLS makes row invisible → natural no-row, router SELECTs
+`WHERE tenant_id=$1 AND view_id=$2` BEFORE any authz branch → 404 before 403, no existence-probe leak). **QA added the
+missing fail-closed edge test `c8e3f12`** (`test_rls_fails_closed_with_no_tenant_guc_set`): saves rows for a real tenant, opens
+`untenanted_connection()` (same non-superuser weave_app role, NO GUC) → asserts `SELECT WHERE tenant_id=$1` returns ZERO rows
+not all — the no-GUC property the original tests never covered; passes vs real PG. Both 0063/0064 carry ENABLE+FORCE RLS +
+tenant_isolation policy on `current_setting('app.current_tenant_id', true)` (migration test asserts relrowsecurity +
+relforcerowsecurity both true). `explorer_connection(principal.tenant_id)` — tenant_id from verified JWT `claims["tenant_id"]`
+only; schemas allow extra fields but NO router reads a client tenant → no spoof path. **ADR-025 tenant_id TEXT divergence
+sound** — identical to the battle-tested `0014_fix_layout_tenant_text.sql` (real tenant ids are slugs like `acme-corp`, UUID
+cast would 503); same RLS key/pattern, isolation strength unchanged. AC-2 atomic snapshot rollback, AC-6 author-spoof→400,
+AC-7 pin admin-only+limit-5→409 all PASS. AC-9 perf 126.4ms@10k (≤800ms), chunked 1000-row multi-VALUES (avoids 65535
+bind-param ceiling). Gates: ruff 0, mypy 0/475, 1043 unit, 10 integration (real docker, torn down). 0 warnings. retry=0.
+
+## EPIC-019 CLOSE → HELD PR (migrations 0063/0064 = schema tier)
+CE-025 sole task → EPIC-019 COMPLETE. Branch (HEAD c8e3f12) already on current main 6c030c4 (unmoved since EPIC-010) → NO
+restack needed. Push + PR + review + CI green, then HOLD for human merge (schema). NOTE: if EPIC-009 #59 merges first, main
+moves → EPIC-019 needs a restack before its own merge (no table collision: 0062 vs 0063/0064).
