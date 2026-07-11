@@ -46,7 +46,7 @@ const OPEN_VIEW_FIXTURE = {
   },
 };
 
-describe("useSavedViews", () => {
+describe("useSavedViews save()", () => {
   // AC-1
   it("save() serialises current canvas state and refreshes the library on success", async () => {
     const saveView = vi.fn().mockResolvedValue({ status: "created", view_id: "v1" });
@@ -77,7 +77,9 @@ describe("useSavedViews", () => {
 
     expect(listViews).not.toHaveBeenCalled();
   });
+});
 
+describe("useSavedViews open()", () => {
   function setupOpenTest() {
     const adapter = fakeAdapter();
     const reloadGraph = vi.fn().mockResolvedValue(undefined);
@@ -121,7 +123,9 @@ describe("useSavedViews", () => {
     // "domain-1" (from domainFocus) and "gone" (from positions) are both absent from loadedNodeIds.
     expect(openResult).toEqual({ missingCount: 2 });
   });
+});
 
+describe("useSavedViews remove()/share()", () => {
   // AC-4
   it("remove() refreshes the library only when the delete succeeds", async () => {
     const deleteView = vi.fn().mockResolvedValue(true);
