@@ -14,6 +14,10 @@ vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => [
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
 vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
+vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
+vi.mock("@/lib/explorer/events-client", () => ({
+  fetchEvents: vi.fn().mockResolvedValue({ status: 200, events: [], latest_seq: 0 }),
+}));
 
 function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
   return {
