@@ -11,8 +11,11 @@ export const runtime = "nodejs";
 // version/page from the querystring, so a `graph=` (or `query=`) override
 // can never reach the outgoing fetch below -- the query text itself is
 // always the fixed constant below, never client-supplied.
+// TASK-022 AC-2: `version` is CE-READ-1's own `?version=` param -- accepts
+// "latest" or any published version IRI/semver, so a canvas load can pin
+// to a specific published version, read-only.
 const sparqlQuerySchema = z.object({
-  version: z.literal("latest"),
+  version: z.string().min(1),
   page: z.coerce.number().int().min(0),
 });
 

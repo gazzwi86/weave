@@ -11,6 +11,8 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     listElements: vi.fn(() => []),
     setTraceHighlight: vi.fn(),
     clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
     isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyNodeColours: vi.fn(),
