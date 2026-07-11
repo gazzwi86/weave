@@ -8,6 +8,9 @@ proven in `tests/integration/test_prompts_api.py` (Law B).
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import patch
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from weave_backend.build.hitl import HitlGateContext
 from weave_backend.build.orchestrator import OrchestratorDeps, _synthesise_prompt_briefs
@@ -112,9 +115,13 @@ async def test_synthesise_typed_brief_from_prompt_before_delegate() -> None:
 
     deps = OrchestratorDeps(synthesise_briefs_fn=_synthesise)
 
-    halted = await _synthesise_prompt_briefs(
-        _FakeConnection(), spine, tenant_id=_TENANT, deps=deps
-    )
+    with patch(
+        "weave_backend.audit.emitter.get_signing_key",
+        return_value=Ed25519PrivateKey.generate(),
+    ):
+        halted = await _synthesise_prompt_briefs(
+            _FakeConnection(), spine, tenant_id=_TENANT, deps=deps
+        )
 
     assert halted is False
     assert len(spine.tasks) == 1
@@ -141,9 +148,13 @@ async def test_hold_prompt_run_when_synthesised_brief_fails_dor() -> None:
 
     deps = OrchestratorDeps(synthesise_briefs_fn=_synthesise, fire_hitl_gate_fn=_fire_hitl)
 
-    halted = await _synthesise_prompt_briefs(
-        _FakeConnection(), spine, tenant_id=_TENANT, deps=deps
-    )
+    with patch(
+        "weave_backend.audit.emitter.get_signing_key",
+        return_value=Ed25519PrivateKey.generate(),
+    ):
+        halted = await _synthesise_prompt_briefs(
+            _FakeConnection(), spine, tenant_id=_TENANT, deps=deps
+        )
 
     assert halted is True
     assert spine.phase == "halted_hitl"
