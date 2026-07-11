@@ -386,3 +386,6 @@ Governance shapes (CE-005) + Rules screen + /api/validate (CE-006) + metrics (CE
 
 ## #65 CE-EPIC-005 NOW FULLY GREEN (2026-07-12) — HELD ready for merge
 mutation a/b pass, all blocking green, review-clear. Multi-tenancy tier → your merge. Both #64 (EPIC-003) + #65 (CE-EPIC-005) ready.
+
+## #67 EPIC-001 NOW FULLY GREEN (2026-07-12) — HELD ready for merge
+mutation a/b pass, all blocking green, review-CLEAR. Migration 0068 schema tier → your merge. **ALL 3 HELD PRs now fully green + review-clean + ready: #64 (EPIC-003, migr 0065/0067), #65 (CE-EPIC-005, multi-tenancy), #67 (EPIC-001, migr 0068).** Phase build-engine-v1/phase-1 complete on merge → run /phase-gate.
