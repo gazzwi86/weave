@@ -24,6 +24,7 @@ from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.brand import router as brand_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.costs import router as costs_router
+from weave_backend.routers.decisions import router as decisions_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.functions import router as functions_router
 from weave_backend.routers.gates import router as gates_router
@@ -99,6 +100,7 @@ app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
 app.include_router(project_contributors_router)
+app.include_router(decisions_router)
 app.include_router(project_bindings_router)
 app.include_router(project_settings_router)
 app.include_router(project_pin_router)
