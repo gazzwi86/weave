@@ -118,6 +118,42 @@ async def test_migration_creates_tables_with_rls_and_unique_constraint(
         assert unique is not None, "explorer_saved_views is missing its UNIQUE constraint"
 
 
+async def test_rls_fails_closed_with_no_tenant_guc_set(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """QA edge case (Law #5): the RLS policy on both new tables is
+    `tenant_id = current_setting('app.current_tenant_id', true)`. With the
+    GUC unset, `current_setting(..., true)` returns NULL, and `x = NULL` is
+    never TRUE in SQL -- so an unscoped connection must see ZERO rows, not
+    every tenant's rows. `untenanted_connection()` uses the same non-superuser
+    `weave_app` pool role as every other query (`db/pool.py` docstring), with
+    no GUC set at all -- proving fail-closed, not just cross-tenant filtering.
+    """
+    tenant_id = _tenant_slug("acme-corp")
+    headers = await _auth_headers(tenant_id=tenant_id, sub="u-rls-closed")
+    save = await client.post(
+        "/api/views",
+        json={"name": "closed-view", "definition": {}, "positions": []},
+        headers=headers,
+    )
+    assert save.status_code == 201
+    await client.post(
+        "/api/comments",
+        json={"target_kind": "node", "target_ref": "urn:weave:entity:closed", "body": "hi"},
+        headers=headers,
+    )
+
+    async with untenanted_connection() as conn:
+        views = await conn.fetch(
+            "SELECT 1 FROM explorer_saved_views WHERE tenant_id = $1", tenant_id
+        )
+        comments = await conn.fetch(
+            "SELECT 1 FROM explorer_comments WHERE tenant_id = $1", tenant_id
+        )
+        assert views == [], "RLS leaked rows with no app.current_tenant_id GUC set"
+        assert comments == [], "RLS leaked rows with no app.current_tenant_id GUC set"
+
+
 async def test_view_save_snapshots_layout_atomically_and_rolls_back_on_failure(
     client: AsyncClient, platform_stack: Path
 ) -> None:
