@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncpg
 from pydantic import BaseModel
 
+from weave_backend.schemas.tenancy import MemberOut
+
 
 class MemberAlreadyActive(Exception):
     """Raised when inviting an email that already has an active membership."""
@@ -110,6 +112,40 @@ async def revoke_member(
         user_sub,
     )
     return bool(result != "DELETE 0")
+
+
+async def list_for_workspace(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> list[MemberOut]:
+    """TASK-030 AC-1: every member (active + pending) of a workspace, joined
+    against `principals` for a real display name -- a pending invite has no
+    principal row yet, so its own email stands in.
+
+    ponytail: unpaginated -- a seed tenant has a handful of members; add
+    pagination only when a real tenant's member count makes this slow.
+    """
+    rows = await conn.fetch(
+        """
+        SELECT wm.user_sub, wm.email, wm.role, wm.status, wm.invited_at, p.display_name
+        FROM workspace_members wm
+        LEFT JOIN principals p ON p.tenant_id = wm.tenant_id AND p.sub = wm.user_sub
+        WHERE wm.tenant_id = $1 AND wm.workspace_id = $2
+        ORDER BY wm.invited_at
+        """,
+        tenant_id,
+        workspace_id,
+    )
+    return [
+        MemberOut(
+            user_sub=row["user_sub"],
+            email=row["email"],
+            display_name=row["display_name"] or row["email"],
+            role=row["role"],
+            status=row["status"],
+            invited_at=row["invited_at"],
+        )
+        for row in rows
+    ]
 
 
 async def list_active_member_subs(
