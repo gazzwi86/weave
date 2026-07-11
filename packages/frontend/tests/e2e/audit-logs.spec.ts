@@ -33,3 +33,65 @@ test("audit logs table renders seeded rows, expands to signed JSON, verifies cha
 
   await expect(page.getByRole("button", { name: "Export JSON" })).toBeVisible();
 });
+
+// AC-5 must be a real filter, not decoration: filtering by a non-event_type
+// dimension (Actor) has to actually narrow what's rendered, proven against a
+// mocked /api/audit that only returns the actor-matching row when the
+// request carries actor_principal_iri -- an unwired filter would keep
+// returning the same unfiltered page regardless of what's typed.
+test("filtering audit logs by actor (a non-event_type dimension) narrows the rendered rows", async ({
+  page,
+}) => {
+  const ALL_ROWS = {
+    entries: [
+      {
+        seq: 2,
+        ts: "2026-07-05T00:00:02+00:00",
+        actor_principal_iri: "urn:weave:principal:tenant-1:human:bob",
+        engine: "platform",
+        event_type: "workspace.created",
+        target_iri: "urn:weave:workspace:tenant-1:ws-2",
+        diff_summary: null,
+        hash: "a".repeat(64),
+        prev_hash: "0".repeat(64),
+        signature: "b".repeat(128),
+      },
+      {
+        seq: 1,
+        ts: "2026-07-05T00:00:01+00:00",
+        actor_principal_iri: "urn:weave:principal:tenant-1:human:alice",
+        engine: "platform",
+        event_type: "workspace.created",
+        target_iri: "urn:weave:workspace:tenant-1:ws-1",
+        diff_summary: null,
+        hash: "c".repeat(64),
+        prev_hash: "0".repeat(64),
+        signature: "d".repeat(128),
+      },
+    ],
+    total: 2,
+    page: 1,
+    per_page: 50,
+  };
+
+  await page.route("**/api/audit?**", async (route) => {
+    const url = new URL(route.request().url());
+    const actor = url.searchParams.get("actor_principal_iri");
+    const body = actor
+      ? { ...ALL_ROWS, entries: ALL_ROWS.entries.filter((e) => e.actor_principal_iri === actor), total: 1 }
+      : ALL_ROWS;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+
+  await loginAndGoToAuditLogs(page);
+
+  const rows = page.locator('[data-testid^="log-row-"]');
+  await expect(rows).toHaveCount(2);
+
+  await page.getByLabel("Actor").fill("urn:weave:principal:tenant-1:human:bob");
+  await page.getByRole("button", { name: "Filter" }).click();
+
+  await expect(rows).toHaveCount(1);
+  await expect(page.getByTestId("log-row-2")).toBeVisible();
+  await expect(page.getByTestId("log-row-1")).toHaveCount(0);
+});

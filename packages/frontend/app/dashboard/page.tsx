@@ -72,7 +72,7 @@ export default async function DashboardPage() {
         View billing usage
       </Link>
       <Link
-        href="/compliance"
+        href="/audit/compliance"
         className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] underline"
       >
         View audit compliance

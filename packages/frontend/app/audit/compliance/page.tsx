@@ -2,35 +2,42 @@
 
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { BarChartSlot as BarChart } from "@/components/templates/BarChartSlot";
+import { KpiTileSlot as KpiTile } from "@/components/templates/KpiTileSlot";
 import { Card, CardContent } from "@/components/ui/card";
 
 import { useCompliance, type ComplianceSummary } from "./use-compliance";
 
-function ChainStatusBadge({ status }: { status: ComplianceSummary["chain_status"] }) {
-  return status === "valid" ? (
-    <Badge variant="success">valid</Badge>
-  ) : (
-    <Badge variant="danger">broken</Badge>
-  );
+function eventLogsHref(category: string): string {
+  return `/audit/logs?event_type=${encodeURIComponent(category)}`;
 }
 
-function CategoryDelta({ delta }: { delta: number }) {
-  if (delta === 0) {
-    return (
-      <span data-testid="category-delta" className="text-[var(--color-text-muted)]">
-        —
-      </span>
-    );
-  }
-  const up = delta > 0;
+/** AC-1: chain-status/entries-checked/SHACL figures as `KpiTile` tiles,
+ * not plain `<p>` text rows -- closes F-D21's tile finding. */
+function SummaryTiles({ summary }: { summary: ComplianceSummary }) {
   return (
-    <span
-      data-testid="category-delta"
-      className={up ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}
-    >
-      {up ? "▲" : "▼"} {Math.abs(delta)}
-    </span>
+    <div className="grid grid-cols-2 gap-[var(--space-4)] sm:grid-cols-4">
+      <div data-testid="chain-status">
+        <KpiTile
+          label="Chain status"
+          value={summary.chain_status}
+          variant={summary.chain_status === "valid" ? "success" : "danger"}
+        />
+      </div>
+      <div data-testid="entries-checked">
+        <KpiTile label="Entries checked" value={String(summary.entries_checked)} />
+      </div>
+      <div data-testid="shacl-validated">
+        <KpiTile label="SHACL validated" value={String(summary.shacl_validated)} />
+      </div>
+      <div data-testid="shacl-rejections">
+        <KpiTile
+          label="SHACL rejections"
+          value={String(summary.shacl_rejections)}
+          variant={summary.shacl_rejections > 0 ? "warn" : "default"}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -41,7 +48,7 @@ function SummaryCard({
   summary: ComplianceSummary;
   previous: ComplianceSummary | null;
 }) {
-  const categories = Object.entries(summary.by_event_category);
+  const categories = Object.keys(summary.by_event_category);
 
   return (
     <Card>
@@ -49,28 +56,32 @@ function SummaryCard({
         {summary.period}
       </p>
       <CardContent className="flex flex-col gap-[var(--space-4)]">
-        <p data-testid="chain-status">
-          Chain status: <ChainStatusBadge status={summary.chain_status} />
-        </p>
-        <p data-testid="entries-checked">Entries checked: {summary.entries_checked}</p>
+        <SummaryTiles summary={summary} />
 
         <div>
           <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            By event category
+            By event category -- current vs previous period
           </p>
-          <ul data-testid="event-category-list" className="flex flex-col gap-[var(--space-1)]">
-            {categories.map(([category, count]) => {
-              const previousCount = previous?.by_event_category[category] ?? 0;
-              return (
-                <li key={category} className="flex items-center gap-[var(--space-2)]">
-                  <span>
-                    {category}: {count}
-                  </span>
-                  {previous && <CategoryDelta delta={count - previousCount} />}
-                </li>
-              );
-            })}
-          </ul>
+          {/* AC-2: BarChart replaces the "▲ 1" text-glyph CategoryDelta;
+           * AC-3: category bars drill into /audit/logs, pre-filtered. */}
+          <BarChart
+            categories={categories}
+            series={
+              previous
+                ? [
+                    {
+                      label: previous.period,
+                      values: categories.map((c) => previous.by_event_category[c] ?? 0),
+                    },
+                    {
+                      label: summary.period,
+                      values: categories.map((c) => summary.by_event_category[c] ?? 0),
+                    },
+                  ]
+                : []
+            }
+            hrefFor={eventLogsHref}
+          />
         </div>
 
         <div>
@@ -102,8 +113,6 @@ function ConformanceCard({ summary }: { summary: ComplianceSummary }) {
           Every write is SHACL-validated at the door (CE-WRITE-1) — the published graph is
           conformant by construction.
         </p>
-        <p data-testid="shacl-validated">Validated writes: {summary.shacl_validated}</p>
-        <p data-testid="shacl-rejections">SHACL rejections: {summary.shacl_rejections}</p>
         <Link
           href="/ce/types"
           className="text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
@@ -115,11 +124,13 @@ function ConformanceCard({ summary }: { summary: ComplianceSummary }) {
   );
 }
 
-/** PLAT-TASK-009 AC-7: compliance sub-view -- summary + month-over-month
- * trends per event category, plus a SHACL-conformance hub. The backend's
- * `GET /api/audit/compliance` response shape never includes `diff_summary`
- * for any role -- redaction is structural, so this page has no raw diff
- * payload to accidentally render.
+/** PLAT-TASK-009 AC-7 / TASK-029 AC-1/2/3: compliance sub-view -- KpiTile
+ * summary tiles, month-over-month BarChart per event category, plus a
+ * SHACL-conformance hub. The backend's `GET /api/audit/compliance` response
+ * shape never includes `diff_summary` for any role -- redaction is
+ * structural, so this page has no raw diff payload to accidentally render.
+ * Canonical route per AC-6 (`visual-direction.md` "Compliance placement");
+ * legacy `/compliance` redirects here (`next.config.ts`).
  */
 export default function CompliancePage() {
   const { summary, previous, loadError } = useCompliance();

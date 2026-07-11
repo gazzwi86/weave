@@ -28,8 +28,8 @@ describe("Nav", () => {
     expect(inactive).not.toHaveAttribute("aria-current");
   });
 
-  it("marks Audit trail active on the legacy /compliance route", () => {
-    pathname = "/compliance";
+  it("marks Audit trail active on /audit/compliance (AC-6 canonical route)", () => {
+    pathname = "/audit/compliance";
     render(<Nav />);
     expect(screen.getByRole("link", { name: "Audit trail" })).toHaveAttribute(
       "aria-current",
