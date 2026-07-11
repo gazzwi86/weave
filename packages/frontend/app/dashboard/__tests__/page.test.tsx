@@ -39,6 +39,12 @@ function stubFetch(url: string): Response {
   if (url.includes("/api/whoami")) {
     return new Response(JSON.stringify(WHOAMI_BODY), { status: 200 });
   }
+  if (url.includes("/api/dashboard/library")) {
+    return new Response(JSON.stringify({ items: [] }), { status: 200 });
+  }
+  if (url.includes("scope=user")) {
+    return new Response(JSON.stringify({ widgets: [] }), { status: 200 });
+  }
   if (url.includes("/api/dashboard/widgets")) {
     return new Response(JSON.stringify(WIDGETS_BODY), { status: 200 });
   }
@@ -97,12 +103,14 @@ describe("DashboardPage", () => {
     expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
-  it("issues exactly two outbound fetch calls total (whoami + widgets, no more)", async () => {
+  it("issues exactly four outbound fetch calls total (whoami + both widget scopes + library, no more)", async () => {
     render(await DashboardPage());
 
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(4);
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
     expect(calledUrls.some((url) => url.includes("/api/whoami"))).toBe(true);
-    expect(calledUrls.some((url) => url.includes("/api/dashboard/widgets"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("scope=tenant_default"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("scope=user"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/dashboard/library"))).toBe(true);
   });
 });

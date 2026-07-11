@@ -31,6 +31,8 @@ export interface WidgetGridProps {
    * widgets only -- `tenant_default` tiles aren't reorderable (Design
    * Decisions table). */
   onReorder?: (idsInOrder: string[]) => void;
+  /** TASK-015 AC-1: publish a `scope='user'` widget to the tenant library. */
+  onPublish?: (id: string) => void;
 }
 
 interface TilePropsArgs {
@@ -38,6 +40,7 @@ interface TilePropsArgs {
   onPin?: (id: string) => void;
   onUnpin?: (id: string) => void;
   onReorder?: (idsInOrder: string[]) => void;
+  onPublish?: (id: string) => void;
   userIds: string[];
   reorderUser: (nextUserIds: string[]) => void;
   setDragId: (id: string | null) => void;
@@ -68,6 +71,13 @@ function pinHandlers(widget: WidgetOut, isUser: boolean, onPin?: (id: string) =>
   };
 }
 
+/** TASK-015 AC-1: publish only ever applies to `scope='user'` rows -- same
+ * gating as pin/unpin above. */
+function publishHandler(widget: WidgetOut, isUser: boolean, onPublish?: (id: string) => void) {
+  if (!isUser || !onPublish) return undefined;
+  return () => onPublish(widget.id);
+}
+
 function moveHandlers(widget: WidgetOut, canReorder: boolean, userIds: string[], reorderUser: (ids: string[]) => void) {
   if (!canReorder) return { onMoveUp: undefined, onMoveDown: undefined };
   return {
@@ -78,12 +88,13 @@ function moveHandlers(widget: WidgetOut, canReorder: boolean, userIds: string[],
 
 /** Extracted from the render loop so complexity stays under the per-widget
  * conditional wiring -- keeps `WidgetGrid` itself simple. */
-function tileProps({ widget, onPin, onUnpin, onReorder, userIds, reorderUser, setDragId, handleDrop }: TilePropsArgs) {
+function tileProps({ widget, onPin, onUnpin, onReorder, onPublish, userIds, reorderUser, setDragId, handleDrop }: TilePropsArgs) {
   const isUser = widget.scope === "user";
   const canReorder = isUser && Boolean(onReorder);
   return {
     ...pinHandlers(widget, isUser, onPin, onUnpin),
     ...moveHandlers(widget, canReorder, userIds, reorderUser),
+    onPublish: publishHandler(widget, isUser, onPublish),
     dragHandleProps: canReorder ? dragHandleFor(widget, setDragId, handleDrop) : undefined,
   };
 }
@@ -98,7 +109,7 @@ function tileProps({ widget, onPin, onUnpin, onReorder, userIds, reorderUser, se
  * re-renders) plus a keyboard move-up/down alternative, both calling the
  * same `moveId` reorder math and only ever reordering `scope='user'` rows.
  */
-export function WidgetGrid({ widgets, onPin, onUnpin, onReorder }: WidgetGridProps) {
+export function WidgetGrid({ widgets, onPin, onUnpin, onReorder, onPublish }: WidgetGridProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const ordered = [...widgets].sort((a, b) => a.position - b.position);
   const userIds = ordered.filter((w) => w.scope === "user").map((w) => w.id);
@@ -126,7 +137,7 @@ export function WidgetGrid({ widgets, onPin, onUnpin, onReorder }: WidgetGridPro
           key={widget.id}
           widget={widget}
           style={{ gridColumn: `span ${widget.spec.column_span} / span 12` }}
-          {...tileProps({ widget, onPin, onUnpin, onReorder, userIds, reorderUser, setDragId, handleDrop })}
+          {...tileProps({ widget, onPin, onUnpin, onReorder, onPublish, userIds, reorderUser, setDragId, handleDrop })}
         />
       ))}
     </div>
