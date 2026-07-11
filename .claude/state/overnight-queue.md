@@ -13,6 +13,34 @@ unblocking work. Present this batch at 9am.
 
 ---
 
+## BE-024 PARKED + PROJ-008 (cross-epic false-ready) — decision needed (2026-07-11)
+**BE-V1-TASK-024 (Build Request Form v2) BLOCKED, parked.** Its brief hard-gates AC-2/AC-8 on `EntityRef`/`KindChip`
+design-system atoms ("do not hand-roll — wait on PLAT-V1-TASK-026"). PLAT-026 IS task-status `done` and DID build those
+atoms (commit 3c519ae) — but on branch `feature/PLAT-V1-EPIC-011`, which is **NOT merged to main** (EPIC-011 incomplete:
+PLAT-027 still backlog). BE-024 branched off main → atoms absent → 2 of 8 ACs unbuildable. Engineer correctly refused to
+hand-roll (Law 11), made zero code/state edits, escalated. Worktree `weave-BE-V1-EPIC-001` parked (branch = bare main, no
+commits). **UNBLOCKS when EPIC-011 merges to main** (needs PLAT-027 done + EPIC-011 close). Interim: lane refilled with BE-019.
+Decision options: (a) prioritise finishing EPIC-011 (PLAT-027) so its atoms land on main → unblocks BE-024 cleanly; (b) let
+BE-024 stack on `feature/PLAT-V1-EPIC-011` instead of main (couples epics, restack on EPIC-011 merge); (c) split BE-024 =
+build 6 unblocked ACs now + follow-up task for AC-2/AC-8. Recommend (a) — atoms are a shared bottleneck (canvas-legend.tsx
+also hand-rolls a KindChip with a flagged-unclosed gap).
+
+**PROJ-008 (harness/process finding):** `progress.sh ready` marks a task READY when its `blocked_by` tasks are STATUS=done —
+but NOT that the dependency CODE is merged to main. Cross-epic deps (task in epic X depends on a done task in still-open epic
+Y) are **false-ready**: the consumer branches off main and the provider's code isn't there. Bit BE-024. Mitigation applied:
+engineer briefs now carry a STEP-0 "code-on-main dependency guard" (grep the required symbols in the worktree before building;
+STOP if absent). Proper fix (morning): make `ready` also require each blocking task's epic to be merged to main (or same-epic),
+OR add an explicit `code_on_main` gate. Same-epic sequential deps are unaffected (same branch).
+
+## EPIC-009 PR #59 — HELD, green + review-CLEAR (2026-07-11)
+CE-EVENT-1 change-feed. Migration 0062 = schema tier → HELD for human merge. cavecrew review CLEAR (no Blocker/Major):
+migration 0062 RLS ENABLE+FORCE + append-only trigger (BEFORE UPDATE/DELETE RAISE) + weave_app SELECT/INSERT-only +
+BIGSERIAL seq USAGE grant all verified; pipeline.py union gate→mutate→emit, one event/commit, rollback drops the event,
+422 never emits; actor=JWT principal; cross-tenant RLS isolation. CI: api/integration/web/semgrep/secrets pass (mutation
+pending at checkpoint), ce-perf non-blocking-fail. **Ready for your merge — just needs the schema-tier human sign-off.**
+
+---
+
 ## HELD PRs (green but risky-tier — need human merge)
 
 _(none yet)_
