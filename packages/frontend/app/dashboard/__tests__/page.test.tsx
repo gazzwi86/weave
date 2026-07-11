@@ -56,6 +56,17 @@ describe("DashboardPage", () => {
     );
   });
 
+  // AC-9: a raw principal URN is never primary text -- it renders via
+  // EntityRef (friendly label first, mono id second).
+  it("renders the principal via EntityRef, not the raw URN as primary text", async () => {
+    render(await DashboardPage());
+
+    const container = screen.getByTestId("principal-iri");
+    const primaryLabel = container.querySelectorAll("span")[1]?.textContent;
+    expect(primaryLabel).not.toContain("urn:weave:principal:");
+    expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
+  });
+
   // QA edge case (checklist item 14): the existing AC-5 test only greps for
   // CE/metrics URL substrings -- it would miss any *other* unexpected
   // outbound call the page might grow (e.g. an accidental analytics beacon,

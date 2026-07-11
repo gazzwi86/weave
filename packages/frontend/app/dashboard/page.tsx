@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
+import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
 import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
 
@@ -38,7 +39,9 @@ export default async function DashboardPage() {
       <Card>
         <CardContent>
           {principal ? (
-            <p data-testid="principal-iri">{principal.principal_iri}</p>
+            <span data-testid="principal-iri">
+              <EntityRefSlot label={principal.sub} id={principal.principal_iri} />
+            </span>
           ) : (
             <p data-testid="whoami-error">Unable to verify session with backend.</p>
           )}
