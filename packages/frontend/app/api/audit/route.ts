@@ -7,11 +7,29 @@ import { getSessionClaims } from "@/lib/auth/session-claims";
 export const runtime = "nodejs";
 
 // Law 13: query params are untrusted input -- validated via zod, never cast.
+// All seven `PLAT-AUDIT-1` filter dimensions (contracts.md), forwarded
+// verbatim to the backend, which is the schema/tenant-scoping authority.
 const auditQuerySchema = z.object({
   page: z.coerce.number().int().min(1),
   per_page: z.coerce.number().int().min(1).max(200),
+  engine: z.string().min(1).optional(),
   event_type: z.string().min(1).optional(),
+  actor_principal_iri: z.string().min(1).optional(),
+  target_iri: z.string().min(1).optional(),
+  date_from: z.string().min(1).optional(),
+  date_to: z.string().min(1).optional(),
+  q: z.string().min(1).optional(),
 });
+
+const FILTER_KEYS = [
+  "engine",
+  "event_type",
+  "actor_principal_iri",
+  "target_iri",
+  "date_from",
+  "date_to",
+  "q",
+] as const;
 
 /** Resolves the caller's tenant id from the session JWT, or null when the
  * caller is unauthenticated / has no tenant claim -- same posture as the
@@ -39,9 +57,12 @@ function buildBackendQuery(
     page: String(data.page),
     per_page: String(data.per_page),
   });
-  if (data.event_type) {
-    query.set("event_type", data.event_type);
-  }
+  FILTER_KEYS.forEach((key) => {
+    const value = data[key];
+    if (value) {
+      query.set(key, value);
+    }
+  });
   return query;
 }
 
@@ -67,7 +88,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const parsed = auditQuerySchema.safeParse({
     page: params.get("page") ?? "1",
     per_page: params.get("per_page") ?? "50",
-    event_type: params.get("event_type") ?? undefined,
+    ...Object.fromEntries(
+      FILTER_KEYS.map((key) => [key, params.get(key) ?? undefined])
+    ),
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "invalid_query" }, { status: 400 });

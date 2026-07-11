@@ -21,8 +21,9 @@ const COMPLIANCE_SUMMARY = {
 };
 
 // TASK-009 E2E requirement: `test_audit_compliance_view_renders` -- sign in,
-// navigate the Compliance view, assert chain status "valid" shown, event
-// category counts displayed, and no raw diff payload visible.
+// navigate the Compliance view (now canonical at /audit/compliance, AC-6),
+// assert chain status "valid" shown, event category counts displayed, and
+// no raw diff payload visible.
 test("compliance view renders chain status and event category counts (AC-7)", async ({
   page,
 }) => {
@@ -36,15 +37,36 @@ test("compliance view renders chain status and event category counts (AC-7)", as
 
   await loginAndGoToDashboard(page);
   await page.getByRole("link", { name: "View audit compliance" }).click();
-  await expect(page).toHaveURL(/\/compliance$/);
+  await expect(page).toHaveURL(/\/audit\/compliance$/);
 
   await expect(page.getByTestId("chain-status")).toContainText("valid");
   await expect(page.getByTestId("entries-checked")).toContainText("42");
-  await expect(page.getByTestId("event-category-list")).toContainText("workspace: 12");
-  await expect(page.getByTestId("event-category-list")).toContainText("security: 3");
+  await expect(page.getByTestId("bar-chart")).toBeVisible();
 
   // Structural redaction proof: the rendered page never contains the raw
   // diff_summary field name or any diff-shaped payload, for any role --
   // the backend response shape has no such field to leak (AC-7).
   await expect(page.locator("body")).not.toContainText("diff_summary");
+});
+
+// AC-6: test_legacy_compliance_route_redirects_and_nav_highlights_audit --
+// the legacy /compliance URL 307-redirects to /audit/compliance, and the
+// "Audit trail" nav rail item is highlighted once there.
+test("test_legacy_compliance_route_redirects_and_nav_highlights_audit", async ({ page }) => {
+  await page.route("**/api/audit/compliance**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(COMPLIANCE_SUMMARY),
+    });
+  });
+
+  await loginAndGoToDashboard(page);
+  await page.goto("/compliance");
+
+  await expect(page).toHaveURL(/\/audit\/compliance$/);
+  await expect(page.getByRole("link", { name: "Audit trail" })).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
 });

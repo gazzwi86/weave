@@ -69,8 +69,21 @@ describe("CompliancePage", () => {
 
     await waitFor(() => expect(screen.getByTestId("chain-status")).toHaveTextContent("valid"));
     expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
-    expect(screen.getByTestId("event-category-list")).toHaveTextContent("workspace: 12");
-    expect(screen.getByTestId("event-category-list")).toHaveTextContent("security: 3");
+    expect(screen.getByRole("link", { name: "workspace" })).toHaveAttribute(
+      "href",
+      "/audit/logs?event_type=workspace"
+    );
+  });
+
+  // AC-1: test_audit_dashboard_renders_kpi_tiles_not_text_rows (compliance side)
+  it("renders chain-status/entries-checked/SHACL figures as KpiTile tiles, not text rows", async () => {
+    stubTwoPeriodFetch({});
+
+    render(<CompliancePage />);
+
+    await waitFor(() => expect(screen.getByTestId("shacl-validated")).toHaveTextContent("30"));
+    expect(screen.getByTestId("shacl-rejections")).toHaveTextContent("2");
+    expect(screen.queryByText(/SHACL validated: 30/)).not.toBeInTheDocument();
   });
 
   it("never renders a diff_summary field, for any role (AC-7 structural redaction)", async () => {
@@ -90,25 +103,27 @@ describe("CompliancePage", () => {
     await waitFor(() => expect(screen.getByTestId("compliance-error")).toBeInTheDocument());
   });
 
-  it("renders month-over-month deltas per category when the previous month loads", async () => {
+  // AC-2: test_compliance_trend_renders_as_bar_chart_not_text_glyph
+  it("test_compliance_trend_renders_as_bar_chart_not_text_glyph", async () => {
     stubTwoPeriodFetch({});
 
     render(<CompliancePage />);
 
-    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
-    const deltas = screen.getAllByTestId("category-delta");
-    // workspace: 12 - 9 = +3, security: 3 - 3 = 0
-    expect(deltas[0]).toHaveTextContent("▲ 3");
-    expect(deltas[1]).toHaveTextContent("—");
+    await waitFor(() => expect(screen.getByTestId("bar-chart")).toBeInTheDocument());
+    // Two series (previous + current) x two categories = 4 segments.
+    expect(screen.getAllByTestId("bar-chart-segment")).toHaveLength(4);
+    expect(screen.queryByText("▲")).not.toBeInTheDocument();
+    expect(screen.queryByText("▼")).not.toBeInTheDocument();
   });
 
-  it("degrades silently to no deltas when the previous-month fetch fails", async () => {
+  it("degrades to an empty-state chart when the previous-month fetch fails (no fake zero bar)", async () => {
     stubTwoPeriodFetch({ previous: null });
 
     render(<CompliancePage />);
 
     await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
-    expect(screen.queryByTestId("category-delta")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("bar-chart")).not.toBeInTheDocument();
+    expect(screen.getByText(/no data yet/i)).toBeInTheDocument();
     expect(screen.queryByTestId("compliance-error")).not.toBeInTheDocument();
   });
 

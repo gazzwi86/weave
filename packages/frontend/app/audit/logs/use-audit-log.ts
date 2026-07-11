@@ -27,6 +27,29 @@ export interface VerifyResult {
   error: string | null;
 }
 
+/** The full `PLAT-AUDIT-1` query-filter contract (`contracts.md`) -- seven
+ * dimensions: engine, event_type, actor_principal_iri, target_iri, the
+ * date_from/date_to time range, plus the `q` substring filter. */
+export interface AuditFilters {
+  engine: string;
+  event_type: string;
+  actor_principal_iri: string;
+  target_iri: string;
+  date_from: string;
+  date_to: string;
+  q: string;
+}
+
+export const EMPTY_FILTERS: AuditFilters = {
+  engine: "",
+  event_type: "",
+  actor_principal_iri: "",
+  target_iri: "",
+  date_from: "",
+  date_to: "",
+  q: "",
+};
+
 export const PER_PAGE = 50;
 
 interface AuditFetchState {
@@ -38,29 +61,39 @@ interface AuditFetchState {
 export interface AuditLogState extends AuditFetchState {
   page: number;
   setPage: (page: number) => void;
-  eventType: string | null;
-  applyEventType: (value: string) => void;
+  filters: AuditFilters | null;
+  applyFilters: (filters: AuditFilters) => void;
   verifyResult: VerifyResult | null;
   verifying: boolean;
   verifyChain: () => Promise<void>;
 }
 
-/** Fetches one page of the audit log whenever page/filter change -- split
+/** Builds the `GET /api/audit` query string from page + the seven
+ * `PLAT-AUDIT-1` filter dimensions -- blank filter values are omitted
+ * rather than sent as empty params. */
+function buildAuditQuery(page: number, filters: AuditFilters): URLSearchParams {
+  const query = new URLSearchParams({ page: String(page), per_page: String(PER_PAGE) });
+  (Object.keys(filters) as (keyof AuditFilters)[]).forEach((key) => {
+    if (filters[key]) {
+      query.set(key, filters[key]);
+    }
+  });
+  return query;
+}
+
+/** Fetches one page of the audit log whenever page/filters change -- split
  * out of `useAuditLog` to keep each hook under the function length budget
  * (same shape as billing's useUsageFetch).
  */
-function useAuditFetch(page: number, eventType: string | null): AuditFetchState {
+function useAuditFetch(page: number, filters: AuditFilters | null): AuditFetchState {
   const [data, setData] = useState<AuditLogPage | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [denied, setDenied] = useState(false);
 
   useEffect(() => {
-    if (eventType === null) return undefined; // await URL hydration
+    if (filters === null) return undefined; // await URL hydration
     const controller = new AbortController();
-    const query = new URLSearchParams({ page: String(page), per_page: String(PER_PAGE) });
-    if (eventType) {
-      query.set("event_type", eventType);
-    }
+    const query = buildAuditQuery(page, filters);
     fetch(`/api/audit?${query.toString()}`, { signal: controller.signal })
       .then((res) => {
         if (controller.signal.aborted) {
@@ -89,7 +122,7 @@ function useAuditFetch(page: number, eventType: string | null): AuditFetchState 
         setLoadError(true);
       });
     return () => controller.abort();
-  }, [page, eventType]);
+  }, [page, filters]);
 
   return { data, loadError, denied };
 }
@@ -100,32 +133,33 @@ function useAuditFetch(page: number, eventType: string | null): AuditFetchState 
  * (the /ce chat hydration bug all over again). The fetch effect waits for
  * hydration, so the first fetch is still the filtered one.
  */
-function readEventTypeParam(): string {
-  return new URLSearchParams(window.location.search).get("event_type") ?? "";
+function readInitialFilters(): AuditFilters {
+  const eventType = new URLSearchParams(window.location.search).get("event_type") ?? "";
+  return { ...EMPTY_FILTERS, event_type: eventType };
 }
 
 /** Drives the /audit/logs viewer: paged tenant-scoped log fetch (admin-only
- * upstream -- 403 surfaces as `denied`), event-type filter (seeded from the
- * `event_type` URL param, resets to page 1 on apply), and the on-demand
- * hash-chain verification.
+ * upstream -- 403 surfaces as `denied`), the full seven-dimension
+ * `PLAT-AUDIT-1` filter bar (seeded from the `event_type` URL param, resets
+ * to page 1 on apply), and the on-demand hash-chain verification.
  */
 export function useAuditLog(): AuditLogState {
   const [page, setPage] = useState(1);
   // null = not yet hydrated from the URL; gates the first fetch.
-  const [eventType, setEventType] = useState<string | null>(null);
+  const [filters, setFilters] = useState<AuditFilters | null>(null);
 
   useEffect(() => {
     // SSR hydration: window.location is browser-only, so the URL-seeded filter
-    // must be read post-mount, not during render (see readEventTypeParam).
+    // must be read post-mount, not during render (see readInitialFilters).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEventType(readEventTypeParam());
+    setFilters(readInitialFilters());
   }, []);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const { data, loadError, denied } = useAuditFetch(page, eventType);
+  const { data, loadError, denied } = useAuditFetch(page, filters);
 
-  const applyEventType = useCallback((value: string) => {
-    setEventType(value);
+  const applyFilters = useCallback((next: AuditFilters) => {
+    setFilters(next);
     setPage(1);
   }, []);
 
@@ -150,8 +184,8 @@ export function useAuditLog(): AuditLogState {
     denied,
     page,
     setPage,
-    eventType,
-    applyEventType,
+    filters,
+    applyFilters,
     verifyResult,
     verifying,
     verifyChain,
