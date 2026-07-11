@@ -105,5 +105,14 @@ export function buildStylesheet(palette: NodeKind[]): cytoscape.StylesheetStyle[
     { selector: "edge.explorer-diff-added", style: { "line-color": "var(--color-success)", width: 3 } },
     { selector: "edge.explorer-diff-removed", style: { "line-color": "var(--color-danger)", opacity: 0.35 } },
     { selector: "edge.explorer-diff-modified", style: { "line-color": "var(--color-warn)", width: 3 } },
+    // TASK-027 AC-1/design decision "Gap indicator = badge, not colour":
+    // border + a gapBadgeLabel data field (glyph-prefixed, set by
+    // renderer-adapter-badge.ts) so a gap never reads as colour alone
+    // (WCAG 1.4.1) -- deliberately its own channel, so it coexists with an
+    // active colour overlay (domain-colouring/heatmap).
+    {
+      selector: "node.explorer-gap-badge",
+      style: { label: "data(gapBadgeLabel)", "border-width": 2, "border-color": "var(--color-warn)" },
+    },
   ];
 }

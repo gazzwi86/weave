@@ -67,6 +67,8 @@ describe("ExplorerCanvas", () => {
         clearTraceHighlight: vi.fn(),
     setDiffOverlay: vi.fn(),
     clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
         isHidden: vi.fn(() => false),
         onElementRemoved: vi.fn(() => vi.fn()),
       },

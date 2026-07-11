@@ -1,5 +1,6 @@
 import { EXPLORER_HIGHLIGHT_CLASS, EXPLORER_TRACE_CLASS, readCssToken } from "./build-stylesheet";
 import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
+import { clearBadgesOn, setBadgesOn } from "./renderer-adapter-badge";
 import { clearDiffOverlayOn, setDiffOverlayOn, type DiffOverlayAssignment } from "./renderer-adapter-diff";
 import type { CytoscapeElement } from "./types";
 
@@ -122,6 +123,15 @@ export interface RendererAdapter {
   setDiffOverlay(assignments: DiffOverlayAssignment[]): void;
   /** TASK-022 AC-8: clears every diff class + glyph label in one batch. */
   clearDiffOverlay(): void;
+  /** TASK-027 AC-1/AC-7: the completeness overlay's badge seam -- a
+   * dedicated `gapBadgeLabel` data field/class, deliberately separate from
+   * the "colour" background-colour seam, so a gap badge coexists with an
+   * active colour overlay. Any node id not present in `countByNodeId` is
+   * left un-badged (AC-1: neutral). */
+  setBadges(countByNodeId: Record<string, number>): void;
+  /** TASK-027: clears every gap badge in one batch (deactivating the
+   * overlay). */
+  clearBadges(): void;
 }
 
 export interface FilterVisibility {
@@ -499,6 +509,12 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     clearDiffOverlay() {
       clearDiffOverlayOn(cy);
+    },
+    setBadges(countByNodeId) {
+      setBadgesOn(cy, countByNodeId);
+    },
+    clearBadges() {
+      clearBadgesOn(cy);
     },
   };
 }

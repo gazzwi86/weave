@@ -6,6 +6,7 @@ import { EmptyState } from "./empty-state";
 import { FilterPanel } from "./filter-panel";
 import { OverlayPanel } from "./overlay-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
+import type { UseCompletenessOverlayResult } from "./use-completeness-overlay";
 import { useFilterPanel } from "./use-filter-panel";
 import { useOverlayControls } from "./use-overlay-controls";
 import { useVersionsPanel } from "./use-versions-panel";
@@ -39,13 +40,22 @@ export function CanvasFilterChrome({
   legend,
   overlayControls,
   versionsPanel,
+  completenessOverlay,
 }: {
   onOpenSearch: () => void;
   filterPanel: ReturnType<typeof useFilterPanel>;
   legend: ReturnType<typeof useCanvasLegend>;
   overlayControls: ReturnType<typeof useOverlayControls>;
   versionsPanel: ReturnType<typeof useVersionsPanel>;
+  /** TASK-027: no exclusiveGroup, so it isn't part of
+   * overlayControls.toggles -- appended as its own OverlayPanel row. */
+  completenessOverlay: UseCompletenessOverlayResult;
 }) {
+  const toggles = [
+    ...overlayControls.toggles,
+    { id: "completeness", label: "Coverage gaps", active: completenessOverlay.active, disabled: false },
+  ];
+  const onToggleOverlay = (id: string) => (id === "completeness" ? completenessOverlay.toggle() : overlayControls.toggleOverlay(id));
   return (
     <>
       <FilterEmptyState
@@ -75,7 +85,7 @@ export function CanvasFilterChrome({
         onSetPropertyFilters={filterPanel.setPropertyFilters}
         onToggleLayer={filterPanel.toggleLayer}
       />
-      <OverlayPanel toggles={overlayControls.toggles} onToggleOverlay={overlayControls.toggleOverlay} />
+      <OverlayPanel toggles={toggles} onToggleOverlay={onToggleOverlay} />
       <VersionsPanel {...versionsPanel} />
     </>
   );
