@@ -166,6 +166,17 @@ def _shapes_version_key(tenant_id: str) -> str:
     return f"ce:governance:shapes-version:{tenant_id}"
 
 
+async def shapes_version_token(tenant_id: str, redis_client: RedisLike | None) -> str | None:
+    """CE-TASK-006: public read of the same token `_tenant_shapes_graph`
+    keys its cache on -- lets the validation-report cache (`validate_cache`)
+    detect "a tenant shape changed since the last report" without a second
+    invalidation channel. `None` means no tenant shapes committed yet.
+    """
+    if redis_client is None:
+        return None
+    return await redis_client.get(_shapes_version_key(tenant_id))
+
+
 async def bump_shapes_version(redis_client: RedisLike, tenant_id: str) -> None:
     """Called on every tenant shapes-graph commit (addition, edit, *or*
     deletion -- the DoD pitfall note). A fresh token is the invalidation

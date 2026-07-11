@@ -28,14 +28,18 @@ class ValidationResultEntry(BaseModel):
 class RuleCoverage(BaseModel):
     """AC-006-03: one row per modelled shape, framework or tenant --
     including shapes with zero current violations (a clean shape is still
-    a covered rule, not an absent one)."""
+    a covered rule, not an absent one). No `violating_entities` list here
+    (implementation hint: don't duplicate the eager per-rule entity list
+    into the report payload) -- `ValidationReport.results` already carries
+    every violation's `shape_iri` + `focus_node`, so the UI derives and
+    paginates a rule's entities client-side by filtering `results`, at
+    zero extra network cost."""
 
     shape_iri: str
     severity: Literal["Violation", "Warning", "Info", "Unknown"]
     description: str
     origin: Literal["framework", "tenant"]
     violation_count: int
-    violating_entities: list[str]
 
 
 class ValidationReport(BaseModel):
