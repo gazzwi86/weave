@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Nav } from "../nav";
@@ -68,5 +68,24 @@ describe("SectionRail", () => {
     pathname = "/dashboard";
     render(<SectionRail role="admin" />);
     expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute("href", "/notifications");
+  });
+
+  // AC-1: collapse toggle persists across page loads via localStorage.
+  it("collapses on toggle click and restores the collapsed state on remount (reload proxy)", () => {
+    pathname = "/ce/query";
+    localStorage.clear();
+    const { unmount } = render(<SectionRail role="admin" />);
+
+    expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: /collapse sidebar/i });
+    fireEvent.click(toggle);
+
+    expect(localStorage.getItem("weave.sectionRail.collapsed")).toBe("true");
+    expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
+
+    unmount();
+    render(<SectionRail role="admin" />);
+    expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /expand sidebar/i })).toBeInTheDocument();
   });
 });

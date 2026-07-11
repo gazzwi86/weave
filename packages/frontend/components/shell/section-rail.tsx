@@ -1,94 +1,69 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import {
-  findSection,
-  TAG_LABEL,
-  type SecondaryNavItem,
-  type SurfaceTag,
-} from "./nav-items";
+import { SecondarySidebar, type SecondarySidebarGroup } from "@/components/organisms/SecondarySidebar";
+import { findSection, TAG_LABEL, type SecondaryNavItem } from "./nav-items";
 
-/** Status pill on every rail item (IA rule: every surface carries a tag). */
-function TagPill({ tag }: { tag: SurfaceTag }) {
-  // Always the neutral variant: the tinted success/info badges fall below
-  // 4.5:1 at --text-caption size over the rail's raised/hover backgrounds
-  // (axe color-contrast, light theme). Meaning rides on the label text
-  // anyway (WCAG 1.4.1).
-  return <Badge>{TAG_LABEL[tag]}</Badge>;
+const COLLAPSE_STORAGE_KEY = "weave.sectionRail.collapsed";
+
+/** AC-1: collapse toggle persists across page loads. localStorage is
+ * per-browser-profile, which stands in for "per-user" (PLAT-SETTINGS-1)
+ * without a new backend surface -- this task adds no API (brief §API
+ * Contracts: "No new endpoints"). */
+function useCollapsed(): [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState(
+    () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "true"
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
+
+  return [collapsed, () => setCollapsed((prev) => !prev)];
 }
 
-function RailItem({ item, pathname, role }: {
-  item: SecondaryNavItem;
-  pathname: string;
-  role: string | null;
-}) {
-  if (item.adminOnly && role !== "admin") return null;
+function visibleItems(items: SecondaryNavItem[], role: string | null): SecondaryNavItem[] {
+  return items.filter((item) => !item.adminOnly || role === "admin");
+}
 
-  const rowClass =
-    "flex items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-sm)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)]";
-
-  if (!item.href) {
-    // Phase placeholder: dimmed, not a link ("Delivered in phase X" lives on
-    // the pill; there is deliberately no dead route behind it).
-    return (
-      <li className={cn(rowClass, "text-[var(--color-text-muted)]")}>
-        <span>{item.label}</span>
-        <TagPill tag={item.tag} />
-      </li>
-    );
-  }
-
-  const isActive = pathname === item.href;
-  return (
-    <li>
-      <Link
-        href={item.href}
-        prefetch={false}
-        aria-current={isActive ? "page" : undefined}
-        className={cn(
-          rowClass,
-          "text-[var(--color-text-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
-          isActive && "bg-[var(--color-raised)] text-[var(--color-text-default)]"
-        )}
-      >
-        <span>{item.label}</span>
-        {/* A shipped surface needs no roadmap pill -- the pills exist to
-            flag what is NOT built yet (placeholders and phase tags). */}
-        {item.tag !== "built" && <TagPill tag={item.tag} />}
-      </Link>
-    </li>
-  );
+function toSidebarGroups(
+  section: NonNullable<ReturnType<typeof findSection>>,
+  role: string | null
+): SecondarySidebarGroup[] {
+  return section.groups.map((group) => ({
+    heading: group.heading,
+    items: visibleItems(group.items, role).map((item) => ({
+      label: item.label,
+      href: item.href,
+      tag: item.tag !== "built" ? TAG_LABEL[item.tag] : undefined,
+    })),
+  }));
 }
 
 /** Section-scoped left rail (IA §3): grouped secondary nav for the section
- * owning the current pathname; nothing for rail-less sections (Home). */
+ * owning the current pathname; nothing for rail-less sections (Home).
+ * Presentation lives in the TASK-026 `SecondarySidebar` organism (AC-1) --
+ * this wrapper owns routing, RBAC filtering, and collapse persistence. */
 export function SectionRail({ role }: { role: string | null }) {
   const pathname = usePathname();
   const section = findSection(pathname);
+  const [collapsed, toggleCollapsed] = useCollapsed();
 
   if (!section || section.groups.length === 0) return null;
 
   return (
-    <nav
-      aria-label="Secondary"
-      className="w-52 shrink-0 border-r border-[var(--color-border)] px-[var(--space-2)] py-[var(--space-4)]"
-    >
-      {section.groups.map((group) => (
-        <div key={group.heading} className="mb-[var(--space-4)]">
-          <p className="px-[var(--space-2)] pb-[var(--space-1)] text-[length:var(--text-overline)] tracking-[var(--text-overline-tracking)] uppercase text-[var(--color-text-muted)]">
-            {group.heading}
-          </p>
-          <ul className="flex flex-col gap-[var(--space-1)]">
-            {group.items.map((item) => (
-              <RailItem key={item.label} item={item} pathname={pathname} role={role} />
-            ))}
-          </ul>
-        </div>
-      ))}
-    </nav>
+    <div className="flex shrink-0">
+      <button
+        type="button"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        onClick={toggleCollapsed}
+        className="w-[var(--space-5)] shrink-0 border-r border-[var(--color-border)] text-[length:var(--text-caption)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
+      >
+        {collapsed ? "»" : "«"}
+      </button>
+      {collapsed ? null : <SecondarySidebar groups={toSidebarGroups(section, role)} activeHref={pathname} />}
+    </div>
   );
 }
