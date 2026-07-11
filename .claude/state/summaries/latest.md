@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T07:34:34+00:00
+Captured at: 2026-07-11T08:55:32+00:00
 Event: pre-compact
 
 ## Current State
@@ -217,7 +217,7 @@ Event: pre-compact
     {
       "id": "CE-V1-EPIC-019",
       "title": "Saved Views & Layout · M2",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-V1-EPIC-018",
@@ -1147,7 +1147,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-019",
       "title": "Explorer Persistence Service: Saved Views + Comments (Aurora)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-025.md",
       "retry_count": 0
