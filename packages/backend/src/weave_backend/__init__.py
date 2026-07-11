@@ -23,6 +23,7 @@ from weave_backend.routers.billing import harness_router as billing_harness_rout
 from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.brand import router as brand_router
 from weave_backend.routers.briefs import router as briefs_router
+from weave_backend.routers.comments import router as comments_router
 from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.functions import router as functions_router
@@ -56,6 +57,7 @@ from weave_backend.routers.standards import router as standards_router
 from weave_backend.routers.tasks import router as tasks_router
 from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
+from weave_backend.routers.views import router as views_router
 
 # AC-3 design decision: RBAC is dependency-by-default -- every route must
 # either require `get_current_principal` or be explicitly marked `@public`.
@@ -95,6 +97,8 @@ app.include_router(identity_router)
 app.include_router(instances_router)
 app.include_router(search_router)
 app.include_router(layout_router)
+app.include_router(views_router)
+app.include_router(comments_router)
 app.include_router(notifications_router)
 app.include_router(audit_router)
 app.include_router(projects_router)
