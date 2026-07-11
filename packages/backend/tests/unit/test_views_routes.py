@@ -147,6 +147,7 @@ async def test_list_views_returns_tenant_rows(monkeypatch: pytest.MonkeyPatch) -
                 "created_by": "urn:weave:principal:user:u-1",
                 "pinned": False,
                 "updated_at": __import__("datetime").datetime.now(),
+                "definition": '{"filterState": {}, "viewport": {}}',
             }
         ]
     )
@@ -156,6 +157,34 @@ async def test_list_views_returns_tenant_rows(monkeypatch: pytest.MonkeyPatch) -
 
     assert result[0].view_id == str(view_id)
     assert result[0].name == "v1"
+
+
+# TASK-026 AC-2: openView(view) needs the saved definition to reproduce
+# canvas state -- ViewOut.definition round-trips the DB's jsonb column
+# (deviation flagged in TASK-026's summary: TASK-025's ViewOut originally
+# omitted it, blocking AC-2 for any view fetched via the library list).
+async def test_list_views_includes_definition_for_view_open(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    view_id = uuid.uuid4()
+    conn = _FakeConnection()
+    conn.fetch = AsyncMock(
+        return_value=[
+            {
+                "view_id": view_id,
+                "name": "v1",
+                "created_by": "urn:weave:principal:user:u-1",
+                "pinned": False,
+                "updated_at": __import__("datetime").datetime.now(),
+                "definition": '{"filterState": {"entityTypesOff": []}, "viewport": {"zoom": 1}}',
+            }
+        ]
+    )
+    _patch_connection(monkeypatch, conn)
+
+    result = await list_views(_principal())
+
+    assert result[0].definition == {"filterState": {"entityTypesOff": []}, "viewport": {"zoom": 1}}
 
 
 async def test_pin_view_returns_403_when_not_admin(monkeypatch: pytest.MonkeyPatch) -> None:
