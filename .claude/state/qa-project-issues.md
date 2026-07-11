@@ -228,7 +228,11 @@ per-task reports.
   but never written to `qa-cross-task-findings.md`. **Raised again in:** BE-V1-TASK-001 (Standards
   Catalogue QA pass, 2026-07-10) — same command, same exit 139, on
   `tests/integration/test_standards_api.py`. Per aggregation rule (QA Law #11), escalating here
-  instead of repeating a third time in a per-task report.
+  instead of repeating a third time in a per-task report. **Raised a third time:** BE-V1-TASK-005
+  (SDK-generation delivery, 2026-07-11) — narrowed further: the crash is not fixture-specific, it is
+  ANY `asyncpg` connect reaching `connect_utils._create_ssl_connection` under an active `--cov`
+  tracer (reproduced via both `db/migrate.py::run_migrations` and `db/pool.py::get_app_pool` from
+  plain `tests/unit`, so not integration- or session-fixture-only). Same workaround.
 - **Consequence:** DB/HTTP-path statements in repo-layer files (`standards/store.py` 57%,
   `standards/ce_client.py` 31% measured unit-only) can only be coverage-measured from the unit
   lane's mocked/fake-connection tests; the docker lane proves correctness (all green) but cannot
@@ -238,16 +242,6 @@ per-task reports.
   `pytest-cov`, `coverage.py`, or `asyncpg`'s C extension, and either pin a working version
   combination or document a permanent `--no-cov` carve-out for `@pytest.mark.docker` in
   `docs/standards/testing-py.md`.
-- **Raised again in:** BE-V1-TASK-005 (SDK-generation delivery, 2026-07-11) — same exit 139,
-  narrowed further this time: crash site isn't fixture-specific, it's ANY `asyncpg` connect that
-  reaches `connect_utils._create_ssl_connection` while a `--cov` tracer is active (reproduced via
-  `db/migrate.py::run_migrations` AND separately via `db/pool.py::get_app_pool` from an unrelated
-  `mock_oidc/tokens.py` call, both under plain `tests/unit` — so it's not integration-only, not
-  session-fixture-only). Also tried `COVERAGE_CORE=sysmon` (PEP 669 sys.monitoring core, not just
-  the legacy C tracer) — still segfaults, so it's not a ctrace-specific bug either. Worked around
-  the same way as BE-V1-TASK-001: coverage number reported from the unit lane (which passed under
-  `--cov` for the *fake-connection* tests), correctness proven by a `--cov`-free full docker-lane
-  pass (9/9 green).
 - **Deadline:** before the next milestone's phase-gate remediation sweep (bundle with PROJ-010/011).
 
 ## PROJ-014 — test_runs_api::test_one_pdac_cycle_commits_state_spine_dispatch_count_1 intermittent flake
