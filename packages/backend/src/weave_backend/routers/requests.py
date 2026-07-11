@@ -6,6 +6,7 @@ Request Studio intake + AI spec drafting).
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
@@ -28,12 +29,17 @@ from weave_backend.requests.pipeline import DraftingRequest, run_drafting_pipeli
 from weave_backend.requests.store import RequestRecord
 from weave_backend.schemas.requests import (
     ALLOWED_RUN_MODES,
+    NAME_MAX_LENGTH,
+    TARGET_REPO_NAME_PATTERN,
     CreateRequestBody,
     CreateRequestResponse,
+    ProvenanceLink,
     RequestStatusResponse,
 )
+from weave_backend.standards.ce_client import CeReadTransportError, get_entity
 
 router = APIRouter(prefix="/api/requests", tags=["requests"])
+_TARGET_REPO_NAME_RE = re.compile(TARGET_REPO_NAME_PATTERN)
 
 
 async def get_ai_provider() -> ModelProvider | None:
@@ -58,6 +64,41 @@ def _validate_body(body: CreateRequestBody) -> None:
         raise HTTPException(
             status_code=422, detail={"error": "validation_error", "field": "prompt"}
         )
+    if not body.name.strip() or len(body.name) > NAME_MAX_LENGTH:
+        raise HTTPException(status_code=422, detail={"error": "validation_error", "field": "name"})
+    repo_name_missing = not body.target_repo_name or not _TARGET_REPO_NAME_RE.match(
+        body.target_repo_name
+    )
+    if body.run_mode != "draft_spec_only" and repo_name_missing:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "validation_error", "field": "target_repo_name"},
+        )
+
+
+async def _resolve_grounding_entities(
+    ce_client: httpx.AsyncClient, iris: list[str], *, headers: dict[str, str] | None
+) -> None:
+    """AC-6: every grounding-entity IRI must resolve via CE-READ-1 before
+    the request is persisted (never a partial persist on a bad IRI).
+    """
+    for iri in iris:
+        try:
+            entity = await get_entity(ce_client, iri, headers=headers)
+        except CeReadTransportError as exc:
+            raise HTTPException(status_code=503, detail={"error": "ce_unavailable"}) from exc
+        if entity is None:
+            # AC-6 / error table: brief's exact error string, not the generic
+            # "validation_error" shape -- `field` kept additively so the
+            # frontend's submitErrorMessage() field-keyed messaging still works.
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": "grounding_entity_not_found",
+                    "field": "grounding_entity_iris",
+                    "iri": iri,
+                },
+            )
 
 
 @router.post("", status_code=202, response_model=CreateRequestResponse)
@@ -75,6 +116,8 @@ async def create_request_route(  # noqa: PLR0913 -- Law E waiver, see .claude/st
     authorization: Annotated[str | None, Header()] = None,
 ) -> CreateRequestResponse:
     _validate_body(body)
+    auth_headers = {"Authorization": authorization} if authorization else None
+    await _resolve_grounding_entities(ce_client, body.grounding_entity_iris, headers=auth_headers)
 
     if provider is None:
         try:
@@ -93,6 +136,9 @@ async def create_request_route(  # noqa: PLR0913 -- Law E waiver, see .claude/st
             status="drafting",
             prompt=body.prompt,
             created_by_iri=principal.principal_iri,
+            name=body.name,
+            grounding_entity_iris=body.grounding_entity_iris,
+            target_repo_name=body.target_repo_name,
         ),
     )
     background_tasks.add_task(
@@ -125,6 +171,32 @@ async def _update_record(request_id: str, **fields: object) -> None:
     await store.update_request_record(redis_client, request_id, **fields)
 
 
+#: AC-7: when CE was unreachable at draft time (`graph_context ==
+#: "unavailable"`), no pinned version IRI was ever resolved -- link to
+#: CE-VERSION-1's own "latest" alias instead of leaving the record with
+#: zero links.
+_UNAVAILABLE_FALLBACK_IRI = "latest"
+
+
+def _provenance_links(record: store.RequestRecord) -> list[ProvenanceLink]:
+    """AC-7: one `/ce/resource/{iri}` link per grounding entity, else the
+    pinned `CE-VERSION-1` graph as a `/ce/versions/{iri}` fallback -- the
+    record always carries at least one link, even when CE was unreachable
+    at draft time.
+    """
+    if record.grounding_entity_iris:
+        return [
+            ProvenanceLink(iri=iri, href=f"/ce/resource/{iri}")
+            for iri in record.grounding_entity_iris
+        ]
+    version_iri = (
+        record.graph_context
+        if record.graph_context and record.graph_context != "unavailable"
+        else _UNAVAILABLE_FALLBACK_IRI
+    )
+    return [ProvenanceLink(iri=version_iri, href=f"/ce/versions/{version_iri}")]
+
+
 @router.get("/{request_id}", response_model=RequestStatusResponse)
 async def get_request_route(
     request_id: str,
@@ -138,6 +210,10 @@ async def get_request_route(
         graph_context=record.graph_context,
         draft_content=record.draft_content,
         created_at=record.created_at,  # type: ignore[arg-type]
+        name=record.name,
+        grounding_entity_iris=record.grounding_entity_iris,
+        target_repo_name=record.target_repo_name,
+        provenance_links=_provenance_links(record),
     )
 
 

@@ -5,7 +5,7 @@ refine-specific persistence tail only -- budget gate, resolver-context
 threading, metering, and audit all stay in `generate.py`/`intent.py`
 unduplicated (Design Decisions table: "any re-implementation is a review
 Blocker"). `widget_refinements` (columns `step`/`spec`) already exists from
-TASK-010's `migrations/0045_widget_state.sql` -- no new migration.
+TASK-010's `migrations/0071_widget_state.sql` -- no new migration.
 """
 
 from __future__ import annotations

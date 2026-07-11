@@ -2,7 +2,7 @@ import type { CytoscapeElement, GraphRow } from "./types";
 
 /** Never render a raw IRI as a label -- fall back to its last path/fragment
  * segment (AC-3's "no raw IRI exposed" carries over to node labels). */
-function lastIriSegment(iri: string): string {
+export function lastIriSegment(iri: string): string {
   const segments = iri.split(/[/#]/).filter(Boolean);
   const segment = segments.length > 0 ? segments[segments.length - 1] : iri;
   return (segment ?? iri).replace(/_/g, " ");
@@ -29,7 +29,7 @@ function buildEdge(row: GraphRow): CytoscapeElement {
 }
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const WEAVE_ONTOLOGY_NS = "https://weave.io/ontology/";
+export const WEAVE_ONTOLOGY_NS = "https://weave.io/ontology/";
 
 /** Maps one CE-READ-1 SPARQL page's rows into Cytoscape elements. Nodes are
  * deduped within this call (a subject/object pair may repeat across rows);

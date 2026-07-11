@@ -89,6 +89,45 @@ describe("CommandPalette", () => {
     expect(screen.queryByText("No results.")).not.toBeInTheDocument();
   });
 
+  // AC-3: renders above modals (--z-command) and shows keyboard hints.
+  it("renders at --z-command with keyboard hints visible", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const dialog = await screen.findByRole("dialog");
+
+    expect(dialog.className).toContain("z-[var(--z-command)]");
+    expect(screen.getByText(/enter to select/i)).toBeInTheDocument();
+    expect(screen.getByText(/esc to dismiss/i)).toBeInTheDocument();
+  });
+
+  // AC-3: results are grouped into Navigation / Entities / Actions, and
+  // typing a nav-area label surfaces it under the Navigation group without
+  // hitting the entity search endpoint.
+  it("groups results into Navigation / Entities / Actions", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = await screen.findByRole("combobox");
+
+    fireEvent.change(input, { target: { value: "constit" } });
+
+    expect(await screen.findByRole("group", { name: "Navigation" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Constitution" })).toBeInTheDocument();
+  });
+
+  // AC-3: selecting a Navigation result navigates via the router, not a
+  // resource-detail route (that's the Entities group's job).
+  it("navigates to a Navigation result's href when selected", async () => {
+    render(<CommandPalette />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const input = await screen.findByRole("combobox");
+    fireEvent.change(input, { target: { value: "constit" } });
+
+    const navResult = await screen.findByRole("option", { name: "Constitution" });
+    fireEvent.click(navResult);
+
+    expect(pushMock).toHaveBeenCalledWith("/ce");
+  });
+
   // TASK-011 AC-8: the dashboard's PromptBar owns Cmd+K on /dashboard --
   // the global palette must not also react there (no double-bind).
   it("does not open on Cmd+K when the route is /dashboard", async () => {

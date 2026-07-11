@@ -88,10 +88,10 @@ async def test_default_tiles_seeded_on_tenant_create(client: AsyncClient) -> Non
 
 
 async def test_backfill_seeds_existing_tenants(client: AsyncClient) -> None:
-    """AC-2: a tenant whose workspace predates migration 0045 (no seed call
+    """AC-2: a tenant whose workspace predates migration 0071 (no seed call
     ever ran) still ends up with the fixed default tiles once
     ``seed_tenant_default_tiles`` is applied directly -- exercises the same
-    idempotent insert the 0046 backfill migration performs at the SQL level.
+    idempotent insert the 0072 backfill migration performs at the SQL level.
     """
     tenant_id = _unique_tenant("dash-backfill")
     async with tenant_connection(tenant_id) as conn:

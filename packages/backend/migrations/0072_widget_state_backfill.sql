@@ -1,5 +1,5 @@
 -- PLAT-V1-TASK-010 AC-2: one-time backfill of the fixed default dashboard
--- tiles for every tenant that already existed before 0045_widget_state.sql
+-- tiles for every tenant that already existed before 0071_widget_state.sql
 -- shipped (new tenants get seeded going forward by
 -- create_workspace_route -> seed_tenant_default_tiles, dashboard/store.py).
 --

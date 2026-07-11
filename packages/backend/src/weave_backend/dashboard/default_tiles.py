@@ -3,7 +3,7 @@ role-appropriate starter map (E1-S0, E1-S6). Both are drawn from the same
 six ``WidgetSpec``s -- no separate starter-only specs.
 
 Keep this catalogue in sync with the literal JSONB in
-``migrations/0046_widget_state_backfill.sql`` -- the backfill migration is
+``migrations/0072_widget_state_backfill.sql`` -- the backfill migration is
 frozen history and can't import this module (the migration runner executes
 plain ``.sql``, see ``db/migrate.py``), so the two are duplicated by
 necessity. ``test_default_tile_catalogue_shape`` guards this module's shape;

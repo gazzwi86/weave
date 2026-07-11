@@ -65,6 +65,20 @@ async def run_query_unscoped(query: str) -> dict[str, Any]:
     single-`named_graph_iri` restriction. BE-TASK-004's blast-radius/
     authority queries key off a `RequestRecord`'s entity IRIs, which have no
     single workspace binding to scope by.
+
+    Also the right call for a query that names more than one graph itself
+    via explicit `GRAPH <iri> { ... }` blocks (e.g.
+    `aggregate_metrics._delta_query`'s cross-graph SPARQL count-diff, which
+    needs both the draft graph and the latest-published graph visible in one
+    query). `union-default-graph` only affects unscoped triple patterns
+    (there are none here) -- an explicit `GRAPH <iri>` always resolves
+    against the dataset's real named graphs regardless of that flag. A
+    tried-and-reverted alternative was a `named-graph-uri` param repeated
+    once per graph (SPARQL 1.1 Protocol's documented way to scope a
+    multi-graph dataset); this Oxigraph build only honours the *last*
+    occurrence when the param is repeated, silently emptying every graph but
+    one, so it's unscoped-and-explicit here instead. Same "IRIs are
+    internally minted, never raw user input" safety note as `run_query`.
     """
     response = await _get_client().get(
         f"{oxigraph_url()}/query",

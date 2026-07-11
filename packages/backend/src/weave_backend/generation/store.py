@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 
 import asyncpg
 
@@ -43,6 +44,9 @@ async def insert_generation_run(
 class GenerationRun:
     """BE-TASK-009: the persisted row the deploy flow looks up by
     `commit_sha` to find the `run_id` it publishes an artefact under.
+
+    `deploy_sequence`/`feature_flags` (TASK-009 migration `0021`, ADR-020):
+    per-run release-plan inputs -- nullable, population deferred (see ADR).
     """
 
     run_id: str
@@ -50,6 +54,8 @@ class GenerationRun:
     task_id: str
     branch: str
     commit_sha: str
+    deploy_sequence: list[str] | None = None
+    feature_flags: list[str] | None = None
 
 
 async def get_generation_run_by_commit_sha(
@@ -75,3 +81,71 @@ async def get_generation_run_by_commit_sha(
         branch=row["branch"],
         commit_sha=row["commit_sha"],
     )
+
+
+@dataclass(frozen=True)
+class RecentRun:
+    """BE-V1-TASK-019: one `generation_runs` row for the dashboard's demo
+    tile (latest `status`) and git ribbon tile (recent history).
+    """
+
+    run_id: str
+    branch: str
+    commit_sha: str
+    status: str
+    created_at: datetime
+
+
+async def list_recent_runs(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, limit: int = 5
+) -> list[RecentRun]:
+    """AC-3/AC-5: most recent runs first, newest is index 0 -- the demo
+    tile's "last deploy status" is `list_recent_runs(..., limit=1)[0]`.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        """
+        SELECT run_id, branch, commit_sha, status, created_at
+        FROM generation_runs
+        WHERE tenant_id = $1 AND project_iri = $2
+        ORDER BY created_at DESC
+        LIMIT $3
+        """,
+        tenant_id,
+        project_iri,
+        limit,
+    )
+    return [
+        RecentRun(
+            run_id=str(row["run_id"]),
+            branch=row["branch"],
+            commit_sha=row["commit_sha"],
+            status=row["status"],
+            created_at=row["created_at"],
+        )
+        for row in rows
+    ]
+async def get_latest_run_for_task(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, task_id: str
+) -> tuple[str, str, str | None] | None:
+    """BE-V1-TASK-018 AC-4: the most recent `generation_runs` row for a
+    task, used to resolve the Console tab's finished-run S3 pointer.
+    Returns `(run_id, status, log_location_ref)`, or `None` when the task
+    has never produced a run row (an active/never-run task -- the caller
+    falls back to the live SSE path or "log not captured").
+    """
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, status, log_location_ref
+        FROM generation_runs
+        WHERE tenant_id = $1 AND project_iri = $2 AND task_id = $3
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        tenant_id,
+        project_iri,
+        task_id,
+    )
+    if row is None:
+        return None
+    return (str(row["run_id"]), row["status"], row["log_location_ref"])

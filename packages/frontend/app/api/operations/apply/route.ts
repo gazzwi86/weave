@@ -14,6 +14,10 @@ const opSchema = z.discriminatedUnion("op", [
     kind: z.string().min(1),
     label: z.string().min(1),
     properties: z.record(z.string(), z.unknown()).default({}),
+    // CE-002: punned owl:Class typing (glossary terms, decision B1) --
+    // optional/default-empty so existing callers (guided-form, chat) are
+    // unaffected.
+    additional_types: z.array(z.string()).default([]),
   }),
   z.object({
     op: z.literal("update_node"),
