@@ -222,6 +222,43 @@ async def test_request_degrades_gracefully_when_ce_unreachable(
     assert get_response.json()["graph_context"] == "unavailable"
 
 
+async def test_provenance_links_never_empty_when_ce_unreachable(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-7: even in the degraded `graph_context == "unavailable"` case,
+    `provenance_links` must carry the CE-VERSION-1 "latest" alias fallback
+    rather than an empty list.
+    """
+    app.dependency_overrides[get_ce_client] = _ce_unreachable_stub
+
+    tenant_id = _unique_tenant("tenant-req-ce-down-prov")
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    create_response = await client.post(
+        "/api/requests",
+        json={
+            "prompt": "build a widget",
+            "run_mode": "draft_spec_only",
+            "name": "Widget",
+        },
+        headers=headers,
+    )
+    assert create_response.status_code == 202
+    request_id = create_response.json()["request_id"]
+
+    async with client.stream(
+        "GET", f"/api/requests/{request_id}/stream", headers=headers
+    ) as stream_response:
+        await stream_response.aread()
+
+    get_response = await client.get(f"/api/requests/{request_id}", headers=headers)
+    body = get_response.json()
+    assert body["graph_context"] == "unavailable"
+    assert len(body["provenance_links"]) == 1
+    assert body["provenance_links"][0]["href"] == "/ce/versions/latest"
+
+
 async def test_create_request_persists_new_fields(client: AsyncClient) -> None:
     """AC-3/AC-7: name/grounding_entity_iris/target_repo_name persist
     end-to-end and are visible on the GET record, without disturbing the
