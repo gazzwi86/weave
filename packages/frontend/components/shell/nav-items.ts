@@ -92,7 +92,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         items: [
           { label: "Registry", href: "/build", tag: "built" },
           { label: "Dashboard", tag: "v1.0" },
-          { label: "Kanban", tag: "v1.0" },
+          { label: "Kanban", href: "/build/board", tag: "built" },
           { label: "Task briefs & decisions", tag: "v1.0" },
         ],
       },
