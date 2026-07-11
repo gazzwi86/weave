@@ -25,3 +25,12 @@ def test_source_available_true_only_when_every_contract_is_ga() -> None:
 
 def test_source_available_empty_list_is_vacuously_true() -> None:
     assert availability.source_available([]) is True
+
+
+def test_plat_contracts_are_always_ga() -> None:
+    """PLAT-016: PLAT-* contracts (billing/settings/audit/identity) are the
+    platform shell's own, not one of the four roadmap engines -- never
+    gated by this registry.
+    """
+    assert availability.is_ga("platform") is True
+    assert availability.source_available(["PLAT-BILLING-1", "PLAT-SETTINGS-1"]) is True
