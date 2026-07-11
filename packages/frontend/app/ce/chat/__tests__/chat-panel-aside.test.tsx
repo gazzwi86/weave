@@ -39,4 +39,43 @@ describe("ChatPanel quick-start + clear-history (TASK-031 AC-8)", () => {
 
     expect(screen.queryByText("hello")).not.toBeInTheDocument();
   });
+
+  it("test_chat_aside_cant_parse_gives_specific_reply_not_generic_loop", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(422, { message: "I couldn't tell which kind you meant." })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ChatPanel />);
+
+    const input = screen.getByLabelText("Message");
+    fireEvent.change(input, { target: { value: "make a thing" } });
+    fireEvent.submit(input.closest("form")!);
+    await screen.findByText(/I couldn't tell which kind you meant\./);
+    expect(screen.getByText(/Try:/)).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "make another thing" } });
+    fireEvent.submit(input.closest("form")!);
+
+    // F-D12: never the exact same generic reply twice in one session --
+    // the second occurrence carries the "Still not sure" repeat prefix.
+    await screen.findByText(/Still not sure/);
+    const replies = screen.getAllByText(/I couldn't tell which kind you meant\./);
+    expect(replies).toHaveLength(2);
+  });
+
+  it("test_chat_provider_unavailable_table_and_form_stay_live", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse(502, {}));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ChatPanel />);
+
+    const input = screen.getByLabelText("Message");
+    fireEvent.change(input, { target: { value: "make a thing" } });
+    fireEvent.submit(input.closest("form")!);
+
+    await screen.findByText(/model provider is unavailable/i);
+    // The chat aside's own input stays interactive -- it is an
+    // independent component from the browse/search table and guided
+    // form beside it, so provider failure never disables them (AC-9).
+    expect(input).not.toBeDisabled();
+  });
 });

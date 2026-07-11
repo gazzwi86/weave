@@ -26,8 +26,11 @@ interface AuthoringDrawerProps {
   onClose: () => void;
 }
 
+// AC-7: friendly label + mono id, never the raw IRI -- `https://.../foo`
+// IRIs split on "/", `urn:activity:foo`-style IRIs have no "/" so fall
+// back to splitting on ":".
 function shortId(iri: string): string {
-  return iri.split("/").pop() ?? iri;
+  return iri.split("/").pop()?.split(":").pop() ?? iri;
 }
 
 function buildOp(
