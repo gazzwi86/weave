@@ -11,7 +11,10 @@ from typing import Any
 from uuid import uuid4
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
+from rdflib.namespace import SH
+from rdflib.term import Node
 
+from weave_backend.operations.shacl import shapes_graph
 from weave_backend.schemas.operations import (
     AddEdgeOp,
     AddNodeOp,
@@ -23,6 +26,20 @@ from weave_backend.schemas.operations import (
 
 WEAVE = Namespace("https://weave.io/ontology/")
 INSTANCES = Namespace("https://weave.io/instances/")
+
+
+class InvalidLiteralError(Exception):
+    """A property value's lexical form doesn't parse as its SHACL-declared
+    `sh:datatype` (e.g. `"not-a-date"` for `weave:effectiveDate`'s
+    `xsd:date`) -- a clean, catchable validation error instead of an
+    uncaught rdflib parser exception surfacing as a 500. Callers map this
+    to a 400, mirroring `authoring/bpmo.py`'s `InvalidBpmoKindError`.
+    """
+
+    def __init__(self, datatype: str, value: Any) -> None:
+        self.datatype = datatype
+        self.value = value
+        super().__init__(f"value {value!r} is not a valid {datatype}")
 
 
 def _expand(name: str) -> URIRef:
@@ -43,11 +60,44 @@ class ApplyResult:
     applied_count: int = 0
 
 
-def _to_literal(value: Any) -> Any:
+def _property_datatype(kind_iri: Node, predicate: URIRef) -> URIRef | None:
+    """Looks up `predicate`'s `sh:datatype` on whichever `NodeShape` targets
+    `kind_iri`, e.g. `weave:BrandStandardShape` declares `sh:datatype
+    xsd:date` on `weave:effectiveDate`. Returns `None` when the shape
+    declares no datatype (or none applies) -- callers keep the current
+    `xsd:string` fallback in that case, so untyped properties are
+    unaffected by this lookup.
+    """
+    shapes = shapes_graph()
+    for node_shape in shapes.subjects(SH.targetClass, kind_iri):
+        for prop_shape in shapes.objects(node_shape, SH.property):
+            if shapes.value(prop_shape, SH.path) == predicate:
+                datatype = shapes.value(prop_shape, SH.datatype)
+                if datatype is not None:
+                    return URIRef(str(datatype))
+    return None
+
+
+def _to_literal(value: Any, datatype: URIRef | None = None) -> Any:
     """`rdflib.Literal(str)` does not auto-infer `xsd:string` (unlike
     int/float/bool, which do) -- so string values need the datatype set
     explicitly to satisfy `sh:datatype xsd:string` shape constraints.
+
+    A non-string `datatype` (resolved from the active shape via
+    `_property_datatype`, e.g. `xsd:date`) coerces the literal to that
+    type instead -- validated via rdflib's own `Literal.ill_typed`
+    well-formedness check, so a malformed value raises
+    `InvalidLiteralError` rather than silently minting an unparseable
+    literal that only fails much later, opaquely, at SHACL validation.
+    `ill_typed` is `None` (not `True`/`False`) for a datatype rdflib
+    doesn't recognise -- treated as "can't tell, so allow it" rather than
+    rejecting every value for that property.
     """
+    if datatype is not None and datatype != XSD.string:
+        literal = Literal(str(value), datatype=datatype, normalize=False)
+        if literal.ill_typed:
+            raise InvalidLiteralError(str(datatype), value)
+        return literal
     if isinstance(value, str):
         return Literal(value, datatype=XSD.string)
     return Literal(value)
@@ -80,10 +130,13 @@ def _apply_add_node(graph: Graph, op: AddNodeOp, ref_map: dict[str, str]) -> Non
     # or the instance IRI double-prefixes (instances/https://...).
     kind_local = op.kind.rsplit("/", 1)[-1].rsplit("#", 1)[-1]
     subject = INSTANCES[f"{kind_local.lower()}-{uuid4().hex}"]
-    graph.add((subject, RDF.type, _expand(op.kind)))
+    kind_iri = _expand(op.kind)
+    graph.add((subject, RDF.type, kind_iri))
     graph.add((subject, WEAVE.label, _to_literal(op.label)))
     for key, value in op.properties.items():
-        graph.add((subject, _expand(key), _to_literal(value)))
+        predicate = _expand(key)
+        datatype = _property_datatype(kind_iri, predicate)
+        graph.add((subject, predicate, _to_literal(value, datatype)))
     ref_map[op.ref] = str(subject)
 
 
@@ -103,10 +156,12 @@ def _apply_update_node(graph: Graph, op: UpdateNodeOp) -> None:
     untouched (AC-001-06).
     """
     subject = URIRef(op.iri)
+    kind_iri = graph.value(subject, RDF.type)
     for key, value in op.properties.items():
         predicate = _expand(key)
+        datatype = _property_datatype(kind_iri, predicate) if kind_iri is not None else None
         graph.remove((subject, predicate, None))
-        graph.add((subject, predicate, _to_literal(value)))
+        graph.add((subject, predicate, _to_literal(value, datatype)))
 
 
 def _apply_delete_node(graph: Graph, op: DeleteNodeOp) -> None:
