@@ -13,6 +13,7 @@ duplicate the celebration (AC-011-04).
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -50,7 +51,7 @@ async def flush_pending(conn: asyncpg.Connection, *, notifier: Notifier = _defau
             tenant_id=str(row["tenant_id"]),
             recipient_iri=str(row["user_id"]),
             event_type=str(row["event_type"]),
-            payload=dict(row["payload"]),
+            payload=json.loads(row["payload"]),
             actor_iri=_SYSTEM_ACTOR_IRI,
         )
         try:
