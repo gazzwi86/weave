@@ -72,7 +72,7 @@ def test_prompt_kinds_come_from_list_kinds_not_a_hardcoded_list(monkeypatch) -> 
     monkeypatched `list_kinds` must still reach the prompt.
     """
     fake_kind = Kind(iri="urn:weave:ontology:TotallyBespokeKind", label="TotallyBespokeKind",
-                      properties=[])
+                      properties=[], description=None)
     monkeypatch.setattr(
         "weave_backend.ingest.document_extractor.list_kinds", lambda: [fake_kind]
     )
@@ -100,7 +100,7 @@ def test_maps_model_output_to_ce_write_1_op_shape_with_local_refs() -> None:
     assert candidate.source_span == "Intro"
     assert candidate.ops == [
         {"op": "add_node", "ref": "p1", "kind": "Process", "label": "Customer Onboarding",
-         "properties": {}}
+         "properties": {}, "additional_types": []}
     ]
 
 

@@ -39,12 +39,32 @@ describe("DashboardPage", () => {
     expect(ceCalls).toEqual([]);
   });
 
+  // AC-2: page title renders via the PageHeader organism at --text-h1, not
+  // a bespoke h2-sized heading (the built app rendered --text-h2 instead).
+  it("renders the page title via PageHeader at --text-h1, not a bespoke size", async () => {
+    render(await DashboardPage());
+
+    const heading = screen.getByRole("heading", { level: 1, name: "Weave Dashboard" });
+    expect(heading.className).toContain("text-[length:var(--text-h1)]");
+  });
+
   it("keeps the existing whoami principal check intact", async () => {
     render(await DashboardPage());
 
     expect(screen.getByTestId("principal-iri")).toHaveTextContent(
       "urn:weave:principal:dev-user-1"
     );
+  });
+
+  // AC-9: a raw principal URN is never primary text -- it renders via
+  // EntityRef (friendly label first, mono id second).
+  it("renders the principal via EntityRef, not the raw URN as primary text", async () => {
+    render(await DashboardPage());
+
+    const container = screen.getByTestId("principal-iri");
+    const primaryLabel = container.querySelectorAll("span")[1]?.textContent;
+    expect(primaryLabel).not.toContain("urn:weave:principal:");
+    expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
   // QA edge case (checklist item 14): the existing AC-5 test only greps for

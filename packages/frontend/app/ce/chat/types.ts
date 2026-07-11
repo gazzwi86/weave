@@ -40,6 +40,10 @@ export interface KindEntry {
   iri: string;
   label: string;
   properties: PropertyShape[];
+  /** TASK-011: plain-language skos:definition, sourced from CE-READ-1 --
+   * absent/null for a kind with no definition (e.g. a future client
+   * extension kind), never invented copy. */
+  description?: string | null;
 }
 
 /** Mirrors weave_backend.schemas.ingest.ProposalResponse (TASK-013). */

@@ -431,7 +431,7 @@ async def test_proposals_beyond_fifty_are_reachable_via_the_list_endpoint(
 async def test_ingest_tables_rls_backstop_blocks_unscoped_select(
     platform_stack: Path,
 ) -> None:
-    """AC-001-09, DB layer: the RLS backstop -- migration 0040's `FORCE ROW
+    """AC-001-09, DB layer: the RLS backstop -- migration 0069's `FORCE ROW
     LEVEL SECURITY` policy must hide tenant A's rows from a raw, unfiltered
     `SELECT` issued over tenant B's connection, proving isolation holds even
     against a query that forgot a `WHERE tenant_id = ...` clause (mirrors

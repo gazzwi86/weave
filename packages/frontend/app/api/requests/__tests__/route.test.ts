@@ -27,7 +27,11 @@ function stubFetch(body: unknown, status: number): void {
   );
 }
 
-const VALID_BODY = { prompt: "an expense tracker", run_mode: "draft_spec_only" };
+const VALID_BODY = {
+  prompt: "an expense tracker",
+  run_mode: "draft_spec_only",
+  name: "Expense tracker",
+};
 
 describe("POST /api/requests", () => {
   beforeEach(() => {
@@ -65,7 +69,7 @@ describe("POST /api/requests", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
-        body: JSON.stringify(VALID_BODY),
+        body: JSON.stringify({ ...VALID_BODY, grounding_entity_iris: [] }),
       })
     );
     expect(response.status).toBe(202);

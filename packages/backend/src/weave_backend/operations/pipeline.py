@@ -26,7 +26,18 @@ from rdflib import Graph
 
 from weave_backend.audit.emitter import AuditEvent
 from weave_backend.authoring.bpmo import validate_kind
+from weave_backend.db.pool import tenant_connection
+from weave_backend.functions.immutability import (
+    existing_signature_edit_targets,
+    touches_function_signature,
+)
 from weave_backend.operations import metrics
+from weave_backend.operations.events import (
+    CommitEvent,
+    op_change_type,
+    op_entity_iri,
+    record_commit_event,
+)
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
     LOCK_TTL_SECONDS,
@@ -37,13 +48,20 @@ from weave_backend.operations.idempotency import (
 )
 from weave_backend.operations.outbox import enqueue
 from weave_backend.operations.provenance import ActivityExtra, Actor, ActorType, write_activity
-from weave_backend.operations.shacl import validate_graph
-from weave_backend.operations.versioning import get_version, mint_version
-from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples, load_graph
+from weave_backend.operations.shacl import validate_graph_for_tenant
+from weave_backend.operations.versioning import (
+    VersionNotFound,
+    get_version,
+    mint_version,
+    resolve_version,
+)
+from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples, load_graph, run_query
+from weave_backend.schemas.events import ChangeType
 from weave_backend.schemas.operations import (
     AddNodeOp,
     ApplyRequest,
     ApplyResponse,
+    Op,
     ViolationDetail,
     ViolationsResponse,
 )
@@ -87,6 +105,58 @@ class PublishedTargetError(Exception):
     mutation side too), so applying against one is rejected rather than
     silently re-derived from it.
     """
+
+
+class FunctionSignatureImmutableError(Exception):
+    """AC-009-04: an op mutates a *published* `weave:Function`'s signature
+    predicates (`boundKind`/`hasParameter`/`hasReturn`) in place. Distinct
+    from `PublishedTargetError` (that one rejects the apply's *target graph*
+    itself being published); this rejects a specific *node* inside a
+    perfectly-fine draft target -- 422, not 409 (`routers/operations.py`).
+    """
+
+    def __init__(self, fn_iri: str) -> None:
+        super().__init__(fn_iri)
+        self.fn_iri = fn_iri
+
+
+#: A candidate `subject_ref` is only ever meaningfully checked against the
+#: graph if it looks like a real IRI (scheme + no characters that could
+#: break out of a SPARQL `<...>` term) -- anything else can't name a real
+#: published function anyway, so it's simply never a match (fail-open on
+#: the check, not fail-open on the mutation: a malformed value still can't
+#: correspond to an existing node, so nothing is bypassed).
+_SAFE_IRI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+.-]*:[^\s<>"]+$')
+
+
+async def _is_published_function(version_iri: str, fn_iri: str) -> bool:
+    if not _SAFE_IRI_RE.match(fn_iri):
+        return False
+    query = f"ASK {{ <{fn_iri}> a <https://weave.io/ontology/Function> }}"
+    result = await run_query(query, version_iri)
+    return bool(result.get("boolean", False))
+
+
+async def _reject_published_signature_edit(ctx: ApplyContext, request: ApplyRequest) -> None:
+    """AC-009-04: fail-fast, before any scratch-graph work, same shape as
+    the `PublishedTargetError` check just below it in `_apply_uncached`.
+    """
+    if not touches_function_signature(request.operations):
+        return
+    targets = existing_signature_edit_targets(request.operations)
+    if not targets:
+        return
+    try:
+        latest_published_iri = await resolve_version(
+            ctx.conn, tenant_id=ctx.tenant_id, workspace_id=ctx.workspace_id, version="latest"
+        )
+    except VersionNotFound:
+        # Nothing published yet in this workspace -- no function can be a
+        # published one to edit in place.
+        return
+    for fn_iri in targets:
+        if await _is_published_function(latest_published_iri, fn_iri):
+            raise FunctionSignatureImmutableError(fn_iri)
 
 
 @dataclass
@@ -226,8 +296,27 @@ def _to_violation_detail(result: Any) -> ViolationDetail:
     )
 
 
+def _commit_event(
+    ctx: ApplyContext, op: Op, ref_map: dict[str, str], change_type: ChangeType
+) -> CommitEvent:
+    """CE-EVENT-1 (AC-008-01/-02/-03): one event per batch, keyed off the
+    batch's first op -- see `operations/events.py` module docstring for why
+    a batch is one commit -> one event, not a per-op ledger. `version_iri`
+    is always null here: CE-WRITE-1 only ever mints drafts (same module
+    docstring).
+    """
+    return CommitEvent(
+        tenant_id=ctx.tenant_id,
+        workspace_id=ctx.workspace_id,
+        change_type=change_type,
+        entity_iri=op_entity_iri(op, ref_map),
+        version_iri=None,
+        actor=ctx.principal_iri,
+    )
+
+
 async def _apply_uncached(
-    ctx: ApplyContext, request: ApplyRequest
+    ctx: ApplyContext, request: ApplyRequest, redis_client: Any = None
 ) -> ApplyResponse | ViolationsResponse:
     # TASK-004 AC-004-02: every add_node's kind must be one of the 13 BPMO
     # kinds. Checked here -- the one place every authoring surface (NL,
@@ -250,13 +339,29 @@ async def _apply_uncached(
         )
         if target_version is not None and target_version.status == "published":
             raise PublishedTargetError(request.target)
+    await _reject_published_signature_edit(ctx, request)
     scratch = await _fetch_scratch_graph(source_graph_iri)
     apply_result = apply_operations(scratch, request.operations)
-    shacl_results = validate_graph(scratch)
+    # CE-TASK-005: tenant-scoped shapes -- redis_client=None (idempotency-
+    # less callers/tests, see module Any-typed param) degrades to the
+    # framework-only M1 behaviour, same as before this task.
+    shacl_results = await validate_graph_for_tenant(
+        scratch, tenant_id=ctx.tenant_id, redis_client=redis_client
+    )
     violations = [r for r in shacl_results if r.severity == "Violation"]
 
     if violations:
         metrics.schedule_mutation_outcome_metric("violation")
+        # AC-008-02: constraint-violated is the one exception to same-txn --
+        # ctx.conn's request-scoped transaction wrote nothing here, but the
+        # event still gets its own connection/transaction per ADR-008,
+        # rather than riding along on the caller's, since nothing about
+        # this branch guarantees that transaction ever commits.
+        event = _commit_event(
+            ctx, request.operations[0], apply_result.ref_map, "constraint-violated"
+        )
+        async with tenant_connection(ctx.tenant_id) as violation_conn:
+            await record_commit_event(violation_conn, event)
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
     version_iri, activity_iri, body = await _commit(
@@ -265,6 +370,16 @@ async def _apply_uncached(
         source_graph_iri=source_graph_iri,
         claimed_actor_iri=request.actor,
         applied_count=apply_result.applied_count,
+    )
+    # AC-008-01: same connection/transaction the version row just committed
+    # on -- ctx.conn's transaction only actually commits when the router's
+    # `tenant_connection` block exits, so this insert is still atomic with
+    # the commit above even though it's not literally inside `_commit`.
+    await record_commit_event(
+        ctx.conn,
+        _commit_event(
+            ctx, request.operations[0], apply_result.ref_map, op_change_type(request.operations[0])
+        ),
     )
     metrics.schedule_mutation_outcome_metric("success")
     # Last, irreversible step -- everything failable already happened and
@@ -294,7 +409,7 @@ def _from_cache_entry(cached: dict[str, Any]) -> ApplyResponse | ViolationsRespo
 async def _apply_and_cache(
     ctx: ApplyContext, request: ApplyRequest, redis_client: Any
 ) -> ApplyResponse | ViolationsResponse:
-    result = await _apply_uncached(ctx, request)
+    result = await _apply_uncached(ctx, request, redis_client)
     if request.idempotency_key:
         await store_response(
             redis_client, ctx.tenant_id, request.idempotency_key, _to_cache_entry(result)
@@ -323,7 +438,7 @@ async def apply_operations_request(
     ctx: ApplyContext, request: ApplyRequest, redis_client: Any
 ) -> ApplyResponse | ViolationsResponse:
     if not request.idempotency_key:
-        return await _apply_uncached(ctx, request)
+        return await _apply_uncached(ctx, request, redis_client)
 
     cached = await get_cached_response(redis_client, ctx.tenant_id, request.idempotency_key)
     if cached is not None:

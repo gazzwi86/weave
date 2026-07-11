@@ -11,6 +11,9 @@ registry divergence on failure).
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -30,6 +33,20 @@ AUTHENTICATED_PRINCIPAL = "urn:weave:principal:user:u-real"
 CANARY_TURTLE = (
     '<https://weave.io/instances/pre-existing> <https://weave.io/ontology/label> "untouched" .'
 )
+
+
+def _stub_violation_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CE-008 (TASK-008): the SHACL-violation branch now opens its own
+    `tenant_connection` to record a `constraint-violated` change event
+    (AC-008-02) -- these pre-existing rollback tests don't exercise that
+    feed, so give it a fake connection rather than hitting real Postgres.
+    """
+
+    @asynccontextmanager
+    async def _fake_tenant_connection(_tenant_id: str) -> AsyncIterator[Any]:
+        yield AsyncMock()
+
+    monkeypatch.setattr(pipeline, "tenant_connection", _fake_tenant_connection)
 
 
 @pytest.fixture
@@ -106,6 +123,7 @@ async def test_mixed_violation_and_warning_batch_still_blocks_commit(
     load_graph_spy = AsyncMock()
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    _stub_violation_event(monkeypatch)
 
     request = ApplyRequest(
         operations=[
@@ -130,6 +148,7 @@ async def test_shacl_violation_never_writes_to_oxigraph(
     load_graph_spy = AsyncMock()
     monkeypatch.setattr(pipeline, "load_graph", load_graph_spy)
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    _stub_violation_event(monkeypatch)
 
     result = await pipeline.apply_operations_request(ctx, _invalid_request(), redis_client=None)
 

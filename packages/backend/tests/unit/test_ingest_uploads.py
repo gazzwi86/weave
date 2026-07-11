@@ -6,6 +6,7 @@ call" holds structurally: nothing here can reach S3/DB before raising.
 from __future__ import annotations
 
 import pytest
+
 from weave_backend.ingest.uploads import UploadRejected, validate_upload
 
 MAX_BYTES = 25 * 1024 * 1024

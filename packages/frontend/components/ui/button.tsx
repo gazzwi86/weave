@@ -24,6 +24,8 @@ const buttonVariants = cva(
         secondary:
           "bg-[var(--color-surface)] text-[var(--color-text-default)] border border-[var(--color-border)] hover:bg-[var(--color-hover)]",
         danger: "bg-[var(--color-danger)] text-[var(--color-bg)] hover:opacity-90",
+        ghost:
+          "bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
       },
     },
     defaultVariants: {
@@ -34,8 +36,26 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+    VariantProps<typeof buttonVariants> {
+  /** Shows an inline spinner and disables the button (AC-4 "loading" state). */
+  loading?: boolean;
+}
 
-export function Button({ className, variant, ...props }: ButtonProps) {
-  return <button className={cn(buttonVariants({ variant }), className)} {...props} />;
+export function Button({ className, variant, loading, disabled, children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant }), className)}
+      disabled={disabled ?? loading}
+      aria-busy={loading || undefined}
+      {...props}
+    >
+      {loading ? (
+        <span
+          aria-hidden="true"
+          className="h-[var(--space-3)] w-[var(--space-3)] animate-spin rounded-[var(--radius-full)] border-2 border-current border-t-transparent"
+        />
+      ) : null}
+      {children}
+    </button>
+  );
 }

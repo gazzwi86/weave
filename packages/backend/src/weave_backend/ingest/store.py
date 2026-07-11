@@ -1,5 +1,5 @@
 """CE-V1-TASK-012: `ingest_jobs`/`ingest_proposals` persistence (migration
-0040). Tenant-scoped via `tenant_connection()` -- RLS enforces isolation at
+0069). Tenant-scoped via `tenant_connection()` -- RLS enforces isolation at
 the DB level (docker-integration backstop test); the explicit `tenant_id`
 filter here is defence-in-depth, same convention as `briefs/store.py`.
 """

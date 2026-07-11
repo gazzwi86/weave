@@ -5,6 +5,7 @@ import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
 import type { FetchDomainMembersResult } from "@/lib/explorer/fetch-domain-members";
 import * as layoutClient from "@/lib/explorer/layout-client";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
+import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
 
 import { ExplorerInteractions } from "../explorer-interactions";
 
@@ -12,6 +13,11 @@ vi.mock("@/lib/explorer/layout-client", async (importOriginal) => {
   const actual = await importOriginal<typeof layoutClient>();
   return { ...actual, saveLayoutPosition: vi.fn(), resetLayoutPositions: vi.fn() };
 });
+
+// useCanvasLegend's default fetchPalette hits the real CE-READ-1 proxy --
+// stubbed globally so tests that don't care about the legend (most of this
+// file) don't need their own fetchPalette prop just to avoid a network call.
+vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []) }));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
 const NO_RETRY_CONFIG = { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] };
@@ -38,6 +44,10 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),
+    addLayerNodes: vi.fn(() => []),
+    removeElements: vi.fn(),
+    listElements: vi.fn(() => []),
+    applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
     fireRightClick: (nodeId: string, position: { x: number; y: number }) => rightClickHandler?.(nodeId, position),
     ...overrides,
@@ -241,6 +251,65 @@ describe("ExplorerInteractions", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(adapter.expandNode).toHaveBeenCalledWith("n1", manyNeighbours);
+  });
+});
+
+// TASK-020: the search trigger moves into the shared CanvasToolbar shell,
+// and the legend/filters panel mount alongside it -- both driven off the
+// same adapter.listElements()/fetchPalette seams the filter/legend hooks
+// already have unit coverage for.
+describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => {
+  const twoTypeNodes: CytoscapeElement[] = [
+    { data: { id: "n1", bpmo_kind: "Process" } },
+    { data: { id: "n2", bpmo_kind: "Policy" } },
+  ];
+  const palette: NodeKind[] = [{ id: "process", label: "Process", colour: "var(--color-kind-process)" }];
+  const fetchPalette = vi.fn(async () => palette);
+
+  it("moves the search trigger inside the canvas toolbar (D-3)", () => {
+    const adapter = fakeAdapter();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+
+    expect(screen.getByTestId("explorer-toolbar")).toContainElement(screen.getByRole("button", { name: "Search nodes" }));
+  });
+
+  it("renders the legend and the filters panel alongside the canvas", async () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+
+    expect(await screen.findByText("Process")).toBeInTheDocument();
+    expect(screen.getByTestId("explorer-filter-panel")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Process" })).toBeInTheDocument();
+  });
+
+  it("shows the all-types-off empty-state instead of a blank canvas, and Retry restores every type (AC-2)", async () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Process" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Policy" }));
+
+    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(/hidden/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(screen.queryByTestId("explorer-empty-state")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Process" })).toBeChecked();
+  });
+
+  it("shows the no-match empty-state when a property filter matches no loaded node, and Retry clears it (AC-5)", async () => {
+    const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+
+    fireEvent.change(screen.getByLabelText("Property path"), { target: { value: "status" } });
+    fireEvent.change(screen.getByLabelText("Value"), { target: { value: "no-such-value" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add filter" }));
+
+    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(/no loaded nodes match/i);
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(screen.queryByTestId("explorer-empty-state")).not.toBeInTheDocument();
   });
 });
 

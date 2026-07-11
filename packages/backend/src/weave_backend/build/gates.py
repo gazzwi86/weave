@@ -209,25 +209,72 @@ async def run_dod_gate(
     }
 
 
-async def run_pre_scaffold_gate(
-    conn: asyncpg.Connection, *, tenant_id: str, actor_iri: str, project_iri: str
-) -> dict[str, Any]:
-    """AC-5/AC-6: M1 pass-through stub -- records every failing cascade
-    step and fires a `spec_gap_critical` warning per gap, but always
-    PROCEEDs (M2 activates cascade-blocking, FR-055).
+def _cascade_findings(spec: Any) -> list[dict[str, Any]]:
+    """AC-7 (Implementation Hints): every cascade step -- brief/PRD/roadmap/
+    tech-spec absent, impl_ready unset -- is a critical finding.
     """
-    spec = get_project_spec(tenant_id, project_iri)
-    findings: list[dict[str, str]] = []
+    findings: list[dict[str, Any]] = []
     for step, attr in _CASCADE_STEPS:
         if getattr(spec, attr):
             continue
-        reason = f"{step} not present or not ready"
-        findings.append({"step": step, "reason": reason})
+        findings.append(
+            {"step": step, "reason": f"{step} not present or not ready", "critical": True}
+        )
+    return findings
+
+
+def _staleness_finding(staleness: dict[str, Any] | None) -> dict[str, Any] | None:
+    """AC-7/Implementation Hints: staleness is a non-critical finding (never
+    blocks scaffolding on its own) -- `None`/`"unknown"` never fabricates a
+    finding (mirrors FR-036's honesty rule).
+    """
+    if staleness is None or staleness.get("stale") is not True:
+        return None
+    return {
+        "step": "staleness",
+        "reason": f"pinned graph version is {staleness.get('lag')} version(s) behind latest",
+        "critical": False,
+    }
+
+
+async def run_pre_scaffold_gate(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    actor_iri: str,
+    project_iri: str,
+    staleness: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """AC-5/AC-7/AC-8 (FR-055): a critical cascade gap (brief/PRD/roadmap/
+    tech-spec absent, impl_ready unset) now BLOCKS scaffolding and fires a
+    blocking `spec_gap_critical` notify -- the M1 always-PROCEED stub is
+    removed, not flagged behind a toggle. A non-critical finding (currently
+    only staleness, injected by the caller -- Implementation Hints: don't
+    call CE synchronously from inside the gate) is still recorded and still
+    PROCEEDs.
+    """
+    spec = get_project_spec(tenant_id, project_iri)
+    findings = _cascade_findings(spec)
+    stale_finding = _staleness_finding(staleness)
+    if stale_finding is not None:
+        findings.append(stale_finding)
+
+    critical = [f for f in findings if f["critical"]]
+    result = "BLOCKED" if critical else "PROCEED"
+
+    if critical:
+        # AC-8: `blocking: True` in the payload distinguishes this from the
+        # removed M1 warning notify (`notify_tenant_admins` itself has no
+        # blocking/non-blocking mode -- the caller marks intent in payload).
         await notify_tenant_admins(
             conn,
             tenant_id=tenant_id,
             event_type="spec_gap_critical",
-            payload={"project_iri": project_iri, "failing_step": step},
+            payload={
+                "project_iri": project_iri,
+                "failing_step": critical[0]["step"],
+                "blocking": True,
+            },
             actor_iri=actor_iri,
         )
 
@@ -239,9 +286,12 @@ async def run_pre_scaffold_gate(
             event_type="gate_result_pre_scaffold",
             subject_iri=project_iri,
             gate="pre_scaffold",
-            result="PROCEED",
-            payload={"result": "PROCEED", "findings": findings},
+            result=result,
+            payload={"result": result, "findings": findings},
             project_iri=project_iri,
         ),
     )
-    return {"gate": "pre_scaffold", "result": "PROCEED", "findings": findings}
+    response: dict[str, Any] = {"gate": "pre_scaffold", "result": result, "findings": findings}
+    if critical:
+        response["failing_step"] = critical[0]["step"]
+    return response

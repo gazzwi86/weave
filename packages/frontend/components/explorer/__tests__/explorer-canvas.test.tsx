@@ -5,6 +5,10 @@ import { ExplorerCanvas } from "../explorer-canvas";
 import { useExplorerCanvas } from "../use-explorer-canvas";
 
 vi.mock("../use-explorer-canvas", () => ({ useExplorerCanvas: vi.fn() }));
+// ExplorerInteractions (rendered for real here) pulls in useCanvasLegend's
+// default fetchPalette, which hits the real CE-READ-1 proxy -- stub it so
+// this file's real-adapter tests don't fire a genuine network call.
+vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []) }));
 
 const mockedUseExplorerCanvas = vi.mocked(useExplorerCanvas);
 
@@ -51,6 +55,10 @@ describe("ExplorerCanvas", () => {
         expandNode: vi.fn(() => []),
         collapseNode: vi.fn(),
         hasExpandedNeighbours: vi.fn(() => false),
+        applyFilterVisibility: vi.fn(),
+        addLayerNodes: vi.fn(() => []),
+        removeElements: vi.fn(),
+        listElements: vi.fn(() => []),
       },
     });
 

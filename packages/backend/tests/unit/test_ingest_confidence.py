@@ -15,7 +15,6 @@ from weave_backend.ingest.confidence import (
     DEFAULT_CONFIDENCE_THRESHOLD,
     resolve_confidence_threshold,
 )
-
 from weave_backend.settings.scope import workspace_iri
 
 _TENANT_ID = "acme-corp"

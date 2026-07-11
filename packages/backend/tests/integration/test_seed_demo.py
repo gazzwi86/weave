@@ -8,6 +8,7 @@ Postgres/Redis/Oxigraph, skipped where docker isn't available).
 
 from __future__ import annotations
 
+import os
 import shutil
 import uuid
 
@@ -23,6 +24,14 @@ pytestmark = [
     pytest.mark.docker,
     pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed"),
 ]
+
+
+def _redis_url() -> str:
+    # Mirrors tenancy/sessions.py:35-37 -- honour WEAVE_REDIS_PORT so this
+    # test finds the same Redis the app just wrote to under port-isolated
+    # (multi-worktree) runs, not always the default 6379.
+    port = os.environ.get("REDIS_PORT", os.environ.get("WEAVE_REDIS_PORT", "6379"))
+    return f"redis://localhost:{port}/0"
 
 
 async def _triple_count(named_graph_iri: str) -> int:
@@ -61,7 +70,7 @@ async def test_seed_demo_is_idempotent_and_activates_both_logins(
         named_graph_iri = f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"
         assert await _triple_count(named_graph_iri) > 0
 
-        redis_client = redis.from_url("redis://localhost:6379/0", decode_responses=True)
+        redis_client = redis.from_url(_redis_url(), decode_responses=True)
         try:
             for sub in ("admin", "client"):
                 assert await redis_client.get(
@@ -95,7 +104,7 @@ async def _cleanup(tenant_id: str) -> None:
             await clear_graph(row["named_graph_iri"])
         await conn.execute("DELETE FROM workspace_members WHERE tenant_id = $1", tenant_id)
         await conn.execute("DELETE FROM workspaces WHERE tenant_id = $1", tenant_id)
-    redis_client = redis.from_url("redis://localhost:6379/0", decode_responses=True)
+    redis_client = redis.from_url(_redis_url(), decode_responses=True)
     try:
         await redis_client.delete(
             f"active_workspace:{tenant_id}:admin", f"active_workspace:{tenant_id}:client"

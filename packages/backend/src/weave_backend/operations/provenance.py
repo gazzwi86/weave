@@ -19,12 +19,13 @@ from datetime import UTC, datetime
 from typing import Literal as LiteralType
 from uuid import uuid4
 
-from rdflib import RDF, Graph, Literal, Namespace, URIRef
+from rdflib import RDF, BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import PROV, XSD
 
 from weave_backend.rdf.oxigraph_client import append_graph
 
 INSTANCES = Namespace("https://weave.io/instances/")
+WEAVE = Namespace("https://weave.io/ontology/")
 
 ActorType = LiteralType["human", "agent"]
 
@@ -101,3 +102,44 @@ async def write_activity(
 
     await append_graph(prov_graph_iri(named_graph_iri), graph.serialize(format="turtle"))
     return str(activity)
+
+
+async def write_shape_activity(
+    *,
+    shapes_graph_iri: str,
+    approver_iri: str,
+    generator_iri: str | None,
+    generated_iri: str,
+) -> str:
+    """CE-TASK-005 (AC-005-01): `write_activity`'s single-actor model can't
+    express "LLM generated it, human approved it" -- two actors, two
+    distinct roles. `generator_iri=None` is the self-authored case (a human
+    submits raw SHACL with no AI step): approver only, same shape as
+    `write_activity`'s human-actor branch.
+    """
+    activity_iri = INSTANCES[f"activity-{uuid4().hex}"]
+    now = Literal(datetime.now(UTC).isoformat(), datatype=XSD.dateTime)
+    approver = URIRef(approver_iri)
+
+    graph = Graph()
+    graph.add((activity_iri, RDF.type, PROV.Activity))
+    graph.add((approver, RDF.type, PROV.Person))
+    graph.add((activity_iri, PROV.wasAssociatedWith, approver))
+    graph.add((activity_iri, PROV.wasStartedBy, approver))
+
+    if generator_iri is not None:
+        generator = URIRef(generator_iri)
+        graph.add((generator, RDF.type, PROV.SoftwareAgent))
+        graph.add((activity_iri, PROV.wasAssociatedWith, generator))
+        association = BNode()
+        graph.add((activity_iri, PROV.qualifiedAssociation, association))
+        graph.add((association, RDF.type, PROV.Association))
+        graph.add((association, PROV.agent, generator))
+        graph.add((association, PROV.hadRole, WEAVE.generator))
+
+    graph.add((activity_iri, PROV.generated, URIRef(generated_iri)))
+    graph.add((activity_iri, PROV.startedAtTime, now))
+    graph.add((activity_iri, PROV.endedAtTime, now))
+
+    await append_graph(prov_graph_iri(shapes_graph_iri), graph.serialize(format="turtle"))
+    return str(activity_iri)

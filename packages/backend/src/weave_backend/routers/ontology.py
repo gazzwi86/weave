@@ -25,6 +25,8 @@ from weave_backend.rbac import (
     enforce_workspace_role,
     resolve_workspace_role,
 )
+from weave_backend.requests.ce_read import CeReadUnavailable, search_entities_by_label
+from weave_backend.routers.sparql import _resolve_named_graph
 from weave_backend.schemas.ontology import (
     DiffResponse,
     IncomingEdgeModel,
@@ -39,6 +41,7 @@ from weave_backend.schemas.ontology import (
     VersionEntry,
     VersionsResponse,
 )
+from weave_backend.schemas.requests import TypeaheadEntity, TypeaheadResponse
 from weave_backend.tenancy.members import list_active_member_subs
 from weave_backend.tenancy.sessions import get_active_workspace
 from weave_backend.tenancy.workspaces import Workspace, get_workspace
@@ -75,6 +78,7 @@ async def ontology_types_route(
                 iri=k.iri,
                 label=k.label,
                 properties=[_property_shape_model(p) for p in k.properties],
+                description=k.description,
             )
             for k in kinds
         ],
@@ -463,3 +467,22 @@ async def diff_route(
             for m in result.modified
         ],
     )
+
+
+@router.get("/entities/typeahead", response_model=TypeaheadResponse)
+async def typeahead_entities_route(
+    q: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> TypeaheadResponse:
+    """TASK-024 AC-2/AC-8: label-substring entity search, scoped to the
+    caller's active workspace named graph (never a cross-tenant union --
+    see requests/ce_read.py::search_entities_by_label's own docstring).
+    """
+    if len(q.strip()) < 2:
+        return TypeaheadResponse(results=[])
+    named_graph_iri = await _resolve_named_graph(principal, None)
+    try:
+        results = await search_entities_by_label(q, named_graph_iri=named_graph_iri)
+    except CeReadUnavailable as exc:
+        raise HTTPException(status_code=503, detail={"error": "ce_unavailable"}) from exc
+    return TypeaheadResponse(results=[TypeaheadEntity(**r) for r in results])

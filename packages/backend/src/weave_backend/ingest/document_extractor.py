@@ -9,7 +9,7 @@ wires that, and Ollama has no equivalent tool API.
 store) -- unit-tested directly. `DocumentExtractor.extract(job)` is the thin
 S3-fetching wrapper the worker's `Extractor` registry calls; it re-fetches
 the uploaded artefact bytes via the `corpus_key`/`content_type` persisted at
-upload time (migration 0041) and is covered by the docker-integration suite.
+upload time (migration 0070) and is covered by the docker-integration suite.
 """
 
 from __future__ import annotations
@@ -112,7 +112,7 @@ def extract_candidates(
 class DocumentExtractor:
     """Re-fetches the uploaded artefact from S3 and delegates to
     `extract_candidates`. `job.corpus_key`/`job.content_type` are persisted
-    at upload time (migration 0041) -- a job with neither (e.g. seeded by an
+    at upload time (migration 0070) -- a job with neither (e.g. seeded by an
     older path) yields zero candidates rather than erroring.
     """
 

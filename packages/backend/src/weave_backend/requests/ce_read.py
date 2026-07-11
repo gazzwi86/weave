@@ -16,9 +16,16 @@ import re
 
 import httpx
 
-from weave_backend.rdf.oxigraph_client import run_query_unscoped
+from weave_backend.rdf.oxigraph_client import run_query, run_query_unscoped
 
 _IRI_PATTERN = re.compile(r"urn:weave:[a-zA-Z0-9:_-]+")
+
+#: TASK-024 AC-2/AC-8: label predicate used repo-wide for entity friendly
+#: labels (`operations/graph_ops.py::find_existing_by_label_kind`).
+_LABEL_PREDICATE = "https://weave.io/ontology/label"
+_KIND_PREDICATE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+#: TASK-024 AC-8: bound the typeahead result set (perf budget).
+_TYPEAHEAD_LIMIT = 20
 
 #: ponytail: placeholder BPMO predicates -- see module docstring.
 _TOUCHES_DOMAIN = "urn:weave:bpmo:touchesDomain"
@@ -72,6 +79,48 @@ async def compute_blast_radius(entity_iris: list[str]) -> tuple[list[str], list[
     domains = {b["domain"]["value"] for b in bindings if "domain" in b}
     services = {b["service"]["value"] for b in bindings if "service" in b}
     return sorted(domains), sorted(services)
+
+
+def _local_kind(type_iri: str) -> str:
+    return type_iri.rsplit("/", 1)[-1].rsplit("#", 1)[-1].lower()
+
+
+async def search_entities_by_label(
+    query_text: str, *, named_graph_iri: str
+) -> list[dict[str, str]]:
+    """TASK-024 AC-2/AC-8 typeahead: label-substring match, scoped to the
+    caller's own workspace named graph (never `run_query_unscoped` -- that
+    unions every tenant's graphs, which would leak other tenants' entity
+    labels/IRIs to a discovery query). Raises `CeReadUnavailable` on
+    connection failure -- caller maps that to a 503.
+    """
+    if not query_text.strip():
+        return []
+    escaped = query_text.replace("\\", "\\\\").replace('"', '\\"')
+    sparql = f"""
+        SELECT ?e ?label ?type WHERE {{
+          ?e <{_LABEL_PREDICATE}> ?label .
+          FILTER(CONTAINS(LCASE(STR(?label)), LCASE("{escaped}")))
+          OPTIONAL {{ ?e <{_KIND_PREDICATE}> ?type }}
+        }} LIMIT {_TYPEAHEAD_LIMIT}
+    """
+    try:
+        result = await run_query(sparql, named_graph_iri)
+    except httpx.HTTPError as exc:
+        raise CeReadUnavailable("CE-READ-1 unreachable") from exc
+    bindings = result.get("results", {}).get("bindings", [])
+    seen: dict[str, dict[str, str]] = {}
+    for binding in bindings:
+        iri = binding["e"]["value"]
+        if iri in seen:
+            continue
+        type_iri = binding.get("type", {}).get("value", "")
+        seen[iri] = {
+            "iri": iri,
+            "label": binding["label"]["value"],
+            "kind": _local_kind(type_iri) if type_iri else "",
+        }
+    return list(seen.values())
 
 
 async def resolve_required_stakeholders(entity_iris: list[str]) -> list[str]:
