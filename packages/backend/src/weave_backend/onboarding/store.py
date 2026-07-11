@@ -178,6 +178,51 @@ async def patch_state(
     )
 
 
+async def get_sandbox_workspace_id(
+    conn: asyncpg.Connection, *, tenant_id: str, user_id: str
+) -> str | None:
+    """TASK-004: read-side of the sandbox pointer (`onboarding_state.
+    sandbox_workspace_id`, TASK-001's migration). `None` means "never
+    forked" -- a brand-new user's row may not exist at all yet.
+    """
+    row = await conn.fetchrow(
+        "SELECT sandbox_workspace_id FROM onboarding_state WHERE tenant_id = $1 AND user_id = $2",
+        tenant_id,
+        user_id,
+    )
+    if row is None or row["sandbox_workspace_id"] is None:
+        return None
+    return str(row["sandbox_workspace_id"])
+
+
+async def set_sandbox_pointer(
+    conn: asyncpg.Connection, *, tenant_id: str, user_id: str, workspace_id: str, semver: str
+) -> None:
+    """AC-004-03: write-side of the sandbox pointer -- callers must only
+    invoke this AFTER a fork has fully applied and published (pointer-last
+    is what makes "never present a half-seeded sandbox" trivial: nothing
+    upstream of this call can leave a partial fork visible, because nothing
+    upstream writes to `onboarding_state` at all).
+    """
+    await conn.execute(
+        """
+        INSERT INTO onboarding_state
+            (tenant_id, user_id, sandbox_workspace_id, sandbox_batch_semver, sandbox_forked_at,
+             created_at, updated_at)
+        VALUES ($1, $2, $3, $4, now(), now(), now())
+        ON CONFLICT (tenant_id, user_id) DO UPDATE SET
+            sandbox_workspace_id = $3,
+            sandbox_batch_semver = $4,
+            sandbox_forked_at = now(),
+            updated_at = now()
+        """,
+        tenant_id,
+        user_id,
+        workspace_id,
+        semver,
+    )
+
+
 async def upsert_tour_progress(
     conn: asyncpg.Connection,
     *,
