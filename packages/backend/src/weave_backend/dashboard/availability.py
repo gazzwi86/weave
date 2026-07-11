@@ -15,6 +15,10 @@ _ENGINE_AVAILABILITY: dict[str, bool] = {
     "build": False,
     "events": False,
     "explorer": False,
+    # PLAT-* contracts (billing/settings/audit/identity) are owned by the
+    # platform shell itself, not one of the four roadmap engines -- always
+    # GA, never gated by this registry.
+    "platform": True,
 }
 
 #: contract id prefix (`CE-METRICS-1` -> `CE`) -> owning engine key. Every
@@ -25,6 +29,7 @@ _CONTRACT_PREFIX_TO_ENGINE: dict[str, str] = {
     "BUILD": "build",
     "EVENTS": "events",
     "EXPLORER": "explorer",
+    "PLAT": "platform",
 }
 
 
