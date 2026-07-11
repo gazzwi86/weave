@@ -272,3 +272,10 @@ controller + write proxy logic, unit-tested). NEEDS:
    doesn't exist yet — Complexity-L. In this task, or split? (brief says split = circular dep → probably in-scope.)
 Then buildable: rel-type picker UI + mount hooks into ExplorerInteractions + inspector + 2 E2E. Work preserved on
 feature/CE-V1-EPIC-017 (HEAD 62bf816). Lane PARKED. Recommend re-scoping the brief (S/M→L) or splitting AC-9.
+
+## EPIC-008 MERGED (#54, squash) — 2026-07-11 ~13:10 by user
+origin/main advanced 67fc6ef → ba818b9. Local main state rebased clean. Worktree/branches removed. Held→CLEARED.
+**Restack-at-close note:** active lanes (CE-001/003/007/009, PLAT-012) branched off 67fc6ef → base now behind by EPIC-008.
+EPIC-008 changed only `generation/*` (SDK trigger + brand SAFETY-GATE) + migrations 0021/0031/0032 — NOT graph_ops or CE
+domain dirs → restacks should be LOW-conflict. Each lane restacks onto ba818b9 at its epic-close (freeze rule: not mid-work).
+NEW lanes from here branch off ba818b9. CE-003 brand MODEL + EPIC-008 brand GATE are complementary (gate consumes CE-BRAND-1).
