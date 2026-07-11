@@ -161,4 +161,37 @@ describe("useIngest", () => {
 
     expect(result.current.proposals.find((p) => p.id === "p1")?.status).toBe("rejected");
   });
+
+  // QA-fail fix (retry 1): a non-2xx response that isn't the 422-violations
+  // shape must never be treated as a resolution -- the card stays pending
+  // with a retryable error, never silently "accepted"/"rejected".
+  it("accept: on a 502, leaves the proposal pending and surfaces a retryable error (AC-002-05)", async () => {
+    stubAwaitingReviewWith((url) =>
+      url === "/api/ingest/proposals/p1/accept" ? jsonResponse(502, { error: "upstream_unavailable" }) : undefined
+    );
+    const { result } = renderHook(() => useIngest());
+    await uploadToAwaitingReview(result, [PROPOSAL]);
+
+    await act(async () => {
+      await result.current.accept("p1");
+    });
+
+    expect(result.current.proposals.find((p) => p.id === "p1")?.status).toBe("pending");
+    expect(result.current.violations.p1?.[0]?.message).toBeTruthy();
+  });
+
+  it("reject: on a 500, leaves the proposal pending and surfaces a retryable error (AC-002-05)", async () => {
+    stubAwaitingReviewWith((url) =>
+      url === "/api/ingest/proposals/p1/reject" ? jsonResponse(500, { error: "internal_error" }) : undefined
+    );
+    const { result } = renderHook(() => useIngest());
+    await uploadToAwaitingReview(result, [PROPOSAL]);
+
+    await act(async () => {
+      await result.current.reject("p1");
+    });
+
+    expect(result.current.proposals.find((p) => p.id === "p1")?.status).toBe("pending");
+    expect(result.current.violations.p1?.[0]?.message).toBeTruthy();
+  });
 });

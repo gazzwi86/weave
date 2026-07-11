@@ -24,6 +24,22 @@ async function postJson<T>(url: string, init?: RequestInit): Promise<{ status: n
   return { status: response.status, body };
 }
 
+const isSuccessStatus = (status: number): boolean => status >= 200 && status < 300;
+
+/** QA-fail fix (AC-002-05, retry 1): accept/reject can fail for reasons
+ * other than the 422-with-violations shape (backend down, auth, etc). Those
+ * must never be treated as a resolution -- render as a card-level error
+ * message via the existing violations slot instead of a second UI surface.
+ */
+function requestFailureViolation(proposalId: string, status: number): IngestViolation {
+  return {
+    focus_node: proposalId,
+    path: null,
+    severity: "Error",
+    message: `Request failed (status ${status}). Please try again.`,
+  };
+}
+
 async function fetchJob(jobId: string): Promise<IngestJob | null> {
   const { status, body } = await postJson<IngestJob>(`/api/ingest/jobs/${jobId}`);
   return status === 200 ? body : null;
@@ -87,6 +103,60 @@ function useJobPolling(): JobPolling {
   return { job, proposals, setProposals, startPolling };
 }
 
+interface ProposalActions {
+  violations: Record<string, IngestViolation[]>;
+  accept: (proposalId: string) => Promise<void>;
+  reject: (proposalId: string) => Promise<void>;
+}
+
+/** Owns accept/reject and their violation/error state (AC-002-05), split
+ * out so `useIngest` stays under the function-length budget -- mirrors the
+ * `useJobPolling` extraction above.
+ */
+function useProposalActions(setProposalStatus: (proposalId: string, status: IngestProposal["status"]) => void): ProposalActions {
+  const [violations, setViolations] = useState<Record<string, IngestViolation[]>>({});
+
+  const setProposalViolations = useCallback((proposalId: string, next: IngestViolation[]) => {
+    setViolations((current) => ({ ...current, [proposalId]: next }));
+  }, []);
+
+  const accept = useCallback(
+    async (proposalId: string) => {
+      const { status, body } = await postJson<AcceptRejectResponse>(`/api/ingest/proposals/${proposalId}/accept`, {
+        method: "POST",
+      });
+      if (status === 422 && body?.violations) {
+        setProposalViolations(proposalId, body.violations);
+        return;
+      }
+      if (!isSuccessStatus(status)) {
+        setProposalViolations(proposalId, [requestFailureViolation(proposalId, status)]);
+        return;
+      }
+      setProposalViolations(proposalId, []);
+      setProposalStatus(proposalId, "accepted");
+    },
+    [setProposalStatus, setProposalViolations]
+  );
+
+  const reject = useCallback(
+    async (proposalId: string) => {
+      const { status } = await postJson<AcceptRejectResponse>(`/api/ingest/proposals/${proposalId}/reject`, {
+        method: "POST",
+      });
+      if (!isSuccessStatus(status)) {
+        setProposalViolations(proposalId, [requestFailureViolation(proposalId, status)]);
+        return;
+      }
+      setProposalViolations(proposalId, []);
+      setProposalStatus(proposalId, "rejected");
+    },
+    [setProposalStatus, setProposalViolations]
+  );
+
+  return { violations, accept, reject };
+}
+
 export interface UseIngestResult {
   job: IngestJob | null;
   proposals: IngestProposal[];
@@ -106,7 +176,6 @@ export interface UseIngestResult {
  */
 export function useIngest(): UseIngestResult {
   const { job, proposals, setProposals, startPolling } = useJobPolling();
-  const [violations, setViolations] = useState<Record<string, IngestViolation[]>>({});
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -137,22 +206,7 @@ export function useIngest(): UseIngestResult {
     [setProposals]
   );
 
-  const accept = useCallback(async (proposalId: string) => {
-    const { status, body } = await postJson<AcceptRejectResponse>(`/api/ingest/proposals/${proposalId}/accept`, {
-      method: "POST",
-    });
-    if (status === 422 && body?.violations) {
-      setViolations((current) => ({ ...current, [proposalId]: body.violations! }));
-      return;
-    }
-    setViolations((current) => ({ ...current, [proposalId]: [] }));
-    setProposalStatus(proposalId, "accepted");
-  }, [setProposalStatus]);
-
-  const reject = useCallback(async (proposalId: string) => {
-    await postJson(`/api/ingest/proposals/${proposalId}/reject`, { method: "POST" });
-    setProposalStatus(proposalId, "rejected");
-  }, [setProposalStatus]);
+  const { violations, accept, reject } = useProposalActions(setProposalStatus);
 
   return { job, proposals, violations, uploading, uploadError, upload, accept, reject };
 }
