@@ -41,6 +41,16 @@ class CreateRequestResponse(BaseModel):
     stream_url: str
 
 
+class ProvenanceLink(BaseModel):
+    """TASK-024 AC-7: one entity/version deep link on the visible request
+    record -- `/ce/resource/{iri}` per grounding entity, or (when none are
+    selected) `/ce/versions/{iri}` for the pinned `CE-VERSION-1` graph.
+    """
+
+    iri: str
+    href: str
+
+
 class RequestStatusResponse(BaseModel):
     request_id: str
     status: str
@@ -52,6 +62,11 @@ class RequestStatusResponse(BaseModel):
     name: str = ""
     grounding_entity_iris: list[str] = Field(default_factory=list)
     target_repo_name: str | None = None
+    #: TASK-024 AC-7: always at least one link, unless CE-READ-1 was
+    #: unreachable at draft time (`graph_context == "unavailable"` -- no
+    #: valid pinned-version IRI exists to link, so the record legitimately
+    #: carries zero links in that degraded case).
+    provenance_links: list[ProvenanceLink] = Field(default_factory=list)
 
 
 class TypeaheadEntity(BaseModel):

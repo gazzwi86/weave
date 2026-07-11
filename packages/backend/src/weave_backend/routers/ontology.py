@@ -478,6 +478,8 @@ async def typeahead_entities_route(
     caller's active workspace named graph (never a cross-tenant union --
     see requests/ce_read.py::search_entities_by_label's own docstring).
     """
+    if len(q.strip()) < 2:
+        return TypeaheadResponse(results=[])
     named_graph_iri = await _resolve_named_graph(principal, None)
     try:
         results = await search_entities_by_label(q, named_graph_iri=named_graph_iri)
