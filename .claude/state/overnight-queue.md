@@ -411,3 +411,54 @@ mutation a/b pass, all blocking green, review-CLEAR. Migration 0068 schema tier 
 
 **Open flags for human (surface at return):**
 - Connectors epic PLAT-V1-EPIC-007 (TASK-006/018/019/020/021/022/025: Atlassian/ServiceNow/Slack/OAuth) — CLAUDE.md says managed connectors "deferred to v1.0". Ambiguous whether that = current v1 scope or post-v1. HOLDING these until confirmed. Everything else proceeds.
+
+### CE-017 assessment (2026-07-11)
+
+**Branch:** `feature/CE-V1-EPIC-017` · **Worktree:** `/Users/gareth/Sites/weave-CE-V1-EPIC-017`
+**Verdict: STOP — do not push. Partial/mid-task, not a coherent finished TASK-023.**
+
+15 commits on the branch (merge-base is 131 commits behind current `main` — the huge
+`git diff main..HEAD` file count is mostly staleness, not branch damage; branch's own unit
+tests (174 tests, 28 files under `lib/explorer`) all pass as-is).
+
+**What IS built and tested (good, keep):**
+- `POST /api/proxy/operations/apply` write proxy (`packages/frontend/app/api/proxy/operations/apply/route.ts` + tests) — AC-1/AC-2 (principal_iri attribution + spoof guard) covered.
+- Edit Controller (`packages/frontend/lib/explorer/edit-controller.ts` + `__tests__/edit-controller.test.ts`) — optimistic commit/rollback/reconcile, AC-4/5/8 style coverage.
+- Quick-add node (`components/explorer/use-quick-add.ts`, `quick-add-popover.tsx`, `quick-add-overlay.tsx` + tests) — AC-3.
+- Draw-edge via cytoscape-edgehandles (`components/explorer/use-draw-edge.ts` + rel-type palette) — AC-6.
+- `canEditCanvas` flag (AC-7 UX layer) with tests.
+
+**What is MISSING (why this fails DoD for TASK-023):**
+- **AC-9 (glass inspector panel) — not built at all.** TASK-023's brief requires a glass
+  inspector (Properties/Edges/PROV tabs + Edit entry, replacing the M1 flat side panel per
+  D-1..D-7) as the *sole* entry point into the Edit Controller. Only the old M1 flat
+  `side-panel.tsx` exists; no `inspector`/`glass`-anything component found anywhere in
+  `packages/frontend/components|lib|app`. This is a Must-Have AC with its own test-mapping row
+  (`test_node_select_opens_glass_inspector`, `test_inspector_edit_entry_opens_edit_controller`) — neither test exists.
+- **Zero E2E Playwright tests for this task.** Brief DoD requires minimum 2 (double-click
+  quick-add committed to CE stub state; draw-edge 422 SHACL rendering). Searched
+  `packages/frontend/tests/e2e/` — no quick-add/draw-edge/inspector spec exists. Law B
+  (browser-automated E2E asserting backend state) is unmet.
+- **`.claude/state/progress.json` still shows `CE-V1-TASK-023` status `"backlog"`,
+  `retry_count: 0`** — the spine was never updated to reflect 15 commits of in-progress work.
+  No `.claude/state/summaries/CE-V1-TASK-023.md` exists either (a `CE-V1-TASK-025` summary
+  exists, suggesting whoever ran this branch moved on to other numbering without closing out
+  023 in the state spine).
+- TASK-024 (side-panel property edit / delete / concurrency guard) — not started at all, as expected (blocked_by TASK-023).
+
+**Recommendation:** do not merge/PR this as "TASK-023 complete." Two options for a human to pick:
+1. Resume the branch: build the glass inspector (AC-9) + the two required E2E specs, update
+   progress.json to `in_progress`/`review` correctly, then re-run this reconcile flow.
+2. Split: land AC-1..AC-8 (proxy + edit controller + quick-add + draw-edge — genuinely solid,
+   tested) as a scoped partial PR explicitly labelled "AC-9 deferred", opening a fresh task/AC
+   for the glass inspector so it isn't silently dropped.
+
+No merge, no push, no PR opened. Worktree left untouched at its current commit
+(`62bf816f`) for a human/next run to pick up.
+
+### CE-017 / TASK-023 PARKED — needs human decision (2026-07-12)
+Finish-023 lane stopped at a real scope+security gap. Branch feature/CE-V1-EPIC-017 left intact at 62bf816f (AC-1..8 built+tested, 174 tests: write proxy w/ principal_iri attribution+spoof guard, edit-controller, quick-add, draw-edge, canEditCanvas flag).
+**Two blockers (YOUR call):**
+1. **Role-authorization model (SECURITY — will not guess):** AC-7/AC-9 gate edits behind editor roles, but no role source defines "who may edit the graph." Need: which of the 10 platform roles (or a new grant) authorizes canvas write? This is an authz boundary — needs your decision or an /architect re-brief, not an agent guess.
+2. **Wiring gap:** AC-1..8 modules (quick-add, draw-edge, edit-controller) exist but are NOT mounted into the live explorer app; AC-9 glass inspector (Properties/Edges/PROV tabs, sole edit entry) unbuilt. Completing = wire modules + build inspector + real E2E. Bigger than brief sized.
+**Options for you:** (A) decide role model → I finish full AC-1..9 + E2E; (B) ship inspector-only honest-partial now, defer wiring+role-gate as fresh tasks; (C) re-brief TASK-023/024 via /architect. Recommend A if you'll give the role answer, else C. Everything else in the build proceeds without 023 (024/029 wait on it; rest of CE/PLAT/ONB does not).
