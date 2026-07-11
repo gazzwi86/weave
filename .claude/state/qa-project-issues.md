@@ -268,3 +268,13 @@ CE-003 proved the perf half is satisfiable per-task via the EXISTING ADR-004 in-
 its own `run_<x>_benchmark.py` extending the pattern (CE-003 done; CE-007 retrying same way). **Residual (architect, non-blocking):**
 reconcile testing-strategy §6 (names only 4 old endpoints, implies CI-locust) vs m2-delta §9 (5 M2 endpoints "measured like §1")
 — decide whether a CI-gated perf lane is also wanted, or the in-process dev benchmark is the accepted gate. NOT blocking task DoDs.
+
+## PROJ-003: integration/e2e tests SILENTLY DESELECTED without the marker (2026-07-11)
+`packages/backend/pyproject.toml` addopts deselects `integration`/`e2e`-marked tests by DEFAULT — even when a test file
+path is named explicitly. Correct invocation (matches CI `ci.yml`) = `pytest -m "integration and docker and not stack" <path>`.
+Found by PLAT-013: its 7 refine integration tests had NEVER actually run in prior engineer passes ("backend tests pass"
+claims were unit-only) — and hid 2 real test-file bugs (wrong principal-iri format → 403, bad restore assertion).
+**Impact:** any engineer/QA who ran `pytest <path>` WITHOUT the marker got a false green (0 integration tests ran).
+QA subagents are instructed to use the marker (safe). **Mitigation:** all future engineer/QA briefs must run docker-integration
+with `-m "integration and docker and not stack"`; consider a CI/pyproject guard that errors if a named integration file
+collects 0 tests. Non-blocking but corrupts confidence — audit prior task integration claims at phase gate.
