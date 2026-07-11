@@ -106,8 +106,10 @@ async def test_metrics_ontology_returns_correct_counts_and_delta_on_seeded_fixtu
     client: AsyncClient, platform_stack: Path
 ) -> None:
     """AC-007-01/-02/-04: counts grouped by BPMO kind on the seeded fixture
-    graph; `draft_published_delta` reuses the M1 diff core against an empty
-    "published" side (never-published tenant); `latest_version` is null.
+    graph; `draft_published_delta` counts the whole draft as `added` against
+    an empty "published" side (never-published tenant); `latest_version` is
+    null. The published-vs-draft case (real added/removed/modified) is
+    covered separately below.
     """
     _tenant_id, _workspace, headers = await _setup_member(
         client, label="metrics-seed", role="author"
@@ -134,6 +136,84 @@ async def test_metrics_ontology_returns_correct_counts_and_delta_on_seeded_fixtu
     assert body["owl_inconsistencies"] == {"pending": True}
 
 
+async def test_metrics_ontology_delta_against_a_real_published_version(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-007-04, ADR-023: exercises the published-vs-draft branch of
+    `draft_published_delta` (the SPARQL count-diff, `run_query_multi`) end
+    to end against real Oxigraph, with a known small fixture so the counts
+    are hand-checkable:
+
+    - publish a version with Actor a1 + Actor a3 + Process p1 +
+      `p1 performedBy a1` + `p1 performedBy a3` (two `performedBy` edges, so
+      deleting one below still satisfies the "a Process needs >=1 Actor"
+      SHACL shape).
+    - on top of that, in the still-draft graph: add a new Actor a2 (2 new
+      triples -> `added`), delete the `p1 performedBy a1` edge (1 triple, no
+      counterpart added for that (subject, predicate) -> `removed`), and
+      relabel p1 (its `label` triple is retracted and reasserted with a new
+      value -- a single-valued swap -> `modified`, not added+removed).
+
+    Expected: added=2, removed=1, modified=1.
+    """
+    _tenant_id, _workspace, headers = await _setup_member(
+        client, label="metrics-delta", role="publish"
+    )
+
+    seed_ops = [
+        {"op": "add_node", "ref": "a1", "kind": "Actor", "label": "Billing Team"},
+        {"op": "add_node", "ref": "a3", "kind": "Actor", "label": "Backup Team"},
+        {"op": "add_node", "ref": "p1", "kind": "Process", "label": "Invoicing"},
+        {"op": "add_edge", "subject_ref": "p1", "predicate": "performedBy", "object_ref": "a1"},
+        {"op": "add_edge", "subject_ref": "p1", "predicate": "performedBy", "object_ref": "a3"},
+    ]
+    seed_response = await client.post(
+        "/api/operations/apply",
+        json={"operations": seed_ops, "actor": "urn:weave:principal:test-actor"},
+        headers=headers,
+    )
+    assert seed_response.status_code == 201
+    seed_body = seed_response.json()
+    version_iri = seed_body["version_iri"]
+    a1_iri = seed_body["ref_map"]["a1"]
+    p1_iri = seed_body["ref_map"]["p1"]
+
+    publish_response = await client.post(
+        f"/api/ontology/versions/{version_iri}/publish", headers=headers
+    )
+    assert publish_response.status_code == 200
+
+    edit_response = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": [
+                {"op": "add_node", "ref": "a2", "kind": "Actor", "label": "Support Team"},
+                {
+                    "op": "delete_edge",
+                    "subject": p1_iri,
+                    "predicate": "performedBy",
+                    "object": a1_iri,
+                },
+                {
+                    "op": "update_node",
+                    "iri": p1_iri,
+                    "properties": {"label": "Invoice Processing"},
+                },
+            ],
+            "actor": "urn:weave:principal:test-actor",
+        },
+        headers=headers,
+    )
+    assert edit_response.status_code == 201
+
+    response = await client.get("/api/metrics/ontology", headers=headers)
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["latest_version"] == version_iri
+    assert body["draft_published_delta"] == {"added": 2, "removed": 1, "modified": 1}
+
+
 async def test_metrics_ontology_empty_graph_returns_zeros_not_errors(
     client: AsyncClient, platform_stack: Path
 ) -> None:
@@ -152,8 +232,10 @@ async def test_metrics_ontology_second_call_serves_from_cache_within_60s(
     client: AsyncClient, platform_stack: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """AC-007-05: a second call within the 60s window is served from cache
-    -- the underlying SPARQL store is spied on and must be hit exactly once
-    across both calls.
+    -- the underlying SPARQL store is spied on (`run_query` only; this
+    fixture is a never-published tenant, so `draft_published_delta` also
+    goes through `run_query`'s `_TOTAL_TRIPLES_QUERY` path, not
+    `run_query_multi`) and must not be hit again after the first call.
     """
     _tenant_id, _workspace, headers = await _setup_member(client, label="metrics-cache")
 
@@ -167,12 +249,14 @@ async def test_metrics_ontology_second_call_serves_from_cache_within_60s(
     monkeypatch.setattr(aggregate_metrics, "run_query", _counting_run_query)
 
     first = await client.get("/api/metrics/ontology", headers=headers)
+    calls_after_first = calls
     second = await client.get("/api/metrics/ontology", headers=headers)
 
     assert first.status_code == 200
     assert second.status_code == 200
     assert first.json() == second.json()
-    assert calls == 1
+    assert calls_after_first > 0
+    assert calls == calls_after_first
 
 
 async def test_metrics_ontology_cache_does_not_leak_across_workspaces_in_same_tenant(

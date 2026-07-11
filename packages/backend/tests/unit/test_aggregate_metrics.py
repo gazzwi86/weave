@@ -1,7 +1,8 @@
 """CE-METRICS-1 (TASK-007) unit tests: pure/mockable pieces only -- no
-docker/Oxigraph. `run_query`/`fetch_graph_turtle` are monkeypatched, same
-style as `test_instances_duplicates.py`; the seeded-fixture end-to-end path
-is covered by the docker-marked integration suite instead.
+docker/Oxigraph. `run_query`/`run_query_multi` are monkeypatched, same style
+as `test_instances_duplicates.py`; the seeded-fixture end-to-end path
+(including a real published-vs-draft delta against real Oxigraph) is covered
+by the docker-marked integration suite instead.
 """
 
 from __future__ import annotations
@@ -10,8 +11,9 @@ from typing import Any
 
 import pytest
 
+from weave_backend.ontology import catalogue
 from weave_backend.ontology.catalogue import Kind
-from weave_backend.operations import aggregate_metrics
+from weave_backend.operations import aggregate_metrics, versioning
 
 _NAMED_GRAPH = "urn:weave:tenant:t1:ws:1"
 
@@ -33,7 +35,7 @@ async def test_entity_count_by_kind_groups_by_kind_label_from_types_fixture(
         _kind("https://weave.io/ontology/Process", "Process"),
         _kind("https://weave.io/ontology/Actor", "Actor"),
     ]
-    monkeypatch.setattr(aggregate_metrics.catalogue, "list_kinds", lambda: kinds)
+    monkeypatch.setattr(catalogue, "list_kinds", lambda: kinds)
 
     async def _fake_run_query(_query: str, _named_graph_iri: str) -> dict[str, Any]:
         return {
@@ -62,7 +64,7 @@ async def test_entity_count_by_kind_is_all_zeros_for_empty_graph(
     error.
     """
     kinds = [_kind("https://weave.io/ontology/Process", "Process")]
-    monkeypatch.setattr(aggregate_metrics.catalogue, "list_kinds", lambda: kinds)
+    monkeypatch.setattr(catalogue, "list_kinds", lambda: kinds)
 
     async def _fake_run_query(_query: str, _named_graph_iri: str) -> dict[str, Any]:
         return {"results": {"bindings": []}}
@@ -79,16 +81,17 @@ async def test_draft_published_delta_counts_whole_draft_as_added_when_never_publ
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AC-007-04/Implementation Hints pitfall: `latest_published_iri=None`
-    (never-published tenant) diffs the draft against an empty graph, via the
-    M1 internal `diff_graphs` core -- not the CE-DIFF-1 endpoint, which
-    can't accept a draft side.
+    (never-published tenant) counts the whole draft as `added` -- a plain
+    `COUNT(*)` over the draft graph, since there's no "before" side to diff
+    against (ADR-023: no longer fetches+rdflib-parses the whole graph).
     """
-    turtle = '<https://weave.io/instances/p1> <https://weave.io/ontology/label> "Invoicing" .'
 
-    async def _fake_fetch(_named_graph_iri: str) -> str:
-        return turtle
+    async def _fake_run_query(query: str, named_graph_iri: str) -> dict[str, Any]:
+        assert named_graph_iri == _NAMED_GRAPH
+        assert query == aggregate_metrics._TOTAL_TRIPLES_QUERY
+        return {"results": {"bindings": [{"count": {"value": "1"}}]}}
 
-    monkeypatch.setattr(aggregate_metrics, "fetch_graph_turtle", _fake_fetch)
+    monkeypatch.setattr(aggregate_metrics, "run_query", _fake_run_query)
 
     result = await aggregate_metrics.draft_published_delta(
         draft_graph_iri=_NAMED_GRAPH, latest_published_iri=None
@@ -97,6 +100,48 @@ async def test_draft_published_delta_counts_whole_draft_as_added_when_never_publ
     assert result.added == 1
     assert result.removed == 0
     assert result.modified == 0
+
+
+@pytest.mark.asyncio
+async def test_draft_published_delta_subtracts_modified_from_raw_added_and_removed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-007-04: when a published version exists, the delta is computed via
+    a single SPARQL count-diff query (`run_query_multi`, ADR-023) instead of
+    `diff_graphs`. `?addedRaw`/`?removedRaw` count raw set-difference
+    triples; `?modified` counts (subject, predicate) keys that were a
+    single-valued swap -- those must come OUT of both raw counts (same rule
+    `diff_graphs` applies: a swap is reported as modified, not as an
+    added+removed pair). A fixture of addedRaw=5, removedRaw=4, modified=2
+    (arbitrary, chosen so added != removed pre-subtraction) must yield
+    added=3, removed=2, modified=2.
+    """
+    published_iri = f"{_NAMED_GRAPH}:v0.0.1"
+
+    async def _fake_run_query_multi(query: str, named_graph_iris: list[str]) -> dict[str, Any]:
+        assert set(named_graph_iris) == {published_iri, _NAMED_GRAPH}
+        assert "FILTER NOT EXISTS" in query
+        return {
+            "results": {
+                "bindings": [
+                    {
+                        "addedRaw": {"value": "5"},
+                        "removedRaw": {"value": "4"},
+                        "modified": {"value": "2"},
+                    }
+                ]
+            }
+        }
+
+    monkeypatch.setattr(aggregate_metrics, "run_query_multi", _fake_run_query_multi)
+
+    result = await aggregate_metrics.draft_published_delta(
+        draft_graph_iri=_NAMED_GRAPH, latest_published_iri=published_iri
+    )
+
+    assert result.added == 3
+    assert result.removed == 2
+    assert result.modified == 2
 
 
 @pytest.mark.asyncio
@@ -109,9 +154,9 @@ async def test_resolve_latest_version_returns_none_when_never_published(
     """
 
     async def _raise_not_found(*_args: object, **_kwargs: object) -> str:
-        raise aggregate_metrics.versioning.VersionNotFound("latest")
+        raise versioning.VersionNotFound("latest")
 
-    monkeypatch.setattr(aggregate_metrics.versioning, "resolve_version", _raise_not_found)
+    monkeypatch.setattr(versioning, "resolve_version", _raise_not_found)
 
     result = await aggregate_metrics.resolve_latest_version(
         conn=None, tenant_id="t1", workspace_id="ws-1"

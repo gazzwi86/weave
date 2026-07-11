@@ -58,6 +58,26 @@ async def run_query(query: str, named_graph_iri: str) -> dict[str, Any]:
     return result
 
 
+async def run_query_multi(query: str, named_graph_iris: list[str]) -> dict[str, Any]:
+    """Run `query` with the dataset's *named graphs* restricted to exactly
+    `named_graph_iris` -- for queries that reference more than one graph
+    explicitly via `GRAPH <iri> { ... }` in the same query (e.g.
+    `aggregate_metrics.draft_published_delta`'s cross-graph SPARQL count-diff,
+    which needs both the draft graph and the latest-published graph visible
+    at once). No `default-graph-uri` is set, so every triple pattern must be
+    inside an explicit `GRAPH <iri>` block -- same "unnamed IRI matches
+    nothing" rule as `run_query`, just for more than one IRI.
+    """
+    response = await _get_client().get(
+        f"{oxigraph_url()}/query",
+        params={"query": query, "named-graph-uri": named_graph_iris},
+        headers={"Accept": "application/sparql-results+json"},
+    )
+    response.raise_for_status()
+    result: dict[str, Any] = response.json()
+    return result
+
+
 async def run_query_unscoped(query: str) -> dict[str, Any]:
     """Run `query` against the whole Oxigraph dataset -- every named graph
     unioned into the default graph (`union-default-graph=true`, Oxigraph's
