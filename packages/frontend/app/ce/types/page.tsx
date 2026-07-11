@@ -124,7 +124,7 @@ export default function CeTypesPage() {
   const [expandedIri, setExpandedIri] = useState<string | null>(null);
 
   return (
-    <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+    <main data-tour-id="ce.types" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
       <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         Ontology / Types
       </h1>

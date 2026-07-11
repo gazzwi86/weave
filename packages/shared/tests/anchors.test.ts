@@ -7,7 +7,7 @@ describe("ANCHORS registry", () => {
       engine: "constitution",
       area: "constitution",
       phase: "m1",
-      shipped: false,
+      shipped: true,
       planted_by: "TASK-007",
     });
     expect(ANCHORS["ge.canvas"].engine).toBe("graph-explorer");
@@ -21,8 +21,9 @@ describe("ANCHORS registry", () => {
     }
   });
 
-  it("no anchor is shipped:true yet -- TASK-003 plants no data-tour-id attributes", () => {
-    expect(Object.values(ANCHORS).every((a) => !a.shipped)).toBe(true);
+  it("m1 anchors flip shipped:true as their planting task lands (ADR-008)", () => {
+    const m1 = Object.values(ANCHORS).filter((a) => a.phase === "m1");
+    expect(m1.some((a) => a.shipped)).toBe(true);
   });
 
   it("every anchor names exactly one planting task", () => {
