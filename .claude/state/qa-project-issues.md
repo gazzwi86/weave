@@ -368,3 +368,21 @@ all lanes onto fixed main. RESOLVED-PENDING-MERGE.
 cavecrew review CLEAR (migrations forward-only/RLS, AC-2 reader-403+audit, AC-5 no-2nd-cost-path, __init__ router union clean,
 SQL parameterized). api/mutation red = PROJ-011 (sdkgen TS drift, not EPIC-003 code); web/integration/semgrep/secrets pass.
 -> HELD for human merge after the PROJ-011 hotfix lands + #64 rebases onto green main.
+
+## PROJ-011 RETRACTED (2026-07-11) — was a local-env misdiagnosis
+The `moduleResolution=node10 removed` TS5108 fires only under **TypeScript 7** (the coordinator's local nvm `tsc` = 7.0.2).
+CI pins `typescript@5` (=5.9.3) which accepts the sdkgen template's `moduleResolution: "node"` fine — both sdkgen tsc tests
+PASS in CI. My local `WEAVE_TSC_BIN=tsc` repro used the machine's TS7 → false alarm. **No sdkgen CI break.** Low-pri follow-up
+(non-urgent): move the sdkgen tsconfig template to `"bundler"`/`"node16"` before CI ever bumps to a TS7-era pin (node resolution
+is gone there) + update the golden fixture — logged as **PROJ-012** below.
+
+## PROJ-012 (low-pri) — sdkgen TS template will break under TS7
+`sdkgen/templates/typescript/tsconfig.json.j2` uses `moduleResolution: "node"`, removed in TS7. Not breaking today (CI pins TS5).
+Proactive fix before any TS7 bump: template → `"bundler"`/`"node16"` + matching `module` + update golden fixture test. Phase-gate/backlog.
+
+## XT-BE021-TESTSEAM (REAL #64 blocker, 2026-07-11) — unit test hits LocalStack unmocked
+#64 api + mutation(a/b) all red on ONE test: `tests/unit/test_prompts_router.py::test_synthesise_typed_brief_from_prompt_before_delegate`
+→ `botocore EndpointConnectionError: http://localhost:4566/`. `_synthesise_prompt_briefs` persists the brief to S3; the unit test
+stubs synthesise_briefs_fn but NOT the S3 write → in the non-docker `api` job (no LocalStack) it makes a real boto call → fail.
+Passed in QA's docker env (LocalStack up) — a test-isolation defect QA missed. Fix: inject/mmock the S3 seam so the unit test
+runs without LocalStack (or mark it docker). BE-021 test bug, on feature/BE-V1-EPIC-003. Fix in flight → rides #64.
