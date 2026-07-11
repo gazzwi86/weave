@@ -73,15 +73,36 @@ async def close_ce_client() -> None:
 def _pick_latest(body: dict[str, object]) -> str:
     # Real shape (VersionsResponse): {"versions": [...], "total", "page",
     # "per_page"} -- not a bare list.
-    versions = body.get("versions", [])
-    if not isinstance(versions, list):
-        raise CeVersionUnavailable("CE-VERSION-1 returned a malformed versions body")
+    versions = _extract_versions(body)
     latest = next(
         (v for v in versions if isinstance(v, dict) and v.get("is_latest")), None
     )
     if latest is None:
         raise CeVersionUnavailable("CE-VERSION-1 returned no is_latest version")
     return str(latest["version_iri"])
+
+
+def _extract_versions(body: dict[str, object]) -> list[dict[str, object]]:
+    versions = body.get("versions", [])
+    if not isinstance(versions, list):
+        raise CeVersionUnavailable("CE-VERSION-1 returned a malformed versions body")
+    return versions
+
+
+async def _fetch_versions_body(
+    client: httpx.AsyncClient, *, headers: dict[str, str] | None = None
+) -> dict[str, object]:
+    last_error: Exception | None = None
+    for _attempt in range(_MAX_ATTEMPTS):
+        try:
+            response = await client.get("/api/ontology/versions", headers=headers)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            last_error = exc
+            log.warning("ce_version_unavailable_attempt", extra={"error": str(exc)})
+            continue
+        return dict(response.json())
+    raise CeVersionUnavailable("CE-VERSION-1 unreachable after retries") from last_error
 
 
 async def get_pinned_latest_version(
@@ -93,17 +114,19 @@ async def get_pinned_latest_version(
     ``Authorization`` bearer token -- the route requires auth same as any
     other CE-READ-1 route.
     """
-    last_error: Exception | None = None
-    for _attempt in range(_MAX_ATTEMPTS):
-        try:
-            response = await client.get("/api/ontology/versions", headers=headers)
-            response.raise_for_status()
-        except httpx.HTTPError as exc:
-            last_error = exc
-            log.warning("ce_version_unavailable_attempt", extra={"error": str(exc)})
-            continue
-        return _pick_latest(response.json())
-    raise CeVersionUnavailable("CE-VERSION-1 unreachable after retries") from last_error
+    body = await _fetch_versions_body(client, headers=headers)
+    return _pick_latest(body)
+
+
+async def get_versions(
+    client: httpx.AsyncClient, *, headers: dict[str, str] | None = None
+) -> list[dict[str, object]]:
+    """TASK-009/FR-036: fetch ``GET /api/ontology/versions``'s ordered
+    ``versions`` list (same retry policy as `get_pinned_latest_version`) --
+    `staleness.py` walks it for `version_distance`, no semver arithmetic.
+    """
+    body = await _fetch_versions_body(client, headers=headers)
+    return _extract_versions(body)
 
 
 class CeDiffUnavailable(Exception):

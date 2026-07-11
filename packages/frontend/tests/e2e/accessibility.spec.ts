@@ -345,6 +345,60 @@ test.describe("explorer accessibility (axe-core, real browser)", () => {
     expect(results.violations).toEqual([]);
   });
 
+  // TASK-020 (AC-8): filters/layers panel + legend + toolbar are new DOM
+  // surfaces mounted alongside the canvas -- own zero-violations pass, plus
+  // a keyboard-only property-filter add/remove proving full keyboard
+  // operability (AC-8's other half), same as explorer-filters-layers.spec.ts's
+  // keyboard-only test but scoped to the a11y assertion here.
+  test("explorer filters & layers panel (with legend/toolbar) has zero axe violations", async ({ page }) => {
+    await page.route("**/api/proxy/node-kinds", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] }),
+      });
+    });
+    await page.route("**/api/proxy/sparql**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [
+            {
+              subject: "https://weave.example/process/onboarding",
+              predicate: "https://weave.example/hasStep",
+              object: "https://weave.example/step/create-account",
+              bpmo_kind: "Process",
+              label: "Customer Onboarding",
+            },
+          ],
+          columns: ["subject", "predicate", "object"],
+          has_more_pages: false,
+          page: 0,
+        }),
+      });
+    });
+
+    await loginAndGoToDashboard(page);
+    await page.goto("/explorer");
+    await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+    await expect(page.getByTestId("explorer-filter-panel")).toBeVisible();
+
+    // AC-8 keyboard operability: add then clear a property filter without
+    // ever touching the mouse.
+    await page.getByLabel("Property path").focus();
+    await page.keyboard.type("status");
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("inactive");
+    await page.getByRole("button", { name: "Add filter" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("status eq inactive")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
+
   // QA edge case (GE-TASK-005, Category 15): the panel/canvas axe passes
   // above never exercise the node-context-menu, confirm-dialog, or
   // domain-focus-notice TASK-005 added -- each is a new interactive DOM

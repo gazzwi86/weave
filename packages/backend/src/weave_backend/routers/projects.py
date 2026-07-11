@@ -24,6 +24,7 @@ from weave_backend.projects.model import (
     get_project,
     slugify,
 )
+from weave_backend.projects.staleness import StalenessOptions, get_staleness
 from weave_backend.repo_bootstrap.store import ProjectRepoRow, fetch_project_repo_row
 from weave_backend.schemas.projects import (
     CreateProjectRequest,
@@ -32,6 +33,7 @@ from weave_backend.schemas.projects import (
     ProjectGridResponse,
     ProjectResponse,
     RepoInfo,
+    StalenessInfo,
 )
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -197,6 +199,8 @@ def _repo_info(repo_row: ProjectRepoRow) -> RepoInfo | None:
 async def get_project_route(
     project_iri: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
+    ce_client: Annotated[httpx.AsyncClient, Depends(get_ce_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> ProjectResponse:
     async with tenant_connection(principal.tenant_id) as conn:
         project = await get_project(conn, tenant_id=principal.tenant_id, project_iri=project_iri)
@@ -205,10 +209,18 @@ async def get_project_route(
         repo_row = await fetch_project_repo_row(
             conn, tenant_id=principal.tenant_id, project_iri=project_iri
         )
+    headers = {"Authorization": authorization} if authorization else None
+    staleness = await get_staleness(
+        ce_client,
+        project_iri=project_iri,
+        pinned_graph_version_iri=project.pinned_graph_version_iri,
+        options=StalenessOptions(headers=headers),
+    )
     return ProjectResponse(
         project_iri=project.project_iri,
         name=project.name,
         pinned_graph_version_iri=project.pinned_graph_version_iri,
         created_at=project.created_at,
         repo=_repo_info(repo_row) if repo_row is not None else None,
+        staleness=StalenessInfo(**staleness),
     )

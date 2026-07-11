@@ -28,6 +28,11 @@ export interface CytoscapeElementData {
   bpmo_kind?: string;
   source?: string;
   target?: string;
+  /** TASK-020 AC-4/AC-5: property-filter source data. Not populated by the
+   * M1 bulk load (map-rows-to-elements.ts sets only id/label/bpmo_kind) --
+   * optional here for forward-compatibility; evalFilter's "missing path is
+   * non-matching" rule already covers a node with no key_properties at all. */
+  key_properties?: Record<string, string>;
 }
 
 export interface CytoscapeElement {

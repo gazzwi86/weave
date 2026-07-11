@@ -48,9 +48,11 @@ describe("SectionRail", () => {
       "href",
       "/ce"
     );
-    // M2 placeholder: no link, phase pill present.
-    expect(screen.queryByRole("link", { name: /Glossary/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Glossary")).toBeInTheDocument();
+    // Glossary shipped in TASK-002 -- now a real link, not an M2 placeholder.
+    expect(screen.getByRole("link", { name: /Glossary/ })).toHaveAttribute(
+      "href",
+      "/ce/glossary"
+    );
     const pills = screen.getAllByText("M2");
     expect(pills.length).toBeGreaterThan(0);
   });

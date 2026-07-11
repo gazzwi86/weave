@@ -15,9 +15,13 @@ from dataclasses import dataclass
 import asyncpg
 import httpx
 
+from weave_backend.anatomy.indexer import refresh_anatomy
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.briefs.ce_read_client import get_bpmo_context
 from weave_backend.briefs.store import get_task_brief
+from weave_backend.build.gate_store import NewGateResult, insert_gate_result
+from weave_backend.db.pool import tenant_connection
+from weave_backend.generation.brand_gate import RecordBrandGate, run_brand_gate
 from weave_backend.generation.engineer_agent import build_generation_prompt, generate_workspace
 from weave_backend.generation.gates import GATE_PIPELINE, GateFailure, GateResult
 from weave_backend.generation.store import NewGenerationRun, insert_generation_run
@@ -92,10 +96,48 @@ class GenerationDeps:
     driver_for: Callable[[str], ScmDriver]
     get_secret: Callable[[str], Awaitable[str | None]]
     emit_audit: Callable[[asyncpg.Connection, AuditEvent], Awaitable[None]]
+    record_brand_gate: RecordBrandGate
 
 
 async def _default_emit_audit(conn: asyncpg.Connection, event: AuditEvent) -> None:
     await default_audit_emitter.emit(conn, event)
+
+
+async def _default_record_brand_gate(
+    tenant_id: str, ctx: GenerationContext, status: str, payload: dict[str, object]
+) -> None:
+    """TASK-002: the brand gate's own connection/transaction, deliberately
+    NOT the caller's `conn` -- on failure this function's caller re-raises
+    `GateFailure`, which unwinds through the router's
+    `tenant_connection`-wrapped request transaction and rolls it back
+    (`db/pool.py`'s `tenant_connection` wraps every acquire in
+    `conn.transaction()`). The gate_results/audit record must survive that
+    rollback (AC-1/AC-5), so it commits independently. See
+    `docs/specs/weave/engines/build-engine/decisions/ADR-016.md`.
+    """
+    async with tenant_connection(tenant_id) as record_conn:
+        await default_audit_emitter.emit(
+            record_conn,
+            AuditEvent(
+                tenant_id=tenant_id,
+                event_type="gate_result_brand",
+                actor_iri=BUILD_SERVICE_PRINCIPAL_IRI,
+                subject_iri=ctx.project_iri,
+                payload={"task_id": ctx.task_id, "status": status, **payload},
+                engine="build",
+            ),
+        )
+        await insert_gate_result(
+            record_conn,
+            NewGateResult(
+                tenant_id=tenant_id,
+                gate="brand",
+                result=status,
+                payload=payload,
+                task_id=ctx.task_id,
+                project_iri=ctx.project_iri,
+            ),
+        )
 
 
 DEFAULT_DEPS = GenerationDeps(
@@ -103,6 +145,7 @@ DEFAULT_DEPS = GenerationDeps(
     driver_for=get_scm_driver,
     get_secret=get_scm_token,
     emit_audit=_default_emit_audit,
+    record_brand_gate=_default_record_brand_gate,
 )
 
 
@@ -245,6 +288,17 @@ async def generate_app(
         await deps.generate_workspace_fn(prompt=prompt, output_dir=workspace, bpmo=bpmo)
 
         gate_results = [gate(workspace) for gate in GATE_PIPELINE]  # AC-3: fixed order, atomic
+        # TASK-002 AC-1: brand gate registered 6th, after mutation -- awaited
+        # explicitly (not folded into the sync GATE_PIPELINE tuple) since it
+        # needs async DB (PLAT-SETTINGS-1) + CE-BRAND-1 HTTP access.
+        gate_results.append(
+            await run_brand_gate(conn, ctx, workspace, deps.record_brand_gate)
+        )
+
+        # FR-031/AC-1: refresh the anatomy index into the same staging tree
+        # gates just passed -- a scan failure here fails the whole run, so
+        # no stale-index commit ever lands (Design Decisions table).
+        refresh_anatomy(workspace)
 
         target = _CommitTarget(
             entity=ctx.project_iri.split(":")[-1],

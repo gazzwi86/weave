@@ -38,6 +38,14 @@ class TaskState(BaseModel):
     status: str
     blocked_by: list[str] = Field(default_factory=list)
     codify_checkpoint: dict[str, Any] | None = None
+    #: TASK-009/FR-043: set when PLAN held the task on a missing predecessor
+    #: dep-summary (`"dep_summary_missing"`) -- stored in the same JSONB
+    #: `tasks` blob, no migration needed.
+    hold_reason: str | None = None
+    #: TASK-009/AC-2: the repo's `ANATOMY.md` (task brief pseudocode's
+    #: `task.context.prepend(anatomy)`), loaded before DELEGATE -- same
+    #: JSONB `tasks` blob, no migration needed.
+    context: list[str] = Field(default_factory=list)
 
 
 class StateSpine(BaseModel):
@@ -57,9 +65,17 @@ class StateSpine(BaseModel):
         the same way `Blocked` is -- redispatching it immediately would
         retry against the same violation with no rework step in between;
         resubmission is a documented future extension, not built here.
+
+        TASK-009/FR-043: a task held on a missing predecessor dep-summary
+        (`hold_reason` set) is also skipped -- otherwise every remaining
+        dispatch cycle re-selects the same held task and spins to the turn
+        cap instead of making progress on the rest of the backlog.
         """
         for task in self.tasks:
-            if task.status not in ("Done", "Blocked", "revision"):
+            if (
+                task.status not in ("Done", "Blocked", "revision")
+                and task.hold_reason is None
+            ):
                 return task
         return None
 
