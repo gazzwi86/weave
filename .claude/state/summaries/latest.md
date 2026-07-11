@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T10:17:27+00:00
+Captured at: 2026-07-11T11:01:20+00:00
 Event: pre-compact
 
 ## Current State
@@ -172,7 +172,7 @@ Event: pre-compact
     {
       "id": "CE-V1-EPIC-005",
       "title": "Governance & Compliance Rules",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-V1-EPIC-009",
@@ -287,7 +287,7 @@ Event: pre-compact
     {
       "id": "PLAT-V1-EPIC-011",
       "title": "Design System & App Shell v2 (Storybook atomic library + V4-hybrid chrome refit)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-012",
@@ -990,7 +990,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
       "title": "Rules & Policies Screen + Full Validation Report API",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-005"
       ],
@@ -1569,7 +1569,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
       "title": "App shell v2 — V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],

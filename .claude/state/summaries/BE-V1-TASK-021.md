@@ -42,3 +42,13 @@ real (docker isolated, torn down).
 BE-019 + BE-021 both done on this branch. On QA PASS: reconcile onto green main (BE-019 dashboard + BE-021 prompt; check for
 main-drift), push, PR, review + CI green, then **HOLD for human merge** (2 migrations). Run ui_verify on /build project page +
 task dashboard before close (UI-gate w/ BE-019).
+
+## QA PASS (2026-07-11, a9f8b89, retry 0) — BE-021 CLOSES → EPIC-003 COMPLETE
+Adversarial QA. **AC-2 reader-403+audit CONFIRMED** (require_project_role(PROMPT) FastAPI dependency runs before body → reader
+never reaches insert; integration test asserts authz_denied audit row + `count(project_prompts)=0`; tenant-scoped JWT only).
+**AC-5 no-2nd-cost-path CONFIRMED** (grep: only runs.py + prompts.py call run_dark_factory → same orchestrator, no forked
+dispatch). Migration 0067 applies (26 migrations in order, sorts after 0065), state_spines queries tenant-scoped + RLS. 8 ACs:
+AC-1/2/4/6/7/8 REAL tests, AC-3/5 met-by-inference (structural reuse grep-confirmed). E2E met-by-inference accepted (AC-1/2 real
+DB assertions + AC-4 component/route tests; full trio not cheap to stand up — NOT a PROJ-009/010 block). Edge test `c01ac634`
+(exact-max-length accepted). ruff 0, mypy 0, tsc 0, eslint 0, unit 5, integration 2, vitest 11. WARN: Lighthouse/axe not re-run
+(page already BE-019-audited; PromptBox = textarea+button low-risk). retry=0.

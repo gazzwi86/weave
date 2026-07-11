@@ -260,7 +260,7 @@
     {
       "id": "BE-V1-EPIC-003",
       "title": "Project Dashboard",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "BE-V1-EPIC-007",
@@ -1444,7 +1444,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
       "title": "Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "BE-V1-TASK-012",
         "BE-V1-TASK-019"
