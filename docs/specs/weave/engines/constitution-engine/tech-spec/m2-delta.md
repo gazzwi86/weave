@@ -175,8 +175,16 @@ All at 100k-triple seeded store, measured like §1.
 | `GET /api/functions/{iri}` | ≤ 400 ms (includes projection derivation, cacheable by version) |
 | `GET /api/brand/tokens` · `GET /api/brand/voice-rules` | ≤ 400 ms (same derivation rule) |
 | `GET /api/metrics/ontology` | ≤ 500 ms cold / ≤ 100 ms cached |
-| `GET /api/validate` (full report) | ≤ 2 s (matches prospective-validation budget) |
+| `GET /api/validate` (full report) | ≤ 2 s **at 10k triples** (see note) |
 | Authority/escalation SELECTs | ≤ 500 ms (SPARQL SELECT budget, §1) |
+
+> **`GET /api/validate` perf ceiling — 10k, not 100k (ADR-026, HITL-approved 2026-07-11).** Full SHACL
+> validation is `pyshacl`-bound: at a true 100k-triple draft the endpoint measures ~2.3 s (rdflib parse
+> ~0.9 s + `pyshacl.validate()` ~1.2 s, the latter irreducible at this layer — `pyshacl` requires the
+> parsed graph, so CE-007's SPARQL-count trick does not apply). This differs from CE-WRITE-1's single-op
+> 100k budget (a bulk PUT, no validation). The M2 gating scale for `/api/validate` is therefore **10k
+> triples** (mirrors ADR-004's write-path finding that 10k is the real M1/M2 gating scale); ≤ 2 s holds
+> at 10k. Full-report ≤ 2 s at 100k needs incremental/streaming SHACL validation → **deferred post-v1**.
 
 New M2 pages (glossary, brand & voice, rules & policies) inherit the M1 Lighthouse gate
 (testing-strategy.md): performance ≥ 90, accessibility ≥ 95, best practices ≥ 90, initial JS

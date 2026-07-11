@@ -53,7 +53,7 @@ UI-bearing: tokens + `ui_verify` apply.
 | AC-006-03 | WHEN the rules screen lists shapes THE SYSTEM SHALL show framework AND tenant shapes with severity, description, and the count + list of entities currently in violation. |
 | AC-006-04 | WHEN validation has not yet run for the current draft state THE SYSTEM SHALL show "validation pending" — never stale counts and never an empty state readable as "no violations". |
 | AC-006-05 | WHEN a rule row is expanded THE SYSTEM SHALL list violating entities with links to their resource views. |
-| AC-006-06 | WHEN the full report is requested THE SYSTEM SHALL respond p95 ≤ 2 s at the 100k store with governance shapes loaded (m2-delta §9). |
+| AC-006-06 | WHEN the full report is requested THE SYSTEM SHALL respond p95 ≤ 2 s at the **10k store** with governance shapes loaded (m2-delta §9 note + ADR-026; 100k is pyshacl-bound at ~2.3 s → deferred post-v1, HITL-approved 2026-07-11). |
 | AC-006-07 | WHEN the rules page renders THE SYSTEM SHALL meet Lighthouse ≥ 90 perf / ≥ 95 a11y with design tokens only. |
 
 ## Pseudocode
@@ -76,7 +76,7 @@ RulesPage:
 ## API Contracts
 
 - **NEW endpoint** `GET /api/validate` (FR-027; CE-internal surface, not a `CE-*` inter-engine
-  contract). Errors: 401, 404, 500. p95 ≤ 2 s full report.
+  contract). Errors: 401, 404, 500. p95 ≤ 2 s full report @ 10k (ADR-026; 100k pyshacl-bound → post-v1).
 - Reads for the screen: `GET /api/validate` + CE-READ-1 SPARQL for shape metadata.
 
 ## Diagram References
@@ -107,7 +107,7 @@ Minimum: 3 unit, 4 integration, 1 E2E.
 | Integration | should return full report for seeded graph with known violations (all 3 severities) | AC-006-01 |
 | Integration | should 404 unknown version and 401 missing JWT | AC-006-02 |
 | Integration | should include tenant shapes (TASK-005 fixture) in the report | AC-006-03 |
-| Perf | locust: full report p95 ≤ 2 s @ 100k + governance shapes | AC-006-06 |
+| Perf | ADR-004 in-process benchmark: full report p95 ≤ 2 s @ 10k + governance shapes (ADR-026) | AC-006-06 |
 | E2E | officer opens rules screen post-commit → pending → report runs → violating entity linked and opened | AC-006-03..05 |
 | Gate | axe-core + Lighthouse on rules page | AC-006-07 |
 
@@ -125,7 +125,7 @@ existing validator, one screen, one perf case.
 
 - [x] Report shape + error floor pinned (m2-delta §7)
 - [x] Pending-state semantics pinned (draft-hash keyed)
-- [x] p95 pinned (≤ 2 s, m2-delta §9)
+- [x] p95 pinned (≤ 2 s @ 10k, m2-delta §9 note + ADR-026)
 - [ ] TASK-005 merged
 - [ ] M1 program gate green (build precondition)
 
