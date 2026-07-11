@@ -23,7 +23,7 @@ export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   operations?: Op[];
-  status?: "proposed" | "confirmed" | "rejected";
+  status?: "proposed" | "confirmed" | "rejected" | "cant_parse" | "provider_unavailable";
   resultIri?: string;
 }
 

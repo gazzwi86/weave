@@ -23,6 +23,7 @@ export interface UseCeChatResult {
   sendMessage: (text: string) => Promise<void>;
   confirm: () => Promise<void>;
   reject: () => void;
+  clearHistory: () => void;
 }
 
 function newMessage(
@@ -36,7 +37,13 @@ function newMessage(
 /** Messages state + localStorage persistence, split out to keep
  * `useCeChat`'s own body under the Law E function-length budget.
  */
-function useChatMessages(): [ChatMessage[], (message: ChatMessage) => void] {
+interface ChatMessagesResult {
+  messages: ChatMessage[];
+  append: (message: ChatMessage) => void;
+  clear: () => void;
+}
+
+function useChatMessages(): ChatMessagesResult {
   // History hydrates AFTER mount: reading localStorage inside the useState
   // initialiser makes the client's first render differ from the SSR HTML
   // (React hydration mismatch). `hydrated` also gates the save effect so
@@ -61,7 +68,9 @@ function useChatMessages(): [ChatMessage[], (message: ChatMessage) => void] {
     setMessages((prev) => [...prev, message]);
   }, []);
 
-  return [messages, append];
+  const clear = useCallback(() => setMessages([]), []);
+
+  return { messages, append, clear };
 }
 
 function routeCommand(
@@ -99,26 +108,44 @@ async function applyPending(operations: Op[]): Promise<{ message: ChatMessage; a
   return { message: newMessage("assistant", reasons), applied: null };
 }
 
+/** Per-session refs `useCeChatActions` needs, split out to keep
+ * `useCeChat`'s own body under the Law E function-length budget.
+ */
+function useChatRefs() {
+  const lastCantParseReplyRef = useRef<string | null>(null);
+  const lastAppliedRef = useRef<LastApplied | null>(null);
+  const resetCantParseReply = useCallback(() => {
+    lastCantParseReplyRef.current = null;
+  }, []);
+  const setLastApplied = useCallback((applied: LastApplied | null) => {
+    lastAppliedRef.current = applied ?? lastAppliedRef.current;
+  }, []);
+  return {
+    lastSourceTextRef: useRef<string | undefined>(undefined),
+    lastAppliedRef,
+    kindsCacheRef: useRef<KindEntry[]>([]),
+    lastCantParseReplyRef,
+    resetCantParseReply,
+    setLastApplied,
+  };
+}
+
 /** TASK-006 E11-S1/E11-S3: chat state machine -- `{pending_operations,
  * conversation_history}` per the task brief's implementation hints.
  * Nothing reaches CE-WRITE-1 until `confirm()` is called explicitly.
  */
 export function useCeChat(): UseCeChatResult {
-  const [messages, append] = useChatMessages();
+  const { messages, append, clear } = useChatMessages();
   const [pendingOperations, setPendingOperations] = useState<Op[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const lastSourceTextRef = useRef<string | undefined>(undefined);
-  const lastAppliedRef = useRef<LastApplied | null>(null);
-  const kindsCacheRef = useRef<KindEntry[]>([]);
+  const refs = useChatRefs();
 
   const actions = useCeChatActions({
     append,
     messages,
     pendingOperations,
     setPendingOperations,
-    lastSourceTextRef,
-    lastAppliedRef,
-    kindsCacheRef,
+    ...refs,
   });
 
   const sendMessage = useCallback(
@@ -141,18 +168,23 @@ export function useCeChat(): UseCeChatResult {
     setBusy(true);
     try {
       const { message, applied } = await applyPending(pendingOperations);
-      lastAppliedRef.current = applied ?? lastAppliedRef.current;
+      refs.setLastApplied(applied);
       append(message);
     } finally {
       setPendingOperations(null);
       setBusy(false);
     }
-  }, [pendingOperations, append]);
+  }, [pendingOperations, append, refs]);
 
   const reject = useCallback(() => {
     setPendingOperations(null);
     append(newMessage("assistant", "Okay, discarded."));
   }, [append]);
 
-  return { messages, pendingOperations, busy, sendMessage, confirm, reject };
+  const clearHistory = useCallback(() => {
+    clear();
+    refs.resetCantParseReply();
+  }, [clear, refs]);
+
+  return { messages, pendingOperations, busy, sendMessage, confirm, reject, clearHistory };
 }
