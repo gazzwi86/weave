@@ -26,6 +26,7 @@ from weave_backend.routers.brand import router as brand_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.comments import router as comments_router
 from weave_backend.routers.costs import router as costs_router
+from weave_backend.routers.dashboard import router as dashboard_router
 from weave_backend.routers.decisions import router as decisions_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.events import router as events_router
@@ -48,6 +49,7 @@ from weave_backend.routers.project_contributors import router as project_contrib
 from weave_backend.routers.project_pin import router as project_pin_router
 from weave_backend.routers.project_settings import router as project_settings_router
 from weave_backend.routers.projects import router as projects_router
+from weave_backend.routers.prompts import router as prompts_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
@@ -119,6 +121,7 @@ app.include_router(project_pin_router)
 app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
+app.include_router(dashboard_router)
 app.include_router(generation_router)
 app.include_router(sdk_generation_router)
 app.include_router(deploy_router)
@@ -130,6 +133,7 @@ app.include_router(query_router)
 app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
+app.include_router(prompts_router)
 app.include_router(board_router)
 app.include_router(gates_router)
 app.include_router(standards_router)

@@ -20,7 +20,14 @@ from typing import Any
 
 import asyncpg
 
-from weave_backend.briefs.store import get_task_brief
+from weave_backend.briefs.prompt_synthesis import default_synthesise_briefs
+from weave_backend.briefs.store import (
+    NewBrief,
+    build_brief_iri,
+    generate_task_id,
+    get_task_brief,
+    insert_task_brief,
+)
 from weave_backend.build import store as task_store
 from weave_backend.build.cost import (
     DispatchCostContext,
@@ -30,6 +37,7 @@ from weave_backend.build.cost import (
 )
 from weave_backend.build.costs import BudgetBreach, check_budget, notify_budget_breach
 from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, write_dep_summary
+from weave_backend.build.gates import run_dor_gate
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
 from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
@@ -201,6 +209,10 @@ class OrchestratorDeps:
     #: registry yet), so self_verify() always reports compliant.
     self_verify_fn: Any = self_verify
     applicable_rules_fn: Any = default_applicable_rules
+    #: BE-V1-TASK-021 AC-7: PLAN's brief-synthesis step for a
+    #: `trigger="prompt"` run -- stubbed in tests, real default drafts via
+    #: the Architect agent (`briefs.prompt_synthesis`).
+    synthesise_briefs_fn: Any = default_synthesise_briefs
 
 
 DEFAULT_ORCHESTRATOR_DEPS = OrchestratorDeps()
@@ -438,6 +450,92 @@ async def _scaffold_and_check_hold(
     return False
 
 
+async def _synthesise_prompt_briefs(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """BE-V1-TASK-021 AC-7/AC-8: the one real PLAN addition a
+    `trigger="prompt"` run needs -- a prompt carries no backlog, so
+    `next_ready_task()` would otherwise find nothing to dispatch. Runs
+    once per run (guarded by `not spine.tasks`, so a resumed prompt run
+    with already-synthesised tasks never re-drafts). Returns `True` if
+    the run halted (DoR gate failed on the synthesised brief -- AC-8);
+    `False` means the loop below dispatches the synthesised task(s)
+    exactly as it would any other Ready task (AC-7's "DELEGATE receives
+    the brief, not the prompt").
+    """
+    if spine.trigger != "prompt" or spine.tasks:
+        return False
+    prompt_text = (spine.prompt_context or {}).get("prompt_text", "")
+    briefs = await deps.synthesise_briefs_fn(
+        conn, tenant_id=tenant_id, project_iri=spine.project_iri, prompt_text=prompt_text
+    )
+    for content in briefs:
+        task_id = str(
+            content.get("task_id")
+            or generate_task_id(spine.project_iri, str(content.get("title", prompt_text)))
+        )
+        content = {**content, "task_id": task_id}
+        await insert_task_brief(
+            conn,
+            NewBrief(
+                tenant_id=tenant_id,
+                task_id=task_id,
+                project_iri=spine.project_iri,
+                brief_iri=build_brief_iri(task_id),
+                schema_version=str(content.get("schema_version", "1.0")),
+                content=content,
+            ),
+        )
+        gate = await run_dor_gate(
+            conn,
+            tenant_id=tenant_id,
+            actor_iri=BUILD_PRINCIPAL_IRI,
+            task_id=task_id,
+            content=content,
+        )
+        if gate["result"] != "READY":
+            # AC-8: hold in Ready with "brief incomplete" -- the raw
+            # prompt is never dispatched to the Engineer (E5 AC verbatim).
+            spine.tasks.append(
+                TaskState(id=task_id, status="Ready", hold_reason="brief incomplete")
+            )
+            spine.phase = "halted_hitl"
+            await deps.fire_hitl_gate_fn(
+                conn,
+                HitlGateContext(
+                    tenant_id=tenant_id,
+                    task_id=task_id,
+                    submitting_principal_iri=BUILD_PRINCIPAL_IRI,
+                    evidence="brief_incomplete",
+                ),
+            )
+            await commit_state_spine(conn, spine)
+            return True
+        spine.tasks.append(TaskState(id=task_id, status="Ready"))
+    return False
+
+
+async def _prepare_dispatch_loop(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """`run_dark_factory`'s two pre-loop halt checks (rich-scaffold, then
+    prompt brief-synthesis) collapsed into one caller-side branch to stay
+    under Law E's complexity budget -- same shape `_scaffold_and_check_hold`
+    already uses. Returns `True` if the run halted before the dispatch loop.
+    """
+    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+        return True
+    return await _synthesise_prompt_briefs(conn, spine, tenant_id=tenant_id, deps=deps)
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -502,7 +600,7 @@ async def _run_dark_factory_body(
         await _halt_preflight_failed(conn, spine)
         return spine
 
-    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+    if await _prepare_dispatch_loop(conn, spine, tenant_id=tenant_id, deps=deps):
         return spine
 
     breach: BudgetBreach | None = None

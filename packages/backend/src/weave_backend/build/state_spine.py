@@ -32,6 +32,11 @@ Phase = Literal[
     "complete",
 ]
 
+#: BE-V1-TASK-021 (FR-065): "request" is the pre-existing default (the M1
+#: request-triggered run); "prompt" marks a direct-project-prompt run so
+#: `run_dark_factory` knows to synthesise briefs before dispatch (AC-7).
+Trigger = Literal["request", "prompt"]
+
 
 class TaskState(BaseModel):
     id: str
@@ -56,6 +61,11 @@ class StateSpine(BaseModel):
     dispatch_count: int = 0
     turn_cap: int
     tasks: list[TaskState] = Field(default_factory=list)
+    #: BE-V1-TASK-021 AC-1/AC-7: set once at enqueue, read by the PLAN
+    #: brief-synthesis step. `prompt_context` carries `{prompt_id,
+    #: prompt_text}` -- `None` for every "request"-triggered run.
+    trigger: Trigger = "request"
+    prompt_context: dict[str, str] | None = None
 
     def next_ready_task(self) -> TaskState | None:
         """AC-1 pseudocode's `next_ready_task` -- the first task not yet
@@ -111,13 +121,15 @@ async def load_state_spine(
     """
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
-        "SELECT tenant_id, run_id, phase, dispatch_count, turn_cap, tasks"
+        "SELECT tenant_id, run_id, phase, dispatch_count, turn_cap, tasks,"
+        " trigger, prompt_context"
         " FROM state_spines WHERE tenant_id = $1 AND project_iri = $2",
         tenant_id,
         project_iri,
     )
     if row is None:
         return None
+    prompt_context_raw = row["prompt_context"]
     return StateSpine(
         project_iri=project_iri,
         tenant_id=row["tenant_id"],
@@ -126,6 +138,12 @@ async def load_state_spine(
         dispatch_count=row["dispatch_count"],
         turn_cap=row["turn_cap"],
         tasks=_parse_tasks(row["tasks"]),
+        trigger=row["trigger"],
+        prompt_context=(
+            json.loads(prompt_context_raw)
+            if isinstance(prompt_context_raw, str)
+            else prompt_context_raw
+        ),
     )
 
 
@@ -134,14 +152,17 @@ async def _commit_now(conn: asyncpg.Connection, spine: StateSpine) -> None:
     await conn.execute(
         """
         INSERT INTO state_spines
-            (project_iri, tenant_id, run_id, phase, dispatch_count, turn_cap, tasks)
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+            (project_iri, tenant_id, run_id, phase, dispatch_count, turn_cap, tasks,
+             trigger, prompt_context)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb)
         ON CONFLICT (project_iri) DO UPDATE SET
             run_id = EXCLUDED.run_id,
             phase = EXCLUDED.phase,
             dispatch_count = EXCLUDED.dispatch_count,
             turn_cap = EXCLUDED.turn_cap,
             tasks = EXCLUDED.tasks,
+            trigger = EXCLUDED.trigger,
+            prompt_context = EXCLUDED.prompt_context,
             updated_at = now()
         """,
         spine.project_iri,
@@ -151,6 +172,8 @@ async def _commit_now(conn: asyncpg.Connection, spine: StateSpine) -> None:
         spine.dispatch_count,
         spine.turn_cap,
         json.dumps([t.model_dump() for t in spine.tasks]),
+        spine.trigger,
+        json.dumps(spine.prompt_context) if spine.prompt_context is not None else None,
     )
 
 
@@ -185,13 +208,24 @@ async def commit_state_spine(
         raise StateSpineCommitTimeout(spine.project_iri) from exc
 
 
-async def start_or_resume_run(
-    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, run_id: str, turn_cap: int
+async def start_or_resume_run(  # noqa: PLR0913 -- Law E waiver, see .claude/state/complexity-waivers.md
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    project_iri: str,
+    run_id: str,
+    turn_cap: int,
+    prompt_context: dict[str, str] | None = None,
 ) -> StateSpine:
     """AC-3/API 409: reuse an existing halted/complete spine's progress
     (`dispatch_count`, `tasks` and their `codify_checkpoint`s) under a
     fresh `run_id`; raise `RunAlreadyActive` if the existing spine's phase
     is still `"running"`.
+
+    BE-V1-TASK-021 (FR-065): a non-`None` `prompt_context` *is* the
+    `trigger="prompt"` signal -- one parameter carries both, keeping this
+    under Law E's 5-parameter budget instead of a separate `trigger` flag
+    that could disagree with it.
 
     ponytail: M1 has no heartbeat/crash-detection (Implementation Hints),
     so a `"running"` row left behind by a genuine crash is indistinguishable
@@ -203,6 +237,7 @@ async def start_or_resume_run(
         raise RunAlreadyActive(existing.run_id)
     tasks = existing.tasks if existing is not None else []
     dispatch_count = existing.dispatch_count if existing is not None else 0
+    trigger: Trigger = "prompt" if prompt_context is not None else "request"
     return StateSpine(
         project_iri=project_iri,
         tenant_id=tenant_id,
@@ -211,4 +246,6 @@ async def start_or_resume_run(
         dispatch_count=dispatch_count,
         turn_cap=turn_cap,
         tasks=tasks,
+        trigger=trigger,
+        prompt_context=prompt_context,
     )
