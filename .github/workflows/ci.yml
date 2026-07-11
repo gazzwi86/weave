@@ -164,6 +164,30 @@ jobs:
           AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
 
+  shared:
+    # packages/shared: onboarding anchor registry + content config (ADR-005,
+    # ADR-006, ADR-008). Own job -- shared is a standalone npm package (no
+    # workspaces field), not yet imported by packages/frontend (that lands
+    # with TASK-007+). The data-tour-id audit runs against the real frontend
+    # tree so drift fails PRs the moment an owning task plants an attribute.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/shared
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/shared/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx tsx onboarding/scripts/audit-anchors.ts ../frontend
+
   mutation:
     # Per-PR tier. Runs unit tests only (fast, no services). Enforces the single
     # 60% mutation bar (ADV-005) via mutation_gate's default — no threshold
