@@ -82,6 +82,11 @@ class KindEntry(BaseModel):
     iri: str
     label: str
     properties: list[PropertyShapeModel]
+    description: str | None = None
+    """TASK-011 AC-011-02: plain-language `skos:definition` for framework
+    kinds; `None` for a kind with no such triple (AC-011-05) -- never
+    invented copy.
+    """
 
 
 class OntologyTypesResponse(BaseModel):

@@ -42,7 +42,17 @@ export interface PrimaryNavItem {
 }
 
 export const PRIMARY_NAV: PrimaryNavItem[] = [
-  { label: "Home", href: "/dashboard", prefixes: ["/dashboard"], groups: [] },
+  {
+    label: "Home",
+    href: "/dashboard",
+    prefixes: ["/dashboard", "/notifications"],
+    groups: [
+      {
+        heading: "Home",
+        items: [{ label: "Notifications", href: "/notifications", tag: "built" }],
+      },
+    ],
+  },
   {
     label: "Constitution",
     href: "/ce",
@@ -67,9 +77,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", tag: "m2" },
-          { label: "Brand & voice", tag: "m2" },
-          { label: "Rules & policies", tag: "m2" },
+          { label: "Glossary", href: "/ce/glossary", tag: "built" },
+          { label: "Brand & voice", href: "/ce/brand", tag: "built" },
+          { label: "Rules & policies", href: "/ce/rules", tag: "built" },
           { label: "Strategy & motivation", tag: "m2" },
         ],
       },
@@ -92,7 +102,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         items: [
           { label: "Registry", href: "/build", tag: "built" },
           { label: "Dashboard", tag: "v1.0" },
-          { label: "Kanban", tag: "v1.0" },
+          { label: "Kanban", href: "/build/board", tag: "built" },
           { label: "Task briefs & decisions", tag: "v1.0" },
         ],
       },
