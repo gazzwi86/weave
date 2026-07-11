@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from rdflib import Graph
-from rdflib.namespace import SH
+from rdflib.namespace import SH, SKOS
 from rdflib.term import Node
 
 from weave_backend.operations.shacl import shapes_graph
@@ -37,6 +37,7 @@ class Kind:
     iri: str
     label: str
     properties: list[PropertyShape]
+    description: str | None
 
 
 def _local_name(iri: str) -> str:
@@ -67,6 +68,16 @@ def _property_shape(graph: Graph, prop_node: Node) -> PropertyShape:
     )
 
 
+def _skos_definition(graph: Graph, target_class: Node | None) -> str | None:
+    """AC-011-01/-02/-05: a kind's plain-language description, sourced from
+    its `skos:definition` triple on the target class IRI -- `None` when no
+    such triple exists (extension kinds get no invented framework-style
+    copy, per AC-011-05).
+    """
+    definition = graph.value(target_class, SKOS.definition)
+    return str(definition) if definition is not None else None
+
+
 def list_kinds() -> list[Kind]:
     """One entry per `sh:NodeShape`/`sh:targetClass` pair in the cached
     framework shapes graph.
@@ -80,7 +91,14 @@ def list_kinds() -> list[Kind]:
             _property_shape(graph, prop_node)
             for prop_node in graph.objects(shape_node, SH.property)
         ]
-        kinds.append(Kind(iri=iri, label=_local_name(iri), properties=properties))
+        kinds.append(
+            Kind(
+                iri=iri,
+                label=_local_name(iri),
+                properties=properties,
+                description=_skos_definition(graph, target_class),
+            )
+        )
     return kinds
 
 

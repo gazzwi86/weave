@@ -9,6 +9,7 @@
 # (loaded at startup).
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
 @prefix weave: <https://weave.io/ontology/> .
 
 weave:ProcessShape
@@ -218,3 +219,23 @@ weave:ClassShape
         sh:severity sh:Violation ;
         sh:message "Every Class must have exactly one string label."@en ;
     ] .
+
+# TASK-011 AC-011-01/-02: plain-language `skos:definition` for every one of
+# the 14 BPMO kinds served by CE-READ-1 (`GET /api/ontology/types`), so a
+# business modeller can pick the right kind without already knowing the
+# BPMO grammar. Sourced field, not a second hand-maintained copy -- see
+# `ontology/catalogue.py::_skos_definition`.
+weave:Process skos:definition "A repeatable sequence of activities performed to achieve a goal."@en .
+weave:Activity skos:definition "A single step of work within a process."@en .
+weave:Event skos:definition "Something that happens at a point in time and can trigger or record a change."@en .
+weave:DataAsset skos:definition "A named collection of data the business creates, holds, or relies on."@en .
+weave:Field skos:definition "A single named attribute within a data asset."@en .
+weave:System skos:definition "A software application or platform that performs or supports business activities."@en .
+weave:Service skos:definition "A discrete unit of functionality a system exposes to be used by other systems or people."@en .
+weave:BusinessCapability skos:definition "Something the business is able to do, independent of how it is currently organised or executed."@en .
+weave:BusinessDomain skos:definition "A grouping of related business capabilities under a shared area of responsibility."@en .
+weave:Policy skos:definition "A rule or constraint that governs how activities or decisions must be carried out."@en .
+weave:Goal skos:definition "A desired outcome that a process or capability exists to serve."@en .
+weave:Actor skos:definition "A person, team, role, or external party that performs or is responsible for activities."@en .
+weave:Concept skos:definition "A business idea or term defined for shared understanding, not tied to a specific process or system."@en .
+weave:Class skos:definition "A category used to classify or group other resources in the graph."@en .
