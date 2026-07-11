@@ -230,3 +230,6 @@ before `docker compose up -d`. The 3× stack-removal collision happened because 
 DEFAULT project name + ports (shared stack). CHEAP FIX (apply going forward): coordinator assigns each docker lane
 a COMPOSE_PROJECT_NAME + WEAVE_*_PORT block (like migration blocks). Supersedes the "compose port-parameterization
 PR deferred" assumption in the ADV-004 lane rules — the parameterization already shipped.
+
+## HELD PRs (human merge required)
+- **PR #54** BE-V1-EPIC-008 (SDK Trigger) — migrations 0021/0031/0032. Restacked clean onto origin/main (zero backend conflict), green (1011 unit + 241 integration). Awaiting your migration review. Opened 2026-07-11.
