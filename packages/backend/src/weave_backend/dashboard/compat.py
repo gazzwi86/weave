@@ -13,8 +13,22 @@ from typing import Final
 
 from weave_backend.schemas.dashboard import ComponentType
 
-#: dashboard/compat.py -> weave_backend -> src -> backend -> packages
-COMPAT_PATH: Final[Path] = Path(__file__).resolve().parents[4] / "shared" / "widget-compat.json"
+
+def _find_shared_dir(module_file: Path) -> Path:
+    """Walk up from `module_file` to the `packages/` ancestor and return
+    `packages/shared/`. A fixed `parents[N]` climb breaks when mutmut stages
+    tests under an extra `packages/backend/mutants/...` directory level
+    (2026-07-12); keying off the `packages` dir *name* instead of a hop count
+    is depth-independent, so it resolves correctly from both the real tree
+    and mutmut's staged copy.
+    """
+    for ancestor in module_file.resolve().parents:
+        if ancestor.name == "packages":
+            return ancestor / "shared"
+    raise FileNotFoundError(f"no 'packages' ancestor directory found above {module_file}")
+
+
+COMPAT_PATH: Final[Path] = _find_shared_dir(Path(__file__)) / "widget-compat.json"
 
 #: shape -> ordered list of compatible components; index 0 is the rule-table
 #: default (`PRIMARY`). Static repo file (not user input) -- the json.loads
