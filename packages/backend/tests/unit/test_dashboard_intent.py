@@ -206,6 +206,25 @@ def test_categories_registry_has_a_non_ga_entry() -> None:
     assert any(cat != _CE for cat in CATEGORIES)
 
 
+async def test_resolve_raises_provider_unavailable_on_connection_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-4: a real provider connection failure (SDK/HTTP error, not a
+    parse/schema failure) must surface as `ProviderUnavailable` -- the only
+    exception `generate.py` catches to emit the clean `provider_503` SSE
+    state. Mirrors `routers/authoring.py`'s graceful-degradation boundary.
+    """
+    import weave_backend.dashboard.intent as intent_module
+
+    def _raise(tier: str, prompt: str, **kwargs: object) -> str:
+        raise ConnectionError("boom")
+
+    monkeypatch.setattr(intent_module, "route", _raise)
+
+    with pytest.raises(ProviderUnavailable):
+        await resolve("show entities by kind")
+
+
 def test_default_resolver_is_real_not_a_stub() -> None:
     # ProviderUnavailable is still a real exception type (raised on actual
     # provider failure), but the module-level default no longer

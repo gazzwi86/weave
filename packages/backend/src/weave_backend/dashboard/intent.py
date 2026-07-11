@@ -164,19 +164,30 @@ def _map_classification(classification: IntentClassification) -> ResolveResult:
     )
 
 
+async def _call_model(prompt_payload: str) -> str:
+    """AC-4: graceful-degradation boundary around the provider call --
+    mirrors `routers/authoring.py`'s pattern. Any real connection/auth
+    failure (unconfigured/unreachable provider) becomes `ProviderUnavailable`,
+    the only exception `generate.py` catches to emit `provider_503`. Logs
+    only the exception type, never the prompt (PII/business data).
+    """
+    try:
+        return await asyncio.to_thread(route, _TIER, prompt_payload)
+    except Exception as exc:
+        raise ProviderUnavailable(type(exc).__name__) from exc
+
+
 async def resolve(prompt: str) -> ResolveResult:
     """AC-4: one retry (with the validation error fed back) if the model's
     output doesn't parse as JSON or fails the `IntentClassification` schema;
     a second failure declines (`None` -> `unsatisfiable`), never an
     unvalidated spec on the stream.
     """
-    raw = await asyncio.to_thread(route, _TIER, _build_prompt(prompt))
+    raw = await _call_model(_build_prompt(prompt))
     classification = _parse_classification(raw)
     if classification is None:
-        retry_raw = await asyncio.to_thread(
-            route,
-            _TIER,
-            _build_prompt(prompt, retry_error="output was not valid JSON matching the schema"),
+        retry_raw = await _call_model(
+            _build_prompt(prompt, retry_error="output was not valid JSON matching the schema")
         )
         classification = _parse_classification(retry_raw)
         if classification is None:
