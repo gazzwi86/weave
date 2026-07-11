@@ -56,7 +56,7 @@ async def select_pollable_users(conn: asyncpg.Connection, tenant_id: str) -> lis
     query no longer selects them.
     """
     rows = await conn.fetch(
-        "SELECT user_id, role_path, activation_poll_cursor FROM onboarding_state os "
+        "SELECT user_id, role_path, poll_cursor_version_iri FROM onboarding_state os "
         "WHERE tenant_id = $1 AND sandbox_forked_at IS NOT NULL "
         "AND role_path IN ('business', 'technical') "
         "AND NOT EXISTS (SELECT 1 FROM activation a WHERE a.tenant_id = os.tenant_id "
@@ -69,7 +69,7 @@ async def select_pollable_users(conn: asyncpg.Connection, tenant_id: str) -> lis
             user_id=str(row["user_id"]),
             user_sub=_sub_from_principal_iri(str(row["user_id"])),
             role_path=str(row["role_path"]),
-            cursor=row["activation_poll_cursor"],
+            cursor=row["poll_cursor_version_iri"],
         )
         for row in rows
     ]
@@ -143,7 +143,7 @@ async def poll_user(conn: asyncpg.Connection, user: PollableUser) -> None:
         )
 
     await conn.execute(
-        "UPDATE onboarding_state SET activation_poll_cursor = $3 "
+        "UPDATE onboarding_state SET poll_cursor_version_iri = $3, poll_cursor_at = now() "
         "WHERE tenant_id = $1 AND user_id = $2",
         user.tenant_id,
         user.user_id,
