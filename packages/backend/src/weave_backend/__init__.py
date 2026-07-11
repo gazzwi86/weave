@@ -55,6 +55,7 @@ from weave_backend.routers.standards import router as standards_router
 from weave_backend.routers.tasks import router as tasks_router
 from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
+from weave_backend.routers.validate import router as validate_router
 
 # AC-3 design decision: RBAC is dependency-by-default -- every route must
 # either require `get_current_principal` or be explicitly marked `@public`.
@@ -115,6 +116,7 @@ app.include_router(runs_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
 app.include_router(metrics_router)
+app.include_router(validate_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one
