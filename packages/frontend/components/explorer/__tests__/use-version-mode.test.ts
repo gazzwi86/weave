@@ -9,9 +9,11 @@ function fakeAdapter(): RendererAdapter {
     load: vi.fn(),
     setLayout: vi.fn(),
     clearDiffOverlay: vi.fn(),
-    setBadges: vi.fn(),
-    clearBadges: vi.fn(),
-  } as unknown as RendererAdapter;
+    setViewport: vi.fn(),
+    allNodePositions: vi.fn(() => ({})),
+    applyPositions: vi.fn(),
+    mergeInPlace: vi.fn(),    setBadges: vi.fn(),
+    clearBadges: vi.fn(),  } as unknown as RendererAdapter;
 }
 
 describe("useVersionMode", () => {

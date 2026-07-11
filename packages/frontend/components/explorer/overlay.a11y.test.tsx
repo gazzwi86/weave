@@ -11,6 +11,10 @@ import { OverlayPanel } from "./overlay-panel";
 import { SidePanel } from "./side-panel";
 import type { OverlayToggle } from "./use-overlay-controls";
 
+// SidePanel mounts CommentsPanel, which fetches on mount -- stub it so
+// jsdom doesn't leak an unhandled rejection trying to fetch a relative URL.
+vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
+
 // ponytail: see components/ui/ui.a11y.test.tsx -- vitest-axe's matcher
 // augmentation doesn't type-check under vitest 4, so violations are
 // asserted directly off axe-core's own result shape.

@@ -55,6 +55,11 @@ export interface UseFilterPanelResult {
   clearEntityTypesOff: () => void;
   setPropertyFilters: (filters: PropertyFilter[]) => void;
   toggleLayer: (layer: GovernedLayer) => void;
+  /** TASK-026 AC-2: openView(view) restores a whole saved FilterState in
+   * one call. Plain fields are set directly; layersOn is reconciled via
+   * the existing toggleLayer side-effect path (layers need a CE-READ-1
+   * fetch, not just a state write). */
+  replaceFilterState: (next: FilterState) => void;
 }
 
 const EMPTY_LAYER_STATUS: Record<GovernedLayer, LayerStatus> = { glossary: "off", brand: "off", governance: "off" };
@@ -215,6 +220,16 @@ export function useFilterPanel({
     setFilterState((state) => ({ ...state, propertyFilters: filters }));
   }, []);
 
+  const replaceFilterState = useCallback(
+    (next: FilterState) => {
+      setFilterState((state) => ({ ...state, entityTypesOff: next.entityTypesOff, relTypesOff: next.relTypesOff, propertyFilters: next.propertyFilters }));
+      for (const layer of ["glossary", "brand", "governance"] as GovernedLayer[]) {
+        if (next.layersOn.includes(layer) !== filterState.layersOn.includes(layer)) toggleLayer(layer);
+      }
+    },
+    [filterState.layersOn, toggleLayer]
+  );
+
   return {
     filterState,
     visibility,
@@ -226,5 +241,6 @@ export function useFilterPanel({
     clearEntityTypesOff,
     setPropertyFilters,
     toggleLayer,
+    replaceFilterState,
   };
 }

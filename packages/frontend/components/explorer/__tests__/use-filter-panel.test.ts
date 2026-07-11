@@ -34,9 +34,11 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     clearTraceHighlight: vi.fn(),
     setDiffOverlay: vi.fn(),
     clearDiffOverlay: vi.fn(),
-    setBadges: vi.fn(),
-    clearBadges: vi.fn(),
-    isHidden: vi.fn(() => false),
+    setViewport: vi.fn(),
+    allNodePositions: vi.fn(() => ({})),
+    applyPositions: vi.fn(),
+    mergeInPlace: vi.fn(),    setBadges: vi.fn(),
+    clearBadges: vi.fn(),    isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     ...overrides,
@@ -190,6 +192,33 @@ describe("useFilterPanel", () => {
 
     expect(adapter.removeElements).toHaveBeenCalledWith(["https://weave.io/entity/term-1"]);
     expect(result.current.layerStatus.glossary).toBe("off");
+  });
+
+  // TASK-026 AC-2: openView(view) replaces the whole FilterState in one
+  // go (entity/rel/property filters directly, layersOn reconciled through
+  // the existing toggleLayer side-effect path since layers need a fetch).
+  it("replaceFilterState sets plain fields directly and reconciles layersOn via toggleLayer (TASK-026 AC-2)", async () => {
+    const layerElements: CytoscapeElement[] = [{ data: { id: "https://weave.io/entity/term-1", label: "Revenue" } }];
+    const fetchLayerNodes = vi.fn<(...args: unknown[]) => Promise<FetchLayerNodesResult>>(() =>
+      Promise.resolve({ type: "ok", elements: layerElements })
+    );
+    const adapter = fakeAdapter({ addLayerNodes: vi.fn(() => ["https://weave.io/entity/term-1"]) });
+    const { result } = renderHook(() => useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchLayerNodes }));
+
+    act(() => {
+      result.current.replaceFilterState({
+        entityTypesOff: ["Process"],
+        relTypesOff: ["relatesTo"],
+        propertyFilters: [{ path: "status", op: "eq", value: "active" }],
+        layersOn: ["glossary"],
+      });
+    });
+
+    expect(result.current.filterState.entityTypesOff).toEqual(["Process"]);
+    expect(result.current.filterState.relTypesOff).toEqual(["relatesTo"]);
+    expect(result.current.filterState.propertyFilters).toEqual([{ path: "status", op: "eq", value: "active" }]);
+    await waitFor(() => expect(result.current.layerStatus.glossary).toBe("on"));
+    expect(adapter.addLayerNodes).toHaveBeenCalledWith(layerElements);
   });
 
   // AC-7: records the single applyFilterVisibility batch call's wall-clock

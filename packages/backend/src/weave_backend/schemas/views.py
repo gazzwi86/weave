@@ -35,6 +35,9 @@ class ViewOut(BaseModel):
     created_by: str
     pinned: bool
     updated_at: datetime
+    #: TASK-026 AC-2: openView(view) reproduces canvas state from this --
+    #: round-tripped verbatim from the jsonb column, never re-shaped here.
+    definition: dict[str, Any] = Field(default_factory=dict)
 
 
 class ShareRequest(BaseModel):
