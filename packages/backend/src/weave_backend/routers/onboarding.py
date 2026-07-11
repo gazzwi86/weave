@@ -16,10 +16,13 @@ from fastapi import APIRouter, Depends
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.onboarding import store
+from weave_backend.onboarding.path_resolver import resolve_role_path
 from weave_backend.schemas.onboarding import (
     BulkDeletedResponse,
     DeletedResponse,
     DismissalKindIn,
+    OnboardingPathChoiceRequest,
+    OnboardingPathOut,
     OnboardingStateOut,
     OnboardingStatePatchRequest,
     SavedResponse,
@@ -58,6 +61,72 @@ async def patch_state_route(
             conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
         )
     return _to_out(record)
+
+
+def _to_path_out(
+    *, role_path: str, path_variant: str, path_chosen_manually: bool
+) -> OnboardingPathOut:
+    # AC-006-02: needs_choice always False in M1 (no multi-role source yet).
+    return OnboardingPathOut(
+        role_path=role_path,  # type: ignore[arg-type]
+        path_variant=path_variant,  # type: ignore[arg-type]
+        path_chosen_manually=path_chosen_manually,
+        needs_choice=False,
+    )
+
+
+@router.get("/path", response_model=OnboardingPathOut)
+async def get_path_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> OnboardingPathOut:
+    """AC-006-01/03/04/06: a manually-chosen path is never re-derived from
+    role; otherwise resolve from the caller's workspace role and persist it
+    (unless the role source was unreachable -- AC-006-06's fail-safe path).
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        record = await store.get_state(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+        if record.path_chosen_manually:
+            return _to_path_out(
+                role_path=record.role_path,
+                path_variant=record.path_variant,
+                path_chosen_manually=True,
+            )
+
+        resolved = await resolve_role_path(conn, principal)
+        if resolved.persist:
+            await store.patch_state(
+                conn,
+                tenant_id=principal.tenant_id,
+                user_id=principal.principal_iri,
+                patch=store.StatePatch(
+                    role_path=resolved.role_path, path_variant=resolved.path_variant
+                ),
+            )
+    return _to_path_out(
+        role_path=resolved.role_path, path_variant=resolved.path_variant, path_chosen_manually=False
+    )
+
+
+@router.put("/path", response_model=OnboardingPathOut)
+async def put_path_route(
+    body: OnboardingPathChoiceRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> OnboardingPathOut:
+    """AC-006-04: change my onboarding path -- persists immediately, resets
+    the read-only variant (a manual choice is always the default variant).
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        await store.patch_state(
+            conn,
+            tenant_id=principal.tenant_id,
+            user_id=principal.principal_iri,
+            patch=store.StatePatch(
+                role_path=body.role_path, path_variant="default", path_chosen_manually=True
+            ),
+        )
+    return _to_path_out(role_path=body.role_path, path_variant="default", path_chosen_manually=True)
 
 
 @router.put("/tours/{tour_id}/progress", response_model=SavedResponse)
