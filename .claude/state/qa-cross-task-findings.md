@@ -340,3 +340,11 @@ through to `setProposalStatus("accepted"|"rejected")` with NO graph write → fa
 no retry. Breaks AC-002-05 "never silently resolve." Blocker, class=logic. Fix in-flight (ae06cdeb): 2xx guard on
 both + error-card state on other statuses + error-path tests (the 502/500 coverage gap). QA edge test 71e252a
 (null matched_iri) already committed. Status: RESOLVED ea497c2 (retry 1 PASS).
+
+## XT-WRITEPATH-1: CE-001 + CE-003 both extend add_node/graph_ops literal construction — 2026-07-11
+Two concurrent lanes modify the SAME shared literal-building seam on different branches:
+- CE-003 (feature/CE-V1-EPIC-004): `_resolve_datatype` coerces literal from `sh:datatype` (XT-CE003-1 fix).
+- CE-001 (feature/CE-V1-EPIC-003, `3979906`): punned rdf:type + list-valued + lang-tagged literals in `add_node`.
+Both legit, isolated on their branches now, but **conflict likely at merge** — whichever lands second must reconcile
+add_node/graph_ops to carry BOTH datatype-coercion AND punned/list/lang handling (union, not either-or). Flag for
+merge-order + reconciliation at epic close. Status: OPEN (both in-flight).
