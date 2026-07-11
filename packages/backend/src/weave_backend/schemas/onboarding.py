@@ -1,0 +1,80 @@
+"""Law 13: request/response schemas for `/api/onboarding/*` (ONB-TASK-001).
+`role_path`/`path_variant`/dismissal `kind` are closed vocabularies
+(data-model.md's ERD) -- `Literal`, never a plain `str`, so an invalid value
+is a 422 at the boundary rather than a store-layer surprise.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel
+
+RolePathIn = Literal["business", "technical", "compliance", "admin"]
+PathVariantIn = Literal["default", "read_only"]
+DismissalKindIn = Literal["beacon", "welcome_modal"]
+
+
+class OnboardingStatePatchRequest(BaseModel):
+    role_path: RolePathIn | None = None
+    path_variant: PathVariantIn | None = None
+    path_chosen_manually: bool | None = None
+    checklist_dismissed_at: datetime | None = None
+    whats_new_seen_at: datetime | None = None
+
+
+class TourProgressRequest(BaseModel):
+    last_completed_step: int
+    completed: bool = False
+    skipped: bool = False
+
+
+class TourProgressOut(BaseModel):
+    tour_id: str
+    last_completed_step: int
+    completed_at: datetime | None
+    skipped_at: datetime | None
+
+
+class DismissalOut(BaseModel):
+    kind: str
+    ref_id: str
+    dismissed_at: datetime
+
+
+class ExerciseCompletionOut(BaseModel):
+    exercise_id: str
+    verified_signal: str
+    completed_at: datetime
+
+
+class ActivationOut(BaseModel):
+    milestone_id: str
+    source: str
+    activated_at: datetime
+
+
+class OnboardingStateOut(BaseModel):
+    role_path: RolePathIn
+    path_variant: PathVariantIn
+    path_chosen_manually: bool
+    checklist_dismissed_at: datetime | None
+    checklist_completed_at: datetime | None
+    whats_new_seen_at: datetime | None
+    tours: list[TourProgressOut]
+    dismissals: list[DismissalOut]
+    exercise_completions: list[ExerciseCompletionOut]
+    activations: list[ActivationOut]
+
+
+class SavedResponse(BaseModel):
+    saved: bool
+
+
+class DeletedResponse(BaseModel):
+    deleted: bool
+
+
+class BulkDeletedResponse(BaseModel):
+    deleted_count: int
