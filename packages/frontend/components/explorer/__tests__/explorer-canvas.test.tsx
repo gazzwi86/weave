@@ -61,6 +61,7 @@ describe("ExplorerCanvas", () => {
         addLayerNodes: vi.fn(() => []),
         removeElements: vi.fn(),
         reconcileElement: vi.fn(),
+        onBackgroundDoubleClick: vi.fn(),
         listElements: vi.fn(() => []),
       },
     });

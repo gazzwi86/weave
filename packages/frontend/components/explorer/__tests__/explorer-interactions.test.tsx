@@ -65,6 +65,7 @@ function fakeAdapter(
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
     reconcileElement: vi.fn(),
+    onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler

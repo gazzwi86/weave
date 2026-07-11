@@ -149,6 +149,21 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     expect(handler).toHaveBeenCalledExactlyOnceWith("n1", { x: 12, y: 34 });
   });
 
+  // TASK-023 AC-3: double-clicking empty canvas is the quick-add trigger --
+  // double-clicking a node (or an edge) must not also fire it.
+  it("onBackgroundDoubleClick() fires with the rendered position for a background double-click, ignoring a node double-click", () => {
+    const cy = fakeCy();
+    const node = fakeCollection();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onBackgroundDoubleClick(handler);
+    cy.fireDoubleClick(node, { x: 5, y: 6 });
+    cy.fireDoubleClick(cy, { x: 40, y: 50 });
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith({ x: 40, y: 50 });
+  });
+
   it("onNodeRightClick()'s returned unregister function stops future calls", () => {
     const cy = fakeCy();
     const node = fakeCollection();

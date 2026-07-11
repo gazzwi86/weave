@@ -59,5 +59,8 @@ export function fakeCy() {
     fireDragFree(target: unknown) {
       fire("dragfree", { target });
     },
+    fireDoubleClick(target: unknown, renderedPosition: { x: number; y: number }) {
+      fire("dbltap", { target, renderedPosition });
+    },
   };
 }

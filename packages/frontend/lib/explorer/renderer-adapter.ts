@@ -46,6 +46,10 @@ export interface RendererAdapter {
    * "Expand neighbours"/"Collapse neighbours") -- fires with the node's id
    * and its on-screen position so the menu can be placed there. */
   onNodeRightClick(handler: (nodeId: string, position: { x: number; y: number }) => void): () => void;
+  /** TASK-023 AC-3: fires for a double-click on empty canvas (the quick-add
+   * trigger), never for a double-click on a node or edge -- mirrors
+   * onNodeRightClick's target-matching for the opposite target. */
+  onBackgroundDoubleClick(handler: (position: { x: number; y: number }) => void): () => void;
   getNodeData(nodeId: string): NodeData | undefined;
   listNodes(): ListedNode[];
   centerOn(nodeId: string, durationMs: number): void;
@@ -339,7 +343,13 @@ type ViewportMethods = Pick<RendererAdapter, "load" | "getViewport" | "setLayout
 type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes" | "applyFilterVisibility">;
 type QueryMethods = Pick<
   RendererAdapter,
-  "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes" | "listElements"
+  | "onNodeTap"
+  | "onBackgroundTap"
+  | "onNodeRightClick"
+  | "onBackgroundDoubleClick"
+  | "getNodeData"
+  | "listNodes"
+  | "listElements"
 >;
 
 function createViewportMethods(cy: AdaptableCy): ViewportMethods {
@@ -400,6 +410,14 @@ function createQueryMethods(cy: AdaptableCy): QueryMethods {
         "cxttap",
         (target) => target !== cy,
         (evt) => handler((evt.target as CyCollection).id(), evt.renderedPosition ?? { x: 0, y: 0 })
+      );
+    },
+    onBackgroundDoubleClick(handler) {
+      return wireEvent(
+        cy,
+        "dbltap",
+        (target) => target === cy,
+        (evt) => handler(evt.renderedPosition ?? { x: 0, y: 0 })
       );
     },
     getNodeData(nodeId) {
