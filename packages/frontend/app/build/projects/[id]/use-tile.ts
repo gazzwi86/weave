@@ -20,7 +20,7 @@ export function useTile<T>(projectId: string, tile: string): TileState<T> {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/build/projects/${projectId}/dashboard/${tile}`)
+    fetch(`/api/build/projects/${encodeURIComponent(projectId)}/dashboard/${tile}`)
       .then((res) => {
         if (!res.ok) throw new Error(`tile ${tile} failed`);
         return res.json() as Promise<T>;

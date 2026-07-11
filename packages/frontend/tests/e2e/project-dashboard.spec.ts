@@ -20,9 +20,13 @@ async function createProject(page: Page): Promise<string> {
   await page.getByLabel("Name").fill(`E2E dashboard test ${Date.now()}`);
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page).toHaveURL(/\/build\/projects\/.+\/settings$/);
+  // Keep the URL-encoded form throughout -- it's what the Registry link's
+  // href and every fetch actually use on the wire (project-card.tsx,
+  // use-tile.ts both `encodeURIComponent` the raw IRI, which contains
+  // colons).
   const projectId = /\/build\/projects\/([^/]+)\/settings$/.exec(page.url())?.[1];
   if (!projectId) throw new Error("project id missing from post-create redirect");
-  return decodeURIComponent(projectId);
+  return projectId;
 }
 
 // AC-1: the dashboard root renders all six tiles, each from its own
@@ -35,7 +39,7 @@ test("renders six tiles from per-tile endpoints, reachable from the project card
   const projectId = await createProject(page);
 
   await page.goto("/build");
-  await page.getByRole("link", { name: new RegExp(`E2E dashboard test`) }).click();
+  await page.locator(`a[href="/build/projects/${projectId}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/build/projects/${projectId}$`));
 
   await expect(page.getByText("Demo readiness")).toBeVisible();
@@ -56,7 +60,12 @@ test("keeps five tiles alive when one endpoint is stubbed down", async ({ page }
     route.fulfill({ status: 503, body: JSON.stringify({ error: "down" }) })
   );
 
-  await page.goto(`/build/projects/${projectId}`);
+  // Reach the dashboard via the same in-app navigation as the first test
+  // (not a hard `page.goto`) -- keeps this in line with the app's real
+  // usage pattern and the Registry-reachability assertion above.
+  await page.goto("/build");
+  await page.locator(`a[href="/build/projects/${projectId}"]`).click();
+  await expect(page).toHaveURL(new RegExp(`/build/projects/${projectId}$`));
 
   await expect(page.getByText(/couldn't load/i)).toBeVisible();
   await expect(page.getByText("Demo readiness")).toBeVisible();
