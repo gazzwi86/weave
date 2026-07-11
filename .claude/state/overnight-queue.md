@@ -237,3 +237,10 @@ PR deferred" assumption in the ADV-004 lane rules — the parameterization alrea
 ## ONB-001 QA open items (2026-07-11)
 - **AC-001-03 ADR needed** (non-blocking): onboarding user-scoping is enforced by never accepting a client-supplied identity (tenant/user from JWT Principal only), not a runtime 403. QA PASSED it met-by-construction; formalize via ADR/ADR-003 amendment so a future reviewer doesn't reopen as a gap.
 - **mutmut CLI gap** (tooling, phase-gate): mutmut 3.6.0 in-repo has no `--paths-to-mutate` run-flag (config-file only) → QA-scoped mutation runs not achievable; DoD "mutation ≥60%" unverified for ONB-001. Fix mutmut config for phase-gate mutation.
+
+## EPIC-012 (CE ingest) PARKS after CE-013 — dependency inconsistency (2026-07-11)
+CE-014 (Document Corpus Store) is `blocked_by` CE-012/CE-013/**CE-015**, but CE-015 was deferred to post-v1 (per your
+"defer file/diagram importers" MCQ). So CE-014 can't start in v1, and CE-019 (needs CE-014) is likewise blocked →
+**EPIC-012 cannot close in v1.** DECISION NEEDED: (a) also defer CE-014+CE-019 to post-v1 (accept EPIC-012 closes at
+CE-012+CE-013 only), or (b) un-defer CE-015 (the corpus-store dep) back into v1, or (c) the CE-014→CE-015 blocked_by is
+stale and should be dropped. CE-012 + CE-013 are DONE + QA-passed; whichever way, EPIC-012's mergeable content is those two.

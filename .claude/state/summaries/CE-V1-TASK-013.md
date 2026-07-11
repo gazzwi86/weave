@@ -58,3 +58,12 @@ ce-authoring.spec.ts, LLM leg non-deterministic). Real-stack + real-PROV proof a
 tsc 0, eslint 0 errors (5 test-file warnings, baseline). Commits: 6975973, 085a211, 0f55154, 9ca033c.
 
 **Epic status:** EPIC-012 has CE-014 + CE-019 remaining → epic stays OPEN (no PR yet). QA this task, then lane continues.
+
+## QA retry 1 → PASS — CE-V1-TASK-013 CLOSES (2026-07-11)
+Round-1 QA (a0c827) FAIL: 1 Blocker XT-CE013-2 — `use-ingest.ts` accept/reject only guarded 422; any other non-2xx
+(502/500/401) fell through to marking the card resolved with NO graph write (false success, no retry). Class=logic.
+Fix `ea497c2` (ae06cdeb): shared `isSuccessStatus` (200-299) guard on both accept+reject; non-2xx → card stays
+`pending` + retryable error via the existing violations slot (no new UI); extracted `useProposalActions` hook (Law E
+50-line). Failing-first tests (502 accept / 500 reject → stays pending) RED→GREEN. 56/56 vitest, tsc 0, coverage
+98.79% stmts / new branches covered. AC-002-03/04 + real routing + describeOp-not-forked all PASS in round 1. QA edge
+test 71e252a (null matched_iri). retry=1. XT-CE013-2 RESOLVED.

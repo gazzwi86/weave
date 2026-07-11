@@ -339,4 +339,4 @@ properties (if any) coerce correctly. Status: OPEN (fix in progress).
 through to `setProposalStatus("accepted"|"rejected")` with NO graph write → false committed state, buttons hidden,
 no retry. Breaks AC-002-05 "never silently resolve." Blocker, class=logic. Fix in-flight (ae06cdeb): 2xx guard on
 both + error-card state on other statuses + error-path tests (the 502/500 coverage gap). QA edge test 71e252a
-(null matched_iri) already committed. Status: FIXING.
+(null matched_iri) already committed. Status: RESOLVED ea497c2 (retry 1 PASS).
