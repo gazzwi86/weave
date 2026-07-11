@@ -111,13 +111,52 @@ async def ensure_user_starters(
         )
 
 
+#: TASK-017 (m2-delta.md §7, brief pseudocode): one placeholder spec, the
+#: route composes its own payload rather than rendering this generically --
+#: `bindings`/`component_type` here are markers only, never consumed by a
+#: generic widget renderer.
+_ROLE_HOME_TILE_SPEC = WidgetSpec(
+    component_type="table",
+    title="Role home snapshot",
+    data_source_contracts=["CE-METRICS-1", "CE-READ-1"],
+    bindings={"field": "role_home_snapshot"},
+    column_span=12,
+)
+
+
+async def ensure_role_home_tile(
+    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str
+) -> None:
+    """AC-5: one `scope='role_home'` row per user -- the SWR cache
+    role-home's degradation rides, same idempotent-insert pattern as
+    `ensure_user_starters` above.
+    """
+    await conn.execute(
+        """
+        INSERT INTO widget_instances (tenant_id, scope, owner_principal_iri, spec, "position")
+        VALUES ($1, 'role_home', $2, $3::jsonb, 0)
+        ON CONFLICT (tenant_id, scope, COALESCE(owner_principal_iri, ''), "position")
+        DO NOTHING
+        """,
+        tenant_id,
+        owner_principal_iri,
+        _ROLE_HOME_TILE_SPEC.model_dump_json(),
+    )
+
+
+#: TASK-017: role-home tiles are per-user, same as `scope='user'` rows --
+#: `owner_principal_iri` filters both (Design Decisions table: "one SWR
+#: path, no second cache/renderer").
+_OWNER_SCOPED_SCOPES = ("user", "role_home")
+
+
 async def list_widgets(
     conn: asyncpg.Connection, *, tenant_id: str, scope: str, owner_principal_iri: str | None
 ) -> list[WidgetRow]:
     """AC-6: pure SWR read -- returns whatever is already stored, no
     upstream CE call.
     """
-    if scope == "user":
+    if scope in _OWNER_SCOPED_SCOPES:
         rows = await conn.fetch(
             "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
             ' AND owner_principal_iri = $3 ORDER BY "position"',
