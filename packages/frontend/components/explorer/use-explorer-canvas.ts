@@ -49,7 +49,9 @@ declare global {
      * (for asserting AC-1/AC-6 spotlight dimming), and whether it's
      * display:none (TASK-020 AC-1: real hide, not just dimmed) by id.
      * Dev-only, never in production. */
-    __explorerNodeInfo?: (nodeId: string) => { x: number; y: number; opacity: number; visible: boolean } | undefined;
+    __explorerNodeInfo?: (
+      nodeId: string
+    ) => { x: number; y: number; opacity: number; visible: boolean; borderWidth: string } | undefined;
   }
 }
 
@@ -136,7 +138,9 @@ function resetDevIntrospection(): void {
   delete window.__explorerNodeInfo;
 }
 
-function nodeInfoLookup(cy: CyLike): (nodeId: string) => { x: number; y: number; opacity: number; visible: boolean } | undefined {
+function nodeInfoLookup(
+  cy: CyLike
+): (nodeId: string) => { x: number; y: number; opacity: number; visible: boolean; borderWidth: string } | undefined {
   return (nodeId: string) => {
     const rect = cy.container()?.getBoundingClientRect();
     if (!rect) return undefined;
@@ -148,6 +152,9 @@ function nodeInfoLookup(cy: CyLike): (nodeId: string) => { x: number; y: number;
       y: rect.top + position.y,
       opacity: Number(element.style("opacity")),
       visible: element.style("display") !== "none",
+      // TASK-028 AC-3: cheap real-canvas proof the trace class landed --
+      // base nodes carry no border, explorer-trace sets border-width: 3.
+      borderWidth: element.style("border-width"),
     };
   };
 }

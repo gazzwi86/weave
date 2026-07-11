@@ -14,6 +14,7 @@ import { DomainFocusNotice } from "./domain-focus-notice";
 import { EmptyState } from "./empty-state";
 import { FilterPanel } from "./filter-panel";
 import { NodeContextMenu } from "./node-context-menu";
+import { OverlayPanel } from "./overlay-panel";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
@@ -23,6 +24,8 @@ import { useLayoutPersistence } from "./use-layout-persistence";
 import { useNeighbourExpansion } from "./use-neighbour-expansion";
 import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
+import { useOverlayControls } from "./use-overlay-controls";
+import { usePinnedImpact } from "./use-pinned-impact";
 import { useSearchOverlay } from "./use-search-overlay";
 
 export interface ExplorerInteractionsProps {
@@ -127,10 +130,12 @@ function CanvasFilterChrome({
   onOpenSearch,
   filterPanel,
   legend,
+  overlayControls,
 }: {
   onOpenSearch: () => void;
   filterPanel: ReturnType<typeof useFilterPanel>;
   legend: ReturnType<typeof useCanvasLegend>;
+  overlayControls: ReturnType<typeof useOverlayControls>;
 }) {
   return (
     <>
@@ -150,7 +155,7 @@ function CanvasFilterChrome({
           Search…
         </button>
       </CanvasToolbar>
-      <CanvasLegend palette={legend.palette} loading={legend.loading} />
+      <CanvasLegend palette={legend.palette} loading={legend.loading} overlay={overlayControls.legend} />
       <FilterPanel
         entityTypes={filterPanel.entityTypes}
         relTypes={filterPanel.relTypes}
@@ -161,6 +166,7 @@ function CanvasFilterChrome({
         onSetPropertyFilters={filterPanel.setPropertyFilters}
         onToggleLayer={filterPanel.toggleLayer}
       />
+      <OverlayPanel toggles={overlayControls.toggles} onToggleOverlay={overlayControls.toggleOverlay} />
     </>
   );
 }
@@ -279,10 +285,12 @@ export function ExplorerInteractions({
   const confirmState = neighbourExpansion.state;
   const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
   const legend = useCanvasLegend(fetchPalette);
+  const overlayControls = useOverlayControls({ adapter, config });
+  usePinnedImpact({ adapter });
 
   return (
     <>
-      <CanvasFilterChrome onOpenSearch={search.openOverlay} filterPanel={filterPanel} legend={legend} />
+      <CanvasFilterChrome onOpenSearch={search.openOverlay} filterPanel={filterPanel} legend={legend} overlayControls={overlayControls} />
       <NodeInteractionOverlays
         resetLayout={resetLayout}
         panel={panel}
