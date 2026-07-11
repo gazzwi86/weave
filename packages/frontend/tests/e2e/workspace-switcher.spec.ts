@@ -11,54 +11,24 @@ async function loginAndGoToDashboard(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-test.describe("workspace switcher", () => {
-  // Real backend: the top-bar switcher lists the seeded workspace.
-  test("top bar shows the workspace select listing Demo Workspace", async ({ page }) => {
+// AC-8 (binding tenancy ruling, R7): the header workspace switcher is
+// retired entirely. These specs address the sandbox workspace by direct
+// API call, never via member-visible UI (the ruling's explicit
+// test-authoring constraint) -- there is no switcher control left to drive.
+test.describe("workspace switcher retirement", () => {
+  test("no header workspace switcher renders after sign-in", async ({ page }) => {
     await loginAndGoToDashboard(page);
 
-    const switcher = page.getByRole("combobox", { name: "Active workspace" });
-    await expect(switcher).toBeVisible();
-    await expect(
-      switcher.locator("option", { hasText: "Demo Workspace" })
-    ).toHaveCount(1);
+    await expect(page.getByRole("combobox", { name: "Active workspace" })).toHaveCount(0);
   });
 
-  // Switching is server-side session state followed by a full reload, so the
-  // assertion stops at the POST firing (the reload's effect is workspace
-  // re-scoping, covered by backend tests). Two mocked workspaces make the
-  // change event deterministic regardless of what earlier runs provisioned.
-  test("selecting another workspace fires the switch POST", async ({ page }) => {
-    const workspaces = [
-      { id: "ws-demo", slug: "demo", display_name: "Demo Workspace" },
-      { id: "ws-other", slug: "other", display_name: "Other Workspace" },
-    ];
-    const captured: { switchedId: string | null } = { switchedId: null };
-
-    await page.route("**/api/tenancy/workspaces", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(workspaces),
-      });
-    });
-    await page.route("**/api/tenancy/workspaces/active", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ workspace_id: "ws-demo" }),
-      });
-    });
-    await page.route("**/api/tenancy/workspaces/*/switch", async (route) => {
-      const match = /workspaces\/([^/]+)\/switch/.exec(route.request().url());
-      captured.switchedId = match?.[1] ?? null;
-      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-    });
-
+  // Switching remains reachable as server-side session state -- just no
+  // longer through a header control. Direct API call proves the endpoint
+  // still works for whatever surface (Settings -> Workspaces) drives it.
+  test("switching the active workspace via direct API call still works", async ({ page }) => {
     await loginAndGoToDashboard(page);
-    await page
-      .getByRole("combobox", { name: "Active workspace" })
-      .selectOption("ws-other");
 
-    await expect.poll(() => captured.switchedId).toBe("ws-other");
+    const response = await page.request.post("/api/tenancy/workspaces/ws-demo/switch");
+    expect(response.ok()).toBe(true);
   });
 });

@@ -21,6 +21,7 @@ from weave_backend.routers.auth import router as auth_router
 from weave_backend.routers.authoring import router as authoring_router
 from weave_backend.routers.billing import harness_router as billing_harness_router
 from weave_backend.routers.billing import router as billing_router
+from weave_backend.routers.board import router as board_router
 from weave_backend.routers.brand import router as brand_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.comments import router as comments_router
@@ -125,6 +126,7 @@ app.include_router(query_router)
 app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
+app.include_router(board_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler

@@ -7,6 +7,9 @@ export interface NotificationItem {
   delivered_channels: string[];
   read: boolean;
   created_at: string;
+  /** Deep-link target (CE-READ-1 resource IRI) -- absent for types with no
+   * single graph resource to link to. */
+  target_iri?: string;
 }
 
 interface NotificationListResponse {
