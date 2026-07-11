@@ -1,4 +1,4 @@
-import type { ViewSaveBody } from "./saved-view-state";
+import type { SavedViewDefinition, ViewSaveBody } from "./saved-view-state";
 
 export interface ViewSummary {
   view_id: string;
@@ -6,6 +6,9 @@ export interface ViewSummary {
   created_by: string;
   pinned: boolean;
   updated_at: string;
+  /** AC-2: openView(view) reads this straight off the list row -- see
+   * TASK-026's ViewOut.definition backend fix (list SQL now selects it). */
+  definition: SavedViewDefinition;
 }
 
 export type SaveViewResult =

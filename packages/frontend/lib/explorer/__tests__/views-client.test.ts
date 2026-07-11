@@ -27,6 +27,20 @@ describe("listViews", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 500)));
     expect(await listViews()).toEqual([]);
   });
+
+  // AC-2: openView(view) reads its definition straight off the list row.
+  it("passes through each view's saved definition", async () => {
+    const view = {
+      view_id: "v1",
+      name: "n",
+      created_by: "u1",
+      pinned: false,
+      updated_at: "2026-01-01",
+      definition: { filterState: { entityTypesOff: [] }, viewport: { zoom: 1 } },
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([view])));
+    expect(await listViews()).toEqual([view]);
+  });
 });
 
 describe("deleteView", () => {
