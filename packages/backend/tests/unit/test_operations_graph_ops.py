@@ -387,3 +387,66 @@ def test_add_node_with_lang_tagged_property_value_produces_a_language_literal() 
 
     iri = URIRef(result.ref_map["t1"])
     assert graph.value(iri, SKOS.prefLabel) == Literal("Invoice", lang="en")
+
+
+def test_ordinary_single_type_plain_string_write_is_byte_unchanged_by_the_punning_extension() -> (
+    None
+):
+    """QA edge case (XT-WRITEPATH-1 blast-radius): a caller that never sets
+    `additional_types` and never sends a list/lang-dict property value
+    (every non-glossary caller today -- `routers/instances.py`,
+    `authoring/imports.py`, `authoring/restrictions.py`) must produce
+    EXACTLY the same triples as before `3979906`: one `rdf:type`, one
+    plain `xsd:string` literal per property, no fan-out.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="n1",
+                kind="Process",
+                label="Invoicing",
+                properties={"description": "Bills the customer."},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["n1"])
+    assert list(graph.objects(iri, RDF.type)) == [WEAVE.Process]
+    assert graph.value(iri, WEAVE.description) == Literal(
+        "Bills the customer.", datatype=XSD.string
+    )
+
+
+def test_dict_property_value_missing_lang_key_is_not_treated_as_a_lang_literal() -> None:
+    """QA edge case (XT-WRITEPATH-1 blast-radius): the punning extension's
+    lang-literal sniff (`isinstance(value, dict) and "value" in value and
+    "lang" in value`) is keyed on dict *shape*, not an explicit op-level
+    flag -- any caller (e.g. `routers/instances.py`'s client-controlled
+    `properties: dict[str, Any]`) whose property value happens to be an
+    unrelated dict missing either key must fall through to the pre-existing
+    "stringify whatever it is" `Literal(value)` path untouched.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="n1",
+                kind="Process",
+                label="Invoicing",
+                properties={"metadata": {"value": "x"}},  # missing "lang" -- not a lang marker
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["n1"])
+    literal = graph.value(iri, WEAVE.metadata)
+    assert isinstance(literal, Literal)
+    assert literal.language is None
+    assert str(literal) == str({"value": "x"})
