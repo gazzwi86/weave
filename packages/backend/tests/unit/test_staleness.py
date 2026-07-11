@@ -8,8 +8,22 @@ fake-healthy) -- mirrors CE-METRICS-1's pending-not-zero honesty rule
 from __future__ import annotations
 
 import httpx
+import pytest
 
-from weave_backend.projects.staleness import StalenessOptions, get_staleness, version_distance
+from weave_backend.projects.staleness import (
+    StalenessOptions,
+    get_staleness,
+    reset_staleness_cache_for_tests,
+    version_distance,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_staleness_cache() -> None:
+    # ponytail: mutmut runs this suite twice in one interpreter for its
+    # baseline; the module-level cache survives across that second pass
+    # and stales the call-count assertions. Reset before every test.
+    reset_staleness_cache_for_tests()
 
 _VERSIONS = [
     {"version_iri": "urn:weave:version:v1", "is_latest": False},
