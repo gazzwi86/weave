@@ -280,7 +280,7 @@ async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one
 
     await pipeline.apply_operations_request(ctx, request, redis_client=None)
 
-    assert write_activity_spy.call_args.kwargs["actor_iri"] == AUTHENTICATED_PRINCIPAL
+    assert write_activity_spy.call_args.kwargs["actor"].iri == AUTHENTICATED_PRINCIPAL
     emitted_event = enqueue_spy.call_args.args[1]
     assert emitted_event.actor_iri == AUTHENTICATED_PRINCIPAL
     assert emitted_event.payload["claimed_actor_iri"] == "urn:weave:principal:spoofed-someone-else"
