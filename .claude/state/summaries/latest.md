@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T20:22:18+00:00
+Captured at: 2026-07-11T20:48:22+00:00
 Event: pre-compact
 
 ## Current State
@@ -147,7 +147,7 @@ Event: pre-compact
     {
       "id": "PLAT-V1-EPIC-010",
       "title": "\"What can Weave do for you?\" Role-Home (legibility)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-007",
@@ -809,7 +809,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-010",
       "title": "'What can Weave do for you?' role-home (E10-S1..S3)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-010",
         "PLAT-V1-TASK-016"
@@ -822,7 +822,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-002",
       "title": "Recent-edits collaboration widget polling the CE-EVENT-1 seq feed (E2-S9)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-016"
       ],
