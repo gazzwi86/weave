@@ -1,27 +1,37 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { SecondarySidebar, type SecondarySidebarGroup } from "@/components/organisms/SecondarySidebar";
 import { findSection, TAG_LABEL, type SecondaryNavItem } from "./nav-items";
 
 const COLLAPSE_STORAGE_KEY = "weave.sectionRail.collapsed";
 
+function subscribeToStorage(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
 /** AC-1: collapse toggle persists across page loads. localStorage is
  * per-browser-profile, which stands in for "per-user" (PLAT-SETTINGS-1)
  * without a new backend surface -- this task adds no API (brief §API
- * Contracts: "No new endpoints"). */
+ * Contracts: "No new endpoints"). useSyncExternalStore's getServerSnapshot
+ * always reports "expanded" so SSR and the first client render agree --
+ * no hydration mismatch -- then the real localStorage value takes over. */
 function useCollapsed(): [boolean, () => void] {
-  const [collapsed, setCollapsed] = useState(
-    () => typeof window !== "undefined" && window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "true"
+  const collapsed = useSyncExternalStore(
+    subscribeToStorage,
+    () => window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "true",
+    () => false
   );
 
-  useEffect(() => {
-    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, String(collapsed));
-  }, [collapsed]);
+  const toggle = () => {
+    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, String(!collapsed));
+    window.dispatchEvent(new StorageEvent("storage"));
+  };
 
-  return [collapsed, () => setCollapsed((prev) => !prev)];
+  return [collapsed, toggle];
 }
 
 function visibleItems(items: SecondaryNavItem[], role: string | null): SecondaryNavItem[] {
