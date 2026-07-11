@@ -36,3 +36,6 @@ E2E-met-by-inference where PROJ-009/010 blocks. **Give QA the ABSOLUTE summary p
 
 ## Epic status — BE-EPIC-005 = BE-018 sole task → CLOSES on QA-pass → auto-merge eligible (NO migration)
 On QA PASS: reconcile onto green main (**after PROJ-011 hotfix lands** — else CI red on sdkgen), push, PR, review, CI green → auto-merge (non-risky). Run ui_verify on the task-detail route before close (UI-gate, phase-gate deferred).
+
+## QA FAIL retry-1 (2026-07-11, a1a15f0) — AC-7 wiring gap (logic)
+6/7 ACs PASS (tenant isolation confirmed + edge test 031b9809 console-log cross-tenant; AC-1 RunLogSink append-only+finally-wired 23/23; AC-4 console honest-degraded acceptable; mount chain; NO unmocked-boto unit test — clean). **AC-7 FAIL (Major, logic):** capture_visual_states producer has ZERO production call sites — never invoked by qa_suite.py ASSESS lane → captures manifest never written in real runs → AC-3 honest-absence is the ONLY reachable state. The during-assess test was a unit test calling the fn directly, not proving the lane invokes it. Fix in flight (a8cec95): wire capture into qa_suite browser_backend/a11y runner for UI tasks + convert to real integration test (run_full_qa_suite → manifest in S3). retry_count=1.
