@@ -740,7 +740,7 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "PLAT-V1-TASK-011"
       ],
@@ -1118,7 +1118,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0
@@ -1646,7 +1646,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Onboarding State Store & /api/onboarding/* Router Foundation",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-001.md",
       "retry_count": 0
