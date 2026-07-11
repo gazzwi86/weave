@@ -143,3 +143,4 @@ async def write_shape_activity(
 
     await append_graph(prov_graph_iri(shapes_graph_iri), graph.serialize(format="turtle"))
     return str(activity_iri)
+

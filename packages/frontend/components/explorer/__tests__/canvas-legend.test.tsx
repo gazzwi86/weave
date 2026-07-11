@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { OverlayLegendModel } from "@/lib/explorer/overlay-engine";
 import type { NodeKind } from "@/lib/explorer/types";
 
 import { CanvasLegend } from "../canvas-legend";
@@ -35,5 +36,39 @@ describe("CanvasLegend", () => {
 
     fireEvent.click(reopen);
     expect(screen.getByText("Process")).toBeInTheDocument();
+  });
+
+  // D-1: overlay legend mounts into this same shared shell -- never a
+  // second floating legend panel.
+  it("renders no overlay section when no overlay is active", () => {
+    render(<CanvasLegend palette={PALETTE} loading={false} overlay={null} />);
+
+    expect(screen.getAllByTestId("explorer-legend")).toHaveLength(1);
+    expect(screen.queryByText("Heatmap — maturity")).not.toBeInTheDocument();
+  });
+
+  it("renders the active overlay's title and colour+label entries inside the same shell (D-1/D-2)", () => {
+    const overlay: OverlayLegendModel = {
+      title: "Heatmap — maturity",
+      entries: [{ label: "High", colour: "var(--color-heat-5)" }],
+    };
+    render(<CanvasLegend palette={PALETTE} loading={false} overlay={overlay} />);
+
+    expect(screen.getAllByTestId("explorer-legend")).toHaveLength(1);
+    expect(screen.getByText("Heatmap — maturity")).toBeInTheDocument();
+    expect(screen.getByText("High")).toBeInTheDocument();
+    // still the base kind palette too -- overlay is an addition, not a swap.
+    expect(screen.getByText("Process")).toBeInTheDocument();
+  });
+
+  it("renders the overlay note on its own line, never folded into an entry label (AC-1/AC-6)", () => {
+    const overlay: OverlayLegendModel = {
+      title: "Heatmap — maturity",
+      entries: [],
+      note: "0/3 nodes matched -- no data for this dimension",
+    };
+    render(<CanvasLegend palette={PALETTE} loading={false} overlay={overlay} />);
+
+    expect(screen.getByText("0/3 nodes matched -- no data for this dimension")).toBeInTheDocument();
   });
 });

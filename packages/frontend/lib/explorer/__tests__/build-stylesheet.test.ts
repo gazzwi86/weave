@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStylesheet,
   EXPLORER_HIGHLIGHT_CLASS,
+  EXPLORER_TRACE_CLASS,
   resolveStylesheetTokens,
   UNKNOWN_KIND_COLOUR,
 } from "../build-stylesheet";
@@ -73,5 +74,18 @@ describe("buildStylesheet -- TASK-005 highlight class", () => {
     const highlightRule = stylesheet.find((rule) => rule.selector === `node.${EXPLORER_HIGHLIGHT_CLASS}`);
 
     expect(highlightRule?.style).toMatchObject({ "border-color": "var(--color-accent-primary)" });
+  });
+});
+
+// TASK-028 AC-3/AC-7: the pinned-impact trace is a distinct amber overlay,
+// deliberately separate from the cyan spotlight above, so "this is the
+// impact chain" never reads as "this is selected" (docs/standards/design/data-viz.md).
+describe("buildStylesheet -- TASK-028 trace class", () => {
+  it(`includes a "node.${EXPLORER_TRACE_CLASS}" rule with the amber --color-warn token`, () => {
+    const stylesheet = buildStylesheet([]);
+
+    const traceRule = stylesheet.find((rule) => rule.selector === `node.${EXPLORER_TRACE_CLASS}`);
+
+    expect(traceRule?.style).toMatchObject({ "border-color": "var(--color-warn)" });
   });
 });

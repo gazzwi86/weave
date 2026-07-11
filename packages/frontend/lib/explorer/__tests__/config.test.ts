@@ -39,3 +39,42 @@ describe("DEFAULT_EXPLORER_CONFIG -- TASK-005 additions", () => {
     expect(DEFAULT_EXPLORER_CONFIG.expandConfirmThreshold).toBe(500);
   });
 });
+
+// TASK-021: heatmap/domain-colouring overlay config -- design-token colours,
+// never literals inlined at the overlay call sites (Implementation Hints).
+describe("DEFAULT_EXPLORER_CONFIG -- TASK-021 additions", () => {
+  it("defaults heatNoneColour to the heat-ramp grey fallback token", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.heatNoneColour).toBe("var(--color-heat-none)");
+  });
+
+  it("defaults domainNoneColour to the kind-fallback token", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.domainNoneColour).toBe("var(--color-kind-fallback)");
+  });
+
+  it("defaults domainPalette to the 6-slot series token ramp", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.domainPalette).toEqual([
+      "var(--color-series-1)",
+      "var(--color-series-2)",
+      "var(--color-series-3)",
+      "var(--color-series-4)",
+      "var(--color-series-5)",
+      "var(--color-series-6)",
+    ]);
+  });
+
+  // Dependencies: brief names prototype-findings.md as the source of real
+  // value->colour vocabularies -- that file isn't present in this worktree
+  // (flagged to team-lead). The four FR-015 dimensions are known structure
+  // (not part of the missing file), so they're populated with empty value
+  // maps -- gives the overlay panel four real toggles to render (Law 17)
+  // while each one still hits AC-6's all-grey/no-data-note state until the
+  // real vocab lands.
+  it("defaults heatmapMappings to the four FR-015 dimensions with empty value vocab", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.heatmapMappings).toEqual({
+      maturity: { path: "maturity", values: {} },
+      investment: { path: "investment", values: {} },
+      strategy: { path: "strategy", values: {} },
+      lifecycle: { path: "lifecycle", values: {} },
+    });
+  });
+});

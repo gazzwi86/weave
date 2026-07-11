@@ -60,6 +60,36 @@
   --color-kind-class: #d97706;
   --color-kind-fallback: #6d7d94;
 
+  /* color: overlay heat ramp (data-viz.md's sequential heat ramp table --
+   * TASK-021 gap-fill, aliased to existing semantic/kind tokens per the
+   * doc's own "X family" column, zero invented hex; each alias already
+   * carries a light-scheme override below so heat inherits it for free). */
+  --color-heat-1: var(--color-danger);
+  --color-heat-2: var(--color-kind-concept);
+  --color-heat-3: var(--color-warn);
+  --color-heat-4: var(--color-kind-field);
+  --color-heat-5: var(--color-success);
+  --color-heat-none: var(--color-kind-fallback);
+
+  /* color: overlay categorical series palette (data-viz.md's series-1..6 --
+   * TASK-021 gap-fill, verbatim from color.md's documented brand-spectrum
+   * stops, no light-scheme override -- same pattern as --gradient-brand,
+   * which is also undarkened in light mode: these are decorative chart/
+   * overlay fills, not text/interactive elements, so the doc's own
+   * accessibility mechanism is colour+shape/pattern/label pairing, not a
+   * darkened AA-on-white fill).
+   *
+   * Dark-mode only -- brand-spectrum stops lack light-mode hex; adjacent
+   * domain fills fail WCAG 1.4.11 on a light canvas. Light-safe hex is a
+   * design-authority follow-up (team-lead decision 2026-07-10), must land
+   * before any light-mode ship of the Explorer canvas. See overnight-queue. */
+  --color-series-1: #22d3ee;
+  --color-series-2: #2dd4bf;
+  --color-series-3: #e879f9;
+  --color-series-4: #a78bfa;
+  --color-series-5: #fbbf24;
+  --color-series-6: #a3e635;
+
   /* space (8pt grid) */
   --space-1: 4px;
   --space-2: 8px;
