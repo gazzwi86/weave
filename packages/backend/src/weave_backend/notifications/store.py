@@ -197,6 +197,24 @@ async def get_user_prefs(
     return list(row["channels"]) if row is not None else ["in_app"]
 
 
+async def get_stored_channels(
+    conn: asyncpg.Connection, *, tenant_id: str, recipient_iri: str, event_type: str
+) -> list[str] | None:
+    """TASK-030 AC-4: unlike `get_user_prefs` (dispatch's "in_app if unset"
+    fallback), returns `None` for an unset type so the settings GET route
+    can tell "explicitly off" apart from "never set, use the role default"
+    -- `get_user_prefs`'s own default stays untouched for delivery callers.
+    """
+    row = await conn.fetchrow(
+        "SELECT channels FROM notification_preferences"
+        " WHERE tenant_id = $1 AND recipient_iri = $2 AND event_type = $3",
+        tenant_id,
+        recipient_iri,
+        event_type,
+    )
+    return list(row["channels"]) if row is not None else None
+
+
 async def upsert_pref(
     conn: asyncpg.Connection,
     *,

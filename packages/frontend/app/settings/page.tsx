@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
-/** Settings has no index of its own — land on the first rail item. */
+/** TASK-030 AC-7: Settings has no index of its own -- Members (the
+ * most frequently-needed action, invite/revoke) wins the landing slot
+ * over a static overview (`v1-design-requirements.md`).
+ */
 export default function SettingsPage() {
-  redirect("/settings/models");
+  redirect("/settings/members");
 }
