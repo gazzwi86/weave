@@ -394,3 +394,90 @@ async def test_duplicate_activation_insert_is_prevented_by_primary_key(
                 tenant_id,
                 user_id,
             )
+
+
+
+async def test_get_path_resolves_and_persists_from_workspace_role(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-006-01/04: GET resolves the caller's workspace_members role to a
+    path via the real active-workspace + membership lookup, and persists it
+    so the state row (read by every other surface) agrees on next render.
+    """
+    from weave_backend.tenancy.members import activate_member, invite_member
+    from weave_backend.tenancy.sessions import set_active_workspace
+    from weave_backend.tenancy.workspaces import create_workspace
+
+    tenant_id = _unique_tenant("onb-path")
+    user_sub = "u-onb-path-compliance"
+    email = "compliance@acme-corp.example"
+
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="ws", display_name="Path workspace"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=email,
+            role="compliance_officer",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=email, user_sub=user_sub
+        )
+    await set_active_workspace(tenant_id, user_sub, workspace.id)
+
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    response = await client.get(
+        "/api/onboarding/path", headers={"Authorization": f"Bearer {tokens.access_token}"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {
+        "role_path": "compliance",
+        "path_variant": "default",
+        "path_chosen_manually": False,
+        "needs_choice": False,
+    }
+
+    async with tenant_connection(tenant_id) as conn:
+        row = await conn.fetchrow(
+            "SELECT role_path, path_variant FROM onboarding_state"
+            " WHERE tenant_id = $1 AND user_id = $2",
+            tenant_id,
+            human_principal_iri(user_sub),
+        )
+    assert row is not None
+    assert row["role_path"] == "compliance"
+
+
+async def test_put_path_sets_manual_choice_and_persists_across_reads(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-006-04: "change my onboarding path" persists at any time and every
+    subsequent GET (any surface) reflects it, without re-deriving from role.
+    """
+    tenant_id = _unique_tenant("onb-path-change")
+    user_sub = "u-onb-path-change"
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+
+    put_response = await client.put(
+        "/api/onboarding/path",
+        json={"role_path": "technical"},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert put_response.status_code == 200
+    assert put_response.json() == {
+        "role_path": "technical",
+        "path_variant": "default",
+        "path_chosen_manually": True,
+        "needs_choice": False,
+    }
+
+    get_response = await client.get(
+        "/api/onboarding/path", headers={"Authorization": f"Bearer {tokens.access_token}"}
+    )
+    assert get_response.json()["role_path"] == "technical"
+    assert get_response.json()["path_chosen_manually"] is True
