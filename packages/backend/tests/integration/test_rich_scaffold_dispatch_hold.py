@@ -41,8 +41,12 @@ _FAKE_TOKEN = "tok-rs"
 class _StubDriver:
     """Tracks every SCM call made -- no real HTTP, Law F."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, anatomy: str | None = None) -> None:
         self.calls: list[str] = []
+        #: TASK-009/AC-2: `read_file("ANATOMY.md")`'s canned reply -- `None`
+        #: (the default) mirrors a freshly scaffolded repo with no anatomy
+        #: index committed yet.
+        self.anatomy = anatomy
 
     async def create_repo(self, *, name: str, private: bool, token: str) -> RepoHandle:
         self.calls.append("create_repo")
@@ -67,6 +71,10 @@ class _StubDriver:
     ) -> str:
         self.calls.append("harness_files")
         return "sha-stub"
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        self.calls.append("read_file")
+        return self.anatomy
 
 
 def _unique_tenant(label: str) -> str:
@@ -210,3 +218,70 @@ async def test_should_hold_feature_tasks_until_env_verification_approved(
 
     assert result_spine.dispatch_count == 1
     assert result_spine.tasks[0].status == "Done"
+
+
+async def test_should_load_anatomy_into_task_context_before_delegate(
+    platform_stack: Path,
+) -> None:
+    """AC-2 (task brief mapping: `should load anatomy into task context
+    before delegate`): once a project's repo carries a committed
+    `ANATOMY.md`, `run_dark_factory` prepends its content into the
+    dispatched task's `context` before `dispatch_pdac_fn` (PLAN->DELEGATE)
+    ever runs -- proven end to end (real Postgres, stub SCM driver) rather
+    than just at the `_dispatch_one` unit level.
+    """
+    anatomy_md = "# Repository Anatomy\n\n| Area | Files | Wiki |\n|---|---|---|\n"
+    tenant_id = _unique_tenant("tenant-anatomy")
+    secret_ref = f"weave/{tenant_id}/scm/github/token"
+    _seed_scm_token(secret_ref, _FAKE_TOKEN)
+    project_iri = await _seed_project(tenant_id, secret_ref)
+    driver = _StubDriver(anatomy=anatomy_md)
+    seen_context: list[str] = []
+
+    async def _dispatch_capture_context(
+        _conn: Any, *, tenant_id: str, project_iri: str, task: TaskState
+    ) -> tuple[TypedResult, Any]:
+        from weave_backend.build.dep_summary import DepSummary
+
+        seen_context.extend(task.context)
+        return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
+    deps = OrchestratorDeps(
+        repo_deps=_repo_bootstrap_deps(driver),
+        dispatch_pdac_fn=_dispatch_capture_context,
+        resolve_rate_card_fn=_empty_rate_card,
+    )
+    run_id = str(uuid.uuid4())
+
+    async with tenant_connection(tenant_id) as conn:
+        spine = await start_or_resume_run(
+            conn, tenant_id=tenant_id, project_iri=project_iri, run_id=run_id, turn_cap=60
+        )
+        spine.tasks.append(TaskState(id="t-1", status="Queued"))
+        held_spine = await run_dark_factory(conn, spine, tenant_id=tenant_id, deps=deps)
+
+    assert held_spine.phase == "halted_hitl"
+
+    async with tenant_connection(tenant_id) as conn:
+        human_iri = await ensure_human_principal(
+            conn, tenant_id=tenant_id, sub="approver-2", display_name="Approver Two"
+        )
+        await handle_hitl_response(
+            conn,
+            HitlResponseContext(
+                tenant_id=tenant_id,
+                task_id=f"env_verification:{project_iri}",
+                approving_principal_iri=human_iri,
+                action="approve",
+            ),
+        )
+
+    async with tenant_connection(tenant_id) as conn:
+        resumed = await start_or_resume_run(
+            conn, tenant_id=tenant_id, project_iri=project_iri, run_id=run_id, turn_cap=60
+        )
+        result_spine = await run_dark_factory(conn, resumed, tenant_id=tenant_id, deps=deps)
+
+    assert result_spine.dispatch_count == 1
+    assert seen_context == [anatomy_md], "AC-2: DELEGATE must see the anatomy already loaded"
+    assert result_spine.tasks[0].context == [anatomy_md]

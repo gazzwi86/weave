@@ -313,6 +313,7 @@ def test_update_node_with_absolute_iri_property_key_passes_through_unscoped() ->
     )
 
 
+
 def test_add_node_coerces_a_shape_typed_property_to_its_sh_datatype() -> None:
     """Root-cause fix for TASK-003's AC-003-01: `framework.shacl.ttl`'s
     `weave:BrandStandardShape` declares `sh:datatype xsd:date` on
@@ -422,3 +423,141 @@ def test_add_node_with_a_malformed_date_raises_a_clean_validation_error() -> Non
                 )
             ],
         )
+
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+
+
+def test_add_node_with_additional_types_adds_extra_rdf_type_triples() -> None:
+    """CE-TASK-001 AC-001-01: punning -- a second `rdf:type` beyond the
+    primary `kind`, e.g. term nodes carrying both `skos:Concept` (kind) and
+    `owl:Class` (additional_types) on the one minted IRI.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                additional_types=[str(OWL.Class)],
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    assert (iri, RDF.type, SKOS.Concept) in graph
+    assert (iri, RDF.type, OWL.Class) in graph
+
+
+def test_add_node_with_list_valued_property_adds_one_triple_per_item() -> None:
+    """CE-TASK-001 AC-001-04: `skos:altLabel` is 0..n -- a list value under
+    one property key must not collapse to a single overwritten triple.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                properties={str(SKOS.altLabel): ["Bill", "Sales Invoice"]},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    alt_labels = {str(v) for v in graph.objects(iri, SKOS.altLabel)}
+    assert alt_labels == {"Bill", "Sales Invoice"}
+
+
+def test_add_node_with_lang_tagged_property_value_produces_a_language_literal() -> None:
+    """CE-TASK-001 AC-001-02: `skos:prefLabel` needs a language tag, not a
+    plain `xsd:string` -- a `{"value": ..., "lang": ...}` marker in the
+    properties dict is the whole mechanism.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                properties={str(SKOS.prefLabel): {"value": "Invoice", "lang": "en"}},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    assert graph.value(iri, SKOS.prefLabel) == Literal("Invoice", lang="en")
+
+
+def test_ordinary_single_type_plain_string_write_is_byte_unchanged_by_the_punning_extension() -> (
+    None
+):
+    """QA edge case (XT-WRITEPATH-1 blast-radius): a caller that never sets
+    `additional_types` and never sends a list/lang-dict property value
+    (every non-glossary caller today -- `routers/instances.py`,
+    `authoring/imports.py`, `authoring/restrictions.py`) must produce
+    EXACTLY the same triples as before `3979906`: one `rdf:type`, one
+    plain `xsd:string` literal per property, no fan-out.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="n1",
+                kind="Process",
+                label="Invoicing",
+                properties={"description": "Bills the customer."},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["n1"])
+    assert list(graph.objects(iri, RDF.type)) == [WEAVE.Process]
+    assert graph.value(iri, WEAVE.description) == Literal(
+        "Bills the customer.", datatype=XSD.string
+    )
+
+
+def test_dict_property_value_missing_lang_key_is_not_treated_as_a_lang_literal() -> None:
+    """QA edge case (XT-WRITEPATH-1 blast-radius): the punning extension's
+    lang-literal sniff (`isinstance(value, dict) and "value" in value and
+    "lang" in value`) is keyed on dict *shape*, not an explicit op-level
+    flag -- any caller (e.g. `routers/instances.py`'s client-controlled
+    `properties: dict[str, Any]`) whose property value happens to be an
+    unrelated dict missing either key must fall through to the pre-existing
+    "stringify whatever it is" `Literal(value)` path untouched.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="n1",
+                kind="Process",
+                label="Invoicing",
+                properties={"metadata": {"value": "x"}},  # missing "lang" -- not a lang marker
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["n1"])
+    literal = graph.value(iri, WEAVE.metadata)
+    assert isinstance(literal, Literal)
+    assert literal.language is None
+    assert str(literal) == str({"value": "x"})

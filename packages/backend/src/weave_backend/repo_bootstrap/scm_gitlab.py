@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import quote
 
 import httpx
 
 from weave_backend.repo_bootstrap.scm_http import (
     RepoHandle,
+    get_optional,
     post_checked,
     read_workspace_files,
 )
@@ -121,3 +123,19 @@ class GitLabDriver:
             },
             headers,
         )
+
+    async def read_file(self, repo: RepoHandle, *, path: str, token: str) -> str | None:
+        """TASK-009/AC-2: GitLab's raw-file endpoint returns the file body
+        directly (no base64 envelope, unlike GitHub's Contents API) --
+        so `load_task_context` can prepend the repo's `ANATOMY.md` into a
+        task's context before DELEGATE. A 404 (not yet committed) is a
+        normal miss.
+        """
+        headers = {"PRIVATE-TOKEN": token}
+        response = await get_optional(
+            self._client,
+            f"/projects/{repo.repo_id}/repository/files/{quote(path, safe='')}/raw",
+            headers,
+            params={"ref": repo.default_branch},
+        )
+        return response.text if response is not None else None

@@ -83,6 +83,12 @@ def _to_literal(value: Any, datatype: URIRef | None = None) -> Any:
     int/float/bool, which do) -- so string values need the datatype set
     explicitly to satisfy `sh:datatype xsd:string` shape constraints.
 
+    CE-TASK-001 AC-001-02: a `{"value": ..., "lang": ...}` dict is the
+    language-tagged-literal marker (`skos:prefLabel`) -- RDF gives a
+    language-tagged literal `rdf:langString` automatically, so no
+    `sh:datatype` is set here for it (checked first -- a lang-tagged
+    literal has no separate `sh:datatype` to coerce to).
+
     A non-string `datatype` (resolved from the active shape via
     `_property_datatype`, e.g. `xsd:date`) coerces the literal to that
     type instead -- validated via rdflib's own `Literal.ill_typed`
@@ -93,6 +99,8 @@ def _to_literal(value: Any, datatype: URIRef | None = None) -> Any:
     doesn't recognise -- treated as "can't tell, so allow it" rather than
     rejecting every value for that property.
     """
+    if isinstance(value, dict) and "value" in value and "lang" in value:
+        return Literal(value["value"], lang=value["lang"])
     if datatype is not None and datatype != XSD.string:
         literal = Literal(str(value), datatype=datatype, normalize=False)
         if literal.ill_typed:
@@ -132,11 +140,15 @@ def _apply_add_node(graph: Graph, op: AddNodeOp, ref_map: dict[str, str]) -> Non
     subject = INSTANCES[f"{kind_local.lower()}-{uuid4().hex}"]
     kind_iri = _expand(op.kind)
     graph.add((subject, RDF.type, kind_iri))
+    for extra_type in op.additional_types:
+        graph.add((subject, RDF.type, _expand(extra_type)))
     graph.add((subject, WEAVE.label, _to_literal(op.label)))
     for key, value in op.properties.items():
         predicate = _expand(key)
         datatype = _property_datatype(kind_iri, predicate)
-        graph.add((subject, predicate, _to_literal(value, datatype)))
+        values = value if isinstance(value, list) else [value]
+        for item in values:
+            graph.add((subject, predicate, _to_literal(item, datatype)))
     ref_map[op.ref] = str(subject)
 
 

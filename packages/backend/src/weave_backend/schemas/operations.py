@@ -19,6 +19,10 @@ class AddNodeOp(BaseModel):
     kind: str = Field(min_length=1)
     label: str = Field(min_length=1)
     properties: dict[str, Any] = Field(default_factory=dict)
+    #: CE-TASK-001 AC-001-01: extra `rdf:type` values beyond `kind` -- OWL
+    #: punning (one minted IRI typed both `owl:Class` and `skos:Concept`).
+    #: Empty for every other kind of node (unchanged behaviour).
+    additional_types: list[str] = Field(default_factory=list)
 
 
 class UpdateNodeOp(BaseModel):
