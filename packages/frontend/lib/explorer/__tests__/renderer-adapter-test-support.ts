@@ -15,6 +15,8 @@ export function fakeCollection(overrides: Partial<CyCollection> = {}): CyCollect
     addClass: vi.fn(),
     closedNeighborhood: vi.fn(() => fakeCollection()),
     position: vi.fn(() => ({ x: 0, y: 0 })),
+    hide: vi.fn(),
+    show: vi.fn(),
     ...overrides,
   };
 }
@@ -36,7 +38,9 @@ export function fakeCy() {
     layout: vi.fn(() => ({ run: vi.fn() })),
     elements: vi.fn(() => fakeCollection()),
     nodes: vi.fn(() => fakeCollection()),
+    edges: vi.fn(() => fakeCollection()),
     getElementById: vi.fn((_id: string) => fakeCollection()),
+    batch: vi.fn((fn: () => void) => fn()),
     on: vi.fn((event: string, handler: (evt: FakeEvent) => void) => {
       listenersFor(event).add(handler);
     }),

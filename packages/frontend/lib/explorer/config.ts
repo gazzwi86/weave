@@ -32,6 +32,17 @@ export interface ExplorerConfig {
    * corrected without a code change if CE's ontology names it differently. */
   domainKind: string;
   fcoseParams: typeof FCOSE_PARAMS;
+  /** TASK-020 AC-6: governed-content layer membership -- kind local names
+   * (matches node.data.bpmo_kind / rdf:type's WEAVE_ONTOLOGY_NS-relative
+   * segment). Pinned by the task brief: Glossary = Concept, Governance =
+   * Policy (+ governedByPredicate edges). brandLayerKind is tenant-
+   * configured and empty by default -- a tenant with no Brand individuals
+   * never had one set, which fetchLayerNodes already treats as an empty
+   * layer (AC-6 disables the toggle, no special-casing needed). */
+  glossaryLayerKind: string;
+  governanceLayerKind: string;
+  governanceLayerPredicate: string;
+  brandLayerKind: string;
 }
 
 export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
@@ -46,4 +57,8 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   expandConfirmThreshold: 500,
   domainKind: "Domain",
   fcoseParams: FCOSE_PARAMS,
+  glossaryLayerKind: "Concept",
+  governanceLayerKind: "Policy",
+  governanceLayerPredicate: "https://weave.example/ontology/bpmo#governedBy",
+  brandLayerKind: "",
 });
