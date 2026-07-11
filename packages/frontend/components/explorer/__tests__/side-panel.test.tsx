@@ -88,4 +88,63 @@ describe("SidePanel", () => {
     screen.getByRole("button", { name: /close/i }).click();
     expect(onClose).toHaveBeenCalled();
   });
+
+  // TASK-027 AC-4/AC-5: missing-link drill.
+  describe("Missing links (TASK-027)", () => {
+    const GAPS = [{ missingLink: "https://weave.example/ontology/bpmo#performedBy", label: "performed by" }];
+
+    it("renders no Missing links section when gaps is empty", () => {
+      render(
+        <SidePanel
+          state={{ status: "loaded", label: "X", typeLabel: "Process", keyProperties: [], rawIri: null, nodeId: "n1", neighbours: [], gaps: [] }}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+      expect(screen.queryByText(/missing links/i)).not.toBeInTheDocument();
+    });
+
+    // AC-4: humanised label, never a raw predicate IRI.
+    it("lists humanised missing links, never a raw predicate IRI", () => {
+      render(
+        <SidePanel
+          state={{ status: "loaded", label: "X", typeLabel: "Process", keyProperties: [], rawIri: null, nodeId: "n1", neighbours: [], gaps: GAPS }}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+      expect(screen.getByText(/missing links/i)).toBeInTheDocument();
+      expect(screen.getByText(/performed by/i)).toBeInTheDocument();
+      expect(screen.queryByText(/https?:\/\//)).not.toBeInTheDocument();
+    });
+
+    // AC-5: edit controller present -> inline shortcut.
+    it("offers an inline 'Add <link>…' shortcut when onEditGap is provided", () => {
+      const onEditGap = vi.fn();
+      render(
+        <SidePanel
+          state={{ status: "loaded", label: "X", typeLabel: "Process", keyProperties: [], rawIri: null, nodeId: "n1", neighbours: [], gaps: GAPS }}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+          onEditGap={onEditGap}
+        />
+      );
+      screen.getByRole("button", { name: /add performed by/i }).click();
+      expect(onEditGap).toHaveBeenCalledWith("n1", GAPS[0]!.missingLink);
+    });
+
+    // AC-5: no edit controller -> CE-surface link fallback.
+    it("links to the CE editing surface when onEditGap is absent", () => {
+      render(
+        <SidePanel
+          state={{ status: "loaded", label: "X", typeLabel: "Process", keyProperties: [], rawIri: null, nodeId: "n1", neighbours: [], gaps: GAPS }}
+          onClose={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      );
+      expect(screen.queryByRole("button", { name: /add performed by/i })).not.toBeInTheDocument();
+      const link = screen.getByRole("link", { name: /performed by/i });
+      expect(link.getAttribute("href")).toContain("n1");
+    });
+  });
 });

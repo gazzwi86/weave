@@ -37,6 +37,8 @@ function fakeAdapter(
     clearTraceHighlight: vi.fn(),
     setDiffOverlay: vi.fn(),
     clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
     isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
@@ -312,5 +314,40 @@ describe("useNodeSpotlight", () => {
       "n1",
       DEFAULT_EXPLORER_CONFIG.ceTimeoutMs,
     );
+  });
+
+  // TASK-027 AC-4: the completeness overlay's gapIndex feeds the loaded
+  // panel's "Missing links" section -- humanised, never a raw predicate IRI.
+  describe("gapIndex drill (TASK-027)", () => {
+    it("attaches the tapped node's missing links from gapIndex to the loaded panel state", async () => {
+      const adapter = fakeAdapter();
+      const events = capture(adapter);
+      const fetchNodeProps = vi.fn(async () => ({
+        type: "ok" as const,
+        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+      }));
+      const gapIndex = { n1: [{ missingLink: "https://weave.example/ontology/bpmo#performedBy", label: "performed by" }] };
+
+      const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps, gapIndex }));
+      events.tapNode("n1");
+
+      await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
+      expect(result.current.panel).toMatchObject({ gaps: gapIndex.n1 });
+    });
+
+    it("attaches an empty gaps list for a node absent from gapIndex", async () => {
+      const adapter = fakeAdapter();
+      const events = capture(adapter);
+      const fetchNodeProps = vi.fn(async () => ({
+        type: "ok" as const,
+        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+      }));
+
+      const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps, gapIndex: {} }));
+      events.tapNode("n1");
+
+      await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
+      expect(result.current.panel).toMatchObject({ gaps: [] });
+    });
   });
 });
