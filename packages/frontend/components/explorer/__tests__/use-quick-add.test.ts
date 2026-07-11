@@ -188,4 +188,29 @@ describe("useQuickAdd", () => {
 
     expect(writeProxy).toHaveBeenCalledTimes(2);
   });
+
+  it("dismissRetry clears the retry action without calling the write proxy again", async () => {
+    let dblClickHandler: ((position: { x: number; y: number }) => void) | undefined;
+    const adapter = fakeAdapter({
+      onBackgroundDoubleClick: vi.fn((handler) => {
+        dblClickHandler = handler;
+        return vi.fn();
+      }),
+    });
+    const writeProxy: WriteProxyFn = vi.fn(async () => ({ status: 0, body: null }));
+
+    const { result } = renderHook(() =>
+      useQuickAdd({ adapter, config: DEFAULT_EXPLORER_CONFIG, canEdit: true, kinds: KINDS, writeProxy })
+    );
+    act(() => dblClickHandler?.({ x: 0, y: 0 }));
+    await act(async () => {
+      await result.current.submit("Invoicing", "Process");
+    });
+    expect(result.current.retry).not.toBeNull();
+
+    act(() => result.current.dismissRetry());
+
+    expect(result.current.retry).toBeNull();
+    expect(writeProxy).toHaveBeenCalledTimes(1);
+  });
 });

@@ -31,6 +31,7 @@ export interface UseQuickAddResult {
   violationMessages: string[];
   dismissViolations: () => void;
   retry: (() => void) | null;
+  dismissRetry: () => void;
 }
 
 /** Rendered (screen) position -> model position, using the same
@@ -66,6 +67,7 @@ export function useQuickAdd({
 
   const cancel = useCallback(() => setPopover(null), []);
   const dismissViolations = useCallback(() => setViolationMessages([]), []);
+  const dismissRetry = useCallback(() => setRetry(null), []);
 
   const submit = useCallback(
     async (name: string, kind: string) => {
@@ -89,5 +91,5 @@ export function useQuickAdd({
     [adapter, popover, writeProxy, config.ceTimeoutMs]
   );
 
-  return { popover, kinds, cancel, submit, violationMessages, dismissViolations, retry };
+  return { popover, kinds, cancel, submit, violationMessages, dismissViolations, retry, dismissRetry };
 }
