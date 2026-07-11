@@ -316,3 +316,13 @@ Playwright E2E across Build UI tasks** (BE-017 kanban, BE-019 dashboard will lik
 E2E-met-by-inference (backend integration proves real state). Needs a dedicated fix (shared RBAC/seed — likely a role grant
 missing in the seed, or a role-slug drift). Under QA verification (BE-020 QA a3e648c). If confirmed, HIGH priority — it gates
 the phase's Law-B E2E for the whole Build engine. Surfaced to morning HITL.
+
+### PROJ-009 CONFIRMED root cause (BE-020 QA a3e648c, 2026-07-11)
+Traced: `routers/projects.py::create_project_route` never inserts a `pm.contributors` row for the creator, AND mock-oidc's
+`admin@weave.local` seed carries no project-scoped grant. `PUT /source-control` requires `require_project_role(SETTINGS)` =
+`has_admin_grant(roles)` OR a contributors row → a freshly created project's OWN creator gets **403** configuring its
+source-control. This is NOT just a test-infra issue — it's a real RBAC/product defect (a project creator can't configure
+their own project) from EPIC-002/TASK-011/023, untouched by BE-020. Blocks any Build E2E whose setup does source-control
+config (NOT general login — BE-019's dashboard E2E passed fine). Fix options: (a) grant creator a contributor/owner row on
+project creation, or (b) seed admin a tenant-wide grant that covers SETTINGS. HIGH priority — surface to user (real RBAC gap
++ gates part of Build E2E). Diff-verified BE-020 didn't touch rbac/contributors/mock_oidc/source_control/projects.

@@ -38,5 +38,18 @@ met-by-inference under docker. Backend integration ran real (docker marker, isol
 
 ## Commits (feature/BE-V1-EPIC-007, not pushed): 43d403d (schema WIP) · 8720139 (endpoint) · 68bed21 (screen mounted) · 8097f7e (E2E spec, HEAD).
 
-## Epic status — EPIC-007 = BE-020 sole task → CLOSES on QA-pass
-No migration → auto-merge eligible IF QA passes + E2E adjudication accepts met-by-inference. Restack onto green main at close.
+## QA PASS (2026-07-11, a3e648c, retry 0) — BE-V1-TASK-020 CLOSES → EPIC-007 COMPLETE
+Adversarial QA, all 9 ACs self-run (not self-report). **Read-only PASS** (GET only; diff-grep shows zero touch to audit
+emitter/INSERT; no Build audit copy). **Tenant isolation PASS** (DecisionQuery.tenant_id from JWT only; tenant_connection
+SET LOCAL app.tenant_id + SQL WHERE tenant_id=$1). Mount chain grep-proven. Backend integration 4/4 (real docker, torn down),
+backend unit 10/10 (incl QA edge), frontend 11/11. ruff 0, mypy 0, tsc clean, eslint 0-err/2-warn (fn-length: panel 65,
+hook 56 — Law E warn, non-blocking). **E2E-met-by-inference ACCEPTED** — QA independently verified the 403 is pre-existing
+shared infra (PROJ-009), NOT a BE-020 regression: diff-stat vs rbac.py/contributors.py/mock_oidc/source_control.py/projects.py/
+project-settings.spec.ts is EMPTY; traced mechanism = create_project never inserts a contributor row for the creator + mock-oidc
+admin@weave.local lacks a project-scoped grant → creator 403s on PUT /source-control regardless of spec. Backend integration
+proves real audit-row state instead. Edge test `6c8eb1b` (classify_kind empty/near-miss → system). retry=0.
+
+## EPIC-007 CLOSE — auto-merge eligible (no migration, non-risky)
+BE-020 sole task → epic COMPLETE. Reconcile onto green main (new files, read-only — likely clean), push, PR, cavecrew review
++ CI → auto-merge if green + Blocker/Major-free. WARN carried: 2 fn-length lint (follow-up split), Lighthouse/axe not re-run
+(design spot-check before run-book gate).
