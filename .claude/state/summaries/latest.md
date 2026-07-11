@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T06:03:45+00:00
+Captured at: 2026-07-11T06:40:54+00:00
 Event: pre-compact
 
 ## Current State
@@ -182,7 +182,7 @@ Event: pre-compact
     {
       "id": "CE-V1-EPIC-010",
       "title": "Stable Read & Write Interfaces (Inter-engine Contract Hub)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-V1-EPIC-007",
@@ -1147,7 +1147,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-019",
       "title": "Explorer Persistence Service: Saved Views + Comments (Aurora)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-025.md",
       "retry_count": 0
@@ -1549,7 +1549,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-010",
       "title": "Kind-Level Descriptions via skos:definition",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-011.md",
       "retry_count": 0
