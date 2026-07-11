@@ -1,9 +1,11 @@
 import type { AddNodeOp, KindEntry, Op } from "./types";
 
 /** TASK-006 AC-006-12: one plain-language sentence per operation, so a
- * business user never has to read raw operation JSON.
+ * business user never has to read raw operation JSON. Exported for
+ * TASK-013's ingest proposal cards (op-list-not-Turtle, AC-002-03) --
+ * per-op rows reuse this instead of forking a second op->text mapping.
  */
-function describeOp(op: Op): string {
+export function describeOp(op: Op): string {
   switch (op.op) {
     case "add_node":
       return `Add a new ${op.kind} called "${op.label}".`;

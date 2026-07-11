@@ -227,12 +227,16 @@ per-task reports.
 - **Raised in:** BE-TASK-001 (M1 Project Bootstrap Stub, 2026-07) — logged as a cross-task finding
   but never written to `qa-cross-task-findings.md`. **Raised again in:** BE-V1-TASK-001 (Standards
   Catalogue QA pass, 2026-07-10) — same command, same exit 139, on
-  `tests/integration/test_standards_api.py`. Per aggregation rule (QA Law #11), escalating here
-  instead of repeating a third time in a per-task report.
+  `tests/integration/test_standards_api.py`. **Raised a third time in:** CE-V1-TASK-012 (ingest
+  pipeline docker-integration tests, 2026-07-10/11) — same command, same exit 139, on
+  `tests/integration/test_ingest_pipeline.py`; reproduced both standalone and with `--cov-append`
+  onto existing unit-lane coverage data, so it's not an append-order artifact either. Per
+  aggregation rule (QA Law #11), escalating here instead of repeating a fourth time in a per-task
+  report.
 - **Consequence:** DB/HTTP-path statements in repo-layer files (`standards/store.py` 57%,
   `standards/ce_client.py` 31% measured unit-only) can only be coverage-measured from the unit
   lane's mocked/fake-connection tests; the docker lane proves correctness (all green) but cannot
-  currently contribute to the coverage percentage. Both tasks worked around it by reporting
+  currently contribute to the coverage percentage. All three tasks worked around it by reporting
   coverage from the unit lane alone plus a `--cov`-free docker-lane pass for correctness.
 - **Owner:** Engineer (or Scaffold-phase, if it's a pinned-version mismatch) — bisect whether it's
   `pytest-cov`, `coverage.py`, or `asyncpg`'s C extension, and either pin a working version

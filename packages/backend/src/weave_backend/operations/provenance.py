@@ -13,6 +13,8 @@ provenance is append-only.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal as LiteralType
 from uuid import uuid4
@@ -28,6 +30,35 @@ WEAVE = Namespace("https://weave.io/ontology/")
 ActorType = LiteralType["human", "agent"]
 
 
+@dataclass(frozen=True)
+class Actor:
+    iri: str
+    type: ActorType
+
+
+@dataclass(frozen=True)
+class ActivityExtra:
+    """CE-V1-TASK-012 AC-001-05: extra attribution an ingest accept layers
+    onto its commit activity -- see `write_activity`'s `extra` param.
+
+    `activity_iri`, when given, is an activity that already exists (started
+    earlier by the ingest worker -- `operations.ingest_provenance
+    .start_ingest_activity`); `write_activity` reuses it instead of minting
+    a fresh one, so `RDF.type`/`startedAtTime` are not re-added -- a second,
+    later `startedAtTime` literal for the same activity would be a genuine
+    (not just idempotent) duplicate.
+
+    `extra_used_iris`/`extra_agent_iri`: the extractor agent and the source
+    artefact, attributed on top of the human approver and the source graph
+    version.
+    """
+
+    activity_iri: str | None = None
+    extra_used_iris: Sequence[str] = field(default_factory=tuple)
+    extra_agent_iri: str | None = None
+    extra_agent_type: ActorType = "agent"
+
+
 def prov_graph_iri(named_graph_iri: str) -> str:
     return f"{named_graph_iri}:prov"
 
@@ -35,31 +66,42 @@ def prov_graph_iri(named_graph_iri: str) -> str:
 async def write_activity(
     *,
     named_graph_iri: str,
-    actor_iri: str,
-    actor_type: ActorType,
+    actor: Actor,
     generated_iri: str,
     used_iri: str,
+    extra: ActivityExtra | None = None,
 ) -> str:
-    activity_iri = INSTANCES[f"activity-{uuid4().hex}"]
+    extra = extra or ActivityExtra()
+    activity = (
+        URIRef(extra.activity_iri) if extra.activity_iri else INSTANCES[f"activity-{uuid4().hex}"]
+    )
     now = Literal(datetime.now(UTC).isoformat(), datatype=XSD.dateTime)
-    actor = URIRef(actor_iri)
+    actor_ref = URIRef(actor.iri)
 
     graph = Graph()
-    graph.add((activity_iri, RDF.type, PROV.Activity))
-    graph.add((actor, RDF.type, PROV.SoftwareAgent if actor_type == "agent" else PROV.Person))
-    graph.add((activity_iri, PROV.wasAssociatedWith, actor))
-    if actor_type != "agent":
+    if extra.activity_iri is None:
+        graph.add((activity, RDF.type, PROV.Activity))
+        graph.add((activity, PROV.startedAtTime, now))
+    graph.add((actor_ref, RDF.type, PROV.SoftwareAgent if actor.type == "agent" else PROV.Person))
+    graph.add((activity, PROV.wasAssociatedWith, actor_ref))
+    if actor.type != "agent":
         # AC-002-05: never fabricate an IRI -- there is no separate approving
         # human to reference when an agent is the actor, so `wasStartedBy` is
         # only emitted for the human-actor case (ADR-002).
-        graph.add((activity_iri, PROV.wasStartedBy, actor))
-    graph.add((activity_iri, PROV.generated, URIRef(generated_iri)))
-    graph.add((activity_iri, PROV.used, URIRef(used_iri)))
-    graph.add((activity_iri, PROV.startedAtTime, now))
-    graph.add((activity_iri, PROV.endedAtTime, now))
+        graph.add((activity, PROV.wasStartedBy, actor_ref))
+    graph.add((activity, PROV.generated, URIRef(generated_iri)))
+    graph.add((activity, PROV.used, URIRef(used_iri)))
+    for extra_used in extra.extra_used_iris:
+        graph.add((activity, PROV.used, URIRef(extra_used)))
+    if extra.extra_agent_iri:
+        extra_agent = URIRef(extra.extra_agent_iri)
+        agent_class = PROV.SoftwareAgent if extra.extra_agent_type == "agent" else PROV.Person
+        graph.add((extra_agent, RDF.type, agent_class))
+        graph.add((activity, PROV.wasAssociatedWith, extra_agent))
+    graph.add((activity, PROV.endedAtTime, now))
 
     await append_graph(prov_graph_iri(named_graph_iri), graph.serialize(format="turtle"))
-    return str(activity_iri)
+    return str(activity)
 
 
 async def write_shape_activity(
@@ -101,3 +143,4 @@ async def write_shape_activity(
 
     await append_graph(prov_graph_iri(shapes_graph_iri), graph.serialize(format="turtle"))
     return str(activity_iri)
+

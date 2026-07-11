@@ -47,7 +47,7 @@ from weave_backend.operations.idempotency import (
     try_acquire_lock,
 )
 from weave_backend.operations.outbox import enqueue
-from weave_backend.operations.provenance import ActorType, write_activity
+from weave_backend.operations.provenance import ActivityExtra, Actor, ActorType, write_activity
 from weave_backend.operations.shacl import validate_graph_for_tenant
 from weave_backend.operations.versioning import (
     VersionNotFound,
@@ -173,6 +173,23 @@ class ApplyContext:
     #: TASK-004/006) -- carried on the context so `write_activity` can model
     #: the PROV-O actor type correctly once that flow exists (ADR-002).
     principal_type: ActorType = "human"
+    #: CE-V1-TASK-012 AC-001-05: None for every non-ingest caller (authoring,
+    #: instances). See `ProvExtra`.
+    prov_extra: ProvExtra | None = None
+
+
+@dataclass
+class ProvExtra:
+    """Extra PROV attribution an ingest accept threads onto its CE-WRITE-1
+    commit -- layered onto the activity the worker already started
+    (`activity_iri`, see `operations.ingest_provenance.start_ingest_activity`)
+    rather than a second, unlinked one, plus the extractor agent and the
+    source artefact via `prov:used`.
+    """
+
+    activity_iri: str
+    artefact_iri: str
+    extractor_iri: str
 
 
 def resolve_source_graph_iri(named_graph_iri: str, target: str) -> str:
@@ -231,12 +248,21 @@ async def _commit(
     )
     body = scratch.serialize(format="nt")
     await load_graph(version_iri, body, content_type="application/n-triples")
+    extra = (
+        ActivityExtra(
+            activity_iri=ctx.prov_extra.activity_iri,
+            extra_used_iris=[ctx.prov_extra.artefact_iri],
+            extra_agent_iri=ctx.prov_extra.extractor_iri,
+        )
+        if ctx.prov_extra
+        else None
+    )
     activity_iri = await write_activity(
         named_graph_iri=ctx.named_graph_iri,
-        actor_iri=ctx.principal_iri,
-        actor_type=ctx.principal_type,
+        actor=Actor(iri=ctx.principal_iri, type=ctx.principal_type),
         generated_iri=version_iri,
         used_iri=source_graph_iri,
+        extra=extra,
     )
     await enqueue(
         ctx.conn,
