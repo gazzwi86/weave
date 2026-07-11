@@ -173,3 +173,67 @@ async def test_metrics_ontology_second_call_serves_from_cache_within_60s(
     assert second.status_code == 200
     assert first.json() == second.json()
     assert calls == 1
+
+
+async def test_metrics_ontology_cache_does_not_leak_across_workspaces_in_same_tenant(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Edge case (QA-added, ADR-022): the cache key is `(tenant_id,
+    workspace_id)`, not `tenant_id` alone. Two workspaces in the SAME
+    tenant, seeded with different counts, must each see their own numbers
+    -- a tenant-only key would let workspace B's first call replay
+    workspace A's already-cached response (or vice versa).
+    """
+    tenant_id = _unique_tenant("metrics-multi-ws")
+    workspace_a = await _make_workspace(tenant_id, label="ws-a")
+    workspace_b = await _make_workspace(tenant_id, label="ws-b")
+    await _add_member(
+        tenant_id, workspace_a.id, user_sub="u-1", role="author", email="u-1@example.invalid"
+    )
+    await _add_member(
+        tenant_id, workspace_b.id, user_sub="u-1", role="author", email="u-1@example.invalid"
+    )
+    headers_a = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-1", workspace_id=workspace_a.id
+    )
+    apply_a = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": [{"op": "add_node", "ref": "a1", "kind": "Actor", "label": "A"}],
+            "actor": "urn:weave:principal:test-actor",
+        },
+        headers=headers_a,
+    )
+    assert apply_a.status_code == 201
+
+    headers_b = await _authed_client(
+        client, tenant_id=tenant_id, user_sub="u-1", workspace_id=workspace_b.id
+    )
+    apply_b = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": [
+                {"op": "add_node", "ref": "a2", "kind": "Actor", "label": "B1"},
+                {"op": "add_node", "ref": "a3", "kind": "Actor", "label": "B2"},
+            ],
+            "actor": "urn:weave:principal:test-actor",
+        },
+        headers=headers_b,
+    )
+    assert apply_b.status_code == 201
+
+    # Explicit ?workspace_id= (both calls use headers_a -- one principal, two
+    # workspaces -- since `_authed_client`'s workspace-switch call mutates
+    # server-side active-workspace state per principal; the default-active-
+    # workspace path is already covered by the cache test above). Populate
+    # the cache for A first, then B -- if the key were tenant-only, B's call
+    # below would replay A's already-cached {"Actor": 1}.
+    response_a = await client.get(
+        "/api/metrics/ontology", headers=headers_a, params={"workspace_id": workspace_a.id}
+    )
+    response_b = await client.get(
+        "/api/metrics/ontology", headers=headers_a, params={"workspace_id": workspace_b.id}
+    )
+
+    assert response_a.json()["entity_count_by_kind"]["Actor"] == 1
+    assert response_b.json()["entity_count_by_kind"]["Actor"] == 2
