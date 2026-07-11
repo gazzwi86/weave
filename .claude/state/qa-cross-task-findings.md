@@ -363,3 +363,9 @@ constitution-engine ADR-023 exists (real ADR-023 belongs to ingest/DocumentExtra
 deviation-from-brief record). FIX at EPIC-005 close: write `docs/specs/weave/engines/constitution-engine/decisions/ADR-0NN-metrics-sparql-count-diff.md`
 (next free number) documenting "SPARQL count-diff replaces literal diff_graphs reuse for AC-007-04, perf-driven, count-parity
 proven vs diff_graphs across 5 edge cases" + repoint the 4 citations. Non-blocking for the task (correctness independently proven). Status: OPEN.
+
+## XT-CE004-1: brand forms leave Save stuck-disabled on thrown submit (2026-07-11, FIXING retry 1)
+`app/ce/brand/{voice-rule-form.tsx:42, standard-form.tsx:53}` call `submitAddNode` with bare await, no try/finally → on
+network failure / non-JSON error, `setSubmitting(false)` skipped → Save disabled forever, no error, reload-only recovery
+(loses input). Major, class=logic. Fix in-flight: try/finally + catch-error-message (match guided-form.tsx). QA repro `59b4a0d`
+(voice-rule). Happy/422 paths clean (E2E 5/5). Status: FIXING.
