@@ -345,3 +345,75 @@ async def test_preferences_update_route_open_taxonomy_enables_slack_via_dispatch
         )
 
     assert len(connector.calls) == 1
+
+
+async def test_get_preferences_returns_all_eight_types_with_current_state(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """TASK-030 AC-4/AC-6: `GET /api/notifications/preferences` returns all 8
+    types grouped by category, defaults unset types from the caller's
+    workspace role, and an explicit stored preference overrides the default.
+    """
+    from weave_backend.tenancy.members import activate_member, invite_member
+    from weave_backend.tenancy.sessions import set_active_workspace
+    from weave_backend.tenancy.workspaces import create_workspace
+
+    tenant_id = _unique_tenant("notify-prefs")
+    user_sub = "u-notify-admin"
+    recipient_iri = human_principal_iri(user_sub)
+
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="ws", display_name="Prefs workspace"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email="admin@acme-corp.example",
+            role="workspace_admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email="admin@acme-corp.example", user_sub=user_sub
+        )
+        # AC-6/role-derived default: workspace_admin defaults billing.cap.warning
+        # ON without ever setting it explicitly.
+        await upsert_pref(
+            conn,
+            tenant_id=tenant_id,
+            recipient_iri=recipient_iri,
+            event_type="model.change.mention",
+            channels=["in_app"],
+        )
+    await set_active_workspace(tenant_id, user_sub, workspace.id)
+
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    response = await client.get(
+        "/api/notifications/preferences",
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    types = {t["event_type"]: t for t in body["types"]}
+    assert set(types) == {
+        "model.version.published",
+        "model.change.mention",
+        "model.conformance.regression",
+        "build.request.completed",
+        "build.request.failed",
+        "audit.chain.invalid",
+        "billing.cap.warning",
+        "member.added",
+    }
+    assert types["model.version.published"]["group"] == "Model"
+    assert types["audit.chain.invalid"]["group"] == "Governance"
+    # Explicitly stored -- overrides the role default.
+    assert types["model.change.mention"]["in_app_enabled"] is True
+    # Role-derived default (workspace_admin), never explicitly set.
+    assert types["billing.cap.warning"]["in_app_enabled"] is True
+    # Not in workspace_admin's default set and never explicitly set.
+    assert types["model.conformance.regression"]["in_app_enabled"] is False
+    for t in body["types"]:
+        assert t["email_enabled"] is False
+        assert t["email_locked_post_v1"] is True

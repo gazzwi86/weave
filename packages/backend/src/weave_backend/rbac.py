@@ -23,7 +23,30 @@ from weave_backend.tenancy.workspaces import get_workspace
 
 log = logging.getLogger(__name__)
 
-ROLE_RANK: dict[str, int] = {"read": 0, "author": 1, "publish": 2, "admin": 3}
+#: TASK-030 ADR-020: the legacy 4-tier ranks (M1) plus the 10 canonical
+#: in-tenant role slugs (`weave-platform.md` "Canonical human roles"),
+#: which TASK-030's invite role selector writes to `workspace_members.role`
+#: going forward. Both vocabularies coexist in `ROLE_RANK` so a workspace
+#: created before this task (still using "admin"/"author"/"read") and one
+#: invited after it (using "workspace_admin"/"engineer"/...) rank
+#: correctly against the same `require_workspace_role(min_role)` gates --
+#: no migration of existing rows, no branching in `check_role`.
+ROLE_RANK: dict[str, int] = {
+    "read": 0,
+    "author": 1,
+    "publish": 2,
+    "admin": 3,
+    "viewer": 0,
+    "automation_author": 1,
+    "ops_sre": 1,
+    "engineer": 1,
+    "brand_content_owner": 1,
+    "data_steward": 1,
+    "business_analyst_sme": 1,
+    "enterprise_architect": 2,
+    "compliance_officer": 2,
+    "workspace_admin": 3,
+}
 
 
 class ProjectAction(StrEnum):

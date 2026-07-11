@@ -167,7 +167,8 @@ function BudgetCapCard() {
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
           >
-            <option value="">Company-wide (applies to every workspace)</option>
+            {/* TASK-030 AC-7/R7: company-scope wording only (R7 copy sweep). */}
+            <option value="">Company-wide</option>
             {workspaces.map((workspace) => (
               <option key={workspace.id} value={workspace.id}>
                 Workspace: {workspace.display_name}

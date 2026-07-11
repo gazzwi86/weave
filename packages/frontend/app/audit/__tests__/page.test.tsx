@@ -35,21 +35,33 @@ describe("AuditDashboardPage", () => {
     await waitFor(() => expect(screen.getByTestId("chain-status")).toHaveTextContent("valid"));
     expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
     expect(screen.getByText("2026-07")).toBeInTheDocument();
-    expect(screen.getByTestId("event-category-list")).toHaveTextContent("workspace: 12");
-    expect(screen.getByRole("link", { name: "workspace" })).toHaveAttribute(
-      "href",
-      "/audit/logs?event_type=workspace"
-    );
-    expect(screen.getByRole("link", { name: "security" })).toHaveAttribute(
-      "href",
-      "/audit/logs?event_type=security"
-    );
     expect(screen.getByTestId("top-actors-list")).toHaveTextContent(
       "urn:weave:principal:user:abc123: 45"
     );
     expect(screen.getByRole("link", { name: "View logs" })).toHaveAttribute(
       "href",
       "/audit/logs"
+    );
+  });
+
+  // AC-1 + AC-3: test_audit_dashboard_renders_kpi_tiles_not_text_rows
+  it("test_audit_dashboard_renders_kpi_tiles_not_text_rows", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(COMPLIANCE_SUMMARY))
+    );
+
+    render(<AuditDashboardPage />);
+
+    await waitFor(() => expect(screen.getByTestId("bar-chart")).toBeInTheDocument());
+    // KpiTile tiles, not plain <p> text rows.
+    expect(screen.getByTestId("chain-status")).toHaveTextContent("valid");
+    expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
+    // Category tiles render as a BarChart with drill-in links, not a plain list.
+    expect(screen.getAllByTestId("bar-chart-segment").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "workspace" })).toHaveAttribute(
+      "href",
+      "/audit/logs?event_type=workspace"
     );
   });
 

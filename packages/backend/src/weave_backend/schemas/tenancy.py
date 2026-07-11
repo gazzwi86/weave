@@ -39,3 +39,21 @@ class SwitchWorkspaceResponse(BaseModel):
     workspace_id: str
     named_graph_iri: str
     redirect_url: str
+
+
+class MemberOut(BaseModel):
+    """TASK-030 AC-1: a member row for the Settings -> Members list.
+    `display_name` falls back to `email` for a pending invite (no principal
+    row yet -- the user has never signed in).
+    """
+
+    user_sub: str | None
+    email: str
+    display_name: str
+    role: str
+    status: str
+    invited_at: datetime
+
+
+class MemberListResponse(BaseModel):
+    members: list[MemberOut]

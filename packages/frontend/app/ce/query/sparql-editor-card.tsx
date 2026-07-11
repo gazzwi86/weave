@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
+import { ResultFrame } from "./result-frame";
 import { ResultsTable } from "./results-table";
+import { VersionSelect } from "./version-select";
 import type { SparqlEditorState } from "./use-sparql-editor";
 
 /** The editor's three actions (run, explain, coverage_gap report) -- split
@@ -51,11 +52,7 @@ export function SparqlEditorCard({ editor }: { editor: SparqlEditorState }) {
           rows={6}
           className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] text-[length:var(--text-body)] text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
         />
-        <Input
-          aria-label="Version"
-          value={editor.version}
-          onChange={(e) => editor.setVersion(e.target.value)}
-        />
+        <VersionSelect value={editor.version} onChange={editor.setVersion} />
         <EditorActions editor={editor} />
 
         {editor.errorCode && (
@@ -70,7 +67,17 @@ export function SparqlEditorCard({ editor }: { editor: SparqlEditorState }) {
           </p>
         )}
 
-        {editor.result && <ResultsTable result={editor.result} />}
+        {editor.result && editor.executedSparql !== null && (
+          <ResultFrame
+            result={{
+              sparql: editor.executedSparql,
+              rows: editor.result.rows,
+              columnNames: editor.result.columnNames,
+              groundedIris: [],
+            }}
+          />
+        )}
+        {editor.result && editor.executedSparql === null && <ResultsTable result={editor.result} />}
       </CardContent>
     </Card>
   );

@@ -30,48 +30,66 @@ const NL_RESPONSE = {
     "PREFIX weave: <https://weave.io/ontology/>\nSELECT ?p WHERE { GRAPH ?g { ?p a weave:Process . } }",
   rows: [{ p: "https://weave.io/instances/process-1" }],
   column_names: ["p"],
+  grounded_iris: ["https://weave.io/instances/process-1"],
   elapsed_ms: 12.0,
   explanation: null,
   next_page: null,
 };
 
-// CE-TASK-007 E7-S1 E2E requirement: ask a question, see the generated
-// SPARQL (AC-007-06 transparency) and the result rows (ADR-005 #4 -- LLM
-// mocked at the browser network layer, matching billing.spec.ts).
-test("asking a question shows the generated SPARQL and result rows (AC-007-01/-06)", async ({
+async function stubNlResponse(page: Page, body: unknown, status = 200): Promise<void> {
+  await page.route("**/api/query/nl**", async (route) => {
+    await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+  });
+}
+
+async function askQuestion(page: Page, question: string): Promise<void> {
+  await page.getByRole("textbox", { name: "Ask a question" }).fill(question);
+  await page.getByRole("button", { name: "Ask" }).click();
+}
+
+// CE-V1-TASK-032 AC-1/AC-7/AC-6 E2E requirement:
+// `test_analyst_asks_question_sees_progress_then_grounded_graph_result`.
+test("asking a question shows progress, grounded graph result, and the executed SPARQL", async ({
   page,
 }) => {
-  await page.route("**/api/query/nl**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(NL_RESPONSE),
-    });
-  });
-
+  await stubNlResponse(page, NL_RESPONSE);
   await goToQueryPage(page);
-  await page.getByLabel("Question").fill("What processes exist?");
-  await page.getByRole("button", { name: "Ask" }).click();
 
-  await expect(page.getByTestId("nl-generated-sparql")).toContainText("weave:Process");
+  await askQuestion(page, "What processes exist?");
+  await expect(page.getByTestId("ask-submitting")).toBeVisible();
+
+  await expect(page.getByTestId("result-frame")).toBeVisible();
   await expect(page.getByTestId("results-table")).toContainText("process-1");
+
+  await page.getByRole("tab", { name: "Graph" }).click();
+  await expect(page.getByTestId("grounded-graph-canvas")).toBeVisible();
+
+  await page.getByText("View SPARQL").click();
+  await expect(page.getByTestId("view-sparql-disclosure")).toContainText("weave:Process");
 });
 
-// CE-TASK-007 E7-S1 E2E requirement: "copy to editor" carries the model's
-// SPARQL into the editor textarea unchanged.
-test("copy to editor carries the generated SPARQL into the SPARQL editor", async ({ page }) => {
-  await page.route("**/api/query/nl**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(NL_RESPONSE),
-    });
-  });
-
+// AC-2: provider-missing state (503) shows examples, editor stays live.
+test("provider-missing state shows examples and keeps the SPARQL editor usable (AC-2)", async ({
+  page,
+}) => {
+  await stubNlResponse(page, { error: "provider_unavailable" }, 503);
   await goToQueryPage(page);
-  await page.getByLabel("Question").fill("What processes exist?");
-  await page.getByRole("button", { name: "Ask" }).click();
-  await expect(page.getByTestId("nl-generated-sparql")).toBeVisible();
+
+  await askQuestion(page, "What processes exist?");
+  await expect(page.getByTestId("ask-provider-missing")).toBeVisible();
+  await expect(page.getByText("Who owns Billing?")).toBeVisible();
+  await expect(page.getByLabel("SPARQL query")).toBeEditable();
+});
+
+// CE-TASK-007 E7-S1 E2E requirement (still applies unchanged): "copy to
+// editor" carries the model's SPARQL into the editor textarea unchanged.
+test("copy to editor carries the generated SPARQL into the SPARQL editor", async ({ page }) => {
+  await stubNlResponse(page, NL_RESPONSE);
+  await goToQueryPage(page);
+
+  await askQuestion(page, "What processes exist?");
+  await expect(page.getByTestId("result-frame")).toBeVisible();
+  await page.getByText("View SPARQL").click();
 
   await page.getByRole("button", { name: "Copy to editor" }).click();
   await expect(page.getByLabel("SPARQL query")).toHaveValue(NL_RESPONSE.sparql_generated);

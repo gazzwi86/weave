@@ -13,7 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from weave_backend.audit.compliance import get_compliance_summary
-from weave_backend.audit.listing import list_entries
+from weave_backend.audit.listing import AuditFilters, list_entries
 from weave_backend.audit.verify import verify_chain
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
@@ -49,7 +49,15 @@ async def list_audit_entries_route(
             tenant_id=principal.tenant_id,
             page=params.page,
             per_page=params.per_page,
-            event_type=params.event_type,
+            filters=AuditFilters(
+                engine=params.engine,
+                event_type=params.event_type,
+                actor_principal_iri=params.actor_principal_iri,
+                target_iri=params.target_iri,
+                date_from=params.date_from,
+                date_to=params.date_to,
+                q=params.q,
+            ),
         )
     return AuditEntriesResponse(
         entries=[AuditEntryResponse(**entry.__dict__) for entry in page_result.entries],

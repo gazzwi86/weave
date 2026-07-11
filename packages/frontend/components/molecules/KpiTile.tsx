@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 
+export type KpiTileVariant = "default" | "success" | "warn" | "danger";
+
 export interface KpiTileProps {
   label: string;
   /** Formatted value string (e.g. "1,204") -- formatting is the caller's job. */
@@ -7,8 +9,18 @@ export interface KpiTileProps {
   loading?: boolean;
   /** No value and not loading -- e.g. a metric with zero underlying data. */
   empty?: boolean;
+  /** Status tint (left accent border) -- meaning still rides on `label`/
+   * `value` text, never colour alone (WCAG 1.4.1), same rule as Badge. */
+  variant?: KpiTileVariant;
   className?: string;
 }
+
+const VARIANT_BORDER: Record<KpiTileVariant, string> = {
+  default: "",
+  success: "border-l-4 border-l-[var(--color-success)]",
+  warn: "border-l-4 border-l-[var(--color-warn)]",
+  danger: "border-l-4 border-l-[var(--color-danger)]",
+};
 
 function KpiTileBody({ value, loading, empty }: Pick<KpiTileProps, "value" | "loading" | "empty">) {
   if (loading) {
@@ -32,13 +44,14 @@ function KpiTileBody({ value, loading, empty }: Pick<KpiTileProps, "value" | "lo
 
 /** Flat KPI card -- `--color-surface` family, no blur (`components.md`
  * "Glass vs flat": KpiTile stays flat, glass is reserved for overlays). */
-export function KpiTile({ label, value, loading, empty, className }: KpiTileProps) {
+export function KpiTile({ label, value, loading, empty, variant = "default", className }: KpiTileProps) {
   return (
     <div
       aria-busy={loading || undefined}
       className={cn(
         "rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)]",
         "p-[var(--space-5)]",
+        VARIANT_BORDER[variant],
         className
       )}
     >

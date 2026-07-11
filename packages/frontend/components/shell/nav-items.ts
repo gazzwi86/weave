@@ -4,8 +4,10 @@
  * placeholder — so the nav itself communicates the roadmap.
  *
  * Existing green routes keep their URLs (/ce, /ce/query, /explorer,
- * /compliance, /billing) — the IA re-homes them in the rail rather than
- * moving them, so the per-feature Playwright suites stay untouched.
+ * /billing) — the IA re-homes them in the rail rather than moving them, so
+ * the per-feature Playwright suites stay untouched. Exception: /compliance
+ * moved to /audit/compliance (TASK-029 AC-6, additive redirect in
+ * next.config.ts) to resolve a route-naming conflict with the design ruling.
  */
 
 export type SurfaceTag = "built" | "m1" | "m2" | "v1.0" | "post-v1";
@@ -126,14 +128,17 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
   {
     label: "Audit trail",
     href: "/audit",
-    prefixes: ["/audit", "/compliance"],
+    // AC-6: /audit/compliance is the canonical route (visual-direction.md
+    // "Compliance placement"); /compliance is a legacy alias, additively
+    // redirected (next.config.ts), so this prefix alone still highlights it.
+    prefixes: ["/audit"],
     groups: [
       {
         heading: "Audit",
         items: [
           { label: "Dashboard", href: "/audit", tag: "built" },
           { label: "View logs", href: "/audit/logs", tag: "built" },
-          { label: "Compliance", href: "/compliance", tag: "built" },
+          { label: "Compliance", href: "/audit/compliance", tag: "built" },
         ],
       },
       {
@@ -157,6 +162,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
+          { label: "Members", href: "/settings/members", tag: "built" },
+          { label: "Onboarding path", href: "/settings/onboarding-path", tag: "built" },
+          { label: "Notifications", href: "/settings/notifications", tag: "built" },
           { label: "Models & AI", href: "/settings/models", tag: "built" },
           { label: "Billing & budgets", href: "/billing", tag: "built" },
           { label: "Integrations", tag: "v1.0" },

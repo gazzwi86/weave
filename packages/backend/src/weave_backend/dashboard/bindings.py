@@ -235,9 +235,7 @@ async def _agent_activity(ctx: BindingContext) -> BindingResult:
     """S11: PLAT-AUDIT-1 filtered to agent-principal actors; non-CE engine
     rows are not-yet-available (AC-7).
     """
-    page = await list_entries(
-        ctx.conn, tenant_id=ctx.tenant_id, page=1, per_page=50, event_type=None
-    )
+    page = await list_entries(ctx.conn, tenant_id=ctx.tenant_id, page=1, per_page=50)
     agent_rows = filter_agent_rows(
         [
             {

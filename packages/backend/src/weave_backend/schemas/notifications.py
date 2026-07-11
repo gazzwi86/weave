@@ -40,3 +40,20 @@ class PreferencesUpdateResponse(BaseModel):
 class MarkReadResponse(BaseModel):
     id: str
     read: bool
+
+
+class PreferenceTypeOut(BaseModel):
+    """TASK-030 AC-4: one row of the Settings -> Notifications matrix. Email
+    is always disabled/locked -- `PLAT-NOTIFY-1`'s "post-v1" channel, never
+    hidden (contracts.md).
+    """
+
+    event_type: str
+    group: str
+    in_app_enabled: bool
+    email_enabled: bool = False
+    email_locked_post_v1: bool = True
+
+
+class PreferencesResponse(BaseModel):
+    types: list[PreferenceTypeOut]
