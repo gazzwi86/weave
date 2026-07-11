@@ -42,3 +42,14 @@ confirmed isolated). Gates: ruff 0, mypy 0/432, 944 unit, 5/5 integration. **AC-
 ZERO locust infra exists anywhere in repo; brief DoD ("unit+integration+perf") + m2-delta §9 ("measured like §1") require
 it, but testing-strategy §6 locust table never updated for the 5 M2 endpoints (spec DRIFT). Class = spec-ambiguity →
 escalate, NOT retry. Close HELD on the locust-harness decision (PROJ-002).
+
+## Retry 2 — cold-path perf FIXED (2026-07-11, a31eac6) — re-QA pending
+XT-CE007-1 resolved: `draft_published_delta` rewritten from whole-graph rdflib parse → SPARQL count-diff.
+**Benchmark @100k: cold p95 59.5ms (was 2075ms, ≤500ms target, 35x headroom), cached 3.3ms — BOTH PASS.**
+Engineer ALSO found+fixed a correctness bug: `run_query_multi` sent two `named-graph-uri` params but Oxigraph honors
+only the LAST → "before" graph dropped → all-added wrong counts. Fix: use `run_query_unscoped` (query scopes via
+explicit `GRAPH <iri>` blocks). Counts now correct (fixture {added:2,removed:1,modified:1}). 6/6 integration + full
+unit suite green (shared oxigraph_client regression clean). mypy 0/433, ruff 0. Commits a02b3d7 + 6c62121. HEAD 6c62121.
+**AC-007-04 intent-vs-literal:** SPARQL count-diff replaces literal `diff_graphs` reuse — intent (internal, correct
+counts, NOT CE-DIFF-1 HTTP) preserved; QA/architect confirm the trade. re-QA focus: added/removed/MODIFIED semantics
+match diff_graphs across edge cases.
