@@ -343,3 +343,6 @@ Project Dashboard (BE-019) + Direct Project Prompt (BE-021). Migrations **0065**
 
 ## HELD PR: #65 CE-EPIC-005 (2026-07-11) — multi-tenancy tier
 Governance shapes (CE-005) + Rules screen + /api/validate (CE-006) + metrics (CE-007). No migration but tenant-scoped SHACL = multi-tenancy → HELD for your merge. 3-way pipeline.py union verified (CE-009 gate + CE-005 tenant-SHACL + CE-008 event). Whole-tree green: ruff 0, mypy 0/540, pytest 1218 passed, integration 306/307 (1 pre-existing flake). Review + CI in flight. Carries the HITL-approved 10k validate perf amendment (ADR-026).
+
+## #65 CE-EPIC-005 NOW FULLY GREEN (2026-07-12) — HELD ready for merge
+mutation a/b pass, all blocking green, review-clear. Multi-tenancy tier → your merge. Both #64 (EPIC-003) + #65 (CE-EPIC-005) ready.
