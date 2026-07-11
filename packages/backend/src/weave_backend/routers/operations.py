@@ -17,6 +17,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.authoring.bpmo import InvalidBpmoKindError
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import outbox
+from weave_backend.operations.graph_ops import InvalidLiteralError
 from weave_backend.operations.guards import SpikeWriteBackForbidden, assert_not_spike_write_back
 from weave_backend.operations.pipeline import (
     ApplyContext,
@@ -110,9 +111,7 @@ async def _run_apply(
             status_code=403, detail={"error": "spike_write_back_forbidden"}
         ) from exc
 
-    workspace = await get_workspace(
-        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
-    )
+    workspace = await get_workspace(conn, tenant_id=principal.tenant_id, workspace_id=workspace_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
 
@@ -140,6 +139,11 @@ async def _run_apply(
         # kinds -- a bad request, not a SHACL violation (this is a
         # platform-level taxonomy guard, checked before SHACL runs).
         raise HTTPException(status_code=400, detail={"error": "invalid_bpmo_kind"}) from exc
+    except InvalidLiteralError as exc:
+        # XT-CE003-1: a property value's lexical form doesn't parse as its
+        # SHACL-declared sh:datatype (e.g. a malformed effectiveDate) -- a
+        # bad request, same class of error as invalid_bpmo_kind, not a 500.
+        raise HTTPException(status_code=400, detail={"error": "invalid_literal_value"}) from exc
     except InvalidTargetError as exc:
         # Malformed target -- not a forgery attempt, just a bad request.
         raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
@@ -149,9 +153,7 @@ async def _run_apply(
         # AC-003-13: the target names a real, already-published version --
         # published versions are immutable, so this is a conflict, not a
         # forgery (that's ForeignTargetError) or a bad request.
-        raise HTTPException(
-            status_code=409, detail={"error": "target_version_published"}
-        ) from exc
+        raise HTTPException(status_code=409, detail={"error": "target_version_published"}) from exc
     except TimeoutError as exc:
         # Another caller holds this idempotency key's lock and never
         # finished (e.g. its process crashed) -- a clean 409 beats an
@@ -178,9 +180,7 @@ async def apply_operations_route(
         raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
 
     async with tenant_connection(principal.tenant_id) as conn:
-        outcome = await _run_apply(
-            conn, principal=principal, workspace_id=workspace_id, body=body
-        )
+        outcome = await _run_apply(conn, principal=principal, workspace_id=workspace_id, body=body)
 
     if isinstance(outcome, ApplyResponse):
         # Real hash-chain delivery of the outbox row enqueued inside the
