@@ -80,3 +80,26 @@ export type WidgetStreamEvent =
   | { event: "data"; data: SseDataPayload }
   | { event: "done"; data: SseDonePayload }
   | { event: "error"; data: SseErrorPayload };
+
+/** PLAT-V1-TASK-013 AC-4: mirrors `schemas/dashboard.py::HistoryStepOut` --
+ * specs are deliberately omitted from the list (fetched only on restore).
+ */
+export interface HistoryStepOut {
+  seq: number;
+  prompt: string;
+  created_at: string;
+}
+
+export interface HistoryResponse {
+  steps: HistoryStepOut[];
+}
+
+/** Mirrors `schemas/dashboard.py::RestoreWidgetResponse` -- no `last_result`:
+ * restore re-fetches data server-side but the API contract doesn't surface
+ * it to the client (task brief API Contracts section, verbatim).
+ */
+export interface RestoreWidgetResponse {
+  spec: WidgetSpec;
+  status: WidgetStatus;
+  fetched_at: string | null;
+}

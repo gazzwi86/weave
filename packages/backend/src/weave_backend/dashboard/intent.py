@@ -76,7 +76,12 @@ class SourceNotGA:
 #: `None` means "no component/data-shape match" (`unsatisfiable`, TASK-012).
 ResolveResult = WidgetSpec | SourceNotGA | None
 
-Resolver = Callable[[str], Awaitable[ResolveResult]]
+#: TASK-013: `context` is the widget's current spec on a refine call (delta
+#: prompt classified against it); `None` on a plain generate. Every caller
+#: (`generate.py::_resolve_with_context`) always passes both positionally,
+#: so every fake/resolver -- including every TASK-011 test double -- takes
+#: the same two params.
+Resolver = Callable[[str, WidgetSpec | None], Awaitable[ResolveResult]]
 
 
 class IntentClassification(BaseModel):
@@ -93,7 +98,9 @@ class IntentClassification(BaseModel):
     title: str = Field(min_length=1)
 
 
-def _build_prompt(prompt: str, *, retry_error: str | None = None) -> str:
+def _build_prompt(
+    prompt: str, *, context: WidgetSpec | None = None, retry_error: str | None = None
+) -> str:
     instruction: dict[str, object] = {
         "instruction": (
             'Classify the request into {"data_shape": ..., "category": ..., '
@@ -106,6 +113,14 @@ def _build_prompt(prompt: str, *, retry_error: str | None = None) -> str:
         ),
         "request": prompt,
     }
+    if context is not None:
+        # TASK-013: refine -- classify the delta *against* the widget's
+        # current spec, not from a blank slate.
+        instruction["instruction"] = (
+            "The user is refining an existing widget with a follow-up request. "
+            + str(instruction["instruction"])
+        )
+        instruction["current_spec"] = context.model_dump()
     if retry_error:
         instruction["previous_error"] = retry_error
     return json.dumps(instruction)
@@ -177,17 +192,23 @@ async def _call_model(prompt_payload: str) -> str:
         raise ProviderUnavailable(type(exc).__name__) from exc
 
 
-async def resolve(prompt: str) -> ResolveResult:
+async def resolve(prompt: str, context: WidgetSpec | None = None) -> ResolveResult:
     """AC-4: one retry (with the validation error fed back) if the model's
     output doesn't parse as JSON or fails the `IntentClassification` schema;
     a second failure declines (`None` -> `unsatisfiable`), never an
     unvalidated spec on the stream.
+
+    TASK-013 AC-1: `context` (the widget's current spec, on a refine call)
+    is folded into the prompt but never changes the retry/decline shape --
+    refine reuses the exact same classify-then-map pipeline as generate.
     """
-    raw = await _call_model(_build_prompt(prompt))
+    raw = await _call_model(_build_prompt(prompt, context=context))
     classification = _parse_classification(raw)
     if classification is None:
         retry_raw = await _call_model(
-            _build_prompt(prompt, retry_error="output was not valid JSON matching the schema")
+            _build_prompt(
+                prompt, context=context, retry_error="output was not valid JSON matching the schema"
+            )
         )
         classification = _parse_classification(retry_raw)
         if classification is None:

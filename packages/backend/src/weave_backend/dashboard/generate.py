@@ -15,6 +15,7 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
+import asyncpg
 import redis.asyncio as redis_lib
 from httpx import AsyncClient
 from opentelemetry import trace
@@ -22,10 +23,10 @@ from opentelemetry import trace
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.billing.gate import BillingScope, BudgetCapReached, enforce_budget
 from weave_backend.billing.metering import TokenUsageRecord, record_token_usage
-from weave_backend.dashboard import store
+from weave_backend.dashboard import refine, store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable
 from weave_backend.dashboard.ce_metrics import fetch as fetch_ce_metric
-from weave_backend.dashboard.intent import ProviderUnavailable, Resolver, SourceNotGA
+from weave_backend.dashboard.intent import ProviderUnavailable, Resolver, ResolveResult, SourceNotGA
 from weave_backend.dashboard.keyword_table import provisional_spec_from_keywords
 from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
@@ -77,11 +78,17 @@ class MidStreamCap(Exception):
 class GenerateRequest:
     """Bundles the per-call identity/prompt so `generate_widget_stream`
     stays under Law E's 5-param cap alongside its injected collaborators.
+
+    TASK-013: `context`/`existing_widget_id` are refine's only additions --
+    both `None` on a plain generate. Implementation Hints: "refine as a
+    parameter on the generate service function, not a second function."
     """
 
     tenant_id: str
     principal_iri: str
     prompt: str
+    context: WidgetSpec | None = None
+    existing_widget_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +111,53 @@ def _sse(event: str, payload_json: str) -> str:
 
 def _prompt_hash(prompt: str) -> str:
     return hashlib.sha256(prompt.encode()).hexdigest()
+
+
+async def _resolve_with_context(
+    resolver: Resolver, prompt: str, context: WidgetSpec | None
+) -> ResolveResult:
+    """TASK-013 AC-1: thin seam over the resolver call so
+    `test_refine_context_passed_to_resolver` can assert the context threads
+    through without needing the full DB-backed pipeline (Law F unit tier).
+    """
+    return await resolver(prompt, context)
+
+
+async def _persist_stream_result(
+    conn: asyncpg.Connection,
+    *,
+    request: GenerateRequest,
+    widget_id: str,
+    spec: WidgetSpec,
+    last_result: object,
+) -> None:
+    """Splits `generate_widget_stream`'s post-fetch persistence branch out
+    to keep the generator under Law E's cyclomatic-complexity cap. TASK-013
+    AC-2: refine appends/caps `widget_refinements`; plain generate keeps
+    TASK-011's `apply_refresh_result` -- same txn either way (caller holds
+    it open).
+    """
+    tenant_id = request.tenant_id
+    if request.existing_widget_id is not None:
+        cap = await refine.resolve_history_cap(conn, tenant_id)
+        await refine.apply_refinement(
+            conn,
+            tenant_id=tenant_id,
+            widget_id=widget_id,
+            outcome=refine.RefinementOutcome(
+                prompt=request.prompt, spec=spec, last_result=last_result, fetched_at=store.utcnow()
+            ),
+            cap=cap,
+        )
+    else:
+        await store.apply_refresh_result(
+            conn,
+            tenant_id=tenant_id,
+            widget_id=widget_id,
+            outcome=store.RefreshOutcome(
+                last_result=last_result, status="fresh", fetched_at=store.utcnow()
+            ),
+        )
 
 
 def _cap_message(exc: BudgetCapReached) -> str:
@@ -179,7 +233,7 @@ async def generate_widget_stream(
     # Resolver classifies (category + data shape); registry-GA-ness is
     # decided inside the resolver itself (m2-delta.md §3 gate order).
     try:
-        result = await resolver(request.prompt)
+        result = await _resolve_with_context(resolver, request.prompt, request.context)
     except ProviderUnavailable:
         yield _sse(
             "error",
@@ -208,16 +262,17 @@ async def generate_widget_stream(
     yield _sse("spec", spec.model_dump_json())
 
     start = time.monotonic()
-    widget_id: str | None = None
+    widget_id: str | None = request.existing_widget_id
     last_result: object = None
     try:
         async with tenant_connection(tenant_id) as conn:
-            widget_id = await store.insert_generated_widget(
-                conn,
-                tenant_id=tenant_id,
-                owner_principal_iri=request.principal_iri,
-                spec=spec,
-            )
+            if widget_id is None:
+                widget_id = await store.insert_generated_widget(
+                    conn,
+                    tenant_id=tenant_id,
+                    owner_principal_iri=request.principal_iri,
+                    spec=spec,
+                )
             async for chunk in _fetch_binding_data(ce_client, spec):
                 # Budget re-check cadence: once per `data` chunk (Implementation
                 # Hints) -- catches another concurrent caller/admin pushing the
@@ -225,13 +280,10 @@ async def generate_widget_stream(
                 await enforce_budget(conn, redis, scope)
                 last_result = chunk
                 yield _sse("data", SseDataPayload(rows=chunk, partial=False).model_dump_json())
-            await store.apply_refresh_result(
-                conn,
-                tenant_id=tenant_id,
-                widget_id=widget_id,
-                outcome=store.RefreshOutcome(
-                    last_result=last_result, status="fresh", fetched_at=store.utcnow()
-                ),
+            # TASK-013 AC-2: refine's persistence branch (update + capped
+            # history) vs TASK-011's plain refresh -- see `_persist_stream_result`.
+            await _persist_stream_result(
+                conn, request=request, widget_id=widget_id, spec=spec, last_result=last_result
             )
     except BudgetCapReached as exc:
         # AC-5: raising here unwinds `tenant_connection`'s transaction --
@@ -270,12 +322,15 @@ async def generate_widget_stream(
         ),
     )
 
+    event_type = (
+        "dashboard.widget.refined" if request.existing_widget_id else "dashboard.widget.generated"
+    )
     async with tenant_connection(tenant_id) as conn:
         await default_audit_emitter.emit(
             conn,
             AuditEvent(
                 tenant_id=tenant_id,
-                event_type="dashboard.widget.generated",
+                event_type=event_type,
                 actor_iri=request.principal_iri,
                 subject_iri=f"urn:weave:tenant:{tenant_id}:widget:{widget_id}",
                 payload={

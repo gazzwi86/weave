@@ -81,4 +81,36 @@ describe("useWidgetStream", () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
     expect(fetchSpy.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
+
+  // PLAT-V1-TASK-013: refine POSTs a *different* endpoint (`/widgets/{id}/refine`)
+  // through this exact same hook -- no second SSE-consuming implementation.
+  it("defaults to the generate endpoint when none is given", async () => {
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([SPEC_EVENT, DONE_EVENT])
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderHook(() => useWidgetStream());
+
+    act(() => {
+      result.current.generate("show entities");
+    });
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("/api/dashboard/widgets/generate");
+  });
+
+  it("posts to a caller-supplied endpoint (refine)", async () => {
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([SPEC_EVENT, DONE_EVENT])
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderHook(() => useWidgetStream());
+
+    act(() => {
+      result.current.generate("split by severity", "/api/dashboard/widgets/w-1/refine");
+    });
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe("/api/dashboard/widgets/w-1/refine");
+  });
 });

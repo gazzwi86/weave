@@ -120,3 +120,29 @@ class UpdateWidgetSpecRequest(BaseModel):
     """
 
     spec: ComponentTypePatch
+
+
+class RestoreWidgetRequest(BaseModel):
+    """Law 13: `POST /api/dashboard/widgets/{id}/restore` request body
+    (TASK-013 AC-4)."""
+
+    seq: int = Field(ge=1)
+
+
+class RestoreWidgetResponse(BaseModel):
+    spec: WidgetSpec
+    status: WidgetStatus
+    fetched_at: datetime | None = None
+
+
+class HistoryStepOut(BaseModel):
+    """TASK-013 AC-4: specs are deliberately omitted from the list --
+    fetched only on restore (API Contracts)."""
+
+    seq: int
+    prompt: str
+    created_at: datetime
+
+
+class HistoryResponse(BaseModel):
+    steps: list[HistoryStepOut]

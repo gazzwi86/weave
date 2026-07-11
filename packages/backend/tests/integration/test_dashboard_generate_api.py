@@ -81,11 +81,11 @@ def _ce_metrics_stub(body: dict[str, object], *, status_code: int = 200) -> Asyn
     return AsyncClient(transport=MockTransport(_handler), base_url="http://ce-metrics")
 
 
-async def _resolver_ok(prompt: str) -> WidgetSpec:
+async def _resolver_ok(prompt: str, context: WidgetSpec | None = None) -> WidgetSpec:
     return _OK_SPEC
 
 
-async def _resolver_provider_down(prompt: str) -> WidgetSpec:
+async def _resolver_provider_down(prompt: str, context: WidgetSpec | None = None) -> WidgetSpec:
     raise ProviderUnavailable("no provider configured")
 
 
@@ -136,7 +136,7 @@ async def test_budget_gate_blocks_before_model_call(client: AsyncClient) -> None
 
     resolver_calls = 0
 
-    async def _spy_resolver(prompt: str) -> WidgetSpec:
+    async def _spy_resolver(prompt: str, context: WidgetSpec | None = None) -> WidgetSpec:
         nonlocal resolver_calls
         resolver_calls += 1
         return _OK_SPEC
@@ -275,7 +275,7 @@ async def test_non_ga_category_distinct_from_unsatisfiable(
     terminal states -- never conflated (Design Decisions table Blocker).
     """
 
-    async def _resolver(prompt: str) -> object:
+    async def _resolver(prompt: str, context: WidgetSpec | None = None) -> object:
         return resolver_result
 
     tenant_id = _unique_tenant("dash-gen-ga")

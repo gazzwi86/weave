@@ -12,24 +12,30 @@ export type WidgetStreamState =
   | { status: "done"; spec: WidgetSpec; rows: unknown[]; tokenCount: number; widgetId: string }
   | { status: "error"; errorState: SseErrorState; reason: string; spec?: WidgetSpec };
 
-/** Consumes `POST /api/dashboard/widgets/generate` (TASK-011). Uses
- * `fetch` + `ReadableStream`, not `EventSource` -- it can't POST
- * (Implementation Hints). Aborts the in-flight request on unmount so the
- * server generator sees the disconnect and doesn't leak its transaction.
+const GENERATE_ENDPOINT = "/api/dashboard/widgets/generate";
+
+/** Consumes `POST /api/dashboard/widgets/generate` (TASK-011), or a
+ * caller-supplied endpoint -- TASK-013's refine POSTs
+ * `/api/dashboard/widgets/{id}/refine` through this same hook (identical
+ * SSE grammar, per the brief: "refine reuses it verbatim"), no second
+ * stream-consuming implementation. Uses `fetch` + `ReadableStream`, not
+ * `EventSource` -- it can't POST (Implementation Hints). Aborts the
+ * in-flight request on unmount so the server generator sees the
+ * disconnect and doesn't leak its transaction.
  */
 export function useWidgetStream(): {
   state: WidgetStreamState;
-  generate: (prompt: string) => void;
+  generate: (prompt: string, endpoint?: string) => void;
 } {
   const [state, setState] = useState<WidgetStreamState>({ status: "idle" });
   const abortRef = useRef<AbortController | null>(null);
 
-  const generate = useCallback((prompt: string) => {
+  const generate = useCallback((prompt: string, endpoint?: string) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setState({ status: "idle" });
-    void streamGenerate(prompt, controller.signal, setState);
+    void streamGenerate(prompt, endpoint ?? GENERATE_ENDPOINT, controller.signal, setState);
   }, []);
 
   return { state, generate };
@@ -37,10 +43,11 @@ export function useWidgetStream(): {
 
 async function streamGenerate(
   prompt: string,
+  endpoint: string,
   signal: AbortSignal,
   setState: (updater: (prev: WidgetStreamState) => WidgetStreamState) => void
 ): Promise<void> {
-  const response = await fetch("/api/dashboard/widgets/generate", {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),

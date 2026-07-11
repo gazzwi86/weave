@@ -25,6 +25,7 @@ from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.dashboard import router as dashboard_router
+from weave_backend.routers.dashboard_refine import router as dashboard_refine_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
@@ -104,6 +105,7 @@ app.include_router(source_control_router)
 app.include_router(briefs_router)
 app.include_router(costs_router)
 app.include_router(dashboard_router)
+app.include_router(dashboard_refine_router)
 app.include_router(generation_router)
 app.include_router(deploy_router)
 app.include_router(specs_router)
