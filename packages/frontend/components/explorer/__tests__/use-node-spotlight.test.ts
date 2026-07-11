@@ -31,6 +31,7 @@ function fakeAdapter(
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    reconcileElement: vi.fn(),
     listElements: vi.fn(() => []),
     applyFilterVisibility: vi.fn(),
     ...overrides,
@@ -109,7 +110,13 @@ describe("useNodeSpotlight", () => {
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours: [],
+      },
     }));
 
     const { result } = renderHook(() =>
@@ -133,7 +140,13 @@ describe("useNodeSpotlight", () => {
     const iri = "https://weave.example/entity/cust-onboarding";
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri, neighbours: [] },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: iri,
+        neighbours: [],
+      },
     }));
 
     const { result } = renderHook(() =>
@@ -166,10 +179,22 @@ describe("useNodeSpotlight", () => {
     ];
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours,
+      },
     }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
@@ -283,7 +308,13 @@ describe("useNodeSpotlight", () => {
       .mockResolvedValueOnce({ type: "error", status: 503 })
       .mockResolvedValueOnce({
         type: "ok",
-        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+        data: {
+          label: "Customer Onboarding",
+          typeLabel: "Process",
+          keyProperties: [],
+          rawIri: null,
+          neighbours: [],
+        },
       });
 
     const { result } = renderHook(() =>

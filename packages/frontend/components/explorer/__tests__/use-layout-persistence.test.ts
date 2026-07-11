@@ -9,7 +9,9 @@ import { useLayoutPersistence } from "../use-layout-persistence";
 const NODE_ID = "urn:weave:x:1";
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
 
-function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
+function fakeAdapter(
+  overrides: Partial<RendererAdapter> = {},
+): RendererAdapter {
   return {
     load: vi.fn(),
     getViewport: vi.fn(),
@@ -29,6 +31,7 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    reconcileElement: vi.fn(),
     listElements: vi.fn(() => []),
     applyFilterVisibility: vi.fn(),
     ...overrides,
@@ -40,7 +43,9 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
 describe("useLayoutPersistence", () => {
   it("saves a dropped node's position via onNodeDragEnd, first try", async () => {
     const save = vi.fn(async () => undefined);
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -49,16 +54,25 @@ describe("useLayoutPersistence", () => {
     });
 
     renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        save,
+      }),
     );
     act(() => dragHandler?.(NODE_ID, { x: 5, y: 9 }));
 
-    await waitFor(() => expect(save).toHaveBeenCalledWith(GRAPH_ID, NODE_ID, 5, 9));
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith(GRAPH_ID, NODE_ID, 5, 9),
+    );
   });
 
   it("skips saving literal nodes (id is not an IRI) without a toast", async () => {
     const save = vi.fn(async () => undefined);
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -67,7 +81,12 @@ describe("useLayoutPersistence", () => {
     });
 
     const { result } = renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        save,
+      }),
     );
     act(() => dragHandler?.("Order Fulfillment", { x: 5, y: 9 }));
 
@@ -78,8 +97,13 @@ describe("useLayoutPersistence", () => {
 
   it("retries with the configured backoff delays on failure, then succeeds without a toast", async () => {
     vi.useFakeTimers();
-    const save = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce(undefined);
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    const save = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValueOnce(undefined);
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -88,11 +112,18 @@ describe("useLayoutPersistence", () => {
     });
 
     const { result } = renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        save,
+      }),
     );
     act(() => dragHandler?.(NODE_ID, { x: 5, y: 9 }));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs[0] ?? 0);
+      await vi.advanceTimersByTimeAsync(
+        DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs[0] ?? 0,
+      );
     });
 
     expect(save).toHaveBeenCalledTimes(2);
@@ -105,7 +136,9 @@ describe("useLayoutPersistence", () => {
     const save = vi.fn(async () => {
       throw new Error("down");
     });
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -114,7 +147,12 @@ describe("useLayoutPersistence", () => {
     });
 
     const { result } = renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        save,
+      }),
     );
     act(() => dragHandler?.(NODE_ID, { x: 5, y: 9 }));
     await act(async () => {
@@ -123,7 +161,9 @@ describe("useLayoutPersistence", () => {
       }
     });
 
-    expect(save).toHaveBeenCalledTimes(DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs.length + 1);
+    expect(save).toHaveBeenCalledTimes(
+      DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs.length + 1,
+    );
     expect(result.current.saveFailed).toBe(true);
     vi.useRealTimers();
   });
@@ -139,7 +179,7 @@ describe("useLayoutPersistence", () => {
         config: { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] },
         graphId: GRAPH_ID,
         save,
-      })
+      }),
     );
 
     act(() => result.current.dismissSaveFailure());
@@ -158,8 +198,13 @@ describe("useLayoutPersistence", () => {
   // newer position with a stale one.
   it("does not crash and issues both saves when the same node is dragged again while a retry is in flight", async () => {
     vi.useFakeTimers();
-    const save = vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValue(undefined);
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    const save = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValue(undefined);
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -168,13 +213,20 @@ describe("useLayoutPersistence", () => {
     });
 
     renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, save })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        save,
+      }),
     );
     act(() => dragHandler?.(NODE_ID, { x: 5, y: 9 }));
     // Second drag on the same node fires before the first's retry delay elapses.
     act(() => dragHandler?.(NODE_ID, { x: 40, y: 40 }));
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs[0] ?? 0);
+      await vi.advanceTimersByTimeAsync(
+        DEFAULT_EXPLORER_CONFIG.layoutSaveRetryDelaysMs[0] ?? 0,
+      );
     });
 
     // Both the second drag's immediate attempt and the first drag's retry land.
@@ -188,7 +240,12 @@ describe("useLayoutPersistence", () => {
     const reset = vi.fn(async () => undefined);
     const adapter = fakeAdapter();
     const { result } = renderHook(() =>
-      useLayoutPersistence({ adapter, config: DEFAULT_EXPLORER_CONFIG, graphId: GRAPH_ID, reset })
+      useLayoutPersistence({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        graphId: GRAPH_ID,
+        reset,
+      }),
     );
 
     await act(async () => result.current.resetLayout());
@@ -196,7 +253,7 @@ describe("useLayoutPersistence", () => {
     expect(reset).toHaveBeenCalledWith(GRAPH_ID);
     expect(adapter.setLayout).toHaveBeenCalledWith(
       "fcose",
-      expect.objectContaining({ randomize: true })
+      expect.objectContaining({ randomize: true }),
     );
   });
 });

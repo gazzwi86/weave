@@ -81,6 +81,15 @@ export interface RendererAdapter {
   /** TASK-020 AC-6: removes elements by id (layer toggle-off). No-op for
    * an id not currently on the canvas. */
   removeElements(ids: string[]): void;
+  /** TASK-023 AC-8: swaps a locally-ref'd optimistic element's identity for
+   * the real IRI CE-WRITE-1 returned -- cytoscape element ids are immutable
+   * after creation, so this is remove-then-add, carrying the element's
+   * current position forward (a slow commit shouldn't cause a visible
+   * jump). No-op if `localId` isn't on the canvas (already rolled back).
+   * Dedups against an already-present real IRI the same way addLayerNodes
+   * does (CE-WRITE-1's case-insensitive label+kind dedup can resolve a
+   * quick-add to an existing node). */
+  reconcileElement(localId: string, element: CytoscapeElement): void;
   /** TASK-020: every node + edge currently on the canvas, in the same
    * CytoscapeElement shape `load`/`addLayerNodes` accept -- the source
    * use-filter-panel.ts feeds computeFilterVisibility. Reads the adapter's
@@ -209,6 +218,19 @@ function addLayerNodesOn(cy: AdaptableCy, elements: CytoscapeElement[]): string[
 function removeElementsOn(cy: AdaptableCy, ids: string[]): void {
   const idSet = new Set(ids);
   cy.remove(cy.elements().filter((el) => idSet.has(el.id())));
+}
+
+// TASK-023 AC-8: remove-then-add (cytoscape element ids are immutable),
+// carrying the local ref's current position forward, then reusing
+// addLayerNodesOn's dedup so a CE-WRITE-1 resolved-to-existing IRI never
+// double-adds.
+function reconcileElementOn(cy: AdaptableCy, localId: string, element: CytoscapeElement): void {
+  const localRefEl = cy.getElementById(localId);
+  if (localRefEl.length === 0) return;
+
+  const position = element.position ?? localRefEl.position();
+  cy.remove(localRefEl);
+  addLayerNodesOn(cy, [{ ...element, position }]);
 }
 
 /** TASK-020 AC-1/AC-3/AC-4/AC-7: one batched pass -- hide/show operate on
@@ -431,6 +453,9 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     removeElements(ids) {
       removeElementsOn(cy, ids);
+    },
+    reconcileElement(localId, element) {
+      reconcileElementOn(cy, localId, element);
     },
   };
 }
