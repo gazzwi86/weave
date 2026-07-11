@@ -3,6 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SidePanel } from "../side-panel";
 
+// CommentsPanel (AC-6) fetches on mount -- stub the client so these
+// pre-existing tests don't leak a real fetch() call against a relative URL.
+vi.mock("@/lib/explorer/comments-client", () => ({
+  listComments: vi.fn().mockResolvedValue([]),
+  createComment: vi.fn(),
+}));
+
 describe("SidePanel", () => {
   it("renders nothing when closed", () => {
     const { container } = render(<SidePanel state={{ status: "closed" }} onClose={vi.fn()} onRetry={vi.fn()} />);

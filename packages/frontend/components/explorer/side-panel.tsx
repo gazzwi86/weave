@@ -1,3 +1,4 @@
+import { CommentsPanel } from "./comments-panel";
 import type { SidePanelState } from "./use-node-spotlight";
 
 export interface SidePanelProps {
@@ -94,6 +95,7 @@ export function SidePanel({ state, onClose, onRetry }: SidePanelProps) {
             </div>
           ))}
           <AdvancedDisclosure rawIri={state.rawIri} />
+          <CommentsPanel targetKind="node" targetRef={state.nodeId} />
         </div>
       )}
     </div>
