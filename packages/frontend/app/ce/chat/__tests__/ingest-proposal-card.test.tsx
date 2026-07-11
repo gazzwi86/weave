@@ -49,6 +49,22 @@ describe("IngestProposalCard", () => {
     expect(acceptButton).not.toBeDisabled();
   });
 
+  // Edge case (QA): a candidate with no find-existing-node match (AC-002-02
+  // found nothing to link) must not render a matched-resource link at all --
+  // not a link pointing at "null"/empty href, which would be a broken link.
+  it("renders no matched-resource link when matched_iri is null", () => {
+    render(
+      <IngestProposalCard
+        proposal={{ ...PROPOSAL, matched_iri: null }}
+        violations={[]}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   // AC-002-05: accept/reject call back per-proposal.
   it("calls onAccept and onReject with the proposal id", () => {
     const onAccept = vi.fn();
