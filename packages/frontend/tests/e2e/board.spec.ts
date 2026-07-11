@@ -88,7 +88,9 @@ test("board renders six lanes, tree flags missing dependency, filters narrow the
   await page.getByRole("button", { name: "Back to All" }).click();
   await expect(page.getByTestId(BOARD_LANES_TESTID)).toBeVisible();
 
-  // AC-5: an invalid/unknown filter in the URL is treated as the empty-state case.
+  // AC-5: an invalid/unknown filter in the URL is treated as the empty-state case
+  // (same as a zero-match filter — lane grid hidden, empty state shown), NOT a full board.
   await page.goto(`/build/projects/${encodeURIComponent(projectId)}/board?filter=not-a-real-filter`);
-  await expect(page.getByTestId(BOARD_LANES_TESTID)).toBeVisible();
+  await expect(page.getByTestId(BOARD_LANES_TESTID)).toBeHidden();
+  await expect(page.getByRole("status")).toBeVisible();
 });
