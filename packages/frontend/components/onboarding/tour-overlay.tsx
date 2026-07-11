@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { driver, type Config, type Driver, type PopoverDOM } from "driver.js";
 
 import { t } from "../../lib/onboarding/i18n";
+import { anchorSelector } from "../../lib/onboarding/tour-content";
 import type { UseTourEngineResult } from "../../lib/onboarding/use-tour-engine";
 import type { TourStep } from "../../../shared/onboarding/content/schema";
 
@@ -144,8 +145,8 @@ export function TourOverlay({
     driverRef.current = instance;
     // `popover: {}` is required to make Driver.js render a popover at all --
     // its content is fully rebuilt by `onPopoverRender` above (tokens + i18n).
-    instance.highlight({ element: `[data-tour-id="${step.anchorId}"]`, popover: {} });
-    stripInvalidAriaFromTarget(document.querySelector(`[data-tour-id="${step.anchorId}"]`));
+    instance.highlight({ element: anchorSelector(step.anchorId), popover: {} });
+    stripInvalidAriaFromTarget(document.querySelector(anchorSelector(step.anchorId)));
 
     return () => instance.destroy();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `labels` is a fresh object per render but only step/status changes should re-highlight.

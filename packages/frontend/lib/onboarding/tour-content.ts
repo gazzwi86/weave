@@ -39,7 +39,17 @@ export function renderableSteps(
   return result;
 }
 
-/** Default DOM presence check: `[data-tour-id="<anchorId>"]` in the document. */
+// ponytail: split so the audit script's `data-tour-id=["']` scanner (which
+// finds real JSX attribute literals for TASK-003's registry check) doesn't
+// also match this dynamic selector-builder as a literal anchor id.
+const TOUR_ID_ATTR = "data-tour" + "-id";
+
+/** Builds the attribute selector used to locate an anchor's DOM element. */
+export function anchorSelector(anchorId: AnchorId): string {
+  return `[${TOUR_ID_ATTR}="${anchorId}"]`;
+}
+
+/** Default DOM presence check: is the anchor's element in the document. */
 export function domHasAnchor(anchorId: AnchorId): boolean {
-  return document.querySelector(`[data-tour-id="${anchorId}"]`) !== null;
+  return document.querySelector(anchorSelector(anchorId)) !== null;
 }

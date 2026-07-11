@@ -12,6 +12,21 @@ import { useOverlayControls } from "./use-overlay-controls";
 import { useVersionsPanel } from "./use-versions-panel";
 import { VersionsPanel } from "./versions-panel";
 
+function SearchTriggerButton({ onOpenSearch }: { onOpenSearch: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpenSearch}
+      aria-label="Search nodes"
+      data-testid="explorer-search-button"
+      data-tour-id="ge.canvas.spotlight-control"
+      className="rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
+    >
+      Search…
+    </button>
+  );
+}
+
 function FilterEmptyState({
   visibility,
   onClearTypes,
@@ -64,15 +79,7 @@ export function CanvasFilterChrome({
         onClearPropertyFilters={() => filterPanel.setPropertyFilters([])}
       />
       <CanvasToolbar>
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          aria-label="Search nodes"
-          data-testid="explorer-search-button"
-          className="rounded-[var(--radius-sm)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-        >
-          Search…
-        </button>
+        <SearchTriggerButton onOpenSearch={onOpenSearch} />
       </CanvasToolbar>
       <CanvasLegend palette={legend.palette} loading={legend.loading} overlay={overlayControls.legend} />
       <FilterPanel
