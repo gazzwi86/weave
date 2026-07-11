@@ -389,3 +389,5 @@ mutation a/b pass, all blocking green, review-clear. Multi-tenancy tier → your
 
 ## #67 EPIC-001 NOW FULLY GREEN (2026-07-12) — HELD ready for merge
 mutation a/b pass, all blocking green, review-CLEAR. Migration 0068 schema tier → your merge. **ALL 3 HELD PRs now fully green + review-clean + ready: #64 (EPIC-003, migr 0065/0067), #65 (CE-EPIC-005, multi-tenancy), #67 (EPIC-001, migr 0068).** Phase build-engine-v1/phase-1 complete on merge → run /phase-gate.
+
+### Caveat for morning: #64/#65 show mergeable=UNKNOWN (pushed before #66 BE-EPIC-005 merged). If GitHub reports a conflict at merge (likely just __init__.py router union), restack: in the worktree `git fetch origin main && git merge origin/main`, resolve routers-union, re-run the 5 CI-discipline checks, `git push --force-with-lease`. #67 = MERGEABLE, clean. Merge order does not matter (independent epics); restack any that conflict after the first lands.
