@@ -337,3 +337,6 @@ Sequence completed: red-main fix #56 merged (main green 091451b) → EPIC-003 #5
 fix 213a756) → CI green → MERGED (4a019c8). 3 epics on main: EPIC-015, EPIC-008, EPIC-003. EPIC-004 union-restack in flight
 (a012a574): graph_ops XT-WRITEPATH-1 union (CE-001 punning + CE-003 datatype) + framework.shacl.ttl (glossary + brand shapes).
 On green → open EPIC-004 PR → merge. Then re-expand to 5 task lanes.
+
+## HELD PR READY FOR MERGE: #64 EPIC-003 (2026-07-11) — fully green + review-clean
+Project Dashboard (BE-019) + Direct Project Prompt (BE-021). Migrations **0065** (generation_runs clock_timestamp) + **0067** (state_spines_trigger) = schema tier → your merge. All blocking CI green (api/integration/web/semgrep/secrets/mutation-a/mutation-b); ce-perf non-blocking. cavecrew review CLEAR (reader-403+audit, no-2nd-cost-path, router union, parameterized SQL). Two CI-only fixes landed post-QA: hermetic prompt-synthesis unit test (was hitting LocalStack) + ruff I001 import-sort. **Ready to merge now.**
