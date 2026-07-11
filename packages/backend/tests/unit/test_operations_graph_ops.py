@@ -311,3 +311,79 @@ def test_update_node_with_absolute_iri_property_key_passes_through_unscoped() ->
     assert graph.value(subject, OWL.onProperty) == Literal(
         str(WEAVE.hasActivity), datatype=XSD.string
     )
+
+
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+
+
+def test_add_node_with_additional_types_adds_extra_rdf_type_triples() -> None:
+    """CE-TASK-001 AC-001-01: punning -- a second `rdf:type` beyond the
+    primary `kind`, e.g. term nodes carrying both `skos:Concept` (kind) and
+    `owl:Class` (additional_types) on the one minted IRI.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                additional_types=[str(OWL.Class)],
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    assert (iri, RDF.type, SKOS.Concept) in graph
+    assert (iri, RDF.type, OWL.Class) in graph
+
+
+def test_add_node_with_list_valued_property_adds_one_triple_per_item() -> None:
+    """CE-TASK-001 AC-001-04: `skos:altLabel` is 0..n -- a list value under
+    one property key must not collapse to a single overwritten triple.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                properties={str(SKOS.altLabel): ["Bill", "Sales Invoice"]},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    alt_labels = {str(v) for v in graph.objects(iri, SKOS.altLabel)}
+    assert alt_labels == {"Bill", "Sales Invoice"}
+
+
+def test_add_node_with_lang_tagged_property_value_produces_a_language_literal() -> None:
+    """CE-TASK-001 AC-001-02: `skos:prefLabel` needs a language tag, not a
+    plain `xsd:string` -- a `{"value": ..., "lang": ...}` marker in the
+    properties dict is the whole mechanism.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="t1",
+                kind=str(SKOS.Concept),
+                label="Invoice",
+                properties={str(SKOS.prefLabel): {"value": "Invoice", "lang": "en"}},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["t1"])
+    assert graph.value(iri, SKOS.prefLabel) == Literal("Invoice", lang="en")
