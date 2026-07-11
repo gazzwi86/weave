@@ -1,3 +1,4 @@
+import { EDGEHANDLES_PARAMS } from "./edgehandles-params";
 import { FCOSE_PARAMS } from "./fcose-params";
 
 /** Tunable Explorer canvas config (AC-2/AC-6: no magic numbers in
@@ -32,6 +33,10 @@ export interface ExplorerConfig {
    * corrected without a code change if CE's ontology names it differently. */
   domainKind: string;
   fcoseParams: typeof FCOSE_PARAMS;
+  /** TASK-023 AC-6: cytoscape-edgehandles params -- library defaults,
+   * disclosed in ADR-022 (Law 12 blocks reading prototype/ for the
+   * task brief's suggested prototype-ported values). */
+  edgehandlesParams: typeof EDGEHANDLES_PARAMS;
   /** TASK-020 AC-6: governed-content layer membership -- kind local names
    * (matches node.data.bpmo_kind / rdf:type's WEAVE_ONTOLOGY_NS-relative
    * segment). Pinned by the task brief: Glossary = Concept, Governance =
@@ -57,6 +62,7 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   expandConfirmThreshold: 500,
   domainKind: "Domain",
   fcoseParams: FCOSE_PARAMS,
+  edgehandlesParams: EDGEHANDLES_PARAMS,
   glossaryLayerKind: "Concept",
   governanceLayerKind: "Policy",
   governanceLayerPredicate: "https://weave.example/ontology/bpmo#governedBy",
