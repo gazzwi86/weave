@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 
-from weave_backend.operations.graph_ops import InvalidLiteralError, apply_operations
+from weave_backend.operations.graph_ops import InvalidLiteralError, _to_literal, apply_operations
 from weave_backend.schemas.operations import (
     AddEdgeOp,
     AddNodeOp,
@@ -378,6 +378,28 @@ def test_add_node_with_a_plain_string_property_is_unaffected_by_the_coercion() -
 
     iri = URIRef(result.ref_map["p1"])
     assert graph.value(iri, WEAVE.label) == Literal("Invoicing", datatype=XSD.string)
+
+
+def test_to_literal_coerces_non_date_non_string_datatypes_generically() -> None:
+    """QA edge case (adversarial, TASK-003): every shape-driven coercion test
+    above only exercises `xsd:date` -- the one non-string datatype that
+    exists in `framework.shacl.ttl` today. That leaves the coercion branch's
+    genericity (`_to_literal`'s `datatype is not None and datatype != XSD.string`
+    check) unproven for any other datatype. This drives `_to_literal`
+    directly with `xsd:integer`/`xsd:boolean` to prove the fix coerces by
+    the datatype it's given, not by special-casing dates -- so the next
+    shape author who adds an `xsd:integer`/`xsd:boolean` property inherits
+    correct behaviour with no further graph_ops change.
+    """
+    assert _to_literal("42", XSD.integer) == Literal("42", datatype=XSD.integer)
+    assert _to_literal("true", XSD.boolean) == Literal("true", datatype=XSD.boolean)
+
+
+def test_to_literal_rejects_a_malformed_value_for_any_non_string_datatype() -> None:
+    """Same genericity check for the failure path: `ill_typed` rejection
+    must not be date-specific either."""
+    with pytest.raises(InvalidLiteralError):
+        _to_literal("not-a-number", XSD.integer)
 
 
 def test_add_node_with_a_malformed_date_raises_a_clean_validation_error() -> None:
