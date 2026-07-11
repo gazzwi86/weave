@@ -345,3 +345,12 @@ HIGH priority — gates Law-B E2E for the Build engine at phase close. Surface t
 - **XT-PLAT027-E2E:** bell-panel-day-grouping.spec.ts mocks the notifications API wholesale → Law-B gap (asserts mocked POST,
   not real backend read:true). → add a real GET /api/notifications assertion at phase-gate (PLAT-NOTIFY-1 backend test = TASK-007).
 - PLAT-027 finding #1 (section-rail SSR/hydration mismatch) is being FIXED before EPIC-011 merge (not deferred).
+
+## XT-PLAT027-ROLE — client role-name drift (M1 "admin" vs spec "workspace_admin") (2026-07-11)
+#63 review (🟡 minor, non-blocking): `components/shell/section-rail.tsx` role-gates on M1 `role === "admin"`, but AC-6's
+`can-suppress.ts` checks spec vocab `["workspace_admin","compliance_officer"]`. Under M1's actual "admin" role the CLIENT-SIDE
+AC-6 non-suppressibility guard (audit.chain.invalid can't be muted) won't fire → a mute control could render it shouldn't.
+**Backend PUT endpoint is the real control** (client gate = UX/defence-in-depth, not the security boundary); QA passed AC-6 on
+spec-role tests; code comment acknowledges the gap (fixes when M1 adopts spec role vocab / PLAT-SETTINGS-1). Part of the broader
+**role-slug harmonization** (already in the morning-HITL batch + relates to PROJ-009 RBAC). Merged #63 non-blocking; harmonize
+at phase-gate.
