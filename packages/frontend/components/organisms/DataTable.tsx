@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 export interface DataTableColumn {
@@ -7,8 +9,11 @@ export interface DataTableColumn {
 
 export interface DataTableRow {
   id: string;
-  /** Cell text keyed by column key -- pre-formatted by the caller. */
-  cells: Record<string, string>;
+  /** Cell content keyed by column key -- pre-formatted by the caller. A
+   * plain string for text cells; a `ReactNode` for a cell that composes
+   * another dumb component (e.g. `KindChip` for a "kind" column, TASK-031
+   * AC-1) -- still caller-supplied, DataTable itself never fetches. */
+  cells: Record<string, ReactNode>;
 }
 
 export interface DataTableProps {
