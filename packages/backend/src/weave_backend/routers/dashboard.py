@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.dashboard import store
 from weave_backend.dashboard.ce_metrics import CeMetricsUnavailable, get_ce_metrics_client
@@ -28,6 +29,8 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
     ExamplePromptsResponse,
     GenerateWidgetRequest,
+    OrderPatchRequest,
+    OrderPatchResponse,
     UpdateWidgetSpecRequest,
     WidgetListResponse,
     WidgetOut,
@@ -191,6 +194,65 @@ async def generate_widget_route(
     )
 
 
+@router.post("/widgets/{widget_id}/pin", response_model=WidgetOut)
+async def pin_widget_route(
+    widget_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> WidgetOut:
+    """AC-1/AC-2/AC-6 (ADR-021): pin an already-persisted `scope='user'`
+    widget -- clears `suggested` and audits `dashboard.widget.pinned` in the
+    same transaction. Owner-only / 404-not-403, same IDOR shape as the
+    sibling routes.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        if row is None or row.scope != "user" or row.owner_principal_iri != principal.principal_iri:
+            raise HTTPException(status_code=404)
+        await store.pin_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="dashboard.widget.pinned",
+                actor_iri=principal.principal_iri,
+                subject_iri=f"urn:weave:tenant:{principal.tenant_id}:widget:{widget_id}",
+            ),
+        )
+        row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        if row is None:
+            raise HTTPException(status_code=404)
+    return _to_widget_out(row)
+
+
+@router.patch("/widgets/order", response_model=OrderPatchResponse)
+async def reorder_widgets_route(
+    body: OrderPatchRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> OrderPatchResponse:
+    """AC-5: batch drag-reorder -- one PATCH, one audit entry, declared
+    ahead of `PATCH /widgets/{widget_id}` (static path first) so "order"
+    is never captured as a `widget_id` path param.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        updated = await store.reorder_widgets(
+            conn,
+            tenant_id=principal.tenant_id,
+            owner_principal_iri=principal.principal_iri,
+            ids_in_order=body.ids_in_order,
+        )
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="dashboard.widget.reordered",
+                actor_iri=principal.principal_iri,
+                subject_iri=f"urn:weave:tenant:{principal.tenant_id}:widget:order",
+                payload={"ids_in_order": body.ids_in_order},
+            ),
+        )
+    return OrderPatchResponse(updated=updated)
+
+
 @router.patch("/widgets/{widget_id}", response_model=WidgetOut)
 async def update_widget_route(
     widget_id: str,
@@ -240,3 +302,13 @@ async def delete_widget_route(
         )
         if not deleted:
             raise HTTPException(status_code=404)
+        # AC-2: unpin audit, same transaction as the delete.
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=principal.tenant_id,
+                event_type="dashboard.widget.unpinned",
+                actor_iri=principal.principal_iri,
+                subject_iri=f"urn:weave:tenant:{principal.tenant_id}:widget:{widget_id}",
+            ),
+        )

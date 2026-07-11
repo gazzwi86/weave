@@ -235,6 +235,60 @@ async def update_widget_component_type(
     return bool(result != "UPDATE 0")
 
 
+async def pin_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:
+    """TASK-014 AC-1/AC-6 (ADR-021): pin acts on an already-persisted
+    `scope='user'` row (generate.py already inserts it) -- clears
+    `suggested` so a starter/suggested tile becomes a genuine pin. Returns
+    `False` if the row doesn't exist (caller 404s); a no-op update (already
+    unsuggested) still returns `True`.
+    """
+    result: str = await conn.execute(
+        "UPDATE widget_instances SET suggested = false, updated_at = now()"
+        " WHERE tenant_id = $1 AND id = $2",
+        tenant_id,
+        widget_id,
+    )
+    return bool(result != "UPDATE 0")
+
+
+async def reorder_widgets(
+    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str, ids_in_order: list[str]
+) -> int:
+    """TASK-014 AC-5: batch reorder -- one PATCH, one audit entry (caller's
+    responsibility). Only touches rows owned by this user; an id that
+    doesn't belong to the caller (wrong tenant, wrong owner, or simply
+    unknown) is silently skipped rather than erroring the whole batch --
+    the returned count is the "updated" figure the route reports.
+
+    Positions are offset by a large constant first so the final pass never
+    collides with the unique `(tenant_id, scope, owner, position)` index
+    while ids are mid-reassignment within the same statement batch.
+    """
+    offset = len(ids_in_order) + 1000
+    for index, widget_id in enumerate(ids_in_order):
+        await conn.execute(
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now()"
+            " WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",
+            tenant_id,
+            widget_id,
+            offset + index,
+            owner_principal_iri,
+        )
+    updated = 0
+    for index, widget_id in enumerate(ids_in_order):
+        result: str = await conn.execute(
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now()"
+            " WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",
+            tenant_id,
+            widget_id,
+            index,
+            owner_principal_iri,
+        )
+        if result != "UPDATE 0":
+            updated += 1
+    return updated
+
+
 async def delete_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:
     """AC-8: starter removal / unpin. User-scope + owner-only is enforced by
     the caller (router checks ``owner_principal_iri`` before calling this).

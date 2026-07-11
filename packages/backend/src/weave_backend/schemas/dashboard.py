@@ -122,6 +122,17 @@ class UpdateWidgetSpecRequest(BaseModel):
     spec: ComponentTypePatch
 
 
+class OrderPatchRequest(BaseModel):
+    """Law 13: `PATCH /api/dashboard/widgets/order` request body (TASK-014
+    AC-5) -- one batch reorder, one audit entry."""
+
+    ids_in_order: list[str] = Field(min_length=1)
+
+
+class OrderPatchResponse(BaseModel):
+    updated: int
+
+
 class RestoreWidgetRequest(BaseModel):
     """Law 13: `POST /api/dashboard/widgets/{id}/restore` request body
     (TASK-013 AC-4)."""
