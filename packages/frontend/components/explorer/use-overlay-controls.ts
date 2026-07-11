@@ -37,6 +37,11 @@ export interface UseOverlayControlsResult {
   toggles: OverlayToggle[];
   legend: OverlayLegendModel | null;
   toggleOverlay: (id: string) => void;
+  /** TASK-022 AC-7: the diff overlay is built outside this hook (Versions
+   * Panel) but must share this same engine instance so its "colour"
+   * exclusiveGroup mutual exclusion with heatmap/domain-colouring actually
+   * applies -- exposed rather than duplicating the engine. */
+  engine: OverlayEngine;
 }
 
 function capitalise(word: string): string {
@@ -105,5 +110,5 @@ export function useOverlayControls({ adapter, config }: UseOverlayControlsOption
   }));
   const legend = activeInColourGroup ? (engine.legendFor(activeInColourGroup) ?? null) : null;
 
-  return { toggles, legend, toggleOverlay };
+  return { toggles, legend, toggleOverlay, engine };
 }
