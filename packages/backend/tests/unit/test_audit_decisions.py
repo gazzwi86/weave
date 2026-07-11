@@ -107,6 +107,16 @@ async def test_classify_kind_system_is_the_complement() -> None:
     assert classify_kind("build.source_control.configured") == "system"
 
 
+# QA edge case (TASK-020 AC-7): an empty/near-miss event_type must never
+# raise (fnmatch on "" is valid) and must fall to the "system" complement
+# rather than false-matching a prefix pattern by accident.
+async def test_classify_kind_empty_and_near_miss_event_types_are_system() -> None:
+    assert classify_kind("") == "system"
+    # "gate_result" (no trailing "_") must NOT satisfy the "gate_result_*"
+    # prefix pattern -- a bare name is not a "gate_result_<kind>" event.
+    assert classify_kind("gate_result") == "system"
+
+
 async def test_list_decisions_scopes_to_project_target_iri() -> None:
     conn = _FakeConnection([_row(3), _row(2, target_iri=_OTHER_PROJECT), _row(1)])
 
