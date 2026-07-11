@@ -26,3 +26,14 @@ No new migration confirmed by engineer? (functions likely RDF individuals — QA
 ## Commits (feature/CE-V1-EPIC-010, not pushed): 99059f6 · 58cb5e3 · b0e7c0d · c2249de · d694004 · 7f5c347 · 7053d36 · ea35da4 (HEAD).
 
 ## Epic status: EPIC-010 root. Restack onto ba818b9 at epic-close (also blocked on red-main PROJ-005). XT-WRITEPATH-1: pipeline.py change is a DIFFERENT function than the graph_ops _to_literal seam, but same file family — watch at merge.
+
+## QA PASS (2026-07-11, a6aa4e6, retry 0) — CE-V1-TASK-009 CLOSES
+All 8 ACs (AC-009-01..08, exact count) real tests. **Shared-pipeline immutability gate CORRECTLY SCOPED** — strict
+conjunction (function-kind/signature-predicate AND pre-existing target AND published); short-circuits BEFORE version/graph
+I/O for all other writes. QA added adversarial `test_a_normal_non_function_write_never_touches_the_immutability_gate`
+(`fff2a18`) proving resolve_version+run_query never called on a normal published-node edit → non-function writes (ingest/
+explorer/brand/glossary) unaffected. Full unit suite ~983 green, ruff/mypy 0/440, 5/5 integration RAN WITH marker (not
+deselected). CE-FUNCTION-1 contract-faithful (2 GET routes, no POST/PUT, no per-fn semver — invariant-tested; roundtrip
+= genuine pyshacl↔jsonschema cross-check). RDF-only, no migration, tenant scoping reused. WARN: coverage%/mutation not
+numerically measured (met-by-inference). Minor: "grounding entity IRIs" surfaced as kind_iri/shape_iri per param (architect
+confirm, non-blocking). retry=0.
