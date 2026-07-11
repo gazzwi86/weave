@@ -7,11 +7,12 @@ entry point -- `run_dark_factory` is the same one `routers/runs.py` calls).
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
-from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.auth.dependencies import Principal
 from weave_backend.build.orchestrator import run_dark_factory
 from weave_backend.build.state_spine import start_or_resume_run
 from weave_backend.db.pool import tenant_connection
@@ -49,25 +50,36 @@ async def _effective_prompt_max(conn, *, tenant_id: str, project_iri: str) -> in
     return int(resolved.value)
 
 
-async def _run_prompt_in_background(
-    *, tenant_id: str, project_iri: str, run_id: str, turn_cap: int, prompt_id: str, prompt_text: str
-) -> None:
+@dataclass(frozen=True)
+class _PromptRunHandle:
+    """Groups `_run_prompt_in_background`'s inputs (Law E 5-param budget) --
+    same grouping precedent as `OrchestratorDeps`/`briefs.store.NewBrief`.
+    """
+
+    tenant_id: str
+    project_iri: str
+    run_id: str
+    turn_cap: int
+    prompt_id: str
+    prompt_text: str
+
+
+async def _run_prompt_in_background(handle: _PromptRunHandle) -> None:
     """AC-4: dispatched via `BackgroundTasks` so the 202 response returns
     before the run completes -- a synchronous `run_dark_factory` call
     (as `/runs` uses) would leave nothing for the Dashboard's status chip
     to observe transitioning.
     """
-    async with tenant_connection(tenant_id) as conn:
+    async with tenant_connection(handle.tenant_id) as conn:
         spine = await start_or_resume_run(
             conn,
-            tenant_id=tenant_id,
-            project_iri=project_iri,
-            run_id=run_id,
-            turn_cap=turn_cap,
-            trigger="prompt",
-            prompt_context={"prompt_id": prompt_id, "prompt_text": prompt_text},
+            tenant_id=handle.tenant_id,
+            project_iri=handle.project_iri,
+            run_id=handle.run_id,
+            turn_cap=handle.turn_cap,
+            prompt_context={"prompt_id": handle.prompt_id, "prompt_text": handle.prompt_text},
         )
-        await run_dark_factory(conn, spine, tenant_id=tenant_id)
+        await run_dark_factory(conn, spine, tenant_id=handle.tenant_id)
 
 
 @router.post(
@@ -115,11 +127,13 @@ async def create_prompt_route(
 
     background_tasks.add_task(
         _run_prompt_in_background,
-        tenant_id=principal.tenant_id,
-        project_iri=project_iri,
-        run_id=run_id,
-        turn_cap=turn_cap,
-        prompt_id=prompt.prompt_id,
-        prompt_text=text,
+        _PromptRunHandle(
+            tenant_id=principal.tenant_id,
+            project_iri=project_iri,
+            run_id=run_id,
+            turn_cap=turn_cap,
+            prompt_id=prompt.prompt_id,
+            prompt_text=text,
+        ),
     )
     return CreatePromptResponse(run_id=run_id, prompt_id=prompt.prompt_id)

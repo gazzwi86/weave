@@ -70,7 +70,8 @@ def test_reject_empty_or_oversized_prompt() -> None:
     """AC-6."""
     assert not prompt_text_valid("", max_length=DEFAULT_PROMPT_MAX_LENGTH)
     assert not prompt_text_valid("   ", max_length=DEFAULT_PROMPT_MAX_LENGTH)
-    assert not prompt_text_valid("x" * (DEFAULT_PROMPT_MAX_LENGTH + 1), max_length=DEFAULT_PROMPT_MAX_LENGTH)
+    oversized = "x" * (DEFAULT_PROMPT_MAX_LENGTH + 1)
+    assert not prompt_text_valid(oversized, max_length=DEFAULT_PROMPT_MAX_LENGTH)
     assert prompt_text_valid("fix this inaccuracy", max_length=DEFAULT_PROMPT_MAX_LENGTH)
 
 

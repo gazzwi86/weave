@@ -29,7 +29,6 @@ from weave_backend.briefs.store import (
     insert_task_brief,
 )
 from weave_backend.build import store as task_store
-from weave_backend.build.gates import run_dor_gate
 from weave_backend.build.cost import (
     DispatchCostContext,
     RateCardConfigError,
@@ -38,6 +37,7 @@ from weave_backend.build.cost import (
 )
 from weave_backend.build.costs import BudgetBreach, check_budget, notify_budget_breach
 from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, write_dep_summary
+from weave_backend.build.gates import run_dor_gate
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
 from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
@@ -513,6 +513,23 @@ async def _synthesise_prompt_briefs(
     return False
 
 
+async def _prepare_dispatch_loop(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """`run_dark_factory`'s two pre-loop halt checks (rich-scaffold, then
+    prompt brief-synthesis) collapsed into one caller-side branch to stay
+    under Law E's complexity budget -- same shape `_scaffold_and_check_hold`
+    already uses. Returns `True` if the run halted before the dispatch loop.
+    """
+    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+        return True
+    return await _synthesise_prompt_briefs(conn, spine, tenant_id=tenant_id, deps=deps)
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -555,10 +572,7 @@ async def run_dark_factory(
         await _halt_preflight_failed(conn, spine)
         return spine
 
-    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
-        return spine
-
-    if await _synthesise_prompt_briefs(conn, spine, tenant_id=tenant_id, deps=deps):
+    if await _prepare_dispatch_loop(conn, spine, tenant_id=tenant_id, deps=deps):
         return spine
 
     breach: BudgetBreach | None = None
