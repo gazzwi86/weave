@@ -8,6 +8,7 @@ toast/checklist, since those read the `activation` row, not the outbox.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
@@ -37,7 +38,10 @@ class _Row:
     tenant_id: str
     user_id: str
     event_type: str
-    payload: dict[str, Any]
+    # ponytail: raw JSON string, not dict -- mirrors asyncpg's real JSONB
+    # column return type (a bug caught only by the real-Postgres
+    # integration test; production code does json.loads() on this).
+    payload: str
     attempt_count: int = 0
     dispatched_at: datetime | None = None
 
@@ -60,7 +64,7 @@ class FakeConn:
                 tenant_id=tenant_id,
                 user_id=user_id,
                 event_type="onboarding-activation",
-                payload={"milestone_id": milestone_id, "source": "poll"},
+                payload=json.dumps({"milestone_id": milestone_id, "source": "poll"}),
             )
         )
         self._next_id += 1
