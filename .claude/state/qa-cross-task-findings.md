@@ -369,3 +369,15 @@ proven vs diff_graphs across 5 edge cases" + repoint the 4 citations. Non-blocki
 network failure / non-JSON error, `setSubmitting(false)` skipped → Save disabled forever, no error, reload-only recovery
 (loses input). Major, class=logic. Fix in-flight: try/finally + catch-error-message (match guided-form.tsx). QA repro `59b4a0d`
 (voice-rule). Happy/422 paths clean (E2E 5/5). Status: RESOLVED 9ef09d9 (retry 1).
+
+## XT-WRITEPATH-2: CE-005 + CE-009 both modify operations/pipeline.py — 2026-07-11
+CE-005 (feature/CE-V1-EPIC-005, `c5dbf7e`) wires tenant-scoped SHACL enforcement into the shared write pipeline; CE-009
+(feature/CE-V1-EPIC-010, `b0e7c0d`) wires function-immutability into the SAME pipeline.py. Different insertion points but
+same file → merge conflict likely between EPIC-005 and EPIC-010. Reconcile (union: tenant-SHACL + function-immutability
+gates) at whichever merges 2nd. Both QA-verified their own gate doesn't over-block. Status: OPEN.
+
+## PROJ-006: engineers repeatedly fabricate a nonexistent "ADR-023" citation — 2026-07-11
+CE-007 (XT-CE007-2) and CE-005 both hallucinated "ADR-023" in docstrings/tests for deviations — no such constitution-engine
+ADR exists (real ADR-023 = ingest DocumentExtractor). Also ADR-022 reused 3× across branches (glossary/metrics/brand).
+LESSON for engineer briefs: when documenting a deviation, `ls docs/specs/weave/engines/<engine>/decisions/` for the next
+FREE number + CREATE the ADR file; never cite an ADR number without creating it. Phase-gate: audit all ADR citations resolve.
