@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from rdflib import RDF, XSD, Graph, Literal, Namespace, URIRef
 
-from weave_backend.operations.graph_ops import apply_operations
+from weave_backend.operations.graph_ops import InvalidLiteralError, _to_literal, apply_operations
 from weave_backend.schemas.operations import (
     AddEdgeOp,
     AddNodeOp,
@@ -312,6 +312,117 @@ def test_update_node_with_absolute_iri_property_key_passes_through_unscoped() ->
         str(WEAVE.hasActivity), datatype=XSD.string
     )
 
+
+
+def test_add_node_coerces_a_shape_typed_property_to_its_sh_datatype() -> None:
+    """Root-cause fix for TASK-003's AC-003-01: `framework.shacl.ttl`'s
+    `weave:BrandStandardShape` declares `sh:datatype xsd:date` on
+    `weave:effectiveDate` -- the write path must produce a matching
+    `xsd:date` literal (not the previous hardcoded `xsd:string`), or SHACL
+    validation rejects every real commit and AC-003-01 is unreachable via
+    the actual write API. `contentType` (a plain `sh:datatype xsd:string`
+    property on the same shape) proves the coercion is per-property, not a
+    kind-wide switch.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph,
+        [
+            AddNodeOp(
+                op="add_node",
+                ref="b1",
+                kind="BrandStandard",
+                label="Voice & Tone",
+                properties={"effectiveDate": "2026-07-09", "contentType": "guideline"},
+            )
+        ],
+    )
+
+    iri = URIRef(result.ref_map["b1"])
+    assert graph.value(iri, WEAVE.effectiveDate) == Literal("2026-07-09", datatype=XSD.date)
+    assert graph.value(iri, WEAVE.contentType) == Literal("guideline", datatype=XSD.string)
+
+
+def test_update_node_coerces_a_shape_typed_property_to_its_sh_datatype() -> None:
+    """Same fix, `update_node` path -- the subject's kind is read back from
+    its existing `rdf:type` triple (an `UpdateNodeOp` carries no `kind` of
+    its own)."""
+    graph = Graph()
+    subject = URIRef("https://weave.io/instances/brand-1")
+    graph.add((subject, RDF.type, WEAVE.BrandStandard))
+
+    apply_operations(
+        graph,
+        [
+            UpdateNodeOp(
+                op="update_node", iri=str(subject), properties={"effectiveDate": "2027-01-01"}
+            )
+        ],
+    )
+
+    assert graph.value(subject, WEAVE.effectiveDate) == Literal("2027-01-01", datatype=XSD.date)
+
+
+def test_add_node_with_a_plain_string_property_is_unaffected_by_the_coercion() -> None:
+    """Regression: a kind/property pair with no `sh:datatype` (or an
+    explicit `xsd:string` one) must still land as `xsd:string`, byte-for-
+    byte the same as before the fix -- `Process.label` has no shape
+    property declaration at all beyond the always-present `weave:label`
+    shape (`sh:datatype xsd:string`), same result either way.
+    """
+    graph = Graph()
+
+    result = apply_operations(
+        graph, [AddNodeOp(op="add_node", ref="p1", kind="Process", label="Invoicing")]
+    )
+
+    iri = URIRef(result.ref_map["p1"])
+    assert graph.value(iri, WEAVE.label) == Literal("Invoicing", datatype=XSD.string)
+
+
+def test_to_literal_coerces_non_date_non_string_datatypes_generically() -> None:
+    """QA edge case (adversarial, TASK-003): every shape-driven coercion test
+    above only exercises `xsd:date` -- the one non-string datatype that
+    exists in `framework.shacl.ttl` today. That leaves the coercion branch's
+    genericity (`_to_literal`'s `datatype is not None and datatype != XSD.string`
+    check) unproven for any other datatype. This drives `_to_literal`
+    directly with `xsd:integer`/`xsd:boolean` to prove the fix coerces by
+    the datatype it's given, not by special-casing dates -- so the next
+    shape author who adds an `xsd:integer`/`xsd:boolean` property inherits
+    correct behaviour with no further graph_ops change.
+    """
+    assert _to_literal("42", XSD.integer) == Literal("42", datatype=XSD.integer)
+    assert _to_literal("true", XSD.boolean) == Literal("true", datatype=XSD.boolean)
+
+
+def test_to_literal_rejects_a_malformed_value_for_any_non_string_datatype() -> None:
+    """Same genericity check for the failure path: `ill_typed` rejection
+    must not be date-specific either."""
+    with pytest.raises(InvalidLiteralError):
+        _to_literal("not-a-number", XSD.integer)
+
+
+def test_add_node_with_a_malformed_date_raises_a_clean_validation_error() -> None:
+    """A value that cannot parse as the shape's declared datatype must fail
+    with a typed, catchable error -- not an uncaught rdflib parser
+    exception surfacing as a 500 (`routers/operations.py` maps
+    `InvalidLiteralError` to a 400, mirroring `InvalidBpmoKindError`)."""
+    graph = Graph()
+
+    with pytest.raises(InvalidLiteralError):
+        apply_operations(
+            graph,
+            [
+                AddNodeOp(
+                    op="add_node",
+                    ref="b1",
+                    kind="BrandStandard",
+                    label="Voice & Tone",
+                    properties={"effectiveDate": "not-a-date"},
+                )
+            ],
+        )
 
 SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
 
