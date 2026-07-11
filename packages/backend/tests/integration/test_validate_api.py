@@ -174,7 +174,7 @@ async def test_validate_full_report_with_all_three_severities(client: AsyncClien
 
 
 async def test_validate_report_p95_within_2s_at_10k_triples(client: AsyncClient) -> None:
-    """AC-006-06: ADR-025 retargets this to 10k triples, matching ADR-004's
+    """AC-006-06: ADR-026 retargets this to 10k triples, matching ADR-004's
     already-approved write-path gating scale -- true 100k blows the 2s
     budget on `pyshacl`'s own validate() cost alone (~1.2s measured), a
     pre-existing rdflib/pyshacl scaling ceiling shared by both paths, not

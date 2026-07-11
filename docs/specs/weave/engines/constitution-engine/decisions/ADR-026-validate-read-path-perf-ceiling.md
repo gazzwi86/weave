@@ -1,4 +1,4 @@
-# ADR-025: GET /api/validate perf gate retargeted to 10k triples (true 100k exceeds 2s)
+# ADR-026: GET /api/validate perf gate retargeted to 10k triples (true 100k exceeds 2s)
 
 ## Status
 Accepted (TASK-006, follows the ADR-004 write-path precedent).
