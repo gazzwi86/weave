@@ -137,7 +137,10 @@ async def list_decisions(conn: asyncpg.Connection, query: DecisionQuery) -> Deci
     page ≤ 1s, not total log size).
     """
     patterns, exclude = _kind_query_args(query.kind)
+    # Fully parameterized: every value is an $N bind ($1-$7); the ILIKE builds
+    # its wildcard in SQL (`'%' || $4 || '%'`), not Python — no injection.
     try:
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
         rows = await conn.fetch(
             """
             SELECT seq, ts, actor_principal_iri, event_type, target_iri, diff_summary
