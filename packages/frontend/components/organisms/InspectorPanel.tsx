@@ -68,16 +68,15 @@ function InspectorPanelBody({
       </p>
     );
   }
-  if (fields.length === 0 && !edges?.length) {
-    return (
-      <p className="mt-[var(--space-4)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
-        No properties.
-      </p>
-    );
-  }
   return (
     <>
-      <InspectorPanelSection heading="Properties" fields={fields} />
+      {fields.length === 0 ? (
+        <p className="mt-[var(--space-4)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+          No properties.
+        </p>
+      ) : (
+        <InspectorPanelSection heading="Properties" fields={fields} />
+      )}
       <InspectorPanelSection heading="Edges" fields={edges ?? []} />
       <InspectorPanelHistory history={history} />
     </>
