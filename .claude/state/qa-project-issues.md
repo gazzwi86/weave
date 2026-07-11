@@ -247,3 +247,16 @@ per-task reports.
 ## PROJ-014 — test_runs_api::test_one_pdac_cycle_commits_state_spine_dispatch_count_1 intermittent flake
 
 - **Severity:** Low · **Status:** OPEN (watch). Fails intermittently even in isolation (docker lane), no bindings/feature code path involved. First traced 2026-07-10 (BE-V1-TASK-022 AC-3 retry). Pre-existing sandbox flake, not a regression. Phase-gate: reproduce + root-cause the PDAC dispatch-count assertion.
+
+## PROJ-002: no locust perf infrastructure exists repo-wide — blocks M2 perf DoD (escalated 2026-07-11, 2nd occurrence)
+`m2-delta.md` §9 pins p95 targets (cold ≤500ms / cached ≤100ms @100k) for 5 M2 endpoints — `/api/events`, `/api/functions`,
+`/api/functions/{iri}`, `/api/brand/*`, `/api/metrics/ontology` — "measured like §1" (the CI-gated ce-perf lane). But NO
+locust harness exists anywhere (`testing-strategy.md` §6 mandates a `performance` workflow + names only 4 OLD endpoints;
+the 5 M2 ones were never added → spec drift between §6 and §9). Each M2 task's brief DoD says "unit+integration+perf" →
+every such task FAILs QA on the perf half with nothing to run.
+**affects:** CE-V1-TASK-003 (brand, perf benchmark being built bespoke acb3de7), CE-V1-TASK-007 (metrics, FAIL this pass),
+CE-V1-TASK-008 (events), CE-V1-TASK-009 (functions, in-flight), CE-V1-TASK-010.
+**DECISION NEEDED (gates the CE M2 backend wave):** (a) build ONE shared locust harness (the `ce-perf` CI lane's missing
+locust file) covering all 5 M2 endpoints + reconcile §6↔§9 — CE-003's in-flight brand benchmark is the natural seed; OR
+(b) explicitly descope M2 per-endpoint p95 gating to a dedicated perf task/ADR + record it (unblocks all 5 DoDs now,
+perf verified later). Until decided, these tasks are done-except-perf.

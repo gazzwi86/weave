@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T03:17:11+00:00
+Captured at: 2026-07-11T03:23:16+00:00
 Event: pre-compact
 
 ## Current State
@@ -934,7 +934,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-003",
       "title": "SKOS Glossary Backend (Punned Term Model + SHACL)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-001.md",
       "retry_count": 0
@@ -944,7 +944,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-003",
       "title": "Glossary Search, Browse and Create UI",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-001"
       ],

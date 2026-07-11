@@ -34,3 +34,11 @@ Full unit suite green. Engineer found+fixed a fixture role bug (author-role for 
 
 ## Epic status
 EPIC-005 root. Restack onto ba818b9 at epic-close.
+
+## QA round 1 (2026-07-11, af33b7f) — FAIL on AC-007-05 perf ONLY (SYSTEMIC, escalated)
+5/6 ACs PASS (contract shape, canonical kind-source, pending-honesty, M1-diff-reuse, 401/empty-zeros). QA added
+cross-workspace cache-isolation integration test `bcee446` (real multi-tenancy leak check — cache key (tenant,workspace)
+confirmed isolated). Gates: ruff 0, mypy 0/432, 944 unit, 5/5 integration. **AC-007-05 perf FAIL = SYSTEMIC, not task fault:**
+ZERO locust infra exists anywhere in repo; brief DoD ("unit+integration+perf") + m2-delta §9 ("measured like §1") require
+it, but testing-strategy §6 locust table never updated for the 5 M2 endpoints (spec DRIFT). Class = spec-ambiguity →
+escalate, NOT retry. Close HELD on the locust-harness decision (PROJ-002).
