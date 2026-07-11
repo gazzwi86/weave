@@ -45,7 +45,7 @@ export default function CeRulesPage() {
   const rules = useRules();
 
   return (
-    <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+    <main data-tour-id="ce.rules" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
       <div className="flex items-center gap-[var(--space-3)]">
         <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
           Rules & Policies
