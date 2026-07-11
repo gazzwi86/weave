@@ -1,0 +1,26 @@
+{
+  "name": "@weave/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "audit:anchors": "tsx onboarding/scripts/audit-anchors.ts"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@vitest/coverage-v8": "^4.1.9",
+    "eslint": "^9",
+    "eslint-plugin-sonarjs": "^4.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "typescript-eslint": "^8.18.1",
+    "vitest": "^4.1.9"
+  }
+}
