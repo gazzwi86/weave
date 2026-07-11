@@ -24,7 +24,10 @@ def _env() -> jinja2.Environment:
     # autoescape=False is correct: this renders Python source text, never
     # HTML. HTML-escaping would corrupt output (e.g. quotes in string
     # literals). No HTML-injection surface -- written straight to .py files.
-    env = jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML
+    # Flask-XSS rule false positive: this project has no Flask, and jinja2
+    # here renders .py source text (never HTML in a browser), so
+    # autoescape=False carries no XSS surface (see comment above).
+    env = jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML  # nosemgrep: python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
         loader=jinja2.FileSystemLoader(_TEMPLATES_DIR),
         undefined=jinja2.StrictUndefined,
         trim_blocks=True,

@@ -30,7 +30,10 @@ def _env() -> jinja2.Environment:
     # literal string `Promise&lt;Row[]&gt;`, or `"` in a string literal ->
     # `&#34;`). There is no HTML-injection surface: output is written
     # straight to a .ts file, never rendered in a browser DOM.
-    env = jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML
+    # Flask-XSS rule false positive: this project has no Flask, and jinja2
+    # here renders .ts source text (never HTML in a browser), so
+    # autoescape=False carries no XSS surface (see comment above).
+    env = jinja2.Environment(  # noqa: S701 # nosec B701 -- source template, not HTML  # nosemgrep: python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
         loader=jinja2.FileSystemLoader(_TEMPLATES_DIR),
         undefined=jinja2.StrictUndefined,
         trim_blocks=True,
