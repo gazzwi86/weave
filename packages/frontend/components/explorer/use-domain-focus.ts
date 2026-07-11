@@ -25,6 +25,11 @@ export interface UseDomainFocusResult {
   focusDomain: (domainIri: string) => void;
   retry: () => void;
   dismissError: () => void;
+  /** TASK-026 AC-2/AC-5: current focused domain IRI (or null) -- read by
+   * useSavedViews' save(), and driven by openView(view) via focusDomain /
+   * clearFocus rather than this hook's own async fetch trigger. */
+  domainIri: string | null;
+  clearFocus: () => void;
 }
 
 /** AC-1/AC-2/AC-9: right-click "Focus domain" -- dims the whole canvas to
@@ -39,6 +44,7 @@ export function useDomainFocus({
   fetchDomainMembers = defaultFetchDomainMembers,
 }: UseDomainFocusOptions): UseDomainFocusResult {
   const [state, setState] = useState<DomainFocusState>({ status: "inactive" });
+  const [domainIri, setDomainIri] = useState<string | null>(null);
   const requestIdRef = useRef(0);
   const lastDomainIriRef = useRef<string | null>(null);
 
@@ -46,6 +52,7 @@ export function useDomainFocus({
     (domainIri: string) => {
       if (!adapter) return;
       lastDomainIriRef.current = domainIri;
+      setDomainIri(domainIri);
       const requestId = ++requestIdRef.current;
       setState({ status: "loading" });
 
@@ -76,5 +83,14 @@ export function useDomainFocus({
   // already restored when the error first occurred.
   const dismissError = useCallback(() => setState({ status: "inactive" }), []);
 
-  return { state, focusDomain, retry, dismissError };
+  // TASK-026 AC-2/AC-5: openView(view) restoring domainFocus: null needs a
+  // way to actually undim the canvas, not just reset local state.
+  const clearFocus = useCallback(() => {
+    adapter?.resetOpacity();
+    lastDomainIriRef.current = null;
+    setDomainIri(null);
+    setState({ status: "inactive" });
+  }, [adapter]);
+
+  return { state, focusDomain, retry, dismissError, domainIri, clearFocus };
 }

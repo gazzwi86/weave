@@ -58,7 +58,7 @@ _UPDATE_VIEW_SQL = """
     WHERE tenant_id = $1 AND view_id = $2
 """
 _LIST_VIEWS_SQL = """
-    SELECT view_id, name, created_by, pinned, updated_at
+    SELECT view_id, name, created_by, pinned, updated_at, definition
     FROM explorer_saved_views WHERE tenant_id = $1 ORDER BY updated_at DESC
 """
 _DELETE_VIEW_SQL = "DELETE FROM explorer_saved_views WHERE tenant_id = $1 AND view_id = $2"
@@ -185,6 +185,7 @@ async def list_views(
             created_by=row["created_by"],
             pinned=row["pinned"],
             updated_at=row["updated_at"],
+            definition=json.loads(row["definition"]) if row["definition"] else {},
         )
         for row in rows
     ]

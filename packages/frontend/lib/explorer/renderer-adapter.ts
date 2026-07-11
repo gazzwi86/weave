@@ -2,6 +2,7 @@ import { EXPLORER_HIGHLIGHT_CLASS, EXPLORER_TRACE_CLASS, readCssToken } from "./
 import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
 import { clearBadgesOn, setBadgesOn } from "./renderer-adapter-badge";
 import { clearDiffOverlayOn, setDiffOverlayOn, type DiffOverlayAssignment } from "./renderer-adapter-diff";
+import { allNodePositionsOn, applyPositionsOn, mergeInPlaceOn, setViewportOn } from "./renderer-adapter-views";
 import type { CytoscapeElement } from "./types";
 
 /** TASK-005 AC-3: one immediate neighbour of an expanded node, as returned
@@ -123,6 +124,18 @@ export interface RendererAdapter {
   setDiffOverlay(assignments: DiffOverlayAssignment[]): void;
   /** TASK-022 AC-8: clears every diff class + glyph label in one batch. */
   clearDiffOverlay(): void;
+  /** TASK-026 AC-1/AC-2: saved-view viewport restore -- writes zoom/pan
+   * back onto the renderer (the inverse of getViewport). */
+  setViewport(viewport: Viewport): void;
+  /** TASK-026 AC-1: drag-state capture for a save -- every node's current
+   * position, keyed by id. */
+  allNodePositions(): Record<string, { x: number; y: number }>;
+  /** TASK-026 AC-2: restores saved positions before the layout runs --
+   * a position for an id no longer on the canvas is skipped. */
+  applyPositions(positions: Record<string, { x: number; y: number }>): void;
+  /** TASK-026 AC-7: poll-merge seam -- adds/refreshes delta elements in
+   * place, never touching an id in `preserveIds` (unsaved drag). */
+  mergeInPlace(delta: CytoscapeElement[], preserveIds: string[]): void;
   /** TASK-027 AC-1/AC-7: the completeness overlay's badge seam -- a
    * dedicated `gapBadgeLabel` data field/class, deliberately separate from
    * the "colour" background-colour seam, so a gap badge coexists with an
@@ -131,8 +144,7 @@ export interface RendererAdapter {
   setBadges(countByNodeId: Record<string, number>): void;
   /** TASK-027: clears every gap badge in one batch (deactivating the
    * overlay). */
-  clearBadges(): void;
-}
+  clearBadges(): void;}
 
 export interface FilterVisibility {
   hiddenNodeIds: string[];
@@ -161,7 +173,10 @@ export interface CyCollection {
    * legend's hidden-by-filters count. */
   hidden(): boolean;
   closedNeighborhood(): CyCollection;
-  position(): { x: number; y: number };
+  /** No-arg reads the current position; with an argument, sets it (mirrors
+   * cytoscape's own `.position()` overload) -- TASK-026's restore/merge
+   * seam is the first caller of the setter form. */
+  position(value?: { x: number; y: number }): { x: number; y: number };
   /** TASK-020 AC-1: real hide/show (display:none), distinct from the
    * opacity-based dim used elsewhere -- an entity-type-off node must not
    * still occupy layout space. */
@@ -176,8 +191,8 @@ interface CyEvent {
 
 export interface AdaptableCy {
   json(spec: { elements: CytoscapeElement[] }): void;
-  zoom(): number;
-  pan(): { x: number; y: number };
+  zoom(value?: number): number;
+  pan(value?: { x: number; y: number }): { x: number; y: number };
   layout(options: { name: string } & Record<string, unknown>): { run(): void };
   elements(): CyCollection;
   nodes(): CyCollection;
@@ -365,6 +380,7 @@ function collapseNodeOn(cy: AdaptableCy, nodeId: string): void {
 }
 
 type ViewportMethods = Pick<RendererAdapter, "load" | "getViewport" | "setLayout" | "centerOn">;
+type ViewMethods = Pick<RendererAdapter, "setViewport" | "allNodePositions" | "applyPositions" | "mergeInPlace">;
 type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes" | "applyFilterVisibility">;
 type QueryMethods = Pick<
   RendererAdapter,
@@ -460,11 +476,55 @@ function createQueryMethods(cy: AdaptableCy): QueryMethods {
   };
 }
 
+// TASK-026: pulled out alongside createViewportMethods/createOpacityMethods
+// to keep createRendererAdapter under Law E's function-length budget.
+function createViewMethods(cy: AdaptableCy): ViewMethods {
+  return {
+    setViewport(viewport) {
+      setViewportOn(cy, viewport);
+    },
+    allNodePositions() {
+      return allNodePositionsOn(cy);
+    },
+    applyPositions(positions) {
+      applyPositionsOn(cy, positions);
+    },
+    mergeInPlace(delta, preserveIds) {
+      mergeInPlaceOn(cy, delta, preserveIds);
+    },
+  };
+}
+
+type TraceMethods = Pick<RendererAdapter, "setTraceHighlight" | "clearTraceHighlight" | "isHidden" | "onElementRemoved">;
+
+// TASK-028: pulled out for the same Law E reason as createViewMethods.
+function createTraceMethods(cy: AdaptableCy): TraceMethods {
+  return {
+    setTraceHighlight(nodeIds) {
+      cy.batch(() => {
+        cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+        nodeIds.forEach((nodeId) => cy.getElementById(nodeId).addClass(EXPLORER_TRACE_CLASS));
+      });
+    },
+    clearTraceHighlight() {
+      cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+    },
+    isHidden(nodeId) {
+      return cy.getElementById(nodeId).hidden();
+    },
+    onElementRemoved(handler) {
+      return wireEvent(cy, "remove", () => true, (evt) => handler((evt.target as CyCollection).id()));
+    },
+  };
+}
+
 export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
   return {
     ...createViewportMethods(cy),
     ...createOpacityMethods(cy),
     ...createQueryMethods(cy),
+    ...createViewMethods(cy),
+    ...createTraceMethods(cy),
     onNodeDragEnd(handler) {
       return wireDragFree(cy, handler);
     },
@@ -488,21 +548,6 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     clearNodeColours() {
       clearNodeColoursOn(cy);
-    },
-    setTraceHighlight(nodeIds) {
-      cy.batch(() => {
-        cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
-        nodeIds.forEach((nodeId) => cy.getElementById(nodeId).addClass(EXPLORER_TRACE_CLASS));
-      });
-    },
-    clearTraceHighlight() {
-      cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
-    },
-    isHidden(nodeId) {
-      return cy.getElementById(nodeId).hidden();
-    },
-    onElementRemoved(handler) {
-      return wireEvent(cy, "remove", () => true, (evt) => handler((evt.target as CyCollection).id()));
     },
     setDiffOverlay(assignments) {
       setDiffOverlayOn(cy, assignments);

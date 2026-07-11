@@ -1,5 +1,6 @@
 import { ceEditingSurface } from "@/lib/explorer/ce-editing-surface";
 
+import { CommentsPanel } from "./comments-panel";
 import type { SidePanelState } from "./use-node-spotlight";
 
 export interface SidePanelProps {
@@ -143,6 +144,7 @@ export function SidePanel({ state, onClose, onRetry, onEditGap }: SidePanelProps
             </div>
           ))}
           <AdvancedDisclosure rawIri={state.rawIri} />
+          <CommentsPanel targetKind="node" targetRef={state.nodeId} />
           <MissingLinks nodeId={state.nodeId} gaps={state.gaps ?? []} onEditGap={onEditGap} />
         </div>
       )}

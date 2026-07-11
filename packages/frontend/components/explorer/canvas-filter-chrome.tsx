@@ -5,10 +5,12 @@ import { CanvasToolbar } from "./canvas-toolbar";
 import { EmptyState } from "./empty-state";
 import { FilterPanel } from "./filter-panel";
 import { OverlayPanel } from "./overlay-panel";
+import { SavedViewsPanel } from "./saved-views-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
 import type { UseCompletenessOverlayResult } from "./use-completeness-overlay";
 import { useFilterPanel } from "./use-filter-panel";
 import { useOverlayControls } from "./use-overlay-controls";
+import type { useSavedViewsWiring } from "./use-saved-views-wiring";
 import { useVersionsPanel } from "./use-versions-panel";
 import { VersionsPanel } from "./versions-panel";
 
@@ -40,17 +42,17 @@ export function CanvasFilterChrome({
   legend,
   overlayControls,
   versionsPanel,
-  completenessOverlay,
-}: {
+  savedViewsPanel,
+  completenessOverlay,}: {
   onOpenSearch: () => void;
   filterPanel: ReturnType<typeof useFilterPanel>;
   legend: ReturnType<typeof useCanvasLegend>;
   overlayControls: ReturnType<typeof useOverlayControls>;
   versionsPanel: ReturnType<typeof useVersionsPanel>;
+  savedViewsPanel: ReturnType<typeof useSavedViewsWiring>;
   /** TASK-027: no exclusiveGroup, so it isn't part of
    * overlayControls.toggles -- appended as its own OverlayPanel row. */
-  completenessOverlay: UseCompletenessOverlayResult;
-}) {
+  completenessOverlay: UseCompletenessOverlayResult;}) {
   const toggles = [
     ...overlayControls.toggles,
     { id: "completeness", label: "Coverage gaps", active: completenessOverlay.active, disabled: false },
@@ -87,6 +89,7 @@ export function CanvasFilterChrome({
       />
       <OverlayPanel toggles={toggles} onToggleOverlay={onToggleOverlay} />
       <VersionsPanel {...versionsPanel} />
+      <SavedViewsPanel {...savedViewsPanel} />
     </>
   );
 }
