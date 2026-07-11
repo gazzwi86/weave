@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Protocol
 
 from pyshacl import validate
-from rdflib import Graph
-from rdflib.namespace import SH
+from rdflib import RDF, Graph
+from rdflib.namespace import RDFS, SH
 from rdflib.term import Node, URIRef
 
 from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples
@@ -92,16 +92,38 @@ class ShaclResult:
     path: str | None
     severity: str
     message: str
+    #: CE-TASK-006 AC-006-03: the owning NAMED `sh:NodeShape` IRI this
+    #: result groups under -- never the raw `sh:sourceShape` node, which is
+    #: routinely a blank node (a `sh:property` child) whose id is only
+    #: stable within one Python process and useless as a cross-call grouping
+    #: key. Defaulted so every other existing construction/call site (M1,
+    #: TASK-005) stays source-compatible.
+    shape_iri: str = ""
 
 
 _SEVERITY_LABELS = {SH.Violation: "Violation", SH.Warning: "Warning", SH.Info: "Info"}
 
 
-def _to_result(report: Graph, result_node: Node) -> ShaclResult:
+def _owning_node_shape_iri(shapes: Graph, source_shape: Node | None) -> str:
+    """Walks a `sh:sourceShape` (often a blank-node property shape) back to
+    its owning named `sh:NodeShape`. A `sh:sourceShape` that already IS a
+    NodeShape (e.g. `weave:AutomatableShape`'s `sh:targetSubjectsOf`
+    constraint, which has no separate owning shape) is returned as-is.
+    """
+    if source_shape is None:
+        return ""
+    if (source_shape, RDF.type, SH.NodeShape) in shapes:
+        return str(source_shape)
+    owner = next(shapes.subjects(SH.property, source_shape), None)
+    return str(owner) if owner is not None else str(source_shape)
+
+
+def _to_result(report: Graph, result_node: Node, shapes: Graph) -> ShaclResult:
     severity = report.value(result_node, SH.resultSeverity)
     focus_node = report.value(result_node, SH.focusNode)
     path = report.value(result_node, SH.resultPath)
     message = report.value(result_node, SH.resultMessage)
+    source_shape = report.value(result_node, SH.sourceShape)
     severity_label = (
         _SEVERITY_LABELS.get(URIRef(str(severity)), str(severity))
         if severity is not None
@@ -112,6 +134,7 @@ def _to_result(report: Graph, result_node: Node) -> ShaclResult:
         path=str(path) if path is not None else None,
         severity=severity_label,
         message=str(message) if message is not None else "",
+        shape_iri=_owning_node_shape_iri(shapes, source_shape),
     )
 
 
@@ -120,15 +143,15 @@ def validate_graph(data_graph: Graph) -> list[ShaclResult]:
     Returns every `sh:ValidationResult`, whatever its severity -- callers
     decide what to do with Violation vs Warning/Info.
     """
-    shapes_graph = _load_shapes_graph()
+    shapes = _load_shapes_graph()
     _conforms, results_graph, _text = validate(
         data_graph,
-        shacl_graph=shapes_graph,
+        shacl_graph=shapes,
         inference="none",
         abort_on_first=False,
     )
     result_nodes = set(results_graph.subjects(SH.resultSeverity, None))
-    return [_to_result(results_graph, node) for node in result_nodes]
+    return [_to_result(results_graph, node, shapes) for node in result_nodes]
 
 
 def tenant_shapes_graph_iri(tenant_id: str) -> str:
@@ -214,4 +237,85 @@ async def validate_graph_for_tenant(
         abort_on_first=False,
     )
     result_nodes = set(results_graph.subjects(SH.resultSeverity, None))
-    return [_to_result(results_graph, node) for node in result_nodes]
+    return [_to_result(results_graph, node, shapes) for node in result_nodes]
+
+
+async def tenant_shapes_for_validation(tenant_id: str, redis_client: RedisLike | None) -> Graph:
+    """Public accessor mirroring `shapes_graph()`: the CE-TASK-006 rule
+    catalogue (`GET /api/validate`) enumerates shapes from the exact same
+    merged (framework + tenant) graph `validate_graph_for_tenant` runs
+    against, rather than re-fetching a second copy that could drift.
+    """
+    return await _tenant_shapes_graph(tenant_id, redis_client)
+
+
+def framework_shape_iris() -> set[str]:
+    """Named `sh:NodeShape` IRIs from the framework + `AutomatableShape`
+    shapes only -- lets `list_rules` label a merged tenant+framework rule
+    catalogue entry as framework- vs tenant-origin without a second fetch.
+    """
+    merged = Graph()
+    merged += _load_shapes_graph()
+    merged += _AUTOMATABLE_SHAPE_GRAPH
+    return {str(s) for s in merged.subjects(RDF.type, SH.NodeShape) if isinstance(s, URIRef)}
+
+
+_RULE_SEVERITY_RANK = {"Violation": 3, "Warning": 2, "Info": 1, "Unknown": 0}
+
+
+@dataclass(frozen=True)
+class RuleSummary:
+    shape_iri: str
+    severity: str
+    description: str
+    origin: str  # "framework" | "tenant"
+
+
+def _rule_severity(shapes: Graph, node_shape: Node) -> str:
+    """A NodeShape's own severity is the highest severity among its
+    `sh:property` children (`sh:severity` defaults to `sh:Violation` per the
+    SHACL spec when a property omits it)."""
+    own = shapes.value(node_shape, SH.severity)
+    if own is not None:
+        return _SEVERITY_LABELS.get(URIRef(str(own)), "Unknown")
+    labels = [
+        _SEVERITY_LABELS.get(
+            URIRef(str(shapes.value(prop, SH.severity) or SH.Violation)), "Violation"
+        )
+        for prop in shapes.objects(node_shape, SH.property)
+    ]
+    if not labels:
+        return "Violation"
+    return max(labels, key=lambda label: _RULE_SEVERITY_RANK[label])
+
+
+def _rule_description(shapes: Graph, node_shape: Node) -> str:
+    text = shapes.value(node_shape, SH.description) or shapes.value(node_shape, RDFS.comment)
+    if text is not None:
+        return str(text)
+    messages = [str(m) for m in shapes.objects(node_shape, SH.message)]
+    if messages:
+        return "; ".join(messages)
+    return ""
+
+
+def list_rules(shapes: Graph, *, tenant_id: str) -> list[RuleSummary]:
+    """CE-TASK-006 AC-006-03: catalogue of every governance rule (framework
+    + this tenant's own) -- a pure enumeration of the shapes graph, so a
+    shape with zero violations still appears. `tenant_id` is unused for
+    origin tagging (`framework_shape_iris()` needs no tenant context) but
+    kept as a required kwarg so a future per-tenant-only shape source
+    doesn't silently need a signature break.
+    """
+    del tenant_id
+    framework_iris = framework_shape_iris()
+    node_shapes = {s for s in shapes.subjects(RDF.type, SH.NodeShape) if isinstance(s, URIRef)}
+    return [
+        RuleSummary(
+            shape_iri=str(node_shape),
+            severity=_rule_severity(shapes, node_shape),
+            description=_rule_description(shapes, node_shape),
+            origin="framework" if str(node_shape) in framework_iris else "tenant",
+        )
+        for node_shape in node_shapes
+    ]

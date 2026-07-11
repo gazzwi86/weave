@@ -207,5 +207,27 @@ async def test_stale_cache_entry_is_not_served_after_version_bump(
     assert call_count["n"] == 2
 
 
+async def test_tenant_shapes_for_validation_merges_framework_and_tenant_shapes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CE-TASK-006: the rule-list enumeration must be built from the exact
+    same merged graph `validate_graph_for_tenant` runs against (public
+    accessor around the private cache) -- never a second, independently
+    fetched copy that could drift."""
+    ntriples = _tenant_shape_ntriples("Actor", "email", "Actor must have an email.")
+    monkeypatch.setattr(shacl, "fetch_graph_ntriples", lambda iri: _async_return(ntriples))
+    redis = FakeRedis()
+    await shacl.bump_shapes_version(redis, "t1")
+
+    merged = await shacl.tenant_shapes_for_validation("t1", redis)
+    rules = shacl.list_rules(merged, tenant_id="t1")
+
+    by_iri = {r.shape_iri: r for r in rules}
+    assert str(WEAVE.ProcessShape) in by_iri
+    assert by_iri[str(WEAVE.ProcessShape)].origin == "framework"
+    assert str(EX["tenant-shape-1"]) in by_iri
+    assert by_iri[str(EX["tenant-shape-1"])].origin == "tenant"
+
+
 async def _async_return(value: str) -> str:
     return value
