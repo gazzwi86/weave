@@ -73,10 +73,17 @@ router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 #: AC-001-10 / DoR decision (HITL 2026-07-08): 25 MB, tunable later.
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
-#: Brief pseudocode: `kind=detect(ext)`. Only `NoOpExtractor` exists this
-#: task (DEFAULT_REGISTRY is empty) -- an unmapped ext still ingests, just
-#: yields zero proposals, so this map only needs to be a stable label.
-_EXT_KIND = {"pdf": "doc", "docx": "doc", "png": "image", "jpg": "image", "jpeg": "image"}
+#: Brief pseudocode: `kind=detect(ext)`. `image` has no registry entry yet
+#: (TASK-016) -- an unmapped/unregistered kind still ingests via the
+#: worker's `NoOpExtractor` fallback, just yields zero proposals.
+_EXT_KIND = {
+    "pdf": "doc",
+    "docx": "doc",
+    "md": "doc",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+}
 
 
 def _kind_for_ext(ext: str) -> str:
@@ -93,12 +100,18 @@ async def get_ai_provider() -> ModelProvider | None:
 
 
 def _context_fields(
-    source_system: str | None, owner: str | None, date_of_truth: str | None,
-    sensitivity: str | None, context: str | None,
+    source_system: str | None,
+    owner: str | None,
+    date_of_truth: str | None,
+    sensitivity: str | None,
+    context: str | None,
 ) -> dict[str, str]:
     raw = {
-        "source_system": source_system, "owner": owner, "date_of_truth": date_of_truth,
-        "sensitivity": sensitivity, "context": context,
+        "source_system": source_system,
+        "owner": owner,
+        "date_of_truth": date_of_truth,
+        "sensitivity": sensitivity,
+        "context": context,
     }
     return {k: v for k, v in raw.items() if v}
 
@@ -169,9 +182,13 @@ async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 op
         job_id = await insert_job(
             conn,
             NewJob(
-                tenant_id=principal.tenant_id, workspace_id=workspace_id, artefact_iri=artefact_iri,
-                kind=_kind_for_ext(ext), context=context_fields,
-                corpus_key=key, content_type=file.content_type or "application/octet-stream",
+                tenant_id=principal.tenant_id,
+                workspace_id=workspace_id,
+                artefact_iri=artefact_iri,
+                kind=_kind_for_ext(ext),
+                context=context_fields,
+                corpus_key=key,
+                content_type=file.content_type or "application/octet-stream",
             ),
         )
 
@@ -198,7 +215,10 @@ async def get_job_route(
 
     summary = summarize_proposal_statuses(statuses)
     return JobStatusResponse(
-        job_id=job.id, status=job.status, kind=job.kind, artefact_iri=job.artefact_iri,
+        job_id=job.id,
+        status=job.status,
+        kind=job.kind,
+        artefact_iri=job.artefact_iri,
         error=job.error,
         summary=JobSummaryResponse(
             committed=summary.committed, rejected=summary.rejected, skipped=summary.skipped
@@ -238,8 +258,13 @@ async def list_proposals_route(
     return ProposalsListResponse(
         proposals=[
             ProposalResponse(
-                id=row.id, ops=row.ops, confidence=row.confidence, matched_iri=row.matched_iri,
-                reason=row.reason, status=row.status, source_span=row.source_span,
+                id=row.id,
+                ops=row.ops,
+                confidence=row.confidence,
+                matched_iri=row.matched_iri,
+                reason=row.reason,
+                status=row.status,
+                source_span=row.source_span,
                 low_confidence=row.confidence < threshold,
             )
             for row in rows
