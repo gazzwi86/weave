@@ -524,3 +524,6 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 ## 2026-07-12 — hotfix #89 landed + flake flag
 - #89 (audit_outbox clock_timestamp, migration 0083) MERGED → main cd905fdd. Integration suite green on main again. Unblocked #88 + all lane PRs. Saved bug-class memory: reference_clock-timestamp-fifo-bug.
 - FLAG (non-blocking, watch): hotfix agent saw intermittent ~50% failures in test_sdkgen_emit_typescript.py / test_sdkgen_pipeline_unit.py under poisoned-endpoint + heavy machine load (a dozen+ concurrent docker stacks). Real `tsc` subprocess calls; passes in isolation; NOT present in real CI (api job history stable). Likely shared-dev-machine overload artifact, not a code bug. Re-check if it appears in a clean CI run.
+
+## 2026-07-12 — #90 merged
+- #90 (PLAT-017 role-home, full EPIC-010) MERGED → main 5b7ead09. Review found 3 Majors (rbac None-crash + AC-5 degrade contract) → fixed → re-clean → merged. Worktree removed.
