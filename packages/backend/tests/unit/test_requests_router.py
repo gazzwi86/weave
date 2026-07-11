@@ -258,6 +258,7 @@ async def test_create_request_route_422_when_grounding_entity_iri_unresolvable()
         await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
 
     assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["error"] == "grounding_entity_not_found"  # type: ignore[index]
     assert exc_info.value.detail["field"] == "grounding_entity_iris"  # type: ignore[index]
 
 

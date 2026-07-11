@@ -33,6 +33,7 @@ from weave_backend.schemas.requests import (
     TARGET_REPO_NAME_PATTERN,
     CreateRequestBody,
     CreateRequestResponse,
+    ProvenanceLink,
     RequestStatusResponse,
 )
 from weave_backend.standards.ce_client import CeReadTransportError, get_entity
@@ -87,9 +88,16 @@ async def _resolve_grounding_entities(
         except CeReadTransportError as exc:
             raise HTTPException(status_code=503, detail={"error": "ce_unavailable"}) from exc
         if entity is None:
+            # AC-6 / error table: brief's exact error string, not the generic
+            # "validation_error" shape -- `field` kept additively so the
+            # frontend's submitErrorMessage() field-keyed messaging still works.
             raise HTTPException(
                 status_code=422,
-                detail={"error": "validation_error", "field": "grounding_entity_iris", "iri": iri},
+                detail={
+                    "error": "grounding_entity_not_found",
+                    "field": "grounding_entity_iris",
+                    "iri": iri,
+                },
             )
 
 
@@ -163,6 +171,24 @@ async def _update_record(request_id: str, **fields: object) -> None:
     await store.update_request_record(redis_client, request_id, **fields)
 
 
+def _provenance_links(record: store.RequestRecord) -> list[ProvenanceLink]:
+    """AC-7: one `/ce/resource/{iri}` link per grounding entity, else the
+    pinned `CE-VERSION-1` graph as a `/ce/versions/{iri}` fallback so the
+    record always carries at least one link -- unless CE was unreachable at
+    draft time (`graph_context == "unavailable"`), the one legitimate
+    zero-link case (no valid version IRI exists to point at).
+    """
+    if record.grounding_entity_iris:
+        return [
+            ProvenanceLink(iri=iri, href=f"/ce/resource/{iri}")
+            for iri in record.grounding_entity_iris
+        ]
+    if record.graph_context and record.graph_context != "unavailable":
+        version_iri = record.graph_context
+        return [ProvenanceLink(iri=version_iri, href=f"/ce/versions/{version_iri}")]
+    return []
+
+
 @router.get("/{request_id}", response_model=RequestStatusResponse)
 async def get_request_route(
     request_id: str,
@@ -179,6 +205,7 @@ async def get_request_route(
         name=record.name,
         grounding_entity_iris=record.grounding_entity_iris,
         target_repo_name=record.target_repo_name,
+        provenance_links=_provenance_links(record),
     )
 
 
