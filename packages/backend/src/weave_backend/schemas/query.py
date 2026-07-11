@@ -19,6 +19,19 @@ class NlQueryRequest(BaseModel):
     page: int = Field(default=1, ge=1)
 
 
+class QueryCitation(BaseModel):
+    """CE-V1-TASK-014 AC-003-05/-06: best-effort provenance for a grounded
+    row (`corpus/citations.py::build_citations_best_effort`). Absence is
+    legal -- see field docstring below.
+    """
+
+    entity_iri: str
+    artefact_iri: str
+    passage_id: str
+    locator: str
+    snippet: str
+
+
 class NlQueryResponse(BaseModel):
     sparql_generated: str
     rows: list[dict[str, str]]
@@ -30,6 +43,10 @@ class NlQueryResponse(BaseModel):
     #: AC-007-03: the next page number to request, or None if this is the
     #: last page.
     next_page: int | None = None
+    #: AC-003-05: additive, best-effort corpus citations for grounded rows.
+    #: A lookup failure degrades to an empty list, never an error, and never
+    #: at the cost of the NL query p95 budget.
+    citations: list[QueryCitation] = []
 
 
 class ExplainQueryRequest(BaseModel):

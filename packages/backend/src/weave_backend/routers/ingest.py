@@ -28,18 +28,20 @@ from weave_backend.ai.providers import ModelProvider
 # to simulate provider-unavailable -- same seam `routers/requests.py` uses.
 from weave_backend.ai.router import _select_provider
 from weave_backend.auth.dependencies import Principal, get_current_principal
-from weave_backend.db.pool import tenant_connection
-from weave_backend.ingest.confidence import resolve_confidence_threshold
-from weave_backend.ingest.corpus import corpus_bucket, corpus_key, hash_content
 
 # `DocumentExtractor` re-exported off `extractors` (not imported from
 # `document_extractor` directly) -- `extractors.py` and `document_extractor.py`
 # import each other (registry vs. `ExtractedCandidate`); importing via
 # `extractors` here guarantees it's the one that starts the load, so its
 # bottom-of-file import resolves before `document_extractor` needs it back.
+from weave_backend.corpus.commit import embed_artefact_on_commit
+from weave_backend.db.pool import tenant_connection
+from weave_backend.ingest.confidence import resolve_confidence_threshold
+from weave_backend.ingest.corpus import corpus_bucket, corpus_key, hash_content
 from weave_backend.ingest.extractors import DocumentExtractor
 from weave_backend.ingest.jobs import summarize_proposal_statuses
 from weave_backend.ingest.store import (
+    JobRow,
     NewJob,
     NewProposal,  # noqa: F401 -- re-exported for worker/test convenience, not used directly here
     get_job,
@@ -296,9 +298,27 @@ async def _accept_via_ce_write_1(
     )
 
 
+def _schedule_embed_on_commit(
+    background_tasks: BackgroundTasks, *, tenant_id: str, job: JobRow
+) -> None:
+    """CE-V1-TASK-014 AC-003-02/-08: fire-and-forget corpus embed after a
+    successful accept. `corpus_key` is only set for document-ingest jobs
+    (TASK-012/013), so other job kinds are a no-op.
+    """
+    if job.corpus_key:
+        background_tasks.add_task(
+            embed_artefact_on_commit,
+            tenant_id=tenant_id,
+            artefact_iri=job.artefact_iri,
+            corpus_key=job.corpus_key,
+        )
+
+
 @router.post("/proposals/{proposal_id}/accept", response_model=AcceptProposalResponse)
 async def accept_proposal_route(
-    proposal_id: str, principal: Annotated[Principal, Depends(get_current_principal)]
+    proposal_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    background_tasks: BackgroundTasks,
 ) -> AcceptProposalResponse | JSONResponse:
     async with tenant_connection(principal.tenant_id) as conn:
         proposal = await get_proposal(conn, tenant_id=principal.tenant_id, proposal_id=proposal_id)
@@ -316,6 +336,7 @@ async def accept_proposal_route(
             await update_proposal_status(
                 conn, tenant_id=principal.tenant_id, proposal_id=proposal_id, status="accepted"
             )
+            _schedule_embed_on_commit(background_tasks, tenant_id=principal.tenant_id, job=job)
 
     if isinstance(outcome, HTTPException):
         raise outcome
