@@ -337,3 +337,11 @@ full create→configure flow — all fall back to E2E-met-by-inference (backend 
 dashboard E2E DID pass — its flow seeds/needs no published CE version + no source-control step. Fix = the Build E2E harness
 seed must publish a CE ontology version + grant the creating admin a project role (or these two flows must not require them).
 HIGH priority — gates Law-B E2E for the Build engine at phase close. Surface to user with PROJ-009.
+
+## PLAT-TOKEN-1 + XT-PLAT027-E2E (PLAT-027 QA follow-ups, non-blocking, 2026-07-11)
+- **PLAT-TOKEN-1:** `components/shell/command-palette.tsx` (max-w-[560px]) + `avatar-menu.tsx` (max-w-[240px]) hard-code px
+  widths; siblings use token-scale (max-w-xl/xs). `components/shell/**` is structurally exempt from weave/token-conformance
+  (pre-existing TASK-026 carve-out). Narrow (width only). → design-debt sweep.
+- **XT-PLAT027-E2E:** bell-panel-day-grouping.spec.ts mocks the notifications API wholesale → Law-B gap (asserts mocked POST,
+  not real backend read:true). → add a real GET /api/notifications assertion at phase-gate (PLAT-NOTIFY-1 backend test = TASK-007).
+- PLAT-027 finding #1 (section-rail SSR/hydration mismatch) is being FIXED before EPIC-011 merge (not deferred).
