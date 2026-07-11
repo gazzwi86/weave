@@ -244,3 +244,15 @@ CE-014 (Document Corpus Store) is `blocked_by` CE-012/CE-013/**CE-015**, but CE-
 **EPIC-012 cannot close in v1.** DECISION NEEDED: (a) also defer CE-014+CE-019 to post-v1 (accept EPIC-012 closes at
 CE-012+CE-013 only), or (b) un-defer CE-015 (the corpus-store dep) back into v1, or (c) the CE-014→CE-015 blocked_by is
 stale and should be dropped. CE-012 + CE-013 are DONE + QA-passed; whichever way, EPIC-012's mergeable content is those two.
+
+## ONB-002 BLOCKED — DoR 4/4 unmet (2026-07-11) — HITL/infra prerequisites
+Engineer correctly STOPPED (no code). The Hammerbarn content-seeding path needs these before ANY ONB content task runs:
+1. **ADR-002 + ADR-007** move Proposed → Approved (`docs/specs/weave/engines/onboarding/decisions/`).
+2. **Hammerbarn content brief** move Draft → Approved (`docs/specs/weave/hammerbarn-content-brief.md`).
+3. **content-admin service principal** provisioned via PLAT-IDENTITY-1 (none exists in `identity/registry.py`).
+4. **GitHub Actions HITL publish-gate environment** created (repo has ZERO environments) — e.g. `ce-publish` with protection.
+Also: brand/voice individuals ship via CE-BRAND-1 which has ZERO backend impl yet (CE-003 lane building it now) — hard dep.
+Engineer orientation (kept): parse content brief turtle blocks + synthesize §4/§9/§10 tables (turtle alone = ~3/7 caps → 422);
+cross-batch edges resolve via cumulative ApplyResponse.ref_map; convergence needs no new dedup code (server dedups).
+Task-brief header links to content-brief/business-process are WRONG paths (real: hammerbarn-content-brief.md, onboarding/tech-spec/business-process.md).
+**ONB M1 content-seeding PARKED pending 1-4.** ONB-001 (foundation) already done+merged-ready.

@@ -995,7 +995,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
       "title": "CE-METRICS-1 Aggregate Metrics Endpoint",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-007.md",
       "retry_count": 0
@@ -1656,7 +1656,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "hammerbarn-seed CLI: compile + apply canonical seed via CE-WRITE-1",
-      "status": "in_progress",
+      "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-002.md",
       "retry_count": 0
