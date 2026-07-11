@@ -46,7 +46,7 @@ describe("SectionRail", () => {
     expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Instances \/ Data/ })).toHaveAttribute(
       "href",
-      "/ce"
+      "/ce/instances"
     );
     // Glossary shipped in TASK-002 -- now a real link, not an M2 placeholder.
     expect(screen.getByRole("link", { name: /Glossary/ })).toHaveAttribute(

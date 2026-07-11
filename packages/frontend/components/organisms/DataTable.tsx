@@ -8,9 +8,11 @@ export interface DataTableColumn {
 
 export interface DataTableRow {
   id: string;
-  /** Cell content keyed by column key -- pre-formatted by the caller.
-   * `ReactNode` (not just `string`) so a column can hold action buttons
-   * (TASK-030 AC-2 Invite/Revoke). */
+  /** Cell content keyed by column key -- pre-formatted by the caller. A
+   * plain string for text cells; a `ReactNode` for a cell that composes
+   * another dumb component (e.g. `KindChip` for a "kind" column, TASK-031
+   * AC-1; or action buttons like Invite/Revoke, TASK-030 AC-2) -- still
+   * caller-supplied, DataTable itself never fetches. */
   cells: Record<string, ReactNode>;
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, type RefObject } from "react";
 
+import { buildCantParseReply } from "./cant-parse-examples";
 import { buildConsequencesExplanation, buildProposalExplanation, buildWhyExplanation } from "./explain";
 import { invertOperations } from "./invert";
 import type { ChatMessage, KindEntry, Op } from "./types";
@@ -38,13 +39,15 @@ async function parseIntent(text: string): Promise<ChatMessage> {
     // circles.
     return newMessage(
       "assistant",
-      "The model provider is unavailable right now -- check it's running and try again."
+      "The model provider is unavailable right now -- check it's running and try again.",
+      { status: "provider_unavailable" }
     );
   }
   if (!res.ok || !body.operations || body.operations.length === 0) {
     return newMessage(
       "assistant",
-      body.message ?? "I'm not sure what you mean -- could you rephrase that more specifically?"
+      body.message ?? "I'm not sure what you mean -- could you rephrase that more specifically?",
+      { status: "cant_parse" }
     );
   }
   return newMessage("assistant", buildProposalExplanation(body.operations), {
@@ -84,6 +87,7 @@ interface UseCeChatActionsArgs {
   lastSourceTextRef: RefObject<string | undefined>;
   lastAppliedRef: RefObject<LastApplied | null>;
   kindsCacheRef: RefObject<KindEntry[]>;
+  lastCantParseReplyRef: RefObject<string | null>;
 }
 
 /** TASK-006 E11-S1/E11-S3 keyword-routed chat commands, split out of
@@ -99,15 +103,22 @@ export function useCeChatActions({
   lastSourceTextRef,
   lastAppliedRef,
   kindsCacheRef,
+  lastCantParseReplyRef,
 }: UseCeChatActionsArgs) {
   const handleParse = useCallback(
     async (text: string) => {
       lastSourceTextRef.current = text;
       const message = await parseIntent(text);
       if (message.operations) setPendingOperations(message.operations);
+      if (message.status === "cant_parse") {
+        const reply = buildCantParseReply(message.text, lastCantParseReplyRef.current);
+        lastCantParseReplyRef.current = reply;
+        append({ ...message, text: reply });
+        return;
+      }
       append(message);
     },
-    [append, setPendingOperations, lastSourceTextRef]
+    [append, setPendingOperations, lastSourceTextRef, lastCantParseReplyRef]
   );
 
   const handleUndo = useCallback(() => {
