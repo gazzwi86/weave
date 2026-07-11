@@ -285,3 +285,18 @@ Many Playwright specs (glossary.spec.ts, ce-query.spec.ts, ce-authoring.spec.ts,
 wants a backend-state assertion). Mitigated per-task by backend integration tests hitting the real apply→readback path, but
 the E2E layer itself asserts nothing real. **Follow-up (phase-gate):** add ≥1 un-mocked Playwright spec per UI epic that
 creates via real dev stack + reads back via real SPARQL. Cross-task (repo-wide), non-blocking. Also relevant to XT-PLAT010-2.
+
+## PROJ-005: main RED — EPIC-008 (#54) merged with failing CI (2026-07-11, CRITICAL)
+EPIC-008 was merged (user, held-PR) WITHOUT green CI → `ba818b9` (main) is RED on api/integration/mutation-strict/semgrep.
+Root cause: EPIC-008's SDK-gen tests (`test_sdkgen_pipeline.py`, `test_sdkgen_emit_typescript.py`, `test_sdkgen_pipeline_unit.py`)
+shell out to the frontend `tsc` binary, but the backend CI jobs never install frontend deps → `FileNotFoundError:
+packages/frontend/node_modules/.bin/tsc`; PLUS a cwd-relative path bug (`backend/frontend/...tsc` under mutmut). Also 2
+blocking semgrep findings on main. **Blocks EVERY epic merge** (PR #55 inherits it). Fix in-flight on `fix/ci-green-main`
+(af666d8): robust repo-root tsc-path + install frontend tsc in api/integration/mutation jobs + triage the 2 semgrep findings —
+gates made to RUN+PASS, NOT disabled. LESSON: never merge an epic PR (esp held/migration) before its CI is green; EPIC-008
+#54 should have had CI verified pre-merge.
+
+## XT-CE002-1: create-glossary-term false-succeeds on 201-with-missing-ref_map (2026-07-11, FIXING)
+Reviewer (PR #55): `lib/glossary/create-glossary-term.ts` returns {type:ok, iri:""} when a 201 response's ref_map lacks the
+minted IRI → term "created" with empty IRI. Blocker, false-success (subtler CE-013 class — QA checked status-gating, missed
+the ref_map extraction). Fix in-flight: guard missing ref → return error. Status: FIXING.
