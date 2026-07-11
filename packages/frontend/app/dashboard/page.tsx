@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
+import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
+import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
 
 interface WhoamiResponse {
@@ -32,15 +34,14 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-[var(--space-4)]">
-      {/* FAIL (ui_verify step B, axe page-has-heading-one): CardTitle renders
-       * an h3, so the page had no h1 at all. This is the page's real title. */}
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Weave Dashboard
-      </h1>
+      {/* AC-2: PageHeader organism -- --text-h1 title, no bespoke heading size. */}
+      <PageHeaderSlot title="Weave Dashboard" />
       <Card>
         <CardContent>
           {principal ? (
-            <p data-testid="principal-iri">{principal.principal_iri}</p>
+            <span data-testid="principal-iri">
+              <EntityRefSlot label={principal.sub} id={principal.principal_iri} />
+            </span>
           ) : (
             <p data-testid="whoami-error">Unable to verify session with backend.</p>
           )}
