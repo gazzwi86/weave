@@ -24,6 +24,7 @@ from weave_backend.routers.billing import router as billing_router
 from weave_backend.routers.briefs import router as briefs_router
 from weave_backend.routers.costs import router as costs_router
 from weave_backend.routers.deploy import router as deploy_router
+from weave_backend.routers.events import router as events_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
 from weave_backend.routers.health import get_health
@@ -87,6 +88,7 @@ app.include_router(tenancy_router)
 app.include_router(settings_router)
 app.include_router(sparql_router)
 app.include_router(operations_router)
+app.include_router(events_router)
 app.include_router(ontology_router)
 app.include_router(identity_router)
 app.include_router(instances_router)
