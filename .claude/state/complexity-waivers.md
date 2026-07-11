@@ -50,3 +50,15 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   the rest of the app never touches Cytoscape directly). Splitting it fragments that single-seam
   invariant. WARN-level, pre-existing violation class. **Follow-up queued:** extract the
   filter-visibility apply into a sibling module before it grows further (tracked in overnight-queue).
+
+## `start_or_resume_run` (`packages/backend/src/weave_backend/build/state_spine.py`)
+
+- **Threshold:** params ≤ 5 (Law E).
+- **Actual:** 6 (`conn`, `tenant_id`, `project_iri`, `run_id`, `turn_cap`, `prompt_context`).
+- **Reason:** BE-V1-TASK-021 (FR-065) adds `prompt_context` (the direct-project-prompt payload
+  that also carries the "is this a prompt-triggered run" signal — a non-`None` value implies
+  `trigger="prompt"`, so no separate `trigger` param was added). The other five params are
+  each independent identity/config values a caller must supply (`conn` DI, `tenant_id`,
+  `project_iri`, a fresh `run_id`, and the resolved `turn_cap`) — grouping them into a
+  dataclass would add an unrequested wrapper layer for a single call site
+  (`routers/runs.py`, `routers/prompts.py`). Left as a waiver rather than restructuring.

@@ -43,7 +43,20 @@ ruff 0 · mypy 0 · tsc 0 · validate unit + integration green (real docker, tor
 
 ## Commits (feature/CE-V1-EPIC-005, not pushed): 97a279c (head_version_iri) · 59de3d0 (schemas) · 95cdb26 (report+cache) · 4570f94 (endpoint+mount) · cf29b68 (perf dedupe) · 344bc9b (integration) · 73732d8 (frontend screen) · 4244759 (E2E) · d88332a (ADR-026 renumber, HEAD).
 
-## Epic status — EPIC-005 CLOSES on QA-pass → auto-merge eligible (no migration)
+## QA (2026-07-11, a2a7208) — 6/7 PASS; AC-006-06 FAIL resolved by HITL spec amendment → CE-006 CLOSES
+Adversarial QA PASSED 6/7 ACs: **tenant isolation PROVEN** (traced to SQL `WHERE tenant_id=$1 AND version_iri=$2`; QA added
+`test_validate_404s_other_tenants_version_iri` — B reading A's version → 404 not leak, committed `7022ac30`); honest pending
+(cache-miss → ValidationPending, never fake 0, stamp = data+shapes state); screen mounted `/ce/rules` + tokens-only (grep 0 hex/
+px/ms); severity=highest-per-shape intentional; shared shacl.py/pipeline.py regression clean on branch (full unit exit 0).
+Integration 6/6 real docker (torn down). ruff 0, mypy 0/449, tsc 0, eslint 0-err.
+**AC-006-06 (perf) was the sole FAIL** — engineer set 10k ceiling but the AC + m2-delta §9 still said 100k. **RESOLVED via
+HITL: user approved amending the spec to 10k (2026-07-11).** Amended AC-006-06 + m2-delta §9 note (`1123695f` on branch):
+validate is pyshacl-bound (~1.2s validate + ~0.9s parse = ~2.3s@100k; pyshacl needs the parsed graph so CE-007's SPARQL-count
+trick doesn't apply); 10k mirrors ADR-004's write-path precedent; 100k full-report → incremental SHACL validation, deferred
+post-v1 (ADR-026). Perf test passes at 10k → AC-006-06 now MET. **QA WARN (deferred):** the pipeline.py 3-way union
+(CE-005 tenant-SHACL + merged CE-008 event + CE-009 gate) is NOT yet on this branch → covered at epic-close reconcile QA.
+
+## Epic status — EPIC-005 CLOSES → auto-merge eligible (no migration)
 CE-006 last task. On QA PASS: reconcile onto green main — **union pipeline.py (XT-WRITEPATH-2)**: branch has CE-005's
 tenant-SHACL hook; main now has CE-008 change-event + CE-009 immutability-gate (both merged) → union all three in _apply_uncached.
 Also carries CE-005/007 ADRs (022-metrics/023/024) — leave numbering to PROJ-006 sweep unless a hard file collision. Then push,
