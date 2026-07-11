@@ -26,6 +26,7 @@ from weave_backend.dashboard.ce_metrics import get_ce_metrics_client
 from weave_backend.dashboard.generate import DASHBOARD_BUDGET_WORKSPACE_ID
 from weave_backend.dashboard.intent import ProviderUnavailable, get_dashboard_agent_resolver
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.schemas.dashboard import WidgetSpec
@@ -131,7 +132,7 @@ async def test_refine_reuses_generate_pipeline(client: AsyncClient) -> None:
     """
     tenant_id = _unique_tenant("dash-refine-budget")
     tokens = await issue_token_pair(sub="u-refine-budget", tenant_id=tenant_id)
-    widget_id = await _seed_widget(tenant_id, f"urn:weave:tenant:{tenant_id}:human:u-refine-budget")
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-budget"))
 
     async with tenant_connection(tenant_id) as conn:
         await set_setting(
@@ -195,7 +196,7 @@ async def test_refinement_history_capped_at_10(client: AsyncClient) -> None:
     """AC-2: 12 successive refines leave exactly 10 rows, the latest 10 seqs."""
     tenant_id = _unique_tenant("dash-refine-cap")
     tokens = await issue_token_pair(sub="u-refine-cap", tenant_id=tenant_id)
-    widget_id = await _seed_widget(tenant_id, f"urn:weave:tenant:{tenant_id}:human:u-refine-cap")
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-cap"))
     app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
     app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
         {"entity_count_by_kind": {"Process": 4}}
@@ -222,7 +223,7 @@ async def test_refine_failure_preserves_prior_state(client: AsyncClient) -> None
     """
     tenant_id = _unique_tenant("dash-refine-fail")
     tokens = await issue_token_pair(sub="u-refine-fail", tenant_id=tenant_id)
-    widget_id = await _seed_widget(tenant_id, f"urn:weave:tenant:{tenant_id}:human:u-refine-fail")
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-fail"))
     app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
     app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
         {"entity_count_by_kind": {"Process": 4}}
@@ -263,9 +264,7 @@ async def test_history_restore_no_model_call(client: AsyncClient) -> None:
     """
     tenant_id = _unique_tenant("dash-refine-restore")
     tokens = await issue_token_pair(sub="u-refine-restore", tenant_id=tenant_id)
-    widget_id = await _seed_widget(
-        tenant_id, f"urn:weave:tenant:{tenant_id}:human:u-refine-restore"
-    )
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-restore"))
     app.dependency_overrides[get_dashboard_agent_resolver] = lambda: _resolver_ok
     app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
         {"entity_count_by_kind": {"Process": 4}}
@@ -295,7 +294,10 @@ async def test_history_restore_no_model_call(client: AsyncClient) -> None:
     async with tenant_connection(tenant_id) as conn:
         row = await store.get_widget(conn, tenant_id=tenant_id, widget_id=widget_id)
     assert row is not None
-    assert row.spec.title == _OK_SPEC.title
+    # seq=1 is the "split by severity" refine's own resulting_spec
+    # (_REFINED_SPEC) -- restore swaps to what that step recorded, not
+    # back to the pre-refine seed (there's no seq=0 for the original).
+    assert row.spec.title == _REFINED_SPEC.title
 
 
 async def test_refine_unsatisfiable_declines(client: AsyncClient) -> None:
@@ -304,7 +306,7 @@ async def test_refine_unsatisfiable_declines(client: AsyncClient) -> None:
     """
     tenant_id = _unique_tenant("dash-refine-unsat")
     tokens = await issue_token_pair(sub="u-refine-unsat", tenant_id=tenant_id)
-    widget_id = await _seed_widget(tenant_id, f"urn:weave:tenant:{tenant_id}:human:u-refine-unsat")
+    widget_id = await _seed_widget(tenant_id, human_principal_iri("u-refine-unsat"))
 
     async def _decline(prompt: str, context: WidgetSpec | None = None) -> None:
         return None
