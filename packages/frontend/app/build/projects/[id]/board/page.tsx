@@ -43,6 +43,7 @@ export default function BoardPage(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawFilter = searchParams.get("filter");
+  const filterIsInvalid = rawFilter !== null && !isValidFilter(rawFilter);
   const filter: BoardFilter = isValidFilter(rawFilter) ? rawFilter : "All";
 
   const { board, tree, loadError } = useBoard(id);
@@ -60,9 +61,9 @@ export default function BoardPage(): React.JSX.Element {
     return <p data-testid="board-loading">Loading board…</p>;
   }
 
-  // AC-4/AC-5: invalid filter values resolve to "All" above; a genuinely
-  // zero-match filter (valid or not) hits the same empty-state path.
-  const visibleCards = filterCards(board.cards, filter);
+  // AC-5: an unknown filter value (e.g. stale URL) hits the same
+  // empty-state path as AC-4's zero-match case, never a broken board.
+  const visibleCards = filterIsInvalid ? [] : filterCards(board.cards, filter);
 
   return (
     <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
