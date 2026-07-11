@@ -3,21 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { StreamStatus } from "@/components/dashboard/stream-status";
+import type { ComponentType } from "@/components/dashboard/types";
 
 import type { WidgetStreamState } from "@/lib/dashboard/use-widget-stream";
 import { useWidgetStream } from "@/lib/dashboard/use-widget-stream";
-
-/** m2-delta.md §6: human copy for each closed SSE error state. Only
- * `provider_503` is retryable (transient); the rest name a real gate the
- * user's prompt hit, so "Try again" would just repeat the same result.
- */
-const ERROR_COPY: Record<string, string> = {
-  budget_cap: "Monthly generation budget reached for this workspace.",
-  provider_503: "AI provider unavailable",
-  source_not_ga: "That data source isn't available yet.",
-  unsatisfiable: "Couldn't match that prompt to a widget shape. Try rephrasing.",
-  unavailable: "Widget generation is unavailable right now.",
-};
 
 interface ExamplePromptsResponse {
   prompts: string[];
@@ -66,42 +56,6 @@ function ExamplePromptList({
   );
 }
 
-/** Renders the streaming/done/error tail of the bar -- the only part of
- * `WidgetStreamState` this component cares about (m2-delta.md §6).
- */
-function StreamStatus({ state, onRetry }: { state: WidgetStreamState; onRetry: () => void }) {
-  if (state.status === "streaming" || state.status === "done") {
-    return (
-      <div aria-busy={state.status === "streaming"}>
-        <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          {state.spec.title}
-        </p>
-        <p
-          data-testid="prompt-bar-status"
-          className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]"
-        >
-          {state.status === "streaming" ? "Generating…" : "Done"} · {state.spec.data_source_contracts[0]}
-        </p>
-      </div>
-    );
-  }
-  if (state.status === "error") {
-    return (
-      <div>
-        <p className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
-          {ERROR_COPY[state.errorState] ?? state.reason}
-        </p>
-        {state.errorState === "provider_503" && (
-          <Button type="button" onClick={onRetry}>
-            Try again
-          </Button>
-        )}
-      </div>
-    );
-  }
-  return null;
-}
-
 /** AC-8: "Prompt bar opens with Cmd+K" -- toggles the given setter, same
  * binding shape as `CommandPalette`'s (guarded off `/dashboard` there).
  */
@@ -118,6 +72,32 @@ function useCmdKToggle(setOpen: (updater: (prev: boolean) => boolean) => void): 
   }, [setOpen]);
 }
 
+function PromptBarInput({
+  prompt,
+  onPromptChange,
+  onSubmit,
+}: {
+  prompt: string;
+  onPromptChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit}>
+      <label htmlFor="prompt-bar-input" className="sr-only">
+        Describe the view you want
+      </label>
+      <input
+        id="prompt-bar-input"
+        autoFocus
+        value={prompt}
+        onChange={(event) => onPromptChange(event.target.value)}
+        placeholder="Describe the view you want…"
+        className="w-full rounded-[var(--radius-base)] border border-[var(--color-border)] bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)] outline-none focus-visible:ring-[var(--ring-focus)]"
+      />
+    </form>
+  );
+}
+
 function PromptBarDialog({
   prompt,
   onPromptChange,
@@ -127,6 +107,8 @@ function PromptBarDialog({
   onExampleSelect,
   state,
   onRetry,
+  componentType,
+  onComponentTypeChange,
 }: {
   prompt: string;
   onPromptChange: (value: string) => void;
@@ -136,6 +118,8 @@ function PromptBarDialog({
   onExampleSelect: (example: string) => void;
   state: WidgetStreamState;
   onRetry: () => void;
+  componentType: ComponentType | null;
+  onComponentTypeChange: (componentType: ComponentType) => void;
 }) {
   return (
     <div
@@ -144,26 +128,19 @@ function PromptBarDialog({
       aria-label="Generate a dashboard widget"
       className="fixed left-1/2 top-[20vh] w-full max-w-[560px] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] shadow-[var(--shadow-overlay)]"
     >
-      <form onSubmit={onSubmit}>
-        <label htmlFor="prompt-bar-input" className="sr-only">
-          Describe the view you want
-        </label>
-        <input
-          id="prompt-bar-input"
-          autoFocus
-          value={prompt}
-          onChange={(event) => onPromptChange(event.target.value)}
-          placeholder="Describe the view you want…"
-          className="w-full rounded-[var(--radius-base)] border border-[var(--color-border)] bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)] outline-none focus-visible:ring-[var(--ring-focus)]"
-        />
-      </form>
+      <PromptBarInput prompt={prompt} onPromptChange={onPromptChange} onSubmit={onSubmit} />
 
       {showExamples && examplePrompts && (
         <ExamplePromptList prompts={examplePrompts.prompts} onSelect={onExampleSelect} />
       )}
 
       <div className="mt-[var(--space-3)]" aria-live="polite">
-        <StreamStatus state={state} onRetry={onRetry} />
+        <StreamStatus
+          state={state}
+          onRetry={onRetry}
+          componentType={componentType}
+          onComponentTypeChange={onComponentTypeChange}
+        />
       </div>
     </div>
   );
@@ -179,15 +156,13 @@ function PromptBarDialog({
  * nicety, not a security/billing gate -- keeping it out of this component
  * avoids sessionStorage state leaking across unrelated tests).
  */
-export function PromptBar({
-  generatedCount,
-  onWidgetGenerated,
-}: {
-  generatedCount: number;
-  onWidgetGenerated?: () => void;
-}) {
+/** Owns all prompt-bar state/handlers so `PromptBar` itself stays a thin
+ * render (Law E: functions <= 50 lines).
+ */
+function usePromptBarState(generatedCount: number, onWidgetGenerated?: () => void) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [componentType, setComponentType] = useState<ComponentType | null>(null);
   const { state, generate } = useWidgetStream();
   const examplePrompts = useExamplePrompts(open);
 
@@ -198,14 +173,21 @@ export function PromptBar({
 
   useCmdKToggle(setOpen);
 
+  // AC-5: a fresh generation starts with no change-viz override -- the
+  // streamed spec's own component_type is the starting point again.
+  function startGenerate(text: string) {
+    setComponentType(null);
+    generate(text);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (prompt.trim()) generate(prompt.trim());
+    if (prompt.trim()) startGenerate(prompt.trim());
   }
 
   function handleExampleSelect(example: string) {
     setPrompt(example);
-    generate(example);
+    startGenerate(example);
   }
 
   const showExamples =
@@ -213,6 +195,44 @@ export function PromptBar({
     state.status === "idle" &&
     examplePrompts !== null &&
     generatedCount < examplePrompts.hide_after;
+
+  return {
+    open,
+    setOpen,
+    prompt,
+    setPrompt,
+    componentType,
+    setComponentType,
+    state,
+    examplePrompts,
+    showExamples,
+    handleSubmit,
+    handleExampleSelect,
+    onRetry: () => startGenerate(prompt.trim()),
+  };
+}
+
+export function PromptBar({
+  generatedCount,
+  onWidgetGenerated,
+}: {
+  generatedCount: number;
+  onWidgetGenerated?: () => void;
+}) {
+  const {
+    open,
+    setOpen,
+    prompt,
+    setPrompt,
+    componentType,
+    setComponentType,
+    state,
+    examplePrompts,
+    showExamples,
+    handleSubmit,
+    handleExampleSelect,
+    onRetry,
+  } = usePromptBarState(generatedCount, onWidgetGenerated);
 
   return (
     <>
@@ -228,7 +248,9 @@ export function PromptBar({
           examplePrompts={examplePrompts}
           onExampleSelect={handleExampleSelect}
           state={state}
-          onRetry={() => generate(prompt.trim())}
+          onRetry={onRetry}
+          componentType={componentType}
+          onComponentTypeChange={setComponentType}
         />
       )}
     </>

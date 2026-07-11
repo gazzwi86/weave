@@ -43,6 +43,49 @@ function BarChartValue({ value }: { value: Record<string, number> }) {
   );
 }
 
+/** ponytail: one generic fallback for the other 7 catalogue types (TASK-012
+ * only requires a working kpi_card<->table switch to prove change-viz
+ * re-renders held data -- a real per-type renderer for
+ * line_area_chart/ranked_list/activity_feed/pie_donut/heatmap/alert_banner
+ * is a later task's scope if/when the grid actually needs to render them).
+ */
+function tableRows(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "object" && value !== null) {
+    return Object.entries(value as Record<string, unknown>);
+  }
+  return [[String(value), ""]];
+}
+
+function TableValue({ value }: { value: unknown }) {
+  const rows = tableRows(value);
+  return (
+    <table className="w-full text-[length:var(--text-body-sm)]">
+      <tbody>
+        {rows.map((row, index) => {
+          const [key, val] = Array.isArray(row) ? row : [index, row];
+          return (
+            <tr key={String(key)}>
+              <td className="pr-[var(--space-3)] text-[var(--color-text-muted)]">{String(key)}</td>
+              <td className="text-[var(--color-text-default)]">{String(val)}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+/** Single source of "how does component_type X render this value" -- reused
+ * by `WidgetTile` and the change-viz preview in `PromptBar` so switching
+ * types never needs a second renderer table.
+ */
+export function renderWidgetValue(componentType: string, value: unknown) {
+  if (componentType === "bar_chart") return <BarChartValue value={value as Record<string, number>} />;
+  if (componentType === "table") return <TableValue value={value} />;
+  return <KpiValue value={value} />;
+}
+
 /** AC-3/4/5/7: renders one widget per the honest-state matrix (ADR-013) --
  * `status` drives which body renders; this component never re-derives
  * status/pending from `last_result` itself (status.py's implementation
@@ -77,11 +120,7 @@ export function WidgetTile({
         {widget.status !== "unavailable" &&
           widget.status !== "pending" &&
           !isPendingSentinel(widget.last_result) &&
-          (widget.spec.component_type === "bar_chart" ? (
-            <BarChartValue value={widget.last_result as Record<string, number>} />
-          ) : (
-            <KpiValue value={widget.last_result} />
-          ))}
+          renderWidgetValue(widget.spec.component_type, widget.last_result)}
       </div>
       <footer className="mt-[var(--space-3)] flex items-center gap-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
         <span>{contract}</span>

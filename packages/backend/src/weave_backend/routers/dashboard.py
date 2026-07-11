@@ -28,6 +28,7 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.schemas.dashboard import (
     ExamplePromptsResponse,
     GenerateWidgetRequest,
+    UpdateWidgetSpecRequest,
     WidgetListResponse,
     WidgetOut,
     WidgetRefreshResponse,
@@ -188,6 +189,35 @@ async def generate_widget_route(
         ),
         media_type="text/event-stream",
     )
+
+
+@router.patch("/widgets/{widget_id}", response_model=WidgetOut)
+async def update_widget_route(
+    widget_id: str,
+    body: UpdateWidgetSpecRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> WidgetOut:
+    """Change-visualisation persistence (TASK-012, m2-delta §5): pinned
+    (`user`-scope) widget's `component_type` only -- p95 <= 300ms. Same
+    owner-only / IDOR-safe-404 shape as `delete_widget_route`; `tenant_default`
+    rows aren't patchable here either (no route composes them).
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        if row is None or row.scope != "user" or row.owner_principal_iri != principal.principal_iri:
+            raise HTTPException(status_code=404)
+        updated = await store.update_widget_component_type(
+            conn,
+            tenant_id=principal.tenant_id,
+            widget_id=widget_id,
+            component_type=body.spec.component_type,
+        )
+        if not updated:
+            raise HTTPException(status_code=404)
+        row = await store.get_widget(conn, tenant_id=principal.tenant_id, widget_id=widget_id)
+        if row is None:
+            raise HTTPException(status_code=404)
+    return _to_widget_out(row)
 
 
 @router.delete("/widgets/{widget_id}", status_code=204)

@@ -321,3 +321,54 @@ async def test_generation_metered_and_audited(client: AsyncClient) -> None:
     assert diff_summary["prompt_hash"] != "secret raw prompt text"
     assert "secret raw prompt text" not in json.dumps(diff_summary)
     assert len(usage_rows) == 1
+
+
+class _QueuedRoute:
+    """Fakes `ai/router.route` for TASK-012's real (non-DI-overridden)
+    `resolve()` -- queues successive raw model responses, same convention as
+    `test_dashboard_intent.py::_FakeRoute`.
+    """
+
+    def __init__(self, *responses: str) -> None:
+        self._responses = list(responses)
+
+    def __call__(self, tier: str, prompt: str, **kwargs: object) -> str:
+        return self._responses.pop(0)
+
+
+_VALID_CLASSIFICATION = json.dumps(
+    {
+        "data_shape": "scalar",
+        "category": "entity_metrics",
+        "field": "entity_count_by_kind",
+        "title": "Entities in model",
+    }
+)
+
+
+async def test_invalid_agent_spec_never_streams(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC-4: the real (not DI-faked) resolver runs end-to-end here -- only
+    `ai/router.route` is faked (Law F: no live model call). Two invalid
+    responses in a row must never let an unvalidated spec reach the stream
+    (declines `unsatisfiable`); one invalid then one valid must take the
+    single-retry path through to a real `spec`/`data`/`done` stream.
+    """
+    import weave_backend.dashboard.intent as intent_module
+
+    tenant_id = _unique_tenant("dash-gen-invalid-spec")
+    tokens = await issue_token_pair(sub="u-gen-invalid", tenant_id=tenant_id)
+    app.dependency_overrides[get_ce_metrics_client] = lambda: _ce_metrics_stub(
+        {"entity_count_by_kind": {"Process": 4}}
+    )
+
+    monkeypatch.setattr(intent_module, "route", _QueuedRoute("not json", "still not valid"))
+    events = await _generate(client, tokens, prompt="show entities by kind")
+    assert [e for e, _ in events] == ["error"]
+    assert events[0][1]["state"] == "unsatisfiable"
+
+    monkeypatch.setattr(intent_module, "route", _QueuedRoute("not json", _VALID_CLASSIFICATION))
+    events = await _generate(client, tokens, prompt="show entities by kind")
+    assert [e for e, _ in events] == ["spec", "data", "done"]
+    assert events[0][1]["component_type"] == "kpi_card"

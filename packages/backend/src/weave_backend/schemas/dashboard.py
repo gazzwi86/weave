@@ -35,6 +35,17 @@ class WidgetSpec(BaseModel):
     data_source_contracts: list[str] = Field(min_length=1)
     bindings: dict[str, Any]
     column_span: int = Field(ge=1, le=12)
+    #: TASK-012 AC-2: set only when a prompt's named-type override wasn't
+    #: shape-compatible and the rule-table default was used instead.
+    override_note: str | None = None
+    #: TASK-012 AC-5/AC-6: the resolver's classified data shape, carried
+    #: through so the client change-viz menu knows which of the 9 components
+    #: are compatible without re-deriving it from `component_type` (several
+    #: components appear in more than one shape's compat list, so that
+    #: reverse-lookup would be ambiguous). `None` for hand-composed specs
+    #: (fixed tenant-default tiles, the keyword-table latency fallback) --
+    #: change-viz has nothing to offer those.
+    data_shape: str | None = None
 
 
 class WidgetOut(BaseModel):
@@ -96,3 +107,16 @@ SseErrorState = Literal[
 class SseErrorPayload(BaseModel):
     state: SseErrorState
     reason: str
+
+
+class ComponentTypePatch(BaseModel):
+    component_type: ComponentType
+
+
+class UpdateWidgetSpecRequest(BaseModel):
+    """Law 13: `PATCH /api/dashboard/widgets/{id}` request body (TASK-012,
+    m2-delta.md §5) -- change-visualisation persistence. Component-type-only
+    patch; extend if a second patchable field shows up.
+    """
+
+    spec: ComponentTypePatch

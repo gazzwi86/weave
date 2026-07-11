@@ -33,8 +33,10 @@ class WidgetRow:
 
 def _row_to_widget(row: asyncpg.Record) -> WidgetRow:
     spec_raw = row["spec"]
-    spec = WidgetSpec.model_validate_json(spec_raw) if isinstance(spec_raw, str) else (
-        WidgetSpec.model_validate(spec_raw)
+    spec = (
+        WidgetSpec.model_validate_json(spec_raw)
+        if isinstance(spec_raw, str)
+        else (WidgetSpec.model_validate(spec_raw))
     )
     last_result_raw = row["last_result"]
     last_result = (
@@ -118,7 +120,7 @@ async def list_widgets(
     if scope == "user":
         rows = await conn.fetch(
             "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            " AND owner_principal_iri = $3 ORDER BY \"position\"",
+            ' AND owner_principal_iri = $3 ORDER BY "position"',
             tenant_id,
             scope,
             owner_principal_iri,
@@ -126,7 +128,7 @@ async def list_widgets(
     else:
         rows = await conn.fetch(
             "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            " ORDER BY \"position\"",
+            ' ORDER BY "position"',
             tenant_id,
             scope,
         )
@@ -193,7 +195,7 @@ async def insert_generated_widget(
     Upgrade path: `SELECT ... FOR UPDATE` if that shows up in practice.
     """
     position = await conn.fetchval(
-        "SELECT COALESCE(MAX(\"position\"), -1) + 1 FROM widget_instances"
+        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances'
         " WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2",
         tenant_id,
         owner_principal_iri,
@@ -211,6 +213,26 @@ async def insert_generated_widget(
         position,
     )
     return str(widget_id)
+
+
+async def update_widget_component_type(
+    conn: asyncpg.Connection, *, tenant_id: str, widget_id: str, component_type: str
+) -> bool:
+    """Change-visualisation persistence (TASK-012, m2-delta §5): merge-patch
+    only `component_type` into the stored spec JSONB -- title/bindings/
+    contracts survive untouched, never a whole-spec replace.
+    """
+    result: str = await conn.execute(
+        """
+        UPDATE widget_instances
+        SET spec = jsonb_set(spec, '{component_type}', to_jsonb($3::text)), updated_at = now()
+        WHERE tenant_id = $1 AND id = $2
+        """,
+        tenant_id,
+        widget_id,
+        component_type,
+    )
+    return bool(result != "UPDATE 0")
 
 
 async def delete_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:

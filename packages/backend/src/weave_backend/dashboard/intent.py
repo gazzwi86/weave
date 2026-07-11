@@ -5,14 +5,56 @@ below, injected via FastAPI `Depends(get_dashboard_agent_resolver)` --
 mirrors `ce_metrics.get_ce_metrics_client`'s DI seam so every TASK-011 test
 fakes the resolver via `app.dependency_overrides` rather than needing a real
 LLM call (Law F).
+
+TASK-012: `resolve()` classifies via a JSON+Pydantic structured-extraction
+call (no native tool-calling infra in `ai/providers.py` -- mirrors
+`authoring/nl_parser.py`'s pattern), then a *pure* rule table
+(`_map_classification`) deterministically picks the component -- the model
+never freely names a component, only a `data_shape` (+ optional
+`named_type` override), so out-of-library output is structurally
+impossible (m2-delta.md §2).
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Literal, get_args
 
-from weave_backend.schemas.dashboard import WidgetSpec
+from pydantic import BaseModel, Field, ValidationError
+
+from weave_backend.ai.router import route
+from weave_backend.dashboard.availability import engine_of_contract, is_ga
+from weave_backend.dashboard.compat import COMPAT, PRIMARY
+from weave_backend.schemas.dashboard import ComponentType, WidgetSpec
+
+_TIER = "sonnet"
+
+# Same failure mode nl_parser.py already handles: models fence JSON even
+# when told not to.
+_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE | re.MULTILINE)
+
+_DEFAULT_COLUMN_SPAN = 6
+
+#: category (a semantic label the model classifies to) -> owning contract.
+#: Reuses the same literal contract ids `dashboard/example_prompts.py`
+#: already names (single source of contract-id truth); "CE" is the only GA
+#: engine at M2, the `build_*` categories exist precisely so
+#: `test_non_ga_returns_source_not_ga_not_none` can exercise a real,
+#: registry-backed `source_not_ga` path (m2-delta §2).
+CATEGORIES: dict[str, str] = {
+    "entity_metrics": "CE-METRICS-1",
+    "build_cost": "BUILD-COST-1",
+    "build_runs": "BUILD-RUNS-1",
+    "build_deploy": "BUILD-DEPLOY-1",
+}
+
+DataShape = Literal[
+    "scalar", "series", "categorical", "ranked", "events", "ratio", "matrix", "rows"
+]
 
 
 class ProviderUnavailable(Exception):
@@ -37,14 +79,109 @@ ResolveResult = WidgetSpec | SourceNotGA | None
 Resolver = Callable[[str], Awaitable[ResolveResult]]
 
 
-async def resolve(prompt: str) -> ResolveResult:
-    """ponytail: the real classifier (LLM tool-call, widget-compat matrix,
-    named-type override, schema-validate-with-retry) is TASK-012's scope,
-    landing in this function's body. Until then, the honest production
-    behaviour is "provider unavailable" -- there is no real resolver wired
-    up yet, so AC-4's path is genuinely what happens today, not a stub lie.
+class IntentClassification(BaseModel):
+    """The "tool schema": enum-constrained fields the model must emit.
+    `data_shape`/`named_type` being real `Literal`s means an out-of-library
+    value fails Pydantic validation before it ever reaches the rule table --
+    the "never free-form" guarantee is structural, not prompt-engineered.
     """
-    raise ProviderUnavailable("dashboard agent resolver not yet implemented (TASK-012)")
+
+    data_shape: DataShape
+    category: str = Field(min_length=1)
+    field: str = Field(min_length=1)
+    named_type: ComponentType | None = None
+    title: str = Field(min_length=1)
+
+
+def _build_prompt(prompt: str, *, retry_error: str | None = None) -> str:
+    instruction: dict[str, object] = {
+        "instruction": (
+            'Classify the request into {"data_shape": ..., "category": ..., '
+            '"field": ..., "named_type": ..., "title": ...} JSON. '
+            f"data_shape must be exactly one of: {sorted(get_args(DataShape))}. "
+            f"category must be exactly one of: {sorted(CATEGORIES)}. "
+            f"named_type is optional; if given, must be exactly one of: "
+            f"{sorted(get_args(ComponentType))}. "
+            "Return only the JSON object, with no markdown fences or prose."
+        ),
+        "request": prompt,
+    }
+    if retry_error:
+        instruction["previous_error"] = retry_error
+    return json.dumps(instruction)
+
+
+def _parse_classification(raw: str) -> IntentClassification | None:
+    try:
+        payload = json.loads(_FENCE_RE.sub("", raw).strip())
+    except json.JSONDecodeError:
+        return None
+    try:
+        return IntentClassification.model_validate(payload)
+    except ValidationError:
+        return None
+
+
+def _override_note(shape: DataShape, named_type: ComponentType, component: str) -> str:
+    return f"'{named_type}' isn't compatible with {shape} data; used {component} instead."
+
+
+def _map_classification(classification: IntentClassification) -> ResolveResult:
+    """AC-1/AC-2/AC-3: the pure rule-table decision -- no I/O, so this is
+    what the intent-mapping audit / override / decline unit tests exercise
+    directly against recorded fixtures (Plugin Law F).
+    """
+    contract = CATEGORIES.get(classification.category)
+    if contract is None:
+        return None  # unsatisfiable: no data source for this intent at all
+
+    engine = engine_of_contract(contract)
+    if not is_ga(engine):
+        return SourceNotGA(engine)
+
+    compatible = COMPAT.get(classification.data_shape)
+    if not compatible:
+        return None  # unsatisfiable: no library component matches this shape
+
+    named_type = classification.named_type
+    if named_type is not None and named_type in compatible:
+        component = named_type
+        override_note = None
+    else:
+        component = PRIMARY[classification.data_shape]
+        override_note = (
+            _override_note(classification.data_shape, named_type, component) if named_type else None
+        )
+
+    return WidgetSpec(
+        component_type=component,
+        title=classification.title,
+        data_source_contracts=[contract],
+        bindings={"field": classification.field},
+        column_span=_DEFAULT_COLUMN_SPAN,
+        override_note=override_note,
+        data_shape=classification.data_shape,
+    )
+
+
+async def resolve(prompt: str) -> ResolveResult:
+    """AC-4: one retry (with the validation error fed back) if the model's
+    output doesn't parse as JSON or fails the `IntentClassification` schema;
+    a second failure declines (`None` -> `unsatisfiable`), never an
+    unvalidated spec on the stream.
+    """
+    raw = await asyncio.to_thread(route, _TIER, _build_prompt(prompt))
+    classification = _parse_classification(raw)
+    if classification is None:
+        retry_raw = await asyncio.to_thread(
+            route,
+            _TIER,
+            _build_prompt(prompt, retry_error="output was not valid JSON matching the schema"),
+        )
+        classification = _parse_classification(retry_raw)
+        if classification is None:
+            return None
+    return _map_classification(classification)
 
 
 async def get_dashboard_agent_resolver() -> Resolver:

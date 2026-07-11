@@ -38,6 +38,14 @@ def _engine_of_contract(contract_id: str) -> str:
     return _CONTRACT_PREFIX_TO_ENGINE.get(prefix, prefix)
 
 
+def engine_of_contract(contract_id: str) -> str:
+    """Public wrapper (TASK-012): the resolver needs the owning engine name
+    itself to build `SourceNotGA(source_engine)` -- `source_available()`
+    alone only returns a bool.
+    """
+    return _engine_of_contract(contract_id)
+
+
 def source_available(contract_ids: list[str]) -> bool:
     """True only if every named contract's owning engine is GA."""
     return all(is_ga(_engine_of_contract(cid)) for cid in contract_ids)
