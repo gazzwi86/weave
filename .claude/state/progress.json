@@ -740,19 +740,19 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-011"
       ],
       "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-012.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "PLAT-V1-TASK-013",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Refine widget by follow-up prompt + refinement history (E1-S3)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "PLAT-V1-TASK-012"
       ],

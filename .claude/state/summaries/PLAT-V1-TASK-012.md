@@ -54,3 +54,14 @@ AC-4 met-by-inference infra). QA added edge test `c99bde5`. TWO findings → ret
   fix — `turbopack: { root: path.join(__dirname,"..") }` (Next-16 documented monorepo option) resolves it under default
   Turbopack, no webpack force. Fix: swap + drop `--webpack` from package.json scripts.
 retry=1.
+
+## QA retry 1 → PASS — PLAT-V1-TASK-012 CLOSES (2026-07-11)
+Both round-1 findings fixed + verified (a2d1447):
+- **Bundler MAJOR fixed** `413879d`: `turbopack: {root}` replaces app-wide webpack; `externalDir` removed, `--webpack`
+  dropped from package.json. `next build` compiles under default Turbopack past the change-viz import (only later
+  unrelated OIDC-prod-env failure, expected).
+- **AC-5 E2E fixed** `c29dda1`: `change-viz.spec.ts` — **RAN FOR REAL** vs isolated weave-plat012 stack, 1 passed 9.2s
+  (real backend+mock-OIDC login; generate/PATCH/user-GET page.route-mocked, no LLM). Asserts 5 incompatible viz types
+  disabled + only-PATCH-on-switch (no refetch) + persist-across-reload.
+tsc 0, lint 0. AC-1/2/3/4/6 PASS in round 1 (resolver real, compat-matrix, blast-radius). Happy-path E2E remains
+infra-limited (LLM latency, XT-PLAT010-2 class — not a code defect). retry=1. HEAD c29dda1.
