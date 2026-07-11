@@ -462,10 +462,3 @@ Finish-023 lane stopped at a real scope+security gap. Branch feature/CE-V1-EPIC-
 1. **Role-authorization model (SECURITY — will not guess):** AC-7/AC-9 gate edits behind editor roles, but no role source defines "who may edit the graph." Need: which of the 10 platform roles (or a new grant) authorizes canvas write? This is an authz boundary — needs your decision or an /architect re-brief, not an agent guess.
 2. **Wiring gap:** AC-1..8 modules (quick-add, draw-edge, edit-controller) exist but are NOT mounted into the live explorer app; AC-9 glass inspector (Properties/Edges/PROV tabs, sole edit entry) unbuilt. Completing = wire modules + build inspector + real E2E. Bigger than brief sized.
 **Options for you:** (A) decide role model → I finish full AC-1..9 + E2E; (B) ship inspector-only honest-partial now, defer wiring+role-gate as fresh tasks; (C) re-brief TASK-023/024 via /architect. Recommend A if you'll give the role answer, else C. Everything else in the build proceeds without 023 (024/029 wait on it; rest of CE/PLAT/ONB does not).
-
-### Wave-2 launched + findings (2026-07-12)
-Wave-1 landed: #64 BE-003, #68 CE-012 (migr 0069/0070), #69 CE-016 (overlay/closure) all MERGED. #70 PLAT-001 fixing mutation-baseline bug (mutmut double-in-process state bleed) then self-merges. CE-017/023 PARKED (role-authz — your call).
-Wave-2 (4 fresh-build lanes, engineer→push→PR→coordinator-merges): CE-010 Agent-Grounding Auth (EPIC-007) · CE-022 Versions Panel+Diff (EPIC-020) · PLAT-028 Marketing entry (EPIC-012) · ONB-V1-001 M2 Anchor-Registry (EPIC-002, partial — siblings 002/004/005 deferred). Migration blocks 0073-0078.
-**FINDINGS (need eyes later, not blocking):**
-1. **Phantom dependency:** CE-V1-TASK-014's blocked_by lists CE-V1-TASK-015, which DOES NOT EXIST in progress.json. Treating as satisfied (014 deps = 012✓+013✓). Someone renamed/dropped 015 without fixing the edge. Fix the graph.
-2. **git-stash cross-worktree hazard:** `git stash` is REPO-GLOBAL across all worktrees sharing one .git — a lane using it can corrupt sibling lanes' state. Now forbidden in all lane prompts. Worth a harness note/hook.

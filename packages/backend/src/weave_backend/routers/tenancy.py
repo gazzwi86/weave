@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.dashboard.store import seed_tenant_default_tiles
 from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
 from weave_backend.rbac import require_workspace_role
@@ -94,6 +95,10 @@ async def create_workspace_route(
         await _grant_creator_admin_membership(
             conn, tenant_id=tenant_id, workspace_id=workspace.id, principal=principal
         )
+        # PLAT-V1-TASK-010 AC-2: seed the fixed default dashboard tiles for
+        # this tenant. Idempotent (ON CONFLICT DO NOTHING) -- a no-op on the
+        # tenant's 2nd+ workspace, real work only on its first.
+        await seed_tenant_default_tiles(conn, tenant_id=tenant_id)
         await default_audit_emitter.emit(
             conn,
             AuditEvent(

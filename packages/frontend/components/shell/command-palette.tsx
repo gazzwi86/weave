@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { PRIMARY_NAV } from "./nav-items";
@@ -91,9 +91,16 @@ function CommandGroups({ navItems, results, actions, error, onSelectHref, onSele
 }
 
 /** AC-3: Cmd+K (or Ctrl+K) toggles `open`, from anywhere in the app. */
-function useCommandPaletteHotkey(setOpen: (updater: (prev: boolean) => boolean) => void) {
+function useCommandPaletteHotkey(
+  setOpen: (updater: (prev: boolean) => boolean) => void,
+  pathname: string | null
+) {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      // Cmd+K is context-scoped -- dashboard PromptBar owns it on /dashboard
+      // (AC-8, TASK-011); global entity-search palette owns it elsewhere.
+      // Global search stays reachable there via its trigger button, no double-bind.
+      if (pathname?.startsWith("/dashboard")) return;
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
         setOpen((prev) => !prev);
@@ -101,7 +108,7 @@ function useCommandPaletteHotkey(setOpen: (updater: (prev: boolean) => boolean) 
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [setOpen]);
+  }, [setOpen, pathname]);
 }
 
 /** AC-2/3/4: Cmd+K (or Ctrl+K) opens the palette; typing 2+ chars queries
@@ -113,7 +120,8 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const { results, error } = useEntitySearch(query);
   const router = useRouter();
-  useCommandPaletteHotkey(setOpen);
+  const pathname = usePathname();
+  useCommandPaletteHotkey(setOpen, pathname);
 
   function handleSelectEntity(iri: string) {
     setOpen(false);

@@ -1,0 +1,10 @@
+{
+  "scalar": ["kpi_card", "alert_banner"],
+  "series": ["line_area_chart", "bar_chart", "table"],
+  "categorical": ["bar_chart", "pie_donut", "table", "ranked_list"],
+  "ranked": ["ranked_list", "bar_chart", "table"],
+  "events": ["activity_feed", "table"],
+  "ratio": ["pie_donut", "bar_chart", "kpi_card"],
+  "matrix": ["heatmap", "table"],
+  "rows": ["table", "ranked_list"]
+}

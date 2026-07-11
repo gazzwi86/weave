@@ -16,7 +16,7 @@ from weave_backend.generation.store import list_recent_runs
 from weave_backend.projects.model import get_project
 from weave_backend.repo_bootstrap.store import fetch_project_repo_row
 from weave_backend.schemas.costs import ForecastInputsResponse
-from weave_backend.schemas.dashboard import (
+from weave_backend.schemas.project_dashboard import (
     BlockerItem,
     BlockersTile,
     BudgetTile,
