@@ -134,4 +134,25 @@ describe("VoiceRuleForm", () => {
     // when submitAddNode throws.
     await waitFor(() => expect(saveButton).not.toBeDisabled(), { timeout: 2000 });
   });
+
+  // SECONDARY CASE (QA, TASK-004): a non-201/non-422 response with an
+  // empty body has no `violations` to field-anchor, so outcome.errors
+  // is `{}` -- setErrors({}) silently clears the form with no message
+  // and no false-success. Save must re-enable and a generic error must
+  // show.
+  it("shows a generic error (not silent, not false-success) on a 500 with an empty body", async () => {
+    stubFetch(() => jsonResponse(500, {}));
+    render(<VoiceRuleForm onCommitted={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/rule id/i), { target: { value: "no-jargon" } });
+    fireEvent.change(screen.getByLabelText(/severity/i), { target: { value: "critical" } });
+    fireEvent.change(screen.getByLabelText(/assertion type/i), { target: { value: "forbidden-term" } });
+    fireEvent.change(screen.getByLabelText(/assertion value/i), { target: { value: "synergy" } });
+
+    const saveButton = screen.getByRole("button", { name: /save/i });
+    fireEvent.click(saveButton);
+
+    expect(await screen.findByText(/could not save/i)).toBeInTheDocument();
+    expect(saveButton).not.toBeDisabled();
+  });
 });

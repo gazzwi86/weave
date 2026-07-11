@@ -23,6 +23,20 @@ const P = {
   owner: "https://weave.io/ontology/owner",
 } as const;
 
+// QA TASK-004 fix: shown when submitAddNode throws (network failure /
+// unparseable error body) or resolves with a failure status but no
+// SHACL violations to field-anchor -- anchored on P.contentType (the
+// existing fallbackErrorField) so it reuses that field's error
+// paragraph, no new UI.
+const GENERIC_SUBMIT_ERROR = "Could not save. Please try again.";
+
+/** Falls back to a generic message when the server gave no field-anchored
+ * violations to show (e.g. a failure response with an empty body).
+ */
+function outcomeErrors(errors: Record<string, string>, fallbackField: string): Record<string, string> {
+  return Object.keys(errors).length > 0 ? errors : { [fallbackField]: GENERIC_SUBMIT_ERROR };
+}
+
 type SourceMode = "body" | "source";
 
 interface CommitResult {
@@ -46,26 +60,29 @@ function useStandardFormState(onCommitted: (iri: string) => void) {
     event.preventDefault();
     setSubmitting(true);
     setErrors({});
+    const bodyOrSourceKey = mode === "body" ? P.contentBody : P.sourceUri;
     const properties: Record<string, string> = {
       [P.contentType]: values[P.contentType] ?? "",
       [P.effectiveDate]: values[P.effectiveDate] ?? "",
       [P.owner]: values[P.owner] ?? "",
-      [mode === "body" ? P.contentBody : P.sourceUri]: values[mode === "body" ? P.contentBody : P.sourceUri] ?? "",
+      [bodyOrSourceKey]: values[bodyOrSourceKey] ?? "",
     };
-    const outcome = await submitAddNode(
-      { op: "add_node", ref: "form1", kind: BRAND_STANDARD_KIND, label: values[P.contentType] ?? "", properties },
-      P.contentType
-    );
-    setSubmitting(false);
-    if (!outcome.iri || !outcome.versionIri) {
-      setErrors(outcome.errors);
-      return;
+    try {
+      const outcome = await submitAddNode(
+        { op: "add_node", ref: "form1", kind: BRAND_STANDARD_KIND, label: values[P.contentType] ?? "", properties },
+        P.contentType
+      );
+      if (!outcome.iri || !outcome.versionIri) return setErrors(outcomeErrors(outcome.errors, P.contentType));
+      const actorIri = await currentActorIri();
+      const committedAt = new Date().toISOString(); // ponytail: client-time approximation, see attribution.ts
+      recordAttribution(outcome.iri, { actorIri, versionIri: outcome.versionIri, committedAt });
+      setResult({ iri: outcome.iri, versionIri: outcome.versionIri, actorIri });
+      onCommitted(outcome.iri);
+    } catch {
+      setErrors({ [P.contentType]: GENERIC_SUBMIT_ERROR });
+    } finally {
+      setSubmitting(false);
     }
-    const actorIri = await currentActorIri();
-    const committedAt = new Date().toISOString(); // ponytail: client-time approximation, see attribution.ts
-    recordAttribution(outcome.iri, { actorIri, versionIri: outcome.versionIri, committedAt });
-    setResult({ iri: outcome.iri, versionIri: outcome.versionIri, actorIri });
-    onCommitted(outcome.iri);
   }
 
   return { values, mode, setMode, errors, submitting, result, setField, handleSubmit };

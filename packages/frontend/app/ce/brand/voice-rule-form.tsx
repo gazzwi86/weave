@@ -19,6 +19,19 @@ const P = {
   assertion: "https://weave.io/ontology/assertion",
 } as const;
 
+// QA TASK-004 fix: shown when submitAddNode throws (network failure /
+// unparseable error body) or resolves with a failure status but no
+// SHACL violations to field-anchor -- anchored on P.assertion so it
+// reuses the existing AssertionField error paragraph, no new UI.
+const GENERIC_SUBMIT_ERROR = "Could not save. Please try again.";
+
+/** Falls back to a generic message when the server gave no field-anchored
+ * violations to show (e.g. a failure response with an empty body).
+ */
+function outcomeErrors(errors: Record<string, string>, fallbackField: string): Record<string, string> {
+  return Object.keys(errors).length > 0 ? errors : { [fallbackField]: GENERIC_SUBMIT_ERROR };
+}
+
 type Severity = "critical" | "normal";
 
 function useVoiceRuleFormState(onCommitted: (iri: string) => void) {
@@ -39,19 +52,21 @@ function useVoiceRuleFormState(onCommitted: (iri: string) => void) {
       [P.severity]: severity,
       [P.assertion]: composeAssertion(assertionType, assertionValue),
     };
-    const outcome = await submitAddNode(
-      { op: "add_node", ref: "form1", kind: VOICE_RULE_KIND, label: ruleId, properties },
-      P.assertion
-    );
-    setSubmitting(false);
-    if (!outcome.iri || !outcome.versionIri) {
-      setErrors(outcome.errors);
-      return;
+    try {
+      const outcome = await submitAddNode(
+        { op: "add_node", ref: "form1", kind: VOICE_RULE_KIND, label: ruleId, properties },
+        P.assertion
+      );
+      if (!outcome.iri || !outcome.versionIri) return setErrors(outcomeErrors(outcome.errors, P.assertion));
+      const actorIri = await currentActorIri();
+      recordAttribution(outcome.iri, { actorIri, versionIri: outcome.versionIri, committedAt: new Date().toISOString() });
+      setCommittedIri(outcome.iri);
+      onCommitted(outcome.iri);
+    } catch {
+      setErrors({ [P.assertion]: GENERIC_SUBMIT_ERROR });
+    } finally {
+      setSubmitting(false);
     }
-    const actorIri = await currentActorIri();
-    recordAttribution(outcome.iri, { actorIri, versionIri: outcome.versionIri, committedAt: new Date().toISOString() });
-    setCommittedIri(outcome.iri);
-    onCommitted(outcome.iri);
   }
 
   return {
