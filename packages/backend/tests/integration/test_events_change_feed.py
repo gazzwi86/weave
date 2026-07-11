@@ -23,6 +23,7 @@ from httpx import ASGITransport, AsyncClient
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.operations import pipeline
@@ -144,7 +145,12 @@ async def test_valid_mutation_writes_exactly_one_added_event_in_the_commit_trans
         assert events[0]["entity_iri"] == expected_entity_iri
         assert events[0]["version_iri"] is None
         assert events[0]["last_published_version"] is None
-        assert events[0]["actor"] == "urn:weave:principal:test-actor"
+        # The event's actor is the authenticated principal (`ctx.principal_iri`),
+        # never the request body's client-supplied `actor` field -- that field
+        # is only recorded as unverified provenance ("claimed_actor_iri"),
+        # since trusting a client string for an audit-grade change-feed actor
+        # would make the feed spoofable.
+        assert events[0]["actor"] == human_principal_iri("u-1")
     finally:
         await clear_graph(workspace.named_graph_iri)
 
