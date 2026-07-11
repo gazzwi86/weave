@@ -39,6 +39,15 @@ describe("DashboardPage", () => {
     expect(ceCalls).toEqual([]);
   });
 
+  // AC-2: page title renders via the PageHeader organism at --text-h1, not
+  // a bespoke h2-sized heading (the built app rendered --text-h2 instead).
+  it("renders the page title via PageHeader at --text-h1, not a bespoke size", async () => {
+    render(await DashboardPage());
+
+    const heading = screen.getByRole("heading", { level: 1, name: "Weave Dashboard" });
+    expect(heading.className).toContain("text-[length:var(--text-h1)]");
+  });
+
   it("keeps the existing whoami principal check intact", async () => {
     render(await DashboardPage());
 
