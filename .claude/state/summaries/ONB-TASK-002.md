@@ -25,25 +25,62 @@
 | OKF conformance (`okf_validate.py docs/wiki`) | conformant, 1 pre-existing tolerated warning |
 | pre-commit / pre-push hooks | passed both commits; semgrep passed on push |
 
-## Docker-integration test — env-deferred
+## Docker-integration test — CORRECTION: was a real bug, not local contamination
 
-`test_apply_happy_path_publishes_one_version` (the one docker-marked scenario)
-was run once against an isolated per-worktree stack (own `.env` port mapping,
-not the lanes' shared stack — see below) and got past the docker-compose
-bring-up, then failed with `SeedApplyHalted` on SHACL violations for missing
-`skos:prefLabel` on IRIs like `class-eac35d9902c8465f...` — hex-suffixed refs
-that do **not** match anything `content.py` emits (its refs are all
-human-readable, e.g. `class-product`). That points to stale/contaminated data
-already present in that oxigraph instance from an unrelated prior run, not a
-bug in this task's code. Per the coordinator's guidance, not chasing this
-further or restarting any shared stack — CI runs this test against fresh
-services and will actually gate it.
+The "local contamination" theory below (originally written after the first
+pass) was **wrong** — PR #81's CI `integration` job failed identically
+against fresh services, proving these were genuine content/logic bugs. The
+hex-suffixed IRIs (`class-eac35d9902c8465f...`) that looked like stale data
+are in fact **expected**: `graph_ops.py`'s `_apply_add_node` mints every
+node's real IRI with a `uuid4().hex` suffix server-side, so no seeded IRI
+ever textually matches `content.py`'s human-readable `ref`s — that was never
+a contamination signal, it's how the server always behaves.
 
-Side note for whoever debugs this in CI/QA: if this same hex-ref-missing-
-prefLabel violation reproduces in a clean CI environment (not just here), it
-would need a fresh look — but the localhost-only symptom (fabricated refs no
-seed code emits) is the strongest signal it's local data leakage, not a
-real defect.
+Root causes found and fixed (all against my own isolated
+`docker compose -p weave-onb-epic-001b` stack, never the shared one):
+
+1. **Missing `skos:prefLabel`** on every vocabulary-class / glossary-term
+   node punned as `skos:Concept` — `GlossaryTermShape` requires one per
+   language. Glossary terms were also missing the `owl:Class` pun and
+   `skos:definition`. Fixed in `content.py`.
+2. **Process nodes committed before their `performedBy` edges.**
+   `compile_seed` batches all nodes first, then all edges, and CE-WRITE-1
+   revalidates the *full* graph on every batch commit — so the node-only
+   batch always violated `ProcessShape`'s `performedBy` minCount 1, even
+   though the edge would land moments later in the next batch. Fixed by
+   interleaving each process's `performedBy` edge immediately after its own
+   node in `content.node_ops()` (now a mixed `AddNodeOp | AddEdgeOp`
+   stream — `compile.py` and the unit tests were updated to match).
+3. **Cross-batch ref resolution silently broken.** Node IRIs are minted
+   non-deterministically (`uuid4().hex` suffix) and `ApplyResponse.ref_map`
+   is scoped to a single request/batch — so a later batch's edge referencing
+   an earlier batch's node `ref` had nothing to resolve against. Fixed by
+   having `apply_seed()` accumulate `ref_map` across batches and rewrite
+   each edge op's `subject_ref`/`object_ref` before sending it.
+4. **`ask_count()`'s SPARQL query had no `GRAPH` clause** — `/api/sparql`
+   hard-rejects any query without one (`UnscopedQueryError`). Added a
+   `GRAPH ?g { }` wrapper (the actual graph scoping happens server-side at
+   the SPARQL protocol layer, so the clause's IRI/var name doesn't matter,
+   only that it's present).
+5. **Test fixture RBAC gap** — `_setup_content_admin()` granted
+   `role="author"` (rank 1), but the publish route requires `role="publish"`
+   (rank 2). Raised to match.
+6. **Test's deliberately-invalid op never reached the server** — an empty
+   `label` fails client-side Pydantic validation before any HTTP call.
+   Replaced with a non-empty-labelled, edge-less `Process` node, which
+   genuinely 422s server-side via bug 2's now-real `performedBy` minCount
+   check.
+7. **Test idempotency-key collision** — the bad-batch artefact reused
+   the real artefact's `semver` + batch index 0, so `apply_seed`'s
+   idempotency cache silently replayed the real (successful) batch 0
+   instead of exercising the bad op. Gave it a distinct `semver`.
+
+All three integration scenarios (happy-path publish, SHACL-halt, idempotent
+rerun) now pass against a fresh isolated stack. Also spot-checked seed
+content directly (no server) to confirm SHACL conformance: 5 Process nodes,
+all with a `performedBy` edge to one of 16 real Actor nodes; 18
+`skos:Concept`-punned nodes, all with both `skos:definition` and
+`skos:prefLabel`.
 
 ## Local-dev note (not a task deliverable, flagging for QA/other lanes)
 
