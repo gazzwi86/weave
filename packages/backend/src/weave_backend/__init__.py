@@ -32,6 +32,7 @@ from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.instances import router as instances_router
 from weave_backend.routers.layout import LayoutApiError, layout_api_error_handler
 from weave_backend.routers.layout import router as layout_router
+from weave_backend.routers.metrics import router as metrics_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
@@ -111,6 +112,7 @@ app.include_router(request_governance_router)
 app.include_router(runs_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
+app.include_router(metrics_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one
