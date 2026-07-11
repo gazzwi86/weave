@@ -1140,7 +1140,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-019",
       "title": "Explorer Persistence Service: Saved Views + Comments (Aurora)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-025.md",
       "retry_count": 0
