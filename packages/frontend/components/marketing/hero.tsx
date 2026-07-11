@@ -1,16 +1,13 @@
 import { CtaLink } from "./cta-link";
 
-/** Marketing header + hero (IA §6 items 1–3). The mock app panel stands in
- * for a product screenshot — pure CSS from tokens, no image payload, keeps
- * Lighthouse performance at 100. */
+/** Marketing header + hero (IA §6 items 1–3). */
 export function MarketingHeader() {
   return (
     <header className="flex items-center justify-between px-[var(--space-6)] py-[var(--space-4)]">
-      <p className="flex items-center gap-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static brand mark, no next/image optimisation needed */}
-        <img src="/logo.png" alt="" className="h-[28px] w-auto" />
-        weave
-      </p>
+      {/* AC-4: full logo lockup asset (generated from logo.png), never the
+       * raw padded PNG resized via CSS height. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, no next/image optimisation needed */}
+      <img src="/logo-lockup.png" alt="Weave" className="h-[28px] w-auto" />
       <nav aria-label="Marketing" className="flex items-center gap-[var(--space-4)]">
         <a
           href="#how-it-works"
@@ -33,33 +30,6 @@ export function MarketingHeader() {
   );
 }
 
-function MockGraphPanel() {
-  const dots = [
-    "var(--color-accent-primary)",
-    "var(--color-success)",
-    "var(--color-warn)",
-    "var(--color-info)",
-    "var(--color-kind-fallback)",
-  ];
-  return (
-    <div
-      aria-hidden="true"
-      className="mx-auto flex w-full max-w-3xl items-center justify-center gap-[var(--space-4)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-6)] shadow-[var(--shadow-overlay)]"
-    >
-      {dots.map((color) => (
-        <span
-          key={color}
-          className="inline-block h-[var(--space-4)] w-[var(--space-4)] rounded-[var(--radius-full)]"
-          style={{ backgroundColor: color }}
-        />
-      ))}
-      <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-        people · processes · systems · data — one live graph
-      </span>
-    </div>
-  );
-}
-
 export function Hero() {
   return (
     <section className="flex flex-col items-center gap-[var(--space-5)] px-[var(--space-6)] py-[var(--space-6)] text-center">
@@ -76,7 +46,13 @@ export function Hero() {
           Book a demo
         </CtaLink>
       </div>
-      <MockGraphPanel />
+      {/* AC-1: real product screenshot, replacing the CSS MockGraphPanel. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- static marketing asset, no next/image optimisation needed */}
+      <img
+        src="/marketing/hero-canvas.png"
+        alt="Weave Explorer graph canvas — processes, actors, systems, and data connected in one live company graph"
+        className="mx-auto w-full max-w-3xl rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-overlay)]"
+      />
     </section>
   );
 }
