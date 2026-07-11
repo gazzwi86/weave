@@ -372,3 +372,44 @@ async def test_should_serve_captures_content_route_or_honest_absence(
     )
     assert no_run_response.status_code == 200
     assert no_run_response.json()["manifest"] is None
+
+
+async def test_should_not_serve_console_log_content_across_tenants(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Edge case (QA-added): tenant A's persisted run log must not be
+    readable via the content route using tenant B's principal against
+    tenant A's `project_iri`/`task_id`. `_run_facts` resolves the latest
+    run via `get_latest_run_for_task(tenant_id=principal.tenant_id, ...)`,
+    so tenant B never even learns tenant A's `log_location_ref` -- honest
+    `{"log": None}`, never tenant A's content and never a 500/leak.
+    """
+    tenant_a = _unique_tenant("tenant-taskdet-xtenant-a")
+    tenant_b = _unique_tenant("tenant-taskdet-xtenant-b")
+    s3 = _ensure_bucket()
+    tokens_a = await issue_token_pair(sub="u-a", tenant_id=tenant_a)
+    headers_a = {"Authorization": f"Bearer {tokens_a.access_token}"}
+    project_iri = await _create_project(client, headers_a)
+    task_id = "task-xtenant-console"
+    run_id = await _seed_run(tenant_a, project_iri, task_id, status="passed")
+    key = f"tenant/{tenant_a}/runs/{run_id}/run.ndjson"
+    put_object(s3, _ARTEFACT_BUCKET, key, b'{"event": "tenant-a-secret"}\n')
+    async with tenant_connection(tenant_a) as conn:
+        await conn.execute(
+            "UPDATE generation_runs SET log_location_ref = $1"
+            " WHERE tenant_id = $2 AND run_id = $3",
+            f"s3://{_ARTEFACT_BUCKET}/{key}",
+            tenant_a,
+            run_id,
+        )
+
+    tokens_b = await issue_token_pair(sub="u-b", tenant_id=tenant_b)
+    headers_b = {"Authorization": f"Bearer {tokens_b.access_token}"}
+
+    response = await client.get(
+        f"/api/projects/{project_iri}/tasks/{task_id}/console-log", headers=headers_b
+    )
+
+    assert response.status_code == 200
+    assert response.json()["log"] is None
+    assert "tenant-a-secret" not in response.text
