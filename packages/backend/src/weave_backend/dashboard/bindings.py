@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 import asyncpg
 import httpx
@@ -390,7 +391,8 @@ async def _collaboration_activity(ctx: BindingContext) -> BindingResult:
         # AC-2: entity deep-link, same `/resource/{iri}` convention as
         # `coverage_gap.contraventions`.
         new_rows = [
-            {**dict(row), "href": f"/resource/{row['entity_iri']}"} for row in page.rows
+            {**dict(row), "href": f"/resource/{quote(str(row['entity_iri']), safe='')}"}
+            for row in page.rows
         ]
     except httpx.HTTPError:
         # AC-4: feed/proxy erred or timed out -- keep the last successful

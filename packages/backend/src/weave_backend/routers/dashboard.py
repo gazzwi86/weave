@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
 
@@ -120,18 +120,27 @@ async def _refresh_category_widget(
     tenant_id: str,
     row: store.WidgetRow,
     ce_client: AsyncClient,
+    ce_headers: dict[str, str] | None,
 ) -> WidgetRefreshResponse:
     """PLAT-V1-TASK-024: the registry-driven counterpart of the CE-METRICS-1
     path above -- `collaboration-activity` (and any future CATEGORIES entry)
     resolves through `bindings.resolve_category` instead of a per-widget
     field fetch. Reuses the same `apply_refresh_result` write path (ADR-013
     SWR row), so cursor/rows persist server-side, cross-device (AC-7).
+
+    `ce_headers` forwards the caller's own `Authorization` bearer token
+    (same pattern as `requests.py::stream_request_route`'s `auth_headers`)
+    so CE-READ-1's tenant scoping -- which comes from `get_current_principal`
+    on CE's own side -- applies to the 410 re-baseline's re-seed query too.
+    Without it, `coverage_gap.recently_updated_entities` runs unscoped and
+    can return another tenant's entities.
     """
     ctx = bindings.BindingContext(
         tenant_id=tenant_id,
         context_iri=company_iri(tenant_id),
         conn=conn,
         ce_client=ce_client,
+        ce_headers=ce_headers,
         prior_result=row.last_result,
     )
     result = await bindings.resolve_category(row.spec.bindings["category"], ctx)
@@ -156,6 +165,7 @@ async def refresh_widget_route(
     widget_id: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> WidgetRefreshResponse:
     """AC-4/AC-7: refresh attempt against CE-METRICS-1. Failure never blanks
     the tile -- prior `last_result`/`fetched_at` are retained and `status`
@@ -169,8 +179,13 @@ async def refresh_widget_route(
             raise HTTPException(status_code=404)
 
         if row.spec.bindings.get("category") is not None:
+            ce_headers = {"Authorization": authorization} if authorization else None
             return await _refresh_category_widget(
-                conn, tenant_id=principal.tenant_id, row=row, ce_client=ce_client
+                conn,
+                tenant_id=principal.tenant_id,
+                row=row,
+                ce_client=ce_client,
+                ce_headers=ce_headers,
             )
 
         field_name = row.spec.bindings["field"]

@@ -9,6 +9,7 @@ or hard-coded server-side inside CE, per contracts.md).
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -86,7 +87,7 @@ async def contraventions(
             "entity_iri": row.get("entity_iri"),
             "message": row.get("message"),
             "severity": row.get("severity"),
-            "href": f"/resource/{row.get('entity_iri')}",
+            "href": f"/resource/{quote(str(row.get('entity_iri')), safe='')}",
         }
         for row in body.get("rows", [])
         if row.get("entity_iri")
@@ -126,7 +127,7 @@ async def recently_updated_entities(
         {
             "entity_iri": row.get("entity_iri"),
             "label": row.get("label"),
-            "href": f"/resource/{row.get('entity_iri')}",
+            "href": f"/resource/{quote(str(row.get('entity_iri')), safe='')}",
         }
         for row in body.get("rows", [])
         if row.get("entity_iri")

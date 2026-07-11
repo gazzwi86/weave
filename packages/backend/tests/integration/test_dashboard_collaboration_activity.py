@@ -184,6 +184,64 @@ async def test_410_rebaseline_never_silent_empty(
     assert result.rows is not None
 
 
+def _tenant_scoped_ce_stub(tenant_entities: dict[str, list[dict[str, object]]]) -> AsyncClient:
+    """Simulates CE-READ-1's *real* server-side behaviour: `/api/sparql`
+    scopes its result to the tenant resolved from the caller's own
+    `Authorization` bearer token (`get_current_principal`, `routers/
+    sparql.py`) -- never from a client-supplied param. A request with no
+    Authorization header (the pre-fix bug) gets every tenant's rows back,
+    reproducing the cross-tenant leak PR #91 review found.
+    """
+
+    def _handler(request: Request) -> Response:
+        auth = request.headers.get("Authorization", "")
+        tenant = auth.removeprefix("Bearer ")
+        if tenant not in tenant_entities:
+            # No/unrecognised auth -- the leak: every tenant's rows returned.
+            all_rows = [row for rows in tenant_entities.values() for row in rows]
+            return Response(200, json={"rows": all_rows})
+        return Response(200, json={"rows": tenant_entities[tenant]})
+
+    return AsyncClient(transport=MockTransport(_handler), base_url="http://ce-metrics")
+
+
+async def test_410_rebaseline_scoped_by_ce_headers_not_cross_tenant(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #91 review: the 410 re-baseline path must forward the caller's
+    `Authorization` header as `ce_headers` so CE-READ-1's own tenant
+    scoping applies -- without it, `recently_updated_entities` returns
+    every tenant's rows (reproduced here via `_tenant_scoped_ce_stub`,
+    which mirrors CE's real header-scoped behaviour). Fails before the
+    `ce_headers` fix (tenant B's row leaks into tenant A's re-seed),
+    passes after.
+    """
+    tenant_a = _unique_tenant("collab-leak-a")
+    tenant_b = _unique_tenant("collab-leak-b")
+    ce_client = _tenant_scoped_ce_stub(
+        {
+            tenant_a: [{"entity_iri": "urn:a:1", "label": "Tenant A entity"}],
+            tenant_b: [{"entity_iri": "urn:b:1", "label": "Tenant B entity"}],
+        }
+    )
+
+    async with tenant_connection(tenant_a) as conn:
+        aged_out_prior = {"last_seq": 999_999_999, "rows": []}
+        ctx = bindings.BindingContext(
+            tenant_id=tenant_a,
+            context_iri=f"urn:weave:tenant:{tenant_a}:company",
+            conn=conn,
+            ce_client=ce_client,
+            ce_headers={"Authorization": f"Bearer {tenant_a}"},
+            prior_result=aged_out_prior,
+        )
+        result = await bindings.resolve_category("collaboration-activity", ctx)
+
+    entity_iris = [row["entity_iri"] for row in result.rows]
+    assert "urn:b:1" not in entity_iris, "tenant B's entity leaked into tenant A's 410 re-seed"
+    assert "urn:a:1" in entity_iris
+
+
 async def test_feed_error_degrades_stale_never_blank(
     client: AsyncClient, platform_stack: Path
 ) -> None:
