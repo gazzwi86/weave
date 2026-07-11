@@ -325,3 +325,11 @@ Still an EPIC-001-close blocker (ui_verify --full); now a straightforward rewrit
 - **Fix:** in `overlay-engine.ts::activate()`, `remove(id)` an existing same-id entry before overwriting (dedupe).
 - **Tripwire:** CE-028 QA test `bd83895` asserts the current (buggy) double-fire as expected-today — when
   overlay-engine is fixed, that test goes RED (signal to update it alongside the fix).
+
+## XT-CE003-1: write path hardcodes xsd:string (graph_ops.py:52) — 2026-07-11
+`operations/graph_ops.py:52` builds every property literal as `Literal(value, datatype=XSD.string)`, never consulting
+the property's `sh:datatype`. Surfaced by CE-003: `effectiveDate` (only xsd:date property in the brand shape) fails
+SHACL on real-API write → AC-003-01 unreachable. Fix in-flight on feature/CE-V1-EPIC-004 (ad67501): datatype-driven
+coercion from the active shape, default xsd:string preserved (minimal blast radius). **Shared write path — other
+write consumers (CE-023 edit proxy, CE-013 ingest accept) should be re-checked at their epic close** that typed
+properties (if any) coerce correctly. Status: OPEN (fix in progress).
