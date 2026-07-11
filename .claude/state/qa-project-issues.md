@@ -228,7 +228,11 @@ per-task reports.
   but never written to `qa-cross-task-findings.md`. **Raised again in:** BE-V1-TASK-001 (Standards
   Catalogue QA pass, 2026-07-10) — same command, same exit 139, on
   `tests/integration/test_standards_api.py`. Per aggregation rule (QA Law #11), escalating here
-  instead of repeating a third time in a per-task report.
+  instead of repeating a third time in a per-task report. **Raised a third time:** BE-V1-TASK-005
+  (SDK-generation delivery, 2026-07-11) — narrowed further: the crash is not fixture-specific, it is
+  ANY `asyncpg` connect reaching `connect_utils._create_ssl_connection` under an active `--cov`
+  tracer (reproduced via both `db/migrate.py::run_migrations` and `db/pool.py::get_app_pool` from
+  plain `tests/unit`, so not integration- or session-fixture-only). Same workaround.
 - **Consequence:** DB/HTTP-path statements in repo-layer files (`standards/store.py` 57%,
   `standards/ce_client.py` 31% measured unit-only) can only be coverage-measured from the unit
   lane's mocked/fake-connection tests; the docker lane proves correctness (all green) but cannot
