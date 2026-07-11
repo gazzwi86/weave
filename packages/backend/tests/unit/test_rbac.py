@@ -38,7 +38,17 @@ class _FakeConnection:
 
 
 def test_role_rank_order_is_authoritative() -> None:
-    assert ROLE_RANK == {"read": 0, "author": 1, "publish": 2, "admin": 3}
+    """TASK-030 ADR-020: legacy 4-tier ranks are unchanged; canonical
+    in-tenant role slugs are additive (never override a legacy key).
+    """
+    assert ROLE_RANK["read"] == 0
+    assert ROLE_RANK["author"] == 1
+    assert ROLE_RANK["publish"] == 2
+    assert ROLE_RANK["admin"] == 3
+    assert ROLE_RANK["viewer"] == 0
+    assert ROLE_RANK["workspace_admin"] == 3
+    assert ROLE_RANK["compliance_officer"] == 2
+    assert len(ROLE_RANK) == 14
 
 
 def test_check_role_allows_equal_or_higher_role() -> None:

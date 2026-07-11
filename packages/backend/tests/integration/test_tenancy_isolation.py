@@ -500,3 +500,64 @@ async def test_revoked_session_rejected_on_sparql_route(
     )
     assert revoked_response.status_code == 401
     assert revoked_response.json()["detail"]["error"] == "session_revoked"
+
+
+async def test_list_members_endpoint_scoped_to_own_workspace(client: AsyncClient) -> None:
+    """TASK-030 AC-1: `GET /api/workspaces/{workspace_id}/members` lists
+    every member of the caller's own workspace, but 404s a foreign
+    workspace_id -- the same anti-enumeration convention every other
+    `{workspace_id}`-scoped route in this router uses (PR #11 finding 2),
+    not the 403 `_require_own_tenant` alone would give.
+    """
+    tenant_a = _unique_tenant("tenant-list-members-a")
+    tenant_b = _unique_tenant("tenant-list-members-b")
+
+    async with tenant_connection(tenant_a) as conn:
+        workspace_a = await create_workspace(
+            conn, tenant_id=tenant_a, slug="ws", display_name="A"
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_a,
+            workspace_id=workspace_a.id,
+            email="member@acme-corp.example",
+            role="engineer",
+        )
+        await invite_member(
+            conn,
+            tenant_id=tenant_a,
+            workspace_id=workspace_a.id,
+            email="admin@acme-corp.example",
+            role="workspace_admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace_a.id, email="admin@acme-corp.example", user_sub="u-admin"
+        )
+
+    async with tenant_connection(tenant_b) as conn:
+        workspace_b = await create_workspace(
+            conn, tenant_id=tenant_b, slug="ws", display_name="B"
+        )
+
+    tokens = await issue_token_pair(sub="u-admin", tenant_id=tenant_a)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    own_response = await client.get(
+        f"/api/workspaces/{workspace_a.id}/members", headers=headers
+    )
+    assert own_response.status_code == 200
+    members = own_response.json()["members"]
+    assert {m["email"] for m in members} == {
+        "member@acme-corp.example",
+        "admin@acme-corp.example",
+    }
+    pending = next(m for m in members if m["email"] == "member@acme-corp.example")
+    assert pending["status"] == "pending"
+    assert pending["display_name"] == "member@acme-corp.example"
+    active = next(m for m in members if m["email"] == "admin@acme-corp.example")
+    assert active["role"] == "workspace_admin"
+
+    foreign_response = await client.get(
+        f"/api/workspaces/{workspace_b.id}/members", headers=headers
+    )
+    assert foreign_response.status_code == 404
