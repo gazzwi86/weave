@@ -67,7 +67,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", tag: "m2" },
+          { label: "Glossary", href: "/ce/glossary", tag: "built" },
           { label: "Brand & voice", tag: "m2" },
           { label: "Rules & policies", tag: "m2" },
           { label: "Strategy & motivation", tag: "m2" },

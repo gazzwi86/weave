@@ -9,6 +9,9 @@
 # (loaded at startup).
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
 @prefix weave: <https://weave.io/ontology/> .
 
 weave:ProcessShape
@@ -217,4 +220,54 @@ weave:ClassShape
         sh:maxCount 1 ;
         sh:severity sh:Violation ;
         sh:message "Every Class must have exactly one string label."@en ;
+    ] .
+
+# CE-V1-TASK-001: SKOS glossary term (EPIC-003, decision B1 -- punning).
+# targetClass is `skos:Concept` only, never also `owl:Class` -- every
+# instance of *any* OWL class would otherwise become a shape target and
+# be forced to carry skos:prefLabel/skos:definition (see ADR-022). The
+# punning invariant itself (the focus node must ALSO be typed owl:Class)
+# is checked as an ordinary property shape below instead.
+weave:GlossaryTermShape
+    a sh:NodeShape ;
+    sh:targetClass skos:Concept ;
+    sh:property [
+        sh:path rdf:type ;
+        sh:name "Punned OWL class type" ;
+        sh:hasValue owl:Class ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "A glossary term (skos:Concept) must also be typed owl:Class (punning, decision B1)."@en ;
+    ] ;
+    sh:property [
+        sh:path skos:prefLabel ;
+        sh:name "Preferred label" ;
+        sh:datatype rdf:langString ;
+        sh:uniqueLang true ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every glossary term must have exactly one skos:prefLabel per language."@en ;
+    ] ;
+    sh:property [
+        sh:path skos:definition ;
+        sh:name "Definition" ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every glossary term must have exactly one skos:definition."@en ;
+    ] ;
+    sh:property [
+        sh:path skos:broader ;
+        sh:name "Broader term" ;
+        sh:class skos:Concept ;
+        sh:severity sh:Violation ;
+        sh:message "A skos:broader target must itself be a glossary term (skos:Concept)."@en ;
+    ] ;
+    sh:property [
+        sh:path skos:narrower ;
+        sh:name "Narrower term" ;
+        sh:class skos:Concept ;
+        sh:severity sh:Violation ;
+        sh:message "A skos:narrower target must itself be a glossary term (skos:Concept)."@en ;
     ] .
