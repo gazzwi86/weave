@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T05:36:48+00:00
+Captured at: 2026-07-11T06:03:45+00:00
 Event: pre-compact
 
 ## Current State
@@ -1022,7 +1022,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-010",
       "title": "CE-FUNCTION-1 Registry (Definition Surface)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-009.md",
       "retry_count": 0
@@ -1549,7 +1549,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-010",
       "title": "Kind-Level Descriptions via skos:definition",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-011.md",
       "retry_count": 0
