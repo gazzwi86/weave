@@ -37,6 +37,7 @@ from weave_backend.routers.governance import router as governance_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
+from weave_backend.routers.ingest import router as ingest_router
 from weave_backend.routers.instances import router as instances_router
 from weave_backend.routers.layout import LayoutApiError, layout_api_error_handler
 from weave_backend.routers.layout import router as layout_router
@@ -105,6 +106,7 @@ app.include_router(events_router)
 app.include_router(ontology_router)
 app.include_router(brand_router)
 app.include_router(identity_router)
+app.include_router(ingest_router)
 app.include_router(instances_router)
 app.include_router(search_router)
 app.include_router(layout_router)

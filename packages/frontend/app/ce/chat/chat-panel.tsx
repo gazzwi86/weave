@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { IngestPanel } from "./ingest-panel";
 import { MessageText } from "./message-text";
 import { useCeChat } from "./use-ce-chat";
 import type { ChatMessage } from "./types";
@@ -74,6 +75,8 @@ export function ChatPanel() {
       {pendingOperations !== null && (
         <ProposalActions onConfirm={() => void confirm()} onReject={reject} busy={busy} />
       )}
+
+      <IngestPanel />
 
       <form onSubmit={handleSubmit} className="flex gap-[var(--space-2)]">
         <label htmlFor="ce-chat-message" className="sr-only">
