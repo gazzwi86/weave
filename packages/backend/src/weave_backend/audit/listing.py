@@ -63,12 +63,12 @@ _LIST_QUERY = """
       AND ($3::text IS NULL OR event_type = $3)
       AND ($4::text IS NULL OR actor_principal_iri = $4)
       AND ($5::text IS NULL OR target_iri = $5)
-      AND ($6::timestamptz IS NULL OR ts >= $6)
-      AND ($7::timestamptz IS NULL OR ts <= $7)
+      AND ($6::timestamptz IS NULL OR ts::timestamptz >= $6)
+      AND ($7::timestamptz IS NULL OR ts::timestamptz <= $7)
       AND (
         $8::text IS NULL
-        OR target_iri ILIKE '%' || $8 || '%'
-        OR diff_summary::text ILIKE '%' || $8 || '%'
+        OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
+        OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
       )
     ORDER BY seq DESC
     LIMIT $9 OFFSET $10
@@ -82,14 +82,25 @@ _COUNT_QUERY = """
       AND ($3::text IS NULL OR event_type = $3)
       AND ($4::text IS NULL OR actor_principal_iri = $4)
       AND ($5::text IS NULL OR target_iri = $5)
-      AND ($6::timestamptz IS NULL OR ts >= $6)
-      AND ($7::timestamptz IS NULL OR ts <= $7)
+      AND ($6::timestamptz IS NULL OR ts::timestamptz >= $6)
+      AND ($7::timestamptz IS NULL OR ts::timestamptz <= $7)
       AND (
         $8::text IS NULL
-        OR target_iri ILIKE '%' || $8 || '%'
-        OR diff_summary::text ILIKE '%' || $8 || '%'
+        OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
+        OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
       )
     """
+
+
+def _escape_like(value: str | None) -> str | None:
+    """Escapes ILIKE wildcards in a user-supplied `q` value so typing a
+    literal `%`/`_` filters for that literal, not an unintended wildcard.
+    Backslash first, then the two wildcard chars -- order matters so the
+    escape char itself doesn't get re-escaped. Paired with `ESCAPE '\\'` in
+    the query."""
+    if value is None:
+        return None
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def list_entries(
@@ -109,7 +120,7 @@ async def list_entries(
         f.target_iri,
         f.date_from,
         f.date_to,
-        f.q,
+        _escape_like(f.q),
     )
     rows = await conn.fetch(_LIST_QUERY, *filter_args, per_page, (page - 1) * per_page)
     total_row = await conn.fetchrow(_COUNT_QUERY, *filter_args)
