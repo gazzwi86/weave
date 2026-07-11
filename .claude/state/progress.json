@@ -280,7 +280,7 @@
     {
       "id": "PLAT-V1-EPIC-011",
       "title": "Design System & App Shell v2 (Storybook atomic library + V4-hybrid chrome refit)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-012",
@@ -1562,7 +1562,7 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
       "title": "App shell v2 — V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
