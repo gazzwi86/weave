@@ -17,13 +17,14 @@ const PHASE_VARIANT: Record<ProjectCardData["lifecycle_phase"], BadgeProps["vari
 
 /** One Registry card (AC-1): name, derived phase, owner. `budget`/`demo
  * status` named in the brief's AC-1 text have no field on TASK-014's
- * shipped ProjectCardResponse -- not rendered (see task receipt GAPS). */
+ * shipped ProjectCardResponse -- not rendered (see task receipt GAPS).
+ * BE-V1-TASK-019: links to the project dashboard (not settings directly)
+ * -- the dashboard is the primary destination when browsing existing
+ * projects; settings stays reachable from a link on the dashboard itself.
+ */
 export function ProjectCard({ project }: { project: ProjectCardData }): React.JSX.Element {
   return (
-    <Link
-      href={`/build/projects/${encodeURIComponent(project.project_iri)}/settings`}
-      className="block"
-    >
+    <Link href={`/build/projects/${encodeURIComponent(project.project_iri)}`} className="block">
       <Card className="transition-[background-color] duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:bg-[var(--color-hover)] focus-visible:shadow-[var(--ring-focus)]">
         <div className="flex items-center justify-between gap-[var(--space-2)]">
           <CardTitle className="text-[length:var(--text-h4)]">{project.name}</CardTitle>
