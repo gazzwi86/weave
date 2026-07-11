@@ -39,3 +39,6 @@ NOT a regression) via component (14) + API (9) layers.
 On QA PASS: reconcile onto green main (union __init__.py routers if conflict; run whole-repo ruff + **poisoned-endpoint pytest**
 per PROJ-014 + OKF-validate before push), push, PR, review, CI green → auto-merge (non-risky, no migration). Run ui_verify on
 the request form before close (UI-gate, phase-gate deferred).
+
+## QA FAIL retry-1 (2026-07-12, a03b667) — logic: governance-test regression + missing repo_name passthrough
+6/8 clean (atoms not-hand-rolled, mount, AC-6 grounding_entity_not_found, tenant-scoping, AC-8 perf, hermeticity poison-verified 1180 pass). Edge test 9653328a (name==200 boundary). **2 BLOCKING:** (1) AC-4 required-name regressed 4 test_requests_governance_api.py tests (shared _create_and_complete_draft helper POSTs no name -> 422; engineer 0af54db7 fixed only test_requests_api.py). (2) target_repo_name/name passthrough to _auto_create_project NEVER wired (named Design-Decision + Impl-Hint + Integration-Test; request_governance.py:119 still derives name from prompt; zero repo_name_hint in src). WARN: AC-7 zero-link race (graph_context unavailable -> []), AC-1 progressive-disclosure hides target-repo field. Fix in flight (ae7983f). retry=1.
