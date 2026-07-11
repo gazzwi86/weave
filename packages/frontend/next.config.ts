@@ -42,6 +42,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
+  // AC-6: bare /login insurance redirect (F-D25's literal URL) -- /auth/login
+  // is the real, already-working sign-in route (TASK-002).
+  async redirects() {
+    return [{ source: "/login", destination: "/auth/login", permanent: false }];
+  },
 };
 
 export default nextConfig;
