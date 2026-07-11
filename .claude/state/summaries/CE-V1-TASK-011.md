@@ -22,3 +22,13 @@ Skipped (not an AC, per brief): row→kind-detail link polish (F-D14/R12).
 ## Epic status — EPIC-010 CLOSES on QA-pass
 Last task. On QA PASS: restack onto green main, open EPIC-010 PR. Carries CE-009's operations/pipeline.py immutability gate
 (XT-WRITEPATH-2 — reconcile with CE-005/CE-008 pipeline.py at merge). Non-risky (RDF-only, no migration) → auto-merge eligible.
+
+## QA PASS (2026-07-11, a9c3650, retry 0) — CE-V1-TASK-011 CLOSES → EPIC-010 COMPLETE
+4/5 ACs directly tested + pass. Backend sources `description` from ontology (`catalogue._skos_definition` reads
+`graph.value(class, SKOS.definition)` off live shapes graph — zero hand-copies, grep-verified). AC-011-01 completeness
+(14 kinds, enumerated BPMO_KINDS frozenset). AC-011-04 /ce/types renders description (mounted, nav). AC-011-05 absent→
+guards null/undefined/"" (frontend `kind.description && ...`), unit-tested (WARN: no live extension-kind integration
+fixture — unit-depth only). QA added 2 edge tests `08665df` (empty-string, long-desc). tokens correct (--text-body-sm/
+--color-text-muted, avoids low-contrast --color-text-subtle). 7/7 vitest, 28/28 backend, tsc/lint/mypy/ruff clean. retry=0.
+**AC-011-03 spec-hygiene:** "GE right panel renders description" — GE engine ships AFTER CE; no right-panel exists; brief
+AC-table contradicts its own Dependencies ("external UI work"). RE-HOME to a GE task + mark deferred (PO/architect).

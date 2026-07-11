@@ -381,3 +381,10 @@ CE-007 (XT-CE007-2) and CE-005 both hallucinated "ADR-023" in docstrings/tests f
 ADR exists (real ADR-023 = ingest DocumentExtractor). Also ADR-022 reused 3× across branches (glossary/metrics/brand).
 LESSON for engineer briefs: when documenting a deviation, `ls docs/specs/weave/engines/<engine>/decisions/` for the next
 FREE number + CREATE the ADR file; never cite an ADR number without creating it. Phase-gate: audit all ADR citations resolve.
+
+## XT-CE011-1: AC-011-03 spec self-contradiction (GE right-panel) — 2026-07-11
+CE-011 brief AC-011-03 requires "Graph Explorer right panel renders description" but GE engine ships AFTER CE (no
+right-panel exists) — the brief's own Dependencies section calls it "external UI work, unblocked once description served",
+contradicting the AC table. QA correctly did NOT fail CE-011 for it. FIX (PO/architect): re-home AC-011-03 to a future
+GE-engine task + mark deferred in TASK-011. Also: framework.shacl.ttl is a MERGE HOTSPOT (CE-001 GlossaryTermShape[merged] +
+CE-003 brand shapes[EPIC-004] + CE-011 skos:definitions[EPIC-010]) → sequence epic merges + union the ttl each time.
