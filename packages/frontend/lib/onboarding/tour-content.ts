@@ -33,7 +33,6 @@ export function renderableSteps(
     if (hasAnchor(step.anchorId)) {
       result.push(step);
     } else {
-      // eslint-disable-next-line no-console -- AC-007-04: logged warning, anchor id included.
       console.warn(`[onboarding] tour "${tour.tourId}" step anchor absent, skipping: ${step.anchorId}`);
     }
   }
