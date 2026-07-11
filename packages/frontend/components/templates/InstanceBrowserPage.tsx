@@ -7,10 +7,19 @@ import { InspectorPanel, type InspectorPanelProps } from "@/components/organisms
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+export type { DataTableColumn, DataTableRow };
+
 export interface KindFilterOption {
   iri: string;
   label: string;
   slug: BpmoKind;
+}
+
+/** Kind-chip cell for the "kind" column (AC-1) -- app layer builds rows with
+ * this instead of importing `KindChip` directly (app-layer-boundary rule).
+ */
+export function KindCell({ kind }: { kind: BpmoKind }) {
+  return <KindChip kind={kind} label="" />;
 }
 
 export interface InstanceBrowserPageProps {

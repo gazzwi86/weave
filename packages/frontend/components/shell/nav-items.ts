@@ -64,7 +64,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
           { label: "Overview", href: "/ce/overview", tag: "built" },
           { label: "Explore", href: "/explorer", tag: "built" },
           { label: "Ontology / Types", href: "/ce/types", tag: "built" },
-          { label: "Instances / Data", href: "/ce", tag: "built" },
+          { label: "Instances / Data", href: "/ce/instances", tag: "built" },
         ],
       },
       {
