@@ -493,3 +493,30 @@ After CE-014 (partial, XML branch deferred) + #84 (CE-026) land, CE's remaining 
 - **CE-019 (Import & Ingest Page)** blocked_by TASK-015/016/017/018 which are ALL in post-v1/ (unbuilt) — cannot complete in v1; ship partial or defer to when those land.
 - **CE-014 AC-003-01 (XML chunking)** deferred — needs TASK-015 (post-v1). Brief/milestone mismatch: TASK-014 v1 brief hard-requires post-v1 TASK-015; architect should update the brief.
 NET: to finish CE v1, I need your CE-023 role→write mapping. Everything else (ONB M1 chain, remaining PLAT non-connector) proceeds.
+
+### CE-V1-TASK-014 landed — Document Corpus Storage, partial (2026-07-12)
+Built: chunking (prose/markdown, no second parser), in-memory vector index (tenant-scoped,
+Law F no-cloud-spend), Titan v2 embeddings, `corpus.retrieval_top_k` settings cascade,
+best-effort citations, S3-wiring embed-on-commit glue hooked into the accept route's
+`BackgroundTasks`, `prov:used` source-artefact lookup, and `NlQueryResponse.citations`
+additive wiring on `POST /api/query/nl` (CE-READ-1). AC-003-07 CI structural assert added
+(corpus stays read-side only, no write verb under any `corpus` route).
+
+**AC-003-01 (XML/notation chunking) deferred to TASK-015 (post-v1)** — already flagged
+above under "CE v1 TAIL GATED"; this closes that thread out. `chunk_xml_notation()` raises
+`NotationChunkingUnavailable` (honest degraded state, references TASK-015 by name) rather
+than a duplicate parser. Architect: TASK-014's v1 brief still hard-requires this — needs a
+brief update reflecting the milestone split, or a decision to keep the seam permanent.
+
+**Scope call, not brief-driven:** did not add a standalone `GET /api/corpus/*` router —
+no contract ID in `contracts.md` grounds one, and inventing endpoints is against repo
+convention. If a corpus-browse UI/API is wanted, it needs a contract entry first.
+
+**No DB migration added** — dispatch assumed one (0103/0104); investigation showed the
+corpus store is S3 (passages.jsonl) + in-memory vector index, no Postgres table needed.
+
+**Gap flagged for follow-up**: two-tenant vector isolation (release-gating) is verified at
+unit level only (`VectorIndex` direct), not as a docker-integration test against a real
+multi-tenant deployment shape. Recommend a docker-integration pass before production.
+
+Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
