@@ -27,6 +27,7 @@ from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.operations.provenance import prov_graph_iri
 from weave_backend.rdf.oxigraph_client import clear_graph, fetch_graph_turtle
 from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
@@ -166,6 +167,46 @@ async def test_effective_date_string_coerces_to_xsd_date_and_commits(
         assert str(literal) == "2026-01-01"
     finally:
         await clear_graph(workspace.named_graph_iri)
+
+
+async def test_brand_standard_commit_writes_a_prov_activity(client: AsyncClient) -> None:
+    """AC-003-01: a brand write through the real API is a mutation like any
+    other -- `operations/pipeline.py`'s `write_activity` call is generic, not
+    BPMO-catalogue-gated, so it must fire for BrandStandard/VoiceRule ops
+    too. Confirms the committed `prov:Activity` names the real actor
+    (`wasAssociatedWith`) and stamps the version it generated
+    (`prov:generated`), same shape `test_operations_apply.py` proves for
+    ordinary kinds.
+    """
+    _tenant_id, workspace, headers = await _setup_admin(client, label="brand-prov")
+    try:
+        response = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_brand_standard_op()], "actor": "urn:weave:principal:test-actor"},
+            headers=headers,
+        )
+        assert response.status_code == 201
+        body = response.json()
+        activity_iri = body["activity_iri"]
+        version_iri = body["version_iri"]
+
+        prov_turtle = await fetch_graph_turtle(prov_graph_iri(workspace.named_graph_iri))
+        prov_graph = Graph()
+        prov_graph.parse(data=prov_turtle, format="turtle")
+        activity = URIRef(activity_iri)
+        assert (
+            activity,
+            URIRef("http://www.w3.org/ns/prov#wasAssociatedWith"),
+            URIRef("urn:weave:principal:user:u-1"),
+        ) in prov_graph
+        assert (
+            activity,
+            URIRef("http://www.w3.org/ns/prov#generated"),
+            URIRef(version_iri),
+        ) in prov_graph
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(prov_graph_iri(workspace.named_graph_iri))
 
 
 async def test_malformed_effective_date_returns_400_not_500(client: AsyncClient) -> None:
