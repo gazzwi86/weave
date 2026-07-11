@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordAttribution } from "../attribution";
 import { useBrandList } from "../use-brand-list";
 
-function stubSparqlFetch(bindings: Record<string, { value: string }>[]): void {
+// Real shape of POST /api/proxy/sparql: `{ rows: [{ variable: "value" }] }`
+// (flat strings, already reshaped from Oxigraph's raw bindings server-side
+// -- see route.ts's sparqlResultsToRows / fetch-domain-members.ts's own
+// DomainMemberResponseBody), not a raw `{ results: { bindings } }` term shape.
+function stubSparqlFetch(rows: Record<string, string>[]): void {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () =>
-      Response.json({ results: { bindings } }, { status: 200 })
-    )
+    vi.fn(async () => Response.json({ rows }, { status: 200 }))
   );
 }
 
@@ -22,12 +24,7 @@ describe("useBrandList", () => {
   // AC-004-03: current values from the draft graph, 50/page.
   it("lists standards from the draft graph via the SPARQL proxy", async () => {
     stubSparqlFetch([
-      {
-        s: { value: "urn:weave:instances:bs-1" },
-        contentType: { value: "acme.tone" },
-        effectiveDate: { value: "2026-01-01" },
-        owner: { value: "Brand Team" },
-      },
+      { s: "urn:weave:instances:bs-1", contentType: "acme.tone", effectiveDate: "2026-01-01", owner: "Brand Team" },
     ]);
 
     const { result } = renderHook(() => useBrandList("standard", 0));
@@ -51,8 +48,8 @@ describe("useBrandList", () => {
       committedAt: "2026-07-11T00:00:00.000Z",
     });
     stubSparqlFetch([
-      { s: { value: "urn:weave:instances:bs-1" }, contentType: { value: "a" }, effectiveDate: { value: "2026-01-01" }, owner: { value: "o" } },
-      { s: { value: "urn:weave:instances:bs-2" }, contentType: { value: "b" }, effectiveDate: { value: "2026-01-01" }, owner: { value: "o" } },
+      { s: "urn:weave:instances:bs-1", contentType: "a", effectiveDate: "2026-01-01", owner: "o" },
+      { s: "urn:weave:instances:bs-2", contentType: "b", effectiveDate: "2026-01-01", owner: "o" },
     ]);
 
     const { result } = renderHook(() => useBrandList("standard", 0));
@@ -65,13 +62,13 @@ describe("useBrandList", () => {
   });
 
   it("reports hasMore when the probe (51st) row comes back", async () => {
-    const bindings = Array.from({ length: 51 }, (_, i) => ({
-      s: { value: `urn:weave:instances:bs-${i}` },
-      contentType: { value: "a" },
-      effectiveDate: { value: "2026-01-01" },
-      owner: { value: "o" },
+    const rows = Array.from({ length: 51 }, (_, i) => ({
+      s: `urn:weave:instances:bs-${i}`,
+      contentType: "a",
+      effectiveDate: "2026-01-01",
+      owner: "o",
     }));
-    stubSparqlFetch(bindings);
+    stubSparqlFetch(rows);
 
     const { result } = renderHook(() => useBrandList("standard", 0));
 
@@ -82,7 +79,7 @@ describe("useBrandList", () => {
 
   it("lists voice rules via the same proxy when kind is voice-rule", async () => {
     stubSparqlFetch([
-      { s: { value: "urn:weave:instances:vr-1" }, ruleId: { value: "no-jargon" }, severity: { value: "critical" }, assertion: { value: "forbidden-term:synergy" } },
+      { s: "urn:weave:instances:vr-1", ruleId: "no-jargon", severity: "critical", assertion: "forbidden-term:synergy" },
     ]);
 
     const { result } = renderHook(() => useBrandList("voice-rule", 0));

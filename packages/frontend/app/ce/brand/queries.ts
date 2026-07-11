@@ -57,30 +57,35 @@ export function paginate<T>(rows: T[]): { pageRows: T[]; hasMore: boolean } {
   return { pageRows: rows.slice(0, PAGE_SIZE), hasMore: rows.length > PAGE_SIZE };
 }
 
-interface SparqlBinding {
-  [variable: string]: { value: string } | undefined;
+// Flat string row -- the real shape POST /api/proxy/sparql returns
+// (`{ rows: [{ variable: "value" }] }`, already reshaped server-side from
+// Oxigraph's raw `{ value }` term bindings -- see route.ts's
+// sparqlResultsToRows and lib/explorer/fetch-domain-members.ts's identical
+// consumption), never a raw term-wrapper shape.
+interface SparqlRow {
+  [variable: string]: string | undefined;
 }
 
-function bindingValue(binding: SparqlBinding, key: string): string | null {
-  return binding[key]?.value ?? null;
+function rowValue(row: SparqlRow, key: string): string | null {
+  return row[key] ?? null;
 }
 
-export function toStandardRow(binding: SparqlBinding): BrandStandardRow {
+export function toStandardRow(row: SparqlRow): BrandStandardRow {
   return {
-    iri: bindingValue(binding, "s") ?? "",
-    contentType: bindingValue(binding, "contentType") ?? "",
-    contentBody: bindingValue(binding, "contentBody"),
-    sourceUri: bindingValue(binding, "sourceUri"),
-    effectiveDate: bindingValue(binding, "effectiveDate") ?? "",
-    owner: bindingValue(binding, "owner") ?? "",
+    iri: rowValue(row, "s") ?? "",
+    contentType: rowValue(row, "contentType") ?? "",
+    contentBody: rowValue(row, "contentBody"),
+    sourceUri: rowValue(row, "sourceUri"),
+    effectiveDate: rowValue(row, "effectiveDate") ?? "",
+    owner: rowValue(row, "owner") ?? "",
   };
 }
 
-export function toVoiceRuleRow(binding: SparqlBinding): VoiceRuleRow {
+export function toVoiceRuleRow(row: SparqlRow): VoiceRuleRow {
   return {
-    iri: bindingValue(binding, "s") ?? "",
-    ruleId: bindingValue(binding, "ruleId") ?? "",
-    severity: bindingValue(binding, "severity") === "critical" ? "critical" : "normal",
-    assertion: bindingValue(binding, "assertion") ?? "",
+    iri: rowValue(row, "s") ?? "",
+    ruleId: rowValue(row, "ruleId") ?? "",
+    severity: rowValue(row, "severity") === "critical" ? "critical" : "normal",
+    assertion: rowValue(row, "assertion") ?? "",
   };
 }

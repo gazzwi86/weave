@@ -15,20 +15,21 @@ function stubFetch(): void {
       const url = input.toString();
       if (url.includes("/api/auth/session")) return jsonResponse(200, { user: { email: "brand-owner@example.com" } });
       if (url.includes("/api/proxy/sparql")) {
+        // Flat string rows -- real shape of POST /api/proxy/sparql (see
+        // queries.ts's SparqlRow docstring), not a raw `{ results: { bindings } }`
+        // term wrapper.
         return jsonResponse(200, {
-          results: {
-            bindings: [
-              {
-                s: { value: "urn:weave:instances:bs-1" },
-                contentType: { value: "acme.tone" },
-                effectiveDate: { value: "2026-01-01" },
-                owner: { value: "Brand Team" },
-                ruleId: { value: "no-jargon" },
-                severity: { value: "critical" },
-                assertion: { value: "forbidden-term:synergy" },
-              },
-            ],
-          },
+          rows: [
+            {
+              s: "urn:weave:instances:bs-1",
+              contentType: "acme.tone",
+              effectiveDate: "2026-01-01",
+              owner: "Brand Team",
+              ruleId: "no-jargon",
+              severity: "critical",
+              assertion: "forbidden-term:synergy",
+            },
+          ],
         });
       }
       throw new Error(`unhandled fetch ${url}`);

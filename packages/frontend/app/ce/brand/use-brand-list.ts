@@ -9,10 +9,12 @@ import type { Attribution, BrandStandardRow, VoiceRuleRow } from "./types";
 export type BrandKind = "standard" | "voice-rule";
 
 interface SparqlResponseBody {
-  results: { bindings: Record<string, { value: string } | undefined>[] };
+  rows: Record<string, string | undefined>[];
 }
 
-async function fetchRows(kind: BrandKind, page: number): Promise<Record<string, { value: string } | undefined>[]> {
+// Flat string rows -- real shape of POST /api/proxy/sparql (see queries.ts's
+// SparqlRow docstring), not a raw `{ results: { bindings } }` term wrapper.
+async function fetchRows(kind: BrandKind, page: number): Promise<Record<string, string | undefined>[]> {
   const query = kind === "standard" ? standardsQuery(page) : voiceRulesQuery(page);
   const res = await fetch("/api/proxy/sparql", {
     method: "POST",
@@ -21,7 +23,7 @@ async function fetchRows(kind: BrandKind, page: number): Promise<Record<string, 
   });
   if (!res.ok) throw new Error(`brand_list_failed_${res.status}`);
   const body = (await res.json()) as SparqlResponseBody;
-  return body.results.bindings;
+  return body.rows;
 }
 
 export interface UseBrandListResult {

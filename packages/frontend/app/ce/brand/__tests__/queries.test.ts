@@ -32,12 +32,15 @@ describe("paginate", () => {
 });
 
 describe("row mappers", () => {
-  it("maps a standard binding, defaulting unbound OPTIONALs to null", () => {
+  // Flat string rows -- real shape of POST /api/proxy/sparql's `{ rows }`
+  // (already reshaped server-side from Oxigraph's raw bindings, see
+  // route.ts's sparqlResultsToRows), not a raw `{ value }` term wrapper.
+  it("maps a standard row, defaulting unbound OPTIONALs to null", () => {
     const row = toStandardRow({
-      s: { value: "urn:weave:instances:bs-1" },
-      contentType: { value: "acme.tone" },
-      effectiveDate: { value: "2026-01-01" },
-      owner: { value: "Brand Team" },
+      s: "urn:weave:instances:bs-1",
+      contentType: "acme.tone",
+      effectiveDate: "2026-01-01",
+      owner: "Brand Team",
     });
     expect(row).toEqual({
       iri: "urn:weave:instances:bs-1",
@@ -49,16 +52,16 @@ describe("row mappers", () => {
     });
   });
 
-  it("maps a voice-rule binding, falling back to 'normal' for an unrecognised severity", () => {
+  it("maps a voice-rule row, falling back to 'normal' for an unrecognised severity", () => {
     const row = toVoiceRuleRow({
-      s: { value: "urn:weave:instances:vr-1" },
-      ruleId: { value: "no-jargon" },
-      severity: { value: "critical" },
-      assertion: { value: "forbidden-term:synergy" },
+      s: "urn:weave:instances:vr-1",
+      ruleId: "no-jargon",
+      severity: "critical",
+      assertion: "forbidden-term:synergy",
     });
     expect(row.severity).toBe("critical");
 
-    const fallback = toVoiceRuleRow({ severity: { value: "bogus" } });
+    const fallback = toVoiceRuleRow({ severity: "bogus" });
     expect(fallback.severity).toBe("normal");
   });
 });
