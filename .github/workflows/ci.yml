@@ -25,10 +25,17 @@ jobs:
       # plausible). Install just the compiler, not the whole frontend
       # workspace: the generated SDK has zero external node_modules
       # dependencies (see sdkgen/templates/typescript/tsconfig.json.j2).
+      # Pinned to major version 5 (frontend's own `^5` pin, currently
+      # 5.9.3) -- unpinned `npm install -g typescript` silently tracked
+      # "latest" forward to TS 7, which hard-removed the deprecated
+      # `moduleResolution: "node"` value the generated tsconfig uses
+      # (TS5108), breaking this job while local `npm ci` runs (which
+      # respect the frontend lockfile) stayed green. Matching the
+      # frontend's major version is the actual fix, not a path issue.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm install -g typescript
+      - run: npm install -g typescript@5
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run mypy src/ tests/
@@ -51,11 +58,12 @@ jobs:
           python-version: "3.12"
       # BE-SDK-1 sdkgen integration tests shell out to a real `tsc --noEmit`
       # (AC-7); see the `api` job above for why only the compiler (not the
-      # whole frontend workspace) is installed.
+      # whole frontend workspace) is installed, and why it's pinned to
+      # major version 5.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm install -g typescript
+      - run: npm install -g typescript@5
       - run: docker compose up -d --wait postgres redis oxigraph localstack
       - name: Wait for oxigraph HTTP API
         run: |
@@ -210,11 +218,12 @@ jobs:
           python-version: "3.12"
       # mutmut's baseline run exercises the full unit suite, including the
       # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit` (AC-7);
-      # see the `api` job above for why only the compiler is installed.
+      # see the `api` job above for why only the compiler is installed, and
+      # why it's pinned to major version 5.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm install -g typescript
+      - run: npm install -g typescript@5
       - run: uv sync
       - run: uv run mutmut run ${{ matrix.patterns }} || true
         env:
@@ -264,12 +273,13 @@ jobs:
       # integration-marked sdkgen pipeline test on this job), including the
       # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit`
       # (AC-7); see the `api` job above for why only the compiler is
-      # installed. This is also the job where the fixed-hop-count tsc path
-      # bug bit: mutmut stages mutated sources one directory deeper.
+      # installed, and why it's pinned to major version 5. This is also
+      # the job where the fixed-hop-count tsc path bug bit: mutmut stages
+      # mutated sources one directory deeper.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-      - run: npm install -g typescript
+      - run: npm install -g typescript@5
       - working-directory: .
         run: docker compose up -d --wait postgres redis oxigraph localstack
       - run: uv sync
