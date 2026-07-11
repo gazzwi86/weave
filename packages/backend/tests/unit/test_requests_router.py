@@ -192,6 +192,23 @@ async def test_create_request_route_422_when_name_too_long() -> None:
     assert exc_info.value.detail["field"] == "name"  # type: ignore[index]
 
 
+async def test_create_request_route_accepts_name_at_exactly_200_chars() -> None:
+    """QA edge case (AC-4 boundary): 200 chars is the inclusive upper
+    bound ("1-200 chars") -- only "too long" (201) was tested; this proves
+    the boundary itself doesn't get rejected by an off-by-one.
+    """
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only", name="x" * 200)
+
+    with patch("weave_backend.routers.requests.store.create_request_record", AsyncMock()):
+        result = await create_request_route(
+            body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), _RecordingProvider()
+        )
+
+    assert result.status == "drafting"
+
+
 async def test_create_request_route_422_when_target_repo_name_missing_for_build_mode() -> None:
     from weave_backend.schemas.requests import CreateRequestBody
 
