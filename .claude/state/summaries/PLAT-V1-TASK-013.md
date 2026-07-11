@@ -39,3 +39,13 @@ integration + 1 E2E green. **Coverage NOT re-measured** (honored no-`--cov` rule
 
 ## Epic status
 EPIC-001 has TASK-014 remaining + XT-PLAT010-2 (dashboard E2E) close-blocker + milestone-"v1" undefined gate → stays OPEN.
+
+## QA PASS (2026-07-11, ace14ef, retry 0) — PLAT-V1-TASK-013 CLOSES
+Adversarial QA, all 6 ACs verified by SOURCE-READ + re-run (not self-report). **No 2nd cost path**: refine.py is
+persistence-only; generate_widget_stream is the SINGLE pipeline (enforce_budget/record_token_usage/audit each called
+ONCE, parameterized by context — no fork). AC-5 mount chain traced real + `refine-widget.spec.ts` ran (1 passed). AC-6
+ownership production-correct (tenant-scoped lookup, cross-tenant id = 404 no-leak) — QA added `test_refine_non_owner_same_tenant_forbidden`
++ `test_refine_cross_tenant_widget_id_is_404` + `test_restore_unknown_seq_is_404` (commit `20d73d5`) closing real untested
+branches. AC-2 cap-10, AC-3 failure-preserves-state, AC-4 model-free-restore all verified. 996 unit + 10 integration green
+(ran WITH the marker), tsc/ruff/mypy/eslint clean. Coverage met-by-inference (PROJ-013). WARN: Law-3 perf not freshly
+measured (refine byte-identical to generate → inference). retry=0. HEAD now 20d73d5.
