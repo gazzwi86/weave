@@ -285,6 +285,25 @@ PLAT-V1-TASK-014 (EPIC-001 last task) overflowed 2× just reading files before b
 dashboard grid/layout). EPIC-001 close is HITL-blocked anyway (XT-PLAT010-2 + milestone-"v1" gate). Parked. Needs a
 smaller-scoped brief or manual decomposition before re-attempting. Low ROI until EPIC-001's close-blockers resolve.
 
+## EPIC-009 (Provenance & Version Lifecycle) — CLOSE HELD, migration 0062 (2026-07-11)
+CE-008 (change-feed) QA-PASS → EPIC-009 COMPLETE (sole task). Restacked onto green main (pipeline.py union), pushed, PR
+opened, driven green + review-clean — but **HELD for human merge: migration 0062 `graph_change_events` = schema tier**
+(RLS + grant + append-only trigger). Not auto-merged. **2 morning decisions from CE-008 QA:**
+1. **XT-CE008-AC03 (spec self-contradiction):** brief AC-008-03 table says publish events carry a real CE-VERSION-1 IRI, but
+   the Scope section + m2-delta §10 diagram (no publish arrow) + §11 invariant only wire the CE-WRITE-1 draft path — publish
+   route never emits an event. DECISION: (a) publish-side CE-EVENT-1 hook is in scope → file a new task, or (b) the brief AC
+   table is wrong → fix the brief to match Scope/diagram. QA shipped it as DELIVERED-for-scope (documented, not a defect).
+2. **XT-CE008-PERF (benchmark gap):** GET /api/events has no ADR-004 in-process perf benchmark (CE-007 has one). Endpoint is
+   an indexed cursor SELECT → met-by-inference now; add a benchmark before the phase gate. (This is PROJ-002 territory — the
+   locust WARN QA raised is already resolved by the in-process-benchmark approach; CE-008 just lacks its own benchmark file.)
+
+## EPIC-010 MERGED (#58, squash) — main GREEN (2026-07-11) — 5th epic
+main → 6c030c4. CE-009 (CE-FUNCTION-1 registry + pipeline.py immutability gate) + CE-011 (kind skos:definition descriptions).
+RDF-only, no migration → auto-merged (CI-green + review-clean, non-risky). Restack unioned framework.shacl.ttl (17 shapes +
+14 defs) and fixed 2 merge-surfaced bugs: C901 (`_dispatch_pipeline` extract) + a REAL IRI-namespace collision (catalogue
+matched by local-name only → glossary skos:Concept stole BPMO weave:Concept slot; now requires the weave namespace). 5 epics
+on main: 015, 008, 003, 004, 010.
+
 ## EPIC-003 MERGED (#55) — main GREEN again (2026-07-11 ~16:40)
 Sequence completed: red-main fix #56 merged (main green 091451b) → EPIC-003 #55 restacked onto green main (empty-iri Blocker
 fix 213a756) → CI green → MERGED (4a019c8). 3 epics on main: EPIC-015, EPIC-008, EPIC-003. EPIC-004 union-restack in flight
