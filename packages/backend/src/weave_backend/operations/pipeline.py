@@ -26,7 +26,14 @@ from rdflib import Graph
 
 from weave_backend.audit.emitter import AuditEvent
 from weave_backend.authoring.bpmo import validate_kind
+from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import metrics
+from weave_backend.operations.events import (
+    CommitEvent,
+    op_change_type,
+    op_entity_iri,
+    record_commit_event,
+)
 from weave_backend.operations.graph_ops import apply_operations
 from weave_backend.operations.idempotency import (
     LOCK_TTL_SECONDS,
@@ -40,10 +47,12 @@ from weave_backend.operations.provenance import ActorType, write_activity
 from weave_backend.operations.shacl import validate_graph
 from weave_backend.operations.versioning import get_version, mint_version
 from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples, load_graph
+from weave_backend.schemas.events import ChangeType
 from weave_backend.schemas.operations import (
     AddNodeOp,
     ApplyRequest,
     ApplyResponse,
+    Op,
     ViolationDetail,
     ViolationsResponse,
 )
@@ -200,6 +209,25 @@ def _to_violation_detail(result: Any) -> ViolationDetail:
     )
 
 
+def _commit_event(
+    ctx: ApplyContext, op: Op, ref_map: dict[str, str], change_type: ChangeType
+) -> CommitEvent:
+    """CE-EVENT-1 (AC-008-01/-02/-03): one event per batch, keyed off the
+    batch's first op -- see `operations/events.py` module docstring for why
+    a batch is one commit -> one event, not a per-op ledger. `version_iri`
+    is always null here: CE-WRITE-1 only ever mints drafts (same module
+    docstring).
+    """
+    return CommitEvent(
+        tenant_id=ctx.tenant_id,
+        workspace_id=ctx.workspace_id,
+        change_type=change_type,
+        entity_iri=op_entity_iri(op, ref_map),
+        version_iri=None,
+        actor=ctx.principal_iri,
+    )
+
+
 async def _apply_uncached(
     ctx: ApplyContext, request: ApplyRequest
 ) -> ApplyResponse | ViolationsResponse:
@@ -231,6 +259,16 @@ async def _apply_uncached(
 
     if violations:
         metrics.schedule_mutation_outcome_metric("violation")
+        # AC-008-02: constraint-violated is the one exception to same-txn --
+        # ctx.conn's request-scoped transaction wrote nothing here, but the
+        # event still gets its own connection/transaction per ADR-008,
+        # rather than riding along on the caller's, since nothing about
+        # this branch guarantees that transaction ever commits.
+        event = _commit_event(
+            ctx, request.operations[0], apply_result.ref_map, "constraint-violated"
+        )
+        async with tenant_connection(ctx.tenant_id) as violation_conn:
+            await record_commit_event(violation_conn, event)
         return ViolationsResponse(violations=[_to_violation_detail(r) for r in violations])
 
     version_iri, activity_iri, body = await _commit(
@@ -239,6 +277,16 @@ async def _apply_uncached(
         source_graph_iri=source_graph_iri,
         claimed_actor_iri=request.actor,
         applied_count=apply_result.applied_count,
+    )
+    # AC-008-01: same connection/transaction the version row just committed
+    # on -- ctx.conn's transaction only actually commits when the router's
+    # `tenant_connection` block exits, so this insert is still atomic with
+    # the commit above even though it's not literally inside `_commit`.
+    await record_commit_event(
+        ctx.conn,
+        _commit_event(
+            ctx, request.operations[0], apply_result.ref_map, op_change_type(request.operations[0])
+        ),
     )
     metrics.schedule_mutation_outcome_metric("success")
     # Last, irreversible step -- everything failable already happened and
