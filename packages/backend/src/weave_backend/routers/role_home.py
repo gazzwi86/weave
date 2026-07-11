@@ -72,8 +72,9 @@ async def _fetch_live_payload(ctx: BindingContext, level: str) -> dict[str, Any]
     unassigned_users = 0
     if level == "admin":
         rbac = await resolve_category("rbac-coverage", ctx)
-        if rbac.status == "fresh":
-            unassigned_users = len(rbac.rows.get("users_without_role", []))
+        if rbac.status != "fresh":
+            return None
+        unassigned_users = len((rbac.rows or {}).get("users_without_role", []))
     return {
         "kinds": kinds,
         "counts": health.rows.get("entity_count_by_kind", {}),
@@ -97,6 +98,9 @@ async def _resolve_tile(
         tenant_id=principal.tenant_id,
         scope="role_home",
         owner_principal_iri=None,
+    )
+    assert len(rows) == 1, (  # noqa: S101 -- invariant: ensure_role_home_tile ran just above
+        f"role_home tile missing for tenant {principal.tenant_id}"
     )
     tile = rows[0]
     payload = await _fetch_live_payload(ctx, level)
