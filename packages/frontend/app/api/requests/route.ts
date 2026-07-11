@@ -11,6 +11,9 @@ const createRequestSchema = z.object({
   prompt: z.string().min(1),
   run_mode: z.enum(["draft_spec_only", "spec_to_build", "spike"]),
   description: z.string().optional(),
+  name: z.string().min(1).max(200),
+  grounding_entity_iris: z.array(z.string()).default([]),
+  target_repo_name: z.string().optional(),
 });
 
 /** Proxies the Build engine's "Request application" form to the backend's
