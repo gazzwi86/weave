@@ -13,8 +13,8 @@ import shutil
 import uuid
 
 import pytest
-from weave_backend.build.dashboard import UnknownTile, get_tile_payload
 
+from weave_backend.build.dashboard import UnknownTile, get_tile_payload
 from weave_backend.db.pool import tenant_connection
 from weave_backend.generation.store import NewGenerationRun, insert_generation_run
 from weave_backend.projects.model import NewProject, create_project, update_project_publish
@@ -86,6 +86,73 @@ async def test_demo_tile_retains_prior_url_and_surfaces_failure_after_failed_dep
         )
 
     assert payload.output_location_ref == "s3://weave-artefacts/t1/run-1/"
+    assert payload.last_run_status == "failed"
+
+
+async def test_demo_tile_breaks_same_transaction_tie_via_clock_timestamp(
+    platform_stack: object,
+) -> None:
+    """Edge case (migration 0065): `now()` returns the *transaction* start
+    time, so two `generation_runs` rows inserted inside one explicit
+    transaction would tie on `created_at` under the old default -- the
+    existing AC-3 integration test above uses separate autocommit
+    statements, which never actually exercises that tie (each implicit
+    transaction gets its own timestamp regardless of the fix). This test
+    seeds a failed row *after* a passed row inside a single `conn.transaction()`
+    block, so it only passes under `clock_timestamp()` (per-statement wall
+    time) -- `now()` would leave the ordering nondeterministic and this
+    assertion would flake/fail.
+    """
+    tenant_id = _unique_tenant("tenant-dash-tie")
+    async with tenant_connection(tenant_id) as conn:
+        project = await create_project(
+            conn,
+            NewProject(
+                tenant_id=tenant_id,
+                slug="acme-corp",
+                name="Acme Corp",
+                description=None,
+                pinned_graph_version_iri="urn:weave:version:v1",
+            ),
+        )
+        await update_project_publish(
+            conn,
+            tenant_id=tenant_id,
+            project_iri=project.project_iri,
+            demo_output_location_ref="s3://weave-artefacts/tie/run-1/",
+        )
+        async with conn.transaction():
+            await insert_generation_run(
+                conn,
+                tenant_id=tenant_id,
+                run=NewGenerationRun(
+                    project_iri=project.project_iri,
+                    task_id="task-1",
+                    gate_results=[],
+                    branch="build/acme-corp/task-1",
+                    commit_sha="sha-ok",
+                ),
+            )
+            # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+            await conn.execute(
+                "INSERT INTO generation_runs"
+                " (tenant_id, project_iri, task_id, status, gate_results, branch, commit_sha)"
+                " VALUES ($1, $2, $3, 'failed', '[]'::jsonb, $4, $5)",
+                tenant_id,
+                project.project_iri,
+                "task-2",
+                "build/acme-corp/task-2",
+                "sha-fail",
+            )
+
+        payload = await get_tile_payload(
+            conn, tenant_id=tenant_id, project_iri=project.project_iri, tile="demo"
+        )
+
+    # Under `now()` both rows would share the same transaction timestamp and
+    # ORDER BY created_at DESC LIMIT 1 would be free to return either row --
+    # a silent false-green risk on AC-3. `clock_timestamp()` guarantees the
+    # second (failed) statement sorts last.
     assert payload.last_run_status == "failed"
 
 
