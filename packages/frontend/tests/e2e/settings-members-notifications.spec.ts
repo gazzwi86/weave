@@ -46,3 +46,22 @@ test("test_settings_notifications_matrix_prefilled_and_toggle_saves", async ({ p
   await page.reload();
   await expect(page.getByTestId("toggle-in-app-billing.cap.warning")).toBeChecked();
 });
+
+
+// TASK-006 AC-006-04: "change my onboarding path" persists via PUT and the
+// new path survives a reload -- proof it's a real backend write, not just
+// local UI state.
+test("test_settings_onboarding_path_change_persists_across_reload", async ({ page }) => {
+  await loginAndGoTo(page, "/settings/onboarding-path");
+
+  await expect(page.getByRole("button", { name: "Change my onboarding path" })).toBeVisible();
+  await page.getByRole("button", { name: "Change my onboarding path" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+
+  await page.getByRole("button", { name: "Technical" }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(page.getByText("Technical", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Technical", { exact: true })).toBeVisible();
+});
