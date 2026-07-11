@@ -59,4 +59,10 @@ class AuditQueryParams(BaseModel):
     tenant_id: str = Field(min_length=1)
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=50, ge=1, le=200)
+    engine: str | None = None
     event_type: str | None = None
+    actor_principal_iri: str | None = None
+    target_iri: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+    q: str | None = None

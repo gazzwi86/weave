@@ -69,6 +69,33 @@ describe("GET /api/audit", () => {
     expect(await response.json()).toEqual({ entries: [], total: 0, page: 1, per_page: 50 });
   });
 
+  it("forwards all seven PLAT-AUDIT-1 filter dimensions to the backend, not just event_type", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: TOKEN } as never);
+
+    const response = await GET(
+      makeRequest(
+        [
+          "engine=build",
+          "event_type=workspace.created",
+          "actor_principal_iri=urn:weave:principal:tenant-1:human:alice",
+          "target_iri=urn:weave:workspace:tenant-1:ws-1",
+          "date_from=2026-01-01T00:00:00Z",
+          "date_to=2026-12-31T23:59:59Z",
+          "q=onboarding",
+        ].join("&")
+      )
+    );
+
+    const url = vi.mocked(fetch).mock.calls[0]?.[0] as string;
+    expect(url).toContain("engine=build");
+    expect(url).toContain("actor_principal_iri=urn%3Aweave%3Aprincipal%3Atenant-1%3Ahuman%3Aalice");
+    expect(url).toContain("target_iri=urn%3Aweave%3Aworkspace%3Atenant-1%3Aws-1");
+    expect(url).toContain("date_from=2026-01-01T00%3A00%3A00Z");
+    expect(url).toContain("date_to=2026-12-31T23%3A59%3A59Z");
+    expect(url).toContain("q=onboarding");
+    expect(response.status).toBe(200);
+  });
+
   it("returns a distinguishable error when the backend is unreachable", async () => {
     vi.mocked(auth).mockResolvedValue({ accessToken: TOKEN } as never);
     vi.stubGlobal(
