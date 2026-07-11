@@ -1,6 +1,6 @@
 """CE-METRICS-1 (TASK-007) unit tests: pure/mockable pieces only -- no
-docker/Oxigraph. `run_query`/`run_query_multi` are monkeypatched, same style
-as `test_instances_duplicates.py`; the seeded-fixture end-to-end path
+docker/Oxigraph. `run_query`/`run_query_unscoped` are monkeypatched, same
+style as `test_instances_duplicates.py`; the seeded-fixture end-to-end path
 (including a real published-vs-draft delta against real Oxigraph) is covered
 by the docker-marked integration suite instead.
 """
@@ -107,8 +107,8 @@ async def test_draft_published_delta_subtracts_modified_from_raw_added_and_remov
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """AC-007-04: when a published version exists, the delta is computed via
-    a single SPARQL count-diff query (`run_query_multi`, ADR-023) instead of
-    `diff_graphs`. `?addedRaw`/`?removedRaw` count raw set-difference
+    a single SPARQL count-diff query (`run_query_unscoped`, ADR-023) instead
+    of `diff_graphs`. `?addedRaw`/`?removedRaw` count raw set-difference
     triples; `?modified` counts (subject, predicate) keys that were a
     single-valued swap -- those must come OUT of both raw counts (same rule
     `diff_graphs` applies: a swap is reported as modified, not as an
@@ -118,8 +118,9 @@ async def test_draft_published_delta_subtracts_modified_from_raw_added_and_remov
     """
     published_iri = f"{_NAMED_GRAPH}:v0.0.1"
 
-    async def _fake_run_query_multi(query: str, named_graph_iris: list[str]) -> dict[str, Any]:
-        assert set(named_graph_iris) == {published_iri, _NAMED_GRAPH}
+    async def _fake_run_query_unscoped(query: str) -> dict[str, Any]:
+        assert published_iri in query
+        assert _NAMED_GRAPH in query
         assert "FILTER NOT EXISTS" in query
         return {
             "results": {
@@ -133,7 +134,7 @@ async def test_draft_published_delta_subtracts_modified_from_raw_added_and_remov
             }
         }
 
-    monkeypatch.setattr(aggregate_metrics, "run_query_multi", _fake_run_query_multi)
+    monkeypatch.setattr(aggregate_metrics, "run_query_unscoped", _fake_run_query_unscoped)
 
     result = await aggregate_metrics.draft_published_delta(
         draft_graph_iri=_NAMED_GRAPH, latest_published_iri=published_iri

@@ -140,7 +140,7 @@ async def test_metrics_ontology_delta_against_a_real_published_version(
     client: AsyncClient, platform_stack: Path
 ) -> None:
     """AC-007-04, ADR-023: exercises the published-vs-draft branch of
-    `draft_published_delta` (the SPARQL count-diff, `run_query_multi`) end
+    `draft_published_delta` (the SPARQL count-diff, `run_query_unscoped`) end
     to end against real Oxigraph, with a known small fixture so the counts
     are hand-checkable:
 
@@ -235,7 +235,7 @@ async def test_metrics_ontology_second_call_serves_from_cache_within_60s(
     -- the underlying SPARQL store is spied on (`run_query` only; this
     fixture is a never-published tenant, so `draft_published_delta` also
     goes through `run_query`'s `_TOTAL_TRIPLES_QUERY` path, not
-    `run_query_multi`) and must not be hit again after the first call.
+    `run_query_unscoped`) and must not be hit again after the first call.
     """
     _tenant_id, _workspace, headers = await _setup_member(client, label="metrics-cache")
 

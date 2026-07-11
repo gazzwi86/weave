@@ -58,26 +58,6 @@ async def run_query(query: str, named_graph_iri: str) -> dict[str, Any]:
     return result
 
 
-async def run_query_multi(query: str, named_graph_iris: list[str]) -> dict[str, Any]:
-    """Run `query` with the dataset's *named graphs* restricted to exactly
-    `named_graph_iris` -- for queries that reference more than one graph
-    explicitly via `GRAPH <iri> { ... }` in the same query (e.g.
-    `aggregate_metrics.draft_published_delta`'s cross-graph SPARQL count-diff,
-    which needs both the draft graph and the latest-published graph visible
-    at once). No `default-graph-uri` is set, so every triple pattern must be
-    inside an explicit `GRAPH <iri>` block -- same "unnamed IRI matches
-    nothing" rule as `run_query`, just for more than one IRI.
-    """
-    response = await _get_client().get(
-        f"{oxigraph_url()}/query",
-        params={"query": query, "named-graph-uri": named_graph_iris},
-        headers={"Accept": "application/sparql-results+json"},
-    )
-    response.raise_for_status()
-    result: dict[str, Any] = response.json()
-    return result
-
-
 async def run_query_unscoped(query: str) -> dict[str, Any]:
     """Run `query` against the whole Oxigraph dataset -- every named graph
     unioned into the default graph (`union-default-graph=true`, Oxigraph's
@@ -85,6 +65,20 @@ async def run_query_unscoped(query: str) -> dict[str, Any]:
     single-`named_graph_iri` restriction. BE-TASK-004's blast-radius/
     authority queries key off a `RequestRecord`'s entity IRIs, which have no
     single workspace binding to scope by.
+
+    Also the right call for a query that names more than one graph itself
+    via explicit `GRAPH <iri> { ... }` blocks (e.g.
+    `aggregate_metrics._delta_query`'s cross-graph SPARQL count-diff, which
+    needs both the draft graph and the latest-published graph visible in one
+    query). `union-default-graph` only affects unscoped triple patterns
+    (there are none here) -- an explicit `GRAPH <iri>` always resolves
+    against the dataset's real named graphs regardless of that flag. A
+    tried-and-reverted alternative was a `named-graph-uri` param repeated
+    once per graph (SPARQL 1.1 Protocol's documented way to scope a
+    multi-graph dataset); this Oxigraph build only honours the *last*
+    occurrence when the param is repeated, silently emptying every graph but
+    one, so it's unscoped-and-explicit here instead. Same "IRIs are
+    internally minted, never raw user input" safety note as `run_query`.
     """
     response = await _get_client().get(
         f"{oxigraph_url()}/query",

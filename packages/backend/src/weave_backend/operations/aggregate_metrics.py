@@ -26,7 +26,7 @@ import asyncpg
 
 from weave_backend.ontology import catalogue
 from weave_backend.operations import versioning
-from weave_backend.rdf.oxigraph_client import run_query, run_query_multi
+from weave_backend.rdf.oxigraph_client import run_query, run_query_unscoped
 
 _COUNT_QUERY = "SELECT ?kind (COUNT(?s) AS ?count) WHERE { ?s a ?kind } GROUP BY ?kind"
 
@@ -129,7 +129,7 @@ async def draft_published_delta(
         return DeltaCounts(added=added, removed=0, modified=0)
 
     query = _delta_query(before_iri=latest_published_iri, after_iri=draft_graph_iri)
-    raw = await run_query_multi(query, [latest_published_iri, draft_graph_iri])
+    raw = await run_query_unscoped(query)
     binding = raw["results"]["bindings"][0]
     added_raw = int(binding["addedRaw"]["value"])
     removed_raw = int(binding["removedRaw"]["value"])
