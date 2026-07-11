@@ -26,12 +26,20 @@ export default async function ProjectSettingsPage({
         <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
           Project settings
         </h1>
-        <Link
-          href={`/build/projects/${encodeURIComponent(id)}/decisions`}
-          className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] hover:underline"
-        >
-          Decision log
-        </Link>
+        <div className="flex items-center gap-[var(--space-3)]">
+          <Link
+            href={`/build/projects/${encodeURIComponent(id)}/tasks`}
+            className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] hover:underline"
+          >
+            Tasks
+          </Link>
+          <Link
+            href={`/build/projects/${encodeURIComponent(id)}/decisions`}
+            className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] hover:underline"
+          >
+            Decision log
+          </Link>
+        </div>
       </div>
       <ProjectSettingsPanel projectId={id} tenantRole={tenantRole} principalIri={principalIri} />
     </main>
