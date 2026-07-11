@@ -74,6 +74,7 @@ def _to_widget_out(row: store.WidgetRow) -> WidgetOut:
         status=status,
         pending_fields=pending_fields,
         suggested=row.suggested,
+        refresh_interval_s=row.refresh_interval_s,
     )
 
 

@@ -44,6 +44,8 @@ export interface WidgetOut {
   status: WidgetStatus;
   pending_fields: string[];
   suggested: boolean;
+  /** TASK-014 AC-3: per-widget auto-refresh cadence, seconds. */
+  refresh_interval_s: number;
 }
 
 export interface WidgetListResponse {

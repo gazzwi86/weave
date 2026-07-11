@@ -58,6 +58,11 @@ class WidgetOut(BaseModel):
     status: WidgetStatus
     pending_fields: list[str] = Field(default_factory=list)
     suggested: bool = False
+    #: TASK-014 AC-3: drives the client auto-refresh loop's per-widget
+    #: cadence. Stored per-row (default 300s at insert time) -- a
+    #: PLAT-SETTINGS-1 tenant-wide override cascade is not wired yet
+    #: (ponytail: add if a tunable-cadence request actually lands).
+    refresh_interval_s: int = 300
 
 
 class WidgetListResponse(BaseModel):
