@@ -47,3 +47,8 @@ the request form before close (UI-gate, phase-gate deferred).
 
 ## BE-024 retry fix DONE (4c3311de) — re-QA in flight (abb7cc1)
 Commits 2c3d9b08 (migration 0068 rename + repo_name_hint NewProjectShell->NewProject wiring [real missing-wiring bug] + governance test helper sends name) + 4c3311de (_auto_create_project reads record.name/target_repo_name + new passthrough integration test SELECT repo_name_hint after sign-off [Law B] + AC-7 never-zero /ce/versions/latest fallback + test). Docker 31 green (incl 4 regressed + passthrough), poison-endpoint 283 green, ruff packages/ + mypy clean. AC-1 progressive-disclosure WARN unaddressed (engineer mis-looked frontend/src vs app/; non-blocking PO flag). EPIC-001 -> HELD (migration 0068).
+
+## Re-QA PASS (2026-07-12, abb7cc1, retry 1) — BE-024 CLOSES → EPIC-001 COMPLETE
+Both blocking fixes verified genuine: 4 governance tests green (docker); repo_name passthrough test does real SELECT repo_name_hint after sign-off (Law B, not stub); migration 0068 applies + correctly numbered (no 0065/0067 collision); AC-7 never-zero code-path + test (/ce/versions/latest fallback when unavailable). Poison-endpoint pytest -m "not docker and not e2e" fully green (no ConnectError). Docker governance+requests 15/15, torn down. ruff packages/ 0, mypy 0/516. AC-1 all 4 labelled fields render (progressive-disclosure = non-blocking PO WARN). All 8 ACs green. retry=1.
+
+## EPIC-001 CLOSE -> HELD PR (migration 0068 = schema tier). Reconcile onto main + whole-repo ruff/mypy + poison-pytest + docker-not-stack + OKF -> push -> PR -> review -> CI -> HOLD for human merge.

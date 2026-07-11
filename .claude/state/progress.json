@@ -310,7 +310,7 @@
     {
       "id": "BE-V1-EPIC-001",
       "title": "Request Studio v2 (form polish, successor of BE-EPIC-001)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "ONB-EPIC-001",
@@ -1634,7 +1634,7 @@
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-001",
       "title": "Build request form v2 — labelled fields + visible request record (R11)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
