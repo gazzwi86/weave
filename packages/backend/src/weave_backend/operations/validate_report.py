@@ -66,9 +66,7 @@ async def build_report(
     """AC-006-01/-03: full SHACL report incl. `sh:Info`, grouped by shape
     with a violation count per rule -- zero-violation shapes included."""
     shapes = await shacl.tenant_shapes_for_validation(tenant_id, redis_client)
-    results = await shacl.validate_graph_for_tenant(
-        data_graph, tenant_id=tenant_id, redis_client=redis_client
-    )
+    results = shacl.validate_graph_with_shapes(data_graph, shapes)
     counts = Counter(result.shape_iri for result in results)
     rules = [
         RuleCoverage(

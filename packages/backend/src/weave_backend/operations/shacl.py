@@ -231,6 +231,23 @@ async def _tenant_shapes_graph(tenant_id: str, redis_client: RedisLike | None) -
     return merged
 
 
+def validate_graph_with_shapes(data_graph: Graph, shapes: Graph) -> list[ShaclResult]:
+    """Sync core of `validate_graph_for_tenant`, split out so a caller that
+    already holds the merged shapes graph (CE-TASK-006's `build_report`)
+    doesn't pay a second `_tenant_shapes_graph` fetch (redis GET + tenant
+    ntriples fetch + parse) for the same shapes on every report -- was the
+    perf leak behind AC-006-06's 2.6s-vs-2.0s failure.
+    """
+    _conforms, results_graph, _text = validate(
+        data_graph,
+        shacl_graph=shapes,
+        inference="none",
+        abort_on_first=False,
+    )
+    result_nodes = set(results_graph.subjects(SH.resultSeverity, None))
+    return [_to_result(results_graph, node, shapes) for node in result_nodes]
+
+
 async def validate_graph_for_tenant(
     data_graph: Graph, *, tenant_id: str, redis_client: RedisLike | None
 ) -> list[ShaclResult]:
@@ -241,14 +258,7 @@ async def validate_graph_for_tenant(
     behaves exactly like framework-only `validate_graph`.
     """
     shapes = await _tenant_shapes_graph(tenant_id, redis_client)
-    _conforms, results_graph, _text = validate(
-        data_graph,
-        shacl_graph=shapes,
-        inference="none",
-        abort_on_first=False,
-    )
-    result_nodes = set(results_graph.subjects(SH.resultSeverity, None))
-    return [_to_result(results_graph, node, shapes) for node in result_nodes]
+    return validate_graph_with_shapes(data_graph, shapes)
 
 
 async def tenant_shapes_for_validation(tenant_id: str, redis_client: RedisLike | None) -> Graph:

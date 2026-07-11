@@ -41,7 +41,7 @@ async def test_build_report_maps_pyshacl_results_including_info_severity(
         shacl, "tenant_shapes_for_validation", AsyncMock(return_value=Graph())
     )
     monkeypatch.setattr(
-        shacl, "validate_graph_for_tenant", AsyncMock(return_value=results)
+        shacl, "validate_graph_with_shapes", lambda data_graph, shapes: results
     )
     monkeypatch.setattr(
         shacl,
@@ -75,7 +75,7 @@ async def test_build_report_groups_violations_by_shape_with_counts(
         shacl, "tenant_shapes_for_validation", AsyncMock(return_value=Graph())
     )
     monkeypatch.setattr(
-        shacl, "validate_graph_for_tenant", AsyncMock(return_value=results)
+        shacl, "validate_graph_with_shapes", lambda data_graph, shapes: results
     )
     monkeypatch.setattr(
         shacl,
