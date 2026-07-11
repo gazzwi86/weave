@@ -27,6 +27,12 @@ class CreateRequestBody(BaseModel):
     prompt: str = Field(default="")
     run_mode: str = Field(default="")
     description: str | None = None
+    #: TASK-024 AC-1/AC-4: human-facing request name, required 1-200 chars.
+    name: str = Field(default="")
+    #: TASK-024 AC-2/AC-6: grounding-entity IRIs, resolved via CE-READ-1.
+    grounding_entity_iris: list[str] = Field(default_factory=list)
+    #: TASK-024 AC-5: required (kebab-case) unless run_mode == draft_spec_only.
+    target_repo_name: str | None = None
 
 
 class CreateRequestResponse(BaseModel):
@@ -42,6 +48,29 @@ class RequestStatusResponse(BaseModel):
     graph_context: str
     draft_content: dict[str, Any] | None
     created_at: datetime
+    #: TASK-024 AC-7: visible request record fields.
+    name: str = ""
+    grounding_entity_iris: list[str] = Field(default_factory=list)
+    target_repo_name: str | None = None
+
+
+class TypeaheadEntity(BaseModel):
+    """One `GET /api/ontology/entities/typeahead` result (AC-2)."""
+
+    iri: str
+    label: str
+    kind: str
+
+
+class TypeaheadResponse(BaseModel):
+    results: list[TypeaheadEntity]
+
+
+#: TASK-024 AC-5: kebab-case, 3-100 chars, mirrors project-slug shape.
+TARGET_REPO_NAME_PATTERN = r"^[a-z0-9-]{3,100}$"
+
+#: TASK-024 AC-4: name required, 1-200 chars.
+NAME_MAX_LENGTH = 200
 
 
 class BlastRadiusResponse(BaseModel):

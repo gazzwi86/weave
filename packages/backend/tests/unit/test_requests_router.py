@@ -33,7 +33,7 @@ class _RecordingProvider:
 
 
 def _body(prompt: str = "build a widget", run_mode: str = "draft_spec_only") -> dict[str, str]:
-    return {"prompt": prompt, "run_mode": run_mode}
+    return {"prompt": prompt, "run_mode": run_mode, "name": "Widget request"}
 
 
 async def test_create_request_route_returns_401_without_jwt() -> None:
@@ -49,7 +49,7 @@ async def test_create_request_route_returns_401_without_jwt() -> None:
 async def test_create_request_route_422_when_run_mode_invalid() -> None:
     from weave_backend.schemas.requests import CreateRequestBody
 
-    body = CreateRequestBody(prompt="build a widget", run_mode="not_a_mode")
+    body = CreateRequestBody(prompt="build a widget", run_mode="not_a_mode", name="Widget request")
 
     with pytest.raises(HTTPException) as exc_info:
         await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
@@ -65,7 +65,7 @@ async def test_create_request_route_422_when_run_mode_invalid() -> None:
 async def test_create_request_route_422_when_prompt_empty() -> None:
     from weave_backend.schemas.requests import CreateRequestBody
 
-    body = CreateRequestBody(prompt="   ", run_mode="draft_spec_only")
+    body = CreateRequestBody(prompt="   ", run_mode="draft_spec_only", name="Widget request")
 
     with pytest.raises(HTTPException) as exc_info:
         await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
@@ -80,7 +80,9 @@ async def test_create_request_route_422_when_prompt_empty() -> None:
 async def test_create_request_route_503_when_model_unavailable() -> None:
     from weave_backend.schemas.requests import CreateRequestBody
 
-    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only")
+    body = CreateRequestBody(
+        prompt="build a widget", run_mode="draft_spec_only", name="Widget request"
+    )
 
     with (
         patch(
@@ -98,7 +100,9 @@ async def test_create_request_route_503_when_model_unavailable() -> None:
 async def test_create_request_route_returns_202_with_stream_url() -> None:
     from weave_backend.schemas.requests import CreateRequestBody
 
-    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only")
+    body = CreateRequestBody(
+        prompt="build a widget", run_mode="draft_spec_only", name="Widget request"
+    )
     background_tasks = BackgroundTasks()
 
     with patch(
@@ -157,3 +161,139 @@ async def test_get_request_route_returns_record() -> None:
 
     assert result.status == "draft_complete"
     assert result.draft_content == {"brief": "hello"}
+
+
+async def test_create_request_route_422_when_name_empty() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only", name="   ")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == {  # type: ignore[comparison-overlap]
+        "error": "validation_error",
+        "field": "name",
+    }
+
+
+async def test_create_request_route_422_when_name_too_long() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(
+        prompt="build a widget", run_mode="draft_spec_only", name="x" * 201
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["field"] == "name"  # type: ignore[index]
+
+
+async def test_create_request_route_422_when_target_repo_name_missing_for_build_mode() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(prompt="build a widget", run_mode="spec_to_build", name="Widget")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == {  # type: ignore[comparison-overlap]
+        "error": "validation_error",
+        "field": "target_repo_name",
+    }
+
+
+async def test_create_request_route_422_when_target_repo_name_invalid_shape() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(
+        prompt="build a widget",
+        run_mode="spec_to_build",
+        name="Widget",
+        target_repo_name="Not Valid!",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["field"] == "target_repo_name"  # type: ignore[index]
+
+
+async def test_create_request_route_allows_missing_target_repo_name_for_draft_spec_only() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only", name="Widget")
+
+    with patch(
+        "weave_backend.routers.requests.store.create_request_record", AsyncMock()
+    ):
+        result = await create_request_route(
+            body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), _RecordingProvider()
+        )
+
+    assert result.status == "drafting"
+
+
+async def test_create_request_route_422_when_grounding_entity_iri_unresolvable() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+    body = CreateRequestBody(
+        prompt="build a widget",
+        run_mode="draft_spec_only",
+        name="Widget",
+        grounding_entity_iris=["urn:weave:instances:missing-1"],
+    )
+
+    with (
+        patch(
+            "weave_backend.routers.requests.get_entity",
+            AsyncMock(return_value=None),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await create_request_route(body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), None)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail["field"] == "grounding_entity_iris"  # type: ignore[index]
+
+
+async def test_create_request_route_accepts_zero_grounding_entities() -> None:
+    from weave_backend.schemas.requests import CreateRequestBody
+
+    body = CreateRequestBody(prompt="build a widget", run_mode="draft_spec_only", name="Widget")
+
+    with patch(
+        "weave_backend.routers.requests.store.create_request_record", AsyncMock()
+    ):
+        result = await create_request_route(
+            body, BackgroundTasks(), _PRINCIPAL, httpx.AsyncClient(), _RecordingProvider()
+        )
+
+    assert result.status == "drafting"
+
+
+async def test_get_request_route_returns_visible_record_fields() -> None:
+    record = RequestRecord(
+        request_id="r1",
+        tenant_id="t1",
+        run_mode="draft_spec_only",
+        status="draft_complete",
+        graph_context="urn:weave:version:v1",
+        draft_content={"brief": "hello"},
+        name="Widget request",
+        grounding_entity_iris=["urn:weave:instances:e1"],
+        target_repo_name="widget-service",
+    )
+
+    with patch(
+        "weave_backend.routers.requests.store.get_request_record", AsyncMock(return_value=record)
+    ):
+        result = await get_request_route("r1", _PRINCIPAL)
+
+    assert result.name == "Widget request"
+    assert result.grounding_entity_iris == ["urn:weave:instances:e1"]
+    assert result.target_repo_name == "widget-service"
