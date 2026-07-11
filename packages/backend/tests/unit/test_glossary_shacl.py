@@ -72,6 +72,24 @@ def test_glossary_term_without_owl_class_type_is_a_violation() -> None:
     assert any(v.focus_node == str(EX.term1) and v.path == str(RDF.type) for v in violations)
 
 
+def test_duplicate_preflabel_in_same_language_names_the_language_in_the_message() -> None:
+    """AC-001-03: a second `skos:prefLabel@en` is a Violation whose message
+    names the colliding language tag -- `sh:uniqueLang` alone (no custom
+    Python duplicate-counting) rejects it, but the raw pySHACL message
+    ("More than one String shares the same Language") never names *which*
+    language, so `validate_graph` enriches it from the submitted graph.
+    """
+    graph = _term(EX.term1, "Invoice", lang="en")
+    graph.add((EX.term1, SKOS.prefLabel, Literal("Bill", lang="en")))
+
+    results = validate_graph(graph)
+
+    violations = [r for r in results if r.severity == "Violation"]
+    pref_label_violations = [v for v in violations if v.path == str(SKOS.prefLabel)]
+    assert pref_label_violations
+    assert any("en" in v.message for v in pref_label_violations)
+
+
 def test_inference_none_does_not_derive_owl_class_from_an_rdfs_subclass_axiom() -> None:
     """AC-001-07 (FR-022): with `inference='none'`, an `rdfs:subClassOf`
     axiom that would let RDFS reasoning *derive* `owl:Class` membership for
