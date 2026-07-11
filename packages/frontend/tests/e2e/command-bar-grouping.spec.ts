@@ -8,6 +8,9 @@ async function loginAndGoToDashboard(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  // Next dev-mode hydration lags the post-login navigation; without this,
+  // Ctrl/Cmd+K can fire before the shell's keydown listener is attached.
+  await page.waitForLoadState("networkidle");
 }
 
 // AC-3: grouped CommandBar (Navigation/Entities/Actions) with keyboard nav.

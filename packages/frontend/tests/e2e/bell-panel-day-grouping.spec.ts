@@ -7,6 +7,9 @@ async function loginAndGoToDashboard(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  // Next dev-mode hydration lags the post-login navigation; without this,
+  // a click can land before the header's onClick handler is attached.
+  await page.waitForLoadState("networkidle");
 }
 
 // AC-4: day-grouped bell panel, deep-linking to target_iri, mark-read.
@@ -53,8 +56,11 @@ test("bell panel groups by day, deep-links a row's target, and marks it read", a
 
   await page.getByRole("button", { name: "Notifications" }).click();
   const panel = page.getByRole("dialog", { name: "Notifications" });
-  await expect(panel.getByText("Today")).toBeVisible();
-  await expect(panel.getByText("Yesterday")).toBeVisible();
+  // Day headings are exact ("Today"/"Yesterday"); RelativeTime rows also
+  // render a lowercase "yesterday" relative timestamp, so scope to the
+  // heading element to avoid a strict-mode ambiguity.
+  await expect(panel.locator("p", { hasText: "Today" })).toBeVisible();
+  await expect(panel.locator("p", { hasText: "Yesterday" })).toBeVisible();
 
   // AC-4 deep-link: the unread row's target_iri resolves via CE-READ-1's
   // resource route.

@@ -7,6 +7,9 @@ async function loginAndGoToDashboard(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
+  // Next dev-mode hydration lags the post-login navigation; without this,
+  // a click can land before the sidebar's onClick handler is attached.
+  await page.waitForLoadState("networkidle");
 }
 
 // AC-1: SecondarySidebar collapse state persists across a page reload.
