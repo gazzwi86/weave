@@ -163,6 +163,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         heading: "Workspace",
         items: [
           { label: "Members", href: "/settings/members", tag: "built" },
+          { label: "Onboarding path", href: "/settings/onboarding-path", tag: "built" },
           { label: "Notifications", href: "/settings/notifications", tag: "built" },
           { label: "Models & AI", href: "/settings/models", tag: "built" },
           { label: "Billing & budgets", href: "/billing", tag: "built" },

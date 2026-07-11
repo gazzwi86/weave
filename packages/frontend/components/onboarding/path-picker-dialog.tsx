@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 // wire the real import if/when the frontend starts consuming @weave/shared.
 export type RolePath = "business" | "technical" | "compliance" | "admin";
 const ROLE_PATHS: readonly RolePath[] = ["business", "technical", "compliance", "admin"];
-const ROLE_PATH_LABELS: Record<RolePath, string> = {
+export const ROLE_PATH_LABELS: Record<RolePath, string> = {
   business: "Business",
   technical: "Technical",
   compliance: "Compliance",
