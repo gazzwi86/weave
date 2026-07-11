@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T02:34:46+00:00
+Captured at: 2026-07-11T03:00:57+00:00
 Event: pre-compact
 
 ## Current State
@@ -1022,7 +1022,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-010",
       "title": "CE-FUNCTION-1 Registry (Definition Surface)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-009.md",
       "retry_count": 0
@@ -1125,7 +1125,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
-      "status": "in_progress",
+      "status": "backlog",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0

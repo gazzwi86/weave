@@ -43,3 +43,12 @@ ruff 0 · mypy 0/434 · bandit 0 High (2 pre-existing Medium `# noqa` uvicorn bi
 
 ## Epic status
 EPIC-004 root task. Check epic-check for remaining tasks. XT-CE003-1 fix landed here (shared write path).
+
+## QA round 1 FAIL (2026-07-11, a3fcbe1, advisor-reviewed) → retry 1 (a697566)
+Scoped FAIL: AC-003-06 perf half only. **Blast-radius CLEAN** (graph_ops default branch byte-identical pre/post-fix;
+only effectiveDate→xsd:date hits new branch; provenance uses independent Literal; 962 unit green). Contract fidelity
+PASS; AC-01/02/03/04/05/07 PASS w/ real e2e evidence; no-write-route invariant PASS; malformed→400-no-partial-write PASS.
+QA added 2 edge tests `dc4f5b7` (datatype-generic coercion). WARNs: brand PROV test absent (cheap), coverage unverified (PROJ-013).
+**AC-003-06 = REAL undelivered req** (not deferrable): brief DoD "contract+perf" + m2-delta §9 unconditional p95 ≤400ms
+@100k for both /api/brand/tokens + /api/brand/voice-rules. Prior engineer conflated CE latency NFR w/ Build's separate
+conformance gate. Fix in-flight: extend scripts/benchmarks/ce-perf/ w/ brand corpus + locust p95. retry=1.
