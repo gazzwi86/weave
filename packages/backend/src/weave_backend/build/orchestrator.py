@@ -41,6 +41,7 @@ from weave_backend.build.gates import run_dor_gate
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
 from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
+from weave_backend.build.run_log_sink import RunLogSink
 from weave_backend.build.self_verify import default_applicable_rules, self_verify
 from weave_backend.build.state_spine import (
     BUILD_PRINCIPAL_IRI,
@@ -59,6 +60,11 @@ from weave_backend.repo_bootstrap.service import (
 )
 from weave_backend.repo_bootstrap.store import fetch_project_repo_row
 from weave_backend.schemas.tasks import TypedResult
+from weave_backend.storage.tenant_objects import s3_client
+
+#: Same convention `run_log_sink.py`/`captures.py`/`routers/task_detail.py`
+#: write+read under -- see `routers.task_detail._ARTEFACT_BUCKET`.
+_ARTEFACT_BUCKET = "weave-artefacts"
 
 log = logging.getLogger(__name__)
 
@@ -546,6 +552,28 @@ async def run_dark_factory(
     TASK-012 AC-4: the rate card is resolved once, before step 0 -- an
     unresolvable card halts the run fail-closed, before any dispatch.
     """
+    # AC-1: one sink per run, buffering the same PDAC/gate event payloads
+    # already logged below -- beside the existing cost-recording call site,
+    # same disclosed-best-effort posture (Design Decisions table).
+    log_sink = RunLogSink(
+        tenant_id=tenant_id, run_id=spine.run_id, s3_client=s3_client(), bucket=_ARTEFACT_BUCKET
+    )
+    try:
+        return await _run_dark_factory_body(
+            conn, spine, tenant_id=tenant_id, deps=deps, log_sink=log_sink
+        )
+    finally:
+        await log_sink.close(conn)
+
+
+async def _run_dark_factory_body(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+    log_sink: RunLogSink,
+) -> StateSpine:
     try:
         rate_card = await deps.resolve_rate_card_fn(
             conn, tenant_id=tenant_id, project_iri=spine.project_iri
@@ -592,7 +620,9 @@ async def run_dark_factory(
         except RunHalted:
             await _halt_preflight_failed(conn, spine)
             return spine
+        log_sink.emit({"event": "dispatch_start", "task_id": task.id, "phase": spine.phase})
         await _dispatch_one(conn, spine, task, tenant_id=tenant_id, deps=deps)
+        log_sink.emit({"event": "dispatch_end", "task_id": task.id, "status": task.status})
         spine.dispatch_count += 1
         await commit_state_spine(conn, spine)
 
@@ -603,13 +633,15 @@ async def run_dark_factory(
             break
 
     if breach is not None:
+        log_sink.emit({"event": "halted_budget_breach", "level": breach.level})
         await _halt_budget_breach(conn, spine, tenant_id=tenant_id, deps=deps, breach=breach)
     elif spine.phase == "running" and spine.dispatch_count >= spine.turn_cap:
+        log_sink.emit({"event": "halted_turn_cap", "turn_cap": spine.turn_cap})
         await _halt_turn_cap(conn, spine, tenant_id=tenant_id, deps=deps)
     else:
         # AC-8: the `phase == "complete"` transition (empty/exhausted
         # backlog) is itself a state change -- persist it too, not just the
         # per-dispatch commits inside the loop above.
+        log_sink.emit({"event": "run_phase", "phase": spine.phase})
         await commit_state_spine(conn, spine)
-
     return spine

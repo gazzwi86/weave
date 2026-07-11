@@ -95,17 +95,25 @@ def _parse_sse_events(raw_body: str) -> list[dict[str, object]]:
 
 
 async def _create_and_complete_draft(
-    client: AsyncClient, *, tenant_id: str, entity_iri: str
+    client: AsyncClient,
+    *,
+    tenant_id: str,
+    entity_iri: str,
+    target_repo_name: str | None = None,
 ) -> str:
     app.dependency_overrides[get_ai_provider] = lambda: _EchoProvider(entity_iri)
     tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
 
-    create_response = await client.post(
-        "/api/requests",
-        json={"prompt": f"build something about {entity_iri}", "run_mode": "draft_spec_only"},
-        headers=headers,
-    )
+    body: dict[str, object] = {
+        "prompt": f"build something about {entity_iri}",
+        "run_mode": "draft_spec_only",
+        "name": f"Request about {entity_iri}",
+    }
+    if target_repo_name is not None:
+        body["target_repo_name"] = target_repo_name
+
+    create_response = await client.post("/api/requests", json=body, headers=headers)
     assert create_response.status_code == 202
     request_id: str = create_response.json()["request_id"]
 
@@ -187,6 +195,52 @@ async def test_sign_off_all_approved_creates_project(
         )
         assert project_response.status_code == 200
         assert project_response.json()["project_iri"] == project_iri
+    finally:
+        await clear_graph(named_graph)
+
+
+async def test_sign_off_passes_target_repo_name_through_to_project_creation(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Design decision B9 / migration 0068: the request's own
+    `target_repo_name` (not a slug derived from the prompt) lands on the
+    auto-created project's `repo_name_hint` column -- asserted directly
+    against postgres (Law B: real backend-state change, not just a 200).
+    """
+    tenant_id = _unique_tenant("tenant-repo-hint")
+    entity_iri = f"urn:weave:entity:svc-{uuid.uuid4().hex[:8]}"
+    stakeholder_iri = human_principal_iri("u-2")
+    named_graph = f"urn:weave:test-graph:{uuid.uuid4().hex[:8]}"
+    target_repo_name = f"repo-hint-{uuid.uuid4().hex[:8]}"
+
+    await load_graph(
+        named_graph, f"<{stakeholder_iri}> <urn:weave:bpmo:hasAuthority> <{entity_iri}> .\n"
+    )
+    try:
+        request_id = await _create_and_complete_draft(
+            client,
+            tenant_id=tenant_id,
+            entity_iri=entity_iri,
+            target_repo_name=target_repo_name,
+        )
+        approver_tokens = await issue_token_pair(sub="u-2", tenant_id=tenant_id)
+        approver_headers = {"Authorization": f"Bearer {approver_tokens.access_token}"}
+
+        response = await client.post(
+            f"/api/requests/{request_id}/sign-off",
+            json={"action": "approve"},
+            headers=approver_headers,
+        )
+        assert response.status_code == 200
+        project_iri = response.json()["project_iri"]
+        assert project_iri
+
+        async with tenant_connection(tenant_id) as conn:
+            row = await conn.fetchrow(
+                "SELECT repo_name_hint FROM projects WHERE project_iri = $1", project_iri
+            )
+        assert row is not None
+        assert row["repo_name_hint"] == target_repo_name
     finally:
         await clear_graph(named_graph)
 

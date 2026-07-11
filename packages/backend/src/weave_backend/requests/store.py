@@ -93,6 +93,10 @@ class RequestRecord:
     created_by_iri: str = ""
     blast_radius_status: str = "not_computed"
     project_iri: str = ""
+    #: TASK-024 AC-1/AC-3/AC-7: visible request-record fields.
+    name: str = ""
+    grounding_entity_iris: list[str] = field(default_factory=list)
+    target_repo_name: str | None = None
 
 
 async def create_request_record(client: redis.Redis, record: RequestRecord) -> None:
@@ -114,6 +118,9 @@ async def create_request_record(client: redis.Redis, record: RequestRecord) -> N
             "created_by_iri": record.created_by_iri,
             "blast_radius_status": record.blast_radius_status,
             "project_iri": record.project_iri,
+            "name": record.name,
+            "grounding_entity_iris": json.dumps(record.grounding_entity_iris),
+            "target_repo_name": record.target_repo_name or "",
         },
     )
     await client.expire(key, REQUEST_TTL_SECONDS)
@@ -123,6 +130,8 @@ async def update_request_record(client: redis.Redis, request_id: str, **fields: 
     mapping = dict(fields)
     if mapping.get("draft_content") is not None:
         mapping["draft_content"] = json.dumps(mapping["draft_content"])
+    if mapping.get("grounding_entity_iris") is not None:
+        mapping["grounding_entity_iris"] = json.dumps(mapping["grounding_entity_iris"])
     await client.hset(_record_key(request_id), mapping=mapping)  # type: ignore[arg-type]
 
 
@@ -148,6 +157,9 @@ async def get_request_record(
         created_by_iri=str(raw.get("created_by_iri", "")),
         blast_radius_status=str(raw.get("blast_radius_status", "not_computed")),
         project_iri=str(raw.get("project_iri", "")),
+        name=str(raw.get("name", "")),
+        grounding_entity_iris=json.loads(str(raw.get("grounding_entity_iris") or "[]")),
+        target_repo_name=str(raw["target_repo_name"]) if raw.get("target_repo_name") else None,
     )
 
 

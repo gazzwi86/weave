@@ -111,12 +111,12 @@ no_implicit_optional = true
 module = ["asyncpg.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
-# scripts/benchmarks/ce-perf/run_benchmark.py (and run_brand_benchmark.py,
-# CE-V1-TASK-003) are spike tools outside this package's src/ tree
-# (sys.path-inserted by their tests at collection time), not shipped
-# dependencies with a stub package.
+# scripts/benchmarks/ce-perf/run_benchmark.py (and run_metrics_benchmark.py,
+# CE-V1-TASK-007, and run_brand_benchmark.py, CE-V1-TASK-003) are spike tools
+# outside this package's src/ tree (sys.path-inserted by their tests at
+# collection time), not shipped dependencies with a stub package.
 [[tool.mypy.overrides]]
-module = ["run_benchmark", "run_brand_benchmark"]
+module = ["run_benchmark", "run_metrics_benchmark", "run_brand_benchmark"]
 ignore_missing_imports = true
 
 # mutmut runs the suite against a mutated copy of the tree under mutants/;

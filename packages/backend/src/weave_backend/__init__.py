@@ -33,12 +33,14 @@ from weave_backend.routers.events import router as events_router
 from weave_backend.routers.functions import router as functions_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
+from weave_backend.routers.governance import router as governance_router
 from weave_backend.routers.health import get_health
 from weave_backend.routers.health import router as health_router
 from weave_backend.routers.identity import router as identity_router
 from weave_backend.routers.instances import router as instances_router
 from weave_backend.routers.layout import LayoutApiError, layout_api_error_handler
 from weave_backend.routers.layout import router as layout_router
+from weave_backend.routers.metrics import router as metrics_router
 from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
@@ -59,9 +61,11 @@ from weave_backend.routers.source_control import router as source_control_router
 from weave_backend.routers.sparql import router as sparql_router
 from weave_backend.routers.specs import router as specs_router
 from weave_backend.routers.standards import router as standards_router
+from weave_backend.routers.task_detail import router as task_detail_router
 from weave_backend.routers.tasks import router as tasks_router
 from weave_backend.routers.tasks import tasks_validation_error_handler
 from weave_backend.routers.tenancy import router as tenancy_router
+from weave_backend.routers.validate import router as validate_router
 from weave_backend.routers.views import router as views_router
 
 # AC-3 design decision: RBAC is dependency-by-default -- every route must
@@ -80,6 +84,7 @@ install_ce_contract_headers_middleware(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(authoring_router)
+app.include_router(governance_router)
 app.include_router(billing_router)
 # QA blocker (PLAT-TASK-008): simulate-ai-call/simulate-run call the real
 # ai_route() and incur real billed spend -- RBAC (author role) alone is not
@@ -123,6 +128,7 @@ app.include_router(deploy_router)
 app.include_router(functions_router)
 app.include_router(specs_router)
 app.include_router(tasks_router)
+app.include_router(task_detail_router)
 app.include_router(query_router)
 app.include_router(requests_router)
 app.include_router(request_governance_router)
@@ -131,6 +137,8 @@ app.include_router(prompts_router)
 app.include_router(board_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
+app.include_router(metrics_router)
+app.include_router(validate_router)
 # tasks_validation_error_handler chains to projects_validation_error_handler
 # (which falls back to FastAPI's default) for out-of-prefix paths, so a single
 # registration covers /api/tasks, /api/projects, and everything else. Only one

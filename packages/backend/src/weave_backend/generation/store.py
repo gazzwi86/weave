@@ -125,3 +125,27 @@ async def list_recent_runs(
         )
         for row in rows
     ]
+async def get_latest_run_for_task(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, task_id: str
+) -> tuple[str, str, str | None] | None:
+    """BE-V1-TASK-018 AC-4: the most recent `generation_runs` row for a
+    task, used to resolve the Console tab's finished-run S3 pointer.
+    Returns `(run_id, status, log_location_ref)`, or `None` when the task
+    has never produced a run row (an active/never-run task -- the caller
+    falls back to the live SSE path or "log not captured").
+    """
+    row = await conn.fetchrow(
+        """
+        SELECT run_id, status, log_location_ref
+        FROM generation_runs
+        WHERE tenant_id = $1 AND project_iri = $2 AND task_id = $3
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        tenant_id,
+        project_iri,
+        task_id,
+    )
+    if row is None:
+        return None
+    return (str(row["run_id"]), row["status"], row["log_location_ref"])

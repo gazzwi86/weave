@@ -48,7 +48,7 @@ from weave_backend.operations.idempotency import (
 )
 from weave_backend.operations.outbox import enqueue
 from weave_backend.operations.provenance import ActorType, write_activity
-from weave_backend.operations.shacl import validate_graph
+from weave_backend.operations.shacl import validate_graph_for_tenant
 from weave_backend.operations.versioning import (
     VersionNotFound,
     get_version,
@@ -290,7 +290,7 @@ def _commit_event(
 
 
 async def _apply_uncached(
-    ctx: ApplyContext, request: ApplyRequest
+    ctx: ApplyContext, request: ApplyRequest, redis_client: Any = None
 ) -> ApplyResponse | ViolationsResponse:
     # TASK-004 AC-004-02: every add_node's kind must be one of the 13 BPMO
     # kinds. Checked here -- the one place every authoring surface (NL,
@@ -316,7 +316,12 @@ async def _apply_uncached(
     await _reject_published_signature_edit(ctx, request)
     scratch = await _fetch_scratch_graph(source_graph_iri)
     apply_result = apply_operations(scratch, request.operations)
-    shacl_results = validate_graph(scratch)
+    # CE-TASK-005: tenant-scoped shapes -- redis_client=None (idempotency-
+    # less callers/tests, see module Any-typed param) degrades to the
+    # framework-only M1 behaviour, same as before this task.
+    shacl_results = await validate_graph_for_tenant(
+        scratch, tenant_id=ctx.tenant_id, redis_client=redis_client
+    )
     violations = [r for r in shacl_results if r.severity == "Violation"]
 
     if violations:
@@ -378,7 +383,7 @@ def _from_cache_entry(cached: dict[str, Any]) -> ApplyResponse | ViolationsRespo
 async def _apply_and_cache(
     ctx: ApplyContext, request: ApplyRequest, redis_client: Any
 ) -> ApplyResponse | ViolationsResponse:
-    result = await _apply_uncached(ctx, request)
+    result = await _apply_uncached(ctx, request, redis_client)
     if request.idempotency_key:
         await store_response(
             redis_client, ctx.tenant_id, request.idempotency_key, _to_cache_entry(result)
@@ -407,7 +412,7 @@ async def apply_operations_request(
     ctx: ApplyContext, request: ApplyRequest, redis_client: Any
 ) -> ApplyResponse | ViolationsResponse:
     if not request.idempotency_key:
-        return await _apply_uncached(ctx, request)
+        return await _apply_uncached(ctx, request, redis_client)
 
     cached = await get_cached_response(redis_client, ctx.tenant_id, request.idempotency_key)
     if cached is not None:
