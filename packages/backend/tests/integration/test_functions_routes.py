@@ -109,20 +109,29 @@ async def _setup_admin(
     return tenant_id, workspace, headers
 
 
-def _define_function_ops(*, fn_ref: str = "fn1") -> list[dict[str, object]]:
+def _define_function_ops(
+    *, fn_ref: str = "fn1", label: str = "reorderStock"
+) -> list[dict[str, object]]:
     """AC-009-01: a `weave:Function` with one grounded parameter and a
     return slot -- both reference a real BPMO kind IRI, never a hand-copied
     local name (`_expand()` passes a `://`-bearing `kind` through
     untouched, which is also how `Function`/`Parameter` -- meta-level, not
     BPMO business kinds -- avoid the BPMO-kind guard; see
     `test_operations_pipeline_function_immutability.py` precedent).
+
+    `label` is exposed (not always "reorderStock") because
+    `graph_ops.find_existing_by_label_kind` auto-merges any two `add_node`
+    ops sharing the same (kind, label) onto one canonical node (AC-001-05)
+    -- callers seeding multiple *distinct* functions must vary it or they
+    collapse into a single function, which is the correct write-path
+    behaviour, not a bug.
     """
     return [
         {
             "op": "add_node",
             "ref": fn_ref,
             "kind": FUNCTION_KIND,
-            "label": "reorderStock",
+            "label": label,
             "properties": {"status": "active"},
         },
         {
@@ -192,9 +201,13 @@ async def test_should_define_a_function_via_write_and_read_it_back_on_both_endpo
         assert detail_response.status_code == 200
         detail = detail_response.json()
         assert detail["fn_iri"] == fn_iri
-        # AC-009-03: derived JSON Schema, never stored/hand-edited.
+        # AC-009-03: derived JSON Schema, never stored/hand-edited. It's a
+        # per-param/return projection (`registry._derive_json_schema`),
+        # not a single flat object -- `bound_kind` lives on the detail
+        # response itself (asserted above), not inside the schema.
         schema = detail["json_schema"]
-        assert schema["properties"]["kind"]["const"] == ACTIVITY_KIND
+        assert schema["properties"]["qty"]["properties"]["kind"]["const"] == DATA_ASSET_KIND
+        assert schema["returns"]["properties"]["kind"]["const"] == DATA_ASSET_KIND
     finally:
         await clear_graph(workspace.named_graph_iri)
 
@@ -331,7 +344,7 @@ async def test_should_list_functions_promptly_at_a_bounded_seed_count(
 
     try:
         for i in range(25):
-            operations = _define_function_ops(fn_ref=f"fn-{i}")
+            operations = _define_function_ops(fn_ref=f"fn-{i}", label=f"reorderStock-{i}")
             response = await client.post(
                 "/api/operations/apply",
                 json={"operations": operations, "actor": "urn:weave:principal:test"},
