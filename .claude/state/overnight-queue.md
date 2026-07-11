@@ -520,3 +520,7 @@ unit level only (`VectorIndex` direct), not as a docker-integration test against
 multi-tenant deployment shape. Recommend a docker-integration pass before production.
 
 Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
+
+## 2026-07-12 — hotfix #89 landed + flake flag
+- #89 (audit_outbox clock_timestamp, migration 0083) MERGED → main cd905fdd. Integration suite green on main again. Unblocked #88 + all lane PRs. Saved bug-class memory: reference_clock-timestamp-fifo-bug.
+- FLAG (non-blocking, watch): hotfix agent saw intermittent ~50% failures in test_sdkgen_emit_typescript.py / test_sdkgen_pipeline_unit.py under poisoned-endpoint + heavy machine load (a dozen+ concurrent docker stacks). Real `tsc` subprocess calls; passes in isolation; NOT present in real CI (api job history stable). Likely shared-dev-machine overload artifact, not a code bug. Re-check if it appears in a clean CI run.
