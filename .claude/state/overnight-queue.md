@@ -477,3 +477,19 @@ ONB-V1-TASK-001 lane STOPPED: onboarding M1 (m1/tasks TASK-001..015) is SPEC-ONL
 1. **main is now PR-PROTECTED** (server ruleset: "Changes must be made through a pull request") — the git-safety.md memory saying "no server-side branch protection" is STALE. Direct `git push origin main` is rejected. Coordinator state commits therefore CANNOT reach origin except by riding an epic PR; progress.json stays local-only (known limitation).
 2. **Recurring epic-PR conflict ROOT CAUSE + FIX:** epic worktrees were based on LOCAL main (127 unpushed [skip ci] state commits incl. overnight-queue appends) but PRs merge into origin/main → every epic PR conflicted on `.claude/state/overnight-queue.md`. FIX (adopted): create epic worktrees off `origin/main` (`git worktree add -b feature/X ../wt origin/main`), not local main. Resolve existing conflicts by taking origin's overnight-queue (`--theirs`).
 3. Prune worktrees only AFTER a confirmed merge (pruning #72 pre-merge forced a recreate).
+
+### ONB-006 AC-006-02 deferred (2026-07-12)
+TASK-006 (Role-Path Resolution, ONB-EPIC-003) shipped AC-006-01/03/04/05/06 in full. AC-006-02
+("multi-role -> prompt to choose starting path") is **deferred**: the only role source in this
+codebase is `workspace_members.role` (one scalar role per tenant/workspace/user, via the
+`resolve_workspace_role` precedent in `notifications` router) — there is no multi-role array to
+prompt over. `needs_choice` is wired through the API/UI and always `false` in M1. Coordinator-
+confirmed scope cut (option 2 of 2 offered). **Reactivate the multi-role prompt when
+PLAT-IDENTITY-1 grows a real multi-role array** — architect to re-brief AC-006-02 at that point.
+
+### CE v1 TAIL GATED (2026-07-12) — needs your CE-023 decision
+After CE-014 (partial, XML branch deferred) + #84 (CE-026) land, CE's remaining v1 tasks are BLOCKED, not buildable:
+- **CE-023 (Edit Controller + Write, role-authz) is PARKED on your call** — mechanism specced (canvas-edit gate reads JWT `roles` claim + PLAT-SETTINGS-1 cascade per PLAT-IDENTITY-1); only the specific role→canvas-write MAPPING needs your confirm (which of the 10 roles may edit the graph). This now blocks CE-024 (Side-Panel Property) + CE-029 (GE-CANVAS packaging) + CE-030 (M2 Release-Gate) — the whole CE tail.
+- **CE-019 (Import & Ingest Page)** blocked_by TASK-015/016/017/018 which are ALL in post-v1/ (unbuilt) — cannot complete in v1; ship partial or defer to when those land.
+- **CE-014 AC-003-01 (XML chunking)** deferred — needs TASK-015 (post-v1). Brief/milestone mismatch: TASK-014 v1 brief hard-requires post-v1 TASK-015; architect should update the brief.
+NET: to finish CE v1, I need your CE-023 role→write mapping. Everything else (ONB M1 chain, remaining PLAT non-connector) proceeds.
