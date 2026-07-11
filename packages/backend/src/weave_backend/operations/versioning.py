@@ -105,10 +105,6 @@ async def mint_version(
     semver = _INITIAL_SEMVER if row is None else _bump_patch(str(row["semver"]))
     version_iri = f"{named_graph_iri}:v{semver}"
 
-    # False positive: SQL is a static literal; all values are bound positional
-    # parameters ($1..$5), never interpolated into query text.
-    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
-    #
     # ponytail: created_at uses clock_timestamp(), not the column's own
     # now() default -- now() is frozen at transaction start, so a caller
     # that mints >1 version inside one open transaction (fork's per-batch
@@ -117,6 +113,10 @@ async def mint_version(
     # already-used semver into a UniqueViolationError. clock_timestamp()
     # is the real wall clock, so every mint in the same transaction still
     # orders correctly.
+    #
+    # False positive: SQL is a static literal; all values are bound positional
+    # parameters ($1..$5), never interpolated into query text.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     await conn.execute(
         "INSERT INTO graph_versions "
         "(tenant_id, workspace_id, semver, version_iri, actor_iri, created_at) "

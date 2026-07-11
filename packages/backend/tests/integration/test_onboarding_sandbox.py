@@ -25,9 +25,10 @@ from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.onboarding import sandbox
 from weave_backend.onboarding.hammerbarn_seed.compile import CompiledArtefact
+from weave_backend.operations.versioning import mint_version
 from weave_backend.schemas.operations import AddNodeOp
 from weave_backend.tenancy.members import activate_member, invite_member
-from weave_backend.tenancy.workspaces import get_workspace_by_slug
+from weave_backend.tenancy.workspaces import create_workspace, get_workspace_by_slug
 
 pytestmark = [
     pytest.mark.integration,
@@ -297,3 +298,51 @@ async def test_cross_tenant_zero_leak(client: AsyncClient, platform_stack: Path)
     # A can never even name B's real sandbox: tenant-scoped lookup 404s.
     cross_tenant_switch = await client.post(f"/api/workspaces/{ws_b}/switch", headers=headers_a)
     assert cross_tenant_switch.status_code in (403, 404)
+
+
+# --- versioning.mint_version: clock_timestamp() fix -------------------------
+
+
+async def test_mint_version_twice_in_one_transaction_orders_correctly(
+    platform_stack: Path,
+) -> None:
+    """Regression test for the bug `_apply_and_publish`'s per-batch loop
+    exposed: `now()` is frozen at transaction start, so two mints inside
+    one open transaction used to get an identical `created_at` and could
+    tie-break the "latest version" read onto a stale row, re-bumping an
+    already-used semver (`UniqueViolationError`). `clock_timestamp()`
+    fixes it -- proven directly here, not just indirectly via a full
+    sandbox fork.
+    """
+    tenant_id = _unique_tenant("onb-mint-version")
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="mint-version-check", display_name="Mint Check"
+        )
+        first_iri, first_semver = await mint_version(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            named_graph_iri=workspace.named_graph_iri,
+            actor_iri="urn:weave:principal:agent:test",
+        )
+        second_iri, second_semver = await mint_version(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            named_graph_iri=workspace.named_graph_iri,
+            actor_iri="urn:weave:principal:agent:test",
+        )
+
+        assert first_semver != second_semver
+        assert second_semver == "0.1.1"
+        assert first_iri != second_iri
+
+        rows = await conn.fetch(
+            "SELECT semver, created_at FROM graph_versions WHERE tenant_id = $1"
+            " AND workspace_id = $2 ORDER BY created_at ASC",
+            tenant_id,
+            workspace.id,
+        )
+        assert [r["semver"] for r in rows] == [first_semver, second_semver]
+        assert rows[0]["created_at"] < rows[1]["created_at"]

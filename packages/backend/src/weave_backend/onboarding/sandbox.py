@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import asyncpg
 
 from weave_backend.authoring.bpmo import InvalidBpmoKindError
-from weave_backend.identity.registry import ensure_agent_principal
+from weave_backend.identity.registry import ensure_agent_principal, human_principal_iri
 from weave_backend.onboarding import store
 from weave_backend.onboarding.hammerbarn_seed.compile import CompiledArtefact
 from weave_backend.operations.pipeline import ApplyContext, apply_operations_request
@@ -182,6 +182,16 @@ async def ensure_sandbox(
     AC-004-03: any failure raises `SandboxForkFailed` before the pointer is
     ever touched -- see `store.set_sandbox_pointer`'s docstring.
     """
+    # ponytail: `user_sub` and `user_iri` both name the same caller (the
+    # JWT `sub` and its PLAT-IDENTITY-1 principal IRI), passed separately
+    # only because callers need both forms. Check they actually agree
+    # rather than trusting two separate route-supplied strings to stay in
+    # sync -- a mismatch here would silently fork/attribute the wrong
+    # user's sandbox. Not `assert` (S101: stripped under -O, wrong tool for
+    # a caller-input invariant).
+    if user_iri != human_principal_iri(user_sub):
+        raise ValueError("user_iri/user_sub principal mismatch")
+
     existing_id = await store.get_sandbox_workspace_id(conn, tenant_id=tenant_id, user_id=user_iri)
     if existing_id is not None:
         return SandboxResult(workspace_id=existing_id, reused=True)
