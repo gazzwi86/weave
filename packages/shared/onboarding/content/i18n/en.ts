@@ -35,6 +35,10 @@ export const en: Record<string, string> = {
   "onboarding.cta.take-a-tour": "Take a tour",
   "onboarding.cta.explore-freely": "Explore freely",
   "onboarding.cta.read-the-guide": "Read the guide",
+  "onboarding.beacon.learn-more": "Learn more",
+  "onboarding.beacon.dismiss": "Got it",
+  "onboarding.beacon.show-all-hints": "Show all hints",
+  "onboarding.modal.dismiss": "Got it",
   // Exercises.
   "onboarding.exercise.ce-01.goal": "Find an entity and open its detail page.",
   "onboarding.exercise.ce-01.step1": "Open the entity list.",

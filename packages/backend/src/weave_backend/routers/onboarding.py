@@ -11,12 +11,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
-from weave_backend.onboarding import store
+from weave_backend.onboarding import sandbox, store
+from weave_backend.onboarding.hammerbarn_seed.compile import (
+    CompiledArtefact,
+    allowed_kinds_from_ontology_types,
+    compile_seed,
+)
 from weave_backend.onboarding.path_resolver import resolve_role_path
+from weave_backend.ontology.catalogue import list_kinds
 from weave_backend.schemas.onboarding import (
     BulkDeletedResponse,
     DeletedResponse,
@@ -25,6 +31,7 @@ from weave_backend.schemas.onboarding import (
     OnboardingPathOut,
     OnboardingStateOut,
     OnboardingStatePatchRequest,
+    SandboxOut,
     SavedResponse,
     TourProgressRequest,
 )
@@ -107,6 +114,45 @@ async def get_path_route(
     return _to_path_out(
         role_path=resolved.role_path, path_variant=resolved.path_variant, path_chosen_manually=False
     )
+
+
+def _seed_artefact() -> CompiledArtefact:
+    """`compile_seed`'s `allowed_kinds` sourced straight from
+    `ontology.catalogue.list_kinds()` -- the same SHACL-backed source CE-
+    READ-1's `/api/ontology/types` route reads (compile.py's own docstring)
+    -- so no second HTTP hop into this same running app is needed.
+    """
+    body = {"kinds": [{"iri": kind.iri} for kind in list_kinds()]}
+    return compile_seed(allowed_kinds=allowed_kinds_from_ontology_types(body))
+
+
+@router.post("/sandbox", response_model=SandboxOut)
+async def ensure_sandbox_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> SandboxOut:
+    """AC-004-01/-02/-03: idempotent ensure-mine. Also lazily materialises
+    the tenant's canonical template on first call (ADR-002 scope item 1) --
+    cheap after the first tenant-wide call, since `provision_canonical_
+    template` is itself idempotent on the workspace's slug.
+    """
+    artefact = _seed_artefact()
+    try:
+        async with tenant_connection(principal.tenant_id) as conn:
+            await sandbox.provision_canonical_template(
+                conn, tenant_id=principal.tenant_id, artefact=artefact
+            )
+            result = await sandbox.ensure_sandbox(
+                conn,
+                tenant_id=principal.tenant_id,
+                user_sub=principal.sub,
+                user_iri=principal.principal_iri,
+                artefact=artefact,
+            )
+    except sandbox.SandboxForkFailed as exc:
+        # AC-004-03: fork failed before the pointer was ever touched --
+        # surfaced as a retryable client error, never a bare 500.
+        raise HTTPException(status_code=502, detail={"error": "sandbox_fork_failed"}) from exc
+    return SandboxOut(workspace_id=result.workspace_id, reused=result.reused)
 
 
 @router.put("/path", response_model=OnboardingPathOut)

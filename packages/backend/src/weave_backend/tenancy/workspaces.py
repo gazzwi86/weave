@@ -82,6 +82,35 @@ async def get_workspace(
     )
 
 
+async def get_workspace_by_slug(
+    conn: asyncpg.Connection, *, tenant_id: str, slug: str
+) -> Workspace | None:
+    """TASK-004: canonical-template lookup keys off `(tenant_id, slug)`'s
+    existing unique constraint rather than a new tracking table -- a
+    workspace already IS the tenant-local pointer.
+    """
+    # False positive: static literal SQL; tenant_id/slug are bound as
+    # positional parameters ($1/$2), never interpolated into the query text.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    row = await conn.fetchrow(
+        """
+        SELECT id, slug, display_name, named_graph_iri, created_at
+        FROM workspaces WHERE tenant_id = $1 AND slug = $2
+        """,
+        tenant_id,
+        slug,
+    )
+    if row is None:
+        return None
+    return Workspace(
+        id=str(row["id"]),
+        slug=row["slug"],
+        display_name=row["display_name"],
+        named_graph_iri=row["named_graph_iri"],
+        created_at=row["created_at"],
+    )
+
+
 async def list_workspaces(conn: asyncpg.Connection, *, tenant_id: str) -> list[Workspace]:
     # False positive: static literal SQL; tenant_id is bound as a positional
     # parameter ($1), never interpolated into the query text.

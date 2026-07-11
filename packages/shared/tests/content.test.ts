@@ -8,8 +8,17 @@ describe("real M1 content", () => {
     expect(runAllContentChecks()).toEqual([]);
   });
 
-  it("passes the anchor audit against an empty frontend tree -- TASK-003 plants no attributes", () => {
-    const result = auditAnchors(ANCHORS, new Set());
+  it("passes the anchor audit when every shipped anchor's attribute is planted", () => {
+    const shippedIds = Object.entries(ANCHORS)
+      .filter(([, a]) => a.shipped)
+      .map(([id]) => id);
+    const result = auditAnchors(ANCHORS, new Set(shippedIds));
     expect(result.ok).toBe(true);
+  });
+
+  it("flags drift when a shipped anchor's attribute is missing from code (ADR-008)", () => {
+    const result = auditAnchors(ANCHORS, new Set());
+    expect(result.ok).toBe(false);
+    expect(result.missingShipped.length).toBeGreaterThan(0);
   });
 });
