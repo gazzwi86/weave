@@ -104,6 +104,46 @@ async def test_validate_404s_unknown_version(client: AsyncClient) -> None:
     assert response.status_code == 404
 
 
+async def test_validate_404s_other_tenants_version_iri(client: AsyncClient) -> None:
+    """AC-006-02/tenant isolation edge case (QA gap: no prior test in this
+    suite seeded two tenants to prove this -- tenant-scoping was previously
+    only verified by source read, not asserted through `/api/validate`
+    itself). Mirrors `test_ontology_lifecycle.py::
+    test_publish_version_from_another_tenant_returns_404_not_403`'s
+    pattern for the publish endpoint, applied here to the validate report
+    endpoint: tenant A's real version_iri must not be readable by tenant
+    B's JWT. `resolve_graph`'s explicit-version branch calls
+    `versioning.get_version(conn, tenant_id=..., version_iri=...)` inside
+    B's own `tenant_connection`, so A's IRI is unknown to B's lookup and
+    404s, never leaking A's report."""
+    _tenant_a_id, _workspace_a, headers_a = await _setup_member(client, label="validate-tenant-a")
+    apply = await client.post(
+        "/api/operations/apply",
+        json={
+            "operations": [
+                {"op": "add_node", "ref": "g1", "kind": "Goal", "label": "A's Goal"},
+            ],
+            "actor": "urn:weave:principal:test-actor",
+        },
+        headers=headers_a,
+    )
+    assert apply.status_code == 201
+    tenant_a_version_iri = apply.json()["version_iri"]
+
+    _tenant_b_id, _workspace_b, headers_b = await _setup_member(client, label="validate-tenant-b")
+    response = await client.get(
+        "/api/validate", params={"version": tenant_a_version_iri}, headers=headers_b
+    )
+    assert response.status_code == 404
+
+    # sanity: tenant A itself CAN resolve its own version (proves 404 above
+    # is tenant-scoping, not a broken/wrong version_iri).
+    own_response = await client.get(
+        "/api/validate", params={"version": tenant_a_version_iri}, headers=headers_a
+    )
+    assert own_response.status_code == 200
+
+
 async def test_validate_pending_before_any_run(client: AsyncClient) -> None:
     """AC-006-04: a fresh draft, never validated, must report pending --
     never an empty/zero report readable as 'no violations'."""
