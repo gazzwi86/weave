@@ -59,15 +59,28 @@ describe("GET /api/proxy/sparql -- auth and validation", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when version is not 'latest' or page is not a non-negative integer (Law 13)", async () => {
+  it("returns 400 when version is empty or page is not a non-negative integer (Law 13)", async () => {
     mockAuthedSession();
 
-    const badVersion = await GET(makeRequest("version=v1&page=0"));
+    const emptyVersion = await GET(makeRequest("version=&page=0"));
     const badPage = await GET(makeRequest("version=latest&page=-1"));
 
-    expect(badVersion.status).toBe(400);
+    expect(emptyVersion.status).toBe(400);
     expect(badPage.status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  // TASK-022 AC-2: version-pinned reload -- `version` is CE-READ-1's
+  // `?version=` (semver or a published version IRI), not just the literal
+  // "latest", so a published-version canvas load can pin to it.
+  it("forwards an arbitrary published version IRI, not just 'latest'", async () => {
+    mockAuthedSession();
+    stubFetch(new Response(JSON.stringify(BACKEND_PAGE_ONE), { status: 200, headers: { "content-type": "application/json" } }));
+
+    await GET(makeRequest("version=urn:workspace:demo:v1&page=0"));
+
+    const calledUrl = vi.mocked(fetch).mock.calls.at(0)?.at(0) as string;
+    expect(calledUrl).toContain("version=urn:workspace:demo:v1");
   });
 });
 
