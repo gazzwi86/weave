@@ -31,6 +31,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // change-viz.tsx imports ../../../shared/widget-compat.json (single
+  // shared compat matrix, AC-6) -- outside this package's root, which
+  // Next.js's bundler refuses to resolve unless explicitly allowed.
+  experimental: { externalDir: true },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
