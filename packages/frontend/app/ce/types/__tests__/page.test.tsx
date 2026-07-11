@@ -15,6 +15,7 @@ const TYPES = {
     {
       iri: "https://weave.dev/ontology/bpmo#Process",
       label: "Process",
+      description: "A repeatable sequence of activities performed to achieve a goal.",
       properties: [
         {
           path: "https://weave.dev/ontology/bpmo#name",
@@ -34,7 +35,12 @@ const TYPES = {
         },
       ],
     },
-    { iri: "https://weave.dev/ontology/bpmo#Actor", label: "Actor", properties: [] },
+    {
+      iri: "https://weave.dev/ontology/bpmo#Actor",
+      label: "Actor",
+      description: null,
+      properties: [],
+    },
   ],
   relationships: [],
 };
@@ -70,8 +76,28 @@ describe("CeTypesPage", () => {
     expect(screen.getByText("Process")).toBeInTheDocument();
     expect(screen.getByText("Actor")).toBeInTheDocument();
     expect(screen.getByTestId(PROCESS_ROW)).toHaveTextContent(
-      "1 properties · 1 relationships"
+      "1 property · 1 relationship"
     );
+  });
+
+  it("shows the kind's skos:definition description as secondary text under its label (AC-011-04)", async () => {
+    stubFetch(jsonResponse(TYPES));
+
+    render(<CeTypesPage />);
+
+    await waitFor(() => expect(screen.getByTestId(PROCESS_ROW)).toBeInTheDocument());
+    expect(screen.getByTestId(PROCESS_ROW)).toHaveTextContent(
+      "A repeatable sequence of activities performed to achieve a goal."
+    );
+  });
+
+  it("renders no secondary description line when description is null (AC-011-05)", async () => {
+    stubFetch(jsonResponse(TYPES));
+
+    render(<CeTypesPage />);
+
+    await waitFor(() => expect(screen.getByTestId("kind-row-Actor")).toBeInTheDocument());
+    expect(screen.queryByTestId("kind-row-description-Actor")).not.toBeInTheDocument();
   });
 
   it("expands an inline view-only detail panel on click", async () => {
