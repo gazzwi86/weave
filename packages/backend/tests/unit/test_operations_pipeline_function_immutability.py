@@ -108,6 +108,58 @@ async def test_defining_a_brand_new_function_is_unaffected(
     ask_spy.assert_not_called()
 
 
+async def test_a_normal_non_function_write_never_touches_the_immutability_gate(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """Edge case (QA, adversarial): the top risk for `b0e7c0d` is the gate
+    over-blocking writes that have nothing to do with functions -- e.g. an
+    explorer edit against a pre-existing, already-published Actor node.
+    `touches_function_signature` must short-circuit on the op's own
+    kind/predicate before *any* version/graph lookup happens, so a
+    non-function write pays zero cost and is never at risk of a false
+    422. `resolve_version` not being called (not just `run_query`) proves
+    the whole `_reject_published_signature_edit` gate never engaged.
+    """
+    resolve_spy = AsyncMock(return_value=PUBLISHED_VERSION_IRI)
+    monkeypatch.setattr(pipeline, "resolve_version", resolve_spy)
+    ask_spy = AsyncMock(return_value={"boolean": True})
+    monkeypatch.setattr(pipeline, "run_query", ask_spy)
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.2.0", "0.2.0"))
+    )
+    monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
+    )
+    monkeypatch.setattr(pipeline, "enqueue", AsyncMock())
+    from weave_backend.operations import metrics as ops_metrics
+
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+
+    # An existing (already-published) Actor node getting a routine edge
+    # edit, e.g. an explorer "owns" edge -- not a weave:Function anywhere
+    # in sight.
+    request = ApplyRequest(
+        operations=[
+            AddEdgeOp(
+                op="add_edge",
+                subject_ref="https://weave.io/instances/actor-billing-team",
+                predicate="owns",
+                object_ref="https://weave.io/instances/asset-invoice-db",
+            )
+        ],
+        actor="urn:weave:principal:test",
+        target="draft",
+    )
+
+    result = await pipeline.apply_operations_request(ctx, request, redis_client=None)
+
+    assert isinstance(result, ApplyResponse)
+    resolve_spy.assert_not_called()
+    ask_spy.assert_not_called()
+
+
 async def test_label_only_edit_of_a_published_function_is_unaffected(
     monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
 ) -> None:
