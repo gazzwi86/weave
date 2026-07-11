@@ -106,6 +106,42 @@ async def test_onboarding_tables_zero_rows_without_session_context(platform_stac
         await conn.close()
 
 
+async def test_onboarding_tables_zero_rows_with_blank_session_tenant(
+    platform_stack: Path,
+) -> None:
+    """AC-001-02 fail-closed edge case: `app.tenant_id` explicitly set to the
+    *empty string* (not merely unset) must also see zero rows. This is a
+    different RLS code path than the "no context at all" test above --
+    there, ``current_setting(..., true)`` returns NULL and the predicate is
+    NULL; here, the predicate becomes a real string comparison
+    (``tenant_id = ''``) that must fail to match every row because the
+    table's own ``CHECK (tenant_id <> '')`` constraint guarantees no stored
+    row ever has an empty ``tenant_id``. Both paths must independently
+    fail closed -- a regression that only fixed the NULL case (e.g. a
+    predicate rewritten as ``COALESCE(current_setting(...), tenant_id)``)
+    would pass the other test while silently leaking rows here.
+    """
+    tenant_id = _unique_tenant("onb-blank-guc")
+    user_id = human_principal_iri("u-blank-guc")
+
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "INSERT INTO onboarding_state (tenant_id, user_id, role_path, path_variant,"
+            " path_chosen_manually) VALUES ($1, $2, 'business', 'default', false)",
+            tenant_id,
+            user_id,
+        )
+
+    conn = await asyncpg.connect(_dsn("weave_app"))
+    try:
+        await conn.execute("SELECT set_config('app.tenant_id', '', true)")
+        for table in _ONBOARDING_TABLES:
+            rows = await conn.fetch(f"SELECT 1 FROM {table}")  # noqa: S608 -- fixed table name
+            assert rows == [], f"expected zero rows in {table} with blank session tenant"
+    finally:
+        await conn.close()
+
+
 async def test_onboarding_tables_cross_tenant_isolation(platform_stack: Path) -> None:
     """AC-001-02 two-tenant leg: tenant B must never see tenant A's rows."""
     tenant_a = _unique_tenant("onb-a")
