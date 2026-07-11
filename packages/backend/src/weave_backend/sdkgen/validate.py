@@ -20,16 +20,37 @@ from weave_backend.sdkgen.errors import GenerationValidationError
 #: package -- override with WEAVE_TSC_BIN once the generator ships its own
 #: pinned TS toolchain image (ADR-006 SS1, "same Fargate family as the
 #: preview deployer").
-_DEFAULT_TSC_RELATIVE = "../../../../frontend/node_modules/.bin/tsc"
 _OPENAPI_REQUIRED_KEYS = ("openapi", "info", "paths", "components")
+
+
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from ``start`` to the directory containing both
+    ``packages/frontend`` and ``packages/backend``.
+
+    A fixed ``../../../../`` hop-count from this file broke under mutmut,
+    which stages mutated sources one directory deeper
+    (``packages/backend/mutants/src/...`` instead of
+    ``packages/backend/src/...``) before running tests against them --
+    the fixed hop-count then landed on ``packages/backend/frontend``
+    instead of ``packages/frontend``. Searching upward for the marker
+    directories is robust to that (and any other) extra nesting.
+    """
+    for candidate in (start, *start.parents):
+        if (candidate / "packages" / "frontend").is_dir() and (
+            candidate / "packages" / "backend"
+        ).is_dir():
+            return candidate
+    raise FileNotFoundError(
+        f"could not locate repo root (packages/frontend + packages/backend) above {start}"
+    )
 
 
 def _resolve_tsc() -> str:
     override = os.environ.get("WEAVE_TSC_BIN")
     if override:
         return override
-    default = (Path(__file__).resolve().parent / _DEFAULT_TSC_RELATIVE).resolve()
-    return str(default)
+    repo_root = _find_repo_root(Path(__file__).resolve().parent)
+    return str(repo_root / "packages" / "frontend" / "node_modules" / ".bin" / "tsc")
 
 
 def validate_typescript(ts_dir: Path) -> None:
