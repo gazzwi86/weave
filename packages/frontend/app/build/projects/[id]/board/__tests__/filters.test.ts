@@ -29,6 +29,13 @@ describe("board filters", () => {
     expect(filterCards(cards, "All")).toEqual(cards);
   });
 
+  it("treats an empty-string filter param (?filter=) as invalid, not 'All'", () => {
+    // edge case: searchParams.get("filter") returns "" (not null) for a bare
+    // `?filter=` query -- must still hit the AC-5 empty-state path, not fall
+    // through to a truthy-looking default.
+    expect(isValidFilter("")).toBe(false);
+  });
+
   it("'In flight' excludes Backlog and Done lanes", () => {
     const cards = [
       card({ id: "t-1", lane: "Backlog" }),
