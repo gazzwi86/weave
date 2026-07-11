@@ -100,6 +100,39 @@ describe("CeTypesPage", () => {
     expect(screen.queryByTestId("kind-row-description-Actor")).not.toBeInTheDocument();
   });
 
+  it("renders no secondary description line for an empty-string description (QA edge case)", async () => {
+    // Distinct from the null case above: "" !== null but is still JS-falsy,
+    // so `kind.description && (...)` must not render a stray empty node.
+    stubFetch(
+      jsonResponse({
+        kinds: [{ ...TYPES.kinds[0], iri: "https://weave.dev/ontology/bpmo#Empty", description: "" }],
+        relationships: [],
+      })
+    );
+
+    render(<CeTypesPage />);
+
+    await waitFor(() => expect(screen.getByTestId("kind-row-Empty")).toBeInTheDocument());
+    expect(screen.queryByTestId("kind-row-description-Empty")).not.toBeInTheDocument();
+  });
+
+  it("renders a very long description in full without truncation (QA edge case)", async () => {
+    const longDescription = "A ".repeat(200).trim() + " end-of-description-marker";
+    stubFetch(
+      jsonResponse({
+        kinds: [{ ...TYPES.kinds[0], iri: "https://weave.dev/ontology/bpmo#Long", description: longDescription }],
+        relationships: [],
+      })
+    );
+
+    render(<CeTypesPage />);
+
+    await waitFor(() => expect(screen.getByTestId("kind-row-Long")).toBeInTheDocument());
+    expect(screen.getByTestId("kind-row-description-Long")).toHaveTextContent(
+      "end-of-description-marker"
+    );
+  });
+
   it("expands an inline view-only detail panel on click", async () => {
     stubFetch(jsonResponse(TYPES));
 
