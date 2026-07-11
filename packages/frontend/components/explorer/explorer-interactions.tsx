@@ -21,6 +21,7 @@ import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
+import { useSavedViewsWiring } from "./use-saved-views-wiring";
 import { useSearchOverlay } from "./use-search-overlay";
 import { useVersionsPanel } from "./use-versions-panel";
 
@@ -183,6 +184,24 @@ function NodeInteractionOverlays({
   );
 }
 
+// TASK-020/022/026: canvas-chrome panels (filter/legend/overlay/versions/
+// saved-views) all key off the same adapter+config -- split out so
+// ExplorerInteractions itself stays under Law E's 50-line budget.
+function useCanvasChromePanels(
+  adapter: RendererAdapter,
+  config: ExplorerConfig,
+  fetchLayerNodes: UseFilterPanelOptions["fetchLayerNodes"],
+  fetchPalette: ExplorerInteractionsProps["fetchPalette"],
+  domainFocus: ReturnType<typeof useDomainFocus>
+) {
+  const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
+  const legend = useCanvasLegend(fetchPalette);
+  const overlayControls = useOverlayControls({ adapter, config });
+  const versionsPanel = useVersionsPanel({ adapter, engine: overlayControls.engine });
+  const savedViewsPanel = useSavedViewsWiring({ adapter, config, filterPanel, overlayControls, domainFocus });
+  return { filterPanel, legend, overlayControls, versionsPanel, savedViewsPanel };
+}
+
 /** AC-1..AC-10: composes node-spotlight, search, domain-focus, and
  * neighbour expand/collapse onto the ADR-001 renderer-adapter seam. A
  * search-result click hands off to the same node-spotlight flow as a
@@ -201,37 +220,30 @@ export function ExplorerInteractions({
   const { panel, openNode, close, retry } = useNodeSpotlight({ adapter, config, fetchNodeProps });
   useFocusParam(adapter, config, openNode);
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });
-  const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({
-    adapter,
-    config,
-    graphId: resolveGraphId(graphId, config),
-  });
-  const domainFocus = useDomainFocus({ adapter, config, fetchDomainMembers });
   const neighbourExpansion = useNeighbourExpansion({ adapter, config });
+  const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({ adapter, config, graphId: resolveGraphId(graphId, config) });
+  const domainFocus = useDomainFocus({ adapter, config, fetchDomainMembers });
   const { menu, closeMenu } = useNodeContextMenu({ adapter, config, panel });
-  const panelNeighbours = panel.status === "loaded" ? panel.neighbours : [];
-  const actions = useContextMenuActions(adapter, menu, panelNeighbours, domainFocus, neighbourExpansion);
+  const actions = useContextMenuActions(adapter, menu, panel.status === "loaded" ? panel.neighbours : [], domainFocus, neighbourExpansion);
   const confirmState = neighbourExpansion.state;
-  const filterPanel = useFilterPanel({ adapter, config, fetchLayerNodes });
-  const legend = useCanvasLegend(fetchPalette);
-  const overlayControls = useOverlayControls({ adapter, config });
-  const versionsPanel = useVersionsPanel({ adapter, engine: overlayControls.engine });
+  const chrome = useCanvasChromePanels(adapter, config, fetchLayerNodes, fetchPalette, domainFocus);
   usePinnedImpact({ adapter });
 
   return (
     <>
       <CanvasFilterChrome
         onOpenSearch={search.openOverlay}
-        filterPanel={filterPanel}
-        legend={legend}
-        overlayControls={overlayControls}
-        versionsPanel={versionsPanel}
+        filterPanel={chrome.filterPanel}
+        legend={chrome.legend}
+        overlayControls={chrome.overlayControls}
+        versionsPanel={chrome.versionsPanel}
+        savedViewsPanel={chrome.savedViewsPanel}
       />
       <NodeInteractionOverlays
         // TASK-022 AC-2: a published version is read-only -- no edit
         // affordances, so the drag-persisted "Reset layout" action is
         // hidden while pinned to one.
-        resetLayout={versionsPanel.readOnly ? undefined : resetLayout}
+        resetLayout={chrome.versionsPanel.readOnly ? undefined : resetLayout}
         panel={panel}
         onClosePanel={close}
         onRetryPanel={retry}

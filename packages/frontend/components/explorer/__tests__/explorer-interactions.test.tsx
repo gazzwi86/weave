@@ -21,6 +21,9 @@ vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => [
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
 vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
+// CommentsPanel (TASK-026 AC-6) fetches on mount via SidePanel -- stub so
+// these pre-existing tests don't leak a real fetch() against a relative URL.
+vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
 const NO_RETRY_CONFIG = { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] };
