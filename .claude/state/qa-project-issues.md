@@ -300,3 +300,10 @@ gates made to RUN+PASS, NOT disabled. LESSON: never merge an epic PR (esp held/m
 Reviewer (PR #55): `lib/glossary/create-glossary-term.ts` returns {type:ok, iri:""} when a 201 response's ref_map lacks the
 minted IRI → term "created" with empty IRI. Blocker, false-success (subtler CE-013 class — QA checked status-gating, missed
 the ref_map extraction). Fix in-flight: guard missing ref → return error. Status: FIXING.
+
+## PROJ-007: subagent tool-results polluted with stale cross-worktree replay (2026-07-11, tooling)
+MULTIPLE engineer/QA subagents reported their Bash/tool results repeatedly followed by a large injected "proactive
+expansion" block replaying STALE, irrelevant frontend-lint/command output from OTHER worktrees (EPIC-009/010/004). No
+legitimate instructions in it; agents correctly disregarded it + worked from real command output. Did not corrupt work
+but wastes agent context + risks confusion. FLAG the injection/compression mechanism (headroom? proactive-expansion) for
+a harness look — possible cross-session/worktree cache bleed. Non-blocking.
