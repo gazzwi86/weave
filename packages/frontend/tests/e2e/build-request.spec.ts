@@ -51,3 +51,30 @@ test("build form renders and a draft_spec_only submission shows the drafting sta
   await expect(page.getByTestId("request-status")).toContainText("drafting");
   await expect(page.getByText(/^Request [0-9a-f-]{16,}$/)).toBeVisible();
 });
+
+// TASK-024 (F-D20): the fuller intake -- name, grounding-entity typeahead
+// selection, target repo name (only required once run_mode leaves
+// draft_spec_only), all labelled fields per AC-1. Grounding-entity search
+// hits real CE via /api/ontology/entities/typeahead; the seed/demo tenant
+// may have zero matching entities, so this only asserts the picker renders
+// and accepts a name/repo -- not that a specific entity is selectable.
+test("build form collects name, target repo name, and grounding entities", async ({ page }) => {
+  await loginAndGoToBuildRequest(page);
+
+  await page.getByLabel("Request name").fill(`E2E named request ${Date.now()}`);
+  await page.getByLabel("What should Weave build?").fill("A finance approvals tracker.");
+  await page.getByLabel("Run mode").selectOption("spec_to_build");
+
+  // Target repo name field only appears once run_mode requires it (AC-5).
+  const repoField = page.getByLabel("Target repo name");
+  await expect(repoField).toBeVisible();
+  await repoField.fill("finance-approvals-tracker");
+
+  const groundingInput = page.getByLabel("Grounding entities");
+  await expect(groundingInput).toBeVisible();
+  await groundingInput.fill("fi");
+
+  await page.getByRole("button", { name: "Request application" }).click();
+
+  await expect(page.getByTestId("request-status")).toContainText(/drafting|pending_approvals/);
+});
