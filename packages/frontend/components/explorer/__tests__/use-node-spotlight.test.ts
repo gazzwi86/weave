@@ -35,6 +35,8 @@ function fakeAdapter(
     applyNodeColours: vi.fn(),
     clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
     clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
     isHidden: vi.fn(() => false),
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),

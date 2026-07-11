@@ -88,5 +88,22 @@ export function buildStylesheet(palette: NodeKind[]): cytoscape.StylesheetStyle[
       selector: `node.${EXPLORER_TRACE_CLASS}`,
       style: { "border-width": 3, "border-color": "var(--color-warn)" },
     },
+    // TASK-022 AC-3/data-viz.md "Diff overlay": border colour + a
+    // diffLabel data field (set by renderer-adapter-diff.ts, prefixed with
+    // a +/-/~ glyph) so change type never reads as colour alone (WCAG
+    // 1.4.1). Removed ghosts additionally dim to 0.35 opacity (tunable) --
+    // still legible, distinct from a hidden node.
+    { selector: "node.explorer-diff-added, edge.explorer-diff-added", style: { label: "data(diffLabel)" } },
+    { selector: "node.explorer-diff-removed, edge.explorer-diff-removed", style: { label: "data(diffLabel)" } },
+    { selector: "node.explorer-diff-modified, edge.explorer-diff-modified", style: { label: "data(diffLabel)" } },
+    { selector: "node.explorer-diff-added", style: { "border-width": 3, "border-color": "var(--color-success)" } },
+    {
+      selector: "node.explorer-diff-removed",
+      style: { "border-width": 3, "border-color": "var(--color-danger)", opacity: 0.35 },
+    },
+    { selector: "node.explorer-diff-modified", style: { "border-width": 3, "border-color": "var(--color-warn)" } },
+    { selector: "edge.explorer-diff-added", style: { "line-color": "var(--color-success)", width: 3 } },
+    { selector: "edge.explorer-diff-removed", style: { "line-color": "var(--color-danger)", opacity: 0.35 } },
+    { selector: "edge.explorer-diff-modified", style: { "line-color": "var(--color-warn)", width: 3 } },
   ];
 }
