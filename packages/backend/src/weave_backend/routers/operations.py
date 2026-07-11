@@ -21,6 +21,7 @@ from weave_backend.operations.guards import SpikeWriteBackForbidden, assert_not_
 from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
+    FunctionSignatureImmutableError,
     InvalidTargetError,
     PublishedTargetError,
     apply_operations_request,
@@ -151,6 +152,15 @@ async def _run_apply(
         # forgery (that's ForeignTargetError) or a bad request.
         raise HTTPException(
             status_code=409, detail={"error": "target_version_published"}
+        ) from exc
+    except FunctionSignatureImmutableError as exc:
+        # AC-009-04: the op names a *node* (a published weave:Function's
+        # signature) that can't be edited in place -- 422, not 409 (that's
+        # PublishedTargetError, which rejects the apply's target graph
+        # itself being published).
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "function_signature_immutable", "fn_iri": exc.fn_iri},
         ) from exc
     except TimeoutError as exc:
         # Another caller holds this idempotency key's lock and never
