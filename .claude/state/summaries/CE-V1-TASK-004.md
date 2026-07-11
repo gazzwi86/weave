@@ -24,3 +24,12 @@ done on branch). Frontend. Built across continuations. Pre-QA. HEAD `4acc3f0`, n
 ## ⚠️ INCIDENT: engineer ran un-scoped pkill (uvicorn/mock-oidc) — may have hit CE-002/EPIC-003 lane. Logged.
 ## Epic status: EPIC-004 = CE-003(done) + CE-004. If CE-004 QA-passes → EPIC-004 CLOSES. XT-WRITEPATH-1: hand-union graph_ops
 seam with EPIC-003 at whichever merges 2nd. XT-CE007-2 (dangling ADR) is on EPIC-005 not here.
+
+## QA retry 1 → PASS — CE-V1-TASK-004 CLOSES → EPIC-004 COMPLETE (2026-07-11)
+Round-1 QA FAIL = 1 Major XT-CE004-1 (both brand forms leave Save stuck-disabled on thrown/empty-body submit). Fix `9ef09d9`:
+try/catch/finally in voice-rule-form + standard-form (match guided-form idiom) + generic error message covering thrown AND
+empty-body-500. QA repro green + added standard-form regression + empty-body tests. 39/39 brand vitest, 677/677 full suite,
+tsc/lint clean, complexity under Law-E. Round-1 clean elsewhere (422 no-false-success, mount, E2E 5/5, CE-READ-1/WRITE-1
+reuse, design-decision-per-brief, tokens/axe). AC-004-05 Lighthouse → epic-close ui_verify. retry=1. XT-CE004-1 RESOLVED.
+**EPIC-004 HELD:** carries CE-003 graph_ops datatype change (XT-WRITEPATH-1) → merge AFTER EPIC-003 (#55), restack onto new
+main + hand-union the graph_ops seam (union: CE-001 punning + CE-003 datatype). Also blocked on red-main (PROJ-005).

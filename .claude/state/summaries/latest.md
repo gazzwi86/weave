@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T05:03:05+00:00
+Captured at: 2026-07-11T05:20:44+00:00
 Event: pre-compact
 
 ## Current State
@@ -162,7 +162,7 @@ Event: pre-compact
     {
       "id": "CE-V1-EPIC-003",
       "title": "SKOS Controlled Vocabulary (Glossary)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "CE-V1-EPIC-004",
@@ -944,7 +944,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-003",
       "title": "Glossary Search, Browse and Create UI",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-001"
       ],
@@ -971,7 +971,7 @@ Event: pre-compact
         "CE-V1-TASK-003"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-004.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "CE-V1-TASK-005",

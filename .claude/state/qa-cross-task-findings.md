@@ -355,7 +355,7 @@ CE-007's perf benchmark (retry 1, `249f926`) delivered + RAN real 100k: cached p
 Turtle (`fetch_graph_turtle`) + `Graph().parse()` (rdflib) on every cold call — same rdflib-hotspot class ADR-004 flagged
 for the write path, now on read. Smoke-tested clean at 1k (cold 45ms) → genuine scale bug. **Fix in-flight (retry 2):**
 compute the delta COUNTS via SPARQL (no whole-graph Turtle fetch+parse) — preserves AC-007-04's "internal, not CE-DIFF-1
-HTTP" intent but DEVIATES from literal "reuse diff_graphs"; QA/architect confirm intent-met. Status: FIXING.
+HTTP" intent but DEVIATES from literal "reuse diff_graphs"; QA/architect confirm intent-met. Status: RESOLVED 9ef09d9 (retry 1).
 
 ## XT-CE007-2: dangling ADR-023 citation on CE-005 branch (fix before EPIC-005 close) — 2026-07-11
 CE-007's `aggregate_metrics.py` + 3 test files cite "ADR-023" for the SPARQL-count-diff deviation, but NO
@@ -368,4 +368,4 @@ proven vs diff_graphs across 5 edge cases" + repoint the 4 citations. Non-blocki
 `app/ce/brand/{voice-rule-form.tsx:42, standard-form.tsx:53}` call `submitAddNode` with bare await, no try/finally → on
 network failure / non-JSON error, `setSubmitting(false)` skipped → Save disabled forever, no error, reload-only recovery
 (loses input). Major, class=logic. Fix in-flight: try/finally + catch-error-message (match guided-form.tsx). QA repro `59b4a0d`
-(voice-rule). Happy/422 paths clean (E2E 5/5). Status: FIXING.
+(voice-rule). Happy/422 paths clean (E2E 5/5). Status: RESOLVED 9ef09d9 (retry 1).
