@@ -69,6 +69,9 @@ class NewProjectShell:
     description: str | None = None
     source_control_provider: str | None = None
     source_control_token_secret_ref: str | None = None
+    #: TASK-024 AC-5: passed straight through to `NewProject` -- see its
+    #: own docstring.
+    repo_name_hint: str | None = None
 
 
 async def _resolve_at_company(
@@ -165,6 +168,7 @@ async def create_project_shell(
             pinned_graph_version_iri=pinned_version,
             source_control_provider=fields.source_control_provider,
             source_control_token_secret_ref=fields.source_control_token_secret_ref,
+            repo_name_hint=fields.repo_name_hint,
         ),
     )
     return project, governance
