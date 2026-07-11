@@ -256,3 +256,8 @@ Engineer orientation (kept): parse content brief turtle blocks + synthesize §4/
 cross-batch edges resolve via cumulative ApplyResponse.ref_map; convergence needs no new dedup code (server dedups).
 Task-brief header links to content-brief/business-process are WRONG paths (real: hammerbarn-content-brief.md, onboarding/tech-spec/business-process.md).
 **ONB M1 content-seeding PARKED pending 1-4.** ONB-001 (foundation) already done+merged-ready.
+
+## CE-003 AC-003-06 perf-half deferred (2026-07-11) — scope decision
+CE-BRAND-1's perf half (p95 ≤400ms @100k triples, locust) NOT built — the only perf harness (scripts/benchmarks/ce-perf/)
+is scoped to CE-008's spike. Engineer flags: extend that harness with a brand corpus, OR defer to CE-BRAND-1's M2
+Build-conformance gate (contracts.md scopes that gate to M2). QA to confirm the M2-scoping; likely met-by-deferral.
