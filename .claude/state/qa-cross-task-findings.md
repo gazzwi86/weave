@@ -347,4 +347,4 @@ Two concurrent lanes modify the SAME shared literal-building seam on different b
 - CE-001 (feature/CE-V1-EPIC-003, `3979906`): punned rdf:type + list-valued + lang-tagged literals in `add_node`.
 Both legit, isolated on their branches now, but **conflict likely at merge** — whichever lands second must reconcile
 add_node/graph_ops to carry BOTH datatype-coercion AND punned/list/lang handling (union, not either-or). Flag for
-merge-order + reconciliation at epic close. Status: OPEN (both in-flight).
+merge-order + reconciliation at epic close. Status: OPEN — QA-CONFIRMED un-auto-mergeable (both _to_literal+_apply_add_node rewritten incompatibly); MUST hand-union at whichever epic merges 2nd. Both branches QA-passed.

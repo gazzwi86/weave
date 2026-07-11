@@ -41,3 +41,12 @@ inspection (empty routers/ diff). Backlog note if that CI assertion is expected 
 
 ## Epic status
 EPIC-003 root. TASK-002 (glossary UI/E2E) is next in epic (E2E deferred to it). Restack onto ba818b9 at epic-close.
+
+## QA PASS (2026-07-11, a1bd327, retry 0) — CE-V1-TASK-001 CLOSES
+Adversarial QA re-ran all gates: ruff 0, mypy 0/427, 950 unit (945+5 QA edge), 4/4 integration (fresh stack), coverage
+graph_ops 100%/shacl 96%. All 7 ACs PASS w/ real e2e evidence. **Shared add_node seam blast-radius CLEAN** — grep-verified
+no current caller (instances/imports/restrictions/seed_demo) passes list/lang props; added 2 regression tests (single-type
+byte-unchanged, non-{value,lang} dict not mis-sniffed). QA edge commit `042fbfe` (5 edge tests). WARNs: mutmut not installed
+(phase-gate concern, already queued), summary-header format (cosmetic). **XT-WRITEPATH-1 CONFIRMED un-auto-mergeable** by QA
+source-diff: CE-003's `_to_literal(datatype=)` + no-fanout `_apply_add_node` vs CE-001's punning/list/lang rewrite the SAME
+signature+loop incompatibly → MUST hand-union at merge (datatype-coercion AND punned/list/lang). retry=0.
