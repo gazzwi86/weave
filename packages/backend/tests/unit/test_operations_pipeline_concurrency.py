@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -27,6 +30,19 @@ from weave_backend.schemas.operations import (
 )
 
 WORKING_GRAPH = "urn:weave:tenant:t1:ws:w1"
+
+
+def _stub_violation_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CE-008 (TASK-008): the SHACL-violation branch now opens its own
+    `tenant_connection` to record a `constraint-violated` change event
+    (AC-008-02) -- fake it here rather than hitting real Postgres.
+    """
+
+    @asynccontextmanager
+    async def _fake_tenant_connection(_tenant_id: str) -> AsyncIterator[Any]:
+        yield AsyncMock()
+
+    monkeypatch.setattr(pipeline, "tenant_connection", _fake_tenant_connection)
 
 
 class FakeRedis:
@@ -118,6 +134,7 @@ async def test_concurrent_replays_of_a_violating_batch_return_422_not_500(
     """
     monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
     monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    _stub_violation_event(monkeypatch)
 
     redis_client = FakeRedis()
     request = ApplyRequest(
