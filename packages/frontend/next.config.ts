@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { NextConfig } from "next";
 
 // Law 18: mandatory at scaffold time. Values are the standard stanza from
@@ -31,8 +33,19 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // change-viz.tsx imports ../../../shared/widget-compat.json (single
+  // shared compat matrix, AC-6) -- outside this package's root. Turbopack
+  // (default bundler) resolves monorepo-external imports once it knows the
+  // workspace root, so point it at packages/ rather than forcing webpack
+  // app-wide (see git history: reverted app-wide --webpack workaround).
+  turbopack: { root: path.join(__dirname, "..") },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
+  },
+  // AC-6: bare /login insurance redirect (F-D25's literal URL) -- /auth/login
+  // is the real, already-working sign-in route (TASK-002).
+  async redirects() {
+    return [{ source: "/login", destination: "/auth/login", permanent: false }];
   },
 };
 

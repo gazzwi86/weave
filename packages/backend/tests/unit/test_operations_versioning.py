@@ -75,6 +75,30 @@ async def test_resolve_version_latest_raises_when_no_published_version_exists() 
         await versioning.resolve_version(conn, tenant_id="t1", workspace_id="w1", version="latest")
 
 
+async def test_head_version_iri_returns_the_newest_row_regardless_of_status() -> None:
+    """CE-TASK-006: draft-state stamp -- unlike `resolve_version("latest")`,
+    this must see the newest row whether draft or published (a fresh commit
+    that hasn't been published yet must still move the stamp)."""
+    conn = AsyncMock()
+    conn.fetchrow.return_value = {"version_iri": "urn:weave:tenant:t1:ws:w1:v0.3.0"}
+
+    head = await versioning.head_version_iri(conn, tenant_id="t1", workspace_id="w1")
+
+    assert head == "urn:weave:tenant:t1:ws:w1:v0.3.0"
+    query = conn.fetchrow.call_args.args[0]
+    assert "status" not in query
+    assert "ORDER BY created_at DESC" in query
+
+
+async def test_head_version_iri_returns_none_when_workspace_has_no_versions() -> None:
+    conn = AsyncMock()
+    conn.fetchrow.return_value = None
+
+    head = await versioning.head_version_iri(conn, tenant_id="t1", workspace_id="w1")
+
+    assert head is None
+
+
 async def test_publish_version_transitions_a_draft_row() -> None:
     conn = AsyncMock()
     conn.fetchrow.return_value = _row(status="published", published_at=datetime.now(UTC))

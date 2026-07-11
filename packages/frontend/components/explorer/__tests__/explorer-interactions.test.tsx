@@ -17,7 +17,10 @@ vi.mock("@/lib/explorer/layout-client", async (importOriginal) => {
 // useCanvasLegend's default fetchPalette hits the real CE-READ-1 proxy --
 // stubbed globally so tests that don't care about the legend (most of this
 // file) don't need their own fetchPalette prop just to avoid a network call.
-vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
+vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
+vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
 const NO_RETRY_CONFIG = { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] };
@@ -47,6 +50,15 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
     listElements: vi.fn(() => []),
+    applyNodeColours: vi.fn(),
+    clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
+    clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
+    isHidden: vi.fn(() => false),
+    onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
     fireRightClick: (nodeId: string, position: { x: number; y: number }) => rightClickHandler?.(nodeId, position),

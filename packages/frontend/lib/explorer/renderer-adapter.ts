@@ -1,4 +1,7 @@
-import { EXPLORER_HIGHLIGHT_CLASS } from "./build-stylesheet";
+import { EXPLORER_HIGHLIGHT_CLASS, EXPLORER_TRACE_CLASS, readCssToken } from "./build-stylesheet";
+import { applyNodeColoursOn, clearNodeColoursOn } from "./renderer-adapter-colour";
+import { clearBadgesOn, setBadgesOn } from "./renderer-adapter-badge";
+import { clearDiffOverlayOn, setDiffOverlayOn, type DiffOverlayAssignment } from "./renderer-adapter-diff";
 import type { CytoscapeElement } from "./types";
 
 /** TASK-005 AC-3: one immediate neighbour of an expanded node, as returned
@@ -87,6 +90,48 @@ export interface RendererAdapter {
    * live state (not a cached copy of the initial load) so it reflects
    * later layer add/remove and neighbour expand/collapse. */
   listElements(): CytoscapeElement[];
+  /** TASK-021 AC-4/AC-7: the colour overlay seam -- Overlay Engine is the
+   * only caller. One batched pass groups nodes by target colour (bounded
+   * by distinct colours, never a per-node loop); any node id not present
+   * in `colourByNodeId` gets `fallbackColour`. */
+  applyNodeColours(colourByNodeId: Record<string, string>, fallbackColour: string): void;
+  /** TASK-021 AC-4: clears every inline colour override in one batched
+   * pass -- this IS "restore prior colouring" (AC-4), since kind colouring
+   * is stylesheet-driven (bpmo_kind selector), never an inline override
+   * itself, and reasserts the moment the override is cleared. */
+  clearNodeColours(): void;
+  /** TASK-028 AC-3/AC-7: the pinned-impact trace seam -- a border class
+   * (EXPLORER_TRACE_CLASS), deliberately separate from the "colour"
+   * background-colour seam above, so a pin coexists with an active colour
+   * overlay instead of competing for the same channel. */
+  setTraceHighlight(nodeIds: string[]): void;
+  /** TASK-028 AC-4: clears the trace class from every node. */
+  clearTraceHighlight(): void;
+  /** TASK-028 AC-5: live hidden state for the pin legend's hidden-by-
+   * filters count -- reads cytoscape's actual rendered state, correct
+   * after any filter apply without a separate subscription. */
+  isHidden(nodeId: string): boolean;
+  /** TASK-028 AC-4: native cytoscape `remove` event -- fires for any
+   * removal path (explicit removeElements, layer toggle-off, a future
+   * delete flow), so the pin's source-delete auto-clear doesn't need to
+   * know which caller removed the node. Returns an unsubscribe. */
+  onElementRemoved(handler: (id: string) => void): () => void;
+  /** TASK-022 AC-3/AC-8: the diff overlay's border-colour + glyph seam --
+   * deliberately separate from the "colour" background-colour seam
+   * (applyNodeColours), so a diff coexists with the trace overlay and
+   * shares only the OverlayEngine's "colour" exclusiveGroup with heatmap. */
+  setDiffOverlay(assignments: DiffOverlayAssignment[]): void;
+  /** TASK-022 AC-8: clears every diff class + glyph label in one batch. */
+  clearDiffOverlay(): void;
+  /** TASK-027 AC-1/AC-7: the completeness overlay's badge seam -- a
+   * dedicated `gapBadgeLabel` data field/class, deliberately separate from
+   * the "colour" background-colour seam, so a gap badge coexists with an
+   * active colour overlay. Any node id not present in `countByNodeId` is
+   * left un-badged (AC-1: neutral). */
+  setBadges(countByNodeId: Record<string, number>): void;
+  /** TASK-027: clears every gap badge in one batch (deactivating the
+   * overlay). */
+  clearBadges(): void;
 }
 
 export interface FilterVisibility {
@@ -109,6 +154,12 @@ export interface CyCollection {
   filter(fn: (ele: CyCollection) => boolean): CyCollection;
   connectedEdges(): CyCollection;
   addClass(className: string): void;
+  /** TASK-028: clears a class -- the trace-highlight seam's un-apply. */
+  removeClass(className: string): void;
+  /** TASK-028 AC-5: true if this element (or an ancestor) is display:none
+   * -- native cytoscape visibility read, source of truth for the pin
+   * legend's hidden-by-filters count. */
+  hidden(): boolean;
   closedNeighborhood(): CyCollection;
   position(): { x: number; y: number };
   /** TASK-020 AC-1: real hide/show (display:none), distinct from the
@@ -431,6 +482,39 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     removeElements(ids) {
       removeElementsOn(cy, ids);
+    },
+    applyNodeColours(colourByNodeId, fallbackColour) {
+      applyNodeColoursOn(cy, colourByNodeId, fallbackColour, readCssToken);
+    },
+    clearNodeColours() {
+      clearNodeColoursOn(cy);
+    },
+    setTraceHighlight(nodeIds) {
+      cy.batch(() => {
+        cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+        nodeIds.forEach((nodeId) => cy.getElementById(nodeId).addClass(EXPLORER_TRACE_CLASS));
+      });
+    },
+    clearTraceHighlight() {
+      cy.nodes().removeClass(EXPLORER_TRACE_CLASS);
+    },
+    isHidden(nodeId) {
+      return cy.getElementById(nodeId).hidden();
+    },
+    onElementRemoved(handler) {
+      return wireEvent(cy, "remove", () => true, (evt) => handler((evt.target as CyCollection).id()));
+    },
+    setDiffOverlay(assignments) {
+      setDiffOverlayOn(cy, assignments);
+    },
+    clearDiffOverlay() {
+      clearDiffOverlayOn(cy);
+    },
+    setBadges(countByNodeId) {
+      setBadgesOn(cy, countByNodeId);
+    },
+    clearBadges() {
+      clearBadgesOn(cy);
     },
   };
 }

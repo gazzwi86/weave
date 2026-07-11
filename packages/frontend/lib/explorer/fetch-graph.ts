@@ -49,7 +49,7 @@ function dedupeNodes(elements: CytoscapeElement[]): CytoscapeElement[] {
 /** AC-1: paginates CE-READ-1's SPARQL endpoint until `has_more_pages` is
  * false, or throws CeReadError on error/timeout (AC-2) with zero partial
  * elements returned to the caller. */
-export async function fetchGraph(timeoutMs: number): Promise<CytoscapeElement[]> {
+export async function fetchGraph(timeoutMs: number, version = "latest"): Promise<CytoscapeElement[]> {
   const deadline = Date.now() + timeoutMs;
   const elements: CytoscapeElement[] = [];
   const nodeIds = new Set<string>();
@@ -57,7 +57,7 @@ export async function fetchGraph(timeoutMs: number): Promise<CytoscapeElement[]>
 
   for (;;) {
     assertWithinDeadline(deadline);
-    const response = await proxyFetch(`/api/proxy/sparql?version=latest&page=${page}`);
+    const response = await proxyFetch(`/api/proxy/sparql?version=${version}&page=${page}`);
     const data = (await response.json()) as SparqlPage;
     const pageElements = mapRowsToElements(data.rows);
     elements.push(...pageElements);

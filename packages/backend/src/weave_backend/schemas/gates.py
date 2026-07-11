@@ -32,9 +32,16 @@ class DodGateResponse(BaseModel):
 class PreScaffoldFinding(BaseModel):
     step: str
     reason: str
+    critical: bool = False
 
 
 class PreScaffoldGateResponse(BaseModel):
+    """TASK-009/FR-055: `result` gains `"BLOCKED"`; `failing_step` is new
+    and only set on a BLOCKED response (M1 shape otherwise unchanged --
+    Design Decisions).
+    """
+
     gate: Literal["pre_scaffold"]
-    result: Literal["PROCEED"]
+    result: Literal["PROCEED", "BLOCKED"]
     findings: list[PreScaffoldFinding]
+    failing_step: str | None = None

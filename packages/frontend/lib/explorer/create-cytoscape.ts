@@ -1,7 +1,7 @@
 import cytoscape from "cytoscape";
 import fcose from "cytoscape-fcose";
 
-import { resolveStylesheetTokens } from "./build-stylesheet";
+import { readCssToken, resolveStylesheetTokens } from "./build-stylesheet";
 
 // Registering the fcose layout extension is a module-level, one-time side
 // effect -- cytoscape.use() throws if called twice with the same extension.
@@ -10,14 +10,6 @@ function ensureFcoseRegistered(): void {
   if (fcoseRegistered) return;
   cytoscape.use(fcose);
   fcoseRegistered = true;
-}
-
-/** Cytoscape draws to <canvas> and never resolves CSS custom properties --
- * reads a `var(--token)` design-token value straight from the DOM cascade,
- * the browser-only counterpart of resolveStylesheetTokens's injected
- * resolver. */
-function readCssToken(token: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || token;
 }
 
 /** The only file that imports the real `cytoscape` / `cytoscape-fcose`

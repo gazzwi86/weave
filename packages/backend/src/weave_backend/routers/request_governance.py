@@ -130,15 +130,21 @@ async def _auto_create_project(
     conn: asyncpg.Connection,
     *,
     tenant_id: str,
-    prompt: str,
+    record: RequestRecord,
     ce_client: httpx.AsyncClient,
     headers: dict[str, str] | None = None,
 ) -> str:
     """AC-5 + design decision table: auto-create via TASK-001's
     `projects/model.py` in-process ("same service, no circular dep") --
     not an HTTP self-call.
+
+    Design decision B9: prefer the request's own `name`/`target_repo_name`
+    (TASK-024 AC-1/AC-5 fields) over the `prompt`-derived slug -- the
+    prompt fallback only fires for pre-TASK-024 records that never
+    captured a name. Takes the whole `record` (not separate prompt/name/
+    target_repo_name params) to stay under Law E's 5-param budget.
     """
-    name = _project_name_from_prompt(prompt)
+    name = record.name.strip() or _project_name_from_prompt(record.prompt)
     slug = slugify(name)
     existing = await find_existing_project_iri(conn, tenant_id=tenant_id, slug=slug)
     if existing is not None:
@@ -150,7 +156,12 @@ async def _auto_create_project(
         project, _governance = await create_project_shell(
             conn,
             ce_client=ce_client,
-            fields=NewProjectShell(tenant_id=tenant_id, slug=slug, name=name),
+            fields=NewProjectShell(
+                tenant_id=tenant_id,
+                slug=slug,
+                name=name,
+                repo_name_hint=record.target_repo_name,
+            ),
             headers=headers,
         )
     except ProjectExists as exc:
@@ -194,7 +205,7 @@ async def _process_approval(
         project_iri = await _auto_create_project(
             conn,
             tenant_id=principal.tenant_id,
-            prompt=record.prompt,
+            record=record,
             ce_client=ce_client,
             headers=headers,
         )

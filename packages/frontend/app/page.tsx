@@ -1,21 +1,10 @@
-import { FeatureGrid, HowItWorks } from "@/components/marketing/features";
-import { Hero, MarketingHeader } from "@/components/marketing/hero";
-import { FinalCta, MarketingFooter, Pricing } from "@/components/marketing/pricing-footer";
+import { MARKETING_SECTIONS } from "@/components/marketing/sections";
+import { LandingPageTemplate } from "@/components/templates/landing-page";
 
 /** Public marketing index (IA §6) — the only page an anonymous visitor sees
- * besides /auth/login. App chrome is suppressed via PUBLIC_PATHS. */
+ * besides /auth/login. App chrome is suppressed via PUBLIC_PATHS. Thin
+ * binder onto the design-system `landing-page` template (R13) -- no direct
+ * marketing-molecule JSX lives here. */
 export default function Home() {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <MarketingHeader />
-      <main className="flex-1">
-        <Hero />
-        <HowItWorks />
-        <FeatureGrid />
-        <Pricing />
-        <FinalCta />
-      </main>
-      <MarketingFooter />
-    </div>
-  );
+  return <LandingPageTemplate sections={MARKETING_SECTIONS} />;
 }

@@ -8,7 +8,10 @@ vi.mock("../use-explorer-canvas", () => ({ useExplorerCanvas: vi.fn() }));
 // ExplorerInteractions (rendered for real here) pulls in useCanvasLegend's
 // default fetchPalette, which hits the real CE-READ-1 proxy -- stub it so
 // this file's real-adapter tests don't fire a genuine network call.
-vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
+vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
+vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
 
 const mockedUseExplorerCanvas = vi.mocked(useExplorerCanvas);
 
@@ -59,6 +62,15 @@ describe("ExplorerCanvas", () => {
         addLayerNodes: vi.fn(() => []),
         removeElements: vi.fn(),
         listElements: vi.fn(() => []),
+        applyNodeColours: vi.fn(),
+        clearNodeColours: vi.fn(),        setTraceHighlight: vi.fn(),
+        clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),
+        isHidden: vi.fn(() => false),
+        onElementRemoved: vi.fn(() => vi.fn()),
       },
     });
 

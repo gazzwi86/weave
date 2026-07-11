@@ -48,10 +48,18 @@ export default defineConfig({
       env: FRONTEND_ENV,
     },
     {
+      // ADR-018: dashboard-generate's happy-path E2E needs a real,
+      // reachable classifier -- same host-native Ollama default as
+      // `make dev` (ADR-011), not the bare-Anthropic-no-key default that
+      // always 503s.
       command: "uv run uvicorn weave_backend:app --port 8000",
       cwd: "../backend",
       url: "http://localhost:8000/api/health",
       reuseExistingServer: !process.env.CI,
+      env: {
+        WEAVE_MODEL_PROVIDER: "ollama",
+        OLLAMA_MODEL: "batiai/qwen3.6-27b:iq3",
+      },
     },
     {
       command: "uv run weave-mock-oidc",

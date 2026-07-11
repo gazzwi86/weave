@@ -17,11 +17,14 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.authoring.bpmo import InvalidBpmoKindError
 from weave_backend.db.pool import tenant_connection
 from weave_backend.operations import outbox
+from weave_backend.operations.graph_ops import InvalidLiteralError
 from weave_backend.operations.guards import SpikeWriteBackForbidden, assert_not_spike_write_back
 from weave_backend.operations.pipeline import (
     ApplyContext,
     ForeignTargetError,
+    FunctionSignatureImmutableError,
     InvalidTargetError,
+    ProvExtra,
     PublishedTargetError,
     apply_operations_request,
 )
@@ -97,8 +100,66 @@ async def _reject_foreign_target(
     return HTTPException(status_code=403, detail={"error": "cross_tenant_target"})
 
 
+async def _dispatch_pipeline(
+    ctx: ApplyContext, body: ApplyRequest, *, conn: asyncpg.Connection, principal: Principal
+) -> _ApplyOutcome:
+    """Runs the pipeline and maps its error taxonomy onto HTTP responses.
+
+    Split out of `_run_apply` (merge of CE-V1-EPIC-009's
+    `FunctionSignatureImmutableError` branch with main pushed the combined
+    function over the C901 cyclomatic-complexity gate) so each half of the
+    apply flow -- access checks vs. pipeline error mapping -- stays under the
+    threshold on its own.
+    """
+    try:
+        return await apply_operations_request(ctx, body, get_redis())
+    except InvalidBpmoKindError as exc:
+        # TASK-004 AC-004-02: an add_node named a kind outside the 13 BPMO
+        # kinds -- a bad request, not a SHACL violation (this is a
+        # platform-level taxonomy guard, checked before SHACL runs).
+        raise HTTPException(status_code=400, detail={"error": "invalid_bpmo_kind"}) from exc
+    except InvalidLiteralError as exc:
+        # XT-CE003-1: a property value's lexical form doesn't parse as its
+        # SHACL-declared sh:datatype (e.g. a malformed effectiveDate) -- a
+        # bad request, same class of error as invalid_bpmo_kind, not a 500.
+        raise HTTPException(status_code=400, detail={"error": "invalid_literal_value"}) from exc
+    except InvalidTargetError as exc:
+        # Malformed target -- not a forgery attempt, just a bad request.
+        raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
+    except ForeignTargetError:
+        return await _reject_foreign_target(conn, principal=principal, target=body.target)
+    except PublishedTargetError as exc:
+        # AC-003-13: the target names a real, already-published version --
+        # published versions are immutable, so this is a conflict, not a
+        # forgery (that's ForeignTargetError) or a bad request.
+        raise HTTPException(
+            status_code=409, detail={"error": "target_version_published"}
+        ) from exc
+    except FunctionSignatureImmutableError as exc:
+        # AC-009-04: the op names a *node* (a published weave:Function's
+        # signature) that can't be edited in place -- 422, not 409 (that's
+        # PublishedTargetError, which rejects the apply's target graph
+        # itself being published).
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "function_signature_immutable", "fn_iri": exc.fn_iri},
+        ) from exc
+    except TimeoutError as exc:
+        # Another caller holds this idempotency key's lock and never
+        # finished (e.g. its process crashed) -- a clean 409 beats an
+        # unhandled TimeoutError surfacing as a 500.
+        raise HTTPException(
+            status_code=409, detail={"error": "concurrent_apply_in_progress"}
+        ) from exc
+
+
 async def _run_apply(
-    conn: asyncpg.Connection, *, principal: Principal, workspace_id: str, body: ApplyRequest
+    conn: asyncpg.Connection,
+    *,
+    principal: Principal,
+    workspace_id: str,
+    body: ApplyRequest,
+    prov_extra: ProvExtra | None = None,
 ) -> _ApplyOutcome:
     # XT-002 / ADR-003: cheapest check first -- a spike run never gets to
     # write back, regardless of role or target, so reject before any DB
@@ -110,9 +171,7 @@ async def _run_apply(
             status_code=403, detail={"error": "spike_write_back_forbidden"}
         ) from exc
 
-    workspace = await get_workspace(
-        conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
-    )
+    workspace = await get_workspace(conn, tenant_id=principal.tenant_id, workspace_id=workspace_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
 
@@ -132,33 +191,9 @@ async def _run_apply(
         # the PROV-O actor-type literal, defaulting anything unrecognised to
         # "human" rather than trusting an arbitrary claim value.
         principal_type="agent" if principal.principal_type == "agent" else "human",
+        prov_extra=prov_extra,
     )
-    try:
-        return await apply_operations_request(ctx, body, get_redis())
-    except InvalidBpmoKindError as exc:
-        # TASK-004 AC-004-02: an add_node named a kind outside the 13 BPMO
-        # kinds -- a bad request, not a SHACL violation (this is a
-        # platform-level taxonomy guard, checked before SHACL runs).
-        raise HTTPException(status_code=400, detail={"error": "invalid_bpmo_kind"}) from exc
-    except InvalidTargetError as exc:
-        # Malformed target -- not a forgery attempt, just a bad request.
-        raise HTTPException(status_code=400, detail={"error": "invalid_target"}) from exc
-    except ForeignTargetError:
-        return await _reject_foreign_target(conn, principal=principal, target=body.target)
-    except PublishedTargetError as exc:
-        # AC-003-13: the target names a real, already-published version --
-        # published versions are immutable, so this is a conflict, not a
-        # forgery (that's ForeignTargetError) or a bad request.
-        raise HTTPException(
-            status_code=409, detail={"error": "target_version_published"}
-        ) from exc
-    except TimeoutError as exc:
-        # Another caller holds this idempotency key's lock and never
-        # finished (e.g. its process crashed) -- a clean 409 beats an
-        # unhandled TimeoutError surfacing as a 500.
-        raise HTTPException(
-            status_code=409, detail={"error": "concurrent_apply_in_progress"}
-        ) from exc
+    return await _dispatch_pipeline(ctx, body, conn=conn, principal=principal)
 
 
 @router.post(
@@ -178,9 +213,7 @@ async def apply_operations_route(
         raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
 
     async with tenant_connection(principal.tenant_id) as conn:
-        outcome = await _run_apply(
-            conn, principal=principal, workspace_id=workspace_id, body=body
-        )
+        outcome = await _run_apply(conn, principal=principal, workspace_id=workspace_id, body=body)
 
     if isinstance(outcome, ApplyResponse):
         # Real hash-chain delivery of the outbox row enqueued inside the

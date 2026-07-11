@@ -13,6 +13,8 @@ export function fakeCollection(overrides: Partial<CyCollection> = {}): CyCollect
     filter: vi.fn(() => fakeCollection({ length: 0 })),
     connectedEdges: vi.fn(() => fakeCollection({ length: 0 })),
     addClass: vi.fn(),
+    removeClass: vi.fn(),
+    hidden: vi.fn(() => false),
     closedNeighborhood: vi.fn(() => fakeCollection()),
     position: vi.fn(() => ({ x: 0, y: 0 })),
     hide: vi.fn(),
@@ -58,6 +60,9 @@ export function fakeCy() {
     },
     fireDragFree(target: unknown) {
       fire("dragfree", { target });
+    },
+    fireRemove(target: unknown) {
+      fire("remove", { target });
     },
   };
 }
