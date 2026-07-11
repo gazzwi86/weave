@@ -20,10 +20,21 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # BE-SDK-1 sdkgen tests shell out to a real `tsc --noEmit` (AC-7 --
+      # the emitted TypeScript must actually compile, not just look
+      # plausible). Install just the compiler, not the whole frontend
+      # workspace: the generated SDK has zero external node_modules
+      # dependencies (see sdkgen/templates/typescript/tsconfig.json.j2).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run mypy src/ tests/
       - run: uv run pytest -m "not docker and not e2e"
+        env:
+          WEAVE_TSC_BIN: tsc
 
   # PR #11 finding 5: the docker-marked tenancy security suite
   # (tests/integration/test_tenancy_isolation.py) was never run in CI --
@@ -38,6 +49,13 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # BE-SDK-1 sdkgen integration tests shell out to a real `tsc --noEmit`
+      # (AC-7); see the `api` job above for why only the compiler (not the
+      # whole frontend workspace) is installed.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript
       - run: docker compose up -d --wait postgres redis oxigraph localstack
       - name: Wait for oxigraph HTTP API
         run: |
@@ -51,6 +69,8 @@ jobs:
         run: uv sync
       - working-directory: packages/backend
         run: uv run pytest -m "integration and docker and not stack"
+        env:
+          WEAVE_TSC_BIN: tsc
       - if: always()
         run: docker compose down -v
 
@@ -188,8 +208,17 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # mutmut's baseline run exercises the full unit suite, including the
+      # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit` (AC-7);
+      # see the `api` job above for why only the compiler is installed.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript
       - run: uv sync
       - run: uv run mutmut run ${{ matrix.patterns }} || true
+        env:
+          WEAVE_TSC_BIN: tsc
       - run: uv run mutmut export-cicd-stats
       # Blocking gate: fails the PR if this shard's score drops below the regression floor.
       - name: Enforce mutation score threshold
@@ -231,10 +260,22 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # mutmut's baseline run exercises the full suite (incl. the docker/
+      # integration-marked sdkgen pipeline test on this job), including the
+      # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit`
+      # (AC-7); see the `api` job above for why only the compiler is
+      # installed. This is also the job where the fixed-hop-count tsc path
+      # bug bit: mutmut stages mutated sources one directory deeper.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript
       - working-directory: .
         run: docker compose up -d --wait postgres redis oxigraph localstack
       - run: uv sync
       - run: uv run mutmut run || true
+        env:
+          WEAVE_TSC_BIN: tsc
       - run: uv run mutmut export-cicd-stats
       - name: Enforce mutation score (60% bar, with services)
         run: |
