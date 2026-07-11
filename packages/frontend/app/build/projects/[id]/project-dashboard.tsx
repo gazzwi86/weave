@@ -11,8 +11,10 @@ import type {
   SelfImprovementItem,
   TaskCountsTilePayload,
 } from "./dashboard-types";
+import { PromptBox } from "./prompt-box";
 import { SelfImprovementCard } from "./self-improvement-card";
 import { Tile } from "./tile";
+import { usePromptAccess } from "./use-prompt-access";
 import { useTile } from "./use-tile";
 
 function DemoTileBody({ data }: { data: DemoTilePayload }): React.JSX.Element {
@@ -145,16 +147,22 @@ function DashboardTiles({ tiles }: { tiles: ReturnType<typeof useDashboardTiles>
 export function ProjectDashboard({
   projectId,
   selfImprovementItems = [],
+  tenantRole = null,
+  principalIri = null,
 }: {
   projectId: string;
   selfImprovementItems?: SelfImprovementItem[];
+  tenantRole?: string | null;
+  principalIri?: string | null;
 }): React.JSX.Element {
   const tiles = useDashboardTiles(projectId);
+  const canPrompt = usePromptAccess(projectId, tenantRole, principalIri);
 
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
       <DashboardNav projectId={projectId} />
       <DashboardTiles tiles={tiles} />
+      <PromptBox projectId={projectId} canPrompt={canPrompt} />
       <SelfImprovementCard items={selfImprovementItems} />
     </div>
   );
