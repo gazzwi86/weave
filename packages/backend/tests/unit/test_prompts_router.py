@@ -75,6 +75,14 @@ def test_reject_empty_or_oversized_prompt() -> None:
     assert prompt_text_valid("fix this inaccuracy", max_length=DEFAULT_PROMPT_MAX_LENGTH)
 
 
+def test_prompt_exactly_at_max_length_is_accepted() -> None:
+    """QA edge case (AC-6 boundary): the cap is inclusive -- exactly
+    `max_length` chars must pass, only `max_length + 1` is oversized. The
+    shipped test only proved the `+1` side of the boundary."""
+    at_limit = "x" * DEFAULT_PROMPT_MAX_LENGTH
+    assert prompt_text_valid(at_limit, max_length=DEFAULT_PROMPT_MAX_LENGTH)
+
+
 async def test_non_prompt_trigger_run_is_untouched_by_synthesis() -> None:
     """AC-5's building block: a `trigger="request"` run must never take
     the brief-synthesis branch -- no prompt-specific bypass/detour exists.
