@@ -89,4 +89,17 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: /help/i })).toHaveAttribute("href", "/help");
     expect(screen.getByRole("link", { name: /sign out/i })).toHaveAttribute("href", "/api/auth/signout");
   });
+
+  // AC-8: no workspace switcher in the header, for any role -- provisioning
+  // is relocated to Settings -> Workspaces (binding tenancy ruling, R7).
+  it("never renders a header workspace switcher, for a member or an admin", () => {
+    pathname = "/dashboard";
+    render(
+      <AppShell role="admin" tenantId="tenant-1">
+        <p>page content</p>
+      </AppShell>
+    );
+
+    expect(screen.queryByRole("combobox", { name: "Active workspace" })).not.toBeInTheDocument();
+  });
 });

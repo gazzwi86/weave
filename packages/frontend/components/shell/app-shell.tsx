@@ -12,7 +12,6 @@ import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
 import { NotificationCenter } from "./notification-center";
 import { SectionRail } from "./section-rail";
-import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -45,7 +44,14 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
             <img src="/logo.png" alt="" className="mr-[var(--space-2)] inline h-[22px] w-auto align-middle" />
             weave
           </Link>
-          {tenantId ? <WorkspaceSwitcher tenantId={tenantId} /> : null}
+          {/* AC-8: binding tenancy ruling -- a plain tenant chip, never an
+              interactive switcher (that provisioning entry point lives at
+              Settings -> Workspaces now, gated via header-scope.ts). */}
+          {tenantId ? (
+            <span className="ml-[var(--space-3)] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
+              {tenantId}
+            </span>
+          ) : null}
           <Nav />
         </div>
         <div className="flex items-center gap-[var(--space-2)]">
