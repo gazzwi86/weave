@@ -66,7 +66,13 @@ export async function createGlossaryTerm(input: CreateGlossaryTermInput): Promis
   const body = (await response.json()) as ApplyResponseBody;
 
   if (response.status === 201) {
-    return { type: "ok", iri: body.ref_map?.t1 ?? "" };
+    const iri = body.ref_map?.t1;
+    // A 201 whose ref_map lacks the minted term ref is a backend error, not
+    // a successful create with a blank IRI -- never surface iri: "".
+    if (!iri) {
+      return { type: "error", status: response.status };
+    }
+    return { type: "ok", iri };
   }
   if (response.status === 422) {
     return { type: "violations", errors: mapViolations(body.violations ?? []) };

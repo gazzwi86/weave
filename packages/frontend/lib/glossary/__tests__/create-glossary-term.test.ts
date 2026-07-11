@@ -88,6 +88,14 @@ describe("createGlossaryTerm -- violations and errors", () => {
     expect(result).toEqual({ type: "violations", errors: { [SKOS_PREF_LABEL]: "invalid term" } });
   });
 
+  it("resolves to an error result on 201 with a ref_map missing t1, never returns iri: \"\"", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(201, { ref_map: {} })));
+
+    const result = await createGlossaryTerm(INPUT);
+
+    expect(result).toEqual({ type: "error", status: 201 });
+  });
+
   it("resolves to an error result on a non-ok, non-422 response, never throws", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(502, { error: "upstream_unavailable" })));
 
