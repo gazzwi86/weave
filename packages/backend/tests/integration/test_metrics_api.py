@@ -109,7 +109,9 @@ async def test_metrics_ontology_returns_correct_counts_and_delta_on_seeded_fixtu
     graph; `draft_published_delta` reuses the M1 diff core against an empty
     "published" side (never-published tenant); `latest_version` is null.
     """
-    _tenant_id, _workspace, headers = await _setup_member(client, label="metrics-seed")
+    _tenant_id, _workspace, headers = await _setup_member(
+        client, label="metrics-seed", role="author"
+    )
 
     apply_response = await client.post(
         "/api/operations/apply",
