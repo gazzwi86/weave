@@ -68,6 +68,22 @@ class OnboardingStateOut(BaseModel):
     activations: list[ActivationOut]
 
 
+class OnboardingPathOut(BaseModel):
+    """ONB-TASK-006: resolved/persisted onboarding path. `needs_choice` is
+    always False in M1 -- AC-006-02's multi-role prompt is deferred (no
+    multi-role source exists yet; see path_resolver.py's module docstring).
+    """
+
+    role_path: RolePathIn
+    path_variant: PathVariantIn
+    path_chosen_manually: bool
+    needs_choice: bool
+
+
+class OnboardingPathChoiceRequest(BaseModel):
+    role_path: RolePathIn
+
+
 class SavedResponse(BaseModel):
     saved: bool
 

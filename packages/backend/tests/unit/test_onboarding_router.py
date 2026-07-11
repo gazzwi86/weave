@@ -17,6 +17,8 @@ from weave_backend import app
     [
         ("GET", "/api/onboarding/state", None),
         ("PATCH", "/api/onboarding/state", {"role_path": "technical"}),
+        ("GET", "/api/onboarding/path", None),
+        ("PUT", "/api/onboarding/path", {"role_path": "technical"}),
         ("PUT", "/api/onboarding/tours/ce-onboarding/progress", {"last_completed_step": 1}),
         ("PUT", "/api/onboarding/dismissals/beacon/b-1", None),
         ("DELETE", "/api/onboarding/dismissals/beacon/b-1", None),
