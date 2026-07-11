@@ -50,46 +50,47 @@ test.describe("prompt bar (TASK-011 AC-8, AC-4)", () => {
     expect(count).toBeLessThanOrEqual(6);
   });
 
-  // AC-4 (real backend, Law B): TASK-012's resolver hasn't landed yet --
-  // `dashboard/intent.py::resolve` unconditionally raises
-  // `ProviderUnavailable` in every deployed env today, so this is the one
-  // full round-trip state a real (non-mocked) generate call can honestly
-  // reach right now. Confirms the SSE stream really terminates in the named
-  // `provider_503` state end-to-end, not just against the unit-test fetch
-  // stub in prompt-bar.test.tsx.
-  test("submitting a prompt against the real backend surfaces the named provider_503 state", async ({
+  // AC-4: ADR-018 -- once TASK-012's real resolver landed, the shared
+  // Playwright backend needed a genuinely reachable provider (Ollama, see
+  // the happy-path test below) so this suite can no longer also force a
+  // real provider outage on demand. AC-4's named-state coverage stays real
+  // and deterministic at two other levels instead:
+  // `test_provider_503_named_state` (integration, fake-resolver dependency
+  // override) and "renders a named, retryable state for provider_503"
+  // (prompt-bar.test.tsx, mocked SSE stream). See ADR-018 for the trade-off.
+
+  // AC-8/AC-2/AC-3 (TASK-012): skeleton -> widget fill -> footer, plus the
+  // Law B backend-state check (a newly generated, suggested=false widget
+  // appears via GET /api/dashboard/widgets?scope=user). Needs the real
+  // classifying resolver plus a reachable provider (playwright.config.ts
+  // wires WEAVE_MODEL_PROVIDER=ollama into the backend webServer, ADR-018).
+  // "show entities by kind" is a GA-scoped example prompt (CE-METRICS-1),
+  // so it always resolves to a real WidgetSpec, never source_not_ga.
+  test("prompt-to-widget-stream: skeleton fills to a real widget, backend row exists (Law B)", async ({
     page,
   }) => {
     await loginAndGoToDashboard(page);
-    await page.getByTestId("prompt-bar-trigger").click();
+    await page.keyboard.press("Meta+k");
 
     await page.getByLabel(PROMPT_INPUT_LABEL).fill("show entities by kind");
     await page.getByLabel(PROMPT_INPUT_LABEL).press("Enter");
 
-    await expect(page.getByText("AI provider unavailable")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-  });
+    // Real Ollama inference, not the ~1s UI-only latency target -- give the
+    // streaming skeleton real time to appear and then resolve to done.
+    await expect(page.locator("[aria-busy]")).toBeVisible({ timeout: 5_000 });
+    const status = page.getByTestId("prompt-bar-status");
+    await expect(status).toContainText("Done", { timeout: 30_000 });
+    await expect(status).toContainText("CE-METRICS-1");
 
-  // RELOCATED to PLAT-V1-TASK-012, not deleted (team-lead call, logged
-  // against TASK-012). Happy-path slice of AC-8/AC-2/AC-3 (skeleton -> widget
-  // fill -> footer) plus the Law B backend-state check (newly generated,
-  // suggested=false widget appears via GET /api/dashboard/widgets?scope=user)
-  // both need a real classifying resolver. dashboard/intent.py::resolve is a
-  // deliberate stub that ALWAYS raises ProviderUnavailable -- not env-gated
-  // like billing.py's harness_router, and Playwright drives a real
-  // subprocess uvicorn, so an in-process dependency_overrides fake resolver
-  // can't reach it either. No seam to make this real without TASK-012 itself
-  // (a WEAVE_ENV-gated stand-in here would be throwaway scaffolding TASK-012
-  // immediately supersedes -- its own dev target already wires a real local
-  // Ollama resolver, see root Makefile). This intent moves to TASK-012's own
-  // test file when that resolver lands.
-  test.fixme(
-    "prompt-to-widget-stream: skeleton fills to a real widget, backend row exists (Law B)",
-    async () => {
-      // Cmd+K -> submit -> aria-busy skeleton within ~1s -> widget fills ->
-      // data-testid="prompt-bar-status" footer shows the data source ->
-      // GET /api/dashboard/widgets?scope=user shows the new suggested=false
-      // widget -- blocked on TASK-012 (see comment above).
-    }
-  );
+    // Law B: assert real backend state changed, not just the UI -- the
+    // generated widget is a real, suggested=false row via the real proxy.
+    const widgets = (await page.evaluate(async () => {
+      const res = await fetch("/api/dashboard/widgets?scope=user");
+      return res.json();
+    })) as { widgets: { suggested: boolean; spec: { data_source_contracts: string[] } }[] };
+    const generated = widgets.widgets.find(
+      (w) => !w.suggested && w.spec.data_source_contracts.includes("CE-METRICS-1")
+    );
+    expect(generated).toBeTruthy();
+  });
 });
