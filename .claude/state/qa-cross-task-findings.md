@@ -333,3 +333,10 @@ SHACL on real-API write → AC-003-01 unreachable. Fix in-flight on feature/CE-V
 coercion from the active shape, default xsd:string preserved (minimal blast radius). **Shared write path — other
 write consumers (CE-023 edit proxy, CE-013 ingest accept) should be re-checked at their epic close** that typed
 properties (if any) coerce correctly. Status: OPEN (fix in progress).
+
+## XT-CE013-2: use-ingest accept/reject silently resolve on non-422 errors — 2026-07-11 (FIXING, retry 1)
+`app/ce/chat/use-ingest.ts:140-155` — accept/reject only guard HTTP 422; any other non-2xx (502/500/401) falls
+through to `setProposalStatus("accepted"|"rejected")` with NO graph write → false committed state, buttons hidden,
+no retry. Breaks AC-002-05 "never silently resolve." Blocker, class=logic. Fix in-flight (ae06cdeb): 2xx guard on
+both + error-card state on other statuses + error-path tests (the 502/500 coverage gap). QA edge test 71e252a
+(null matched_iri) already committed. Status: FIXING.
