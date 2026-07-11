@@ -60,12 +60,16 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
 async def _setup_content_admin(
     client: AsyncClient, *, label: str
 ) -> tuple[Workspace, dict[str, str]]:
-    """Content-admin principal, in-process (ADR-010): a workspace `author`-
-    role member -- CE-WRITE-1/CE-VERSION-1 gate on workspace role, not on a
-    dedicated "content-admin" claim, so the DoR's "content-admin service
-    principal via PLAT-IDENTITY-1" is satisfied by minting a real PROV-O
-    principal (this sub) with `author` role, same as any other automated
-    write-back caller.
+    """Content-admin principal, in-process (ADR-010): a workspace `publish`-
+    role member -- CE-WRITE-1 (`operations/apply`) gates on `min_role
+    "author"`, rank 1, but CE-VERSION-1 (`versions/{iri}/publish`) gates on
+    `min_role "publish"`, rank 2 (`rbac.ROLE_RANK`) -- `apply_seed()`
+    publishes the final batch itself, so the one principal needs the
+    higher of the two ranks to do both. `role="publish"` (rank 2) is the
+    lowest role that clears both gates, so the DoR's "content-admin
+    service principal via PLAT-IDENTITY-1" is satisfied by minting a real
+    PROV-O principal (this sub) with that role, same as any other
+    automated write-back caller.
     """
     tenant_id = _unique_tenant(label)
     async with tenant_connection(tenant_id) as conn:
@@ -77,7 +81,7 @@ async def _setup_content_admin(
             tenant_id=tenant_id,
             workspace_id=workspace.id,
             email="content-admin@example.invalid",
-            role="author",
+            role="publish",
         )
         await activate_member(
             conn,
@@ -146,14 +150,22 @@ async def test_apply_halts_on_422_and_leaves_published_version_intact(
     artefact = await _compiled_artefact(client, headers)
     first = await apply_seed(client, artefact, actor=ACTOR, headers=headers)
 
-    # A second artefact whose first batch is a deliberately invalid op
-    # (unresolvable ref -- CE-WRITE-1's SHACL/ref-resolution gate 422s it).
+    # A second artefact whose first batch is a deliberately invalid op: a
+    # lone Process node with no `performedBy` edge -- `weave:ProcessShape`
+    # requires `performedBy` minCount 1, so CE-WRITE-1's server-side SHACL
+    # gate 422s it. (A blank `label` would fail client-side Pydantic
+    # validation before any HTTP call, never exercising the intended
+    # server-side 422 path.)
     bad_batch = [
-        AddNodeOp(op="add_node", ref="bad", kind="Process", label=""),
+        AddNodeOp(op="add_node", ref="bad", kind="Process", label="Bad Process"),
     ]
     from dataclasses import replace
 
-    bad_artefact = replace(artefact, batches=[bad_batch])
+    # Distinct `semver` -- `apply_seed`'s idempotency key is
+    # `hammerbarn-seed:{semver}:batch:{index}`; reusing `artefact.semver`
+    # here would collide with the real seed's own already-cached batch 0
+    # response and silently replay it instead of exercising the bad op.
+    bad_artefact = replace(artefact, semver="1.0.0-bad-batch-test", batches=[bad_batch])
 
     with pytest.raises(SeedApplyHalted):
         await apply_seed(client, bad_artefact, actor=ACTOR, headers=headers)

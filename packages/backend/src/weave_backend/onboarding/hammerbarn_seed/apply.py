@@ -12,15 +12,29 @@ prior batches wrote, so publishing it is publishing the whole seed as one
 version. Idempotency key per batch (`hammerbarn-seed:{semver}:batch:{i}`)
 makes a re-run of the same batch converge to the same cached response
 instead of re-minting (AC-002-04).
+
+`ApplyResponse.ref_map` (`op.ref` -> minted instance IRI) is per-request --
+`graph_ops._apply_add_edge` resolves `subject_ref`/`object_ref` only
+against the ref_map built from ops in that *same* apply call, never a
+prior one, since a node's IRI is minted from `uuid4().hex` (no stable,
+re-derivable identifier a later request could recompute from the bare ref
+string alone). So an edge whose endpoint was created in an *earlier*
+batch would otherwise resolve to a dangling `URIRef("that-ref-string")`
+that satisfies no shape. `apply_seed` closes this by accumulating every
+batch's returned `ref_map` and rewriting each subsequent batch's
+`AddEdgeOp.subject_ref`/`object_ref` to the already-resolved absolute IRI
+before sending it, whenever that ref was minted in a prior batch.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
 from weave_backend.onboarding.hammerbarn_seed.compile import CompiledArtefact
+from weave_backend.schemas.operations import AddEdgeOp, Op
 
 
 class SeedApplyHalted(Exception):
@@ -42,6 +56,18 @@ class SeedApplyResult:
     applied_count: int
 
 
+def _serialize_op(op: Op, resolved: dict[str, str]) -> dict[str, Any]:
+    """`op.model_dump`, with an `AddEdgeOp`'s `subject_ref`/`object_ref`
+    rewritten to the already-minted IRI wherever `resolved` (this batch's
+    predecessors' `ref_map`s) has one -- see module docstring.
+    """
+    body = op.model_dump(mode="json")
+    if isinstance(op, AddEdgeOp):
+        body["subject_ref"] = resolved.get(op.subject_ref, op.subject_ref)
+        body["object_ref"] = resolved.get(op.object_ref, op.object_ref)
+    return body
+
+
 async def apply_seed(
     client: httpx.AsyncClient,
     artefact: CompiledArtefact,
@@ -56,11 +82,12 @@ async def apply_seed(
     """
     version_iri = ""
     applied_count = 0
+    resolved: dict[str, str] = {}
     for index, batch in enumerate(artefact.batches):
         response = await client.post(
             "/api/operations/apply",
             json={
-                "operations": [op.model_dump(mode="json") for op in batch],
+                "operations": [_serialize_op(op, resolved) for op in batch],
                 "actor": actor,
                 "target": "draft",
                 "idempotency_key": f"hammerbarn-seed:{artefact.semver}:batch:{index}",
@@ -73,6 +100,7 @@ async def apply_seed(
         body = response.json()
         version_iri = body["version_iri"]
         applied_count += body["applied_count"]
+        resolved.update(body["ref_map"])
 
     publish_response = await client.post(
         f"/api/ontology/versions/{version_iri}/publish", headers=headers
@@ -85,10 +113,16 @@ async def ask_count(client: httpx.AsyncClient, *, headers: dict[str, str]) -> in
     """`--verify`: the ASK-count convergence check (AC-002-04) -- total
     triples in the active workspace's graph, via the existing SPARQL route
     (never a bespoke count endpoint).
+
+    `GRAPH ?g { }` is required syntactically -- `query_rewriter.validate_query`
+    hard-rejects any query with no `GRAPH` clause at all (`UnscopedQueryError`).
+    The actual dataset scoping to the caller's workspace graph happens one
+    layer down, at the SPARQL 1.1 Protocol level (`oxigraph_client.run_query`'s
+    default-graph-uri), not by which IRI/var this clause names.
     """
     response = await client.post(
         "/api/sparql",
-        json={"query": "SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }"},
+        json={"query": "SELECT (COUNT(*) AS ?c) WHERE { GRAPH ?g { ?s ?p ?o } }"},
         headers=headers,
     )
     response.raise_for_status()
