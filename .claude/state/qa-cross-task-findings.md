@@ -348,3 +348,11 @@ Two concurrent lanes modify the SAME shared literal-building seam on different b
 Both legit, isolated on their branches now, but **conflict likely at merge** — whichever lands second must reconcile
 add_node/graph_ops to carry BOTH datatype-coercion AND punned/list/lang handling (union, not either-or). Flag for
 merge-order + reconciliation at epic close. Status: OPEN — QA-CONFIRMED un-auto-mergeable (both _to_literal+_apply_add_node rewritten incompatibly); MUST hand-union at whichever epic merges 2nd. Both branches QA-passed.
+
+## XT-CE007-1: draft_published_delta whole-graph rdflib parse → cold p95 2075ms @100k (2026-07-11)
+CE-007's perf benchmark (retry 1, `249f926`) delivered + RAN real 100k: cached p95 3.5ms PASS, **cold p95 2075ms FAIL**
+(target ≤500ms). Root cause: `operations/aggregate_metrics.py::draft_published_delta` fetches the ENTIRE draft graph as
+Turtle (`fetch_graph_turtle`) + `Graph().parse()` (rdflib) on every cold call — same rdflib-hotspot class ADR-004 flagged
+for the write path, now on read. Smoke-tested clean at 1k (cold 45ms) → genuine scale bug. **Fix in-flight (retry 2):**
+compute the delta COUNTS via SPARQL (no whole-graph Turtle fetch+parse) — preserves AC-007-04's "internal, not CE-DIFF-1
+HTTP" intent but DEVIATES from literal "reuse diff_graphs"; QA/architect confirm intent-met. Status: FIXING.
