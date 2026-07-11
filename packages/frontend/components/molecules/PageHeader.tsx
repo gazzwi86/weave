@@ -2,12 +2,43 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+export interface BreadcrumbItem {
+  label: string;
+  /** Absent for the current page's own crumb -- rendered as plain text, not a link. */
+  href?: string;
+}
+
 export interface PageHeaderProps {
   title: string;
   subtitle?: string;
+  /** IA wireframe trail (e.g. "Workspace / Constitution / Instances", F-D06) -- omitted entirely
+   * when absent, never an empty nav landmark. */
+  breadcrumb?: BreadcrumbItem[];
   /** Right-aligned action slot (buttons), rendered as-is -- no business logic. */
   actions?: ReactNode;
   className?: string;
+}
+
+function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="mb-[var(--space-1)] flex items-center gap-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]"
+    >
+      {items.map((item, index) => (
+        <span key={item.label} className="flex items-center gap-[var(--space-2)]">
+          {index > 0 ? <span aria-hidden="true">/</span> : null}
+          {item.href ? (
+            <a href={item.href} className="hover:text-[var(--color-text-default)]">
+              {item.label}
+            </a>
+          ) : (
+            <span aria-current="page">{item.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
 }
 
 /**
@@ -15,10 +46,11 @@ export interface PageHeaderProps {
  * resolve to (F-D07: built app was rendering titles too small and too
  * light instead).
  */
-export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, breadcrumb, actions, className }: PageHeaderProps) {
   return (
     <header className={cn("flex items-start justify-between gap-[var(--space-4)]", className)}>
       <div>
+        {breadcrumb && breadcrumb.length > 0 ? <Breadcrumb items={breadcrumb} /> : null}
         <h1 className="text-[length:var(--text-h1)] font-[var(--font-weight-bold)] text-[var(--color-text-default)]">
           {title}
         </h1>
