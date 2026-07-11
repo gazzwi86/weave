@@ -340,3 +340,6 @@ On green → open EPIC-004 PR → merge. Then re-expand to 5 task lanes.
 
 ## HELD PR READY FOR MERGE: #64 EPIC-003 (2026-07-11) — fully green + review-clean
 Project Dashboard (BE-019) + Direct Project Prompt (BE-021). Migrations **0065** (generation_runs clock_timestamp) + **0067** (state_spines_trigger) = schema tier → your merge. All blocking CI green (api/integration/web/semgrep/secrets/mutation-a/mutation-b); ce-perf non-blocking. cavecrew review CLEAR (reader-403+audit, no-2nd-cost-path, router union, parameterized SQL). Two CI-only fixes landed post-QA: hermetic prompt-synthesis unit test (was hitting LocalStack) + ruff I001 import-sort. **Ready to merge now.**
+
+## HELD PR: #65 CE-EPIC-005 (2026-07-11) — multi-tenancy tier
+Governance shapes (CE-005) + Rules screen + /api/validate (CE-006) + metrics (CE-007). No migration but tenant-scoped SHACL = multi-tenancy → HELD for your merge. 3-way pipeline.py union verified (CE-009 gate + CE-005 tenant-SHACL + CE-008 event). Whole-tree green: ruff 0, mypy 0/540, pytest 1218 passed, integration 306/307 (1 pre-existing flake). Review + CI in flight. Carries the HITL-approved 10k validate perf amendment (ADR-026).
