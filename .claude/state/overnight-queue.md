@@ -469,3 +469,6 @@ Wave-2 (4 fresh-build lanes, engineer→push→PR→coordinator-merges): CE-010 
 **FINDINGS (need eyes later, not blocking):**
 1. **Phantom dependency:** CE-V1-TASK-014's blocked_by lists CE-V1-TASK-015, which DOES NOT EXIST in progress.json. Treating as satisfied (014 deps = 012✓+013✓). Someone renamed/dropped 015 without fixing the edge. Fix the graph.
 2. **git-stash cross-worktree hazard:** `git stash` is REPO-GLOBAL across all worktrees sharing one .git — a lane using it can corrupt sibling lanes' state. Now forbidden in all lane prompts. Worth a harness note/hook.
+
+### STRUCTURAL FINDING — Onboarding M1 unbuilt (2026-07-12)
+ONB-V1-TASK-001 lane STOPPED: onboarding M1 (m1/tasks TASK-001..015) is SPEC-ONLY — never implemented. Only ONB-TASK-001 (backend /api/onboarding state-store, EPIC-001) landed. The M2/V1 onboarding tasks extend M1 `packages/shared` anchor-registry/content-config that doesn't exist. **progress.json is MISSING the M1→M2 blocked_by edges** — my readiness map wrongly showed ONB-V1 tasks ready. Consequence: ALL onboarding M2/V1 work is blocked until M1 built. Reordered: building ONB M1 foundation first (ONB-TASK-003 Anchor Registry launched). ONB M1 is ~15 tasks, mostly sequential — sizeable chunk. Fix the progress.json graph to add the M1→M2 edges.
