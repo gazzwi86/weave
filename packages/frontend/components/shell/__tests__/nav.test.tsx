@@ -88,4 +88,16 @@ describe("SectionRail", () => {
     expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /expand sidebar/i })).toBeInTheDocument();
   });
+
+  // Edge case (QA): a corrupted/foreign localStorage value must not be
+  // read as "collapsed" -- only the exact string "true" should. Guards
+  // against a future storage-key collision or a manual devtools edit
+  // silently collapsing the sidebar for every user.
+  it("treats any localStorage value other than the exact string 'true' as expanded", () => {
+    pathname = "/ce/query";
+    localStorage.setItem("weave.sectionRail.collapsed", "1");
+    render(<SectionRail role="admin" />);
+    expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /collapse sidebar/i })).toBeInTheDocument();
+  });
 });
