@@ -108,6 +108,9 @@ export interface WidgetTileProps {
   /** AC-7: keyboard alternative to drag-reorder. */
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  /** TASK-015 AC-1: publish a pinned `scope='user'` widget to the tenant
+   * library -- omitted for `tenant_default`/read-only tiles. */
+  onPublish?: () => void;
   dragHandleProps?: HTMLAttributes<HTMLDivElement>;
 }
 
@@ -119,6 +122,7 @@ function TileControls({
   onUnpin,
   onMoveUp,
   onMoveDown,
+  onPublish,
   showPin,
 }: {
   title: string;
@@ -126,6 +130,7 @@ function TileControls({
   onUnpin?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  onPublish?: () => void;
   showPin: boolean;
 }) {
   return (
@@ -150,6 +155,11 @@ function TileControls({
           Unpin
         </button>
       )}
+      {onPublish && (
+        <button type="button" aria-label={`Publish ${title} to library`} onClick={onPublish}>
+          Publish
+        </button>
+      )}
     </div>
   );
 }
@@ -161,6 +171,7 @@ export function WidgetTile({
   onUnpin,
   onMoveUp,
   onMoveDown,
+  onPublish,
   dragHandleProps,
 }: WidgetTileProps) {
   const contract = widget.spec.data_source_contracts[0];
@@ -177,6 +188,7 @@ export function WidgetTile({
           onUnpin={onUnpin}
           onMoveUp={onMoveUp}
           onMoveDown={onMoveDown}
+          onPublish={onPublish}
           showPin={widget.suggested}
         />
       </div>

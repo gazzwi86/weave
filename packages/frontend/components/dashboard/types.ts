@@ -52,6 +52,22 @@ export interface WidgetListResponse {
   widgets: WidgetOut[];
 }
 
+/** TASK-015: mirrors `schemas/dashboard.py::LibraryItemOut`. */
+export interface LibraryItemOut {
+  id: string;
+  name: string;
+  description: string | null;
+  author_principal_iri: string;
+  published_at: string;
+  component_type: ComponentType;
+  data_source_contracts: string[];
+  source_available: boolean;
+}
+
+export interface LibraryListResponse {
+  items: LibraryItemOut[];
+}
+
 /** TASK-011 (m2-delta.md §3): mirrors `schemas/dashboard.py`'s SSE payload
  * models -- the `spec` event reuses `WidgetSpec` above, no wrapper needed.
  */
