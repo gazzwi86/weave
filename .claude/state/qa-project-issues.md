@@ -354,3 +354,17 @@ AC-6 non-suppressibility guard (audit.chain.invalid can't be muted) won't fire �
 spec-role tests; code comment acknowledges the gap (fixes when M1 adopts spec role vocab / PLAT-SETTINGS-1). Part of the broader
 **role-slug harmonization** (already in the morning-HITL batch + relates to PROJ-009 RBAC). Merged #63 non-blocking; harmonize
 at phase-gate.
+
+## PROJ-011 — TS 5.9 removed moduleResolution=node10 -> sdkgen tsc red across ALL branches (2026-07-11)
+CI api/mutation jobs globally provision `typescript@5`, now resolving TS **5.9.x**, which REMOVED the `moduleResolution:
+"node10"` option. The sdkgen template still emits `node10` -> sdkgen tests that shell out to `tsc --noEmit` fail (TS5108) on
+EVERY PR: `test_sdkgen_emit_typescript::test_emitted_typescript_passes_tsc_noemit` +
+`test_sdkgen_pipeline_unit::...five_ce_fetches...`. Pure external toolchain drift (like the #56 red-main saga), NOT any
+feature's fault. Blocks CI on #64 + every open/future lane PR. Fix in flight = main hotfix `fix/sdkgen-tsc-moduleresolution`
+(aa8463c): update the sdkgen tsconfig template moduleResolution -> bundler/node16 (or pin TS 5.8). Once merged -> rebase #64 +
+all lanes onto fixed main. RESOLVED-PENDING-MERGE.
+
+## EPIC-003 #64 — review-CLEAR + HELD (migrations 0065/0067); CI-red is PROJ-011 only (2026-07-11)
+cavecrew review CLEAR (migrations forward-only/RLS, AC-2 reader-403+audit, AC-5 no-2nd-cost-path, __init__ router union clean,
+SQL parameterized). api/mutation red = PROJ-011 (sdkgen TS drift, not EPIC-003 code); web/integration/semgrep/secrets pass.
+-> HELD for human merge after the PROJ-011 hotfix lands + #64 rebases onto green main.
