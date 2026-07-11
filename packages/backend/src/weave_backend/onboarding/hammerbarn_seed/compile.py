@@ -54,9 +54,9 @@ class CompiledArtefact:
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
-def _validate_kinds(ops: Sequence[AddNodeOp], allowed_kinds: set[str]) -> None:
+def _validate_kinds(ops: Sequence[Op], allowed_kinds: set[str]) -> None:
     for op in ops:
-        if op.kind not in allowed_kinds:
+        if isinstance(op, AddNodeOp) and op.kind not in allowed_kinds:
             raise UnknownKindError(f"unknown kind {op.kind!r}")
 
 

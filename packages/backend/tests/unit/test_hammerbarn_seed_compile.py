@@ -14,7 +14,7 @@ from weave_backend.onboarding.hammerbarn_seed.compile import (
     compile_seed,
 )
 from weave_backend.ontology import catalogue
-from weave_backend.schemas.operations import AddNodeOp
+from weave_backend.schemas.operations import AddEdgeOp, AddNodeOp
 
 
 def _real_allowed_kinds() -> set[str]:
@@ -61,21 +61,31 @@ def test_every_content_kind_is_a_real_ontology_kind() -> None:
     """Guards against a content.py typo drifting out of sync with the real
     BPMO kind set -- would otherwise only surface via the (mocked) unknown-
     kind test above, never against the live catalogue.
+
+    `node_ops()` is a mixed `AddNodeOp | AddEdgeOp` stream (each Process's
+    `performedBy` edge is interleaved right after its own node -- see
+    `content.py`'s module docstring for why), so only the `AddNodeOp`
+    entries carry a `kind` to check.
     """
     allowed_kinds = _real_allowed_kinds()
 
-    used_kinds = {op.kind for op in content.node_ops()}
+    used_kinds = {op.kind for op in content.node_ops() if isinstance(op, AddNodeOp)}
 
     assert used_kinds <= allowed_kinds, used_kinds - allowed_kinds
 
 
 def test_all_edge_refs_resolve_to_a_node_ref() -> None:
     """Ref-resolution sanity: every edge's subject_ref/object_ref names a
-    ref minted by `node_ops()` -- catches a typo'd ref that would otherwise
-    only surface as an opaque CE-WRITE-1 422 at apply time.
-    """
-    node_refs = {op.ref for op in content.node_ops()}
+    ref minted by an `AddNodeOp` -- catches a typo'd ref that would
+    otherwise only surface as an opaque CE-WRITE-1 422 at apply time.
 
-    for edge in content.edge_ops():
+    Edges live in two places: interleaved into `node_ops()` (each Process's
+    own `performedBy`) and in `edge_ops()` (everything else) -- both are
+    checked against the same node-ref set.
+    """
+    node_refs = {op.ref for op in content.node_ops() if isinstance(op, AddNodeOp)}
+
+    interleaved_edges = [op for op in content.node_ops() if isinstance(op, AddEdgeOp)]
+    for edge in [*interleaved_edges, *content.edge_ops()]:
         assert edge.subject_ref in node_refs, edge.subject_ref
         assert edge.object_ref in node_refs, edge.object_ref

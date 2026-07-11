@@ -9,13 +9,19 @@ records the decision not to parse it).
 Two flat, ordered lists: `NODE_OPS` (domains/capabilities/goals before the
 vocabulary/actors/systems/data before processes/activities/events -- nodes
 always precede any edge that references their `ref`) and `EDGE_OPS` (every
-relationship, added only after every node exists). `compile.py` batches
-these two lists, in order, into CE-WRITE-1 apply batches.
+other relationship, added only after every node exists). `compile.py`
+batches these two lists, in order, into CE-WRITE-1 apply batches.
+
+`NODE_OPS` also carries each Process's `performedBy` edges, interleaved
+right after that Process's own node -- `weave:ProcessShape` requires
+`sh:minCount 1` on `performedBy`, and CE-WRITE-1 revalidates the whole
+cumulative graph on every batch commit, so a Process node can never be
+committed without it even transiently (see `_process_node_ops()`).
 """
 
 from __future__ import annotations
 
-from weave_backend.schemas.operations import AddEdgeOp, AddNodeOp
+from weave_backend.schemas.operations import AddEdgeOp, AddNodeOp, Op
 
 # -- Business domains (weave:BusinessDomain) --------------------------------
 _DOMAINS = [
@@ -321,20 +327,46 @@ _PROCESSES = [
     ),
 ]
 
-# -- Glossary (SKOS Concept-only; no owl:Class pun -- non-vocabulary terms) --
+# -- Glossary (SKOS Concept, punned owl:Class -- GlossaryTermShape requires
+# every skos:Concept instance, vocabulary or plain glossary term, to also
+# carry rdf:type owl:Class -- see framework.shacl.ttl's own comment on the
+# punning invariant) --
 _GLOSSARY = [
-    ("term-trade-counter", "Trade counter"),
-    ("term-click-and-collect", "Click-and-collect"),
-    ("term-goods-in-bay", "Goods-in bay"),
-    ("term-core-line", "Core line"),
-    ("term-cycle-count", "Cycle count"),
-    ("term-reorder-point", "Reorder point"),
-    ("term-dc", "DC"),
-    ("term-put-away", "Put-away"),
+    ("term-trade-counter", "Trade counter", "The in-store desk trade customers buy from."),
+    (
+        "term-click-and-collect",
+        "Click-and-collect",
+        "Ordering online for in-store pickup.",
+    ),
+    (
+        "term-goods-in-bay",
+        "Goods-in bay",
+        "The warehouse area where supplier deliveries are received.",
+    ),
+    ("term-core-line", "Core line", "A Product Hammerbarn always keeps in stock."),
+    ("term-cycle-count", "Cycle count", "A periodic partial stock count, not a full count."),
+    (
+        "term-reorder-point",
+        "Reorder point",
+        "The stock level a StockItem triggers replenishment at.",
+    ),
+    ("term-dc", "DC", "Distribution centre -- a regional stock hub."),
+    ("term-put-away", "Put-away", "Moving received stock to its shelf/bin location."),
 ]
 
 SKOS_CONCEPT = "http://www.w3.org/2004/02/skos/core#Concept"
 OWL_CLASS = "http://www.w3.org/2002/07/owl#Class"
+SKOS_PREF_LABEL = "http://www.w3.org/2004/02/skos/core#prefLabel"
+
+
+def _pref_label(label: str) -> dict[str, str]:
+    """`{"value": ..., "lang": ...}` is `graph_ops._to_literal`'s
+    language-tagged-literal marker. `GlossaryTermShape` (targetClass
+    `skos:Concept`) requires exactly one `skos:prefLabel` per language on
+    every `skos:Concept` instance -- punned vocabulary class or plain
+    glossary term alike.
+    """
+    return {"value": label, "lang": "en"}
 
 
 def _node(ref: str, kind: str, label: str, **extra: object) -> AddNodeOp:
@@ -377,7 +409,10 @@ def _class_node_ops() -> list[AddNodeOp]:
             ref=ref,
             kind="Class",
             label=label,
-            properties={"http://www.w3.org/2004/02/skos/core#definition": definition},
+            properties={
+                "http://www.w3.org/2004/02/skos/core#definition": definition,
+                SKOS_PREF_LABEL: _pref_label(label),
+            },
             additional_types=[SKOS_CONCEPT, OWL_CLASS],
         )
         for ref, label, definition in _CLASSES
@@ -427,15 +462,23 @@ def _event_node_ops() -> list[AddNodeOp]:
     return [AddNodeOp(op="add_node", ref=ref, kind="Event", label=label) for ref, label in _EVENTS]
 
 
-def _process_node_ops() -> list[AddNodeOp]:
-    ops: list[AddNodeOp] = []
+def _process_node_ops() -> list[AddNodeOp | AddEdgeOp]:
+    # `performedBy` is emitted here, alongside its own Process node, rather
+    # than with the rest of the process edges in `_process_edge_ops()`:
+    # `weave:ProcessShape` requires `sh:minCount 1` on `performedBy`, and
+    # CE-WRITE-1 revalidates the whole cumulative graph on every batch
+    # commit -- a Process node committed without it, even transiently
+    # (nodes phase before edges phase), 422s. Every `perf_refs` actor
+    # already exists by this point in `node_ops()`'s ordering, so the edge
+    # can be minted immediately.
+    ops: list[AddNodeOp | AddEdgeOp] = []
     for (
         ref,
         label,
         _domain,
         _cap,
         _trig,
-        _perf,
+        perf_refs,
         _runs,
         _consumes,
         _produces,
@@ -443,6 +486,7 @@ def _process_node_ops() -> list[AddNodeOp]:
         steps,
     ) in _PROCESSES:
         ops.append(AddNodeOp(op="add_node", ref=ref, kind="Process", label=label))
+        ops.extend(_edge(ref, "performedBy", perf) for perf in perf_refs)
         for step_ref, step_label, step_order in steps:
             ops.append(
                 AddNodeOp(
@@ -464,7 +508,7 @@ def _process_edge_ops() -> list[AddEdgeOp]:
         domain_ref,
         cap_ref,
         trig_refs,
-        perf_refs,
+        _perf_refs,
         runs_refs,
         consumes_refs,
         produces_refs,
@@ -474,7 +518,8 @@ def _process_edge_ops() -> list[AddEdgeOp]:
         edges.append(_edge(ref, "inDomain", domain_ref))
         edges.append(_edge(ref, "realizes", cap_ref))
         edges.extend(_edge(ref, "triggeredBy", trig) for trig in trig_refs)
-        edges.extend(_edge(ref, "performedBy", perf) for perf in perf_refs)
+        # performedBy is emitted in _process_node_ops(), not here -- see that
+        # function's docstring (weave:ProcessShape minCount 1 requirement).
         edges.extend(_edge(ref, "runsOn", runs) for runs in runs_refs)
         edges.extend(_edge(ref, "consumes", consumed) for consumed in consumes_refs)
         edges.extend(_edge(ref, "produces", produced) for produced in produces_refs)
@@ -487,14 +532,24 @@ def _process_edge_ops() -> list[AddEdgeOp]:
 def _glossary_node_ops() -> list[AddNodeOp]:
     return [
         AddNodeOp(
-            op="add_node", ref=ref, kind="Concept", label=label, additional_types=[SKOS_CONCEPT]
+            op="add_node",
+            ref=ref,
+            kind="Concept",
+            label=label,
+            properties={
+                SKOS_PREF_LABEL: _pref_label(label),
+                "http://www.w3.org/2004/02/skos/core#definition": definition,
+            },
+            additional_types=[SKOS_CONCEPT, OWL_CLASS],
         )
-        for ref, label in _GLOSSARY
+        for ref, label, definition in _GLOSSARY
     ]
 
 
-def node_ops() -> list[AddNodeOp]:
-    """Every node op, in an order that never forward-references a `ref`."""
+def node_ops() -> list[Op]:
+    """Every node op (plus each Process's own `performedBy` edges -- see
+    module docstring), in an order that never forward-references a `ref`.
+    """
     return [
         *_domain_node_ops(),
         *_goal_node_ops(),
