@@ -9,6 +9,10 @@ function fakeAdapter(): RendererAdapter {
     load: vi.fn(),
     setLayout: vi.fn(),
     clearDiffOverlay: vi.fn(),
+    setViewport: vi.fn(),
+    allNodePositions: vi.fn(() => ({})),
+    applyPositions: vi.fn(),
+    mergeInPlace: vi.fn(),
   } as unknown as RendererAdapter;
 }
 
