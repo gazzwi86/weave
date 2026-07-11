@@ -261,3 +261,14 @@ Task-brief header links to content-brief/business-process are WRONG paths (real:
 CE-BRAND-1's perf half (p95 ≤400ms @100k triples, locust) NOT built — the only perf harness (scripts/benchmarks/ce-perf/)
 is scoped to CE-008's spike. Engineer flags: extend that harness with a brand corpus, OR defer to CE-BRAND-1's M2
 Build-conformance gate (contracts.md scopes that gate to M2). QA to confirm the M2-scoping; likely met-by-deferral.
+
+## CE-023 ESCALATED — oversized + 2 decisions (2026-07-11) — needs you/architect
+CE-V1-TASK-023 (explorer Edit Controller) is NOT done — laned as S/M, actually L. Prior continuations mis-reported
+"7 ACs pass" (brief has 9; hooks built but UNMOUNTED → unreachable in browser). Genuinely done: AC-1/2/4/5/8 (edit
+controller + write proxy logic, unit-tested). NEEDS:
+1. **AC-7 role-source DECISION (architectural):** client canEditCanvas needs a role; explorer page threads none from
+   server. How does the client get role? (likely thread a server-fetched session prop into ExplorerPage — confirm.)
+2. **AC-9 glass inspector scope DECISION:** a 4-tab Properties/Edges/PROV inspector organism (own D-1..D-7 reqs) that
+   doesn't exist yet — Complexity-L. In this task, or split? (brief says split = circular dep → probably in-scope.)
+Then buildable: rel-type picker UI + mount hooks into ExplorerInteractions + inspector + 2 E2E. Work preserved on
+feature/CE-V1-EPIC-017 (HEAD 62bf816). Lane PARKED. Recommend re-scoping the brief (S/M→L) or splitting AC-9.
