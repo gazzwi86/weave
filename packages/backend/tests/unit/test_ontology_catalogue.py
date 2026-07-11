@@ -73,3 +73,60 @@ def test_list_relationships_excludes_literal_attribute_properties() -> None:
     paths = {r.path for r in relationships}
 
     assert f"{_WEAVE}label" not in paths
+
+
+def test_list_kinds_carries_a_non_empty_skos_definition_for_every_framework_kind() -> None:
+    """AC-011-01: every framework kind's `skos:definition` from the shipped
+    Turtle is a non-empty string, enumerated explicitly against
+    `BPMO_KINDS` (the taxonomy's one source of truth) -- not a bare
+    `len(kinds) == N` count, so a silent rename can't slip through.
+    """
+    kinds_by_label = {k.label: k for k in catalogue.list_kinds()}
+
+    assert set(kinds_by_label) == set(BPMO_KINDS)
+    for label, kind in kinds_by_label.items():
+        assert kind.description is not None, f"{label} has no skos:definition"
+        assert kind.description.strip() != "", f"{label} has a blank skos:definition"
+
+
+def test_list_kinds_maps_skos_definition_to_description_unmodified() -> None:
+    """AC-011-02: the response's `description` field is the kind's
+    `skos:definition` text, verbatim -- no rewriting/truncation.
+    """
+    kinds = {k.iri: k for k in catalogue.list_kinds()}
+    process = kinds[f"{_WEAVE}Process"]
+
+    assert process.description == (
+        "A repeatable sequence of activities performed to achieve a goal."
+    )
+
+
+def test_list_kinds_leaves_description_none_when_no_skos_definition_triple_exists() -> None:
+    """AC-011-05: a target class with no `skos:definition` triple (e.g. a
+    future client extension kind) gets `description: None`, never invented
+    framework-style copy. Proved against an isolated in-memory graph --
+    `shapes_graph()` only ever loads the framework file, so no extension
+    kind can appear in the live catalogue on this branch (see AC-011-05
+    integration note in the task summary).
+    """
+    from rdflib import Graph
+    from rdflib.namespace import SH
+
+    graph = Graph()
+    graph.parse(
+        data="""
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix weave: <https://weave.io/ontology/> .
+
+        weave:ExtensionShape
+            a sh:NodeShape ;
+            sh:targetClass weave:ExtensionKind .
+        """,
+        format="turtle",
+    )
+    shape_node = next(graph.subjects(SH.targetClass, None))
+    target_class = graph.value(shape_node, SH.targetClass)
+
+    definition = catalogue._skos_definition(graph, target_class)
+
+    assert definition is None

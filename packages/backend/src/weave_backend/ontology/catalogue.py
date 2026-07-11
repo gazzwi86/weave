@@ -14,12 +14,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rdflib import Graph
-from rdflib.namespace import SH
+from rdflib import Graph, Namespace
+from rdflib.namespace import SH, SKOS
 from rdflib.term import Node
 
 from weave_backend.authoring.bpmo import BPMO_KINDS
 from weave_backend.operations.shacl import shapes_graph
+
+WEAVE = Namespace("https://weave.io/ontology/")
 
 _SEVERITY_LABELS = {
     str(SH.Violation): "Violation",
@@ -43,6 +45,7 @@ class Kind:
     iri: str
     label: str
     properties: list[PropertyShape]
+    description: str | None
 
 
 def _local_name(iri: str) -> str:
@@ -73,6 +76,16 @@ def _property_shape(graph: Graph, prop_node: Node) -> PropertyShape:
     )
 
 
+def _skos_definition(graph: Graph, target_class: Node | None) -> str | None:
+    """AC-011-01/-02/-05: a kind's plain-language description, sourced from
+    its `skos:definition` triple on the target class IRI -- `None` when no
+    such triple exists (extension kinds get no invented framework-style
+    copy, per AC-011-05).
+    """
+    definition = graph.value(target_class, SKOS.definition)
+    return str(definition) if definition is not None else None
+
+
 def list_kinds() -> list[Kind]:
     """One entry per `sh:NodeShape`/`sh:targetClass` pair in the cached
     framework shapes graph.
@@ -82,13 +95,24 @@ def list_kinds() -> list[Kind]:
     for shape_node in graph.subjects(SH.targetClass, None):
         target_class = graph.value(shape_node, SH.targetClass)
         iri = str(target_class)
-        if _local_name(iri) not in BPMO_KINDS:
+        # AC-004-05 guard against namespace collisions: match the full
+        # `weave:` IRI, not just the local name -- EPIC-003's
+        # `GlossaryTermShape` targets `skos:Concept`, whose local name
+        # ("Concept") collides with the BPMO kind `weave:Concept`.
+        if not iri.startswith(WEAVE) or _local_name(iri) not in BPMO_KINDS:
             continue
         properties = [
             _property_shape(graph, prop_node)
             for prop_node in graph.objects(shape_node, SH.property)
         ]
-        kinds.append(Kind(iri=iri, label=_local_name(iri), properties=properties))
+        kinds.append(
+            Kind(
+                iri=iri,
+                label=_local_name(iri),
+                properties=properties,
+                description=_skos_definition(graph, target_class),
+            )
+        )
     return kinds
 
 

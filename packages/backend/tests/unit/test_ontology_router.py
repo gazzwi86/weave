@@ -397,6 +397,11 @@ async def test_ontology_types_route_returns_catalogue_kinds_and_relationships() 
     assert "https://weave.io/ontology/performedBy" in relationship_paths
     assert "https://weave.io/ontology/label" not in relationship_paths
 
+    # AC-011-02: every framework kind carries its skos:definition, verbatim,
+    # in the response's `description` field -- no kind left without one.
+    for kind in response.kinds:
+        assert kind.description, f"{kind.label} has no description in the response"
+
 
 RESOURCE_IRI = "https://weave.io/tenant/t1/ws/ws-1/process/onboard-customer"
 
