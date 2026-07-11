@@ -1646,7 +1646,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Onboarding State Store & /api/onboarding/* Router Foundation",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-001.md",
       "retry_count": 0
@@ -1656,7 +1656,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "hammerbarn-seed CLI: compile + apply canonical seed via CE-WRITE-1",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-002.md",
       "retry_count": 0

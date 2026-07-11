@@ -233,3 +233,7 @@ PR deferred" assumption in the ADV-004 lane rules — the parameterization alrea
 
 ## HELD PRs (human merge required)
 - **PR #54** BE-V1-EPIC-008 (SDK Trigger) — migrations 0021/0031/0032. Restacked clean onto origin/main (zero backend conflict), green (1011 unit + 241 integration). Awaiting your migration review. Opened 2026-07-11.
+
+## ONB-001 QA open items (2026-07-11)
+- **AC-001-03 ADR needed** (non-blocking): onboarding user-scoping is enforced by never accepting a client-supplied identity (tenant/user from JWT Principal only), not a runtime 403. QA PASSED it met-by-construction; formalize via ADR/ADR-003 amendment so a future reviewer doesn't reopen as a gap.
+- **mutmut CLI gap** (tooling, phase-gate): mutmut 3.6.0 in-repo has no `--paths-to-mutate` run-flag (config-file only) → QA-scoped mutation runs not achievable; DoD "mutation ≥60%" unverified for ONB-001. Fix mutmut config for phase-gate mutation.

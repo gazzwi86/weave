@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T00:28:59+00:00
+Captured at: 2026-07-11T01:39:16+00:00
 Event: pre-compact
 
 ## Current State
@@ -747,7 +747,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "PLAT-V1-TASK-011"
       ],
@@ -956,7 +956,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-004",
       "title": "Brand & Voice Model + CE-BRAND-1 Projections",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-003.md",
       "retry_count": 0
@@ -1125,7 +1125,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0
@@ -1653,7 +1653,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Onboarding State Store & /api/onboarding/* Router Foundation",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-001.md",
       "retry_count": 0

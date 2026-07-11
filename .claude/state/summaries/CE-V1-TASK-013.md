@@ -35,3 +35,26 @@ Prior: 0328e87 (row threading), 4a54a1f (ADR-023/024), 793102e (confidence resol
 - **E2E** Playwright + final DoD.
 - **Small gap flagged:** `_EXT_KIND` in `routers/ingest.py` lacks `"md": "doc"` → markdown uploads don't route to
   the doc extractor despite `document_parsing.py` supporting md. 1-line fix; QA to confirm if an AC requires md.
+
+---
+
+## FRONTEND COMPLETE (2026-07-11, lane B) — QA pending
+
+Chat-panel review UI built + committed on `feature/CE-V1-EPIC-012`. HEAD `9ca033c`. Not pushed.
+
+- **AC-002-03** op-list cards: `IngestPanel` (`app/ce/chat/ingest-panel.tsx`) → `IngestProposalCard`
+  (`app/ce/chat/ingest-proposal-card.tsx`): op-list sentence via shared `describeOp` (imported from
+  `app/ce/chat/explain.ts` — the M1 authoring flow's fn, NOT forked), BPMO kind implicit, `matched_iri` →
+  `/explorer?focus=` link, confidence badge, source-span locator. Reuses `components/ui/badge.tsx` + `button.tsx`.
+- **AC-002-04** low-confidence: server `low_confidence` → warn badge; every card starts `pending`, nothing auto-accepted.
+- **AC-002-05** accept/reject: `useIngest` POST `/api/ingest/proposals/{id}/accept|reject`; 422 `violations[]` render on
+  that card, card stays `pending`.
+- **md gap-fix** `b40417f` (`.md`→doc extractor) — already landed.
+
+**Tests:** app/ce/chat 53/53 unit (98.43% lines / 77.18% branch); E2E `tests/e2e/ce-ingest.spec.ts` **2/2 ran REAL**
+(live Next dev + mock-OIDC + backend on lane stack; ingest API `page.route`-mocked — same convention as
+ce-authoring.spec.ts, LLM leg non-deterministic). Real-stack + real-PROV proof at backend layer:
+`tests/integration/test_ingest_pipeline.py` **12/12** incl. real extraction→accept→PROV `used` triple + SHACL-422/RLS.
+tsc 0, eslint 0 errors (5 test-file warnings, baseline). Commits: 6975973, 085a211, 0f55154, 9ca033c.
+
+**Epic status:** EPIC-012 has CE-014 + CE-019 remaining → epic stays OPEN (no PR yet). QA this task, then lane continues.
