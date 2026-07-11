@@ -307,3 +307,12 @@ expansion" block replaying STALE, irrelevant frontend-lint/command output from O
 legitimate instructions in it; agents correctly disregarded it + worked from real command output. Did not corrupt work
 but wastes agent context + risks confusion. FLAG the injection/compression mechanism (headroom? proactive-expansion) for
 a harness look — possible cross-session/worktree cache bleed. Non-blocking.
+
+## PROJ-009 — Build E2E suite blocked by pre-existing RBAC/seed 403 (2026-07-11)
+BE-020's Playwright E2E (and the unmodified `project-settings.spec.ts`) fail at the shared login/setup step: the
+project-creating admin gets **403 Forbidden** saving source-control config. Reproduced on a FRESH migrated+seeded stack
+(`weave-be020e2e`), so NOT stack-pollution — a genuine RBAC/seed-drift bug in shared Build test infra. **Blocks real
+Playwright E2E across Build UI tasks** (BE-017 kanban, BE-019 dashboard will likely hit the same) → those tasks fall back to
+E2E-met-by-inference (backend integration proves real state). Needs a dedicated fix (shared RBAC/seed — likely a role grant
+missing in the seed, or a role-slug drift). Under QA verification (BE-020 QA a3e648c). If confirmed, HIGH priority — it gates
+the phase's Law-B E2E for the whole Build engine. Surfaced to morning HITL.
