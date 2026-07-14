@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T16:03:05+00:00
+Captured at: 2026-07-14T16:45:35+00:00
 Event: pre-compact
 
 ## Current State
@@ -1535,7 +1535,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "M2 Overlay Release-Gate Suite (a11y, resilience, role matrix, tile flip)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-V1-TASK-002",
         "ONB-V1-TASK-003",

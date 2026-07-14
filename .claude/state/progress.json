@@ -270,7 +270,7 @@
     {
       "id": "ONB-V1-EPIC-002",
       "title": "Guided Tours & Contextual Overlays",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "ONB-V1-EPIC-003",
@@ -1528,7 +1528,7 @@
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "M2 Overlay Release-Gate Suite (a11y, resilience, role matrix, tile flip)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-V1-TASK-002",
         "ONB-V1-TASK-003",
