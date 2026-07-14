@@ -1504,7 +1504,7 @@
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-003",
       "title": "Role-Home Guidance + Competency-Question Guidance Item",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
@@ -1516,7 +1516,7 @@
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "Trust-Mechanics Tours (versions/diff, overlays, governed filters, rules screen)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
