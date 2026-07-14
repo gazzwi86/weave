@@ -39,6 +39,12 @@ export interface CytoscapeElementData {
    * optional here for forward-compatibility; evalFilter's "missing path is
    * non-matching" rule already covers a node with no key_properties at all. */
   key_properties?: Record<string, string>;
+  /** ge-canvas-1.md rule 8: a synthetic pseudo-node cytoscape renders a dot
+   * for -- the far end of a boundary edge, never a real out-of-slice node. */
+  stub?: boolean;
+  /** ge-canvas-1.md rule 8: marks an edge as a boundary-edge stub marker
+   * (source = in-slice node, target = a `stub: true` pseudo-node). */
+  boundary_stub?: boolean;
 }
 
 export interface CytoscapeElement {
