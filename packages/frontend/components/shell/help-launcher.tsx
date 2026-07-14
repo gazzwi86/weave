@@ -2,6 +2,8 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 
+import { t } from "@/lib/onboarding/i18n";
+
 /** AC-7: "?" icon in the nav opens a contextual help panel in place --
  * a Radix Dialog (focus-trap, Escape-to-close, restore-focus) rather than
  * a navigation to a /help route.
@@ -59,6 +61,14 @@ export function HelpLauncher() {
               Docs, keyboard shortcuts, and per-area guides arrive with the v1.0 help centre.
             </p>
           </nav>
+          {/* TASK-010 AC-010-05: restore a dismissed dashboard checklist. */}
+          <button
+            type="button"
+            onClick={() => void fetch("/api/onboarding/checklist/restore", { method: "POST" })}
+            className="mt-[var(--space-4)] text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline"
+          >
+            {t("onboarding.checklist.restore")}
+          </button>
           <Dialog.Close asChild>
             <button
               type="button"

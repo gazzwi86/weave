@@ -5,11 +5,16 @@ import { fetchUpstream, proxyJson, requireBearerToken } from "@/lib/onboarding/b
 
 export const runtime = "nodejs";
 
-// Law 13: request body is untrusted input -- only the field this task writes
-// is accepted, mirrors path/route.ts's PUT validation pattern.
-const patchSchema = z.object({
-  whats_new_seen_at: z.string().datetime(),
-});
+// Law 13: request body is untrusted input -- strict allow-list of every
+// bootstrap-state field any PATCH caller writes. All optional (each caller
+// sends only its own field), unknown keys rejected.
+const patchSchema = z
+  .object({
+    whats_new_seen_at: z.string().datetime().optional(),
+    checklist_dismissed_at: z.string().datetime().optional(),
+    checklist_completed_at: z.string().datetime().optional(),
+  })
+  .strict();
 
 /**
  * ONB-TASK-008: bootstrap read for beacons/modals -- one query returns the
@@ -30,7 +35,11 @@ export async function GET(): Promise<NextResponse> {
   return proxyJson(upstream);
 }
 
-/** ONB-TASK-012 AC-012-04: clears the What's-new unread dot server-side. */
+/**
+ * ONB-TASK-012 AC-012-04 / TASK-010 AC-010-05: single PATCH proxy for every
+ * bootstrap-state field callers write (what's-new-seen, checklist dismiss,
+ * checklist true-completion). Zod-validated allow-list (Law 13).
+ */
 export async function PATCH(request: Request): Promise<NextResponse> {
   const token = await requireBearerToken();
   if (!token) {
