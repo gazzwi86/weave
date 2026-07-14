@@ -316,8 +316,12 @@ jobs:
           OIDC_ISSUER_URL: http://localhost:9001
           OIDC_CLIENT_ID: weave-dev
           BACKEND_API_URL: http://localhost:8000
+      - id: setup-chrome
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2
       - working-directory: packages/frontend
         run: npx @lhci/cli@0.14 autorun --config=./lighthouserc-explorer.json
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
