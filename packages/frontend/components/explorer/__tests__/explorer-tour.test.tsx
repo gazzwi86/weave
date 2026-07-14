@@ -89,6 +89,26 @@ describe("ExplorerTour (AC-002-01/04)", () => {
     expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
   });
 
+  it("degrades to a 1-step tour when the legend anchor is absent at start (AC-002-04 -- toggled-off overlay)", async () => {
+    mockResolvedBusinessPath();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    render(
+      <>
+        <main>
+          <div data-tour-id="ge.overlay.controls">Overlay controls</div>
+        </main>
+        <ExplorerTour tourParam="completeness-map" />
+      </>,
+    );
+
+    await flushRaf();
+
+    expect(await screen.findByText("1 of 1")).toBeInTheDocument();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("ge.overlay.completeness-legend"));
+    warn.mockRestore();
+  });
+
   it("has no axe violations while the completeness-map tour step is highlighted (AC-002-05)", async () => {
     mockResolvedBusinessPath();
 
