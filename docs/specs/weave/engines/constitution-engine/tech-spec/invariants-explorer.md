@@ -29,8 +29,9 @@ presence across `packages/backend/tests/` and `packages/frontend/**/__tests__|te
   `packages/backend/migrations/0008_explorer_layout_positions.sql` +
   `grep "current_setting('app.current_tenant_id')"`.
 - No SPARQL leaves the browser or proxy except via CE-READ-1 — verify-by:
-  `packages/frontend/app/api/proxy/sparql/route.ts` + `grep -L` for any store URL/credential
-  (must be absent; only the backend base URL appears).
+  `packages/frontend/app/api/proxy/sparql/route.ts` +
+  `grep -riE "oxigraph|neptune|fuseki|:[^/[:space:]]*@"` (must be empty; only the backend base
+  URL, `BACKEND_API_URL`, appears — no direct store hostname or embedded credential).
 - No partial render on CE error/timeout: empty-state + retry, never a half graph — verify-by:
   named test `test_no_partial_render_on_ce_error`.
 - No predicate IRI literal in traversal/drill-in code; closure and domain-membership predicates
@@ -86,7 +87,9 @@ presence across `packages/backend/tests/` and `packages/frontend/**/__tests__|te
   layout table — verify-by: `packages/backend/migrations/0063_explorer_saved_views.sql` +
   `packages/backend/migrations/0064_explorer_comments.sql` +
   `packages/backend/migrations/0008_explorer_layout_positions.sql` +
-  `grep -c "current_setting('app.current_tenant_id')"` ≥ 1 in each of the three files.
+  `grep -c "current_setting('app.current_tenant_id'"` ≥ 1 in each of the three files (0008's
+  variant has a `::uuid` cast, 0063/0064's has a `missing_ok=true` second arg -- the prefix up
+  to the tenant-id literal is what's shared and load-bearing).
 - Saved-view layout snapshots live in `explorer_layout_positions` under
   `graph_id = 'view:' || view_id`; no second positions store — verify-by:
   `packages/backend/src/weave_backend/explorer/persistence.py` +
