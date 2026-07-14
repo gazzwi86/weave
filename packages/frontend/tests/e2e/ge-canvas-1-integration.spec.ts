@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
@@ -48,6 +49,24 @@ test.describe("GE-CANVAS-1 standalone mount (AC-4)", () => {
     // fetch-graph.ts's CeReadError carries the specific status, not the
     // hook's generic non-CeReadError fallback text.
     await expect(page.getByText("CE error 500")).toBeVisible();
+  });
+
+  // QA edge case (TASK-029 DoD: "zero axe-core violations on component
+  // states (empty/error/loading)") -- the existing accessibility.spec.ts
+  // axe suite only covers the full Explorer shell at /explorer; GraphCanvas's
+  // OWN standalone-mounted error state (this bare host route, no shell
+  // chrome) had never been run through a real-browser axe pass. Reuses the
+  // same error-state fixture as the test above.
+  test("standalone error state has zero axe violations", async ({ page }) => {
+    await mockNodeKinds(page);
+    await mockLayout(page);
+    await page.route("**/api/proxy/sparql**", (route) => route.fulfill({ status: 500, contentType: JSON_CONTENT_TYPE, body: "{}" }));
+
+    await loginAndGoTo(page, "/build/ge-canvas-preview?source=g1&mode=force&readonly=true");
+    await expect(page.getByTestId("explorer-empty-state")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
   });
 });
 
