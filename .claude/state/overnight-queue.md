@@ -642,3 +642,33 @@ DECISIONS FOR YOU (phase-gate / morning):
   1. Explorer a11y debt: fix the Explorer panels to clear Lighthouse a11y ≥0.95 + zero axe violations (a remediation task on CE-020/021/022 owning code), OR calibrate the 0.95 threshold, OR designate these 2 jobs real-env-only. Then #106 merges.
   2. (still open) branch-protection required-check registration for the 4 M2 gate jobs.
 NEW FINDING logged to qa ledger: Explorer route (M2 panels) fails Lighthouse a11y <0.95 + likely axe violations — real a11y remediation needed on CE-020/021/022 owning code.
+
+=====================================================================
+# ☀️ MORNING BATCH — AUTONOMOUS BUILD COMPLETE (2026-07-15)
+=====================================================================
+116/125 tasks done. The entire non-connector, non-blocked v1 backlog is BUILT + MERGED.
+Remaining 9: 8 PLAT connectors (parked → v1.0) + CE-V1-TASK-030 (held on a11y decision, below).
+
+## This session's merges (all CI-green real-gates + non-authoring-review-clean)
+- #105 ONB-TASK-008 — Beacon + Welcome-Modal renderer host (the keystone; caught a real areaForPathname bug)
+- #107 ONB-V1-003 — Role-Home Guidance + competency beacon
+- #108 ONB-V1-004 — Trust-Mechanics Tours (2 blockers fixed: started.current keyed per-tour; ActiveTour key remount)
+- #109 ONB-V1-005 — M2 Overlay Release-Gate suite (selector-check + shipped-gate; mutmut path landmine fixed)
+- #110 ONB-015 — M1 Exit-Criteria E2E suite (release-gate marker aggregation; billing wall-clock flake re-run)
+
+## #106 CE-030 — HELD OPEN (needs YOUR decision) — the ONLY non-connector task left
+All CE-030-OWNED gates GREEN: cross-tenant isolation, invariants-check (genuine 24/24), gate bundle, AC-7 no-continue-on-error, perf-m2, + all standard gates. Took 5 engineer rounds — every round fixed a REAL bug (bad upload-artifact SHA, mutmut path, grep -E, versions-mock, welcome-modal-intercept, chrome install, login-script, seed_demo, perf payload). The 2 UI gate jobs are now FUNCTIONAL and correctly RED on real, PRE-EXISTING Explorer a11y debt (Lighthouse a11y <0.95 confirmed; axe likely same) in CE-020/021/022 panel code — OUT OF CE-030's test-only scope. Logged PROJ-A11Y-EXPLORER.
+  → DECISION: (a) remediate Explorer panel a11y to clear Lighthouse a11y ≥0.95 + zero axe (a task on the owning CE-020/021/022 code) then #106 merges; OR (b) calibrate the 0.95 threshold via architect amendment; OR (c) designate axe-m2/lighthouse-explorer real-env-only.
+
+## BATCHED PHASE-GATE — program-level v1 completion review (do NOT run per-engine)
+Phase pointer is STALE: reads `onboarding/phase-1` but ALL engines' v1 phases are effectively done (parallel ALL-ENGINES build ran out of phase_plan order). The batched gate is a WHOLE-v1-program review, not one phase. Needs: /security-review across the program, mutation backstop (mostly green already), ledger remediation sweep (PROJ-* below), phase-pointer reconciliation to reflect reality, then the program-M1/v1 sign-off ceremony.
+
+## Consolidated DECISIONS for you (morning)
+1. CE-030 #106 Explorer a11y — (a) remediate / (b) calibrate / (c) real-env-only (see above).
+2. Branch-protection required-check registration for the 4 M2 gate jobs (axe-m2/lighthouse-explorer/perf-m2/invariants-check) — repo-settings call, I did NOT touch it.
+3. Connectors (8 PLAT tasks) — confirm stay parked → v1.0, or pull any into v1 + relocate briefs to post-v1/.
+4. Competency-self-mark follow-up TASK — `add_competency_questions` not in backend MANUAL_ONLY_MILESTONE_IDS → HTTP self-mark 404s; no UI path (missing /help/training mark-done CTA + dead deepLink + checklist-widget map/phase). Flagged by ONB-V1-003 + reinforced by ONB-V1-005.
+5. PROJ-FLAKY-BILLING-PERF — test_billing.py wall-clock elapsed_ms<100 flakes under CI load; fix to server-reported duration (owning: PLAT billing).
+6. ONB-015 AC-015-01 brief-wording update — "switcher shows Hammerbarn Demo" predates workspace-switcher retirement; spec asserts server-side (architect brief fix).
+
+## Ledger (phase-gate remediation sweep inputs): PROJ-A11Y-EXPLORER, PROJ-FLAKY-BILLING-PERF, + open minors in qa-cross-task-findings.md (beacon role, use-dismissals rollback).
