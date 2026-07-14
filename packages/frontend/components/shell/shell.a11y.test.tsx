@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
 import { WidgetTile } from "../dashboard/widget-tile";
@@ -10,6 +10,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
   useRouter: () => ({ push: vi.fn() }),
 }));
+
+// ONB-TASK-013: HelpLauncher's unread-dot fetches /api/onboarding/state on
+// mount -- stub it so this file's fetch never hits jsdom's no-base-URL error.
+beforeEach(() => {
+  vi.spyOn(global, "fetch").mockImplementation(() => Promise.resolve(Response.json({})));
+});
 
 // ponytail: see components/ui/ui.a11y.test.tsx -- vitest-axe's matcher
 // augmentation doesn't type-check under vitest 4, so violations are

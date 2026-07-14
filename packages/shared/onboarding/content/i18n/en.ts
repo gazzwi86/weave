@@ -167,6 +167,23 @@ export const en: Record<string, string> = {
   "onboarding.training.declare-competency-questions.title": "Declare your domain competency questions",
   "onboarding.training.declare-competency-questions.description":
     "How to write competency questions that keep your model grounded in real business questions.",
+  // ONB-TASK-013: help launcher.
+  "onboarding.launcher.title": "Help",
+  "onboarding.launcher.description": "Press Cmd+K (or Ctrl+K) to search. This panel is contextual to the area you're viewing.",
+  "onboarding.launcher.take-tour": "Take the tour",
+  "onboarding.launcher.show-hints": "Show all hints",
+  "onboarding.launcher.training": "Training library / What's new",
+  "onboarding.launcher.change-path": "Change my onboarding path",
+  "onboarding.launcher.support": "Contact support",
+  "onboarding.launcher.shortcuts.heading": "Keyboard shortcuts",
+  "onboarding.launcher.shortcuts.open": "Shift+? — open this panel",
+  "onboarding.launcher.shortcuts.close": "Esc — close this panel",
+  "onboarding.launcher.for-page.heading": "Help for this page",
+  "onboarding.launcher.help.constitution.overview": "Add your first entity",
+  "onboarding.launcher.help.constitution.glossary": "Browse the glossary of kinds",
+  "onboarding.launcher.help.constitution.query": "Ask a question in plain language",
+  "onboarding.launcher.help.explorer.canvas": "Navigate the graph canvas",
+  "onboarding.launcher.help.explorer.spotlight": "Spotlight a single entity",
   // Test-only fixtures (unit-test-local content) -- never referenced by real content.
   "x.body": "A short body well within budget.",
   "onboarding.fixture.over-budget-tour": Array(41).fill("word").join(" "),
