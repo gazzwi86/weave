@@ -69,7 +69,7 @@ describe("OnboardingHintsHost", () => {
   });
 
   it("renders neither beacon nor modal for a flagged-off (unshipped) area (AC-008-06)", async () => {
-    mockUsePathname.mockReturnValue("/settings/members");
+    mockUsePathname.mockReturnValue("/events");
     render(<OnboardingHintsHost />);
 
     await waitFor(() => {
