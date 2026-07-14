@@ -109,7 +109,7 @@ describe("POST /api/proxy/operations/apply -- forwarding and passthrough", () =>
     const sentBody = JSON.parse(options.body as string) as Record<string, unknown>;
     expect(sentBody.actor).toBe(PRINCIPAL_IRI);
     expect(sentBody.target).toBe("draft");
-    expect(sentBody.operations).toEqual([{ ...ADD_NODE_OP, properties: {} }]);
+    expect(sentBody.operations).toEqual([{ ...ADD_NODE_OP, properties: {}, additional_types: [] }]);
   });
 
   it("passes through a 201 success response", async () => {

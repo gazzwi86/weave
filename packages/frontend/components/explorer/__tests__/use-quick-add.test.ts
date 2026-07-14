@@ -141,7 +141,7 @@ describe("useQuickAdd", () => {
 
     expect(writeProxy).toHaveBeenCalledTimes(1);
     const [ops] = vi.mocked(writeProxy).mock.calls[0]!;
-    expect(ops).toEqual([{ op: "add_node", ref: expect.any(String), kind: "Process", label: "Invoicing", properties: {} }]);
+    expect(ops).toEqual([{ op: "add_node", ref: expect.any(String), kind: "Process", label: "Invoicing", properties: {}, additional_types: [] }]);
     expect(adapter.addLayerNodes).toHaveBeenCalledTimes(1);
     const [[addedElement]] = vi.mocked(adapter.addLayerNodes).mock.calls[0]!;
     expect(addedElement!.position).toEqual({ x: 50, y: 100 }); // (110-10)/2, (220-20)/2
