@@ -587,3 +587,13 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 - HITL DECISION (morning): stand up the onboarding UI shells — likely 1-2 dedicated tasks
   (onboarding UI host + beacon/modal renderer) that 004/005/008/009/015 + ONB-V1 beacons all consume.
   Recommend a small architect pass to spec the shared onboarding UI-host surface before more onboarding UI tasks.
+
+## 2026-07-14 late — wave progress: 110/125 done
+- Merged this session: #94-#102 (ONB-V1-001, ONB-012, CE-019, CE-023, ONB-010, ONB-V1-002 tour-half,
+  ONB-005 backend, CE-024, CE-029). #103 ONB-009 backend in review→merge.
+- New lanes launched: CE-030 M2 Release-Gate (weavece030, 0085-86) + ONB-013 Help-Launcher panel (0087).
+- HELD for morning renderer decision (beacon-blocked tour-halves, don't spawn more overnight):
+  ONB-V1-003 (Role-Home Guidance), ONB-V1-004 (Trust-Mechanics Tours) — both partial-beacon like ONB-V1-002.
+- Still blocked: connectors (PLAT-006/018-025 parked), ONB-015 (needs 009+013), ONB-V1-005 (needs 003+004).
+- Approaching batched phase-gate: after CE-030/ONB-013/ONB-009 land, remaining buildable = beacon-tour-halves
+  + ONB-015 (needs UI hosts) → mostly HITL-gated. Surface ONE batched phase-gate when buildable backlog empty/blocked.
