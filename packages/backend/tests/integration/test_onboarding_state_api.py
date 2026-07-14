@@ -72,6 +72,7 @@ async def test_all_six_onboarding_tables_have_row_level_security_enabled_and_for
     assert all(enabled and forced for enabled, forced in found.values())
 
 
+@pytest.mark.onboarding_release_gate  # RLS fail-closed
 async def test_onboarding_tables_zero_rows_without_session_context(platform_stack: Path) -> None:
     """AC-001-02 fail-closed leg: a connection with no `app.tenant_id` set at
     all (not merely a different tenant) must see zero rows on every table --

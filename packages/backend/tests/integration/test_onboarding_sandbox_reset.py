@@ -69,6 +69,7 @@ async def test_reset_before_first_fork_is_rejected(
 # --- AC-005-02/03: success swaps pointer, clears exercises, preserves activation --
 
 
+@pytest.mark.onboarding_release_gate  # reset known-state
 async def test_reset_success_bumps_pointer_clears_exercises_preserves_activation(
     client: AsyncClient, platform_stack: Path
 ) -> None:

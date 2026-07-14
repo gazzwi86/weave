@@ -46,6 +46,7 @@ class _StubConn:
     """
 
 
+@pytest.mark.onboarding_release_gate  # role matrix: 10-canonical-role leg
 @pytest.mark.parametrize("role_slug", _ALL_TEN_SLUGS)
 async def test_ac_006_01_every_canonical_role_maps_to_exactly_one_path(
     monkeypatch: pytest.MonkeyPatch, role_slug: str
@@ -70,6 +71,7 @@ def test_ac_006_01_mapping_table_covers_all_ten_slugs_with_no_gaps() -> None:
     assert set(ROLE_TO_PATH) == set(_ALL_TEN_SLUGS)
 
 
+@pytest.mark.onboarding_release_gate  # role matrix: zero/multi-role leg
 @pytest.mark.parametrize("no_role", [None, "viewer"])
 async def test_ac_006_03_zero_or_viewer_role_resolves_business_read_only(
     monkeypatch: pytest.MonkeyPatch, no_role: str | None

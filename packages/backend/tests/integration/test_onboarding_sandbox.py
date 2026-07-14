@@ -152,6 +152,7 @@ async def test_fork_publish_failure_leaves_pointer_null(
 # --- Boundary 1 (AC-004-05): per-user sandbox isolation -----------------------
 
 
+@pytest.mark.onboarding_release_gate  # ADR-002 boundary 1: isolation trio
 async def test_sandbox_per_user_isolation(client: AsyncClient, platform_stack: Path) -> None:
     """Neither user is ever granted a `workspace_members` row on the other's
     sandbox (ADR-002: the sandbox IS the boundary), so both the write path
@@ -199,6 +200,7 @@ async def test_sandbox_per_user_isolation(client: AsyncClient, platform_stack: P
 # --- Boundary 2 (AC-004-06): canonical write 403 + audited --------------------
 
 
+@pytest.mark.onboarding_release_gate  # ADR-002 boundary 2: isolation trio
 async def test_canonical_write_403_audited(client: AsyncClient, platform_stack: Path) -> None:
     """A non-content-admin member with plain `read` role on the canonical
     template (able to see it, per ADR-002's "hidden from switcher for
@@ -265,6 +267,7 @@ async def test_canonical_write_403_audited(client: AsyncClient, platform_stack: 
 # --- Boundary 3 (AC-004-07): cross-tenant zero-leak ---------------------------
 
 
+@pytest.mark.onboarding_release_gate  # PRD §2.4 pinned test: isolation trio
 async def test_cross_tenant_zero_leak(client: AsyncClient, platform_stack: Path) -> None:
     """PRD §2.4 pinned test: an unscoped (`GRAPH ?g`) sandbox query under
     tenant-A/user-A returns only A's own triples -- proven two ways: (1)
