@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T15:58:45+00:00
+Captured at: 2026-07-14T16:03:05+00:00
 Event: pre-compact
 
 ## Current State
@@ -1523,7 +1523,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "Trust-Mechanics Tours (versions/diff, overlays, governed filters, rules screen)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
