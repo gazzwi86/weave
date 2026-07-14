@@ -64,6 +64,31 @@ async def test_record_exercise_completion_retries_once_then_succeeds() -> None:
     assert conn.calls == 2
 
 
+async def test_record_exercise_completion_upsert_overwrites_prior_signal() -> None:
+    """Edge case: a second check on an already-completed exercise (e.g. a
+    reset-then-re-earn, AC-009-05's eventual path) must overwrite the row's
+    `verified_signal`/`completed_at` via the ON CONFLICT clause, not error on
+    the primary-key conflict or leave the stale row untouched.
+    """
+    conn = _FlakyConnection(fail_times=0)
+    await store.record_exercise_completion_with_retry(
+        conn,
+        tenant_id=_TENANT,
+        user_id=_USER,
+        exercise_id="CE-02",
+        verified_signal="ask",
+    )
+    await store.record_exercise_completion_with_retry(
+        conn,
+        tenant_id=_TENANT,
+        user_id=_USER,
+        exercise_id="CE-02",
+        verified_signal="ask",
+    )
+    assert conn.rows["CE-02"]["verified_signal"] == "ask"
+    assert conn.calls == 2
+
+
 async def test_record_exercise_completion_raises_after_exhausting_retries() -> None:
     conn = _FlakyConnection(fail_times=5)
     with pytest.raises(ConnectionError):
