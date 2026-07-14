@@ -277,4 +277,21 @@ describe("commitDelete", () => {
     expect(result).toEqual({ status: "failed" });
     expect(adapter.removeElements).not.toHaveBeenCalled();
   });
+
+  // Edge case: a foreign-owned/other-tenant node the proxy's tenant-scoped
+  // CE lookup can't find -- CE-WRITE-1's surface is only 201/422 (task brief
+  // pin), so any other status (404 included) must collapse into the same
+  // generic "failed, canvas untouched" branch as a 5xx/timeout, never a
+  // silent no-op success.
+  it("treats an unexpected 404 (e.g. a foreign-owned/already-deleted node) as a failure, not a silent success", async () => {
+    const adapter = fakeAdapter();
+    const ops = buildDeleteOps("urn:node:1", []);
+    const writeProxy = writeProxyReturning({ status: 404, body: { error: "not_found" } });
+
+    const result = await commitDelete({ ops, adapter, writeProxy, timeoutMs: TIMEOUT_MS });
+
+    expect(result).toEqual({ status: "failed" });
+    expect(adapter.removeElements).not.toHaveBeenCalled();
+    expect(getDraftHead()).toBe(0);
+  });
 });
