@@ -30,7 +30,22 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from `start` to the repo-root marker.
+
+    # ponytail: a fixed `parents[N]` index breaks under mutmut, which copies
+    # the test tree into a `mutants/` subdirectory -- shifting every ancestor
+    # one level, landing `parents[N]` on the wrong directory. Walking up to a
+    # marker (`.git`) tolerates the extra path segment regardless of depth.
+    """
+    for candidate in (start, *start.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    raise RuntimeError(f"no repo root found walking up {start}")
+
+
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
 _INVARIANTS_MD = (
     _REPO_ROOT / "docs/specs/weave/engines/onboarding/tech-spec/invariants.md"
 )
@@ -83,7 +98,19 @@ def _pattern_hits(path: Path, pattern: str) -> bool:
     return result.returncode == 0
 
 
-@pytest.mark.parametrize("verify_by_line", _m2_section_lines())
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    # ponytail: parametrize via this hook (not a module-level
+    # `@pytest.mark.parametrize("x", _m2_section_lines())`) so a path/read
+    # failure surfaces as one failing test, never a collection error that
+    # would nuke the whole module (and with it, mutmut's baseline run).
+    if "verify_by_line" in metafunc.fixturenames:
+        try:
+            lines = _m2_section_lines()
+        except OSError as exc:
+            lines = [f"__read_failed__:{exc}"]
+        metafunc.parametrize("verify_by_line", lines)
+
+
 def test_m2_invariant_selector_resolves(verify_by_line: str) -> None:
     match = _VERIFY_BY_LINE.search(verify_by_line)
     assert match, f"line doesn't match the verify-by shape: {verify_by_line!r}"
