@@ -61,6 +61,6 @@ selectors — each invariant maps to a release-gate test per testing-strategy.md
 - E3-S2 Business-path CE-METRICS-1 tile un-omit is Platform availability-registry /
   starter-widget behaviour (Platform E1-S6, Platform v1 TASK-010): onboarding asserts it in
   E2E, implements nothing — verify-by: `e2e/onboarding/m2-overlays.spec.ts` + grep `starter tile`
-- Release gate fails while any m2 registry anchor is `shipped: false` — verify-by: `e2e/onboarding/m2-overlays.spec.ts` + grep `shipped`
+- Release gate fails while any m2 registry anchor is `shipped: false` — verify-by: `packages/shared/tests/m2-release-gate.test.ts` + grep `shipped:true`
 - Zero new endpoints, services, queues, schema members, or DDL in the M2 window; all state on
   the M1 `/api/onboarding/*` router — verify-by: `docs/specs/weave/engines/onboarding/tech-spec/m2-delta.md` + grep `zero new`
