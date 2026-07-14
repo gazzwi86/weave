@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { axe } from "vitest-axe";
 
 import { ChecklistWidget } from "../checklist-widget";
 
@@ -153,5 +154,27 @@ describe("ChecklistWidget (TASK-010)", () => {
     render(<ChecklistWidget />);
 
     await waitFor(() => expect(screen.queryByText("Get started")).not.toBeInTheDocument());
+  });
+
+  it("AC-010-06: has no axe violations", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(baseState)));
+
+    const { container } = render(<ChecklistWidget />);
+    await waitFor(() => expect(screen.getByText("Visit the demo workspace")).toBeInTheDocument());
+
+    expect((await axe(container)).violations).toHaveLength(0);
+  });
+
+  it("AC-010-06: the first checklist item is keyboard-reachable and its link activates on Enter", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(baseState)));
+    const user = userEvent.setup();
+
+    render(<ChecklistWidget />);
+    await waitFor(() => expect(screen.getByText("Visit the demo workspace")).toBeInTheDocument());
+
+    const link = screen.getByRole("link", { name: /visit the demo workspace/i });
+    await user.tab(); // checkbox (readonly, still focusable/announced)
+    await user.tab(); // deep-link
+    expect(link).toHaveFocus();
   });
 });

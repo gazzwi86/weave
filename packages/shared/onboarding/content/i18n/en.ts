@@ -87,6 +87,7 @@ export const en: Record<string, string> = {
   "onboarding.checklist.do-it-now": "Do it now",
   "onboarding.checklist.mark-done": "Mark as done",
   "onboarding.checklist.dismiss": "Dismiss checklist",
+  "onboarding.checklist.restore": "Restore checklist",
   // Training.
   "onboarding.training.getting-started.title": "Getting started with Weave",
   "onboarding.training.getting-started.description":
