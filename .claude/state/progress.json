@@ -1809,7 +1809,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
       "title": "Role→Starter-Widget Mapping handed to Platform",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-003",
         "ONB-TASK-006"
