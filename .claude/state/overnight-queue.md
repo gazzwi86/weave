@@ -574,3 +574,16 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
   renderer (finish TASK-008 UI half) vs. build it inline. Recommended: a dedicated shared-renderer
   task since 002/003/004/005 all need it. Secondary schema gaps noted: BeaconSchema has no CTA/href
   field; legend DOM target is conditionally rendered.
+
+## 2026-07-14 ~22:30 AEST — SYSTEMIC gap for morning HITL: onboarding UI hosts unbuilt
+- Multiple onboarding tasks built BACKEND + content-config but the user-facing FRONTEND UI HOSTS were
+  deferred/never built. Confirmed missing: beacon/welcome-modal renderer (TASK-008 UI), sandbox UI
+  host (TASK-004, deferred), exercise-panel (TASK-009 AC-07), reset confirm-dialog host (TASK-005
+  AC-01). Each task correctly refused to build a "hostless button" (dead code, fails Law B/17).
+- Effect: backends are real+tested but not user-reachable; ONB-015 (M1 exit E2E) will be blocked
+  until UI hosts exist; beacon ACs of ONB-V1-002/003/004/005 blocked (already logged).
+- Auto-decision overnight: merge the tested BACKEND slices as partial-epic PRs (reset, exercise-check
+  are real capabilities), defer + track each UI AC. ONB-005 5/6 backend ACs; ONB-009 backend done.
+- HITL DECISION (morning): stand up the onboarding UI shells — likely 1-2 dedicated tasks
+  (onboarding UI host + beacon/modal renderer) that 004/005/008/009/015 + ONB-V1 beacons all consume.
+  Recommend a small architect pass to spec the shared onboarding UI-host surface before more onboarding UI tasks.
