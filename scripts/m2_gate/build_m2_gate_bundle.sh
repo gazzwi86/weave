@@ -58,9 +58,10 @@ else
   stub "$BUNDLE/axe/summary.json" "axe-m2 CI job artefact not present locally -- see .github/workflows/ci.yml axe-m2 job"
 fi
 
-if [ -d artefacts/m2-gate-lighthouse-src ]; then
-  cp -r artefacts/m2-gate-lighthouse-src/. "$BUNDLE/lighthouse/"
-else
+# lighthouserc-explorer.json's own `upload.outputDir` already points at
+# `$BUNDLE/lighthouse` (lhci writes straight there when run for real) --
+# nothing to copy, just stub if that never happened in this environment.
+if [ -z "$(ls -A "$BUNDLE/lighthouse" 2>/dev/null)" ]; then
   stub "$BUNDLE/lighthouse/summary.json" "lighthouse-explorer CI job artefact not present locally -- see .github/workflows/ci.yml lighthouse-explorer job"
 fi
 
