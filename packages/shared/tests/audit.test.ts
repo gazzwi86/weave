@@ -17,7 +17,7 @@ describe("extractDataTourIds", () => {
 describe("auditAnchors (AC-003-05, ADR-008)", () => {
   it("passes when every shipped anchor's attribute is present and every attribute is registered", () => {
     const result = auditAnchors(registry, new Set(["ce.overview"]));
-    expect(result).toEqual({ ok: true, unregistered: [], missingShipped: [] });
+    expect(result).toEqual({ ok: true, unregistered: [], missingShipped: [], plantedNotShipped: [] });
   });
 
   it("fails on an unregistered attribute fixture", () => {
@@ -35,5 +35,16 @@ describe("auditAnchors (AC-003-05, ADR-008)", () => {
   it("does not flag a shipped:false anchor as missing (nothing planted yet)", () => {
     const result = auditAnchors(registry, new Set(["ce.overview"]));
     expect(result.missingShipped).not.toContain("ce.query");
+  });
+
+  it("fails on an attribute-without-shipped fixture -- registered but still shipped:false (AC-001-03b)", () => {
+    const result = auditAnchors(registry, new Set(["ce.query"]));
+    expect(result.ok).toBe(false);
+    expect(result.plantedNotShipped).toEqual(["ce.query"]);
+  });
+
+  it("does not flag a shipped:true anchor with its attribute present as plantedNotShipped", () => {
+    const result = auditAnchors(registry, new Set(["ce.overview"]));
+    expect(result.plantedNotShipped).not.toContain("ce.overview");
   });
 });
