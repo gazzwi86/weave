@@ -144,7 +144,9 @@ describe("useLayoutPersistence", () => {
     vi.useRealTimers();
   });
 
-  it("surfaces saveFailed only once every retry delay is exhausted", async () => {
+  // surfaces saveFailed only once every retry delay is exhausted --
+  // invariants-explorer.md M1
+  it("test_layout_save_retry_never_drops", async () => {
     vi.useFakeTimers();
     const save = vi.fn(async () => {
       throw new Error("down");

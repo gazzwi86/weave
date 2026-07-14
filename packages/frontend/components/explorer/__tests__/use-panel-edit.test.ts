@@ -90,7 +90,9 @@ describe("usePanelEdit", () => {
     expect(result.current.edit.mode).toBe("view");
   });
 
-  it("AC-2: shows a conflict notice with current server values and does not commit when the draft head has advanced", async () => {
+  // AC-2: shows a conflict notice with current server values and does not
+  // commit when the draft head has advanced -- invariants-explorer.md M2 delta
+  it("test_drift_guard_blocks_save_and_shows_current", async () => {
     const adapter = fakeAdapter();
     const writeProxy = writeProxyReturning({ status: 201, body: {} });
     const freshServerState: FetchNodePropsResult = {
@@ -128,7 +130,9 @@ describe("usePanelEdit", () => {
     }
   });
 
-  it("AC-3: two sequential no-drift saves both succeed, last-write-wins on canvas", async () => {
+  // AC-3: two sequential no-drift saves both succeed, last-write-wins on
+  // canvas -- invariants-explorer.md M2 delta
+  it("test_lww_when_no_drift_detected", async () => {
     const adapter = fakeAdapter();
     const writeProxy = writeProxyReturning({ status: 201, body: {} });
 

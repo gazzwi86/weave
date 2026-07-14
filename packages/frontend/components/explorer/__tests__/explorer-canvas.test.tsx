@@ -93,7 +93,9 @@ describe("ExplorerCanvas", () => {
     expect(screen.getByTestId("explorer-search-button")).toBeInTheDocument();
   });
 
-  it("renders the empty-state with retry wired to the hook on CE error, no canvas mounted (AC-2)", () => {
+  // renders the empty-state with retry wired to the hook on CE error, no
+  // canvas mounted (AC-2) -- invariants-explorer.md M1
+  it("test_no_partial_render_on_ce_error", () => {
     const retry = vi.fn();
     mockedUseExplorerCanvas.mockReturnValue({
       loadState: "error",
