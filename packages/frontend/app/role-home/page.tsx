@@ -79,7 +79,7 @@ function CapabilityCard({ capability }: { capability: RoleHomeCapability }) {
  */
 function CompletenessTable({ rows }: { rows: CompletenessRow[] }) {
   return (
-    <Card>
+    <Card data-tour-id="plat.role-home.completeness-map">
       <CardTitle>Model completeness</CardTitle>
       <table className="mt-[var(--space-3)] w-full text-[length:var(--text-body-sm)]">
         <thead>
@@ -118,7 +118,7 @@ export default async function RoleHomePage() {
 
       {data ? (
         <>
-          <Card data-testid="next-action-banner">
+          <Card data-testid="next-action-banner" data-tour-id="plat.role-home.next-action">
             <CardTitle>Recommended next step</CardTitle>
             <Link
               href={data.next_action.href}
@@ -128,7 +128,7 @@ export default async function RoleHomePage() {
             </Link>
           </Card>
 
-          <div className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-2" data-tour-id="plat.role-home.capabilities">
             {data.capabilities.map((capability) => (
               <CapabilityCard key={capability.id} capability={capability} />
             ))}
@@ -136,7 +136,9 @@ export default async function RoleHomePage() {
 
           <CompletenessTable rows={data.completeness} />
 
-          <WidgetGrid widgets={data.tiles} />
+          <div data-tour-id="plat.role-home.summary-tiles">
+            <WidgetGrid widgets={data.tiles} />
+          </div>
         </>
       ) : (
         <p data-testid="role-home-error">Unable to load role-home data.</p>

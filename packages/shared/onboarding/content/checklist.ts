@@ -95,6 +95,10 @@ const items: ChecklistItem[] = [
     whyKey: "onboarding.checklist.add-competency-questions.why",
     deepLink: "/training/declare-competency-questions",
     autoCompleteOn: "manual",
+    // ONB-V1-TASK-003: without a signalRef this item could never derive
+    // `checked` -- self-mark writes an activation row keyed on this
+    // milestone_id (existing self-mark endpoint, no new write path).
+    signalRefs: ["add_competency_questions"],
     // Merge fix (TASK-010 reconciliation): `phase: "m2"` alone isn't a lock
     // gate -- `lockedUntilPhase` is. Without it this M2-only item renders
     // unlocked+incomplete in M1 and permanently blocks the widget's 100%

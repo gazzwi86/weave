@@ -10,13 +10,23 @@ vi.mock("next/navigation", () => ({
 
 interface MockState {
   dismissals: Array<{ kind: string; ref_id: string }>;
+  rolePath?: string;
+  activations?: Array<{ milestone_id: string; activated_at: string; source: string }>;
 }
 
 let mockState: MockState;
 
 function mockFetch(url: string): Promise<Response> {
   if (url === "/api/onboarding/state") {
-    return Promise.resolve(new Response(JSON.stringify({ dismissals: mockState.dismissals })));
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          dismissals: mockState.dismissals,
+          role_path: mockState.rolePath ?? "business",
+          activations: mockState.activations ?? [],
+        }),
+      ),
+    );
   }
   if (url === "/api/onboarding/path") {
     return Promise.resolve(
@@ -98,6 +108,46 @@ describe("OnboardingHintsHost", () => {
       expect(fetch).toHaveBeenCalledWith("/api/onboarding/state");
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /hint available/i })).not.toBeInTheDocument();
+  });
+
+  it("ONB-V1-TASK-003 AC-003-03: shows the role-home beacon while add-competency-questions is open", async () => {
+    mockState = {
+      dismissals: [{ kind: "welcome_modal", ref_id: "welcome-role-home" }],
+      rolePath: "business",
+      activations: [],
+    };
+    mockUsePathname.mockReturnValue("/role-home");
+    render(
+      <>
+        <main data-tour-id="plat.role-home.completeness-map" />
+        <OnboardingHintsHost />
+      </>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /hint available/i })).toBeInTheDocument();
+    });
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringMatching(/\/api\/ce\//));
+  });
+
+  it("ONB-V1-TASK-003 AC-003-03: hides the role-home beacon once the item is self-marked complete", async () => {
+    mockState = {
+      dismissals: [{ kind: "welcome_modal", ref_id: "welcome-role-home" }],
+      rolePath: "business",
+      activations: [{ milestone_id: "add_competency_questions", activated_at: "2026-01-01T00:00:00Z", source: "manual" }],
+    };
+    mockUsePathname.mockReturnValue("/role-home");
+    render(
+      <>
+        <main data-tour-id="plat.role-home.completeness-map" />
+        <OnboardingHintsHost />
+      </>,
+    );
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/onboarding/state");
+    });
     expect(screen.queryByRole("button", { name: /hint available/i })).not.toBeInTheDocument();
   });
 });
