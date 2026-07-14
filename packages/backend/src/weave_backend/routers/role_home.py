@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from httpx import AsyncClient
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
@@ -182,14 +182,17 @@ def _build_response(level: str, payload: dict[str, Any], tile: WidgetOut) -> Rol
 async def role_home_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> RoleHomeResponse:
     level = role_home.authority_level([grant.role for grant in principal.roles])
+    ce_headers = {"Authorization": authorization} if authorization else None
     async with tenant_connection(principal.tenant_id) as conn:
         ctx = BindingContext(
             tenant_id=principal.tenant_id,
             context_iri=f"urn:weave:tenant:{principal.tenant_id}:company",
             conn=conn,
             ce_client=ce_client,
+            ce_headers=ce_headers,
         )
         payload, tile_out = await _resolve_tile(conn, principal, ctx, level)
     return _build_response(level, payload, tile_out)

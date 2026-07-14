@@ -90,7 +90,13 @@ _HEALTHY_CE = {
 @pytest.fixture
 async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    # PR #91's fail-closed CE guard requires a real Authorization header on
+    # every CE-bound call; a real caller always carries a bearer token even
+    # though `get_current_principal` is overridden below (mock-OIDC gap, see
+    # module docstring) -- this is not weakening the guard, it's matching
+    # what a real request looks like.
+    headers = {"Authorization": "Bearer test-token"}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
     app.dependency_overrides.clear()
 
