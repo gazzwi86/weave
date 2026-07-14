@@ -16,15 +16,19 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 // without these no-ops their effects throw mid-portal-teardown in a way that
 // surfaces as an unrelated "node to be removed is not a child" DOM error.
 // ONB-TASK-008: needed once Popover joined Dialog in this test suite.
-if (typeof Element.prototype.hasPointerCapture === "undefined") {
-  Element.prototype.hasPointerCapture = () => false;
-}
-if (typeof Element.prototype.setPointerCapture === "undefined") {
-  Element.prototype.setPointerCapture = () => {};
-}
-if (typeof Element.prototype.releasePointerCapture === "undefined") {
-  Element.prototype.releasePointerCapture = () => {};
-}
-if (typeof Element.prototype.scrollIntoView === "undefined") {
-  Element.prototype.scrollIntoView = () => {};
+// Guarded -- some route-handler test files run in Vitest's "node"
+// environment (no DOM), where `Element` itself doesn't exist.
+if (typeof Element !== "undefined") {
+  if (typeof Element.prototype.hasPointerCapture === "undefined") {
+    Element.prototype.hasPointerCapture = () => false;
+  }
+  if (typeof Element.prototype.setPointerCapture === "undefined") {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (typeof Element.prototype.releasePointerCapture === "undefined") {
+    Element.prototype.releasePointerCapture = () => {};
+  }
+  if (typeof Element.prototype.scrollIntoView === "undefined") {
+    Element.prototype.scrollIntoView = () => {};
+  }
 }
