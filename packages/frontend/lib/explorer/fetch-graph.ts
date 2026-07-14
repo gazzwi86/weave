@@ -35,8 +35,10 @@ export async function fetchPalette(): Promise<NodeKind[]> {
  * catalogue call on the server side, no second endpoint). */
 export async function fetchRelTypes(): Promise<RelKind[]> {
   const response = await proxyFetch("/api/proxy/node-kinds");
-  const data = (await response.json()) as { relTypes: RelKind[] };
-  return data.relTypes;
+  const data = (await response.json()) as { relTypes?: RelKind[] };
+  // A missing relTypes field (mock drift, upstream contract change) must not
+  // crash DrawEdgePicker's relTypes[0] access -- fall back to empty palette.
+  return data.relTypes ?? [];
 }
 
 function assertWithinDeadline(deadline: number): void {

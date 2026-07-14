@@ -41,7 +41,10 @@ async function clickNode(page: Page, nodeId: string): Promise<void> {
 }
 
 const JSON_CONTENT_TYPE = "application/json";
-const NODE_KINDS = { kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }] };
+const NODE_KINDS = {
+  kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }],
+  relTypes: [{ id: "hasStep", label: "Has step" }],
+};
 const ONBOARDING = "https://weave.example/process/onboarding";
 const CREATE_ACCOUNT = "https://weave.example/domain/create-account";
 const SPARQL_PAGE = {
