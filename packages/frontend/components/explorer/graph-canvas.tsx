@@ -13,7 +13,7 @@ import { ExplorerCanvas } from "./explorer-canvas";
  * fixed constant (adjacency-only traversal, the brief's soft-dependency
  * escape hatch) -- swap for TASK-028's closure/depth-cap config when it
  * lands, same computeSlice output shape either way. */
-const SLICE_HOP_DEPTH = 2;
+const SLICE_HOP_DEPTH = 1;
 
 /** GE-CANVAS-1 M2 pin (contracts.md §GE-CANVAS-1; normative surface at
  * docs/specs/weave/engines/constitution-engine/tech-spec/ge-canvas-1.md).

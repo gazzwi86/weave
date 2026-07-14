@@ -30,7 +30,10 @@ export default defineConfig({
   // Parallel workers race real OIDC logins against that shared budget and hang
   // mid-callback. One worker always, not just in CI.
   workers: 1,
-  reporter: "html",
+  // TASK-029 AC-3: the GE-CANVAS-1 conformance report is the Build-M2
+  // unblock evidence -- a tiny extra reporter alongside the existing html
+  // one, not a replacement.
+  reporter: [["html"], ["./tests/reporters/ge-canvas-conformance-reporter.ts"]],
   // Matches e2e/ui-verify's tolerance (0.01) -- ledger item 2's visual baselines.
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: {
