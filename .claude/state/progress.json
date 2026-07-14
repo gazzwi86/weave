@@ -315,7 +315,7 @@
     {
       "id": "ONB-EPIC-001",
       "title": "Hammerbarn Demo Workspace",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "ONB-EPIC-002",
@@ -1822,7 +1822,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "M1 Exit-Criteria E2E Suite (Gate 1 evidence)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-005",
         "ONB-TASK-009",
