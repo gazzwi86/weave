@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T06:32:35+00:00
+Captured at: 2026-07-14T07:01:53+00:00
 Event: pre-compact
 
 ## Current State
@@ -137,7 +137,7 @@ Event: pre-compact
     {
       "id": "PLAT-V1-EPIC-001",
       "title": "Dashboard (fixed default + Generative, M2)",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-002",
@@ -771,7 +771,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Pin widgets, responsive grid, drag-reorder, auto-refresh (E1-S4)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-010",
         "PLAT-V1-TASK-011"
@@ -784,7 +784,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
       "title": "Publish widgets to the tenant (company) widget library; independent per-user copies (E1-S5)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-014"
       ],
