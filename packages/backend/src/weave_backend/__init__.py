@@ -14,6 +14,7 @@ from weave_backend.observability.middleware import (
     install_ce_contract_headers_middleware,
     install_tenant_context_middleware,
 )
+from weave_backend.onboarding.scheduler import spawn_dispatcher, spawn_scheduler
 from weave_backend.projects.ce_version_client import close_ce_client
 from weave_backend.requests.store import close_redis_client
 from weave_backend.routers.audit import router as audit_router
@@ -164,6 +165,16 @@ app.add_exception_handler(UnauthorisedError, unauthorised_exception_handler)
 app.add_exception_handler(LayoutApiError, layout_api_error_handler)
 
 assert_all_routes_guarded(app)
+
+
+@app.on_event("startup")
+async def _start_onboarding_scheduler() -> None:
+    # ONB-TASK-011 (AC-011-06): the activation poller's real call site --
+    # without this, poller.py's functions are never invoked.
+    spawn_scheduler()
+    # ONB-TASK-011 (AC-011-03/04): the outbox dispatcher's real call site --
+    # without this, flush_pending never runs and outbox rows never dispatch.
+    spawn_dispatcher()
 
 
 @app.on_event("shutdown")
