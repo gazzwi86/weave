@@ -110,44 +110,73 @@ function useEditForm({ adapter, config, panel, canEdit, onSaved, writeProxy, fet
 
   const save = useCallback(async () => {
     if (panel.status !== "loaded" || (edit.mode !== "edit" && edit.mode !== "conflict") || !adapter) return;
-    const form = formOf(edit);
-
-    // AC-2/AC-3: cheap, synchronous re-check at save time (not just
-    // edit-start) -- narrows the drift window vs. only capturing editBase
-    // once. See draft-head.ts for why this is a local counter, not a real
-    // CE version handle.
-    const head = getDraftHead();
-    if (head !== edit.editBase) {
-      const result = await fetchNodeProps(panel.nodeId, config.ceTimeoutMs);
-      if (result.type === "ok") setEdit({ mode: "conflict", yours: form, server: formValuesFrom(result.data), editBase: head });
-      return;
-    }
-
-    setViolationMessages([]);
-    const result = await commitUpdate({
-      iri: panel.nodeId,
-      properties: { label: form.label, ...form.properties },
-      labelOverride: form.label,
-      adapter,
-      writeProxy,
-      timeoutMs: config.ceTimeoutMs,
-    });
-
-    if (result.status === "ok") {
-      setEdit({ mode: "view" });
-      onSaved?.();
-      return;
-    }
-    if (result.status === "violations") {
-      setViolationMessages(result.messages);
-      setEdit({ mode: "edit", form, editBase: getDraftHead() });
-      return;
-    }
-    setViolationMessages(["Save failed -- retry"]);
-    setEdit({ mode: "edit", form, editBase: edit.editBase });
-  }, [adapter, config.ceTimeoutMs, edit, fetchNodeProps, onSaved, panel, writeProxy]);
+    await saveEdit({ edit, panel, adapter, config, writeProxy, fetchNodeProps, onSaved, setEdit, setViolationMessages });
+  }, [adapter, config, edit, fetchNodeProps, onSaved, panel, writeProxy]);
 
   return { edit, violationMessages, openEdit, cancelEdit, setLabel, setProperty, save, dismissViolations };
+}
+
+interface SaveEditOptions {
+  edit: EditingState;
+  panel: Extract<SidePanelState, { status: "loaded" }>;
+  adapter: RendererAdapter;
+  config: ExplorerConfig;
+  writeProxy: WriteProxyFn;
+  fetchNodeProps: (iri: string, timeoutMs: number) => Promise<FetchNodePropsResult>;
+  onSaved?: () => void;
+  setEdit: (state: PanelEditState) => void;
+  setViolationMessages: (messages: string[]) => void;
+}
+
+/** The commit half of AC-1..AC-4's save flow -- split out of `useEditForm`
+ * to keep it under Law E's 50-line budget. Not a hook itself (no hook calls
+ * inside), just the async body `save`'s `useCallback` delegates to. */
+async function saveEdit({
+  edit,
+  panel,
+  adapter,
+  config,
+  writeProxy,
+  fetchNodeProps,
+  onSaved,
+  setEdit,
+  setViolationMessages,
+}: SaveEditOptions): Promise<void> {
+  const form = formOf(edit);
+
+  // AC-2/AC-3: cheap, synchronous re-check at save time (not just
+  // edit-start) -- narrows the drift window vs. only capturing editBase
+  // once. See draft-head.ts for why this is a local counter, not a real
+  // CE version handle.
+  const head = getDraftHead();
+  if (head !== edit.editBase) {
+    const result = await fetchNodeProps(panel.nodeId, config.ceTimeoutMs);
+    if (result.type === "ok") setEdit({ mode: "conflict", yours: form, server: formValuesFrom(result.data), editBase: head });
+    return;
+  }
+
+  setViolationMessages([]);
+  const result = await commitUpdate({
+    iri: panel.nodeId,
+    properties: { label: form.label, ...form.properties },
+    labelOverride: form.label,
+    adapter,
+    writeProxy,
+    timeoutMs: config.ceTimeoutMs,
+  });
+
+  if (result.status === "ok") {
+    setEdit({ mode: "view" });
+    onSaved?.();
+    return;
+  }
+  if (result.status === "violations") {
+    setViolationMessages(result.messages);
+    setEdit({ mode: "edit", form, editBase: getDraftHead() });
+    return;
+  }
+  setViolationMessages(["Save failed -- retry"]);
+  setEdit({ mode: "edit", form, editBase: edit.editBase });
 }
 
 interface UseDeleteFlowOptions {
