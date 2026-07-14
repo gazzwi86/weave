@@ -39,6 +39,17 @@ const items: ChecklistItem[] = [
     deepLink: "/explorer",
     autoCompleteOn: "tour_complete",
   },
+  // M2 -- competency-question guidance (m2-delta.md §4/§5, OQ-M2-1 amended: manual self-mark,
+  // zero schema change -- CE ships no per-tenant count to auto-clear against).
+  {
+    itemId: "add-competency-questions",
+    paths: ["business", "technical"],
+    phase: "m2",
+    labelKey: "onboarding.checklist.add-competency-questions.label",
+    whyKey: "onboarding.checklist.add-competency-questions.why",
+    deepLink: "/training/declare-competency-questions",
+    autoCompleteOn: "manual",
+  },
 ];
 
 export const CHECKLIST_ITEMS: ChecklistItem[] = items.map((i) => ChecklistItemSchema.parse(i));

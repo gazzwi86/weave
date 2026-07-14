@@ -10,7 +10,8 @@ export type AreaId =
   | "build"
   | "events"
   | "compliance"
-  | "settings";
+  | "settings"
+  | "role-home";
 
 /** Milestone an anchor's owning surface belongs to (descriptive only — ADR-008). */
 export type Phase = "m1" | "m2" | "post-v1";
