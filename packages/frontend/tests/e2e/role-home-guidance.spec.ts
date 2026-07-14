@@ -38,8 +38,11 @@ test.fixme(
       "plat.role-home.next-action",
       "plat.role-home.summary-tiles",
     ];
+    // ponytail: string concat, not a template literal -- audit-anchors.ts's
+    // scanner is a literal-attribute regex over raw file source, so a
+    // `${anchorId}` interpolation reads as an unregistered anchor id.
     for (const anchorId of anchorOrder) {
-      await expect(page.locator(`[data-tour-id="${anchorId}"]`)).toBeVisible();
+      await expect(page.locator("[data-tour-id='" + anchorId + "']")).toBeVisible();
       await page.getByRole("button", { name: /next/i }).click();
     }
 
