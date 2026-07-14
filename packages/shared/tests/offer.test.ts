@@ -19,4 +19,12 @@ describe("isOfferable (AC-001-05, per-anchor gating)", () => {
   it("withholds a tour referencing an anchor missing from the registry", () => {
     expect(isOfferable(["a.one", "not-registered"], registry)).toBe(false);
   });
+
+  it("is vacuously offerable for an overlay declaring zero anchors (edge case -- Array.every on [])", () => {
+    // ponytail note for future readers, not an implementation change: `isOfferable([], registry)`
+    // returns true because `[].every(...)` is vacuously true. An overlay config that forgets to
+    // list its anchors would silently render unconditionally rather than fail closed. Documented
+    // here as a known edge; TASK-002/003/004 authors must not ship a zero-anchor overlay.
+    expect(isOfferable([], registry)).toBe(true);
+  });
 });

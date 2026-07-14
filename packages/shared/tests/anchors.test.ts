@@ -62,3 +62,21 @@ describe("ANCHORS registry", () => {
     expect(anchor.planted_by).toMatch(/^TASK-00[234]$/);
   });
 });
+
+describe("ANCHORS registry -- m2 append-only edge cases", () => {
+  it("the 11 m2-delta anchors are all distinct and none collide with an m1 id (append-only, AC-001-01)", () => {
+    // Edge case: a copy/paste of an m2 entry onto an m1 id, or a duplicate id within the m2 set,
+    // would silently overwrite a registry key (object-literal semantics swallow the collision at
+    // runtime -- TS only catches it for literal duplicate keys in the same object, not across an
+    // appended id vs a pre-existing one referenced via a different variable).
+    const uniqueIds = new Set(M2_ANCHOR_IDS);
+    expect(uniqueIds.size).toBe(M2_ANCHOR_IDS.length);
+
+    const m1Ids = Object.entries(ANCHORS)
+      .filter(([, a]) => a.phase === "m1")
+      .map(([id]) => id);
+    for (const id of M2_ANCHOR_IDS) {
+      expect(m1Ids).not.toContain(id);
+    }
+  });
+});
