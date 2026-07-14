@@ -24,6 +24,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
         ("PUT", "/api/onboarding/dismissals/beacon/b-1", None),
         ("DELETE", "/api/onboarding/dismissals/beacon/b-1", None),
         ("DELETE", "/api/onboarding/dismissals/beacon", None),
+        ("POST", "/api/onboarding/exercises/CE-01/check", {"signals": []}),
         ("POST", "/api/onboarding/checklist/restore", None),
         ("POST", "/api/onboarding/milestones/invite_admin/self-mark", None),
     ],

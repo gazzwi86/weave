@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 RolePathIn = Literal["business", "technical", "compliance", "admin"]
 PathVariantIn = Literal["default", "read_only"]
@@ -124,3 +124,19 @@ class DeletedResponse(BaseModel):
 
 class BulkDeletedResponse(BaseModel):
     deleted_count: int
+
+
+class ExerciseCheckRequest(BaseModel):
+    """TASK-009: client-observed signals this session (nav_signal/
+    canvas_state kinds only -- sparql_ask ignores this, the server runs its
+    own static ASK). Bounded so a caller can't post an unbounded list.
+    """
+
+    signals: list[str] = Field(default_factory=list, max_length=20)
+
+
+class ExerciseCheckResult(BaseModel):
+    exercise_id: str
+    verified: bool
+    verified_signal: str | None = None
+    completed_at: datetime | None = None
