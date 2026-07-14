@@ -23,6 +23,7 @@ from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.notifications.store import NotificationEvent
+from weave_backend.onboarding import scheduler
 from weave_backend.onboarding.outbox_dispatcher import flush_pending
 from weave_backend.onboarding.poller import poll_user, select_pollable_users
 from weave_backend.onboarding.recorder import MilestoneSource, record_milestone
@@ -222,7 +223,7 @@ async def test_notify_outage_retries_then_dispatches_once_on_recovery(platform_s
         raise ConnectionError("PLAT-NOTIFY-1 unavailable")
 
     async with tenant_connection(tenant_id) as conn:
-        dispatched = await flush_pending(conn, notifier=_failing_notifier)
+        dispatched = await flush_pending(conn, tenant_id, notifier=_failing_notifier)
     assert dispatched == 0
 
     async with tenant_connection(tenant_id) as conn:
@@ -239,13 +240,67 @@ async def test_notify_outage_retries_then_dispatches_once_on_recovery(platform_s
     async def _recovered_notifier(conn: object, event: NotificationEvent) -> None:
         recovered_calls.append(event)
 
+    # AC-011-04 backoff: an immediate re-flush must NOT redeliver -- still
+    # inside the backoff window for attempt_count=1.
     async with tenant_connection(tenant_id) as conn:
-        dispatched = await flush_pending(conn, notifier=_recovered_notifier)
+        too_soon = await flush_pending(conn, tenant_id, notifier=_recovered_notifier)
+    assert too_soon == 0
+    assert len(recovered_calls) == 0
+
+    # Fast-forward past the backoff window (simulates real time passing),
+    # then confirm it dispatches exactly once.
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "UPDATE outbox SET created_at = now() - interval '1 hour' "
+            "WHERE tenant_id = $1 AND user_id = $2",
+            tenant_id,
+            user_id,
+        )
+        dispatched = await flush_pending(conn, tenant_id, notifier=_recovered_notifier)
     assert dispatched == 1
     assert len(recovered_calls) == 1
 
     # A later flush must not re-dispatch an already-dispatched row.
     async with tenant_connection(tenant_id) as conn:
-        dispatched_again = await flush_pending(conn, notifier=_recovered_notifier)
+        dispatched_again = await flush_pending(conn, tenant_id, notifier=_recovered_notifier)
     assert dispatched_again == 0
     assert len(recovered_calls) == 1
+
+
+async def test_spawn_dispatcher_drains_a_real_outbox_row(platform_stack: Path) -> None:
+    """AC-011-03/AC-011-06: `scheduler.spawn_dispatcher()` (the real startup
+    call chain, see `weave_backend/__init__.py`) must actually run
+    `flush_pending` -- not just have it unit-tested and never invoked.
+    """
+    tenant_id = _unique_tenant("onb-dispatch")
+    user_id = human_principal_iri("u-dispatch")
+    # _flush_all_tenants finds tenants via `SELECT DISTINCT tenant_id FROM
+    # onboarding_state` -- without a row there, this tenant is invisible to
+    # the real dispatcher loop no matter how long we wait.
+    await _seed_onboarding_row(tenant_id, user_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        won = await record_milestone(
+            conn, tenant_id=tenant_id, user_id=user_id, milestone_id=_MILESTONE, source="poll"
+        )
+    assert won is True
+
+    original_interval = scheduler.DISPATCH_INTERVAL_SECONDS
+    scheduler.DISPATCH_INTERVAL_SECONDS = 0.05
+    task = scheduler.spawn_dispatcher()
+    try:
+        for _ in range(100):  # up to ~5s of real dispatcher cycles
+            async with tenant_connection(tenant_id) as conn:
+                row = await conn.fetchrow(
+                    "SELECT dispatched_at FROM outbox WHERE tenant_id = $1 AND user_id = $2",
+                    tenant_id,
+                    user_id,
+                )
+            if row is not None and row["dispatched_at"] is not None:
+                break
+            await asyncio.sleep(0.05)
+        else:
+            pytest.fail("spawn_dispatcher never drained the outbox row")
+    finally:
+        scheduler.DISPATCH_INTERVAL_SECONDS = original_interval
+        task.cancel()

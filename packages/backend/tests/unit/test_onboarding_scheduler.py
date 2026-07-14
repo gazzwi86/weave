@@ -135,6 +135,109 @@ async def test_run_forever_survives_a_cycle_that_raises(monkeypatch: pytest.Monk
         await scheduler._run_forever()  # the exception from _boom must not propagate
 
 
+def _patch_tenants_and_flush(
+    monkeypatch: pytest.MonkeyPatch, tenant_ids: list[str]
+) -> list[str]:
+    """Same fake connection plumbing as `_patch_tenants_and_users`, for the
+    dispatcher's `_flush_all_tenants` loop instead of the poller's.
+    """
+    flushed: list[str] = []
+
+    class _Ctx:
+        def __init__(self, conn: _FakeConn) -> None:
+            self._conn = conn
+
+        async def __aenter__(self) -> _FakeConn:
+            return self._conn
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+    async def _distinct_tenant_ids(conn: _FakeConn) -> list[str]:
+        return tenant_ids
+
+    async def _flush_pending(conn: _FakeConn, tenant_id: str) -> int:
+        flushed.append(tenant_id)
+        return 0
+
+    monkeypatch.setattr(
+        scheduler, "untenanted_connection", lambda: _Ctx(_FakeConn(tenant_id="__u__"))
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "tenant_connection",
+        lambda tenant_id: _Ctx(_FakeConn(tenant_id=tenant_id)),
+    )
+    monkeypatch.setattr(scheduler, "_fetch_tenant_ids", _distinct_tenant_ids)
+    monkeypatch.setattr(scheduler, "flush_pending", _flush_pending)
+    return flushed
+
+
+async def test_flush_all_tenants_drains_every_tenants_outbox(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flushed = _patch_tenants_and_flush(monkeypatch, [_TENANT_A, _TENANT_B])
+
+    await scheduler._flush_all_tenants()
+
+    assert flushed == [_TENANT_A, _TENANT_B]
+
+
+async def test_dispatch_run_forever_sleeps_the_dispatch_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_tenants_and_flush(monkeypatch, [])
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(asyncio, "sleep", _sleep)
+
+    with pytest.raises(asyncio.CancelledError):
+        await scheduler._dispatch_run_forever()
+
+    assert sleeps == [scheduler.DISPATCH_INTERVAL_SECONDS]
+
+
+async def test_dispatch_run_forever_survives_a_cycle_that_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _boom() -> None:
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(scheduler, "_flush_all_tenants", _boom)
+
+    async def _sleep(seconds: float) -> None:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(asyncio, "sleep", _sleep)
+
+    with pytest.raises(asyncio.CancelledError):
+        await scheduler._dispatch_run_forever()
+
+
+async def test_spawn_dispatcher_adds_and_discards_the_task(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ran = asyncio.Event()
+
+    async def _fake_dispatch_run_forever() -> None:
+        ran.set()
+
+    monkeypatch.setattr(scheduler, "_dispatch_run_forever", _fake_dispatch_run_forever)
+
+    task = scheduler.spawn_dispatcher()
+    assert task in scheduler._background_tasks
+
+    await ran.wait()
+    await task
+    await asyncio.sleep(0)
+
+    assert task not in scheduler._background_tasks
+
+
 async def test_spawn_scheduler_adds_and_discards_the_task(monkeypatch: pytest.MonkeyPatch) -> None:
     """Real lifecycle proof for the strong-ref-set pattern: `spawn_scheduler`
     must hold the task in `_background_tasks` while it runs and release it

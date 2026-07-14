@@ -1,5 +1,6 @@
-"""ONB-TASK-011: the real recurring entrypoint for `poller.py`. Without this,
-`select_pollable_users`/`poll_user` are dead code -- nothing invokes them.
+"""ONB-TASK-011: the real recurring entrypoint for `poller.py` and
+`outbox_dispatcher.py`. Without this, `select_pollable_users`/`poll_user`
+and `flush_pending` are dead code -- nothing invokes them.
 
 Reuses two existing patterns rather than inventing scheduling infra:
 - the fire-and-forget strong-ref task pattern from `billing/metering.py`'s
@@ -21,6 +22,7 @@ import logging
 import asyncpg
 
 from weave_backend.db.pool import tenant_connection, untenanted_connection
+from weave_backend.onboarding.outbox_dispatcher import flush_pending
 from weave_backend.onboarding.poller import (
     DEFAULT_POLL_INTERVAL_SECONDS,
     poll_user,
@@ -28,6 +30,10 @@ from weave_backend.onboarding.poller import (
 )
 
 log = logging.getLogger(__name__)
+
+# Dispatcher drains more often than the poller scans -- notify latency
+# should be much tighter than "did the user hit a milestone" latency.
+DISPATCH_INTERVAL_SECONDS: float = 30
 
 _background_tasks: set[asyncio.Task[None]] = set()
 
@@ -42,6 +48,17 @@ def spawn_scheduler() -> asyncio.Task[None]:
     return task
 
 
+def spawn_dispatcher() -> asyncio.Task[None]:
+    """Call once from app startup, alongside `spawn_scheduler`. Same
+    fire-and-forget strong-ref pattern; drains the outbox `flush_pending`
+    writes into instead of polling for new milestones.
+    """
+    task = asyncio.create_task(_dispatch_run_forever())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
+
 async def _run_forever() -> None:
     while True:
         try:
@@ -51,8 +68,23 @@ async def _run_forever() -> None:
         await asyncio.sleep(DEFAULT_POLL_INTERVAL_SECONDS)
 
 
+async def _dispatch_run_forever() -> None:
+    while True:
+        try:
+            await _flush_all_tenants()
+        except Exception:
+            log.exception("onboarding dispatcher: flush cycle failed, retrying next interval")
+        await asyncio.sleep(DISPATCH_INTERVAL_SECONDS)
+
+
 async def _fetch_tenant_ids(conn: asyncpg.Connection) -> list[str]:
-    rows = await conn.fetch("SELECT DISTINCT tenant_id FROM onboarding_state")
+    # `onboarding_state` FORCEs RLS (0082) -- a plain SELECT on this
+    # untenanted connection (app.tenant_id deliberately unset, see module
+    # docstring) returns zero rows always. `list_pollable_tenants()` (0084)
+    # is a narrow SECURITY DEFINER function that bypasses RLS for this one
+    # cross-tenant "list the tenants" lookup, same pattern as
+    # `resolve_workspace_tenant` (0002_identity.sql).
+    rows = await conn.fetch("SELECT tenant_id FROM list_pollable_tenants()")
     return [str(row["tenant_id"]) for row in rows]
 
 
@@ -64,3 +96,12 @@ async def _poll_all_tenants() -> None:
         async with tenant_connection(tenant_id) as conn:
             for user in await select_pollable_users(conn, tenant_id):
                 await poll_user(conn, user)
+
+
+async def _flush_all_tenants() -> None:
+    async with untenanted_connection() as conn:
+        tenant_ids = await _fetch_tenant_ids(conn)
+
+    for tenant_id in tenant_ids:
+        async with tenant_connection(tenant_id) as conn:
+            await flush_pending(conn, tenant_id)

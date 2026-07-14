@@ -70,16 +70,27 @@ class FakeConn:
         self._next_id += 1
 
     async def fetch(self, query: str, *args: Any) -> list[_Row]:
-        return [r for r in self.rows if r.dispatched_at is None]
+        # ponytail: models the tenant + max-attempts filter from the real
+        # WHERE clause, not the time-based backoff window -- that needs
+        # real wall-clock control, covered by the real-Postgres integration
+        # test instead.
+        tenant_id, max_attempts, _base_seconds, _max_seconds = args
+        return [
+            r
+            for r in self.rows
+            if r.dispatched_at is None
+            and r.tenant_id == tenant_id
+            and r.attempt_count < max_attempts
+        ]
 
     async def fetchrow(self, query: str, *args: Any) -> _Row | None:
         if query.strip().startswith("UPDATE outbox SET dispatched_at"):
             # Replaces the list entry (rather than mutating in place) so a
             # transaction rollback -- which restores the old row list -- also
             # undoes this claim, mirroring real Postgres UPDATE rollback.
-            (row_id,) = args
+            row_id, tenant_id = args
             for i, row in enumerate(self.rows):
-                if row.id == row_id and row.dispatched_at is None:
+                if row.id == row_id and row.tenant_id == tenant_id and row.dispatched_at is None:
                     claimed = replace(row, dispatched_at=datetime.now(UTC))
                     self.rows[i] = claimed
                     return claimed
@@ -88,9 +99,9 @@ class FakeConn:
 
     async def execute(self, query: str, *args: Any) -> None:
         if query.strip().startswith("UPDATE outbox SET attempt_count"):
-            (row_id,) = args
+            row_id, tenant_id = args
             for row in self.rows:
-                if row.id == row_id:
+                if row.id == row_id and row.tenant_id == tenant_id:
                     row.attempt_count += 1
             return
         raise AssertionError(f"unexpected execute: {query}")
@@ -101,7 +112,7 @@ async def test_flush_pending_dispatches_and_marks_delivered() -> None:
     conn.add_row("t1", "urn:weave:principal:user:u1", "first_committed_entity")
     notifier = AsyncMock()
 
-    delivered = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
 
     assert delivered == 1
     notifier.assert_called_once()
@@ -113,7 +124,7 @@ async def test_flush_pending_bumps_attempt_count_on_notify_failure() -> None:
     conn.add_row("t1", "urn:weave:principal:user:u1", "first_committed_entity")
     notifier = AsyncMock(side_effect=ConnectionError("notify unavailable"))
 
-    delivered = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
 
     assert delivered == 0
     assert conn.rows[0].dispatched_at is None  # never marked delivered
@@ -125,8 +136,8 @@ async def test_flush_pending_retries_on_next_call_after_failure() -> None:
     conn.add_row("t1", "urn:weave:principal:user:u1", "first_committed_entity")
     notifier = AsyncMock(side_effect=[ConnectionError("transient"), None])
 
-    first = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
-    second = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
+    first = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
+    second = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
 
     assert first == 0
     assert second == 1
@@ -139,7 +150,7 @@ async def test_flush_pending_does_not_let_one_failure_block_the_rest() -> None:
     conn.add_row("t1", "urn:weave:principal:user:u2", "first_committed_entity")
     notifier = AsyncMock(side_effect=[ConnectionError("transient"), None])
 
-    delivered = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
 
     assert delivered == 1
     dispatched = [r for r in conn.rows if r.dispatched_at is not None]
@@ -152,7 +163,33 @@ async def test_flush_pending_skips_a_row_already_claimed_concurrently() -> None:
     conn.rows[0].dispatched_at = datetime.now(UTC)  # a concurrent flush already claimed it
     notifier = AsyncMock()
 
-    delivered = await outbox_dispatcher.flush_pending(conn, notifier=notifier)
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
 
     assert delivered == 0
     notifier.assert_not_called()
+
+
+async def test_flush_pending_never_dispatches_another_tenants_row() -> None:
+    # Defense-in-depth: even if RLS silently failed to scope the fetch, the
+    # explicit tenant_id filter must still stop a cross-tenant leak.
+    conn = FakeConn()
+    conn.add_row("other-tenant", "urn:weave:principal:user:u1", "first_committed_entity")
+    notifier = AsyncMock()
+
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
+
+    assert delivered == 0
+    notifier.assert_not_called()
+    assert conn.rows[0].dispatched_at is None
+
+
+async def test_flush_pending_gives_up_after_max_attempts() -> None:
+    conn = FakeConn()
+    conn.add_row("t1", "urn:weave:principal:user:u1", "first_committed_entity")
+    conn.rows[0].attempt_count = outbox_dispatcher.MAX_ATTEMPTS
+    notifier = AsyncMock()
+
+    delivered = await outbox_dispatcher.flush_pending(conn, "t1", notifier=notifier)
+
+    assert delivered == 0
+    notifier.assert_not_called()  # dead-lettered, not retried at hammer speed
