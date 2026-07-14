@@ -12,7 +12,24 @@ from pathlib import Path
 import pytest
 import yaml
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from `start` until a repo-root marker is found.
+
+    A fixed `parents[N]` index breaks under mutmut, which copies this test
+    tree into a `mutants/` subdirectory -- shifting every ancestor by one
+    level and landing `parents[4]` on `packages/backend` instead of the real
+    repo root. Walking up to a marker (`.github/workflows/ci.yml` or `.git`)
+    is robust to that extra path segment.
+    """
+    for candidate in (start, *start.parents):
+        ci_marker = candidate / ".github" / "workflows" / "ci.yml"
+        if ci_marker.exists() or (candidate / ".git").exists():
+            return candidate
+    raise RuntimeError(f"no repo root found walking up from {start}")
+
+
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
 _CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
 _GATE_JOBS = ("axe-m2", "lighthouse-explorer", "perf-m2", "invariants-check")
 

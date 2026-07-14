@@ -33,9 +33,9 @@ INVARIANTS_MD = (
 )
 _TEST_NAME = re.compile(r"`(test_[a-zA-Z0-9_]+)`")
 _PATH_TOKEN = re.compile(r"`([\w./-]+\.(?:py|ts|tsx|sql|yml|yaml))`")
-_GREP_PATTERN_QUOTED = re.compile(r"grep(?:\s+-\w+)*\s+\"([^\"]+)\"")
+_GREP_PATTERN_QUOTED = re.compile(r"grep((?:\s+-\w+)*)\s+\"([^\"]+)\"")
 # `grep word` with no quotes at all (e.g. `` `grep principal_iri` ``).
-_GREP_PATTERN_BARE = re.compile(r"`grep(?:\s+-\w+)*\s+([A-Za-z_][\w.]*)`")
+_GREP_PATTERN_BARE = re.compile(r"`grep((?:\s+-\w+)*)\s+([A-Za-z_][\w.]*)`")
 _PROSE_TEST = re.compile(r"conformance test\s+`([^`]+)`")
 # Default scan root for a `verify-by:` pattern that names no explicit path
 # (e.g. "grep -r \"amazonaws.com\" in test code") -- whole source tree,
@@ -66,22 +66,30 @@ def _test_defined_literal(name: str) -> bool:
     return bool(result.stdout.strip())
 
 
-def _grep_hits(paths: list[str], pattern: str) -> int:
+def _grep_flag(flags: str) -> str:
+    """`-r` always; add `-E` only when the spec bullet itself asked for it
+    (e.g. `` `grep -riE "..."` ``) -- blanket `-E` breaks patterns that rely
+    on literal parens (e.g. `set_config('app.current_tenant_id'`), so this
+    must be per-bullet, not global."""
+    return "-rE" if "E" in flags else "-r"
+
+
+def _grep_hits(paths: list[str], pattern: str, flags: str = "") -> int:
     """Hit count for `pattern` across `paths` (files/dirs), or the whole
     `packages` tree when `paths` is empty -- a `verify-by:` grep with no
     explicit path token still has to run *somewhere*, never silently skip
     (that was the AC-5 gate hole: hits defaulted to 0 and never failed)."""
     targets = [str(REPO_ROOT / p) for p in paths] if paths else [str(REPO_ROOT / "packages")]
-    cmd = ["grep", "-r", *_EXCLUDE_ARGS, pattern, *targets]
+    cmd = ["grep", _grep_flag(flags), *_EXCLUDE_ARGS, pattern, *targets]
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     return len(result.stdout.splitlines())
 
 
-def _grep_hits_excluding(pattern: str, exclude_path: str) -> int:
+def _grep_hits_excluding(pattern: str, exclude_path: str, flags: str = "") -> int:
     """Repo-wide (`packages`) hit count for `pattern`, minus any hit inside
     `exclude_path` -- the "X outside `path`" verify-by shape."""
     result = subprocess.run(
-        ["grep", "-r", *_EXCLUDE_ARGS, pattern, "packages"],
+        ["grep", _grep_flag(flags), *_EXCLUDE_ARGS, pattern, "packages"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -106,13 +114,13 @@ def _check_names(paths: list[str], tests: list[str], prose_tests: list[str]) -> 
 
 
 def _check_pattern(
-    pattern: str, paths: list[str], line: str, outside_path: str | None
+    pattern: str, paths: list[str], line: str, outside_path: str | None, flags: str = ""
 ) -> list[str]:
     """One grep-pattern check, in whichever of the three verify-by shapes
     the bullet uses (plain / "outside `path`" / "... in each")."""
     must_be_empty = "must be empty" in line or "must be absent" in line
     if outside_path:
-        hits = _grep_hits_excluding(pattern, outside_path)
+        hits = _grep_hits_excluding(pattern, outside_path, flags)
         if must_be_empty and hits > 0:
             return [f"pattern '{pattern}' should be absent outside {outside_path}: {hits} hit(s)"]
         return []
@@ -120,9 +128,9 @@ def _check_pattern(
         return [
             f"pattern '{pattern}' not found in {path} (required in each)"
             for path in paths
-            if _grep_hits([path], pattern) == 0
+            if _grep_hits([path], pattern, flags) == 0
         ]
-    hits = _grep_hits(paths, pattern)
+    hits = _grep_hits(paths, pattern, flags)
     if must_be_empty and hits > 0:
         return [f"pattern '{pattern}' should be absent, found {hits} hit(s)"]
     if not must_be_empty and hits == 0:
@@ -134,15 +142,15 @@ def _check_line(line: str) -> dict[str, object]:
     paths = _PATH_TOKEN.findall(line)
     tests = _TEST_NAME.findall(line)
     prose_tests = _PROSE_TEST.findall(line)
-    patterns = _GREP_PATTERN_QUOTED.findall(line) + _GREP_PATTERN_BARE.findall(line)
+    pattern_matches = _GREP_PATTERN_QUOTED.findall(line) + _GREP_PATTERN_BARE.findall(line)
     outside_match = re.search(r"outside\s+`([^`]+)`", line)
     outside_path = outside_match.group(1) if outside_match else None
 
     findings = _check_names(paths, tests, prose_tests)
-    for pattern in patterns:
-        findings += _check_pattern(pattern, paths, line, outside_path)
+    for flags, pattern in pattern_matches:
+        findings += _check_pattern(pattern, paths, line, outside_path, flags)
 
-    if not (paths or tests or prose_tests or patterns):
+    if not (paths or tests or prose_tests or pattern_matches):
         findings.append("unparseable invariant -- no check executed (fail-closed)")
 
     return {"ok": not findings, "findings": findings, "paths": paths, "tests": tests + prose_tests}
