@@ -42,7 +42,9 @@ function writeProxyReturning(result: WriteProxyResult): WriteProxyFn {
 // AC-4: 422 SHACL rejection rolls the optimistic node back and hands the
 // caller a humanised (not raw-JSON) violation message.
 describe("commitOp -- AC-4 422 rollback", () => {
-  it("removes the optimistic node and calls onShaclViolations with humanised text on 422", async () => {
+  // removes the optimistic node and calls onShaclViolations with humanised
+  // text on 422 -- invariants-explorer.md M2 delta
+  it("test_add_node_rollback_on_422", async () => {
     const adapter = fakeAdapter({ getNodeData: vi.fn(() => ({ label: "New process", bpmoKind: "Process" })) });
     const writeProxy = writeProxyReturning({
       status: 422,
@@ -255,7 +257,9 @@ describe("commitDelete", () => {
     expect(getDraftHead()).toBe(1);
   });
 
-  it("removes nothing from the canvas on failure -- no phantom removal (AC-7)", async () => {
+  // removes nothing from the canvas on failure -- no phantom removal (AC-7)
+  // -- invariants-explorer.md M2 delta
+  it("test_delete_rollback_on_failure", async () => {
     const adapter = fakeAdapter();
     const ops = buildDeleteOps("urn:node:1", []);
     const writeProxy = writeProxyReturning({ status: 0, body: null });

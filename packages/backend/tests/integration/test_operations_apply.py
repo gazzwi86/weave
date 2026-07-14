@@ -374,6 +374,33 @@ async def test_expired_jwt_returns_401(client: AsyncClient) -> None:
     assert response.status_code == 401
 
 
+async def test_edit_rejected_without_principal_claim(client: AsyncClient) -> None:
+    """TASK-030 AC-5 / ADR-019: a token minted without the principal_iri
+    claim must reject the edit (401), never fall through to a raw KeyError.
+    """
+    now = int(time.time())
+    claims_without_principal_iri = {
+        "sub": "u-no-principal",
+        "tenant_id": "tenant-no-principal",
+        "principal_type": "human",
+        "iss": ISSUER,
+        "aud": "weave-dev",
+        "iat": now,
+        "exp": now + 300,
+    }
+    token = jwt.encode(
+        claims_without_principal_iri, PRIVATE_KEY, algorithm="RS256", headers={"kid": KEY_ID}
+    )
+
+    response = await client.post(
+        "/api/operations/apply",
+        json={"operations": _valid_operations(), "actor": "urn:weave:principal:test-actor"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == {"error": "missing_principal_claim"}
+
+
 async def test_read_only_role_gets_403_not_write_access(
     client: AsyncClient, platform_stack: Path
 ) -> None:
@@ -482,7 +509,7 @@ async def test_malformed_target_string_still_returns_400_no_audit(
     assert rows == []
 
 
-async def test_recorded_actor_is_the_authenticated_principal_even_when_body_names_someone_else(
+async def test_spoofed_actor_body_rejected(
     client: AsyncClient, platform_stack: Path
 ) -> None:
     """PR #20 finding 1: `actor` in the request body is client-supplied and
