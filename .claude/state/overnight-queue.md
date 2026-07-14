@@ -534,3 +534,8 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 - #92 (ONB-011): re-review found 3 Blockers (dispatcher never scheduled; flush_pending + attempt_count UPDATE relied on RLS only). ALL fixed. **Critical extra find:** onboarding_state FORCEs RLS → untenanted tenant-listing returned zero rows → poller+dispatcher DEAD in prod. Fixed via migration 0084 (SECURITY DEFINER list-pollable-tenants). Saved memory reference_force-rls-cross-tenant-listing. Re-review in flight.
 - #93 (PLAT-014/015 full EPIC-001) opened, reviewer running.
 - #91 (PLAT-024) lane finishing CE-METRICS-1 2nd-leak + cursor-aged-out test fix (integration CI was red).
+
+## 2026-07-14 — semgrep --config auto ruleset drift (phase-gate item)
+- #93 CI semgrep FAILED on 2 `python.lang.security.audit.sqli.asyncpg-sqli` findings in dashboard/store.py — FALSE POSITIVE (fully parameterized $1-$4; rule trips on implicit adjacent-string-literal concatenation in the SQL arg). Fixing by collapsing split literals to single strings (no suppression).
+- ROOT RISK: CI uses `semgrep scan --config auto --error` = latest registry rules (608 today), which DRIFT. Split-literal SQL is common in this codebase → this FP can recur on any PR touching such queries. PHASE-GATE: consider pinning the semgrep ruleset (vendored config) instead of `--config auto`, OR a repo-wide sweep collapsing split-literal execute()/fetch() SQL. Harness-touching (ci.yml) → HITL.
+- #92 re-review round 2: 3 Blockers — scheduler per-tenant/per-user loops not fault-isolated (one bad tenant/user kills cycle). Fix in flight.
