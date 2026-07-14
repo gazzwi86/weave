@@ -18,7 +18,9 @@ import {
 } from "../../../shared/onboarding/derive-checklist";
 
 interface BootstrapState {
+  role_path: "business" | "technical" | "compliance" | "admin";
   checklist_dismissed_at: string | null;
+  checklist_completed_at: string | null;
   checklist_auto_dismiss_days: number;
   sandbox_workspace_id: string | null;
   sandbox_forked_at: string | null;
@@ -147,18 +149,6 @@ function ItemRow({
 // the backend's MANUAL_ONLY_MILESTONE_IDS -- only invite-admin ships in M1).
 const SELF_MARK_MILESTONE_ID: Record<string, string> = { "invite-admin": "invite_admin" };
 
-// ponytail: falls back to "now" when no completion timestamp is derivable --
-// the auto-dismiss window then starts counting from this render, not from
-// the true completion moment.
-function completionAnchor(state: BootstrapState): string {
-  const completedAt = state.tours
-    .map((tour) => tour.completed_at)
-    .filter((v): v is string => v !== null)
-    .sort()
-    .at(-1);
-  return completedAt ?? new Date().toISOString();
-}
-
 /** TASK-010: Platform Dashboard checklist widget. Derives completion from
  * bootstrap signals (AC-010-02), shows locked/manual items (AC-010-03),
  * celebrates + auto-dismisses at 100% (AC-010-04), and persists/restores
@@ -185,18 +175,39 @@ export function ChecklistWidget(): React.JSX.Element | null {
     await refresh();
   }, [refresh]);
 
+  // XT-ONB010-1: records the true completion moment once, server-side, so
+  // the auto-dismiss window anchors on it (not on tour completion, which
+  // can predate finishing the whole checklist).
+  const handleMarkCompleted = useCallback(async () => {
+    await fetch("/api/onboarding/state", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ checklist_completed_at: new Date().toISOString() }),
+    });
+    await refresh();
+  }, [refresh]);
+
   // ponytail: skip derivation once dismissed -- a dismissed bootstrap
   // payload isn't guaranteed to carry the full signal shape.
+  // AC-010-01: only the items configured for this user's role_path.
   const derived =
-    state && !state.checklist_dismissed_at ? deriveChecklist(CHECKLIST_ITEMS, toSignals(state)) : null;
+    state && !state.checklist_dismissed_at
+      ? deriveChecklist(
+          CHECKLIST_ITEMS.filter((item) => item.paths.includes(state.role_path)),
+          toSignals(state)
+        )
+      : null;
 
   useEffect(() => {
     if (!state || !derived || state.checklist_dismissed_at || !derived.allComplete) return;
-    const anchor = completionAnchor(state);
-    if (shouldAutoDismiss(anchor, new Date(), state.checklist_auto_dismiss_days)) {
+    if (!state.checklist_completed_at) {
+      void handleMarkCompleted();
+      return;
+    }
+    if (shouldAutoDismiss(state.checklist_completed_at, new Date(), state.checklist_auto_dismiss_days)) {
       void handleDismiss();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per state change, handleDismiss is stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per state change, handlers are stable
   }, [state, derived]);
 
   if (loading || !state || !derived || state.checklist_dismissed_at) return null;

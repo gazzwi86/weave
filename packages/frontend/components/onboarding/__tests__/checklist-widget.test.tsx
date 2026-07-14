@@ -10,6 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const baseState = {
+  role_path: "business",
   checklist_dismissed_at: null,
   checklist_completed_at: null,
   checklist_auto_dismiss_days: 7,
@@ -58,7 +59,7 @@ describe("ChecklistWidget (TASK-010)", () => {
   });
 
   it("AC-010-03: a locked item shows its prerequisite note and a disabled link", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(baseState)));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ ...baseState, role_path: "admin" })));
 
     render(<ChecklistWidget />);
 
@@ -72,11 +73,12 @@ describe("ChecklistWidget (TASK-010)", () => {
   it("AC-010-03: Admin-invite shows a pending badge and a self-mark button that POSTs", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse(baseState))
+      .mockResolvedValueOnce(jsonResponse({ ...baseState, role_path: "admin" }))
       .mockResolvedValueOnce(jsonResponse({ marked: true }))
       .mockResolvedValueOnce(
         jsonResponse({
           ...baseState,
+          role_path: "admin",
           activations: [{ milestone_id: "invite_admin", source: "manual", activated_at: "2026-07-14T00:00:00Z" }],
         })
       );
