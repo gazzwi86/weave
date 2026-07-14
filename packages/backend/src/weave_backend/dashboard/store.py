@@ -88,8 +88,7 @@ async def ensure_user_starters(
     backstop for two parallel first-loads (implementation hint).
     """
     existing = await conn.fetchval(
-        "SELECT 1 FROM widget_instances WHERE tenant_id = $1 AND scope = 'user'"
-        " AND owner_principal_iri = $2 LIMIT 1",
+        "SELECT 1 FROM widget_instances WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2 LIMIT 1",  # noqa: E501
         tenant_id,
         owner_principal_iri,
     )
@@ -111,24 +110,63 @@ async def ensure_user_starters(
         )
 
 
+#: TASK-017 (m2-delta.md §7, brief pseudocode): one placeholder spec, the
+#: route composes its own payload rather than rendering this generically --
+#: `bindings`/`component_type` here are markers only, never consumed by a
+#: generic widget renderer.
+_ROLE_HOME_TILE_SPEC = WidgetSpec(
+    component_type="table",
+    title="Role home snapshot",
+    data_source_contracts=["CE-METRICS-1", "CE-READ-1"],
+    bindings={"field": "role_home_snapshot"},
+    column_span=12,
+)
+
+
+async def ensure_role_home_tile(conn: asyncpg.Connection, *, tenant_id: str) -> None:
+    """AC-5: one `scope='role_home'` row per tenant -- the SWR cache
+    role-home's degradation rides, same idempotent-insert pattern as
+    `ensure_user_starters` above. Tenant-wide, not per-user: the cached
+    payload is tenant-scoped CE data (ontology health/completeness);
+    role-specific filtering happens in the response builder, not the
+    stored row. `widget_instances_check1` (0071_widget_state.sql) requires
+    `owner_principal_iri IS NULL` for any scope other than `user`, so this
+    follows `tenant_default`'s existing NULL-owner pattern rather than
+    widening that constraint.
+    """
+    await conn.execute(
+        """
+        INSERT INTO widget_instances (tenant_id, scope, spec, "position")
+        VALUES ($1, 'role_home', $2::jsonb, 0)
+        ON CONFLICT (tenant_id, scope, COALESCE(owner_principal_iri, ''), "position")
+        DO NOTHING
+        """,
+        tenant_id,
+        _ROLE_HOME_TILE_SPEC.model_dump_json(),
+    )
+
+
+#: `scope='user'` rows are the only owner-scoped rows -- `role_home` (like
+#: `tenant_default`) is a tenant-wide singleton with no owner filter.
+_OWNER_SCOPED_SCOPES = ("user",)
+
+
 async def list_widgets(
     conn: asyncpg.Connection, *, tenant_id: str, scope: str, owner_principal_iri: str | None
 ) -> list[WidgetRow]:
     """AC-6: pure SWR read -- returns whatever is already stored, no
     upstream CE call.
     """
-    if scope == "user":
+    if scope in _OWNER_SCOPED_SCOPES:
         rows = await conn.fetch(
-            "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            ' AND owner_principal_iri = $3 ORDER BY "position"',
+            'SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2 AND owner_principal_iri = $3 ORDER BY "position"',  # noqa: E501
             tenant_id,
             scope,
             owner_principal_iri,
         )
     else:
         rows = await conn.fetch(
-            "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            ' ORDER BY "position"',
+            'SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2 ORDER BY "position"',  # noqa: E501
             tenant_id,
             scope,
         )
@@ -195,8 +233,7 @@ async def insert_generated_widget(
     Upgrade path: `SELECT ... FOR UPDATE` if that shows up in practice.
     """
     position = await conn.fetchval(
-        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances'
-        " WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2",
+        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances WHERE tenant_id = $1 AND scope = \'user\' AND owner_principal_iri = $2',  # noqa: E501
         tenant_id,
         owner_principal_iri,
     )
@@ -235,6 +272,63 @@ async def update_widget_component_type(
     return bool(result != "UPDATE 0")
 
 
+async def pin_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:
+    """TASK-014 AC-1/AC-6 (ADR-021): pin acts on an already-persisted
+    `scope='user'` row (generate.py already inserts it) -- clears
+    `suggested` so a starter/suggested tile becomes a genuine pin. Returns
+    `False` if the row doesn't exist (caller 404s); a no-op update (already
+    unsuggested) still returns `True`.
+    """
+    result: str = await conn.execute(
+        "UPDATE widget_instances SET suggested = false, updated_at = now() WHERE tenant_id = $1 AND id = $2",  # noqa: E501
+        tenant_id,
+        widget_id,
+    )
+    return bool(result != "UPDATE 0")
+
+
+async def reorder_widgets(
+    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str, ids_in_order: list[str]
+) -> int:
+    """TASK-014 AC-5: batch reorder -- one PATCH, one audit entry (caller's
+    responsibility). Only touches rows owned by this user; an id that
+    doesn't belong to the caller (wrong tenant, wrong owner, or simply
+    unknown) is silently skipped rather than erroring the whole batch --
+    the returned count is the "updated" figure the route reports.
+
+    Positions are offset by a large constant first so the final pass never
+    collides with the unique `(tenant_id, scope, owner, position)` index
+    while ids are mid-reassignment within the same statement batch.
+    """
+    offset = len(ids_in_order) + 1000
+    for index, widget_id in enumerate(ids_in_order):
+        # False positive: fully parameterized ($1-$4), no user input concatenated;
+        # semgrep mis-flags the quoted "position" column name as concatenation.
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+        await conn.execute(
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now() WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",  # noqa: E501
+            tenant_id,
+            widget_id,
+            offset + index,
+            owner_principal_iri,
+        )
+    updated = 0
+    for index, widget_id in enumerate(ids_in_order):
+        # False positive: fully parameterized ($1-$4), no user input concatenated;
+        # semgrep mis-flags the quoted "position" column name as concatenation.
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+        result: str = await conn.execute(
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now() WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",  # noqa: E501
+            tenant_id,
+            widget_id,
+            index,
+            owner_principal_iri,
+        )
+        if result != "UPDATE 0":
+            updated += 1
+    return updated
+
+
 async def delete_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str) -> bool:
     """AC-8: starter removal / unpin. User-scope + owner-only is enforced by
     the caller (router checks ``owner_principal_iri`` before calling this).
@@ -245,6 +339,114 @@ async def delete_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: 
         widget_id,
     )
     return bool(result != "DELETE 0")
+
+
+@dataclass(frozen=True)
+class LibraryItemRow:
+    id: str
+    name: str
+    description: str | None
+    author_principal_iri: str
+    published_at: datetime
+    spec: WidgetSpec
+
+
+def _row_to_library_item(row: asyncpg.Record) -> LibraryItemRow:
+    spec_raw = row["spec"]
+    spec = (
+        WidgetSpec.model_validate_json(spec_raw)
+        if isinstance(spec_raw, str)
+        else WidgetSpec.model_validate(spec_raw)
+    )
+    return LibraryItemRow(
+        id=str(row["id"]),
+        name=row["name"],
+        description=row["description"],
+        author_principal_iri=row["author_principal_iri"],
+        published_at=row["published_at"],
+        spec=spec,
+    )
+
+
+@dataclass(frozen=True)
+class PublishInput:
+    """Bundled so `publish_widget` stays under the 5-param complexity cap."""
+
+    name: str
+    description: str | None
+    spec: WidgetSpec
+    author_principal_iri: str
+
+
+async def publish_widget(
+    conn: asyncpg.Connection, *, tenant_id: str, publish: PublishInput
+) -> LibraryItemRow:
+    """TASK-015 AC-1: `spec` is a snapshot copy of the source widget's spec
+    at publish time -- the library item never references the source row, so
+    the source widget's later refinement can't retroactively change it
+    (ADR-014, E1-S5 independent-copy semantics).
+    """
+    row = await conn.fetchrow(
+        """
+        INSERT INTO widget_library_items
+            (tenant_id, name, description, spec, author_principal_iri)
+        VALUES ($1, $2, $3, $4::jsonb, $5)
+        RETURNING id, name, description, author_principal_iri, published_at, spec
+        """,
+        tenant_id,
+        publish.name,
+        publish.description,
+        publish.spec.model_dump_json(),
+        publish.author_principal_iri,
+    )
+    return _row_to_library_item(row)
+
+
+async def list_library_items(conn: asyncpg.Connection, *, tenant_id: str) -> list[LibraryItemRow]:
+    rows = await conn.fetch(
+        "SELECT id, name, description, author_principal_iri, published_at, spec FROM widget_library_items WHERE tenant_id = $1 ORDER BY published_at DESC",  # noqa: E501
+        tenant_id,
+    )
+    return [_row_to_library_item(row) for row in rows]
+
+
+async def get_library_item(
+    conn: asyncpg.Connection, *, tenant_id: str, item_id: str
+) -> LibraryItemRow | None:
+    row = await conn.fetchrow(
+        "SELECT id, name, description, author_principal_iri, published_at, spec FROM widget_library_items WHERE tenant_id = $1 AND id = $2",  # noqa: E501
+        tenant_id,
+        item_id,
+    )
+    return _row_to_library_item(row) if row is not None else None
+
+
+async def add_library_item(
+    conn: asyncpg.Connection, *, tenant_id: str, owner_principal_iri: str, item: LibraryItemRow
+) -> str:
+    """TASK-015 AC-3: an ordinary `scope='user'` widget row, carrying
+    `library_item_id` provenance only -- refine/unpin/refresh from here on
+    are the plain TASK-010/013/014 code paths, zero special-casing.
+    """
+    position = await conn.fetchval(
+        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances WHERE tenant_id = $1 AND scope = \'user\' AND owner_principal_iri = $2',  # noqa: E501
+        tenant_id,
+        owner_principal_iri,
+    )
+    widget_id = await conn.fetchval(
+        """
+        INSERT INTO widget_instances
+            (tenant_id, scope, owner_principal_iri, spec, "position", status, library_item_id)
+        VALUES ($1, 'user', $2, $3::jsonb, $4, 'fresh', $5)
+        RETURNING id
+        """,
+        tenant_id,
+        owner_principal_iri,
+        item.spec.model_dump_json(),
+        position,
+        item.id,
+    )
+    return str(widget_id)
 
 
 def utcnow() -> datetime:

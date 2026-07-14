@@ -5,10 +5,11 @@ router prefix/tags, included alongside it in `weave_backend/__init__.py`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Annotated
 
 import asyncpg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from httpx import AsyncClient
 
@@ -47,13 +48,30 @@ async def _owned_user_widget(
     return row
 
 
+@dataclass(frozen=True)
+class _GenerateCollaborators:
+    """Bundles `refine_widget_route`'s `ce_client`/`resolver` Depends under
+    Law E's 5-param cap now that the route also needs `authorization`.
+    """
+
+    ce_client: AsyncClient
+    resolver: Resolver
+
+
+async def _generate_collaborators(
+    ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
+    resolver: Annotated[Resolver, Depends(get_dashboard_agent_resolver)],
+) -> _GenerateCollaborators:
+    return _GenerateCollaborators(ce_client=ce_client, resolver=resolver)
+
+
 @router.post("/widgets/{widget_id}/refine")
 async def refine_widget_route(
     widget_id: str,
     body: GenerateWidgetRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
-    ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
-    resolver: Annotated[Resolver, Depends(get_dashboard_agent_resolver)],
+    collaborators: Annotated[_GenerateCollaborators, Depends(_generate_collaborators)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     """AC-1: refine is `generate_widget_stream` with `context`/
     `existing_widget_id` set -- same SSE grammar, budget gate, metering,
@@ -66,6 +84,7 @@ async def refine_widget_route(
         )
 
     redis = get_redis()
+    ce_headers = {"Authorization": authorization} if authorization else None
     return StreamingResponse(
         generate_widget_stream(
             GenerateRequest(
@@ -75,9 +94,10 @@ async def refine_widget_route(
                 context=row.spec,
                 existing_widget_id=widget_id,
             ),
-            resolver=resolver,
-            ce_client=ce_client,
+            resolver=collaborators.resolver,
+            ce_client=collaborators.ce_client,
             redis=redis,
+            ce_headers=ce_headers,
         ),
         media_type="text/event-stream",
     )
@@ -89,6 +109,7 @@ async def restore_widget_route(
     body: RestoreWidgetRequest,
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> RestoreWidgetResponse:
     """AC-4: restore never calls the model -- stored `resulting_spec` plus
     a plain data re-fetch (same honest-state derivation as
@@ -107,8 +128,9 @@ async def restore_widget_route(
         fetch_failed = False
         last_result = row.last_result
         fetched_at = row.fetched_at
+        ce_headers = {"Authorization": authorization} if authorization else None
         try:
-            last_result = await fetch_ce_metric(ce_client, spec.bindings)
+            last_result = await fetch_ce_metric(ce_client, spec.bindings, headers=ce_headers)
             fetched_at = store.utcnow()
         except CeMetricsUnavailable:
             fetch_failed = True

@@ -47,11 +47,14 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
   {
     label: "Home",
     href: "/dashboard",
-    prefixes: ["/dashboard", "/notifications"],
+    prefixes: ["/dashboard", "/notifications", "/role-home"],
     groups: [
       {
         heading: "Home",
-        items: [{ label: "Notifications", href: "/notifications", tag: "built" }],
+        items: [
+          { label: "What can Weave do for you?", href: "/role-home", tag: "built" },
+          { label: "Notifications", href: "/notifications", tag: "built" },
+        ],
       },
     ],
   },

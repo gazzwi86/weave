@@ -14,6 +14,7 @@ from weave_backend.observability.middleware import (
     install_ce_contract_headers_middleware,
     install_tenant_context_middleware,
 )
+from weave_backend.onboarding.scheduler import spawn_dispatcher, spawn_scheduler
 from weave_backend.projects.ce_version_client import close_ce_client
 from weave_backend.requests.store import close_redis_client
 from weave_backend.routers.audit import router as audit_router
@@ -32,6 +33,7 @@ from weave_backend.routers.dashboard_refine import router as dashboard_refine_ro
 from weave_backend.routers.decisions import router as decisions_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.events import router as events_router
+from weave_backend.routers.events_proxy import router as events_proxy_router
 from weave_backend.routers.functions import router as functions_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
@@ -58,6 +60,7 @@ from weave_backend.routers.prompts import router as prompts_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
+from weave_backend.routers.role_home import router as role_home_router
 from weave_backend.routers.runs import router as runs_router
 from weave_backend.routers.sdk_generation import router as sdk_generation_router
 from weave_backend.routers.search import router as search_router
@@ -107,6 +110,7 @@ app.include_router(settings_router)
 app.include_router(sparql_router)
 app.include_router(operations_router)
 app.include_router(events_router)
+app.include_router(events_proxy_router)
 app.include_router(ontology_router)
 app.include_router(brand_router)
 app.include_router(identity_router)
@@ -143,6 +147,7 @@ app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
 app.include_router(prompts_router)
+app.include_router(role_home_router)
 app.include_router(board_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
@@ -162,6 +167,16 @@ app.add_exception_handler(UnauthorisedError, unauthorised_exception_handler)
 app.add_exception_handler(LayoutApiError, layout_api_error_handler)
 
 assert_all_routes_guarded(app)
+
+
+@app.on_event("startup")
+async def _start_onboarding_scheduler() -> None:
+    # ONB-TASK-011 (AC-011-06): the activation poller's real call site --
+    # without this, poller.py's functions are never invoked.
+    spawn_scheduler()
+    # ONB-TASK-011 (AC-011-03/04): the outbox dispatcher's real call site --
+    # without this, flush_pending never runs and outbox rows never dispatch.
+    spawn_dispatcher()
 
 
 @app.on_event("shutdown")

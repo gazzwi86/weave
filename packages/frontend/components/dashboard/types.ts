@@ -44,10 +44,28 @@ export interface WidgetOut {
   status: WidgetStatus;
   pending_fields: string[];
   suggested: boolean;
+  /** TASK-014 AC-3: per-widget auto-refresh cadence, seconds. */
+  refresh_interval_s: number;
 }
 
 export interface WidgetListResponse {
   widgets: WidgetOut[];
+}
+
+/** TASK-015: mirrors `schemas/dashboard.py::LibraryItemOut`. */
+export interface LibraryItemOut {
+  id: string;
+  name: string;
+  description: string | null;
+  author_principal_iri: string;
+  published_at: string;
+  component_type: ComponentType;
+  data_source_contracts: string[];
+  source_available: boolean;
+}
+
+export interface LibraryListResponse {
+  items: LibraryItemOut[];
 }
 
 /** TASK-011 (m2-delta.md §3): mirrors `schemas/dashboard.py`'s SSE payload

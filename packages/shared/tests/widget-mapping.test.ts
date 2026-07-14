@@ -16,8 +16,24 @@ describe("WIDGET_MAPPING (AC-003-07)", () => {
     }
   });
 
-  it("tags the Business CE-METRICS-1 tile m2 (graceful-omit until CE M2)", () => {
-    const tile = WIDGET_MAPPING.business?.find((w) => w.widgetId === "CE-METRICS-1");
-    expect(tile?.availability).toBe("m2");
+  it("tags the CE-METRICS-1-backed Business tiles m2 (graceful-omit until CE M2)", () => {
+    for (const widgetId of ["ontology-health", "graph-completeness"]) {
+      const tile = WIDGET_MAPPING.business?.find((w) => w.widgetId === widgetId);
+      expect(tile?.availability).toBe("m2");
+    }
+  });
+
+  it("AC-014-02: each role path carries FR-015's widget list verbatim", () => {
+    const expected = {
+      business: ["ontology-health", "graph-completeness"],
+      technical: ["token-spend", "active-projects", "agent-activity"],
+      compliance: ["compliance-status", "audit-feed", "self-improvement-findings"],
+      admin: ["rbac-coverage", "connector-health", "onboarding-progress"],
+    } as const;
+
+    for (const [path, widgetIds] of Object.entries(expected)) {
+      const ids = WIDGET_MAPPING[path as keyof typeof expected]?.map((w) => w.widgetId);
+      expect(ids).toEqual(widgetIds);
+    }
   });
 });

@@ -49,6 +49,7 @@ describe("shell a11y", () => {
           status: "fresh",
           pending_fields: [],
           suggested: false,
+          refresh_interval_s: 300,
         }}
       />
     );

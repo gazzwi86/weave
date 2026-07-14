@@ -37,6 +37,9 @@ export function HelpLauncher() {
             <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
               Get started
             </p>
+            <a href="/role-home" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+              What can Weave do for you? — your role-tailored capabilities and next step
+            </a>
             <a href="/ce" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
               Model your company — add Processes, Actors, Goals in the Constitution
             </a>

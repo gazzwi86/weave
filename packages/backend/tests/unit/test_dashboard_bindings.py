@@ -36,7 +36,17 @@ def test_bindings_cite_published_contracts_only() -> None:
 
 
 def test_ten_categories_present() -> None:
-    assert len(bindings.CATEGORIES) == 10
+    # PLAT-V1-TASK-024 adds the 11th binding (`collaboration-activity`).
+    assert len(bindings.CATEGORIES) == 11
+
+
+def test_binding_cites_ce_event_and_ce_read() -> None:
+    """PLAT-V1-TASK-024: the `collaboration-activity` entry binds only
+    `CE-EVENT-1` + `CE-READ-1`, shape `events` (TASK-016 AC-1 walk covers it).
+    """
+    binding = bindings.CATEGORIES["collaboration-activity"]
+    assert binding.contracts == ["CE-EVENT-1", "CE-READ-1"]
+    assert binding.shapes == ["events"]
 
 
 async def test_thresholds_resolve_via_settings(monkeypatch: pytest.MonkeyPatch) -> None:

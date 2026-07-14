@@ -192,13 +192,15 @@ def _estimate_token_count(payload: object) -> int:
     return max(1, len(json.dumps(payload)) // 4)
 
 
-async def _fetch_binding_data(ce_client: AsyncClient, spec: WidgetSpec) -> AsyncIterator[object]:
+async def _fetch_binding_data(
+    ce_client: AsyncClient, spec: WidgetSpec, *, headers: dict[str, str] | None = None
+) -> AsyncIterator[object]:
     """AC-2: CE-METRICS-1 (TASK-010's client) resolves one bound value per
     widget -- so this yields exactly one `data` chunk on success, zero on
     failure (the caller turns a failure into a terminal error, never a
     partial stream).
     """
-    value = await fetch_ce_metric(ce_client, spec.bindings)
+    value = await fetch_ce_metric(ce_client, spec.bindings, headers=headers)
     yield value
 
 
@@ -208,6 +210,7 @@ async def generate_widget_stream(
     resolver: Resolver,
     ce_client: AsyncClient,
     redis: redis_lib.Redis,
+    ce_headers: dict[str, str] | None = None,
 ) -> AsyncIterator[str]:
     tenant_id = request.tenant_id
     scope = BillingScope(tenant_id, DASHBOARD_BUDGET_WORKSPACE_ID)
@@ -273,7 +276,7 @@ async def generate_widget_stream(
                     owner_principal_iri=request.principal_iri,
                     spec=spec,
                 )
-            async for chunk in _fetch_binding_data(ce_client, spec):
+            async for chunk in _fetch_binding_data(ce_client, spec, headers=ce_headers):
                 # Budget re-check cadence: once per `data` chunk (Implementation
                 # Hints) -- catches another concurrent caller/admin pushing the
                 # tenant over cap while this stream is still running.
