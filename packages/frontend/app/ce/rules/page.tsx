@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 import { RuleRow } from "./rule-row";
+import { RulesTour } from "./rules-tour";
 import type { RulesState } from "./use-rules";
 import { useRules } from "./use-rules";
 
@@ -58,6 +59,7 @@ export default function CeRulesPage() {
           <RulesBody {...rules} />
         </CardContent>
       </Card>
+      <RulesTour />
     </main>
   );
 }
