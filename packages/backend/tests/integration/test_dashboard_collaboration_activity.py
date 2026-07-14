@@ -10,6 +10,7 @@ import shutil
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -20,8 +21,10 @@ from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.dashboard import bindings, store
 from weave_backend.dashboard.ce_metrics import get_ce_metrics_client
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.schemas.dashboard import WidgetSpec
 from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
 
@@ -111,6 +114,43 @@ async def _commit(client: AsyncClient, headers: dict[str, str], ref: str) -> str
     return str(resp.json()["ref_map"][ref])
 
 
+async def _age_out_events(tenant_id: str) -> None:
+    """`read_events`'s `aged_out` (`operations/events.py::_is_cursor_aged_out`)
+    only fires once a tenant has at least one event past the retention
+    window -- a huge `since_seq` alone is not enough for an otherwise-empty
+    tenant (`newest_expired_seq` stays `None`). `graph_change_events` is
+    append-only (migration 0062 revokes UPDATE/DELETE from `weave_app` and
+    a trigger enforces it even for superuser), so insert a fresh row with a
+    backdated `ts` directly rather than trying to age an existing one.
+    """
+    async with tenant_connection(tenant_id) as conn:
+        await conn.execute(
+            "INSERT INTO graph_change_events"
+            " (tenant_id, change_type, entity_iri, actor, ts)"
+            " VALUES ($1, 'added', 'urn:x:aged-out', 'urn:weave:principal:test-actor',"
+            " now() - interval '31 days')",
+            tenant_id,
+        )
+
+
+async def _insert_widget(
+    tenant_id: str, *, owner_sub: str, spec: WidgetSpec
+) -> str:
+    """No bare `POST /api/dashboard/widgets` create route exists -- widgets
+    are only ever created via `/widgets/generate` (AI path) or fixed seeding.
+    Tests that need an arbitrary widget row insert it the same way
+    `insert_generated_widget` does (`dashboard/generate.py`'s persistence
+    step), bypassing the streaming route.
+    """
+    async with tenant_connection(tenant_id) as conn:
+        return await store.insert_generated_widget(
+            conn,
+            tenant_id=tenant_id,
+            owner_principal_iri=human_principal_iri(owner_sub),
+            spec=spec,
+        )
+
+
 async def test_recent_edits_polls_seq_feed_from_cursor(
     client: AsyncClient, platform_stack: Path
 ) -> None:
@@ -152,7 +192,7 @@ async def test_rows_render_actor_drafts_and_deep_links(
         result = await bindings.resolve_category("collaboration-activity", ctx)
 
     row = next(r for r in result.rows if r["entity_iri"] == entity_iri)
-    assert row["href"] == f"/resource/{entity_iri}"
+    assert row["href"] == f"/resource/{quote(entity_iri, safe='')}"
     assert row["version_iri"] is None
     assert result.meta["contributors"][0]["actor"]
 
@@ -167,16 +207,18 @@ async def test_410_rebaseline_never_silent_empty(
     workspace = await _make_workspace(tenant_id, label="collab")
     headers = await _authed_headers(client, tenant_id=tenant_id, workspace_id=workspace.id)
     await _commit(client, headers, "a1")
+    # `_is_cursor_aged_out` needs a real expired row (`newest_expired_seq`
+    # non-None), not just a huge cursor on an otherwise-empty tenant.
+    await _age_out_events(tenant_id)
 
     ce_client = _ce_stub(
         {"/api/sparql": {"rows": [{"entity_iri": "urn:x:1", "label": "Recently touched"}]}}
     )
     async with tenant_connection(tenant_id) as conn:
-        # A cursor far beyond `latest_seq` makes `read_events` report
-        # `aged_out` per CE-EVENT-1's 410 contract (same trigger as
-        # `test_events_change_feed.py`'s retention test, but here forced by
-        # an out-of-range cursor rather than a 0-day retention window).
-        aged_out_prior = {"last_seq": 999_999_999, "rows": []}
+        # `_is_cursor_aged_out` fires when the cursor is OLDER than the
+        # newest expired row (`since_seq < newest_expired_seq`) -- a stale
+        # client that fell behind the retention window, not a huge cursor.
+        aged_out_prior = {"last_seq": 0, "rows": []}
         ctx = await _ctx(tenant_id, conn, ce_client, prior_result=aged_out_prior)
         result = await bindings.resolve_category("collaboration-activity", ctx)
 
@@ -219,6 +261,12 @@ async def test_410_rebaseline_scoped_by_ce_headers_not_cross_tenant(
     """
     tenant_a = _unique_tenant("collab-leak-a")
     tenant_b = _unique_tenant("collab-leak-b")
+    workspace_a = await _make_workspace(tenant_a, label="collab")
+    headers_a = await _authed_headers(client, tenant_id=tenant_a, workspace_id=workspace_a.id)
+    await _commit(client, headers_a, "a1")
+    # `_is_cursor_aged_out` needs a real expired row, not just a huge cursor.
+    await _age_out_events(tenant_a)
+
     ce_client = _tenant_scoped_ce_stub(
         {
             tenant_a: [{"entity_iri": "urn:a:1", "label": "Tenant A entity"}],
@@ -227,7 +275,7 @@ async def test_410_rebaseline_scoped_by_ce_headers_not_cross_tenant(
     )
 
     async with tenant_connection(tenant_a) as conn:
-        aged_out_prior = {"last_seq": 999_999_999, "rows": []}
+        aged_out_prior = {"last_seq": 0, "rows": []}
         ctx = bindings.BindingContext(
             tenant_id=tenant_a,
             context_iri=f"urn:weave:tenant:{tenant_a}:company",
@@ -272,9 +320,15 @@ async def test_field_widget_refresh_scoped_by_ce_headers_not_cross_tenant(
     workspace_a = await _make_workspace(tenant_a, label="collab")
     headers_a = await _authed_headers(client, tenant_id=tenant_a, workspace_id=workspace_a.id)
 
+    # The router forwards the caller's *real* incoming Authorization header
+    # verbatim (not a synthetic "Bearer {tenant_id}") -- key the stub by
+    # that actual bearer token (stub strips "Bearer " before lookup), same
+    # as production traffic would present.
     ce_stub = _tenant_scoped_ce_metrics_stub(
         {
-            f"Bearer {tenant_a}": {"entity_count_by_kind": {"Process": 4}},
+            headers_a["Authorization"].removeprefix("Bearer "): {
+                "entity_count_by_kind": {"Process": 4}
+            },
             "__leaked__": {"entity_count_by_kind": {"Process": 999}},
         }
     )
@@ -284,23 +338,17 @@ async def test_field_widget_refresh_scoped_by_ce_headers_not_cross_tenant(
     app.dependency_overrides[get_ce_metrics_client] = _override_ce_client
 
     try:
-        create_resp = await client.post(
-            "/api/dashboard/widgets",
-            json={
-                "scope": "user",
-                "spec": {
-                    "component_type": "kpi_card",
-                    "title": "Entities in model",
-                    "data_source_contracts": ["CE-METRICS-1"],
-                    "bindings": {"field": "entity_count_by_kind", "aggregate": "sum"},
-                    "column_span": 3,
-                },
-                "position": 0,
-            },
-            headers=headers_a,
+        widget_id = await _insert_widget(
+            tenant_a,
+            owner_sub="u-1",
+            spec=WidgetSpec(
+                component_type="kpi_card",
+                title="Entities in model",
+                data_source_contracts=["CE-METRICS-1"],
+                bindings={"field": "entity_count_by_kind", "aggregate": "sum"},
+                column_span=3,
+            ),
         )
-        assert create_resp.status_code == 201
-        widget_id = create_resp.json()["id"]
 
         refresh_resp = await client.post(
             f"/api/dashboard/widgets/{widget_id}/refresh", headers=headers_a
@@ -324,6 +372,12 @@ async def test_feed_error_degrades_stale_never_blank(
     """
     tenant_id = _unique_tenant("collab-stale")
     prior_rows = [{"actor": "prior@example.invalid", "entity_iri": "urn:x:1"}]
+    workspace = await _make_workspace(tenant_id, label="collab")
+    headers = await _authed_headers(client, tenant_id=tenant_id, workspace_id=workspace.id)
+    await _commit(client, headers, "a1")
+    # `_is_cursor_aged_out` needs a real expired row so the 410 re-baseline
+    # path actually runs (and hits the broken CE-READ-1 stub below).
+    await _age_out_events(tenant_id)
 
     async with tenant_connection(tenant_id) as conn:
         broken_ce = _ce_stub({"/api/sparql": httpx.ConnectError("boom")})
@@ -331,7 +385,7 @@ async def test_feed_error_degrades_stale_never_blank(
             tenant_id,
             conn,
             broken_ce,
-            prior_result={"last_seq": 999_999_999, "rows": prior_rows},
+            prior_result={"last_seq": 0, "rows": prior_rows},
         )
         result = await bindings.resolve_category("collaboration-activity", ctx)
 
@@ -375,23 +429,17 @@ async def test_cursor_persists_server_side_cross_device(
     headers = await _authed_headers(client, tenant_id=tenant_id, workspace_id=workspace.id)
     await _commit(client, headers, "a1")
 
-    create_resp = await client.post(
-        "/api/dashboard/widgets",
-        json={
-            "scope": "user",
-            "spec": {
-                "component_type": "activity_feed",
-                "title": "Recent edits",
-                "data_source_contracts": ["CE-EVENT-1", "CE-READ-1"],
-                "bindings": {"category": "collaboration-activity"},
-                "column_span": 6,
-            },
-            "position": 0,
-        },
-        headers=headers,
+    widget_id = await _insert_widget(
+        tenant_id,
+        owner_sub="u-1",
+        spec=WidgetSpec(
+            component_type="activity_feed",
+            title="Recent edits",
+            data_source_contracts=["CE-EVENT-1", "CE-READ-1"],
+            bindings={"category": "collaboration-activity"},
+            column_span=6,
+        ),
     )
-    assert create_resp.status_code == 201
-    widget_id = create_resp.json()["id"]
 
     first = await client.post(f"/api/dashboard/widgets/{widget_id}/refresh", headers=headers)
     assert first.status_code == 200

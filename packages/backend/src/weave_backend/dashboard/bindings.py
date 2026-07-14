@@ -389,9 +389,15 @@ async def _collaboration_activity(ctx: BindingContext) -> BindingResult:
                 },
             )
         # AC-2: entity deep-link, same `/resource/{iri}` convention as
-        # `coverage_gap.contraventions`.
+        # `coverage_gap.contraventions`. `ts` comes back as a `datetime`
+        # from asyncpg -- stringify it so the row survives the
+        # `apply_refresh_result` JSON round-trip (ADR-013 SWR persistence).
         new_rows = [
-            {**dict(row), "href": f"/resource/{quote(str(row['entity_iri']), safe='')}"}
+            {
+                **dict(row),
+                "ts": row["ts"].isoformat() if row["ts"] is not None else None,
+                "href": f"/resource/{quote(str(row['entity_iri']), safe='')}",
+            }
             for row in page.rows
         ]
     except httpx.HTTPError:
