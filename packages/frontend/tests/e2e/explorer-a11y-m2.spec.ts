@@ -86,6 +86,30 @@ async function mockExplorer(page: Page): Promise<void> {
   await page.route("**/api/proxy/explorer/comments**", async (route) => {
     await route.fulfill({ status: 200, contentType: JSON_CONTENT_TYPE, body: JSON.stringify({ comments: [] }) });
   });
+  // ONB-TASK-008's OnboardingHintsHost mounts a first-visit "Welcome to
+  // Explorer" modal whenever no dismissal row exists for this area -- it
+  // was blocking every click in this file (real product feature landed
+  // after this spec was written, not a flake). Mark it already-dismissed,
+  // same pattern explorer-completeness-tour.spec.ts uses for /api/onboarding/path.
+  await page.route("**/api/onboarding/path", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: JSON_CONTENT_TYPE,
+      body: JSON.stringify({
+        role_path: "business",
+        path_variant: "default",
+        path_chosen_manually: false,
+        needs_choice: false,
+      }),
+    });
+  });
+  await page.route("**/api/onboarding/state", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: JSON_CONTENT_TYPE,
+      body: JSON.stringify({ dismissals: [{ kind: "welcome_modal", ref_id: "welcome-explorer" }] }),
+    });
+  });
 }
 
 async function assertNoViolations(page: Page): Promise<void> {
