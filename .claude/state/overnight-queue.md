@@ -608,3 +608,10 @@ Lane plan (TASK-008 is keystone; TourEngine already exists, beacon/modal rendere
   - LANE onb008 (../weave-ONB-008w, feature/ONB-EPIC-002 off origin/main): beacon+welcome-modal renderer + shell mount. LAUNCHED.
   - THEN: ONB-V1-003 ∥ ONB-V1-004 (wiring, need 008 merged) → ONB-V1-005 (needs 003+004) → ONB-015 (E2E, real-env only).
 FLAG FOR USER: (1) branch-protection required-check registration for the 4 M2 gate jobs is NOT done by me — your call/settings. (2) 8 PLAT connector tasks stay backlog; relocate briefs to post-v1/ at phase-gate so the spine is honest (never-delete-briefs).
+
+---
+## 2026-07-15 — ONB-V1-003 done (PR #107), follow-ups + CE-030 status
+PRs in flight: #106 CE-030 (ce030 fixing Major invariants silent-pass), #107 ONB-V1-003 (role-home, in CI). onb004b rebuilding ONB-V1-004 (prior lane API-stalled, clean restart). Local main HEAD carries state only.
+FOLLOW-UP TASK NEEDED (ONB, competency self-mark UI): no UI path lets a user self-mark `add-competency-questions`. Gaps: /help/training has no per-article mark-done CTA; item deepLink `/training/declare-competency-questions` → no route; `checklist-widget.tsx` SELF_MARK_MILESTONE_ID omits the item + deriveChecklist defaults currentPhase "m1" (locks the M2 item). Beacon hide-on-complete IS unit-tested. File a task in ONB v1 to wire the self-mark UI + route + widget map + phase.
+MINOR (forward-compat, correct for m2 now, log-only): onboarding-hints-host.tsx beacon phase hardcoded "m2"; derive-checklist.ts locking `!==` should be phase-ordering `<` for post-v1.
+Sibling-merge note: #107 (EPIC-003) + EPIC-002 (onb004b) both edit anchors.ts/help-launcher/i18n — merge one, reconcile the other's anchor-row union.

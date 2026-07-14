@@ -275,7 +275,7 @@
     {
       "id": "ONB-V1-EPIC-003",
       "title": "Role-Tailored Onboarding Paths",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-011",
@@ -1504,7 +1504,7 @@
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-003",
       "title": "Role-Home Guidance + Competency-Question Guidance Item",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],

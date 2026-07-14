@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T14:07:57+00:00
+Captured at: 2026-07-14T15:16:12+00:00
 Event: pre-compact
 
 ## Current State
@@ -282,7 +282,7 @@ Event: pre-compact
     {
       "id": "ONB-V1-EPIC-003",
       "title": "Role-Tailored Onboarding Paths",
-      "status": "backlog"
+      "status": "done"
     },
     {
       "id": "PLAT-V1-EPIC-011",
@@ -1511,7 +1511,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-003",
       "title": "Role-Home Guidance + Competency-Question Guidance Item",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
@@ -1523,7 +1523,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "Trust-Mechanics Tours (versions/diff, overlays, governed filters, rules screen)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
@@ -1734,7 +1734,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Beacons & Welcome Modals with server-side dismissal",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
