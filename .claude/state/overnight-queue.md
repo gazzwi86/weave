@@ -539,3 +539,15 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 - #93 CI semgrep FAILED on 2 `python.lang.security.audit.sqli.asyncpg-sqli` findings in dashboard/store.py — FALSE POSITIVE (fully parameterized $1-$4; rule trips on implicit adjacent-string-literal concatenation in the SQL arg). Fixing by collapsing split literals to single strings (no suppression).
 - ROOT RISK: CI uses `semgrep scan --config auto --error` = latest registry rules (608 today), which DRIFT. Split-literal SQL is common in this codebase → this FP can recur on any PR touching such queries. PHASE-GATE: consider pinning the semgrep ruleset (vendored config) instead of `--config auto`, OR a repo-wide sweep collapsing split-literal execute()/fetch() SQL. Harness-touching (ci.yml) → HITL.
 - #92 re-review round 2: 3 Blockers — scheduler per-tenant/per-user loops not fault-isolated (one bad tenant/user kills cycle). Fix in flight.
+
+## 2026-07-14 ~18:15 AEST — build-engine-v1/phase-1 GATE PASSED + next wave launched
+- Phase gate build-engine-v1/phase-1 APPROVED (HITL): security PASS (0 HIGH/CRIT), mutation GREEN
+  (CI all 5 PRs), UI-verify GREEN by CI-E2E evidence. Summary: PHASE-build-engine-v1-phase-1.md.
+  Phase advanced -> onboarding/phase-1. 84/125 tasks, 44 epics.
+- Merged this phase: #88 #90 #91 #92 #93. main origin=317548fc.
+- ADR-021 collision: #93 pin-semantics preserved as ADR-022 (local).
+- Next wave — 5 lanes off origin/main (reserved migrations, isolated docker projects):
+  ONB-003 Anchor(0090-92 weaveonb003) / ONB-006 Role-Path(0093-95 weaveonb006) /
+  CE-023 Edit-Ctrl RESUME reconcile(0085-89 weavece023, ~10 in-prog commits on feature/CE-V1-EPIC-017) /
+  ONB-V1-001 M2-Anchor(0096-98 weaveonbv1001) / ONB-002 hammerbarn-seed(0099-100 weaveonb002).
+- CE-V1-EPIC-017 worktree RECLASSIFIED: not stale — live partial CE-023 work, being resumed.
