@@ -527,3 +527,10 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 
 ## 2026-07-12 — #90 merged
 - #90 (PLAT-017 role-home, full EPIC-010) MERGED → main 5b7ead09. Review found 3 Majors (rbac None-crash + AC-5 degrade contract) → fixed → re-clean → merged. Worktree removed.
+
+## 2026-07-14 — post-outage resume + #92 critical find
+- Weekly API limit hit 2026-07-13, reset ~Jul 14 4pm AEST. 3 lanes died mid-work, all resumed.
+- #88 (ONB-014 mapping) MERGED → main 60f0c916.
+- #92 (ONB-011): re-review found 3 Blockers (dispatcher never scheduled; flush_pending + attempt_count UPDATE relied on RLS only). ALL fixed. **Critical extra find:** onboarding_state FORCEs RLS → untenanted tenant-listing returned zero rows → poller+dispatcher DEAD in prod. Fixed via migration 0084 (SECURITY DEFINER list-pollable-tenants). Saved memory reference_force-rls-cross-tenant-listing. Re-review in flight.
+- #93 (PLAT-014/015 full EPIC-001) opened, reviewer running.
+- #91 (PLAT-024) lane finishing CE-METRICS-1 2nd-leak + cursor-aged-out test fix (integration CI was red).
