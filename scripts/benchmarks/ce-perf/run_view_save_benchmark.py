@@ -46,7 +46,9 @@ def _save_view_body(idx: int) -> dict[str, Any]:
         "name": f"bench-view-{uuid.uuid4().hex[:8]}-{idx}",
         "overwrite": True,
         "definition": {"filters": [], "overlays": []},
-        "positions": [{"node_iri": "https://weave.io/instances/bench-node", "x": 0, "y": 0}],
+        "positions": [
+            {"node_iri": "https://weave.io/instances/bench-node", "position_x": 0, "position_y": 0}
+        ],
     }
 
 
