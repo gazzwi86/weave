@@ -6,6 +6,7 @@ CI's default `api` job runs with no compose services up.
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import uuid
 from collections.abc import AsyncIterator
@@ -152,9 +153,7 @@ async def test_reset_build_failure_leaves_pointer_on_old_workspace(
     bad_op = AddNodeOp(op="add_node", ref="bad-1", kind="NotARealKind", label="Bad")
     bad_artefact = CompiledArtefact(semver="0.0.1-bad", batches=[[bad_op]])
 
-    with patch(
-        "weave_backend.routers.onboarding._seed_artefact", return_value=bad_artefact
-    ):
+    with patch("weave_backend.routers.onboarding._seed_artefact", return_value=bad_artefact):
         failed = await client.post("/api/onboarding/sandbox/reset", headers=headers)
     assert failed.status_code == 502
 
@@ -228,3 +227,66 @@ async def test_reset_old_workspace_delete_failure_is_orphaned_not_fatal(
             old_workspace_id,
         )
     assert still_there is not None
+
+
+# --- edge case: two concurrent resets never leave a mixed/partial pointer --------
+
+
+async def test_concurrent_resets_leave_pointer_consistent_not_partial(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Two overlapping reset requests race on the same user's pointer. Each
+    swap is its own short transaction (no long-held lock across the whole
+    reset), so both may succeed -- but AC-005-04's invariant must still hold:
+    the final pointer is a real, fully-built workspace (never null, never a
+    half-forked one), and exercises stay cleared. This is the concurrency
+    analogue of the induced-failure tests above.
+    """
+    tenant_id = _unique_tenant("onb-reset-concurrent")
+    user_sub = "u-reset-concurrent"
+    headers = await _login(client, sub=user_sub, tenant_id=tenant_id)
+    user_iri = human_principal_iri(user_sub)
+
+    fork = await client.post("/api/onboarding/sandbox", headers=headers)
+    assert fork.status_code == 200
+
+    responses = await asyncio.gather(
+        client.post("/api/onboarding/sandbox/reset", headers=headers),
+        client.post("/api/onboarding/sandbox/reset", headers=headers),
+    )
+    assert {r.status_code for r in responses} <= {200}
+    final_workspace_ids = {r.json()["workspace_id"] for r in responses}
+
+    async with tenant_connection(tenant_id) as conn:
+        state = await conn.fetchrow(
+            "SELECT sandbox_workspace_id FROM onboarding_state WHERE tenant_id = $1"
+            " AND user_id = $2",
+            tenant_id,
+            user_iri,
+        )
+        pointer = str(state["sandbox_workspace_id"])
+        # The pointer must land on one of the two racing resets' own
+        # freshly-built workspace -- never null, never a third/foreign value.
+        assert pointer in final_workspace_ids
+
+        workspace_row = await conn.fetchrow(
+            "SELECT id FROM workspaces WHERE tenant_id = $1 AND id = $2", tenant_id, pointer
+        )
+        assert workspace_row is not None
+
+        exercises = await conn.fetch(
+            "SELECT exercise_id FROM exercise_completion WHERE tenant_id = $1 AND user_id = $2",
+            tenant_id,
+            user_iri,
+        )
+        assert exercises == []
+
+    read_response = await client.post(
+        "/api/sparql",
+        json={
+            "query": "SELECT (COUNT(*) AS ?c) WHERE { GRAPH ?g { ?s ?p ?o } }",
+            "workspace_id": pointer,
+        },
+        headers=headers,
+    )
+    assert read_response.status_code == 200
