@@ -95,11 +95,14 @@ export const en: Record<string, string> = {
   "onboarding.training.search-label": "Search training",
   "onboarding.training.search-placeholder": "Search videos and walkthroughs...",
   "onboarding.training.empty": "No training content matches your search.",
+  "onboarding.training.page-title": "Training library",
+  "onboarding.training.page-subtitle": "Search videos and written walkthroughs, at your own pace.",
   // What's new.
   "onboarding.whats-new.launch.title": "Weave is here",
   "onboarding.whats-new.launch.body": "Your company's knowledge graph, live and queryable from day one.",
   "onboarding.whats-new.empty": "Nothing new to report right now.",
   "onboarding.whats-new.heading": "What's new",
+  "onboarding.whats-new.mark-read": "Mark What's new as read",
   // Test-only fixtures (unit-test-local content) -- never referenced by real content.
   "x.body": "A short body well within budget.",
   "onboarding.fixture.over-budget-tour": Array(41).fill("word").join(" "),

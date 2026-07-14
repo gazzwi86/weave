@@ -51,7 +51,7 @@ export default function TrainingLibraryPage() {
 
   return (
     <main className="flex flex-col gap-[var(--space-6)] p-[var(--space-5)]">
-      <PageHeaderSlot title="Training library" subtitle="Search videos and written walkthroughs, at your own pace." />
+      <PageHeaderSlot title={t("onboarding.training.page-title")} subtitle={t("onboarding.training.page-subtitle")} />
 
       <label className="flex flex-col gap-[var(--space-1)]" htmlFor="training-search">
         <span className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
@@ -86,8 +86,8 @@ export default function TrainingLibraryPage() {
             onClick={() => void markSeen()}
             className="mb-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-accent-primary)] hover:underline"
           >
-            <span aria-hidden="true" className="mr-[var(--space-1)] inline-block h-[8px] w-[8px] rounded-full bg-[var(--color-accent-primary)]" />
-            Mark What&apos;s new as read
+            <span aria-hidden="true" className="mr-[var(--space-1)] inline-block h-[var(--space-2)] w-[var(--space-2)] rounded-full bg-[var(--color-accent-primary)]" />
+            {t("onboarding.whats-new.mark-read")}
           </button>
         ) : null}
         <WhatsNewPanel items={WHATS_NEW_ITEMS} />
