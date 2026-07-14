@@ -39,8 +39,11 @@ export default async function GraphCanvasPreviewPage({
     // flex/h-screen matches app/explorer/page.tsx's own container -- the
     // canvas's inner `flex-1 min-h-0` div needs a flex-column ancestor with
     // a definite height (see explorer-canvas.tsx's own comment).
-    <div className="flex h-screen flex-col overflow-hidden">
+    <main className="flex h-screen flex-col overflow-hidden">
+      {/* axe page-has-heading-one: bare host route has no Explorer chrome
+       * (AC-4), but screen readers still need a discoverable page title. */}
+      <h1 className="sr-only">GE-CANVAS-1 preview</h1>
       <GraphCanvas {...props} />
-    </div>
+    </main>
   );
 }
