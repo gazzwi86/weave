@@ -1727,7 +1727,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Beacons & Welcome Modals with server-side dismissal",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
