@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { auditAnchors, extractDataTourIds } from "../onboarding/checks/audit";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { auditAnchors, extractDataTourIds, extractDataTourIdsFromFiles } from "../onboarding/checks/audit";
 import type { Anchor } from "../onboarding/anchors";
 
 const registry: Record<string, Anchor> = {
@@ -11,6 +14,28 @@ describe("extractDataTourIds", () => {
   it("pulls data-tour-id values out of JSX source", () => {
     const source = `<div data-tour-id="ce.overview" /><span data-tour-id='ce.query'></span>`;
     expect(extractDataTourIds(source)).toEqual(["ce.overview", "ce.query"]);
+  });
+});
+
+describe("extractDataTourIdsFromFiles", () => {
+  let dir: string;
+
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("reads and merges data-tour-id attributes across real files on disk (edge case -- fs path unwired until a rendering task lands)", () => {
+    dir = mkdtempSync(join(tmpdir(), "audit-test-"));
+    const fileA = join(dir, "a.tsx");
+    const fileB = join(dir, "b.tsx");
+    writeFileSync(fileA, `<div data-tour-id="ce.overview" />`);
+    writeFileSync(fileB, `<span data-tour-id='ge.canvas'></span>`);
+
+    expect(extractDataTourIdsFromFiles([fileA, fileB])).toEqual(new Set(["ce.overview", "ge.canvas"]));
+  });
+
+  it("returns an empty set for an empty file list", () => {
+    expect(extractDataTourIdsFromFiles([])).toEqual(new Set());
   });
 });
 
