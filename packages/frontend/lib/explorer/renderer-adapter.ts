@@ -50,6 +50,18 @@ export interface RendererAdapter {
    * "Expand neighbours"/"Collapse neighbours") -- fires with the node's id
    * and its on-screen position so the menu can be placed there. */
   onNodeRightClick(handler: (nodeId: string, position: { x: number; y: number }) => void): () => void;
+  /** TASK-023 AC-3: fires for a double-click on empty canvas (the quick-add
+   * trigger), never for a double-click on a node or edge -- mirrors
+   * onNodeRightClick's target-matching for the opposite target. */
+  onBackgroundDoubleClick(handler: (position: { x: number; y: number }) => void): () => void;
+  /** TASK-023 AC-6: fires once an edgehandles drag releases on a valid
+   * target node, with the two node ids -- draw-edge's trigger, mirroring
+   * onBackgroundDoubleClick's quick-add trigger. Discards edgehandles' own
+   * auto-added edge immediately (the real edge, carrying the user's chosen
+   * relationship type, is added later by commitOp once the rel-type picker
+   * resolves) -- this method's sole job is signalling which two nodes to
+   * connect. */
+  onEdgeDrawComplete(handler: (sourceId: string, targetId: string) => void): () => void;
   getNodeData(nodeId: string): NodeData | undefined;
   listNodes(): ListedNode[];
   centerOn(nodeId: string, durationMs: number): void;
@@ -85,6 +97,15 @@ export interface RendererAdapter {
   /** TASK-020 AC-6: removes elements by id (layer toggle-off). No-op for
    * an id not currently on the canvas. */
   removeElements(ids: string[]): void;
+  /** TASK-023 AC-8: swaps a locally-ref'd optimistic element's identity for
+   * the real IRI CE-WRITE-1 returned -- cytoscape element ids are immutable
+   * after creation, so this is remove-then-add, carrying the element's
+   * current position forward (a slow commit shouldn't cause a visible
+   * jump). No-op if `localId` isn't on the canvas (already rolled back).
+   * Dedups against an already-present real IRI the same way addLayerNodes
+   * does (CE-WRITE-1's case-insensitive label+kind dedup can resolve a
+   * quick-add to an existing node). */
+  reconcileElement(localId: string, element: CytoscapeElement): void;
   /** TASK-020: every node + edge currently on the canvas, in the same
    * CytoscapeElement shape `load`/`addLayerNodes` accept -- the source
    * use-filter-panel.ts feeds computeFilterVisibility. Reads the adapter's
@@ -250,6 +271,20 @@ function wireDragFree(
 // XT-008: pulled out of createRendererAdapter's returned object to keep that
 // function under Law E's line budget -- same shape wireTap/wireDragFree
 // already use (standalone fn taking `cy`, thin delegator below).
+// TASK-023 AC-6: cytoscape-edgehandles' "ehcomplete" fires with extra
+// positional args (sourceNode, targetNode, addedEdge) beyond the usual evt
+// object -- optional params here keep this assignable to AdaptableCy's
+// generic `on`/`off` (evt: CyEvent) => void shape while still reading them.
+function wireEdgeDrawComplete(cy: AdaptableCy, handler: (sourceId: string, targetId: string) => void): () => void {
+  const listener = (_evt: CyEvent, sourceNode?: CyCollection, targetNode?: CyCollection, addedEdge?: CyCollection) => {
+    if (!sourceNode || !targetNode) return;
+    if (addedEdge) cy.remove(addedEdge);
+    handler(sourceNode.id(), targetNode.id());
+  };
+  cy.on("ehcomplete", listener);
+  return () => cy.off("ehcomplete", listener);
+}
+
 function applySpotlight(cy: AdaptableCy, nodeId: string, dimOpacity: number): boolean {
   const node = cy.getElementById(nodeId);
   if (node.length === 0) return false;
@@ -275,6 +310,19 @@ function addLayerNodesOn(cy: AdaptableCy, elements: CytoscapeElement[]): string[
 function removeElementsOn(cy: AdaptableCy, ids: string[]): void {
   const idSet = new Set(ids);
   cy.remove(cy.elements().filter((el) => idSet.has(el.id())));
+}
+
+// TASK-023 AC-8: remove-then-add (cytoscape element ids are immutable),
+// carrying the local ref's current position forward, then reusing
+// addLayerNodesOn's dedup so a CE-WRITE-1 resolved-to-existing IRI never
+// double-adds.
+function reconcileElementOn(cy: AdaptableCy, localId: string, element: CytoscapeElement): void {
+  const localRefEl = cy.getElementById(localId);
+  if (localRefEl.length === 0) return;
+
+  const position = element.position ?? localRefEl.position();
+  cy.remove(localRefEl);
+  addLayerNodesOn(cy, [{ ...element, position }]);
 }
 
 /** TASK-020 AC-1/AC-3/AC-4/AC-7: one batched pass -- hide/show operate on
@@ -384,7 +432,13 @@ type ViewMethods = Pick<RendererAdapter, "setViewport" | "allNodePositions" | "a
 type OpacityMethods = Pick<RendererAdapter, "spotlightNode" | "resetOpacity" | "highlightNodes" | "applyFilterVisibility">;
 type QueryMethods = Pick<
   RendererAdapter,
-  "onNodeTap" | "onBackgroundTap" | "onNodeRightClick" | "getNodeData" | "listNodes" | "listElements"
+  | "onNodeTap"
+  | "onBackgroundTap"
+  | "onNodeRightClick"
+  | "onBackgroundDoubleClick"
+  | "getNodeData"
+  | "listNodes"
+  | "listElements"
 >;
 
 function createViewportMethods(cy: AdaptableCy): ViewportMethods {
@@ -445,6 +499,14 @@ function createQueryMethods(cy: AdaptableCy): QueryMethods {
         "cxttap",
         (target) => target !== cy,
         (evt) => handler((evt.target as CyCollection).id(), evt.renderedPosition ?? { x: 0, y: 0 })
+      );
+    },
+    onBackgroundDoubleClick(handler) {
+      return wireEvent(
+        cy,
+        "dbltap",
+        (target) => target === cy,
+        (evt) => handler(evt.renderedPosition ?? { x: 0, y: 0 })
       );
     },
     getNodeData(nodeId) {
@@ -528,6 +590,9 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     onNodeDragEnd(handler) {
       return wireDragFree(cy, handler);
     },
+    onEdgeDrawComplete(handler) {
+      return wireEdgeDrawComplete(cy, handler);
+    },
     expandNode(nodeId, neighbours) {
       return expandNodeOn(cy, nodeId, neighbours);
     },
@@ -542,6 +607,9 @@ export function createRendererAdapter(cy: AdaptableCy): RendererAdapter {
     },
     removeElements(ids) {
       removeElementsOn(cy, ids);
+    },
+    reconcileElement(localId, element) {
+      reconcileElementOn(cy, localId, element);
     },
     applyNodeColours(colourByNodeId, fallbackColour) {
       applyNodeColoursOn(cy, colourByNodeId, fallbackColour, readCssToken);

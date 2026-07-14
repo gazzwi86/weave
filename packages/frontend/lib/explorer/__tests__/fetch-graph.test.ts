@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CeReadError } from "../ce-read-error";
-import { fetchGraph, fetchPalette, MAX_VISIBLE_NODES } from "../fetch-graph";
+import { fetchGraph, fetchPalette, fetchRelTypes, MAX_VISIBLE_NODES } from "../fetch-graph";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -32,6 +32,31 @@ describe("fetchPalette", () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: "unauthorised" }, 401)));
 
     await expect(fetchPalette()).rejects.toBeInstanceOf(CeReadError);
+  });
+});
+
+describe("fetchRelTypes", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // TASK-023 AC-6: draw-edge's relationship-type picker -- same
+  // /api/proxy/node-kinds route fetchPalette uses, its relTypes field.
+  it("returns the rel-type palette from /api/proxy/node-kinds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ kinds: [], relTypes: [{ id: "performedBy", label: "performedBy" }] }))
+    );
+
+    const relTypes = await fetchRelTypes();
+
+    expect(relTypes).toEqual([{ id: "performedBy", label: "performedBy" }]);
+  });
+
+  it("throws CeReadError on 401", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: "unauthorised" }, 401)));
+
+    await expect(fetchRelTypes()).rejects.toBeInstanceOf(CeReadError);
   });
 });
 

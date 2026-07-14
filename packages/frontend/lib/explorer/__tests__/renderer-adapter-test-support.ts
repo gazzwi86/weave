@@ -61,6 +61,25 @@ export function fakeCy() {
     fireDragFree(target: unknown) {
       fire("dragfree", { target });
     },
+    fireDoubleClick(target: unknown, renderedPosition: { x: number; y: number }) {
+      fire("dbltap", { target, renderedPosition });
+    },
+    // TASK-023 AC-6: cytoscape-edgehandles' "ehcomplete" fires with extra
+    // positional args (sourceNode, targetNode, addedEdge) beyond the usual
+    // evt object -- a single-arg `fire()` can't express that, so this is a
+    // dedicated helper rather than a fire("ehcomplete", ...) call.
+    fireEdgeDrawComplete(sourceId: string, targetId: string, addedEdge: CyCollection = fakeCollection()) {
+      const source = fakeCollection({ id: vi.fn(() => sourceId) });
+      const target = fakeCollection({ id: vi.fn(() => targetId) });
+      listenersFor("ehcomplete").forEach((handler) => {
+        (handler as unknown as (evt: undefined, s: CyCollection, t: CyCollection, e: CyCollection) => void)(
+          undefined,
+          source,
+          target,
+          addedEdge
+        );
+      });
+    },
     fireRemove(target: unknown) {
       fire("remove", { target });
     },

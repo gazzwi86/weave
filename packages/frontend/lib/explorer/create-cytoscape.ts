@@ -1,7 +1,9 @@
 import cytoscape from "cytoscape";
+import edgehandles from "cytoscape-edgehandles";
 import fcose from "cytoscape-fcose";
 
 import { readCssToken, resolveStylesheetTokens } from "./build-stylesheet";
+import { EDGEHANDLES_PARAMS } from "./edgehandles-params";
 
 // Registering the fcose layout extension is a module-level, one-time side
 // effect -- cytoscape.use() throws if called twice with the same extension.
@@ -10,6 +12,15 @@ function ensureFcoseRegistered(): void {
   if (fcoseRegistered) return;
   cytoscape.use(fcose);
   fcoseRegistered = true;
+}
+
+// TASK-023 AC-6: same one-time-registration guard as fcose, for the
+// draw-edge gesture extension.
+let edgehandlesRegistered = false;
+function ensureEdgehandlesRegistered(): void {
+  if (edgehandlesRegistered) return;
+  cytoscape.use(edgehandles);
+  edgehandlesRegistered = true;
 }
 
 /** The only file that imports the real `cytoscape` / `cytoscape-fcose`
@@ -21,11 +32,18 @@ export function createCytoscapeInstance(
   stylesheet: cytoscape.StylesheetStyle[],
 ): cytoscape.Core {
   ensureFcoseRegistered();
-  return cytoscape({
+  ensureEdgehandlesRegistered();
+  const cy = cytoscape({
     container,
     elements: [],
     style: resolveStylesheetTokens(stylesheet, readCssToken),
     userPanningEnabled: true,
     userZoomingEnabled: true,
   });
+  // TASK-023 AC-6: draw mode makes the whole node body the drag handle --
+  // always wired at the library level, same as onBackgroundDoubleClick's
+  // quick-add trigger; canEdit gates the *consequence* inside useDrawEdge,
+  // not whether the gesture is wired (mirrors useQuickAdd's own pattern).
+  cy.edgehandles(EDGEHANDLES_PARAMS).enableDrawMode();
+  return cy;
 }

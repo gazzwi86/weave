@@ -6,6 +6,12 @@ export interface NodeKind {
   colour: string;
 }
 
+/** TASK-023 AC-6: the relationship-type palette for the draw-edge picker. */
+export interface RelKind {
+  id: string;
+  label: string;
+}
+
 export interface GraphRow {
   subject: string;
   predicate: string;

@@ -5,6 +5,8 @@ import { Button } from "./button";
 export interface ToastProps {
   message: ReactNode;
   onDismiss: () => void;
+  /** TASK-023 AC-5: an optional retry action, distinct from dismissing. */
+  action?: { label: string; onClick: () => void };
 }
 
 /**
@@ -13,7 +15,7 @@ export interface ToastProps {
  * Every colour/spacing/radius/shadow/motion value is a design token (Law 20);
  * `motion-reduce:` disables the fade for reduced-motion users.
  */
-export function Toast({ message, onDismiss }: ToastProps) {
+export function Toast({ message, onDismiss, action }: ToastProps) {
   return (
     <div
       role="alert"
@@ -21,6 +23,11 @@ export function Toast({ message, onDismiss }: ToastProps) {
       className="fixed bottom-[var(--space-4)] left-1/2 z-[var(--z-toast)] flex -translate-x-1/2 items-center gap-[var(--space-3)] rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-raised)] px-[var(--space-4)] py-[var(--space-3)] shadow-[var(--shadow-overlay)] transition-opacity duration-[var(--duration-base)] ease-[var(--ease-standard)] motion-reduce:transition-none"
     >
       <span className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">{message}</span>
+      {action && (
+        <Button variant="secondary" onClick={action.onClick}>
+          {action.label}
+        </Button>
+      )}
       <Button variant="secondary" onClick={onDismiss}>
         Dismiss
       </Button>

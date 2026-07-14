@@ -51,6 +51,31 @@ describe("GET /api/proxy/node-kinds", () => {
         { id: "Process", label: "Process", colour: "var(--color-kind-process)" },
         { id: "Widget", label: "Widget", colour: "var(--color-kind-fallback)" },
       ],
+      relTypes: [],
+    });
+  });
+
+  it("adapts the relationship catalogue into a rel-type palette for the draw-edge picker", async () => {
+    // TASK-023 AC-6: same upstream call this route already makes -- draw-edge's
+    // relTypePicker reuses it rather than adding a second CE-READ-1 endpoint.
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          kinds: [],
+          relationships: [
+            { path: "https://weave.example/bpmo#performedBy", name: "performedBy", is_relationship: true, min_count: null, max_count: null, severity: "Violation" },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const response = await GET();
+
+    expect(await response.json()).toEqual({
+      kinds: [],
+      relTypes: [{ id: "performedBy", label: "performedBy" }],
     });
   });
 

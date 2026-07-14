@@ -7,7 +7,9 @@ import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
 import type { SidePanelState } from "../use-node-spotlight";
 import { useNodeContextMenu } from "../use-node-context-menu";
 
-function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
+function fakeAdapter(
+  overrides: Partial<RendererAdapter> = {},
+): RendererAdapter {
   return {
     load: vi.fn(),
     getViewport: vi.fn(() => ({ zoom: 1, pan: { x: 0, y: 0 } })),
@@ -21,12 +23,15 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     getNodeData: vi.fn(() => undefined),
     listNodes: vi.fn(() => []),
     centerOn: vi.fn(),
-    onNodeDragEnd: vi.fn(() => vi.fn()),
+    onNodeDragEnd: vi.fn(() => vi.fn()),    onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    reconcileElement: vi.fn(),
+    onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
     applyNodeColours: vi.fn(),
     clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
@@ -60,7 +65,9 @@ describe("useNodeContextMenu", () => {
   // AC-3/AC-5: right-click on the currently spotlighted node opens the menu,
   // with canFocusDomain/isExpanded read from the renderer-adapter seam.
   it("opens the menu for the currently spotlighted node with canFocusDomain and isExpanded populated", () => {
-    let rightClickHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let rightClickHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeRightClick: vi.fn((handler) => {
         rightClickHandler = handler;
@@ -71,7 +78,11 @@ describe("useNodeContextMenu", () => {
     });
 
     const { result } = renderHook(() =>
-      useNodeContextMenu({ adapter, config: DEFAULT_EXPLORER_CONFIG, panel: LOADED_PANEL })
+      useNodeContextMenu({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        panel: LOADED_PANEL,
+      }),
     );
 
     act(() => rightClickHandler?.("n1", { x: 12, y: 34 }));
@@ -88,7 +99,9 @@ describe("useNodeContextMenu", () => {
   // fetched neighbours to expand/collapse and isn't known to be a domain --
   // per AC-3's "already spotlighted" framing, no menu opens.
   it("does not open the menu for a node that is not the currently spotlighted one", () => {
-    let rightClickHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let rightClickHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeRightClick: vi.fn((handler) => {
         rightClickHandler = handler;
@@ -97,7 +110,11 @@ describe("useNodeContextMenu", () => {
     });
 
     const { result } = renderHook(() =>
-      useNodeContextMenu({ adapter, config: DEFAULT_EXPLORER_CONFIG, panel: CLOSED_PANEL })
+      useNodeContextMenu({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        panel: CLOSED_PANEL,
+      }),
     );
 
     act(() => rightClickHandler?.("n2", { x: 12, y: 34 }));
@@ -106,7 +123,9 @@ describe("useNodeContextMenu", () => {
   });
 
   it("closeMenu clears the open menu", () => {
-    let rightClickHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    let rightClickHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeRightClick: vi.fn((handler) => {
         rightClickHandler = handler;
@@ -115,7 +134,11 @@ describe("useNodeContextMenu", () => {
     });
 
     const { result } = renderHook(() =>
-      useNodeContextMenu({ adapter, config: DEFAULT_EXPLORER_CONFIG, panel: LOADED_PANEL })
+      useNodeContextMenu({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        panel: LOADED_PANEL,
+      }),
     );
 
     act(() => rightClickHandler?.("n1", { x: 12, y: 34 }));

@@ -149,6 +149,21 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     expect(handler).toHaveBeenCalledExactlyOnceWith("n1", { x: 12, y: 34 });
   });
 
+  // TASK-023 AC-3: double-clicking empty canvas is the quick-add trigger --
+  // double-clicking a node (or an edge) must not also fire it.
+  it("onBackgroundDoubleClick() fires with the rendered position for a background double-click, ignoring a node double-click", () => {
+    const cy = fakeCy();
+    const node = fakeCollection();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onBackgroundDoubleClick(handler);
+    cy.fireDoubleClick(node, { x: 5, y: 6 });
+    cy.fireDoubleClick(cy, { x: 40, y: 50 });
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith({ x: 40, y: 50 });
+  });
+
   it("onNodeRightClick()'s returned unregister function stops future calls", () => {
     const cy = fakeCy();
     const node = fakeCollection();
@@ -158,6 +173,45 @@ describe("createRendererAdapter -- TASK-003 spotlight/search additions", () => {
     const unregister = adapter.onNodeRightClick(handler);
     unregister();
     cy.fireRightClick(node, { x: 0, y: 0 });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  // TASK-023 AC-6: an edgehandles drag release is draw-edge's trigger --
+  // fires with the two node ids so the caller can open the rel-type picker.
+  it("onEdgeDrawComplete() fires with source and target node ids", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    adapter.onEdgeDrawComplete(handler);
+    cy.fireEdgeDrawComplete("n1", "n2");
+
+    expect(handler).toHaveBeenCalledExactlyOnceWith("n1", "n2");
+  });
+
+  // edgehandles auto-adds its own edge on drag release -- this task's real
+  // edge (carrying the user's chosen relationship type) is added later by
+  // commitOp, so the library's placeholder must be discarded immediately.
+  it("onEdgeDrawComplete() removes edgehandles' own auto-added edge", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const addedEdge = fakeCollection();
+
+    adapter.onEdgeDrawComplete(vi.fn());
+    cy.fireEdgeDrawComplete("n1", "n2", addedEdge);
+
+    expect(cy.remove).toHaveBeenCalledExactlyOnceWith(addedEdge);
+  });
+
+  it("onEdgeDrawComplete()'s returned unregister function stops future calls", () => {
+    const cy = fakeCy();
+    const adapter = createRendererAdapter(cy);
+    const handler = vi.fn();
+
+    const unregister = adapter.onEdgeDrawComplete(handler);
+    unregister();
+    cy.fireEdgeDrawComplete("n1", "n2");
 
     expect(handler).not.toHaveBeenCalled();
   });

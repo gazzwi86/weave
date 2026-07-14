@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
@@ -11,13 +17,21 @@ import { ExplorerInteractions } from "../explorer-interactions";
 
 vi.mock("@/lib/explorer/layout-client", async (importOriginal) => {
   const actual = await importOriginal<typeof layoutClient>();
-  return { ...actual, saveLayoutPosition: vi.fn(), resetLayoutPositions: vi.fn() };
+  return {
+    ...actual,
+    saveLayoutPosition: vi.fn(),
+    resetLayoutPositions: vi.fn(),
+  };
 });
 
 // useCanvasLegend's default fetchPalette hits the real CE-READ-1 proxy --
 // stubbed globally so tests that don't care about the legend (most of this
 // file) don't need their own fetchPalette prop just to avoid a network call.
-vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/fetch-graph", () => ({
+  fetchPalette: vi.fn(async () => []),
+  fetchGraph: vi.fn(async () => []),
+  fetchRelTypes: vi.fn(async () => []),
+}));
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
 vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
@@ -31,10 +45,16 @@ vi.mock("@/lib/explorer/events-client", () => ({
 }));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
-const NO_RETRY_CONFIG = { ...DEFAULT_EXPLORER_CONFIG, layoutSaveRetryDelaysMs: [] };
+const NO_RETRY_CONFIG = {
+  ...DEFAULT_EXPLORER_CONFIG,
+  layoutSaveRetryDelaysMs: [],
+};
 
-function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter {
-  let rightClickHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+function fakeAdapter(
+  overrides: Partial<RendererAdapter> = {},
+): RendererAdapter {
+  let rightClickHandler:
+    ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
   return {
     load: vi.fn(),
     getViewport: vi.fn(() => ({ zoom: 1, pan: { x: 0, y: 0 } })),
@@ -51,12 +71,15 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     getNodeData: vi.fn(() => ({ label: "Finance", bpmoKind: "Domain" })),
     listNodes: vi.fn(() => []),
     centerOn: vi.fn(),
-    onNodeDragEnd: vi.fn(() => vi.fn()),
+    onNodeDragEnd: vi.fn(() => vi.fn()),    onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    reconcileElement: vi.fn(),
+    onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
     applyNodeColours: vi.fn(),
     clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
@@ -72,9 +95,15 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
     onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
-    fireRightClick: (nodeId: string, position: { x: number; y: number }) => rightClickHandler?.(nodeId, position),
+    fireRightClick: (nodeId: string, position: { x: number; y: number }) =>
+      rightClickHandler?.(nodeId, position),
     ...overrides,
-  } as RendererAdapter & { fireRightClick: (nodeId: string, position: { x: number; y: number }) => void };
+  } as RendererAdapter & {
+    fireRightClick: (
+      nodeId: string,
+      position: { x: number; y: number },
+    ) => void;
+  };
 }
 
 // TASK-004 AC-2/AC-4: reset-layout button + non-blocking save-failure toast,
@@ -84,19 +113,31 @@ describe("ExplorerInteractions -- TASK-004 layout persistence", () => {
     vi.mocked(layoutClient.resetLayoutPositions).mockResolvedValue(undefined);
     const adapter = fakeAdapter();
 
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} graphId={GRAPH_ID} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        graphId={GRAPH_ID}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Reset layout" }));
 
-    await waitFor(() => expect(layoutClient.resetLayoutPositions).toHaveBeenCalledWith(GRAPH_ID));
+    await waitFor(() =>
+      expect(layoutClient.resetLayoutPositions).toHaveBeenCalledWith(GRAPH_ID),
+    );
     expect(adapter.setLayout).toHaveBeenCalledWith(
       "fcose",
-      expect.objectContaining({ randomize: true })
+      expect.objectContaining({ randomize: true }),
     );
   });
 
   it("shows a dismissible toast once a dragged node's save retries are exhausted", async () => {
-    vi.mocked(layoutClient.saveLayoutPosition).mockRejectedValue(new Error("down"));
-    let dragHandler: ((nodeId: string, position: { x: number; y: number }) => void) | undefined;
+    vi.mocked(layoutClient.saveLayoutPosition).mockRejectedValue(
+      new Error("down"),
+    );
+    let dragHandler:
+      | ((nodeId: string, position: { x: number; y: number }) => void)
+      | undefined;
     const adapter = fakeAdapter({
       onNodeDragEnd: vi.fn((handler) => {
         dragHandler = handler;
@@ -104,7 +145,13 @@ describe("ExplorerInteractions -- TASK-004 layout persistence", () => {
       }),
     });
 
-    render(<ExplorerInteractions adapter={adapter} config={NO_RETRY_CONFIG} graphId={GRAPH_ID} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={NO_RETRY_CONFIG}
+        graphId={GRAPH_ID}
+      />,
+    );
     act(() => dragHandler?.("urn:weave:x:1", { x: 5, y: 9 }));
 
     const toast = await screen.findByRole("alert");
@@ -122,7 +169,15 @@ const fetchNodeProps = vi.fn(async () => ({
     typeLabel: "Process",
     keyProperties: [],
     rawIri: null,
-    neighbours: [{ iri: "n2", label: "Payments", bpmoKind: "Process", edgePredicate: "p", edgeDirection: "outgoing" as const }],
+    neighbours: [
+      {
+        iri: "n2",
+        label: "Payments",
+        bpmoKind: "Process",
+        edgePredicate: "p",
+        edgeDirection: "outgoing" as const,
+      },
+    ],
   },
 }));
 
@@ -130,52 +185,101 @@ describe("ExplorerInteractions", () => {
   // AC-3/AC-5: right-click a spotlighted node opens the context menu.
   it("opens the context menu on right-click of the currently spotlighted node", async () => {
     const adapter = fakeAdapter();
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchNodeProps={fetchNodeProps} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchNodeProps={fetchNodeProps}
+      />,
+    );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
 
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
-    expect(screen.getByRole("menu", { name: "Node actions" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menu", { name: "Node actions" }),
+    ).toBeInTheDocument();
   });
 
   // AC-1: selecting "Focus domain" calls useDomainFocus's focusDomain.
   it("calls focusDomain with the node id when 'Focus domain' is selected", async () => {
     const adapter = fakeAdapter();
-    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({ type: "ok", rows: [] }));
+    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({
+      type: "ok",
+      rows: [],
+    }));
     render(
       <ExplorerInteractions
         adapter={adapter}
         config={DEFAULT_EXPLORER_CONFIG}
         fetchNodeProps={fetchNodeProps}
         fetchDomainMembers={domainFetch}
-      />
+      />,
     );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
     fireEvent.click(screen.getByRole("menuitem", { name: "Focus domain" }));
 
-    expect(domainFetch).toHaveBeenCalledWith("n1", DEFAULT_EXPLORER_CONFIG.domainMembershipPredicate, DEFAULT_EXPLORER_CONFIG.ceTimeoutMs);
+    expect(domainFetch).toHaveBeenCalledWith(
+      "n1",
+      DEFAULT_EXPLORER_CONFIG.domainMembershipPredicate,
+      DEFAULT_EXPLORER_CONFIG.ceTimeoutMs,
+    );
   });
 
   // AC-3/AC-4: selecting "Expand neighbours" reuses the panel's already
   // fetched neighbours -- no new CE-READ-1 call.
   it("calls expandNode with the spotlighted node's already-fetched neighbours when 'Expand neighbours' is selected", async () => {
-    const adapter = fakeAdapter({ getNodeData: vi.fn(() => ({ label: "Invoicing", bpmoKind: "Process" })) });
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchNodeProps={fetchNodeProps} />);
+    const adapter = fakeAdapter({
+      getNodeData: vi.fn(() => ({ label: "Invoicing", bpmoKind: "Process" })),
+    });
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchNodeProps={fetchNodeProps}
+      />,
+    );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Expand neighbours" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Expand neighbours" }),
+    );
 
     expect(adapter.expandNode).toHaveBeenCalledWith("n1", [
-      { iri: "n2", label: "Payments", bpmoKind: "Process", edgePredicate: "p", edgeDirection: "outgoing" },
+      {
+        iri: "n2",
+        label: "Payments",
+        bpmoKind: "Process",
+        edgePredicate: "p",
+        edgeDirection: "outgoing",
+      },
     ]);
   });
 
@@ -185,13 +289,27 @@ describe("ExplorerInteractions", () => {
       getNodeData: vi.fn(() => ({ label: "Invoicing", bpmoKind: "Process" })),
       hasExpandedNeighbours: vi.fn(() => true),
     });
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchNodeProps={fetchNodeProps} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchNodeProps={fetchNodeProps}
+      />,
+    );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Collapse neighbours" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Collapse neighbours" }),
+    );
 
     expect(adapter.collapseNode).toHaveBeenCalledWith("n1");
   });
@@ -200,49 +318,77 @@ describe("ExplorerInteractions", () => {
   // through the same composed component, driven by useDomainFocus's state.
   it("shows the empty-state notice when a domain focus returns zero members", async () => {
     const adapter = fakeAdapter();
-    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({ type: "ok", rows: [] }));
+    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({
+      type: "ok",
+      rows: [],
+    }));
     render(
       <ExplorerInteractions
         adapter={adapter}
         config={DEFAULT_EXPLORER_CONFIG}
         fetchNodeProps={fetchNodeProps}
         fetchDomainMembers={domainFetch}
-      />
+      />,
     );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
-    await act(async () => fireEvent.click(screen.getByRole("menuitem", { name: "Focus domain" })));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("menuitem", { name: "Focus domain" })),
+    );
 
-    expect(await screen.findByText("This domain has no members")).toBeInTheDocument();
+    expect(
+      await screen.findByText("This domain has no members"),
+    ).toBeInTheDocument();
   });
 
   it("shows a dismissable error notice with Retry when a domain focus fetch fails", async () => {
     const adapter = fakeAdapter();
-    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({ type: "error", status: 503 }));
+    const domainFetch = vi.fn(async (): Promise<FetchDomainMembersResult> => ({
+      type: "error",
+      status: 503,
+    }));
     render(
       <ExplorerInteractions
         adapter={adapter}
         config={DEFAULT_EXPLORER_CONFIG}
         fetchNodeProps={fetchNodeProps}
         fetchDomainMembers={domainFetch}
-      />
+      />,
     );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
 
-    await act(async () => fireEvent.click(screen.getByRole("menuitem", { name: "Focus domain" })));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("menuitem", { name: "Focus domain" })),
+    );
 
     expect(await screen.findByText("CE error 503")).toBeInTheDocument();
 
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Retry" })));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Retry" })),
+    );
     expect(domainFetch).toHaveBeenCalledTimes(2);
 
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Dismiss" })));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "Dismiss" })),
+    );
     expect(screen.queryByText("CE error 503")).not.toBeInTheDocument();
   });
 
@@ -258,16 +404,38 @@ describe("ExplorerInteractions", () => {
     }));
     const fetchWithManyNeighbours = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Invoicing", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: manyNeighbours },
+      data: {
+        label: "Invoicing",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours: manyNeighbours,
+      },
     }));
     const config = { ...DEFAULT_EXPLORER_CONFIG, expandConfirmThreshold: 2 };
-    const adapter = fakeAdapter({ getNodeData: vi.fn(() => ({ label: "Invoicing", bpmoKind: "Process" })) });
-    render(<ExplorerInteractions adapter={adapter} config={config} fetchNodeProps={fetchWithManyNeighbours} />);
+    const adapter = fakeAdapter({
+      getNodeData: vi.fn(() => ({ label: "Invoicing", bpmoKind: "Process" })),
+    });
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={config}
+        fetchNodeProps={fetchWithManyNeighbours}
+      />,
+    );
 
     const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
     await act(async () => onNodeTap("n1"));
-    act(() => (adapter as unknown as { fireRightClick: (id: string, p: { x: number; y: number }) => void }).fireRightClick("n1", { x: 5, y: 6 }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Expand neighbours" }));
+    act(() =>
+      (
+        adapter as unknown as {
+          fireRightClick: (id: string, p: { x: number; y: number }) => void;
+        }
+      ).fireRightClick("n1", { x: 5, y: 6 }),
+    );
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Expand neighbours" }),
+    );
 
     expect(screen.getByText("Load 5 more nodes?")).toBeInTheDocument();
     expect(adapter.expandNode).not.toHaveBeenCalled();
@@ -286,53 +454,95 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
     { data: { id: "n1", bpmo_kind: "Process" } },
     { data: { id: "n2", bpmo_kind: "Policy" } },
   ];
-  const palette: NodeKind[] = [{ id: "process", label: "Process", colour: "var(--color-kind-process)" }];
+  const palette: NodeKind[] = [
+    { id: "process", label: "Process", colour: "var(--color-kind-process)" },
+  ];
   const fetchPalette = vi.fn(async () => palette);
 
   it("moves the search trigger inside the canvas toolbar (D-3)", () => {
     const adapter = fakeAdapter();
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={fetchPalette}
+      />,
+    );
 
-    expect(screen.getByTestId("explorer-toolbar")).toContainElement(screen.getByRole("button", { name: "Search nodes" }));
+    expect(screen.getByTestId("explorer-toolbar")).toContainElement(
+      screen.getByRole("button", { name: "Search nodes" }),
+    );
   });
 
   it("renders the legend and the filters panel alongside the canvas", async () => {
     const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={fetchPalette}
+      />,
+    );
 
     expect(await screen.findByText("Process")).toBeInTheDocument();
     expect(screen.getByTestId("explorer-filter-panel")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Process" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Process" }),
+    ).toBeInTheDocument();
   });
 
   it("shows the all-types-off empty-state instead of a blank canvas, and Retry restores every type (AC-2)", async () => {
     const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={fetchPalette}
+      />,
+    );
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Process" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Policy" }));
 
-    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(/hidden/i);
+    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(
+      /hidden/i,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(screen.queryByTestId("explorer-empty-state")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("explorer-empty-state"),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Process" })).toBeChecked();
   });
 
   it("shows the no-match empty-state when a property filter matches no loaded node, and Retry clears it (AC-5)", async () => {
     const adapter = fakeAdapter({ listElements: vi.fn(() => twoTypeNodes) });
-    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={fetchPalette}
+      />,
+    );
 
-    fireEvent.change(screen.getByLabelText("Property path"), { target: { value: "status" } });
-    fireEvent.change(screen.getByLabelText("Value"), { target: { value: "no-such-value" } });
+    fireEvent.change(screen.getByLabelText("Property path"), {
+      target: { value: "status" },
+    });
+    fireEvent.change(screen.getByLabelText("Value"), {
+      target: { value: "no-such-value" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Add filter" }));
 
-    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(/no loaded nodes match/i);
+    expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(
+      /no loaded nodes match/i,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    expect(screen.queryByTestId("explorer-empty-state")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("explorer-empty-state"),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -351,13 +561,21 @@ describe("ExplorerInteractions -- ?focus= deep link", () => {
     const adapter = fakeAdapter({ getNodeData });
 
     try {
-      render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} />);
+      render(
+        <ExplorerInteractions
+          adapter={adapter}
+          config={DEFAULT_EXPLORER_CONFIG}
+        />,
+      );
       expect(adapter.centerOn).not.toHaveBeenCalled();
 
       await act(async () => {
         vi.advanceTimersByTime(500);
       });
-      expect(adapter.centerOn).toHaveBeenCalledWith("n1", DEFAULT_EXPLORER_CONFIG.centreAnimationMs);
+      expect(adapter.centerOn).toHaveBeenCalledWith(
+        "n1",
+        DEFAULT_EXPLORER_CONFIG.centreAnimationMs,
+      );
 
       // Poll stops after success -- no repeat centering on later ticks.
       await act(async () => {
@@ -376,7 +594,12 @@ describe("ExplorerInteractions -- ?focus= deep link", () => {
     const adapter = fakeAdapter({ getNodeData: vi.fn(() => undefined) });
 
     try {
-      render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} />);
+      render(
+        <ExplorerInteractions
+          adapter={adapter}
+          config={DEFAULT_EXPLORER_CONFIG}
+        />,
+      );
       await act(async () => {
         vi.advanceTimersByTime(15_000);
       });
@@ -385,5 +608,45 @@ describe("ExplorerInteractions -- ?focus= deep link", () => {
       vi.useRealTimers();
       window.history.replaceState(null, "", "/");
     }
+  });
+});
+
+// TASK-023 AC-3/AC-6/AC-7: quick-add and draw-edge are wired onto the real
+// component tree, gated by the role/canvas-mode-derived canEdit flag --
+// closes the "coded but never imported" integration gap this task's own
+// escalation note flagged.
+describe("ExplorerInteractions -- TASK-023 edit affordances", () => {
+  function fakeAdapterWithDoubleClick(): RendererAdapter & { fireDoubleClick: (position: { x: number; y: number }) => void } {
+    let handler: ((position: { x: number; y: number }) => void) | undefined;
+    const adapter = fakeAdapter({
+      onBackgroundDoubleClick: vi.fn((h: (position: { x: number; y: number }) => void) => {
+        handler = h;
+        return vi.fn();
+      }),
+    });
+    return Object.assign(adapter, {
+      fireDoubleClick: (position: { x: number; y: number }) => handler?.(position),
+    });
+  }
+
+  it("opens the quick-add popover on double-click for an editor role on the draft canvas", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role="business_analyst_sme" />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.getByLabelText("Add node")).toBeInTheDocument();
+  });
+
+  it("never opens the quick-add popover for the viewer role", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role="viewer" />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.queryByLabelText("Add node")).not.toBeInTheDocument();
+  });
+
+  it("never opens the quick-add popover when no role is present", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role={null} />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.queryByLabelText("Add node")).not.toBeInTheDocument();
   });
 });
