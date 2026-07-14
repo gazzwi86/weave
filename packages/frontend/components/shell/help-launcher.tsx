@@ -2,6 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { usePathname } from "next/navigation";
+import { t } from "@/lib/onboarding/i18n";
 
 const LINK_CLASS = "text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline";
 
@@ -82,6 +83,14 @@ export function HelpLauncher() {
             viewing.
           </Dialog.Description>
           <HelpTopics />
+          {/* TASK-010 AC-010-05: restore a dismissed dashboard checklist. */}
+          <button
+            type="button"
+            onClick={() => void fetch("/api/onboarding/checklist/restore", { method: "POST" })}
+            className="mt-[var(--space-4)] text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline"
+          >
+            {t("onboarding.checklist.restore")}
+          </button>
           <Dialog.Close asChild>
             <button
               type="button"
