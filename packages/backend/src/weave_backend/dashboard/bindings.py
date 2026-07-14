@@ -118,11 +118,13 @@ async def _completeness(ctx: BindingContext) -> BindingResult:
         )
         gaps: list[dict[str, Any]] = []
         for kind, links in _COMPLETENESS_PAIRS:
-            gaps.extend(
-                await coverage_gap.coverage_gap(
-                    ctx.ce_client, kind=kind, required_links=links, headers=ctx.ce_headers
-                )
+            kind_gaps = await coverage_gap.coverage_gap(
+                ctx.ce_client, kind=kind, required_links=links, headers=ctx.ce_headers
             )
+            # TASK-017 AC-3: tag each row with the kind it was queried
+            # for -- role-home's completeness map attributes a gap to its
+            # kind without a second SPARQL round-trip.
+            gaps.extend({**gap, "kind": kind} for gap in kind_gaps)
     except (ce_metrics.CeMetricsUnavailable, httpx.HTTPError):
         return BindingResult(shape="matrix", status="unavailable", rows=None)
     return BindingResult(shape="matrix", status="fresh", rows={"counts": counts, "gaps": gaps})

@@ -59,6 +59,7 @@ from weave_backend.routers.prompts import router as prompts_router
 from weave_backend.routers.query import router as query_router
 from weave_backend.routers.request_governance import router as request_governance_router
 from weave_backend.routers.requests import router as requests_router
+from weave_backend.routers.role_home import router as role_home_router
 from weave_backend.routers.runs import router as runs_router
 from weave_backend.routers.sdk_generation import router as sdk_generation_router
 from weave_backend.routers.search import router as search_router
@@ -145,6 +146,7 @@ app.include_router(requests_router)
 app.include_router(request_governance_router)
 app.include_router(runs_router)
 app.include_router(prompts_router)
+app.include_router(role_home_router)
 app.include_router(board_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
