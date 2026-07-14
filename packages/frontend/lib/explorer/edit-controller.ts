@@ -1,3 +1,5 @@
+import { bumpDraftHead } from "./draft-head";
+import type { NeighbourProps } from "./fetch-node-props";
 import type { Op } from "./operations-schema";
 import type { CytoscapeElement } from "./types";
 import type { RendererAdapter } from "./renderer-adapter";
@@ -102,6 +104,7 @@ export async function commitOp(options: CommitOpOptions): Promise<void> {
   const response = await writeProxy([op], timeoutMs);
 
   if (response.status === 201) {
+    bumpDraftHead(); // TASK-024 AC-2/AC-3: any successful write advances the drift counter.
     const refMap = (response.body as ApplySuccessBody | null)?.ref_map ?? {};
     adapter.reconcileElement(localId, resolveAppliedElement(op, optimisticElement, refMap));
     return;
@@ -116,4 +119,91 @@ export async function commitOp(options: CommitOpOptions): Promise<void> {
   }
 
   onRetryable(() => commitOp(options));
+}
+
+export interface CommitUpdateOptions {
+  iri: string;
+  properties: Record<string, unknown>;
+  /** New canvas label, if the edited fields include the node's label --
+   * undefined leaves the canvas element's label untouched. */
+  labelOverride?: string;
+  adapter: RendererAdapter;
+  writeProxy: WriteProxyFn;
+  timeoutMs: number;
+}
+
+export type CommitUpdateResult = { status: "ok" } | { status: "violations"; messages: string[] } | { status: "retry" };
+
+/** TASK-024 AC-1/AC-4: commits an `update_node` op via the write proxy.
+ * Unlike `commitOp`'s add lifecycle there is no optimistic ghost element --
+ * the node already exists on canvas, so a 201 just reconciles its label. */
+export async function commitUpdate(options: CommitUpdateOptions): Promise<CommitUpdateResult> {
+  const { iri, properties, labelOverride, adapter, writeProxy, timeoutMs } = options;
+  const response = await writeProxy([{ op: "update_node", iri, properties }], timeoutMs);
+
+  if (response.status === 201) {
+    bumpDraftHead();
+    if (labelOverride !== undefined) {
+      const existing = adapter.getNodeData(iri);
+      adapter.reconcileElement(iri, { data: { id: iri, label: labelOverride, bpmo_kind: existing?.bpmoKind } });
+    }
+    return { status: "ok" };
+  }
+
+  if (response.status === 422) {
+    const violations = (response.body as ApplyViolationsBody | null)?.violations ?? [];
+    return { status: "violations", messages: humaniseViolations(violations, adapter) };
+  }
+
+  return { status: "retry" };
+}
+
+/** TASK-024 AC-5/AC-6: one batch -- every incident edge (both directions,
+ * `fetchNodeProps`'s full `neighbours` set) deleted before the node itself,
+ * so referential integrity holds mid-batch. */
+export function buildDeleteOps(nodeId: string, neighbours: NeighbourProps[]): Op[] {
+  const edgeOps: Op[] = neighbours.map((neighbour) =>
+    neighbour.edgeDirection === "outgoing"
+      ? { op: "delete_edge", subject: nodeId, predicate: neighbour.edgePredicate, object: neighbour.iri }
+      : { op: "delete_edge", subject: neighbour.iri, predicate: neighbour.edgePredicate, object: nodeId }
+  );
+  return [...edgeOps, { op: "delete_node", iri: nodeId }];
+}
+
+/** Mirrors map-rows-to-elements.ts's `${subject}|${predicate}|${object}`
+ * edge-id convention, so canvas removal targets the exact elements the
+ * submitted ops represent -- nothing inferred (AC-6). */
+function elementIdForDeleteOp(op: Op): string {
+  if (op.op === "delete_edge") return `${op.subject}|${op.predicate}|${op.object}`;
+  if (op.op === "delete_node") return op.iri;
+  throw new Error(`elementIdForDeleteOp: unexpected op "${op.op}" in a delete batch`);
+}
+
+export function elementIdsForDeleteOps(ops: Op[]): string[] {
+  return ops.map(elementIdForDeleteOp);
+}
+
+export interface CommitDeleteOptions {
+  ops: Op[];
+  adapter: RendererAdapter;
+  writeProxy: WriteProxyFn;
+  timeoutMs: number;
+}
+
+export type CommitDeleteResult = { status: "ok" } | { status: "failed" };
+
+/** TASK-024 AC-6/AC-7: submits the delete batch; canvas elements are only
+ * ever removed on 201 -- any other outcome (422/timeout/5xx) leaves the
+ * canvas untouched (no phantom removal). */
+export async function commitDelete(options: CommitDeleteOptions): Promise<CommitDeleteResult> {
+  const { ops, adapter, writeProxy, timeoutMs } = options;
+  const response = await writeProxy(ops, timeoutMs);
+
+  if (response.status === 201) {
+    bumpDraftHead();
+    adapter.removeElements(elementIdsForDeleteOps(ops));
+    return { status: "ok" };
+  }
+
+  return { status: "failed" };
 }
