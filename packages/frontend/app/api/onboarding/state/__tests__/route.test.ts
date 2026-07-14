@@ -103,4 +103,30 @@ describe("PATCH /api/onboarding/state", () => {
     );
     expect(response.status).toBe(200);
   });
+
+  // Edge case (QA): the Zod schema (Law 13) is the only guard between an
+  // arbitrary client payload and the upstream PATCH -- must actually reject.
+  it("rejects a malformed whats_new_seen_at without ever calling the backend", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/onboarding/state", {
+        method: "PATCH",
+        body: JSON.stringify({ whats_new_seen_at: "not-a-date" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_request" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing body without ever calling the backend", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    const response = await PATCH(new Request("http://localhost/api/onboarding/state", { method: "PATCH" }));
+
+    expect(response.status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
 });
