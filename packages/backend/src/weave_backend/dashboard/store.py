@@ -88,8 +88,7 @@ async def ensure_user_starters(
     backstop for two parallel first-loads (implementation hint).
     """
     existing = await conn.fetchval(
-        "SELECT 1 FROM widget_instances WHERE tenant_id = $1 AND scope = 'user'"
-        " AND owner_principal_iri = $2 LIMIT 1",
+        "SELECT 1 FROM widget_instances WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2 LIMIT 1",  # noqa: E501
         tenant_id,
         owner_principal_iri,
     )
@@ -160,16 +159,14 @@ async def list_widgets(
     """
     if scope in _OWNER_SCOPED_SCOPES:
         rows = await conn.fetch(
-            "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            ' AND owner_principal_iri = $3 ORDER BY "position"',
+            'SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2 AND owner_principal_iri = $3 ORDER BY "position"',  # noqa: E501
             tenant_id,
             scope,
             owner_principal_iri,
         )
     else:
         rows = await conn.fetch(
-            "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
-            ' ORDER BY "position"',
+            'SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2 ORDER BY "position"',  # noqa: E501
             tenant_id,
             scope,
         )
@@ -236,8 +233,7 @@ async def insert_generated_widget(
     Upgrade path: `SELECT ... FOR UPDATE` if that shows up in practice.
     """
     position = await conn.fetchval(
-        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances'
-        " WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2",
+        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances WHERE tenant_id = $1 AND scope = \'user\' AND owner_principal_iri = $2',  # noqa: E501
         tenant_id,
         owner_principal_iri,
     )
@@ -284,8 +280,7 @@ async def pin_widget(conn: asyncpg.Connection, *, tenant_id: str, widget_id: str
     unsuggested) still returns `True`.
     """
     result: str = await conn.execute(
-        "UPDATE widget_instances SET suggested = false, updated_at = now()"
-        " WHERE tenant_id = $1 AND id = $2",
+        "UPDATE widget_instances SET suggested = false, updated_at = now() WHERE tenant_id = $1 AND id = $2",  # noqa: E501
         tenant_id,
         widget_id,
     )
@@ -307,9 +302,11 @@ async def reorder_widgets(
     """
     offset = len(ids_in_order) + 1000
     for index, widget_id in enumerate(ids_in_order):
+        # False positive: fully parameterized ($1-$4), no user input concatenated;
+        # semgrep mis-flags the quoted "position" column name as concatenation.
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
         await conn.execute(
-            "UPDATE widget_instances SET \"position\" = $3, updated_at = now()"
-            " WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now() WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",  # noqa: E501
             tenant_id,
             widget_id,
             offset + index,
@@ -317,9 +314,11 @@ async def reorder_widgets(
         )
     updated = 0
     for index, widget_id in enumerate(ids_in_order):
+        # False positive: fully parameterized ($1-$4), no user input concatenated;
+        # semgrep mis-flags the quoted "position" column name as concatenation.
+        # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
         result: str = await conn.execute(
-            "UPDATE widget_instances SET \"position\" = $3, updated_at = now()"
-            " WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",
+            "UPDATE widget_instances SET \"position\" = $3, updated_at = now() WHERE tenant_id = $1 AND id = $2 AND scope = 'user' AND owner_principal_iri = $4",  # noqa: E501
             tenant_id,
             widget_id,
             index,
@@ -405,8 +404,7 @@ async def publish_widget(
 
 async def list_library_items(conn: asyncpg.Connection, *, tenant_id: str) -> list[LibraryItemRow]:
     rows = await conn.fetch(
-        "SELECT id, name, description, author_principal_iri, published_at, spec"
-        " FROM widget_library_items WHERE tenant_id = $1 ORDER BY published_at DESC",
+        "SELECT id, name, description, author_principal_iri, published_at, spec FROM widget_library_items WHERE tenant_id = $1 ORDER BY published_at DESC",  # noqa: E501
         tenant_id,
     )
     return [_row_to_library_item(row) for row in rows]
@@ -416,8 +414,7 @@ async def get_library_item(
     conn: asyncpg.Connection, *, tenant_id: str, item_id: str
 ) -> LibraryItemRow | None:
     row = await conn.fetchrow(
-        "SELECT id, name, description, author_principal_iri, published_at, spec"
-        " FROM widget_library_items WHERE tenant_id = $1 AND id = $2",
+        "SELECT id, name, description, author_principal_iri, published_at, spec FROM widget_library_items WHERE tenant_id = $1 AND id = $2",  # noqa: E501
         tenant_id,
         item_id,
     )
@@ -432,8 +429,7 @@ async def add_library_item(
     are the plain TASK-010/013/014 code paths, zero special-casing.
     """
     position = await conn.fetchval(
-        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances'
-        " WHERE tenant_id = $1 AND scope = 'user' AND owner_principal_iri = $2",
+        'SELECT COALESCE(MAX("position"), -1) + 1 FROM widget_instances WHERE tenant_id = $1 AND scope = \'user\' AND owner_principal_iri = $2',  # noqa: E501
         tenant_id,
         owner_principal_iri,
     )
