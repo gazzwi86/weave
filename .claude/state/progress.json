@@ -1071,7 +1071,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Import & Ingest Page, Epic E2E, CI Closure",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-013",
         "CE-V1-TASK-014"
