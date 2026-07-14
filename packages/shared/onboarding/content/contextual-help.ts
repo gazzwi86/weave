@@ -32,7 +32,7 @@ export function areaForPathname(pathname: string | null): AreaId | null {
   if (pathname.startsWith("/explorer")) return "explorer";
   if (pathname.startsWith("/build")) return "build";
   if (pathname.startsWith("/events")) return "events";
-  if (pathname.startsWith("/compliance")) return "compliance";
+  if (pathname.startsWith("/audit/compliance")) return "compliance";
   if (pathname.startsWith("/settings")) return "settings";
   if (pathname.startsWith("/role-home")) return "role-home";
   return null;
