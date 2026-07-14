@@ -68,10 +68,19 @@ export interface IngestViolation {
 /** Mirrors migration 0040's `ingest_jobs.status` CHECK constraint. */
 export type IngestJobStatus = "queued" | "extracting" | "awaiting-review" | "failed" | "done";
 
+/** Mirrors weave_backend.schemas.ingest.JobSummaryResponse -- only present
+ * once a job reaches a terminal review outcome (TASK-019 job list). */
+export interface IngestJobSummary {
+  committed: number;
+  rejected: number;
+  skipped: number;
+}
+
 export interface IngestJob {
   job_id: string;
   status: IngestJobStatus;
   kind: string;
   artefact_iri: string;
   error: string | null;
+  summary?: IngestJobSummary | null;
 }
