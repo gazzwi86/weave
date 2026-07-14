@@ -189,42 +189,42 @@
     },
     {
       "id": "CE-V1-EPIC-015",
-      "title": "Filters & Layers \u00b7 M2",
+      "title": "Filters & Layers · M2",
       "status": "done"
     },
     {
       "id": "CE-V1-EPIC-016",
-      "title": "Visual Overlays \u00b7 M2",
+      "title": "Visual Overlays · M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-020",
-      "title": "Version Views & Diff \u00b7 M2",
+      "title": "Version Views & Diff · M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-017",
-      "title": "Visual Editing on the Canvas \u00b7 M2",
+      "title": "Visual Editing on the Canvas · M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-019",
-      "title": "Saved Views & Layout \u00b7 M2",
+      "title": "Saved Views & Layout · M2",
       "status": "done"
     },
     {
       "id": "CE-V1-EPIC-018",
-      "title": "Async Share & Comments \u00b7 M2",
+      "title": "Async Share & Comments · M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-022",
-      "title": "Model-Completeness Map \u00b7 M2 (new)",
+      "title": "Model-Completeness Map · M2 (new)",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-021",
-      "title": "Embeddable Canvas Component GE-CANVAS-1 \u00b7 force mode M2, c4 mode post-v1",
+      "title": "Embeddable Canvas Component GE-CANVAS-1 · force mode M2, c4 mode post-v1",
       "status": "backlog"
     },
     {
@@ -509,7 +509,7 @@
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003",
@@ -522,7 +522,7 @@
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL\u2192SELECT Query and SPARQL Editor",
+      "title": "NL→SELECT Query and SPARQL Editor",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003"
@@ -739,7 +739,7 @@
       "id": "PLAT-V1-TASK-012",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
-      "title": "Declarative intent\u2192component mapping + change visualisation (E1-S2)",
+      "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-011"
@@ -789,7 +789,7 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-002",
       "title": "Widget-library category bindings: 10 CE/platform-sourced categories (EPIC-002)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-010",
         "PLAT-V1-TASK-012"
@@ -970,7 +970,7 @@
       "id": "CE-V1-TASK-005",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
-      "title": "Tenant-Scoped Governance Shapes (NL\u2192SHACL, Isolation, Cache Invalidation)",
+      "title": "Tenant-Scoped Governance Shapes (NL→SHACL, Isolation, Cache Invalidation)",
       "status": "done",
       "blocked_by": [
         "CE-V1-TASK-001"
@@ -1025,7 +1025,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-007",
       "title": "Agent-Grounding Authority & Escalation Patterns (E7-S4, base-links descope)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-010.md",
       "retry_count": 0
@@ -1057,7 +1057,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Document Corpus Store: Chunking, Embeddings, Retrieval, NL Citations",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-012",
         "CE-V1-TASK-013",
@@ -1106,7 +1106,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-020",
       "title": "Versions Panel + Diff Overlay (CE-VERSION-1 / CE-DIFF-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-021"
       ],
@@ -1150,7 +1150,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-018",
       "title": "Saved Views UI + Share + Comments + Live-Refresh Poll",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-020",
         "CE-V1-TASK-025"
@@ -1163,7 +1163,7 @@
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map (coverage_gap overlay)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-021"
       ],
@@ -1247,7 +1247,7 @@
       "id": "BE-V1-TASK-004",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
-      "title": "BE-SDK-1 Generator Core: Fetch \u2192 IR \u2192 TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
+      "title": "BE-SDK-1 Generator Core: Fetch → IR → TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
       "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
@@ -1443,7 +1443,7 @@
       "id": "BE-V1-TASK-021",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
-      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt \u2192 Dark-Factory Run",
+      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run",
       "status": "done",
       "blocked_by": [
         "BE-V1-TASK-012",
@@ -1561,7 +1561,7 @@
       "id": "PLAT-V1-TASK-027",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
-      "title": "App shell v2 \u2014 V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
+      "title": "App shell v2 — V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1574,7 +1574,7 @@
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-012",
       "title": "Marketing entry + working /login (R6)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1585,8 +1585,8 @@
       "id": "PLAT-V1-TASK-029",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-009",
-      "title": "Audit & compliance surfaces v2 \u2014 tiles/charts rebuild (R8)",
-      "status": "backlog",
+      "title": "Audit & compliance surfaces v2 — tiles/charts rebuild (R8)",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1597,8 +1597,8 @@
       "id": "PLAT-V1-TASK-030",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-004",
-      "title": "Settings completeness \u2014 Members + notification preferences (R9 + R7 copy)",
-      "status": "backlog",
+      "title": "Settings completeness — Members + notification preferences (R9 + R7 copy)",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1609,8 +1609,8 @@
       "id": "CE-V1-TASK-031",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-023",
-      "title": "Instance browser v2 \u2014 browse/search + SHACL drawer + glass chat aside (R3)",
-      "status": "backlog",
+      "title": "Instance browser v2 — browse/search + SHACL drawer + glass chat aside (R3)",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1621,8 +1621,8 @@
       "id": "CE-V1-TASK-032",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-024",
-      "title": "Query & ask v2 \u2014 lifecycle states + Graph/Table/Raw + speech input (R5)",
-      "status": "backlog",
+      "title": "Query & ask v2 — lifecycle states + Graph/Table/Raw + speech input (R5)",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1633,7 +1633,7 @@
       "id": "BE-V1-TASK-024",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-001",
-      "title": "Build request form v2 \u2014 labelled fields + visible request record (R11)",
+      "title": "Build request form v2 — labelled fields + visible request record (R11)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1656,7 +1656,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "hammerbarn-seed CLI: compile + apply canonical seed via CE-WRITE-1",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-002.md",
       "retry_count": 0
@@ -1666,7 +1666,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Anchor Registry + Content Config Package with CI Checks",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-003.md",
       "retry_count": 0
@@ -1676,7 +1676,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Sandbox Provisioning, Canonical Template & Three Isolation Boundaries",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-002"
@@ -1700,8 +1700,8 @@
       "id": "ONB-TASK-006",
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
-      "title": "Role-Path Resolution: 10\u21924 mapping, choose-path, change-path",
-      "status": "backlog",
+      "title": "Role-Path Resolution: 10→4 mapping, choose-path, change-path",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001"
       ],
@@ -1713,7 +1713,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Tour Engine: Driver.js wrapper + CE/Explorer guided tours",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003",
@@ -1727,7 +1727,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Beacons & Welcome Modals with server-side dismissal",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
@@ -1808,7 +1808,7 @@
       "id": "ONB-TASK-014",
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
-      "title": "Role\u2192Starter-Widget Mapping handed to Platform",
+      "title": "Role→Starter-Widget Mapping handed to Platform",
       "status": "done",
       "blocked_by": [
         "ONB-TASK-003",
