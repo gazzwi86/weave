@@ -289,6 +289,15 @@ jobs:
         run: uv sync
       - working-directory: packages/backend
         run: uv run python -m weave_backend.db.migrate
+      # lhci's puppeteerScript hits the real backend unmocked (unlike
+      # axe-m2's Playwright spec, which mocks every proxy route) -- without
+      # seeding, mock-oidc's default login has no workspace membership, so
+      # every workspace-scoped route 400s post-login and the canvas never
+      # mounts (loadCanvas catches -> loadState "error" -> layoutstop never
+      # fires -> lhci-explorer-login.js's waitForFunction times out at 30s).
+      - name: Seed demo data (workspace membership for mock-oidc login)
+        working-directory: packages/backend
+        run: uv run python -m weave_backend.db.seed_demo
       - name: Start backend + mock OIDC
         working-directory: packages/backend
         run: |
