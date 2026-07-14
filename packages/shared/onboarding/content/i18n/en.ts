@@ -35,6 +35,7 @@ export const en: Record<string, string> = {
   "onboarding.cta.take-a-tour": "Take a tour",
   "onboarding.cta.explore-freely": "Explore freely",
   "onboarding.cta.read-the-guide": "Read the guide",
+  "onboarding.beacon.hint": "Hint available",
   "onboarding.beacon.learn-more": "Learn more",
   "onboarding.beacon.dismiss": "Got it",
   "onboarding.beacon.show-all-hints": "Show all hints",
