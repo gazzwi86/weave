@@ -173,8 +173,11 @@ describe("HelpLauncher", () => {
 
   it("has zero axe violations (AC-013-06)", async () => {
     pathname = "/ce";
-    const { container } = render(<HelpLauncher />);
+    render(<HelpLauncher />);
     fireEvent.click(screen.getByRole("button", { name: /help/i }));
-    await expectNoAxeViolations(container);
+    // The panel is a Radix Dialog.Portal -- it renders into document.body,
+    // not into the render()'d container, so the axe scan must cover
+    // document.body to actually reach the panel's links/headings.
+    await expectNoAxeViolations(document.body);
   });
 });
