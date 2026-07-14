@@ -407,3 +407,6 @@ needing a service must mock the client or be marked docker. Phase-gate: audit te
 
 ## PROJ-A11Y-EXPLORER (2026-07-15, surfaced by CE-030 M2 a11y gate) — OPEN
 The M2 UI a11y gates CE-030 wired (axe-m2 + lighthouse-explorer) are now live and RED on the Explorer route: Lighthouse accessibility score < 0.95 (perf is warn-only), and axe likely reports real violations on the M2 Explorer panels. This is PRE-EXISTING debt in the Explorer panel code (CE-V1-TASK-020/021/022, merged), not CE-030 (test-only gate). ACTION (phase-gate remediation / owning-task): fix Explorer panel a11y to clear Lighthouse a11y ≥0.95 + zero axe violations, or calibrate thresholds with an architect amendment. Blocks CE-030 (#106) from a fully-green merge until resolved.
+
+## PROJ-FLAKY-BILLING-PERF (2026-07-15) — OPEN
+`test_billing.py::test_simulate_ai_call_under_cap_calls_ai_client_and_records_usage` asserts a WALL-CLOCK budget `elapsed_ms < 100` (metering write); flaked at 226.7ms on a loaded CI runner (#110 integration job, unrelated PR). Wall-clock perf assertions in integration tests flake under CI contention. FIX (owning task PLAT-TASK-008/billing): assert a server-reported op duration or give CI headroom, per the ONB-015 reset-test precedent (server duration, not browser wall-clock). Phase-gate remediation candidate.
