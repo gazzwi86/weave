@@ -88,20 +88,48 @@ async def _fetch_tenant_ids(conn: asyncpg.Connection) -> list[str]:
     return [str(row["tenant_id"]) for row in rows]
 
 
+async def _poll_tenant(tenant_id: str) -> None:
+    async with tenant_connection(tenant_id) as conn:
+        for user in await select_pollable_users(conn, tenant_id):
+            try:
+                await poll_user(conn, user)
+            except Exception:
+                log.exception(
+                    "onboarding scheduler: poll_user failed, skipping user "
+                    "tenant_id=%s user_id=%s",
+                    tenant_id,
+                    user.user_id,
+                )
+
+
 async def _poll_all_tenants() -> None:
+    # One bad tenant/user must not kill the cycle for everyone else -- each
+    # tenant (and each user within it) is isolated so a single raising query
+    # only drops that tenant's/user's poll this cycle, not the whole sweep.
     async with untenanted_connection() as conn:
         tenant_ids = await _fetch_tenant_ids(conn)
 
     for tenant_id in tenant_ids:
-        async with tenant_connection(tenant_id) as conn:
-            for user in await select_pollable_users(conn, tenant_id):
-                await poll_user(conn, user)
+        try:
+            await _poll_tenant(tenant_id)
+        except Exception:
+            log.exception(
+                "onboarding scheduler: poll cycle failed, skipping tenant_id=%s",
+                tenant_id,
+            )
 
 
 async def _flush_all_tenants() -> None:
+    # Same per-tenant fault isolation as _poll_all_tenants.
     async with untenanted_connection() as conn:
         tenant_ids = await _fetch_tenant_ids(conn)
 
     for tenant_id in tenant_ids:
-        async with tenant_connection(tenant_id) as conn:
-            await flush_pending(conn, tenant_id)
+        try:
+            async with tenant_connection(tenant_id) as conn:
+                await flush_pending(conn, tenant_id)
+        except Exception:
+            log.exception(
+                "onboarding dispatcher: flush cycle failed, skipping tenant_id=%s",
+                tenant_id,
+            )

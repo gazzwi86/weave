@@ -102,6 +102,46 @@ async def test_poll_all_tenants_skips_tenant_with_no_pollable_users(
     assert polled == []
 
 
+async def test_poll_all_tenants_isolates_a_tenant_whose_query_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, polled = _patch_tenants_and_users(
+        monkeypatch,
+        {_TENANT_A: [_user(_TENANT_A, "u-1")], _TENANT_B: [_user(_TENANT_B, "u-2")]},
+    )
+
+    async def _boom(conn: _FakeConn, tenant_id: str) -> list[PollableUser]:
+        if tenant_id == _TENANT_A:
+            raise RuntimeError("select_pollable_users down for tenant_a")
+        return [_user(_TENANT_B, "u-2")]
+
+    monkeypatch.setattr(scheduler, "select_pollable_users", _boom)
+
+    await scheduler._poll_all_tenants()  # must not raise -- tenant_a's failure is isolated
+
+    assert polled == [(_TENANT_B, "u-2")]
+
+
+async def test_poll_all_tenants_isolates_a_user_whose_poll_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, polled = _patch_tenants_and_users(
+        monkeypatch,
+        {_TENANT_A: [_user(_TENANT_A, "u-bad"), _user(_TENANT_A, "u-good")]},
+    )
+
+    async def _boom(conn: _FakeConn, user: PollableUser) -> None:
+        if user.user_id == "u-bad":
+            raise RuntimeError("poll_user down for u-bad")
+        polled.append((conn.tenant_id, user.user_id))
+
+    monkeypatch.setattr(scheduler, "poll_user", _boom)
+
+    await scheduler._poll_all_tenants()  # u-bad's failure must not skip u-good
+
+    assert polled == [(_TENANT_A, "u-good")]
+
+
 async def test_run_forever_sleeps_the_default_interval_between_cycles(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,6 +221,24 @@ async def test_flush_all_tenants_drains_every_tenants_outbox(
     await scheduler._flush_all_tenants()
 
     assert flushed == [_TENANT_A, _TENANT_B]
+
+
+async def test_flush_all_tenants_isolates_a_tenant_whose_flush_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    flushed = _patch_tenants_and_flush(monkeypatch, [_TENANT_A, _TENANT_B])
+
+    async def _boom(conn: _FakeConn, tenant_id: str) -> int:
+        if tenant_id == _TENANT_A:
+            raise RuntimeError("flush_pending down for tenant_a")
+        flushed.append(tenant_id)
+        return 0
+
+    monkeypatch.setattr(scheduler, "flush_pending", _boom)
+
+    await scheduler._flush_all_tenants()  # must not raise -- tenant_a's failure is isolated
+
+    assert flushed == [_TENANT_B]
 
 
 async def test_dispatch_run_forever_sleeps_the_dispatch_interval(
