@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveChecklist, shouldAutoDismiss } from "../onboarding/derive-checklist";
+import { deriveChecklist, isChecklistItemOpen, shouldAutoDismiss } from "../onboarding/derive-checklist";
 import type { ChecklistItem } from "../onboarding/content/schema";
 import type { ChecklistSignals } from "../onboarding/derive-checklist";
 
@@ -213,5 +213,46 @@ describe("shouldAutoDismiss -- auto-dismiss window arithmetic (AC-010-04)", () =
     const completedAt = new Date("2026-01-01T00:00:00Z");
     const now = new Date("2026-01-03T00:00:00Z");
     expect(shouldAutoDismiss(completedAt, now, 2)).toBe(true);
+  });
+});
+
+describe("isChecklistItemOpen -- competency-question beacon gate (ONB-V1-TASK-003 AC-003-03/04)", () => {
+  const competencyItem = item({
+    itemId: "add-competency-questions",
+    paths: ["business", "technical"],
+    phase: "m2",
+    autoCompleteOn: "manual",
+    signalRefs: ["add_competency_questions"],
+    lockedUntilPhase: "m2",
+  });
+
+  it("open when the item is unlocked (phase=m2) and not yet signalled", () => {
+    expect(isChecklistItemOpen("add-competency-questions", [competencyItem], emptySignals, "business", "m2")).toBe(
+      true
+    );
+  });
+
+  it("not open when locked -- currentPhase not m2", () => {
+    expect(isChecklistItemOpen("add-competency-questions", [competencyItem], emptySignals, "business", "m1")).toBe(
+      false
+    );
+  });
+
+  it("not open once signalled complete (self-marked)", () => {
+    const signals: ChecklistSignals = {
+      ...emptySignals,
+      activations: [{ milestone_id: "add_competency_questions", activated_at: "2026-01-01T00:00:00Z", source: "manual" }],
+    };
+    expect(isChecklistItemOpen("add-competency-questions", [competencyItem], signals, "business", "m2")).toBe(false);
+  });
+
+  it("not open for a role path the item isn't offered on", () => {
+    expect(isChecklistItemOpen("add-competency-questions", [competencyItem], emptySignals, "compliance", "m2")).toBe(
+      false
+    );
+  });
+
+  it("not open when the item id doesn't exist", () => {
+    expect(isChecklistItemOpen("nonexistent-item", [competencyItem], emptySignals, "business", "m2")).toBe(false);
   });
 });

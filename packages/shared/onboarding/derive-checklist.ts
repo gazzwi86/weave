@@ -94,6 +94,23 @@ export function deriveChecklist(
   return { items: derived, allComplete };
 }
 
+/** ONB-V1-TASK-003 AC-003-03/04: pure "is this checklist item still
+ * asking for action" check, reusing `deriveChecklist` (single source of
+ * truth -- AC-010-02) rather than a second lock/checked matcher. Drives
+ * beacon visibility: `visible = item.open && anchor.shipped && anchor.present`. */
+export function isChecklistItemOpen(
+  itemId: string,
+  items: ChecklistItem[],
+  signals: ChecklistSignals,
+  rolePath: ChecklistItem["paths"][number],
+  currentPhase: Phase
+): boolean {
+  const item = items.find((i) => i.itemId === itemId && i.paths.includes(rolePath));
+  if (!item) return false;
+  const [derived] = deriveChecklist([item], signals, currentPhase).items;
+  return derived !== undefined && !derived.locked && !derived.checked;
+}
+
 /** AC-010-04: default-7-days-tunable auto-dismiss window arithmetic,
  * kept pure/testable separate from the widget's effect that calls it.
  */
