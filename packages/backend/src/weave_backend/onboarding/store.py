@@ -2,14 +2,14 @@
 Every query is tenant + user scoped; RLS (migrations/0082_onboarding_state.sql)
 is the belt-and-braces backstop, same pattern as notifications/settings.
 
-``exercise_completion``/``activation`` are read-only here -- this task's
-routes never write them (the milestone recorder is TASK-011, exercise
-verification is a later task); this module only proves the tables exist,
-carry RLS, and are aggregated into the bootstrap read.
+``activation`` is read-only here -- the milestone recorder (TASK-011) owns
+writing it. ``exercise_completion`` writes are TASK-009's
+`record_exercise_completion_with_retry` at the bottom of this module.
 """
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -301,3 +301,50 @@ async def delete_beacon_dismissals(
         user_id,
     )
     return int(result.split()[-1])
+
+
+#: AC-009-04: one retry on a transient write failure -- "no silent loss", not
+#: an unbounded loop that could wedge the request.
+_EXERCISE_WRITE_ATTEMPTS = 2
+
+
+async def record_exercise_completion_with_retry(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    user_id: str,
+    exercise_id: str,
+    verified_signal: str,
+) -> None:
+    """AC-009-03/04/05: upsert `exercise_completion` keyed on the table's own
+    ``(tenant_id, user_id, exercise_id)`` primary key -- re-earnable after a
+    sandbox reset clears the row (TASK-005), idempotent on a retried check.
+    ``clock_timestamp()``, not the column's ``now()`` default, per the
+    TASK-004 lesson: a caller inside one open transaction must not get a
+    frozen timestamp on every write.
+    """
+    last_error: Exception | None = None
+    for attempt in range(_EXERCISE_WRITE_ATTEMPTS):
+        try:
+            await conn.execute(
+                """
+                INSERT INTO exercise_completion
+                    (tenant_id, user_id, exercise_id, verified_signal, completed_at)
+                VALUES ($1, $2, $3, $4, clock_timestamp())
+                ON CONFLICT (tenant_id, user_id, exercise_id) DO UPDATE SET
+                    verified_signal = $4,
+                    completed_at = clock_timestamp()
+                """,
+                tenant_id,
+                user_id,
+                exercise_id,
+                verified_signal,
+            )
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt + 1 < _EXERCISE_WRITE_ATTEMPTS:
+                await asyncio.sleep(0)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("unreachable: loop always sets last_error or returns")
