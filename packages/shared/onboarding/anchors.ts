@@ -35,6 +35,20 @@ export const ANCHORS = {
   "settings.page": { engine: "platform", area: "settings", phase: "m1", shipped: false, planted_by: "TASK-008" },
   // M2 -- registered now, no DOM yet (ADR-005).
   "ce.metrics-tile": { engine: "constitution", area: "constitution", phase: "m2", shipped: false, planted_by: "TASK-014" },
+  // M2 -- Platform role-home guidance surfaces (m2-delta.md §3; EPIC-003, owned by Platform TASK-017).
+  "plat.role-home.nav-entry": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  "plat.role-home.capabilities": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  "plat.role-home.completeness-map": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  "plat.role-home.next-action": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  "plat.role-home.summary-tiles": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  // M2 -- Graph Explorer completeness-map + trust-mechanics overlays (m2-delta.md §3; EPIC-002).
+  "ge.overlay.controls": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-002" },
+  "ge.overlay.completeness-legend": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-002" },
+  "ge.versions.panel": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-004" },
+  "ge.filters.governed-content": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-004" },
+  // M2 -- Constitution rules & policies trust tour (m2-delta.md §3; EPIC-002).
+  "ce.rules.shape-list": { engine: "constitution", area: "constitution", phase: "m2", shipped: false, planted_by: "TASK-004" },
+  "ce.rules.violation-report": { engine: "constitution", area: "constitution", phase: "m2", shipped: false, planted_by: "TASK-004" },
   // post-v1 -- registered now, no DOM yet (ADR-005).
   "build.project-list": { engine: "build", area: "build", phase: "post-v1", shipped: false, planted_by: "TASK-014" },
   "events.rule-list": { engine: "events", area: "events", phase: "post-v1", shipped: false, planted_by: "TASK-014" },
