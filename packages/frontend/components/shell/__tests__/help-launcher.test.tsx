@@ -98,6 +98,14 @@ describe("HelpLauncher", () => {
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+
+    it("stays open when ? is pressed again while already open (no toggle-close)", () => {
+      render(<HelpLauncher />);
+      fireEvent.keyDown(document.body, { key: "?" });
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      fireEvent.keyDown(document.body, { key: "?" });
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
   });
 
   describe("contextual help panel (AC-013-04)", () => {
