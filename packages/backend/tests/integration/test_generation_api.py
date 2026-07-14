@@ -37,7 +37,12 @@ from weave_backend.briefs.store import (
 )
 from weave_backend.db.pool import tenant_connection
 from weave_backend.generation.gates import GateFailure
-from weave_backend.generation.service import GenerationContext, GenerationDeps, generate_app
+from weave_backend.generation.service import (
+    DEFAULT_DEPS,
+    GenerationContext,
+    GenerationDeps,
+    generate_app,
+)
 from weave_backend.pm.bindings import NewBinding
 from weave_backend.pm.bindings import put as put_binding
 from weave_backend.projects.model import NewProject, create_project
@@ -114,10 +119,28 @@ def _github_driver() -> GitHubDriver:
     )
 
 
-def _ce_read_client(project_iri: str) -> httpx.AsyncClient:
+def _ce_read_client(
+    project_iri: str,
+    *,
+    voice_rules: list[dict[str, Any]] | None = None,
+    brand_unreachable: bool = False,
+) -> httpx.AsyncClient:
+    """CE-READ-1 grounding + CE-BRAND-1 (TASK-002) on one mock transport --
+    `voice_rules` defaults to `[]` (AC-6's "zero normal rules -> score 1.0"
+    edge, so pre-existing non-brand tests pass the brand gate for free);
+    `brand_unreachable=True` 500s both brand endpoints (AC-5).
+    """
+
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == f"/api/ontology/resource/{project_iri}"
-        return httpx.Response(200, json={"entity_kinds": ["widget"]})
+        path = request.url.path
+        if path == f"/api/ontology/resource/{project_iri}":
+            return httpx.Response(200, json={"entity_kinds": ["widget"]})
+        if path in ("/api/brand/tokens", "/api/brand/voice-rules"):
+            if brand_unreachable:
+                return httpx.Response(503, json={"error": "ce_brand_unavailable"})
+            body: object = {} if path == "/api/brand/tokens" else (voice_rules or [])
+            return httpx.Response(200, json=body)
+        raise AssertionError(f"unexpected path {path}")
 
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="https://ce.test")
 
@@ -176,6 +199,10 @@ def _gen_deps(*, generate_workspace_fn: Any = None) -> GenerationDeps:
         driver_for=lambda _provider: _github_driver(),
         get_secret=get_scm_token,
         emit_audit=_emit,
+        # TASK-002: real recorder (own tenant_connection, migration 0013's
+        # gate_results table) -- exercises the durability path for real
+        # against Postgres, same as every other dep here.
+        record_brand_gate=DEFAULT_DEPS.record_brand_gate,
     )
 
 
@@ -334,3 +361,116 @@ async def test_generate_app_exposes_a_real_stored_binding_in_run_context(
     assert seen_bpmo[0]["external_bindings"] == [
         {"system": "jira", "space_ref": "ACME", "connector_ref": "jira-1"}
     ]
+
+
+# --- TASK-002 (E8-S1): CE-BRAND-1 conformance gate, 6th in the pipeline ---
+# Docker-marked (`pytest.mark.integration, pytest.mark.docker`) same as the
+# rest of this module -- WRITTEN per lane instructions, not run in this
+# lane (the coordinator serialises docker verification across lanes).
+
+
+async def test_generate_app_runs_brand_gate_sixth_and_records_score_row(
+    platform_stack: Path,
+) -> None:
+    """AC-1: the brand gate runs 6th (after mutation), and its result is
+    durably recorded in `gate_results` (migration 0013) even though it's
+    evaluated inside the same request the M1 five gates already passed.
+    """
+    tenant_id = _unique_tenant("tenant-gen-brand-pass")
+    project_iri, task_id = await _seed_project_and_brief(tenant_id)
+    voice_rules = [{"id": "tok-1", "severity": "normal", "assertion": {"kind": "token_scan"}}]
+
+    async with tenant_connection(tenant_id) as conn:
+        ctx = GenerationContext(
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            task_id=task_id,
+            ce_client=_ce_read_client(project_iri, voice_rules=voice_rules),
+        )
+        with patch("weave_backend.generation.gates.subprocess.run", side_effect=_all_tools_pass):
+            outcome = await generate_app(conn, ctx, _gen_deps())
+
+    gates_passed = outcome["gates_passed"]
+    assert isinstance(gates_passed, list)
+    assert {"gate": "brand", "status": "PASS", "score": 1.0} in gates_passed
+
+    async with tenant_connection(tenant_id) as conn:
+        row = await conn.fetchrow(
+            "SELECT result, payload FROM gate_results WHERE tenant_id = $1 AND gate = 'brand'",
+            tenant_id,
+        )
+    assert row is not None
+    assert row["result"] == "passed"
+    payload = json.loads(row["payload"])
+    assert payload == {"score": 1.0, "critical_failures": [], "rules_evaluated": 1}
+
+
+async def test_generate_app_commits_nothing_when_brand_gate_fails_after_five_passes(
+    platform_stack: Path,
+) -> None:
+    """AC-4: a brand-gate failure after all 5 M1 gates pass still commits
+    nothing -- the six-gate set is atomic, same as the M1 five-gate set.
+    """
+    tenant_id = _unique_tenant("tenant-gen-brand-fail")
+    project_iri, task_id = await _seed_project_and_brief(tenant_id)
+    voice_rules = [{"id": "crit-1", "severity": "critical", "assertion": {"kind": "unknown"}}]
+
+    async with tenant_connection(tenant_id) as conn:
+        ctx = GenerationContext(
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            task_id=task_id,
+            ce_client=_ce_read_client(project_iri, voice_rules=voice_rules),
+        )
+        with (
+            patch("weave_backend.generation.gates.subprocess.run", side_effect=_all_tools_pass),
+            pytest.raises(GateFailure) as excinfo,
+        ):
+            await generate_app(conn, ctx, _gen_deps())
+
+    assert excinfo.value.evidence["critical_failures"] == ["crit-1"]
+
+    async with tenant_connection(tenant_id) as conn:
+        run_row = await conn.fetchrow(
+            "SELECT 1 FROM generation_runs WHERE tenant_id = $1", tenant_id
+        )
+        gate_row = await conn.fetchrow(
+            "SELECT result FROM gate_results WHERE tenant_id = $1 AND gate = 'brand'", tenant_id
+        )
+    assert run_row is None  # AC-4: nothing committed
+    assert gate_row is not None
+    assert gate_row["result"] == "failed"
+
+
+async def test_generate_app_fails_closed_when_ce_brand_unreachable(
+    platform_stack: Path,
+) -> None:
+    """AC-5: CE-BRAND-1 unreachable -> the gate is recorded `not_verified`
+    and fails closed (an unevaluable gate never passes).
+    """
+    tenant_id = _unique_tenant("tenant-gen-brand-down")
+    project_iri, task_id = await _seed_project_and_brief(tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        ctx = GenerationContext(
+            tenant_id=tenant_id,
+            project_iri=project_iri,
+            task_id=task_id,
+            ce_client=_ce_read_client(project_iri, brand_unreachable=True),
+        )
+        with (
+            patch("weave_backend.generation.gates.subprocess.run", side_effect=_all_tools_pass),
+            pytest.raises(GateFailure) as excinfo,
+        ):
+            await generate_app(conn, ctx, _gen_deps())
+
+    assert excinfo.value.evidence["reason"] == "ce_unavailable"
+
+    async with tenant_connection(tenant_id) as conn:
+        gate_row = await conn.fetchrow(
+            "SELECT result, payload FROM gate_results WHERE tenant_id = $1 AND gate = 'brand'",
+            tenant_id,
+        )
+    assert gate_row is not None
+    assert gate_row["result"] == "failed"
+    assert json.loads(gate_row["payload"])["not_verified"] is True

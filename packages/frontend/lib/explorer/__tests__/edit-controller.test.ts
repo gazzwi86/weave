@@ -15,7 +15,14 @@ function fakeAdapter(overrides: Partial<RendererAdapter> = {}): RendererAdapter 
   } as unknown as RendererAdapter;
 }
 
-const ADD_NODE_OP = { op: "add_node" as const, ref: "local:1", kind: "Process", label: "New process", properties: {} };
+const ADD_NODE_OP = {
+  op: "add_node" as const,
+  ref: "local:1",
+  kind: "Process",
+  label: "New process",
+  properties: {},
+  additional_types: [],
+};
 const GHOST_NODE = { data: { id: "local:1", label: "New process", bpmo_kind: "Process" } };
 
 function writeProxyReturning(result: WriteProxyResult): WriteProxyFn {

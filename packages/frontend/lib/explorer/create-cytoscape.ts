@@ -2,7 +2,7 @@ import cytoscape from "cytoscape";
 import edgehandles from "cytoscape-edgehandles";
 import fcose from "cytoscape-fcose";
 
-import { resolveStylesheetTokens } from "./build-stylesheet";
+import { readCssToken, resolveStylesheetTokens } from "./build-stylesheet";
 import { EDGEHANDLES_PARAMS } from "./edgehandles-params";
 
 // Registering the fcose layout extension is a module-level, one-time side
@@ -21,14 +21,6 @@ function ensureEdgehandlesRegistered(): void {
   if (edgehandlesRegistered) return;
   cytoscape.use(edgehandles);
   edgehandlesRegistered = true;
-}
-
-/** Cytoscape draws to <canvas> and never resolves CSS custom properties --
- * reads a `var(--token)` design-token value straight from the DOM cascade,
- * the browser-only counterpart of resolveStylesheetTokens's injected
- * resolver. */
-function readCssToken(token: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || token;
 }
 
 /** The only file that imports the real `cytoscape` / `cytoscape-fcose`

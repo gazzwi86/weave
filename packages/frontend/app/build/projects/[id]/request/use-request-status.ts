@@ -12,13 +12,28 @@ export interface BuildRequest {
   request_id: string;
   status: string;
   draft_content: Record<string, unknown> | null;
+  name?: string;
+  grounding_entity_iris?: string[];
+  target_repo_name?: string | null;
+}
+
+/** TASK-024: fields the form collects beyond prompt/run_mode/description. */
+export interface RequestFormExtras {
+  name: string;
+  groundingEntityIris: string[];
+  targetRepoName: string;
 }
 
 export interface RequestStatusState {
   request: BuildRequest | null;
   submitting: boolean;
   error: string | null;
-  submit: (prompt: string, runMode: RunMode, description: string) => Promise<void>;
+  submit: (
+    prompt: string,
+    runMode: RunMode,
+    description: string,
+    extras: RequestFormExtras
+  ) => Promise<void>;
 }
 
 const POLL_INTERVAL_MS = 2_000;
@@ -100,7 +115,7 @@ export function useRequestStatus(): RequestStatusState {
   const [error, setError] = useState<string | null>(null);
 
   const submit = useCallback(
-    async (prompt: string, runMode: RunMode, description: string) => {
+    async (prompt: string, runMode: RunMode, description: string, extras: RequestFormExtras) => {
       setSubmitting(true);
       setError(null);
       setRequest(null);
@@ -111,7 +126,10 @@ export function useRequestStatus(): RequestStatusState {
           body: JSON.stringify({
             prompt,
             run_mode: runMode,
+            name: extras.name,
+            grounding_entity_iris: extras.groundingEntityIris,
             ...(description ? { description } : {}),
+            ...(extras.targetRepoName ? { target_repo_name: extras.targetRepoName } : {}),
           }),
         });
         if (res.status !== 202) {

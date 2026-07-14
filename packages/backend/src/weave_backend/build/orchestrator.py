@@ -20,7 +20,14 @@ from typing import Any
 
 import asyncpg
 
-from weave_backend.briefs.store import get_task_brief
+from weave_backend.briefs.prompt_synthesis import default_synthesise_briefs
+from weave_backend.briefs.store import (
+    NewBrief,
+    build_brief_iri,
+    generate_task_id,
+    get_task_brief,
+    insert_task_brief,
+)
 from weave_backend.build import store as task_store
 from weave_backend.build.cost import (
     DispatchCostContext,
@@ -30,9 +37,11 @@ from weave_backend.build.cost import (
 )
 from weave_backend.build.costs import BudgetBreach, check_budget, notify_budget_breach
 from weave_backend.build.dep_summary import DepSummary, dep_summary_exists, write_dep_summary
+from weave_backend.build.gates import run_dor_gate
 from weave_backend.build.hitl import HitlGateContext, fire_hitl_gate
 from weave_backend.build.model_routing import ModelRoutingError, resolve_model
 from weave_backend.build.preflight import PreflightRequest, RunHalted, preflight, required_refs
+from weave_backend.build.run_log_sink import RunLogSink
 from weave_backend.build.self_verify import default_applicable_rules, self_verify
 from weave_backend.build.state_spine import (
     BUILD_PRINCIPAL_IRI,
@@ -41,6 +50,7 @@ from weave_backend.build.state_spine import (
     commit_state_spine,
 )
 from weave_backend.build.typed_result import AgentResultContext, handle_agent_result
+from weave_backend.repo_bootstrap.drivers import RepoHandle
 from weave_backend.repo_bootstrap.rich_scaffold import ScaffoldFailed, rich_scaffold
 from weave_backend.repo_bootstrap.service import (
     DEFAULT_DEPS as DEFAULT_REPO_DEPS,
@@ -50,6 +60,11 @@ from weave_backend.repo_bootstrap.service import (
 )
 from weave_backend.repo_bootstrap.store import fetch_project_repo_row
 from weave_backend.schemas.tasks import TypedResult
+from weave_backend.storage.tenant_objects import s3_client
+
+#: Same convention `run_log_sink.py`/`captures.py`/`routers/task_detail.py`
+#: write+read under -- see `routers.task_detail._ARTEFACT_BUCKET`.
+_ARTEFACT_BUCKET = "weave-artefacts"
 
 log = logging.getLogger(__name__)
 
@@ -62,13 +77,23 @@ DispatchResult = tuple[TypedResult, DepSummary | None]
 DispatchFn = Callable[..., Awaitable[DispatchResult]]
 
 
+class TaskHeld(Exception):
+    """TASK-009/FR-043: raised by PLAN when a predecessor's dep-summary is
+    missing -- replaces the M1 best-effort warn-and-continue path. Caught
+    by `_dispatch_one`, never by `default_dispatch_pdac`'s own caller.
+    """
+
+    def __init__(self, *, missing_dep_id: str) -> None:
+        super().__init__(f"dep summary missing for predecessor {missing_dep_id}")
+        self.missing_dep_id = missing_dep_id
+
+
 async def default_dispatch_pdac(
     conn: asyncpg.Connection, *, tenant_id: str, project_iri: str, task: TaskState
 ) -> DispatchResult:
-    """AC-5/AC-6 stub PDAC step: resolve every role's model, best-effort
-    load the task's brief, and best-effort load predecessor dep summaries
-    (warn, never hold, on a miss). Returns a PASS with an empty dep summary
-    -- DELEGATE/ASSESS/CODIFY content generation is out of scope here.
+    """AC-6 PDAC step: resolve every role's model, best-effort load the
+    task's brief, and read each predecessor's dep summary -- a miss raises
+    `TaskHeld` (FR-043; no longer best-effort/warn-and-continue).
     """
     for role in PDAC_ROLES:
         try:
@@ -90,9 +115,47 @@ async def default_dispatch_pdac(
         if not await dep_summary_exists(
             conn, tenant_id=tenant_id, project_iri=project_iri, task_id=dep_id
         ):
-            log.warning("missing_handoff", extra={"task_id": task.id, "missing_summary": dep_id})
+            raise TaskHeld(missing_dep_id=dep_id)
 
     return TypedResult(status="PASS", retry_recommended=False), DepSummary(task_id=task.id)
+
+
+async def load_task_context(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    project_iri: str,
+    task: TaskState,
+    repo_deps: RepoBootstrapDeps,
+) -> None:
+    """TASK-009/AC-2 PLAN pre-step (task brief pseudocode): prepend the
+    repo's `ANATOMY.md` into `task.context` before DELEGATE, so the
+    delegate agent loads context instead of re-discovering it (FR-031's
+    payoff). Best-effort throughout: no repo provisioned yet, no
+    `ANATOMY.md` committed yet (fresh scaffold), no resolvable token, or a
+    driver error all leave `task.context` untouched -- an anatomy load must
+    never halt the dispatch loop.
+    """
+    row = await fetch_project_repo_row(conn, tenant_id=tenant_id, project_iri=project_iri)
+    if row is None or row.repo_provider is None or row.repo_id is None:
+        return
+    token = await repo_deps.get_secret(row.source_control_token_secret_ref or "")
+    if not token:
+        return
+    repo = RepoHandle(
+        repo_id=row.repo_id,
+        url=row.repo_url or "",
+        default_branch=row.repo_default_branch or "main",
+    )
+    try:
+        anatomy = await repo_deps.driver_for(row.repo_provider).read_file(
+            repo, path="ANATOMY.md", token=token
+        )
+    except Exception:
+        log.warning("anatomy_context_load_failed", extra={"task_id": task.id})
+        return
+    if anatomy:
+        task.context.insert(0, anatomy)
 
 
 async def default_preflight(
@@ -146,6 +209,10 @@ class OrchestratorDeps:
     #: registry yet), so self_verify() always reports compliant.
     self_verify_fn: Any = self_verify
     applicable_rules_fn: Any = default_applicable_rules
+    #: BE-V1-TASK-021 AC-7: PLAN's brief-synthesis step for a
+    #: `trigger="prompt"` run -- stubbed in tests, real default drafts via
+    #: the Architect agent (`briefs.prompt_synthesis`).
+    synthesise_briefs_fn: Any = default_synthesise_briefs
 
 
 DEFAULT_ORCHESTRATOR_DEPS = OrchestratorDeps()
@@ -160,13 +227,31 @@ async def _dispatch_one(
     deps: OrchestratorDeps,
 ) -> None:
     """One PLAN->DELEGATE->ASSESS->CODIFY cycle for `task`, mutating it and
-    `spine` in place. FAIL routes through TASK-005's retry/HITL machinery
-    (AC-2/AC-6); PASS writes the dep summary before marking the task Done
-    (AC-4, non-skippable CODIFY).
+    `spine` in place. `load_task_context` (TASK-009/AC-2) loads the repo's
+    anatomy index into `task.context` before dispatch, so DELEGATE sees it.
+    FAIL routes through TASK-005's retry/HITL machinery (AC-2/AC-6); PASS
+    writes the dep summary before marking the task Done (AC-4, non-skippable
+    CODIFY).
     """
-    result, dep_summary = await deps.dispatch_pdac_fn(
-        conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
+    await load_task_context(
+        conn,
+        tenant_id=tenant_id,
+        project_iri=spine.project_iri,
+        task=task,
+        repo_deps=deps.repo_deps,
     )
+    try:
+        result, dep_summary = await deps.dispatch_pdac_fn(
+            conn, tenant_id=tenant_id, project_iri=spine.project_iri, task=task
+        )
+    except TaskHeld as exc:
+        task.status = "Ready"
+        task.hold_reason = "dep_summary_missing"
+        log.info(
+            "task_held",
+            extra={"task_id": task.id, "missing_summary": exc.missing_dep_id},
+        )
+        return
 
     # TASK-012 AC-1: every dispatch with an attributable usage block records
     # one cost_events row, PASS or FAIL alike -- a FAIL still burned tokens.
@@ -365,6 +450,92 @@ async def _scaffold_and_check_hold(
     return False
 
 
+async def _synthesise_prompt_briefs(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """BE-V1-TASK-021 AC-7/AC-8: the one real PLAN addition a
+    `trigger="prompt"` run needs -- a prompt carries no backlog, so
+    `next_ready_task()` would otherwise find nothing to dispatch. Runs
+    once per run (guarded by `not spine.tasks`, so a resumed prompt run
+    with already-synthesised tasks never re-drafts). Returns `True` if
+    the run halted (DoR gate failed on the synthesised brief -- AC-8);
+    `False` means the loop below dispatches the synthesised task(s)
+    exactly as it would any other Ready task (AC-7's "DELEGATE receives
+    the brief, not the prompt").
+    """
+    if spine.trigger != "prompt" or spine.tasks:
+        return False
+    prompt_text = (spine.prompt_context or {}).get("prompt_text", "")
+    briefs = await deps.synthesise_briefs_fn(
+        conn, tenant_id=tenant_id, project_iri=spine.project_iri, prompt_text=prompt_text
+    )
+    for content in briefs:
+        task_id = str(
+            content.get("task_id")
+            or generate_task_id(spine.project_iri, str(content.get("title", prompt_text)))
+        )
+        content = {**content, "task_id": task_id}
+        await insert_task_brief(
+            conn,
+            NewBrief(
+                tenant_id=tenant_id,
+                task_id=task_id,
+                project_iri=spine.project_iri,
+                brief_iri=build_brief_iri(task_id),
+                schema_version=str(content.get("schema_version", "1.0")),
+                content=content,
+            ),
+        )
+        gate = await run_dor_gate(
+            conn,
+            tenant_id=tenant_id,
+            actor_iri=BUILD_PRINCIPAL_IRI,
+            task_id=task_id,
+            content=content,
+        )
+        if gate["result"] != "READY":
+            # AC-8: hold in Ready with "brief incomplete" -- the raw
+            # prompt is never dispatched to the Engineer (E5 AC verbatim).
+            spine.tasks.append(
+                TaskState(id=task_id, status="Ready", hold_reason="brief incomplete")
+            )
+            spine.phase = "halted_hitl"
+            await deps.fire_hitl_gate_fn(
+                conn,
+                HitlGateContext(
+                    tenant_id=tenant_id,
+                    task_id=task_id,
+                    submitting_principal_iri=BUILD_PRINCIPAL_IRI,
+                    evidence="brief_incomplete",
+                ),
+            )
+            await commit_state_spine(conn, spine)
+            return True
+        spine.tasks.append(TaskState(id=task_id, status="Ready"))
+    return False
+
+
+async def _prepare_dispatch_loop(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+) -> bool:
+    """`run_dark_factory`'s two pre-loop halt checks (rich-scaffold, then
+    prompt brief-synthesis) collapsed into one caller-side branch to stay
+    under Law E's complexity budget -- same shape `_scaffold_and_check_hold`
+    already uses. Returns `True` if the run halted before the dispatch loop.
+    """
+    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+        return True
+    return await _synthesise_prompt_briefs(conn, spine, tenant_id=tenant_id, deps=deps)
+
+
 async def run_dark_factory(
     conn: asyncpg.Connection,
     spine: StateSpine,
@@ -381,6 +552,28 @@ async def run_dark_factory(
     TASK-012 AC-4: the rate card is resolved once, before step 0 -- an
     unresolvable card halts the run fail-closed, before any dispatch.
     """
+    # AC-1: one sink per run, buffering the same PDAC/gate event payloads
+    # already logged below -- beside the existing cost-recording call site,
+    # same disclosed-best-effort posture (Design Decisions table).
+    log_sink = RunLogSink(
+        tenant_id=tenant_id, run_id=spine.run_id, s3_client=s3_client(), bucket=_ARTEFACT_BUCKET
+    )
+    try:
+        return await _run_dark_factory_body(
+            conn, spine, tenant_id=tenant_id, deps=deps, log_sink=log_sink
+        )
+    finally:
+        await log_sink.close(conn)
+
+
+async def _run_dark_factory_body(
+    conn: asyncpg.Connection,
+    spine: StateSpine,
+    *,
+    tenant_id: str,
+    deps: OrchestratorDeps,
+    log_sink: RunLogSink,
+) -> StateSpine:
     try:
         rate_card = await deps.resolve_rate_card_fn(
             conn, tenant_id=tenant_id, project_iri=spine.project_iri
@@ -407,7 +600,7 @@ async def run_dark_factory(
         await _halt_preflight_failed(conn, spine)
         return spine
 
-    if await _scaffold_and_check_hold(conn, spine, tenant_id=tenant_id, deps=deps):
+    if await _prepare_dispatch_loop(conn, spine, tenant_id=tenant_id, deps=deps):
         return spine
 
     breach: BudgetBreach | None = None
@@ -427,7 +620,9 @@ async def run_dark_factory(
         except RunHalted:
             await _halt_preflight_failed(conn, spine)
             return spine
+        log_sink.emit({"event": "dispatch_start", "task_id": task.id, "phase": spine.phase})
         await _dispatch_one(conn, spine, task, tenant_id=tenant_id, deps=deps)
+        log_sink.emit({"event": "dispatch_end", "task_id": task.id, "status": task.status})
         spine.dispatch_count += 1
         await commit_state_spine(conn, spine)
 
@@ -438,13 +633,15 @@ async def run_dark_factory(
             break
 
     if breach is not None:
+        log_sink.emit({"event": "halted_budget_breach", "level": breach.level})
         await _halt_budget_breach(conn, spine, tenant_id=tenant_id, deps=deps, breach=breach)
     elif spine.phase == "running" and spine.dispatch_count >= spine.turn_cap:
+        log_sink.emit({"event": "halted_turn_cap", "turn_cap": spine.turn_cap})
         await _halt_turn_cap(conn, spine, tenant_id=tenant_id, deps=deps)
     else:
         # AC-8: the `phase == "complete"` transition (empty/exhausted
         # backlog) is itself a state change -- persist it too, not just the
         # per-dispatch commits inside the loop above.
+        log_sink.emit({"event": "run_phase", "phase": spine.phase})
         await commit_state_spine(conn, spine)
-
     return spine

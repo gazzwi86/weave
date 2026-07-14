@@ -8,12 +8,20 @@ is never trusted as safe to execute.
 
 from __future__ import annotations
 
+import logging
 import time
-from typing import Annotated
+from functools import partial
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.corpus.citations import build_citations_best_effort
+from weave_backend.corpus.commit import _BedrockEmbedder
+from weave_backend.corpus.embeddings import DEFAULT_EMBEDDING_MODEL_ID
+from weave_backend.corpus.retrieval import lookup_source_artefact as _lookup_source_artefact
+from weave_backend.corpus.retrieval import search as _vector_search
+from weave_backend.corpus.vectors import VectorMatch, default_index
 from weave_backend.nl_query.translator import (
     TranslationFailed,
     explain_empty_result,
@@ -35,9 +43,69 @@ from weave_backend.schemas.query import (
     ExplainQueryResponse,
     NlQueryRequest,
     NlQueryResponse,
+    QueryCitation,
 )
 
 router = APIRouter(prefix="/api/query", tags=["query"])
+log = logging.getLogger(__name__)
+
+#: AC-003-05: only cite rows grounded on real instance IRIs (not literals,
+#: not blank nodes) -- matches the two IRI schemes minted elsewhere in CE.
+_INSTANCE_IRI_PREFIXES = ("urn:weave:instances:", "https://weave.io/instances/")
+
+
+def _grounded_iris(bindings: list[dict[str, Any]], column_names: list[str]) -> list[str]:
+    iris = []
+    for binding in bindings:
+        for name in column_names:
+            cell = binding.get(name)
+            if cell is None or cell.get("type") != "uri":
+                continue
+            value = str(cell["value"])
+            if value.startswith(_INSTANCE_IRI_PREFIXES):
+                iris.append(value)
+    return iris
+
+
+async def _citation_search(
+    question: str, *, filters: dict[str, str], k: int, tenant_id: str
+) -> list[VectorMatch]:
+    embedder = _BedrockEmbedder()
+    candidates = _vector_search(
+        index=default_index(),
+        embed=embedder.embed,
+        tenant_id=tenant_id,
+        model_id=DEFAULT_EMBEDDING_MODEL_ID,
+        question=question,
+        k=k * 8,
+    )
+    artefact_iri = filters.get("artefact_iri")
+    return [m for m in candidates if m.meta.get("artefact_iri") == artefact_iri][:k]
+
+
+async def _lookup_artefact(named_graph_iri: str, entity_iri: str) -> str | None:
+    return await _lookup_source_artefact(named_graph_iri, entity_iri=entity_iri)
+
+
+async def _citations_for_rows(
+    *, named_graph_iri: str, question: str, grounded_iris: list[str], tenant_id: str
+) -> list[Any]:
+    """AC-003-05: additive, best-effort -- a failure here must never fail
+    the NL query response itself.
+    """
+    if not grounded_iris:
+        return []
+    try:
+        return await build_citations_best_effort(
+            lookup_source_artefact=_lookup_artefact,
+            search=partial(_citation_search, tenant_id=tenant_id),
+            named_graph_iri=named_graph_iri,
+            question=question,
+            grounded_iris=grounded_iris,
+        )
+    except Exception:
+        log.warning("corpus citations unavailable for NL query", exc_info=True)
+        return []
 
 
 def _validated_or_translation_failed(sparql_text: str, nl_question: str) -> None:
@@ -92,6 +160,13 @@ async def nl_query_route(
     if not rows:
         explanation = explain_empty_result(body.question, sparql_text)
 
+    citations = await _citations_for_rows(
+        named_graph_iri=graph_iri,
+        question=body.question,
+        grounded_iris=_grounded_iris(page_bindings, column_names),
+        tenant_id=principal.tenant_id,
+    )
+
     return NlQueryResponse(
         sparql_generated=sparql_text,
         rows=rows,
@@ -99,6 +174,7 @@ async def nl_query_route(
         elapsed_ms=(time.monotonic() - started) * 1000,
         explanation=explanation,
         next_page=body.page + 1 if has_next else None,
+        citations=[QueryCitation(**vars(c)) for c in citations],
     )
 
 

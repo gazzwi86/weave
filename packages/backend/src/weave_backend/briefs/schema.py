@@ -66,6 +66,11 @@ class TaskBrief(BaseModel):
     cost_estimate: CostEstimate
     generated_at: datetime
     design_tokens: dict[str, object] | None = None
+    #: BE-V1-TASK-018 AC-6: ADR/decision references the brief links (e.g.
+    #: "ADR-017") -- optional, additive field (no migration: `content` is
+    #: JSONB). Task Detail's Brief tab resolves each entry to a Decision
+    #: Log record via `audit.decisions`.
+    adr_refs: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _every_ac_is_test_mapped(self) -> TaskBrief:

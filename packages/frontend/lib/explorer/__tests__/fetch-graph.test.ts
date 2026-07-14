@@ -199,4 +199,19 @@ describe("fetchGraph -- timeout and isolation", () => {
     // cap and must be the last fetch (3 calls, not an unbounded loop).
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  // TASK-022 AC-2: version-pinned reload -- fetchGraph must be able to pin
+  // to a published version IRI, not just "latest".
+  it("pins to an explicit version when one is passed", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({ rows: [], columns: [], has_more_pages: false, page: 0 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchGraph(10_000, "urn:workspace:demo:v1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/proxy/sparql?version=urn:workspace:demo:v1&page=0")
+    );
+  });
 });

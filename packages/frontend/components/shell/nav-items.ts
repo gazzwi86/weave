@@ -4,8 +4,10 @@
  * placeholder — so the nav itself communicates the roadmap.
  *
  * Existing green routes keep their URLs (/ce, /ce/query, /explorer,
- * /compliance, /billing) — the IA re-homes them in the rail rather than
- * moving them, so the per-feature Playwright suites stay untouched.
+ * /billing) — the IA re-homes them in the rail rather than moving them, so
+ * the per-feature Playwright suites stay untouched. Exception: /compliance
+ * moved to /audit/compliance (TASK-029 AC-6, additive redirect in
+ * next.config.ts) to resolve a route-naming conflict with the design ruling.
  */
 
 export type SurfaceTag = "built" | "m1" | "m2" | "v1.0" | "post-v1";
@@ -42,7 +44,20 @@ export interface PrimaryNavItem {
 }
 
 export const PRIMARY_NAV: PrimaryNavItem[] = [
-  { label: "Home", href: "/dashboard", prefixes: ["/dashboard"], groups: [] },
+  {
+    label: "Home",
+    href: "/dashboard",
+    prefixes: ["/dashboard", "/notifications", "/role-home"],
+    groups: [
+      {
+        heading: "Home",
+        items: [
+          { label: "What can Weave do for you?", href: "/role-home", tag: "built" },
+          { label: "Notifications", href: "/notifications", tag: "built" },
+        ],
+      },
+    ],
+  },
   {
     label: "Constitution",
     href: "/ce",
@@ -54,7 +69,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
           { label: "Overview", href: "/ce/overview", tag: "built" },
           { label: "Explore", href: "/explorer", tag: "built" },
           { label: "Ontology / Types", href: "/ce/types", tag: "built" },
-          { label: "Instances / Data", href: "/ce", tag: "built" },
+          { label: "Instances / Data", href: "/ce/instances", tag: "built" },
         ],
       },
       {
@@ -67,9 +82,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", tag: "m2" },
-          { label: "Brand & voice", tag: "m2" },
-          { label: "Rules & policies", tag: "m2" },
+          { label: "Glossary", href: "/ce/glossary", tag: "built" },
+          { label: "Brand & voice", href: "/ce/brand", tag: "built" },
+          { label: "Rules & policies", href: "/ce/rules", tag: "built" },
           { label: "Strategy & motivation", tag: "m2" },
         ],
       },
@@ -92,7 +107,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         items: [
           { label: "Registry", href: "/build", tag: "built" },
           { label: "Dashboard", tag: "v1.0" },
-          { label: "Kanban", tag: "v1.0" },
+          { label: "Kanban", href: "/build/board", tag: "built" },
           { label: "Task briefs & decisions", tag: "v1.0" },
         ],
       },
@@ -116,14 +131,17 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
   {
     label: "Audit trail",
     href: "/audit",
-    prefixes: ["/audit", "/compliance"],
+    // AC-6: /audit/compliance is the canonical route (visual-direction.md
+    // "Compliance placement"); /compliance is a legacy alias, additively
+    // redirected (next.config.ts), so this prefix alone still highlights it.
+    prefixes: ["/audit"],
     groups: [
       {
         heading: "Audit",
         items: [
           { label: "Dashboard", href: "/audit", tag: "built" },
           { label: "View logs", href: "/audit/logs", tag: "built" },
-          { label: "Compliance", href: "/compliance", tag: "built" },
+          { label: "Compliance", href: "/audit/compliance", tag: "built" },
         ],
       },
       {
@@ -147,6 +165,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
+          { label: "Members", href: "/settings/members", tag: "built" },
+          { label: "Onboarding path", href: "/settings/onboarding-path", tag: "built" },
+          { label: "Notifications", href: "/settings/notifications", tag: "built" },
           { label: "Models & AI", href: "/settings/models", tag: "built" },
           { label: "Billing & budgets", href: "/billing", tag: "built" },
           { label: "Integrations", tag: "v1.0" },

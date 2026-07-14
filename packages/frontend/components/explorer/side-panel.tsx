@@ -1,9 +1,16 @@
+import { ceEditingSurface } from "@/lib/explorer/ce-editing-surface";
+
+import { CommentsPanel } from "./comments-panel";
 import type { SidePanelState } from "./use-node-spotlight";
 
 export interface SidePanelProps {
   state: SidePanelState;
   onClose: () => void;
   onRetry: () => void;
+  /** TASK-027 AC-5: soft dependency on TASK-023/024's edge-draw controller
+   * -- feature-detected. undefined (the M1 default, since those tasks are
+   * absent) falls back to a CE-surface link instead. */
+  onEditGap?: (nodeId: string, predicateIri: string) => void;
 }
 
 const PANEL_CLASSES =
@@ -50,7 +57,50 @@ function AdvancedDisclosure({ rawIri }: { rawIri: string | null }) {
   );
 }
 
-export function SidePanel({ state, onClose, onRetry }: SidePanelProps) {
+interface MissingLinksProps {
+  nodeId: string;
+  gaps: NonNullable<Extract<SidePanelState, { status: "loaded" }>["gaps"]>;
+  onEditGap?: (nodeId: string, predicateIri: string) => void;
+}
+
+// TASK-027 AC-4/AC-5: the accessible surface for a gap-flagged node's
+// missing links -- humanised labels only (never a raw predicate IRI), each
+// with an inline edge-draw shortcut when TASK-023/024's edit controller is
+// available, else a link into the existing CE editing surface.
+function MissingLinks({ nodeId, gaps, onEditGap }: MissingLinksProps) {
+  if (gaps.length === 0) return null;
+  return (
+    <div className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-2)]">
+      <h3 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Missing links</h3>
+      <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
+        {gaps.map((gap) =>
+          onEditGap ? (
+            <li key={gap.missingLink}>
+              <button
+                type="button"
+                onClick={() => onEditGap(nodeId, gap.missingLink)}
+                className="text-[length:var(--text-body-sm)] text-[var(--color-text-default)] hover:text-[var(--color-accent-primary)]"
+              >
+                Add {gap.label}…
+              </button>
+            </li>
+          ) : (
+            <li key={gap.missingLink}>
+              <a
+                href={ceEditingSurface(nodeId)}
+                className="text-[length:var(--text-body-sm)] text-[var(--color-text-default)] hover:text-[var(--color-accent-primary)]"
+              >
+                {gap.label}
+              </a>
+            </li>
+          )
+        )}
+      </ul>
+    </div>
+  );
+}
+
+export function SidePanel({ state, onClose, onRetry, onEditGap }: SidePanelProps) {
   if (state.status === "closed") return null;
 
   if (state.status === "not-found") {
@@ -94,6 +144,8 @@ export function SidePanel({ state, onClose, onRetry }: SidePanelProps) {
             </div>
           ))}
           <AdvancedDisclosure rawIri={state.rawIri} />
+          <CommentsPanel targetKind="node" targetRef={state.nodeId} />
+          <MissingLinks nodeId={state.nodeId} gaps={state.gaps ?? []} onEditGap={onEditGap} />
         </div>
       )}
     </div>

@@ -39,9 +39,35 @@ test("audit dashboard renders chain status, categories, and links to /audit/logs
 
   await expect(page.getByTestId("chain-status")).toContainText("valid");
   await expect(page.getByText("Events by category")).toBeVisible();
-  await expect(page.getByTestId("event-category-list")).toContainText("workspace: 12");
+  await expect(page.getByTestId("bar-chart")).toBeVisible();
 
   // Scoped to main -- the sidebar nav carries its own "View logs" link.
   await page.getByRole("main").getByRole("link", { name: "View logs" }).click();
   await expect(page).toHaveURL(/\/audit\/logs$/);
+});
+
+// AC-3: test_dashboard_tile_click_drills_into_prefiltered_logs -- clicking
+// an event-category bar segment on the dashboard navigates to /audit/logs
+// pre-filtered by that category.
+test("test_dashboard_tile_click_drills_into_prefiltered_logs", async ({ page }) => {
+  await page.route("**/api/audit/compliance**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(COMPLIANCE_SUMMARY),
+    });
+  });
+  await page.route("**/api/audit?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ entries: [], total: 0, page: 1, per_page: 50 }),
+    });
+  });
+
+  await loginAndGoToAudit(page);
+
+  await page.getByRole("main").getByRole("link", { name: "workspace" }).click();
+  await expect(page).toHaveURL(/\/audit\/logs\?event_type=workspace$/);
+  await expect(page.getByLabel("Event type")).toHaveValue("workspace");
 });

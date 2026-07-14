@@ -20,10 +20,28 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # BE-SDK-1 sdkgen tests shell out to a real `tsc --noEmit` (AC-7 --
+      # the emitted TypeScript must actually compile, not just look
+      # plausible). Install just the compiler, not the whole frontend
+      # workspace: the generated SDK has zero external node_modules
+      # dependencies (see sdkgen/templates/typescript/tsconfig.json.j2).
+      # Pinned to major version 5 (frontend's own `^5` pin, currently
+      # 5.9.3) -- unpinned `npm install -g typescript` silently tracked
+      # "latest" forward to TS 7, which hard-removed the deprecated
+      # `moduleResolution: "node"` value the generated tsconfig uses
+      # (TS5108), breaking this job while local `npm ci` runs (which
+      # respect the frontend lockfile) stayed green. Matching the
+      # frontend's major version is the actual fix, not a path issue.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run mypy src/ tests/
       - run: uv run pytest -m "not docker and not e2e"
+        env:
+          WEAVE_TSC_BIN: tsc
 
   # PR #11 finding 5: the docker-marked tenancy security suite
   # (tests/integration/test_tenancy_isolation.py) was never run in CI --
@@ -38,6 +56,14 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # BE-SDK-1 sdkgen integration tests shell out to a real `tsc --noEmit`
+      # (AC-7); see the `api` job above for why only the compiler (not the
+      # whole frontend workspace) is installed, and why it's pinned to
+      # major version 5.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5
       - run: docker compose up -d --wait postgres redis oxigraph localstack
       - name: Wait for oxigraph HTTP API
         run: |
@@ -51,6 +77,8 @@ jobs:
         run: uv sync
       - working-directory: packages/backend
         run: uv run pytest -m "integration and docker and not stack"
+        env:
+          WEAVE_TSC_BIN: tsc
       - if: always()
         run: docker compose down -v
 
@@ -118,6 +146,12 @@ jobs:
           cache: npm
           cache-dependency-path: packages/frontend/package-lock.json
       - run: npm ci
+      # ONB-TASK-007: frontend imports `../../../shared/onboarding/*` source
+      # directly (no workspaces field -- see anchors.ts precedent), so
+      # packages/shared's own deps (zod) must be installed for tsc to
+      # resolve types, or every such import silently widens to `any`.
+      - run: npm ci
+        working-directory: packages/shared
       # vitest.config.ts runs a second "storybook" project via
       # @vitest/browser-playwright (chromium) alongside the jsdom unit project;
       # `npm test` launches it, so the browser must be installed or the run
@@ -135,6 +169,30 @@ jobs:
         env:
           AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
+
+  shared:
+    # packages/shared: onboarding anchor registry + content config (ADR-005,
+    # ADR-006, ADR-008). Own job -- shared is a standalone npm package (no
+    # workspaces field), not yet imported by packages/frontend (that lands
+    # with TASK-007+). The data-tour-id audit runs against the real frontend
+    # tree so drift fails PRs the moment an owning task plants an attribute.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/shared
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/shared/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx tsx onboarding/scripts/audit-anchors.ts ../frontend
 
   mutation:
     # Per-PR tier. Runs unit tests only (fast, no services). Enforces the single
@@ -188,8 +246,18 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # mutmut's baseline run exercises the full unit suite, including the
+      # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit` (AC-7);
+      # see the `api` job above for why only the compiler is installed, and
+      # why it's pinned to major version 5.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5
       - run: uv sync
       - run: uv run mutmut run ${{ matrix.patterns }} || true
+        env:
+          WEAVE_TSC_BIN: tsc
       - run: uv run mutmut export-cicd-stats
       # Blocking gate: fails the PR if this shard's score drops below the regression floor.
       - name: Enforce mutation score threshold
@@ -231,10 +299,23 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           python-version: "3.12"
+      # mutmut's baseline run exercises the full suite (incl. the docker/
+      # integration-marked sdkgen pipeline test on this job), including the
+      # BE-SDK-1 sdkgen tests that shell out to a real `tsc --noEmit`
+      # (AC-7); see the `api` job above for why only the compiler is
+      # installed, and why it's pinned to major version 5. This is also
+      # the job where the fixed-hop-count tsc path bug bit: mutmut stages
+      # mutated sources one directory deeper.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5
       - working-directory: .
         run: docker compose up -d --wait postgres redis oxigraph localstack
       - run: uv sync
       - run: uv run mutmut run || true
+        env:
+          WEAVE_TSC_BIN: tsc
       - run: uv run mutmut export-cicd-stats
       - name: Enforce mutation score (60% bar, with services)
         run: |

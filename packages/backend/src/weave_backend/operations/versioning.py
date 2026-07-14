@@ -105,12 +105,22 @@ async def mint_version(
     semver = _INITIAL_SEMVER if row is None else _bump_patch(str(row["semver"]))
     version_iri = f"{named_graph_iri}:v{semver}"
 
+    # ponytail: created_at uses clock_timestamp(), not the column's own
+    # now() default -- now() is frozen at transaction start, so a caller
+    # that mints >1 version inside one open transaction (fork's per-batch
+    # loop) gets identical created_at across rows and the ORDER BY DESC
+    # LIMIT 1 read above can tie-break onto a stale row, re-bumping an
+    # already-used semver into a UniqueViolationError. clock_timestamp()
+    # is the real wall clock, so every mint in the same transaction still
+    # orders correctly.
+    #
     # False positive: SQL is a static literal; all values are bound positional
     # parameters ($1..$5), never interpolated into query text.
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     await conn.execute(
-        "INSERT INTO graph_versions (tenant_id, workspace_id, semver, version_iri, actor_iri) "
-        "VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO graph_versions "
+        "(tenant_id, workspace_id, semver, version_iri, actor_iri, created_at) "
+        "VALUES ($1, $2, $3, $4, $5, clock_timestamp())",
         tenant_id,
         workspace_id,
         semver,
@@ -223,3 +233,24 @@ async def resolve_version(
     if row is None:
         raise VersionNotFound("latest")
     return str(row["version_iri"])
+
+
+async def head_version_iri(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str
+) -> str | None:
+    """CE-TASK-006 draft-state stamp: the newest `version_iri` for this
+    workspace, draft or published (unlike `resolve_version("latest")`,
+    which only ever sees published rows). `mint_version` inserts exactly
+    one new row per commit before promoting the working graph, so this
+    row's identity changes iff the draft graph's content changed -- a
+    cheap cache key for "has the draft moved" without hashing the graph.
+    `None` when the workspace has never committed.
+    """
+    row = await conn.fetchrow(
+        "SELECT version_iri FROM graph_versions "
+        "WHERE tenant_id = $1 AND workspace_id = $2 "
+        "ORDER BY created_at DESC LIMIT 1",
+        tenant_id,
+        workspace_id,
+    )
+    return str(row["version_iri"]) if row is not None else None

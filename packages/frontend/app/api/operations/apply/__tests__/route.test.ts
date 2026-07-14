@@ -77,6 +77,20 @@ describe("POST /api/operations/apply", () => {
     const sent = JSON.parse(init?.body as string) as { actor: string };
     expect(sent.actor).toBe("modeller@example.com");
   });
+});
+
+// Split from the block above to stay under the Law E per-function line
+// budget -- both blocks share the same auth/fetch stubbing setup.
+describe("POST /api/operations/apply -- proxying", () => {
+  beforeEach(() => {
+    vi.mocked(auth).mockReset();
+    stubFetch(
+      new Response(JSON.stringify({ activity_iri: "urn:a", applied_count: 1, version_iri: "urn:v" }), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      })
+    );
+  });
 
   it("forwards the operations batch with a bearer token and proxies a 201", async () => {
     vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
@@ -109,6 +123,47 @@ describe("POST /api/operations/apply", () => {
     expect(await response.json()).toEqual({
       violations: [{ focus_node: "urn:a", path: null, severity: "Violation", message: "msg" }],
     });
+  });
+});
+
+// Split from the block above to stay under the Law E per-function line
+// budget -- shares the same auth/fetch stubbing setup.
+describe("POST /api/operations/apply -- error paths", () => {
+  beforeEach(() => {
+    vi.mocked(auth).mockReset();
+    stubFetch(
+      new Response(JSON.stringify({ activity_iri: "urn:a", applied_count: 1, version_iri: "urn:v" }), {
+        status: 201,
+        headers: { "content-type": "application/json" },
+      })
+    );
+  });
+
+  // CE-002/TASK-002: glossary term create punning an owl:Class needs
+  // `additional_types` forwarded on the batch -- a stripped-by-zod field
+  // silently breaks GlossaryTermShape's mandatory owl:Class pun.
+  it("forwards additional_types on an add_node op (glossary owl:Class pun)", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    await POST(
+      makeRequest({
+        operations: [
+          {
+            op: "add_node",
+            ref: "t1",
+            kind: "http://www.w3.org/2004/02/skos/core#Concept",
+            label: "Invoice",
+            additional_types: ["http://www.w3.org/2002/07/owl#Class"],
+          },
+        ],
+      })
+    );
+
+    const init = vi.mocked(fetch).mock.calls[0]?.[1];
+    const sent = JSON.parse(init?.body as string) as {
+      operations: { additional_types?: string[] }[];
+    };
+    expect(sent.operations[0]?.additional_types).toEqual(["http://www.w3.org/2002/07/owl#Class"]);
   });
 
   it("returns a distinguishable error when the backend is unreachable", async () => {

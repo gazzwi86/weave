@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
@@ -33,6 +33,17 @@ function fakeAdapter(
     reconcileElement: vi.fn(),
     onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
+    applyNodeColours: vi.fn(),
+    clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
+    clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
+    setViewport: vi.fn(),
+    allNodePositions: vi.fn(() => ({})),
+    applyPositions: vi.fn(),
+    mergeInPlace: vi.fn(),    setBadges: vi.fn(),
+    clearBadges: vi.fn(),    isHidden: vi.fn(() => false),
+    onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     ...overrides,
   };
@@ -182,5 +193,26 @@ describe("useDomainFocus", () => {
       expect(result.current.state).toEqual({ status: "inactive" }),
     );
     expect(adapter.resetOpacity).toHaveBeenCalledTimes(1); // only the error path's restore, not a second one from dismiss
+  });
+
+  // TASK-026 AC-2/AC-5: openView(view)/save() need the current focused
+  // domain IRI (or null) and a way to clear it, since saved views persist
+  // domainFocus as a plain IRI, not this hook's async fetch-driven state.
+  it("exposes the focused domain iri and clears it on clearFocus (TASK-026 AC-2/AC-5)", async () => {
+    const adapter = fakeAdapter();
+    const fetchDomainMembers = vi.fn(async (): Promise<FetchDomainMembersResult> => ({ type: "ok", rows: [] }));
+
+    const { result } = renderHook(() =>
+      useDomainFocus({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchDomainMembers })
+    );
+    expect(result.current.domainIri).toBeNull();
+
+    result.current.focusDomain(DOMAIN_IRI);
+    await waitFor(() => expect(result.current.domainIri).toBe(DOMAIN_IRI));
+
+    act(() => result.current.clearFocus());
+    expect(result.current.domainIri).toBeNull();
+    expect(result.current.state).toEqual({ status: "inactive" });
+    expect(adapter.resetOpacity).toHaveBeenCalled();
   });
 });

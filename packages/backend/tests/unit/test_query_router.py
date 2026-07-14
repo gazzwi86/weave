@@ -213,3 +213,59 @@ class TestExplainQueryRoute:
 
         assert response.explanation == "Finds every Process."
         assert explain.call_args.args[0] == _GRAPH_QUERY
+
+
+class TestNlQueryRouteCitations:
+    """CE-V1-TASK-014 AC-003-05: `citations` is additive off the same grounded
+    rows -- a `build_citations_best_effort` failure/empty result must never
+    fail the NL query itself (`test_response_includes_generated_sparql_...`
+    above already covers the no-citations-collaborator-called-yet path).
+    """
+
+    @pytest.mark.asyncio
+    async def test_grounded_uri_rows_are_passed_to_citation_lookup(self) -> None:
+        from weave_backend.corpus.citations import Citation
+
+        stub_citation = Citation(
+            entity_iri="urn:weave:instances:p1",
+            artefact_iri="urn:weave:instances:artefact-1",
+            passage_id="pid-1",
+            locator="H1",
+            snippet="text",
+        )
+        with (
+            patch.object(query, "translate_to_sparql", return_value=_GRAPH_QUERY),
+            _patched_graph_resolution(),
+            patch.object(
+                query,
+                "run_query",
+                AsyncMock(
+                    return_value={
+                        "head": {"vars": ["p"]},
+                        "results": {
+                            "bindings": [
+                                {"p": {"type": "uri", "value": "urn:weave:instances:p1"}}
+                            ]
+                        },
+                    }
+                ),
+            ),
+            patch.object(
+                query, "build_citations_best_effort", AsyncMock(return_value=[stub_citation])
+            ) as citations_mock,
+        ):
+            response = await query.nl_query_route(
+                NlQueryRequest(question="What processes exist?"), PRINCIPAL
+            )
+
+        assert [c.model_dump() for c in response.citations] == [
+            {
+                "entity_iri": "urn:weave:instances:p1",
+                "artefact_iri": "urn:weave:instances:artefact-1",
+                "passage_id": "pid-1",
+                "locator": "H1",
+                "snippet": "text",
+            }
+        ]
+        assert citations_mock.call_args.kwargs["grounded_iris"] == ["urn:weave:instances:p1"]
+        assert citations_mock.call_args.kwargs["named_graph_iri"] == V1

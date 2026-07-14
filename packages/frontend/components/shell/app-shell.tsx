@@ -6,12 +6,12 @@ import type { ReactNode } from "react";
 
 import { PUBLIC_PATHS } from "@/lib/public-paths";
 
+import { AvatarMenu } from "./avatar-menu";
 import { CommandPalette } from "./command-palette";
 import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
 import { NotificationCenter } from "./notification-center";
 import { SectionRail } from "./section-rail";
-import { WorkspaceSwitcher } from "./workspace-switcher";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -19,9 +19,11 @@ export interface AppShellProps {
   role?: string | null;
   /** Tenant chip next to the brand (IA §3 workspace switcher slot). */
   tenantId?: string | null;
+  /** Display name from the OIDC profile (session.user.name), AC-7. */
+  userName?: string | null;
 }
 
-export function AppShell({ children, role = null, tenantId = null }: AppShellProps) {
+export function AppShell({ children, role = null, tenantId = null, userName = null }: AppShellProps) {
   const pathname = usePathname();
   const isPublic = PUBLIC_PATHS.has(pathname);
 
@@ -42,20 +44,20 @@ export function AppShell({ children, role = null, tenantId = null }: AppShellPro
             <img src="/logo.png" alt="" className="mr-[var(--space-2)] inline h-[22px] w-auto align-middle" />
             weave
           </Link>
-          {tenantId ? <WorkspaceSwitcher tenantId={tenantId} /> : null}
+          {/* AC-8: binding tenancy ruling -- a plain tenant chip, never an
+              interactive switcher (that provisioning entry point lives at
+              Settings -> Workspaces now, gated via header-scope.ts). */}
+          {tenantId ? (
+            <span className="ml-[var(--space-3)] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
+              {tenantId}
+            </span>
+          ) : null}
           <Nav />
         </div>
         <div className="flex items-center gap-[var(--space-2)]">
-          <NotificationCenter />
+          <NotificationCenter role={role} />
           <HelpLauncher />
-          {/* next-auth's built-in signout confirmation page — zero custom code. */}
-          <Link
-            href="/api/auth/signout"
-            prefetch={false}
-            className="text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-          >
-            Sign out
-          </Link>
+          <AvatarMenu userName={userName ?? "Signed in"} role={role} />
         </div>
       </header>
       <CommandPalette />

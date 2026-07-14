@@ -233,3 +233,158 @@ Status legend: OPEN · IN-PROGRESS · RESOLVED (with fix commit).
 - **TASK-005 HELD** until this lands (SDK Trigger API wires this pipeline into a live CE-driven path).
 - **General lesson:** any codegen from external/registry data MUST validate identifiers at the IR boundary
   before emission; the compile gate (tsc/mypy) does NOT catch injected valid code.
+
+## XT-PLAT010-1 — dashboard widget refresh route: IDOR sibling + AC-7 read-path staleness gap
+- **Severity:** SERIOUS (authorization) + MODERATE (spec-conformance) · **Status:** OPEN — sent back to Engineer · **affects:** [PLAT-V1-TASK-011, PLAT-V1-TASK-014, PLAT-V1-TASK-016]
+- `refresh_widget_route` (`packages/backend/src/weave_backend/dashboard/router.py`) checks `scope`
+  but not `owner_principal_iri`, unlike its sibling `delete_widget_route` (which the engineer
+  self-caught and fixed). Any tenant member can trigger a refresh on -- and thereby mutate
+  `status`/`fetched_at` and observe them for -- another user's private `scope='user'` starter
+  widget by id-guessing a v4 UUID. Proof (red): `test_refresh_other_users_starter_is_not_found`.
+- Separately, AC-7's "stale even without a failed refresh" clause is not honoured on the GET read
+  path -- `derive_status()` (the pure age-aware function) is only called inside the refresh flow,
+  never in `list_widgets_route`. A widget written `fresh` and never refreshed again stays `fresh`
+  forever in every GET response regardless of `fetched_at` age. Proof (red):
+  `test_stale_bound_renders_on_read_without_failed_refresh`.
+- **Action:** Engineer mirrors the delete-route owner guard onto refresh, and wires `derive_status`
+  into `list_widgets_route` (and the frontend `widget-tile.tsx` render path, which also trusts
+  `widget.status` verbatim).
+- **General lesson:** when a route pair shares an ownership model (delete/refresh both act on a
+  single widget by id), fixing an IDOR on one sibling route is not sufficient -- grep every other
+  route touching the same resource for the same missing guard, per team-lead's original ask.
+  Downstream tasks touching refresh-adjacent or read-path widget code (011/014/016) should confirm
+  this fix landed before building on top of it.
+
+
+## QA-TASK-005-1 — RESOLVED (2026-07-11)
+BE-V1-TASK-005: `_generate_and_commit` post-commit bookkeeping ran outside the fail-closed try/except →
+desync if it threw after commit_workspace (git commit landed, run never marked failed, last_sdk_version_iri
+stale) — violated ADR-006 §3. Fixed `e9580f0`: extended fail-closed to cover post-commit bookkeeping, marks
+run failed via fresh conn + records commit_sha. strict-xfail proof test flipped to green. RESOLVED.
+
+## XT-PLAT010-2 — dashboard E2E mocks a server-component fetch via page.route() (proves nothing)
+- **Severity:** Major (Law B honest-E2E) · **Status:** OPEN — **BLOCKS EPIC-001 close (ui_verify --full)**
+- **Affects:** PLAT-V1-TASK-010 (owns `tests/e2e/dashboard-widgets.spec.ts`, `af388d8`); the axe a11y test
+  that runs against the same degraded render; TASK-011/014/016 (EPIC-001) inherit the honest-E2E gate.
+- **Found by:** PLAT-010 re-QA (ran the spec — getByText("Entities in model") times out; real backend
+  renders zero tiles, fixture never applies).
+- **Symptom:** `page.route()` mock of `GET /api/dashboard/widgets` intercepts nothing because `DashboardPage`
+  is a Next.js Server Component (fetch runs server-side in SSR, not the browser). The E2E proves only
+  login+whoami, not widget rendering. Asserts fixture literals (128, "Counts pending") only the dead mock supplies.
+- **Action:** rebuild the dashboard E2E to assert against a REAL seeded backend (real values), or introduce a
+  server-side-capable interception layer (MSW/route-handler mock). Non-trivial test-architecture — a focused
+  follow-up, not a TASK-010 re-fold. MUST land before EPIC-001's ui_verify --full close gate passes.
+- **Classification:** test-architecture / Law B (real E2E asserting backend state).
+
+## XT-CE012-1 — ingest proposals list silently truncates at 50 (pagination unwired) — RESOLVED (2026-07-11)
+- **Severity:** Major · **Status:** RESOLVED `8bf66d7` (limit/offset query params + has_more field; red test b5016bc green)
+- **Affects:** CE-V1-TASK-012 (`routers/ingest.py::list_proposals_route`); **downstream consumers TASK-013
+  (doc-extractor), TASK-014 (embeddings), TASK-019 (Import & Ingest page)** all render/consume this list endpoint
+  — a real document plausibly yields 50+ extraction candidates, so not a theoretical edge case.
+- **Found by:** CE-012 QA (seeded 51 proposals, only 50 returned; proof test `b5016bc`).
+- **Symptom:** `GET /api/ingest/jobs/{id}/proposals` never overrides the store's `limit=50` default + exposes no
+  pagination query params + `ProposalsListResponse` has no has_more/total → proposals past #50 permanently
+  invisible (unreviewable/unacceptable). Summary counts are correct (unbounded query), so the gap is silent.
+- **Fix (retry-1):** surface limit/cursor query params on the route + has_more/total on the response schema.
+  Store layer already has the params; router just never surfaced them (incomplete wiring, not a design gap).
+
+### XT-PLAT010-2 — fix path CLARIFIED (2026-07-11)
+plat011-eng3 confirmed the Playwright infra spins a REAL uvicorn backend (:8000 health-gated) + mock-OIDC
+(:9001) via `playwright.config.ts` webServer — NOT docker/mocked. `dashboard-widgets.spec.ts` already runs
+against it. So the fix for XT-PLAT010-2 is NOT a new interception layer: DROP the `page.route()` mock of
+`GET /api/dashboard/widgets` (which fails because DashboardPage is a Server Component — SSR fetch, not browser),
+and assert against the REAL seeded backend (seed widgets, load /dashboard, assert the real tiles render).
+Same real-backend pattern TASK-011's `test_prompt_to_widget_stream` uses (generate → GET widgets → assert).
+Still an EPIC-001-close blocker (ui_verify --full); now a straightforward rewrite, not a test-arch overhaul.
+
+## XT-CE-KEYPROPS-1 — CE-READ-1 bulk graph load carries no key_properties (blocks real property/heatmap data)
+- **Severity:** Major (feature-latent) · **Status:** OPEN — formalized per aggregation rule (2 tasks hit it: TASK-020, TASK-021)
+- **Affects:** CE-V1-TASK-020 (property filters ship data-latent), CE-V1-TASK-021 (heatmap all-grey until it lands),
+  + any future Explorer feature needing per-node property values.
+- **Symptom:** `map-rows-to-elements.ts` only sets id/label/bpmo_kind at bulk graph load; `key_properties` is
+  lazy-fetched per-node on click, never in the bulk CE-READ-1 SPARQL rows. So property filters + heatmap value
+  colouring have no data to act on end-to-end — mechanism proven, user payoff not live.
+- **Fix:** plumb a BOUNDED key_properties set into the bulk graph-load query over CE-READ-1 (10k-node perf-sensitive
+  — bound it). Its own CE task (out of scope for a filters/overlay panel task).
+
+## A11Y-FILTERPANEL-1 — disabled toggles unreachable by keyboard (aria-disabled swap)
+- **Severity:** Minor (a11y polish, not WCAG-AA fail) · **Status:** OPEN · **Owner:** filter-panel.tsx origin (predates TASK-021)
+- `overlay-panel.tsx` OverlayToggleRow + `filter-panel.tsx` LayerToggleList (:169) use native HTML `disabled`,
+  which removes the control from tab order — so the mutual-exclusion tooltip never reaches keyboard/SR users
+  (the code comment wrongly claims it stays focusable). Not a WCAG-AA failure (disabled controls are exempt),
+  axe doesn't flag it. Fix: swap `disabled` → `aria-disabled="true"` on both to keep the sibling focusable.
+
+## XT-OVERLAY-ENGINE-1 — activate() leaks onElementRemoved subscription on same-id re-activate
+- **Severity:** Minor (not reachable today) · **Status:** OPEN · **Affects:** TASK-021 (owns overlay-engine.ts —
+  the dedup fix belongs there), TASK-030 (a real "re-run impact on same node" UI first makes it reachable).
+- **Found by:** CE-028 QA (reading overlay-engine.ts).
+- **Symptom:** `OverlayEngine.activate()` overwrites an existing same-`id` entry WITHOUT calling `remove()` first,
+  so the prior overlay's `onElementRemoved` subscription stays alive → re-pinning the same source without
+  unpinning first double-fires the "Pinned trace source deleted" notice on the next delete. NOT reachable via any
+  tested/specified AC-4 flow (single pin→delete→clear only).
+- **Fix:** in `overlay-engine.ts::activate()`, `remove(id)` an existing same-id entry before overwriting (dedupe).
+- **Tripwire:** CE-028 QA test `bd83895` asserts the current (buggy) double-fire as expected-today — when
+  overlay-engine is fixed, that test goes RED (signal to update it alongside the fix).
+
+## XT-CE003-1: write path hardcodes xsd:string (graph_ops.py:52) — 2026-07-11
+`operations/graph_ops.py:52` builds every property literal as `Literal(value, datatype=XSD.string)`, never consulting
+the property's `sh:datatype`. Surfaced by CE-003: `effectiveDate` (only xsd:date property in the brand shape) fails
+SHACL on real-API write → AC-003-01 unreachable. Fix in-flight on feature/CE-V1-EPIC-004 (ad67501): datatype-driven
+coercion from the active shape, default xsd:string preserved (minimal blast radius). **Shared write path — other
+write consumers (CE-023 edit proxy, CE-013 ingest accept) should be re-checked at their epic close** that typed
+properties (if any) coerce correctly. Status: OPEN (fix in progress).
+
+## XT-CE013-2: use-ingest accept/reject silently resolve on non-422 errors — 2026-07-11 (FIXING, retry 1)
+`app/ce/chat/use-ingest.ts:140-155` — accept/reject only guard HTTP 422; any other non-2xx (502/500/401) falls
+through to `setProposalStatus("accepted"|"rejected")` with NO graph write → false committed state, buttons hidden,
+no retry. Breaks AC-002-05 "never silently resolve." Blocker, class=logic. Fix in-flight (ae06cdeb): 2xx guard on
+both + error-card state on other statuses + error-path tests (the 502/500 coverage gap). QA edge test 71e252a
+(null matched_iri) already committed. Status: RESOLVED ea497c2 (retry 1 PASS).
+
+## XT-WRITEPATH-1: CE-001 + CE-003 both extend add_node/graph_ops literal construction — 2026-07-11
+Two concurrent lanes modify the SAME shared literal-building seam on different branches:
+- CE-003 (feature/CE-V1-EPIC-004): `_resolve_datatype` coerces literal from `sh:datatype` (XT-CE003-1 fix).
+- CE-001 (feature/CE-V1-EPIC-003, `3979906`): punned rdf:type + list-valued + lang-tagged literals in `add_node`.
+Both legit, isolated on their branches now, but **conflict likely at merge** — whichever lands second must reconcile
+add_node/graph_ops to carry BOTH datatype-coercion AND punned/list/lang handling (union, not either-or). Flag for
+merge-order + reconciliation at epic close. Status: OPEN — QA-CONFIRMED un-auto-mergeable (both _to_literal+_apply_add_node rewritten incompatibly); MUST hand-union at whichever epic merges 2nd. Both branches QA-passed.
+
+## XT-CE007-1: draft_published_delta whole-graph rdflib parse → cold p95 2075ms @100k (2026-07-11)
+CE-007's perf benchmark (retry 1, `249f926`) delivered + RAN real 100k: cached p95 3.5ms PASS, **cold p95 2075ms FAIL**
+(target ≤500ms). Root cause: `operations/aggregate_metrics.py::draft_published_delta` fetches the ENTIRE draft graph as
+Turtle (`fetch_graph_turtle`) + `Graph().parse()` (rdflib) on every cold call — same rdflib-hotspot class ADR-004 flagged
+for the write path, now on read. Smoke-tested clean at 1k (cold 45ms) → genuine scale bug. **Fix in-flight (retry 2):**
+compute the delta COUNTS via SPARQL (no whole-graph Turtle fetch+parse) — preserves AC-007-04's "internal, not CE-DIFF-1
+HTTP" intent but DEVIATES from literal "reuse diff_graphs"; QA/architect confirm intent-met. Status: RESOLVED 9ef09d9 (retry 1).
+
+## XT-CE007-2: dangling ADR-023 citation on CE-005 branch (fix before EPIC-005 close) — 2026-07-11
+CE-007's `aggregate_metrics.py` + 3 test files cite "ADR-023" for the SPARQL-count-diff deviation, but NO
+constitution-engine ADR-023 exists (real ADR-023 belongs to ingest/DocumentExtractor). Governance gap (Law 10 requires the
+deviation-from-brief record). FIX at EPIC-005 close: write `docs/specs/weave/engines/constitution-engine/decisions/ADR-0NN-metrics-sparql-count-diff.md`
+(next free number) documenting "SPARQL count-diff replaces literal diff_graphs reuse for AC-007-04, perf-driven, count-parity
+proven vs diff_graphs across 5 edge cases" + repoint the 4 citations. Non-blocking for the task (correctness independently proven). Status: OPEN.
+
+## XT-CE004-1: brand forms leave Save stuck-disabled on thrown submit (2026-07-11, FIXING retry 1)
+`app/ce/brand/{voice-rule-form.tsx:42, standard-form.tsx:53}` call `submitAddNode` with bare await, no try/finally → on
+network failure / non-JSON error, `setSubmitting(false)` skipped → Save disabled forever, no error, reload-only recovery
+(loses input). Major, class=logic. Fix in-flight: try/finally + catch-error-message (match guided-form.tsx). QA repro `59b4a0d`
+(voice-rule). Happy/422 paths clean (E2E 5/5). Status: RESOLVED 9ef09d9 (retry 1).
+
+## XT-WRITEPATH-2: CE-005 + CE-009 both modify operations/pipeline.py — 2026-07-11
+CE-005 (feature/CE-V1-EPIC-005, `c5dbf7e`) wires tenant-scoped SHACL enforcement into the shared write pipeline; CE-009
+(feature/CE-V1-EPIC-010, `b0e7c0d`) wires function-immutability into the SAME pipeline.py. Different insertion points but
+same file → merge conflict likely between EPIC-005 and EPIC-010. Reconcile (union: tenant-SHACL + function-immutability
+gates) at whichever merges 2nd. Both QA-verified their own gate doesn't over-block. Status: OPEN.
+
+## PROJ-006: engineers repeatedly fabricate a nonexistent "ADR-023" citation — 2026-07-11
+CE-007 (XT-CE007-2) and CE-005 both hallucinated "ADR-023" in docstrings/tests for deviations — no such constitution-engine
+ADR exists (real ADR-023 = ingest DocumentExtractor). Also ADR-022 reused 3× across branches (glossary/metrics/brand).
+LESSON for engineer briefs: when documenting a deviation, `ls docs/specs/weave/engines/<engine>/decisions/` for the next
+FREE number + CREATE the ADR file; never cite an ADR number without creating it. Phase-gate: audit all ADR citations resolve.
+
+## XT-CE011-1: AC-011-03 spec self-contradiction (GE right-panel) — 2026-07-11
+CE-011 brief AC-011-03 requires "Graph Explorer right panel renders description" but GE engine ships AFTER CE (no
+right-panel exists) — the brief's own Dependencies section calls it "external UI work, unblocked once description served",
+contradicting the AC table. QA correctly did NOT fail CE-011 for it. FIX (PO/architect): re-home AC-011-03 to a future
+GE-engine task + mark deferred in TASK-011. Also: framework.shacl.ttl is a MERGE HOTSPOT (CE-001 GlossaryTermShape[merged] +
+CE-003 brand shapes[EPIC-004] + CE-011 skos:definitions[EPIC-010]) → sequence epic merges + union the ttl each time.

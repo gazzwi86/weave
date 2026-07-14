@@ -1,0 +1,69 @@
+# Progress: CE-V1-TASK-013 — Conversational Document Ingest Agent (USER PRIORITY) (EPIC-012)
+
+`constitution-engine` EPIC-012. Worktree `../weave-CE-V1-EPIC-012`, branch `feature/CE-V1-EPIC-012`.
+Built across 4 engineer spawns (2 API stalls + 1 overflow + 1 clean handoff chain → ce013-eng3/eng4).
+**BACKEND DONE + green. TASK NOT CLOSED — frontend chat panel (AC-002-03) + E2E remain (separate run).**
+
+## Decisions (coordinator-approved, ADR'd)
+- Extraction = JSON+Pydantic (mirror `authoring/nl_parser.py`), NOT native tool-calling (no infra exists, Ollama
+  can't) — ADR-023. Native tool-calling = deferred follow-up.
+- AC-002-06: synchronous provider health-probe in the upload route BEFORE any write (503, nothing written);
+  extraction stays backgrounded (preserves <2000ms budget) — ADR-024.
+- AC-002-02 re-mention reuse: NO extractor dedup — relies on CE-WRITE-1 `find_existing_by_label_kind` auto-merge.
+- Dep added: `pypdf>=6.14.2` (pure-python PDF, MIT, Law-A ok); docx via stdlib (zipfile+ElementTree).
+
+## Backend shipped (green)
+- `document_parsing.py` (md/docx/pdf/fixed-window, ADR-011 pin 1a); `DocumentExtractor` (ADR-023); confidence
+  threshold resolver (AC-002-04, default 0.6 one place); migration 0041 (source_span + confidence key).
+- Wiring: DocumentExtractor registered in DEFAULT_REGISTRY (`{"doc": DocumentExtractor()}`); worker threads
+  source_span; router computes low_confidence server-side via resolve_confidence_threshold.
+- AC-002-01 (typed Op candidates, kinds from list_kinds — no hardcode), AC-002-04, AC-002-07 (FR-044 context to
+  prompt), AC-002-08 (fixed-window fallback), AC-002-06 (503-probe), AC-002-02 (reuse), AC-002-05 (prov chain).
+
+## Gates
+Docker-integration **257 passed / 0 failed** (isolated `COMPOSE_PROJECT_NAME=ce-v1-epic-012`, WEAVE_KEEP_STACK).
+ruff clean; mypy clean full `src/ tests/` (447 files); bandit clean. Single-mutation-path invariant re-confirmed.
+Coverage met-by-inference (PROJ-013 pytest-cov+asyncpg segfault). retry=0 (no QA yet).
+
+## Commits (feature/CE-V1-EPIC-012, not pushed)
+Prior: 0328e87 (row threading), 4a54a1f (ADR-023/024), 793102e (confidence resolver + document_parsing),
+24e8e6c (DocumentExtractor). This pass: 9fd5a7a (wiring tests), 4a0cedd (wiring + 503 preflight).
+
+## REMAINING (next run)
+- **Backend QA** (not yet run — validate AC-002-01/02/04/05/06/07/08 + multi-tenant + single-mutation-path).
+- **Frontend chat panel (AC-002-03):** confidence-flagged agent proposals + per-proposal accept/reject UI.
+- **E2E** Playwright + final DoD.
+- **Small gap flagged:** `_EXT_KIND` in `routers/ingest.py` lacks `"md": "doc"` → markdown uploads don't route to
+  the doc extractor despite `document_parsing.py` supporting md. 1-line fix; QA to confirm if an AC requires md.
+
+---
+
+## FRONTEND COMPLETE (2026-07-11, lane B) — QA pending
+
+Chat-panel review UI built + committed on `feature/CE-V1-EPIC-012`. HEAD `9ca033c`. Not pushed.
+
+- **AC-002-03** op-list cards: `IngestPanel` (`app/ce/chat/ingest-panel.tsx`) → `IngestProposalCard`
+  (`app/ce/chat/ingest-proposal-card.tsx`): op-list sentence via shared `describeOp` (imported from
+  `app/ce/chat/explain.ts` — the M1 authoring flow's fn, NOT forked), BPMO kind implicit, `matched_iri` →
+  `/explorer?focus=` link, confidence badge, source-span locator. Reuses `components/ui/badge.tsx` + `button.tsx`.
+- **AC-002-04** low-confidence: server `low_confidence` → warn badge; every card starts `pending`, nothing auto-accepted.
+- **AC-002-05** accept/reject: `useIngest` POST `/api/ingest/proposals/{id}/accept|reject`; 422 `violations[]` render on
+  that card, card stays `pending`.
+- **md gap-fix** `b40417f` (`.md`→doc extractor) — already landed.
+
+**Tests:** app/ce/chat 53/53 unit (98.43% lines / 77.18% branch); E2E `tests/e2e/ce-ingest.spec.ts` **2/2 ran REAL**
+(live Next dev + mock-OIDC + backend on lane stack; ingest API `page.route`-mocked — same convention as
+ce-authoring.spec.ts, LLM leg non-deterministic). Real-stack + real-PROV proof at backend layer:
+`tests/integration/test_ingest_pipeline.py` **12/12** incl. real extraction→accept→PROV `used` triple + SHACL-422/RLS.
+tsc 0, eslint 0 errors (5 test-file warnings, baseline). Commits: 6975973, 085a211, 0f55154, 9ca033c.
+
+**Epic status:** EPIC-012 has CE-014 + CE-019 remaining → epic stays OPEN (no PR yet). QA this task, then lane continues.
+
+## QA retry 1 → PASS — CE-V1-TASK-013 CLOSES (2026-07-11)
+Round-1 QA (a0c827) FAIL: 1 Blocker XT-CE013-2 — `use-ingest.ts` accept/reject only guarded 422; any other non-2xx
+(502/500/401) fell through to marking the card resolved with NO graph write (false success, no retry). Class=logic.
+Fix `ea497c2` (ae06cdeb): shared `isSuccessStatus` (200-299) guard on both accept+reject; non-2xx → card stays
+`pending` + retryable error via the existing violations slot (no new UI); extracted `useProposalActions` hook (Law E
+50-line). Failing-first tests (502 accept / 500 reject → stays pending) RED→GREEN. 56/56 vitest, tsc 0, coverage
+98.79% stmts / new branches covered. AC-002-03/04 + real routing + describeOp-not-forked all PASS in round 1. QA edge
+test 71e252a (null matched_iri). retry=1. XT-CE013-2 RESOLVED.

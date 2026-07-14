@@ -1,0 +1,362 @@
+"""CE-V1-TASK-012: the ingest spine -- `POST /api/ingest/artefacts`, job/
+proposal reads, and accept/reject. Accept is the only mutation path; it
+dispatches through CE-WRITE-1's `_run_apply` (ADR-006 reuse), never writes
+the graph itself (AC-001-08).
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Annotated, Any
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+)
+from fastapi.responses import JSONResponse
+
+from weave_backend.ai.providers import ModelProvider
+
+# Module-level import (not a call inside the route) so a test can
+# `patch("weave_backend.routers.ingest._select_provider", side_effect=...)`
+# to simulate provider-unavailable -- same seam `routers/requests.py` uses.
+from weave_backend.ai.router import _select_provider
+from weave_backend.auth.dependencies import Principal, get_current_principal
+
+# `DocumentExtractor` re-exported off `extractors` (not imported from
+# `document_extractor` directly) -- `extractors.py` and `document_extractor.py`
+# import each other (registry vs. `ExtractedCandidate`); importing via
+# `extractors` here guarantees it's the one that starts the load, so its
+# bottom-of-file import resolves before `document_extractor` needs it back.
+from weave_backend.corpus.commit import embed_artefact_on_commit
+from weave_backend.db.pool import tenant_connection
+from weave_backend.ingest.confidence import resolve_confidence_threshold
+from weave_backend.ingest.corpus import corpus_bucket, corpus_key, hash_content
+from weave_backend.ingest.extractors import DocumentExtractor
+from weave_backend.ingest.jobs import summarize_proposal_statuses
+from weave_backend.ingest.store import (
+    JobRow,
+    NewJob,
+    NewProposal,  # noqa: F401 -- re-exported for worker/test convenience, not used directly here
+    get_job,
+    get_proposal,
+    insert_job,
+    list_proposals_for_job,
+    proposal_statuses_for_job,
+    update_proposal_status,
+)
+from weave_backend.ingest.uploads import UploadRejected, validate_upload
+from weave_backend.ingest.worker import run_ingest_job
+from weave_backend.operations.ingest_provenance import mint_artefact_iri, write_artefact_entity
+from weave_backend.operations.pipeline import ProvExtra
+from weave_backend.routers.operations import _run_apply
+from weave_backend.schemas.ingest import (
+    AcceptProposalResponse,
+    JobStatusResponse,
+    JobSummaryResponse,
+    ProposalResponse,
+    ProposalsListResponse,
+    RejectProposalResponse,
+    UploadArtefactResponse,
+)
+from weave_backend.schemas.operations import ApplyRequest, ApplyResponse, ViolationsResponse
+from weave_backend.storage.tenant_objects import s3_client
+from weave_backend.tenancy.sessions import get_active_workspace
+from weave_backend.tenancy.workspaces import get_workspace
+
+router = APIRouter(prefix="/api/ingest", tags=["ingest"])
+
+#: AC-001-10 / DoR decision (HITL 2026-07-08): 25 MB, tunable later.
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+#: Brief pseudocode: `kind=detect(ext)`. `image` has no registry entry yet
+#: (TASK-016) -- an unmapped/unregistered kind still ingests via the
+#: worker's `NoOpExtractor` fallback, just yields zero proposals.
+_EXT_KIND = {
+    "pdf": "doc",
+    "docx": "doc",
+    "md": "doc",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+}
+
+
+def _kind_for_ext(ext: str) -> str:
+    return _EXT_KIND.get(ext.lower(), "unknown")
+
+
+async def get_ai_provider() -> ModelProvider | None:
+    """Real requests get `None` here and fall back to `_select_provider()`
+    inside the route (ADR-024's synchronous 503 preflight); docker-integration
+    tests override this dependency to inject a stub provider instead (Law F --
+    never a live Anthropic/Bedrock call in tests).
+    """
+    return None
+
+
+def _context_fields(
+    source_system: str | None,
+    owner: str | None,
+    date_of_truth: str | None,
+    sensitivity: str | None,
+    context: str | None,
+) -> dict[str, str]:
+    raw = {
+        "source_system": source_system,
+        "owner": owner,
+        "date_of_truth": date_of_truth,
+        "sensitivity": sensitivity,
+        "context": context,
+    }
+    return {k: v for k, v in raw.items() if v}
+
+
+@router.post("/artefacts", status_code=201, response_model=UploadArtefactResponse)
+async def upload_artefact_route(  # noqa: PLR0913 -- Law E waiver: FR-044's 5 optional
+    # context fields are independent multipart form fields, not a JSON body
+    # a BaseModel could group -- see .claude/state/complexity-waivers.md.
+    background_tasks: BackgroundTasks,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    file: Annotated[UploadFile, File()],
+    provider: Annotated[ModelProvider | None, Depends(get_ai_provider)] = None,
+    source_system: Annotated[str | None, Form()] = None,
+    owner: Annotated[str | None, Form()] = None,
+    date_of_truth: Annotated[str | None, Form()] = None,
+    sensitivity: Annotated[str | None, Form()] = None,
+    context: Annotated[str | None, Form()] = None,
+) -> UploadArtefactResponse:
+    content = await file.read()
+    try:
+        validate_upload(content, max_upload_bytes=MAX_UPLOAD_BYTES)
+    except UploadRejected as exc:
+        raise HTTPException(
+            status_code=422, detail={"error": "upload_rejected", "message": str(exc)}
+        ) from exc
+
+    # AC-002-06 / ADR-024: cheap synchronous provider-availability probe
+    # *before* any write (S3 artefact, prov entity, job row) -- extraction
+    # itself stays backgrounded so this never touches the 2000ms upload
+    # budget (AC-001-01).
+    if provider is None:
+        try:
+            provider = _select_provider()
+        except Exception as exc:  # any construction failure means "unavailable"
+            raise HTTPException(status_code=503, detail={"error": "model_unavailable"}) from exc
+
+    workspace_id = await get_active_workspace(principal.tenant_id, principal.sub)
+    if workspace_id is None:
+        raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
+
+    ext = (file.filename or "").rsplit(".", 1)[-1] if "." in (file.filename or "") else "bin"
+    artefact_hash = hash_content(content)
+    key = corpus_key(tenant_id=principal.tenant_id, artefact_hash=artefact_hash, ext=ext)
+    s3_client().put_object(
+        Bucket=corpus_bucket(os.environ.get("WEAVE_ENV", "dev")),
+        Key=key,
+        Body=content,
+        ContentType=file.content_type or "application/octet-stream",
+    )
+
+    artefact_iri = mint_artefact_iri(f"{principal.tenant_id}-{artefact_hash}")
+    context_fields = _context_fields(source_system, owner, date_of_truth, sensitivity, context)
+
+    async with tenant_connection(principal.tenant_id) as conn:
+        workspace = await get_workspace(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        )
+        if workspace is None:
+            raise HTTPException(status_code=400, detail={"error": "no_active_workspace"})
+
+        await write_artefact_entity(
+            workspace.named_graph_iri,
+            artefact_iri=artefact_iri,
+            original_filename=file.filename or key,
+            content_type=file.content_type or "application/octet-stream",
+            size_bytes=len(content),
+        )
+        job_id = await insert_job(
+            conn,
+            NewJob(
+                tenant_id=principal.tenant_id,
+                workspace_id=workspace_id,
+                artefact_iri=artefact_iri,
+                kind=_kind_for_ext(ext),
+                context=context_fields,
+                corpus_key=key,
+                content_type=file.content_type or "application/octet-stream",
+            ),
+        )
+
+    background_tasks.add_task(
+        run_ingest_job,
+        job_id,
+        tenant_id=principal.tenant_id,
+        registry={"doc": DocumentExtractor(provider=provider)},
+    )
+    return UploadArtefactResponse(artefact_iri=artefact_iri, job_id=job_id)
+
+
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_route(
+    job_id: str, principal: Annotated[Principal, Depends(get_current_principal)]
+) -> JobStatusResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        job = await get_job(conn, tenant_id=principal.tenant_id, job_id=job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail={"error": "job_not_found"})
+        statuses = await proposal_statuses_for_job(
+            conn, tenant_id=principal.tenant_id, job_id=job_id
+        )
+
+    summary = summarize_proposal_statuses(statuses)
+    return JobStatusResponse(
+        job_id=job.id,
+        status=job.status,
+        kind=job.kind,
+        artefact_iri=job.artefact_iri,
+        error=job.error,
+        summary=JobSummaryResponse(
+            committed=summary.committed, rejected=summary.rejected, skipped=summary.skipped
+        ),
+    )
+
+
+@router.get("/jobs/{job_id}/proposals", response_model=ProposalsListResponse)
+async def list_proposals_route(
+    job_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    limit: Annotated[int | None, Query(ge=1, le=500)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ProposalsListResponse:
+    """AC-001-04: no query params -> every proposal (never silently
+    truncated); an explicit `limit` returns a page plus `has_more` so a
+    caller can detect + page past it.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        job = await get_job(conn, tenant_id=principal.tenant_id, job_id=job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail={"error": "job_not_found"})
+        fetch_limit = limit + 1 if limit is not None else None
+        rows = await list_proposals_for_job(
+            conn, tenant_id=principal.tenant_id, job_id=job_id, limit=fetch_limit, offset=offset
+        )
+        # AC-002-04: resolved server-side so the frontend never hardcodes the
+        # threshold or has to pre-select which proposal is flagged.
+        threshold = await resolve_confidence_threshold(
+            conn, tenant_id=principal.tenant_id, workspace_id=job.workspace_id
+        )
+
+    has_more = limit is not None and len(rows) > limit
+    if limit is not None:
+        rows = rows[:limit]
+
+    return ProposalsListResponse(
+        proposals=[
+            ProposalResponse(
+                id=row.id,
+                ops=row.ops,
+                confidence=row.confidence,
+                matched_iri=row.matched_iri,
+                reason=row.reason,
+                status=row.status,
+                source_span=row.source_span,
+                low_confidence=row.confidence < threshold,
+            )
+            for row in rows
+        ],
+        has_more=has_more,
+    )
+
+
+async def _accept_via_ce_write_1(
+    conn: Any, *, principal: Principal, proposal: Any, job: Any
+) -> ApplyResponse | ViolationsResponse | HTTPException:
+    """AC-001-05: one activity, two prov moments -- reuses the job's ingest
+    `activity_iri` (never mints a second) and attributes the extractor agent
+    + source artefact via `prov:used`.
+    """
+    if job.activity_iri is None or job.extractor_iri is None:
+        return HTTPException(status_code=409, detail={"error": "job_not_ready"})
+
+    body = ApplyRequest.model_validate(
+        {"operations": proposal.ops, "actor": principal.principal_iri, "target": "draft"}
+    )
+    prov_extra = ProvExtra(
+        activity_iri=job.activity_iri,
+        artefact_iri=job.artefact_iri,
+        extractor_iri=job.extractor_iri,
+    )
+    return await _run_apply(
+        conn, principal=principal, workspace_id=job.workspace_id, body=body, prov_extra=prov_extra
+    )
+
+
+def _schedule_embed_on_commit(
+    background_tasks: BackgroundTasks, *, tenant_id: str, job: JobRow
+) -> None:
+    """CE-V1-TASK-014 AC-003-02/-08: fire-and-forget corpus embed after a
+    successful accept. `corpus_key` is only set for document-ingest jobs
+    (TASK-012/013), so other job kinds are a no-op.
+    """
+    if job.corpus_key:
+        background_tasks.add_task(
+            embed_artefact_on_commit,
+            tenant_id=tenant_id,
+            artefact_iri=job.artefact_iri,
+            corpus_key=job.corpus_key,
+        )
+
+
+@router.post("/proposals/{proposal_id}/accept", response_model=AcceptProposalResponse)
+async def accept_proposal_route(
+    proposal_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    background_tasks: BackgroundTasks,
+) -> AcceptProposalResponse | JSONResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        proposal = await get_proposal(conn, tenant_id=principal.tenant_id, proposal_id=proposal_id)
+        if proposal is None:
+            raise HTTPException(status_code=404, detail={"error": "proposal_not_found"})
+        job = await get_job(conn, tenant_id=principal.tenant_id, job_id=proposal.job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail={"error": "job_not_found"})
+
+        outcome = await _accept_via_ce_write_1(
+            conn, principal=principal, proposal=proposal, job=job
+        )
+
+        if isinstance(outcome, ApplyResponse):
+            await update_proposal_status(
+                conn, tenant_id=principal.tenant_id, proposal_id=proposal_id, status="accepted"
+            )
+            _schedule_embed_on_commit(background_tasks, tenant_id=principal.tenant_id, job=job)
+
+    if isinstance(outcome, HTTPException):
+        raise outcome
+    if isinstance(outcome, ViolationsResponse):
+        return JSONResponse(status_code=422, content=outcome.model_dump())
+    return AcceptProposalResponse(
+        activity_iri=outcome.activity_iri, version_iri=outcome.version_iri
+    )
+
+
+@router.post("/proposals/{proposal_id}/reject", response_model=RejectProposalResponse)
+async def reject_proposal_route(
+    proposal_id: str, principal: Annotated[Principal, Depends(get_current_principal)]
+) -> RejectProposalResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        proposal = await get_proposal(conn, tenant_id=principal.tenant_id, proposal_id=proposal_id)
+        if proposal is None:
+            raise HTTPException(status_code=404, detail={"error": "proposal_not_found"})
+        await update_proposal_status(
+            conn, tenant_id=principal.tenant_id, proposal_id=proposal_id, status="rejected"
+        )
+
+    return RejectProposalResponse(id=proposal_id, status="rejected")

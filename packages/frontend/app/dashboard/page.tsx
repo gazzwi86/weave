@@ -1,7 +1,11 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { DashboardPlaceholder } from "@/components/dashboard/dashboard-placeholder";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { PromptBarContainer } from "@/components/dashboard/prompt-bar-container";
+import type { LibraryItemOut, WidgetOut } from "@/components/dashboard/types";
+import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
+import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
 
 interface WhoamiResponse {
@@ -11,7 +15,7 @@ interface WhoamiResponse {
 }
 
 /** ponytail: plain server-side fetch, no client cache/SWR layer -- add one
- * if this page grows more than the single read below.
+ * if this page grows more than the reads below.
  */
 async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> {
   const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
@@ -22,6 +26,34 @@ async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> 
   return response.ok ? ((await response.json()) as WhoamiResponse) : null;
 }
 
+/** AC-6: pure SWR read of the fixed default dashboard -- this endpoint
+ * never calls CE-METRICS-1 itself (that only happens on a refresh action),
+ * so this stays a plain server-side fetch, same shape as fetchWhoami.
+ */
+async function fetchDashboardWidgets(accessToken: string, scope: "tenant_default" | "user"): Promise<WidgetOut[]> {
+  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const response = await fetch(
+    `${backendUrl}/api/dashboard/widgets?scope=${scope}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" }
+  );
+  if (!response.ok) return [];
+  const body = (await response.json()) as { widgets: WidgetOut[] };
+  return body.widgets;
+}
+
+/** TASK-015 AC-4: initial tenant library list, server-rendered same as the
+ * default widgets above -- client only re-fetches on publish/add mutations. */
+async function fetchLibraryItems(accessToken: string): Promise<LibraryItemOut[]> {
+  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const response = await fetch(`${backendUrl}/api/dashboard/library`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) return [];
+  const body = (await response.json()) as { items: LibraryItemOut[] };
+  return body.items;
+}
+
 /** Protected page (middleware.ts enforces the redirect). Fetches
  * `/api/whoami` from the backend server-side to prove the session is
  * backed by a real, JWT-verified principal (Law B) -- not just a UI render.
@@ -29,18 +61,25 @@ async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> 
 export default async function DashboardPage() {
   const session = await auth();
   const principal = session?.accessToken ? await fetchWhoami(session.accessToken) : null;
+  const [defaultWidgets, userWidgets, libraryItems] = session?.accessToken
+    ? await Promise.all([
+        fetchDashboardWidgets(session.accessToken, "tenant_default"),
+        fetchDashboardWidgets(session.accessToken, "user"),
+        fetchLibraryItems(session.accessToken),
+      ])
+    : [[], [], []];
+  const widgets = [...defaultWidgets, ...userWidgets];
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-[var(--space-4)]">
-      {/* FAIL (ui_verify step B, axe page-has-heading-one): CardTitle renders
-       * an h3, so the page had no h1 at all. This is the page's real title. */}
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Weave Dashboard
-      </h1>
+      {/* AC-2: PageHeader organism -- --text-h1 title, no bespoke heading size. */}
+      <PageHeaderSlot title="Weave Dashboard" />
       <Card>
         <CardContent>
           {principal ? (
-            <p data-testid="principal-iri">{principal.principal_iri}</p>
+            <span data-testid="principal-iri">
+              <EntityRefSlot label={principal.sub} id={principal.principal_iri} />
+            </span>
           ) : (
             <p data-testid="whoami-error">Unable to verify session with backend.</p>
           )}
@@ -53,12 +92,15 @@ export default async function DashboardPage() {
         View billing usage
       </Link>
       <Link
-        href="/compliance"
+        href="/audit/compliance"
         className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] underline"
       >
         View audit compliance
       </Link>
-      <DashboardPlaceholder />
+      <PromptBarContainer />
+      <div className="w-full max-w-[1440px] px-[var(--space-5)]">
+        <DashboardClient initialWidgets={widgets} initialLibraryItems={libraryItems} />
+      </div>
     </main>
   );
 }

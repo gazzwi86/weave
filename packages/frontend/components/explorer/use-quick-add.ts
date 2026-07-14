@@ -79,7 +79,7 @@ export function useQuickAdd({
       setRetry(null);
 
       await commitOp({
-        op: { op: "add_node", ref, kind, label: name, properties: {} },
+        op: { op: "add_node", ref, kind, label: name, properties: {}, additional_types: [] },
         optimisticElement: { data: { id: ref, label: name, bpmo_kind: kind }, position },
         adapter,
         writeProxy,

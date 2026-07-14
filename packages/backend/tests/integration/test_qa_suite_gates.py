@@ -9,21 +9,42 @@ connection rather than through an HTTP client.
 
 from __future__ import annotations
 
+import json
 import shlex
 import shutil
 import subprocess
 import uuid
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
+from botocore.exceptions import ClientError
 
+from weave_backend.build.captures import CAPTURE_STATES, StateNotExhibited
 from weave_backend.build.qa_agent import CommandOutcome
 from weave_backend.build.qa_suite import QAProject, QARunContext, run_full_qa_suite
 from weave_backend.db.pool import tenant_connection
+from weave_backend.storage.tenant_objects import s3_client
 
 _EVIDENCE_TRUNCATE_CHARS = 500
+_ARTEFACT_BUCKET = "weave-artefacts"
+
+
+def _ensure_bucket() -> Any:
+    """Same LocalStack bucket-idempotency shape as `test_task_detail_api.py`."""
+    client = s3_client()
+    existing = {b["Name"] for b in client.list_buckets().get("Buckets", [])}
+    if _ARTEFACT_BUCKET not in existing:
+        client.create_bucket(Bucket=_ARTEFACT_BUCKET)
+    return client
+
+
+def _capture_fn_stub(_surface: str, state: str) -> bytes:
+    if state == "loading":
+        raise StateNotExhibited("fixture surface has no loading state")
+    return f"png-for-{state}".encode()
 
 
 def _make_run_command(directory: Path) -> Callable[[str], CommandOutcome]:
@@ -172,3 +193,75 @@ async def test_streams_long_lane_progress_to_run_log(platform_stack: Path) -> No
             tenant_id,
         )
     assert len(rows) == 1
+
+
+async def test_writes_captures_manifest_to_real_s3_when_browser_lane_passes(
+    platform_stack: Path,
+) -> None:
+    """AC-7: `run_full_qa_suite` -- the real ASSESS entry point (its only
+    production caller is `ceremony._qa_full_step`) -- drives the 8-state
+    capture producer once `browser_backend` passes for a UI-bearing
+    project, and a real manifest (with an `absent` state, honest-absence
+    contract) lands in real LocalStack S3. Proves the wiring gap QA flagged
+    is closed: this calls the suite entry point, not `capture_visual_states`
+    directly.
+    """
+    tenant_id = f"tenant-qa-{uuid.uuid4().hex[:8]}"
+    client = _ensure_bucket()
+    run_ctx = _run_ctx(
+        tenant_id,
+        run_id=f"run-{uuid.uuid4().hex[:8]}",
+        s3_client=client,
+        captures_bucket=_ARTEFACT_BUCKET,
+    )
+    project = QAProject(
+        has_ui=True,
+        slo=None,
+        browser_result={"passed": True, "backend_assertions": 1},
+        primary_surface="/build/projects/x/settings",
+        capture_fn=_capture_fn_stub,
+    )
+
+    with patch(
+        "weave_backend.build.qa_suite.qa_agent.run_command",
+        return_value=CommandOutcome(status="PASS"),
+    ):
+        async with tenant_connection(tenant_id) as conn:
+            result = await run_full_qa_suite(conn, run_ctx=run_ctx, project=project)
+
+    assert result["result"] == "PASS"
+    key = f"tenant/{tenant_id}/runs/{run_ctx.run_id}/captures/manifest.json"
+    body = client.get_object(Bucket=_ARTEFACT_BUCKET, Key=key)["Body"].read()
+    manifest = json.loads(body)
+    states = {e["state"]: e for e in manifest["states"]}
+    assert len(states) == len(CAPTURE_STATES)
+    assert states["default"]["status"] == "captured"
+    assert states["loading"]["status"] == "absent"
+
+
+async def test_writes_no_captures_manifest_for_headless_project(platform_stack: Path) -> None:
+    """AC-7: a headless project's `browser_backend` category is `n_a`
+    (never `passed`), so the capture producer never runs and no manifest
+    is written -- honest absence stays the only reachable state for a
+    project that genuinely has no UI surface.
+    """
+    tenant_id = f"tenant-qa-{uuid.uuid4().hex[:8]}"
+    client = _ensure_bucket()
+    run_ctx = _run_ctx(
+        tenant_id,
+        run_id=f"run-{uuid.uuid4().hex[:8]}",
+        s3_client=client,
+        captures_bucket=_ARTEFACT_BUCKET,
+    )
+    project = QAProject(has_ui=False, slo=None, capture_fn=_capture_fn_stub)
+
+    with patch(
+        "weave_backend.build.qa_suite.qa_agent.run_command",
+        return_value=CommandOutcome(status="PASS"),
+    ):
+        async with tenant_connection(tenant_id) as conn:
+            await run_full_qa_suite(conn, run_ctx=run_ctx, project=project)
+
+    key = f"tenant/{tenant_id}/runs/{run_ctx.run_id}/captures/manifest.json"
+    with pytest.raises(ClientError):
+        client.get_object(Bucket=_ARTEFACT_BUCKET, Key=key)

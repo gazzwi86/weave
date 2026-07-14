@@ -29,6 +29,18 @@ vi.mock("@/lib/explorer/layout-client", async (importOriginal) => {
 // file) don't need their own fetchPalette prop just to avoid a network call.
 vi.mock("@/lib/explorer/fetch-graph", () => ({
   fetchPalette: vi.fn(async () => []),
+  fetchGraph: vi.fn(async () => []),
+}));
+vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
+vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
+vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
+// CommentsPanel (TASK-026 AC-6) fetches on mount via SidePanel -- stub so
+// these pre-existing tests don't leak a real fetch() against a relative URL.
+vi.mock("@/lib/explorer/comments-client", () => ({ listComments: vi.fn().mockResolvedValue([]), createComment: vi.fn() }));
+// useEventPollWiring (TASK-026 AC-7) polls on mount while active (draft
+// mode) -- stub so these pre-existing tests don't leak a real fetch().
+vi.mock("@/lib/explorer/events-client", () => ({
+  fetchEvents: vi.fn().mockResolvedValue({ status: 200, events: [], latest_seq: 0 }),
 }));
 
 const GRAPH_ID = DEFAULT_EXPLORER_CONFIG.layoutGraphId;
@@ -68,6 +80,18 @@ function fakeAdapter(
     reconcileElement: vi.fn(),
     onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
+    applyNodeColours: vi.fn(),
+    clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
+    clearTraceHighlight: vi.fn(),
+    setDiffOverlay: vi.fn(),
+    clearDiffOverlay: vi.fn(),
+    setViewport: vi.fn(),
+    allNodePositions: vi.fn(() => ({})),
+    applyPositions: vi.fn(),
+    mergeInPlace: vi.fn(),
+    setBadges: vi.fn(),
+    clearBadges: vi.fn(),    isHidden: vi.fn(() => false),
+    onElementRemoved: vi.fn(() => vi.fn()),
     applyFilterVisibility: vi.fn(),
     // test helper, not part of RendererAdapter -- fires the captured handler
     fireRightClick: (nodeId: string, position: { x: number; y: number }) =>

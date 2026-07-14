@@ -9,12 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.dashboard.store import seed_tenant_default_tiles
 from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
 from weave_backend.rbac import require_workspace_role
 from weave_backend.schemas.tenancy import (
     CreateWorkspaceRequest,
     InviteMemberRequest,
+    MemberListResponse,
     MemberResponse,
     SwitchWorkspaceResponse,
     WorkspaceResponse,
@@ -24,6 +26,7 @@ from weave_backend.tenancy.members import (
     MemberAlreadyActive,
     activate_member,
     invite_member,
+    list_for_workspace,
     revoke_member,
 )
 from weave_backend.tenancy.sessions import (
@@ -94,6 +97,10 @@ async def create_workspace_route(
         await _grant_creator_admin_membership(
             conn, tenant_id=tenant_id, workspace_id=workspace.id, principal=principal
         )
+        # PLAT-V1-TASK-010 AC-2: seed the fixed default dashboard tiles for
+        # this tenant. Idempotent (ON CONFLICT DO NOTHING) -- a no-op on the
+        # tenant's 2nd+ workspace, real work only on its first.
+        await seed_tenant_default_tiles(conn, tenant_id=tenant_id)
         await default_audit_emitter.emit(
             conn,
             AuditEvent(
@@ -139,6 +146,24 @@ async def invite_member_route(
             ),
         )
     return MemberResponse(**member.model_dump())
+
+
+@router.get("/workspaces/{workspace_id}/members", response_model=MemberListResponse)
+async def list_members_route(
+    workspace_id: str,
+    principal: Annotated[Principal, Depends(require_workspace_role("read"))],
+) -> MemberListResponse:
+    """TASK-030 AC-1: settings' Members list. `require_workspace_role("read")`
+    is the same dependency `invite_member_route`/`revoke_member_route` use --
+    a foreign/nonexistent `workspace_id` 404s (the router's established
+    anti-enumeration convention, PR #11 finding 2) rather than 403, so this
+    route never leaks a foreign workspace's existence either.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        members = await list_for_workspace(
+            conn, tenant_id=principal.tenant_id, workspace_id=workspace_id
+        )
+    return MemberListResponse(members=members)
 
 
 @router.delete("/workspaces/{workspace_id}/members/{user_sub}", status_code=204)
