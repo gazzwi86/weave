@@ -81,6 +81,26 @@ describe("RulesTour (AC-004-01/05)", () => {
     expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
   });
 
+  // Regression for the pending-state gap: page.tsx's pending branch (no
+  // report run yet) must carry both CE anchor ids too, or a first-time
+  // visit gets zero tour steps.
+  it("auto-starts against the page's pending-state markup (no report run yet)", async () => {
+    mockTourParam("rules-policies");
+
+    render(
+      <>
+        <main>
+          <div data-tour-id="ce.rules.shape-list">
+            <p data-tour-id="ce.rules.violation-report">No validation run yet for the current draft.</p>
+          </div>
+        </main>
+        <RulesTour />
+      </>,
+    );
+
+    expect(await screen.findByText("1 of 2")).toBeInTheDocument();
+  });
+
   it("has no axe violations while the rules-policies step is highlighted", async () => {
     mockTourParam("rules-policies");
 

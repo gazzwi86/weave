@@ -15,9 +15,13 @@ function RulesBody({ report, loading, error, run }: RulesState) {
   if (error) return <p className="text-[var(--color-danger)]">Could not load the validation report.</p>;
   if (loading) return <p className="text-[var(--color-text-muted)]">Loading…</p>;
   if (report?.pending) {
+    // ONB-V1-TASK-004: same two CE anchor ids as the results branch below,
+    // planted here too -- exactly one branch is ever in the DOM, so the
+    // tour resolves whichever is live. Keeps the rules-policies tour usable
+    // on a first/never-run visit instead of silently no-op'ing (AC-004-02).
     return (
-      <div className="flex items-center gap-[var(--space-3)]">
-        <p data-testid="rules-pending" className="text-[var(--color-text-muted)]">
+      <div data-tour-id="ce.rules.shape-list" className="flex items-center gap-[var(--space-3)]">
+        <p data-testid="rules-pending" data-tour-id="ce.rules.violation-report" className="text-[var(--color-text-muted)]">
           No validation run yet for the current draft.
         </p>
         <Button onClick={() => void run()}>Run validation</Button>
