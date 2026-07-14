@@ -43,8 +43,8 @@ export const ANCHORS = {
   "plat.role-home.next-action": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
   "plat.role-home.summary-tiles": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
   // M2 -- Graph Explorer completeness-map + trust-mechanics overlays (m2-delta.md §3; EPIC-002).
-  "ge.overlay.controls": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-002" },
-  "ge.overlay.completeness-legend": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-002" },
+  "ge.overlay.controls": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: true, planted_by: "TASK-002" },
+  "ge.overlay.completeness-legend": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: true, planted_by: "TASK-002" },
   "ge.versions.panel": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-004" },
   "ge.filters.governed-content": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: false, planted_by: "TASK-004" },
   // M2 -- Constitution rules & policies trust tour (m2-delta.md §3; EPIC-002).

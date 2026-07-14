@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 
 from weave_backend.auth.dependencies import Principal, get_current_principal
@@ -21,7 +22,9 @@ from weave_backend.onboarding.hammerbarn_seed.compile import (
     allowed_kinds_from_ontology_types,
     compile_seed,
 )
+from weave_backend.onboarding.milestones import MANUAL_ONLY_MILESTONE_IDS
 from weave_backend.onboarding.path_resolver import resolve_role_path
+from weave_backend.onboarding.recorder import record_milestone
 from weave_backend.ontology.catalogue import list_kinds
 from weave_backend.schemas.onboarding import (
     BulkDeletedResponse,
@@ -33,14 +36,41 @@ from weave_backend.schemas.onboarding import (
     OnboardingStatePatchRequest,
     SandboxOut,
     SavedResponse,
+    SelfMarkResponse,
     TourProgressRequest,
 )
+from weave_backend.settings.resolver import SettingNotFound, resolve_setting
+from weave_backend.settings.scope import company_iri
 
 router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
+#: AC-010-04: "default 7 days" -- used only when no tenant/domain/project
+#: override exists anywhere in the settings cascade.
+_DEFAULT_AUTO_DISMISS_DAYS = 7
+_AUTO_DISMISS_SETTING_KEY = "onboarding.checklist_auto_dismiss_days"
 
-def _to_out(record: store.OnboardingStateRecord) -> OnboardingStateOut:
-    return OnboardingStateOut(**record.model_dump())
+
+def _to_out(record: store.OnboardingStateRecord, *, auto_dismiss_days: int) -> OnboardingStateOut:
+    return OnboardingStateOut(
+        **record.model_dump(), checklist_auto_dismiss_days=auto_dismiss_days
+    )
+
+
+async def _resolve_auto_dismiss_days(conn: asyncpg.Connection, *, tenant_id: str) -> int:
+    """AC-010-04: company -> domain -> project cascade (PLAT-SETTINGS-1),
+    falling back to the documented default when nothing is configured
+    anywhere -- config-driven, not hard-coded (FR-020).
+    """
+    try:
+        resolved = await resolve_setting(
+            conn,
+            tenant_id=tenant_id,
+            key=_AUTO_DISMISS_SETTING_KEY,
+            context_iri=company_iri(tenant_id),
+        )
+    except SettingNotFound:
+        return _DEFAULT_AUTO_DISMISS_DAYS
+    return int(resolved.value)
 
 
 @router.get("/state", response_model=OnboardingStateOut)
@@ -51,7 +81,8 @@ async def get_state_route(
         record = await store.get_state(
             conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
         )
-    return _to_out(record)
+        auto_dismiss_days = await _resolve_auto_dismiss_days(conn, tenant_id=principal.tenant_id)
+    return _to_out(record, auto_dismiss_days=auto_dismiss_days)
 
 
 @router.patch("/state", response_model=OnboardingStateOut)
@@ -67,7 +98,51 @@ async def patch_state_route(
         record = await store.get_state(
             conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
         )
-    return _to_out(record)
+        auto_dismiss_days = await _resolve_auto_dismiss_days(conn, tenant_id=principal.tenant_id)
+    return _to_out(record, auto_dismiss_days=auto_dismiss_days)
+
+
+@router.post("/checklist/restore", response_model=OnboardingStateOut)
+async def restore_checklist_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> OnboardingStateOut:
+    """AC-010-05: restore -- clears `checklist_dismissed_at` back to null
+    (the Help-launcher entry point that calls this is TASK-013's; this task
+    only owns the persistence round-trip).
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        await store.clear_checklist_dismissal(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+        record = await store.get_state(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+        auto_dismiss_days = await _resolve_auto_dismiss_days(conn, tenant_id=principal.tenant_id)
+    return _to_out(record, auto_dismiss_days=auto_dismiss_days)
+
+
+@router.post("/milestones/{milestone_id}/self-mark", response_model=SelfMarkResponse)
+async def self_mark_milestone_route(
+    milestone_id: str,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> SelfMarkResponse:
+    """AC-010-03 / OQ-08: Admin-invite manual self-mark. `milestone_id` is
+    checked against an allowlist (not written through free-text) so this
+    route can't be used to self-mark a poller-owned milestone. Routes
+    through TASK-011's `record_milestone` -- same exactly-once PK, `source
+    ="manual"` (idempotent: a second call is a no-op, `marked=False`).
+    """
+    if milestone_id not in MANUAL_ONLY_MILESTONE_IDS:
+        raise HTTPException(status_code=404, detail={"error": "milestone_not_manual"})
+    async with tenant_connection(principal.tenant_id) as conn:
+        won = await record_milestone(
+            conn,
+            tenant_id=principal.tenant_id,
+            user_id=principal.principal_iri,
+            milestone_id=milestone_id,
+            source="manual",
+        )
+    return SelfMarkResponse(marked=won)
 
 
 def _to_path_out(

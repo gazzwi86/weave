@@ -39,6 +39,11 @@ class _FakeConnection:
         raise AssertionError(f"unexpected fetch: {query}")
 
     async def execute(self, query: str, *args: Any) -> str:
+        if query.strip().startswith("UPDATE onboarding_state"):
+            _tenant_id, _user_id = args
+            if self.spine is not None:
+                self.spine["checklist_dismissed_at"] = None
+            return "UPDATE 1" if self.spine is not None else "UPDATE 0"
         if "INSERT INTO onboarding_state" in query:
             (
                 _tenant_id,
@@ -47,6 +52,7 @@ class _FakeConnection:
                 path_variant,
                 path_chosen_manually,
                 checklist_dismissed_at,
+                checklist_completed_at,
                 whats_new_seen_at,
             ) = args
             existing = self.spine or {
@@ -56,6 +62,8 @@ class _FakeConnection:
                 "checklist_dismissed_at": None,
                 "checklist_completed_at": None,
                 "whats_new_seen_at": None,
+                "sandbox_workspace_id": None,
+                "sandbox_forked_at": None,
             }
             self.spine = {
                 "role_path": role_path if role_path is not None else existing["role_path"],
@@ -72,12 +80,18 @@ class _FakeConnection:
                     if checklist_dismissed_at is not None
                     else existing["checklist_dismissed_at"]
                 ),
-                "checklist_completed_at": existing["checklist_completed_at"],
+                "checklist_completed_at": (
+                    checklist_completed_at
+                    if checklist_completed_at is not None
+                    else existing["checklist_completed_at"]
+                ),
                 "whats_new_seen_at": (
                     whats_new_seen_at
                     if whats_new_seen_at is not None
                     else existing["whats_new_seen_at"]
                 ),
+                "sandbox_workspace_id": existing.get("sandbox_workspace_id"),
+                "sandbox_forked_at": existing.get("sandbox_forked_at"),
             }
             return "INSERT 0 1"
         if "INSERT INTO tour_progress" in query:
@@ -243,6 +257,73 @@ async def test_delete_dismissal_removes_row() -> None:
 
     assert found is True
     assert ("beacon", "b-1") not in conn.dismissals
+
+
+async def test_patch_state_sets_checklist_completed_at() -> None:
+    """TASK-010 AC-010-04: widget-set once all items complete."""
+    conn = _FakeConnection()
+    now = datetime.now(UTC)
+
+    await store.patch_state(
+        conn,
+        tenant_id=_TENANT,
+        user_id=_USER,
+        patch=store.StatePatch(checklist_completed_at=now),
+    )
+
+    record = await store.get_state(conn, tenant_id=_TENANT, user_id=_USER)
+    assert record.checklist_completed_at == now
+
+
+async def test_get_state_exposes_sandbox_fields() -> None:
+    """TASK-010 AC-010-02: `sandbox_workspace_id` is the "visited the demo"
+    signal -- must round-trip through the bootstrap read without a second
+    fetch.
+    """
+    conn = _FakeConnection()
+    conn.spine = {
+        "role_path": "business",
+        "path_variant": "default",
+        "path_chosen_manually": False,
+        "checklist_dismissed_at": None,
+        "checklist_completed_at": None,
+        "whats_new_seen_at": None,
+        "sandbox_workspace_id": "ws-1",
+        "sandbox_forked_at": datetime.now(UTC),
+    }
+
+    record = await store.get_state(conn, tenant_id=_TENANT, user_id=_USER)
+
+    assert record.sandbox_workspace_id == "ws-1"
+    assert record.sandbox_forked_at is not None
+
+
+async def test_clear_checklist_dismissal_nulls_the_field() -> None:
+    """TASK-010 AC-010-05: restore round-trip -- clears a field `patch_state`'s
+    COALESCE contract can't null back out.
+    """
+    conn = _FakeConnection()
+    await store.patch_state(
+        conn,
+        tenant_id=_TENANT,
+        user_id=_USER,
+        patch=store.StatePatch(checklist_dismissed_at=datetime.now(UTC)),
+    )
+
+    await store.clear_checklist_dismissal(conn, tenant_id=_TENANT, user_id=_USER)
+
+    record = await store.get_state(conn, tenant_id=_TENANT, user_id=_USER)
+    assert record.checklist_dismissed_at is None
+
+
+async def test_clear_checklist_dismissal_is_a_noop_for_new_user() -> None:
+    """No spine row yet -- restore before any dismissal must not error."""
+    conn = _FakeConnection()
+
+    await store.clear_checklist_dismissal(conn, tenant_id=_TENANT, user_id=_USER)
+
+    record = await store.get_state(conn, tenant_id=_TENANT, user_id=_USER)
+    assert record.checklist_dismissed_at is None
 
 
 async def test_delete_beacon_dismissals_bulk_deletes_only_beacon_kind() -> None:

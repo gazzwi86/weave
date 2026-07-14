@@ -67,7 +67,8 @@ describe("GET /api/onboarding/state", () => {
   });
 });
 
-// ONB-TASK-012 AC-012-04: PATCH clears the What's-new unread dot.
+// ONB-TASK-012 AC-012-04 / TASK-010 AC-010-05: PATCH clears the What's-new
+// unread dot and forwards checklist dismiss/completion.
 describe("PATCH /api/onboarding/state", () => {
   beforeEach(() => {
     vi.mocked(auth).mockReset();
@@ -101,6 +102,40 @@ describe("PATCH /api/onboarding/state", () => {
         body: JSON.stringify({ whats_new_seen_at: "2026-07-14T00:00:00Z" }),
       })
     );
+    expect(response.status).toBe(200);
+  });
+
+  it("AC-010-05: forwards a checklist dismissal patch to the backend", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/onboarding/state", {
+        method: "PATCH",
+        body: JSON.stringify({ checklist_dismissed_at: "2026-07-14T00:00:00Z" }),
+      })
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/onboarding/state"),
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
+        body: JSON.stringify({ checklist_dismissed_at: "2026-07-14T00:00:00Z" }),
+      })
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("XT-ONB010-1: forwards a checklist true-completion patch to the backend", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/onboarding/state", {
+        method: "PATCH",
+        body: JSON.stringify({ checklist_completed_at: "2026-07-14T00:00:00Z" }),
+      })
+    );
+
     expect(response.status).toBe(200);
   });
 

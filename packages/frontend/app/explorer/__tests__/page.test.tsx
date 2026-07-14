@@ -15,13 +15,31 @@ vi.mock("@/components/explorer/explorer-canvas-loader", () => ({
   ExplorerCanvasLoader: () => <div data-testid="explorer-canvas-loader-stub" />,
 }));
 
+// ONB-V1-TASK-002: real ExplorerTour needs the TourEngine/Driver.js stack
+// mounted with real DOM anchors -- covered by its own test file. Here we
+// only assert the page wires the resolved `?tour=` param through to it.
+vi.mock("@/components/explorer/explorer-tour", () => ({
+  ExplorerTour: ({ tourParam }: { tourParam: string | null }) => (
+    <div data-testid="explorer-tour-stub">{tourParam ?? "none"}</div>
+  ),
+}));
+
 describe("ExplorerPage", () => {
   it("renders the page heading and mounts the client-only canvas loader", async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
-    render(await ExplorerPage());
+    render(await ExplorerPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByRole("heading", { name: "Graph Explorer" })).toBeInTheDocument();
     expect(screen.getByTestId("explorer-canvas-loader-stub")).toBeInTheDocument();
+    expect(screen.getByTestId("explorer-tour-stub")).toHaveTextContent("none");
+  });
+
+  it("passes the ?tour= query param through to ExplorerTour (AC-002-01 help-launcher deep-link)", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+
+    render(await ExplorerPage({ searchParams: Promise.resolve({ tour: "completeness-map" }) }));
+
+    expect(screen.getByTestId("explorer-tour-stub")).toHaveTextContent("completeness-map");
   });
 });
