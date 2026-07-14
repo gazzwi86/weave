@@ -74,7 +74,19 @@ export const ChecklistItemSchema = z.object({
     "activation_milestone",
     "manual",
   ]),
+  /** TASK-010 AC-010-02: the specific tour_id/exercise_id/milestone_id
+   * `autoCompleteOn` binds to -- needed because two items can share one
+   * `autoCompleteOn` kind (e.g. two `exercise_complete` items), so the kind
+   * alone can't say which signal row ticks which item. Unused for
+   * `demo_visit` (single global signal, no instance id).
+   */
+  signalRefs: z.array(z.string()).optional(),
   lockedUntilPhase: PhaseSchema.optional(),
+  /** TASK-010 AC-010-03: Admin-invite's "pending platform signal" badge --
+   * shown only while the item is unchecked (OQ-08, no PLAT-IDENTITY-1
+   * contract to poll instead).
+   */
+  badge: z.enum(["pending-platform-signal"]).optional(),
 });
 
 /** ONB-TASK-012 (E6-S1): the seven training categories -- `build`/`automation`
@@ -123,6 +135,7 @@ export const WidgetSchema = z.object({
 
 export const WidgetMappingSchema = z.record(RolePathSchema, z.array(WidgetSchema).nonempty());
 
+export type Phase = z.infer<typeof PhaseSchema>;
 export type Tour = z.infer<typeof TourSchema>;
 export type Beacon = z.infer<typeof BeaconSchema>;
 export type WelcomeModal = z.infer<typeof WelcomeModalSchema>;

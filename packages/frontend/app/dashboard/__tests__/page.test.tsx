@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { auth } from "@/auth";
@@ -38,6 +38,15 @@ const WIDGETS_BODY = {
 function stubFetch(url: string): Response {
   if (url.includes("/api/whoami")) {
     return new Response(JSON.stringify(WHOAMI_BODY), { status: 200 });
+  }
+  // TASK-010: checklist widget's own client-side bootstrap fetch -- already
+  // dismissed here so it renders nothing and doesn't interfere with these
+  // dashboard-page-scoped assertions.
+  if (url.includes("/api/onboarding/state")) {
+    return new Response(JSON.stringify({ checklist_dismissed_at: "2026-01-01T00:00:00Z" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   }
   if (url.includes("/api/dashboard/library")) {
     return new Response(JSON.stringify({ items: [] }), { status: 200 });
@@ -103,14 +112,15 @@ describe("DashboardPage", () => {
     expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
-  it("issues exactly four outbound fetch calls total (whoami + both widget scopes + library, no more)", async () => {
+  it("issues exactly five outbound fetch calls total (whoami + both widget scopes + library + checklist state, no more)", async () => {
     render(await DashboardPage());
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(5));
 
-    expect(fetch).toHaveBeenCalledTimes(4);
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
     expect(calledUrls.some((url) => url.includes("/api/whoami"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("scope=tenant_default"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("scope=user"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/dashboard/library"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/onboarding/state"))).toBe(true);
   });
 });

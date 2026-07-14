@@ -46,6 +46,8 @@ def _state(
         dismissals=[],
         exercise_completions=completions or [],
         activations=[],
+        sandbox_workspace_id=None,
+        sandbox_forked_at=None,
     )
 
 

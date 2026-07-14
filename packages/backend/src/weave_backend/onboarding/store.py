@@ -57,6 +57,11 @@ class OnboardingStateRecord(BaseModel):
     checklist_dismissed_at: datetime | None
     checklist_completed_at: datetime | None
     whats_new_seen_at: datetime | None
+    #: TASK-010 AC-010-02: exposed so the checklist widget can derive the
+    #: "visit demo" item (`sandbox_workspace_id IS NOT NULL` *is* the visit,
+    #: per the brief's implementation hint) without a second round-trip.
+    sandbox_workspace_id: str | None
+    sandbox_forked_at: datetime | None
     tours: list[TourProgressRecord]
     dismissals: list[DismissalRecord]
     exercise_completions: list[ExerciseCompletionRecord]
@@ -69,12 +74,18 @@ class StatePatch:
     distinguish "field omitted" from "field explicitly cleared to null" for
     the two nullable timestamp fields; no route in this task's scope needs
     to clear them back to null, so this is an accepted limitation, not a gap.
+    TASK-010: restoring a dismissed checklist is the one case that *does*
+    need a real clear -- that goes through `clear_checklist_dismissal`
+    below instead of widening this COALESCE contract.
     """
 
     role_path: RolePath | None = None
     path_variant: PathVariant | None = None
     path_chosen_manually: bool | None = None
     checklist_dismissed_at: datetime | None = None
+    #: TASK-010 AC-010-04: widget-set once all items complete, feeds the
+    #: auto-dismiss window arithmetic client-side.
+    checklist_completed_at: datetime | None = None
     whats_new_seen_at: datetime | None = None
 
 
@@ -95,8 +106,8 @@ async def get_state(
     """
     spine = await conn.fetchrow(
         "SELECT role_path, path_variant, path_chosen_manually, checklist_dismissed_at,"
-        " checklist_completed_at, whats_new_seen_at FROM onboarding_state"
-        " WHERE tenant_id = $1 AND user_id = $2",
+        " checklist_completed_at, whats_new_seen_at, sandbox_workspace_id, sandbox_forked_at"
+        " FROM onboarding_state WHERE tenant_id = $1 AND user_id = $2",
         tenant_id,
         user_id,
     )
@@ -140,6 +151,12 @@ def _assemble_state(
         checklist_dismissed_at=spine["checklist_dismissed_at"] if spine else None,
         checklist_completed_at=spine["checklist_completed_at"] if spine else None,
         whats_new_seen_at=spine["whats_new_seen_at"] if spine else None,
+        sandbox_workspace_id=(
+            str(spine["sandbox_workspace_id"])
+            if spine and spine["sandbox_workspace_id"]
+            else None
+        ),
+        sandbox_forked_at=spine["sandbox_forked_at"] if spine else None,
         tours=[TourProgressRecord(**row) for row in tours],
         dismissals=[DismissalRecord(**row) for row in dismissals],
         exercise_completions=[ExerciseCompletionRecord(**row) for row in exercises],
@@ -157,15 +174,17 @@ async def patch_state(
         """
         INSERT INTO onboarding_state
             (tenant_id, user_id, role_path, path_variant, path_chosen_manually,
-             checklist_dismissed_at, whats_new_seen_at, created_at, updated_at)
+             checklist_dismissed_at, checklist_completed_at, whats_new_seen_at,
+             created_at, updated_at)
         VALUES ($1, $2, COALESCE($3, 'business'), COALESCE($4, 'default'),
-                COALESCE($5, false), $6, $7, now(), now())
+                COALESCE($5, false), $6, $7, $8, now(), now())
         ON CONFLICT (tenant_id, user_id) DO UPDATE SET
             role_path = COALESCE($3, onboarding_state.role_path),
             path_variant = COALESCE($4, onboarding_state.path_variant),
             path_chosen_manually = COALESCE($5, onboarding_state.path_chosen_manually),
             checklist_dismissed_at = COALESCE($6, onboarding_state.checklist_dismissed_at),
-            whats_new_seen_at = COALESCE($7, onboarding_state.whats_new_seen_at),
+            checklist_completed_at = COALESCE($7, onboarding_state.checklist_completed_at),
+            whats_new_seen_at = COALESCE($8, onboarding_state.whats_new_seen_at),
             updated_at = now()
         """,
         tenant_id,
@@ -174,7 +193,24 @@ async def patch_state(
         patch.path_variant,
         patch.path_chosen_manually,
         patch.checklist_dismissed_at,
+        patch.checklist_completed_at,
         patch.whats_new_seen_at,
+    )
+
+
+async def clear_checklist_dismissal(
+    conn: asyncpg.Connection, *, tenant_id: str, user_id: str
+) -> None:
+    """TASK-010 AC-010-05: restore -- `patch_state`'s COALESCE contract
+    can't null a field back out (see `StatePatch`'s docstring), so restore
+    gets its own direct UPDATE rather than widening that contract. A no-op
+    if the spine row doesn't exist yet (nothing to restore).
+    """
+    await conn.execute(
+        "UPDATE onboarding_state SET checklist_dismissed_at = NULL, updated_at = now()"
+        " WHERE tenant_id = $1 AND user_id = $2",
+        tenant_id,
+        user_id,
     )
 
 

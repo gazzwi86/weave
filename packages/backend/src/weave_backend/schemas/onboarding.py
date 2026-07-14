@@ -21,6 +21,7 @@ class OnboardingStatePatchRequest(BaseModel):
     path_variant: PathVariantIn | None = None
     path_chosen_manually: bool | None = None
     checklist_dismissed_at: datetime | None = None
+    checklist_completed_at: datetime | None = None
     whats_new_seen_at: datetime | None = None
 
 
@@ -62,10 +63,20 @@ class OnboardingStateOut(BaseModel):
     checklist_dismissed_at: datetime | None
     checklist_completed_at: datetime | None
     whats_new_seen_at: datetime | None
+    sandbox_workspace_id: str | None
+    sandbox_forked_at: datetime | None
+    #: TASK-010 AC-010-04: resolved 7-day-default settings-cascade tunable
+    #: (company -> domain -> project), so the widget's auto-dismiss window
+    #: arithmetic is config-driven, not hard-coded (FR-020).
+    checklist_auto_dismiss_days: int
     tours: list[TourProgressOut]
     dismissals: list[DismissalOut]
     exercise_completions: list[ExerciseCompletionOut]
     activations: list[ActivationOut]
+
+
+class SelfMarkResponse(BaseModel):
+    marked: bool
 
 
 class OnboardingPathOut(BaseModel):
