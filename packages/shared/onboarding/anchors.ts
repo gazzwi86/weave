@@ -32,8 +32,8 @@ export const ANCHORS = {
   "ge.canvas": { engine: "graph-explorer", area: "explorer", phase: "m1", shipped: true, planted_by: "TASK-007" },
   "ge.canvas.spotlight-control": { engine: "graph-explorer", area: "explorer", phase: "m1", shipped: true, planted_by: "TASK-007" },
   // M1 -- no-tour areas (welcome modal only; AC-003-02).
-  "compliance.page": { engine: "constitution", area: "compliance", phase: "m1", shipped: false, planted_by: "TASK-008" },
-  "settings.page": { engine: "platform", area: "settings", phase: "m1", shipped: false, planted_by: "TASK-008" },
+  "compliance.page": { engine: "constitution", area: "compliance", phase: "m1", shipped: true, planted_by: "TASK-008" },
+  "settings.page": { engine: "platform", area: "settings", phase: "m1", shipped: true, planted_by: "TASK-008" },
   // M2 -- registered now, no DOM yet (ADR-005).
   "ce.metrics-tile": { engine: "constitution", area: "constitution", phase: "m2", shipped: false, planted_by: "TASK-014" },
   // M2 -- Platform role-home guidance surfaces (m2-delta.md §3; EPIC-003, owned by Platform TASK-017).

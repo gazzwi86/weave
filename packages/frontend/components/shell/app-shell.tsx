@@ -12,6 +12,7 @@ import { HelpLauncher } from "./help-launcher";
 import { Nav } from "./nav";
 import { NotificationCenter } from "./notification-center";
 import { SectionRail } from "./section-rail";
+import { OnboardingHintsHost } from "../onboarding/onboarding-hints-host";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -61,6 +62,7 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
         </div>
       </header>
       <CommandPalette />
+      <OnboardingHintsHost />
       <div className="flex flex-1">
         <SectionRail role={role} />
         <div className="min-w-0 flex-1">{children}</div>
