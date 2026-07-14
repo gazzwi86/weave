@@ -21,9 +21,15 @@ describe("M2 content bundle (AC-001-02/04)", () => {
     }
   });
 
-  it("provides at least one beacon per M2 tour anchor", () => {
-    const m2Beacons = BEACONS.filter((b) => b.phase === "m2");
-    expect(m2Beacons.length).toBeGreaterThanOrEqual(M2_TOUR_IDS.length);
+  // Not 1-per-tour: AC-004-03 scopes the M2 trust-mechanics beacon budget to
+  // the one on ge.versions.panel only -- tour.ce.rules-policies has no
+  // run-report control to hint at, so it intentionally gets zero beacons
+  // (m2-delta.md §3 re-anchoring note in beacons.ts).
+  it("provides the M2 beacon set (completeness-map, role-home, trust-mechanics)", () => {
+    const m2BeaconIds = BEACONS.filter((b) => b.phase === "m2")
+      .map((b) => b.beaconId)
+      .sort();
+    expect(m2BeaconIds).toEqual(["ge-completeness-map", "ge-trust-mechanics", "plat-role-home"]);
   });
 
   it("provides the role-home welcome modal", () => {
