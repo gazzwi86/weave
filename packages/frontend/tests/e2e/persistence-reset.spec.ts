@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 // ONB-TASK-015 AC-015-02 / testing-strategy.md §4 `persistence-reset.spec`:
 // edit the sandbox (NL edit, CE-02), sign out/in, edit persists, an
@@ -20,6 +21,9 @@ test.fixme(
     await page.getByRole("textbox", { name: /ask weave/i }).fill("add a note node called E2E marker");
     await page.getByRole("button", { name: /send|submit/i }).click();
     await expect(page.getByText("E2E marker")).toBeVisible();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
 
     // Sign out / sign back in -- edit must still be there (Law B: assert via
     // CE-READ-1 ASK, not just the DOM re-rendering the same client cache).

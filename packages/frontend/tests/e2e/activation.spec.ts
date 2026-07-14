@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 // ONB-TASK-015 AC-015-04 / testing-strategy.md §4 `activation.spec`: first
 // entity committed in the user's OWN workspace fires toast + checklist item
@@ -30,6 +31,9 @@ test.fixme(
       "data-checklist-state",
       "complete",
     );
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
 
     // Backend-state assertion (Law B, implementation hint): exactly one
     // activation row, one outbox row, one PLAT-NOTIFY-1 stub call.
