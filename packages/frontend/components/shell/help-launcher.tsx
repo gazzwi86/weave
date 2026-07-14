@@ -1,6 +1,56 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
+import { usePathname } from "next/navigation";
+
+const LINK_CLASS = "text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline";
+
+/** ONB-V1-TASK-002 AC-002-01: help-launcher entry into the completeness-map
+ * tour, offered only while on an Explorer route -- the same deep-link the
+ * ExplorerTour component autostarts on (`?tour=completeness-map`). */
+function CompletenessTourEntry() {
+  const pathname = usePathname();
+  if (!pathname?.startsWith("/explorer")) return null;
+  return (
+    <a href="/explorer?tour=completeness-map" className={LINK_CLASS}>
+      Take the completeness-map tour
+    </a>
+  );
+}
+
+/** IA §6 help content — thin M1 links; per-area contextual help and guided
+ * tours land with the v1.0 docs surface. */
+function HelpTopics() {
+  return (
+    <nav aria-label="Help topics" className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+      <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        Get started
+      </p>
+      <a href="/role-home" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+        What can Weave do for you? — your role-tailored capabilities and next step
+      </a>
+      <a href="/ce" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+        Model your company — add Processes, Actors, Goals in the Constitution
+      </a>
+      <a href="/ce/query" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+        Ask questions in plain language — Query the graph
+      </a>
+      <a href="/explorer" className={LINK_CLASS}>
+        See the whole company — Graph Explorer
+      </a>
+      <CompletenessTourEntry />
+      <a href="/build" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+        Request an application generated from your model — Build
+      </a>
+      <a href="/audit" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+        Every change, hash-chained — Audit trail
+      </a>
+      <p className="mt-[var(--space-2)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
+        Docs, keyboard shortcuts, and per-area guides arrive with the v1.0 help centre.
+      </p>
+    </nav>
+  );
+}
 
 /** AC-7: "?" icon in the nav opens a contextual help panel in place --
  * a Radix Dialog (focus-trap, Escape-to-close, restore-focus) rather than
@@ -31,34 +81,7 @@ export function HelpLauncher() {
             Press Cmd+K (or Ctrl+K) to search. This panel is contextual to the area you&apos;re
             viewing.
           </Dialog.Description>
-          {/* IA §6 help content — thin M1 links; per-area contextual help and
-              guided tours land with the v1.0 docs surface. */}
-          <nav aria-label="Help topics" className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
-            <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-              Get started
-            </p>
-            <a href="/role-home" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              What can Weave do for you? — your role-tailored capabilities and next step
-            </a>
-            <a href="/ce" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              Model your company — add Processes, Actors, Goals in the Constitution
-            </a>
-            <a href="/ce/query" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              Ask questions in plain language — Query the graph
-            </a>
-            <a href="/explorer" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              See the whole company — Graph Explorer
-            </a>
-            <a href="/build" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              Request an application generated from your model — Build
-            </a>
-            <a href="/audit" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-              Every change, hash-chained — Audit trail
-            </a>
-            <p className="mt-[var(--space-2)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-              Docs, keyboard shortcuts, and per-area guides arrive with the v1.0 help centre.
-            </p>
-          </nav>
+          <HelpTopics />
           <Dialog.Close asChild>
             <button
               type="button"

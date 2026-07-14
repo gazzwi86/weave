@@ -27,12 +27,14 @@ describe("ANCHORS registry", () => {
     expect(ANCHORS["ge.canvas"].engine).toBe("graph-explorer");
   });
 
-  it("carries phase-tagged entries for known M2/post-v1 surfaces without DOM", () => {
+  it("carries phase-tagged entries for known M2/post-v1 surfaces, most still unshipped", () => {
+    // ONB-V1-TASK-002 plants ge.overlay.controls/ge.overlay.completeness-legend and ships them in
+    // the same PR as their data-tour-id attributes (ADR-008) -- every other m2-or-later anchor
+    // stays false until its own planting task lands.
     const m2OrLater = Object.values(ANCHORS).filter((a) => a.phase !== "m1");
     expect(m2OrLater.length).toBeGreaterThan(0);
-    for (const a of m2OrLater) {
-      expect(a.shipped).toBe(false);
-    }
+    expect(m2OrLater.some((a) => a.shipped)).toBe(true);
+    expect(m2OrLater.some((a) => !a.shipped)).toBe(true);
   });
 
   it("m1 anchors flip shipped:true as their planting task lands (ADR-008)", () => {
@@ -55,10 +57,15 @@ describe("ANCHORS registry", () => {
     expect(M2_ANCHOR_IDS.every((id) => id in ANCHORS)).toBe(true);
   });
 
-  it.each(M2_ANCHOR_IDS)("m2 anchor %s is shipped:false with an owning planted_by task", (id) => {
+  // ONB-V1-TASK-002 ships its two GE anchors in the same PR as their data-tour-id attributes
+  // (ADR-008 atomicity) -- everything else in the m2-delta §3 set stays unshipped until its own
+  // planting task lands.
+  const SHIPPED_M2_ANCHOR_IDS = ["ge.overlay.controls", "ge.overlay.completeness-legend"];
+
+  it.each(M2_ANCHOR_IDS)("m2 anchor %s has an owning planted_by task", (id) => {
     const anchor = ANCHORS[id as keyof typeof ANCHORS];
     expect(anchor.phase).toBe("m2");
-    expect(anchor.shipped).toBe(false);
+    expect(anchor.shipped).toBe(SHIPPED_M2_ANCHOR_IDS.includes(id));
     expect(anchor.planted_by).toMatch(/^TASK-00[234]$/);
   });
 });
