@@ -113,8 +113,15 @@ async def get_current_principal(
     except TokenVerificationError as exc:
         raise UnauthorisedError from exc
 
+    principal_iri = claims.get("principal_iri")
+    if not principal_iri:
+        # TASK-030 AC-5 (ADR-019): a token minted without the principal_iri
+        # claim must reject the request loud (401), never fall through to a
+        # raw KeyError or an edit attributed to nothing.
+        raise HTTPException(status_code=401, detail={"error": "missing_principal_claim"})
+
     tenant_id_var.set(claims["tenant_id"])
-    principal_iri_var.set(claims["principal_iri"])
+    principal_iri_var.set(principal_iri)
     # Re-stamp the current span (AC-5): the OTel span for this request ends
     # as soon as the response finishes streaming, which can happen before a
     # middleware's post-`call_next` code runs -- so the real, verified
@@ -123,7 +130,7 @@ async def get_current_principal(
     principal = Principal(
         sub=claims["sub"],
         tenant_id=claims["tenant_id"],
-        principal_iri=claims["principal_iri"],
+        principal_iri=principal_iri,
         session_version=int(claims.get("session_version", "0")),
         principal_type=claims.get("principal_type", "human"),
         roles=_parse_roles_claim(claims.get("roles")),
