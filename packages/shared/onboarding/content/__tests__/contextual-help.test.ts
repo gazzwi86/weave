@@ -21,7 +21,7 @@ describe("areaForPathname", () => {
   });
 
   it("returns null for unmapped or null pathnames", () => {
-    expect(areaForPathname("/audit/logs")).toBe(null);
-    expect(areaForPathname(null)).toBe(null);
+    expect(areaForPathname("/audit/logs")).toBeNull();
+    expect(areaForPathname(null)).toBeNull();
   });
 });
