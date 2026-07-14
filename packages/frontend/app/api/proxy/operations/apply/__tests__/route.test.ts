@@ -75,6 +75,21 @@ describe("POST /api/proxy/operations/apply -- AC-1/AC-2 security guards", () => 
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 and makes no CE call when principal_iri claim is present but empty (falsy, not missing)", async () => {
+    // Edge case: a naive `principal !== null` check would let an empty-string
+    // claim through and forward `actor: ""` to CE-WRITE-1 -- unattributed
+    // write. getPrincipalIriClaim + route.ts's `!principal` check must treat
+    // "" the same as a missing claim (ADR-019: no edit without attribution).
+    mockAuthedSession(fakeJwt({ sub: "cognito-sub-1", principal_iri: "" }));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(makeRequest({ operations: [ADD_NODE_OP] }));
+
+    expect(response.status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for an operations array that fails the CE-WRITE-1 op schema", async () => {
     mockAuthedSession(TOKEN_WITH_PRINCIPAL);
     const fetchMock = vi.fn();
