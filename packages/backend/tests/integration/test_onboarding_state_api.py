@@ -339,6 +339,28 @@ async def test_dismissal_put_and_delete_via_http(client: AsyncClient, platform_s
     assert state_after.json()["dismissals"] == []
 
 
+async def test_trust_mechanics_beacon_dismissal_persists_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """ONB-V1-TASK-004 AC-004-03: the versions-panel compare/diff-discoverability
+    beacon (`ge-trust-mechanics` in shared/onboarding/content/beacons.ts) persists
+    its dismissal server-side per (tenant, user) through the same generic
+    dismissal route the M1 beacons use -- no new endpoint, just proof the real
+    production beacon id round-trips.
+    """
+    tenant_id = _unique_tenant("onb-trust-beacon")
+    tokens = await issue_token_pair(sub="u-onb-trust-beacon", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    put_response = await client.put(
+        "/api/onboarding/dismissals/beacon/ge-trust-mechanics", headers=headers
+    )
+    assert put_response.status_code == 200
+
+    state = await client.get("/api/onboarding/state", headers=headers)
+    assert [d["ref_id"] for d in state.json()["dismissals"]] == ["ge-trust-mechanics"]
+
+
 async def test_delete_beacon_dismissals_bulk_via_http(
     client: AsyncClient, platform_stack: Path
 ) -> None:
