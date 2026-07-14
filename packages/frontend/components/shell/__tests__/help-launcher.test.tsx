@@ -67,6 +67,51 @@ describe("HelpLauncher", () => {
     expect(screen.queryByRole("link", { name: /take the completeness-map tour/i })).not.toBeInTheDocument();
   });
 
+  // ONB-V1-TASK-004 AC-004-01/04: same route-conditional deep-link pattern
+  // as CompletenessTourEntry, on /explorer since that's the trust-mechanics
+  // tour's owning surface.
+  it("offers the trust-mechanics tour deep-link only on Explorer routes (AC-004-01)", () => {
+    pathname = "/explorer";
+    render(<HelpLauncher />);
+    fireEvent.click(screen.getByRole("button", { name: /help/i }));
+
+    expect(screen.getByRole("link", { name: /take the trust-mechanics tour/i })).toHaveAttribute(
+      "href",
+      "/explorer?tour=trust-mechanics",
+    );
+  });
+
+  it("does not offer the trust-mechanics tour deep-link off Explorer routes", () => {
+    pathname = "/dashboard";
+    render(<HelpLauncher />);
+    fireEvent.click(screen.getByRole("button", { name: /help/i }));
+
+    expect(screen.queryByRole("link", { name: /take the trust-mechanics tour/i })).not.toBeInTheDocument();
+  });
+
+  // ONB-V1-TASK-004 AC-004-05: rules-policies deep-link shows on the CE
+  // rules route for every role -- role tailoring only affects the
+  // *proactive* offer (availableTours), never this launcher entry, so
+  // Business/Admin get a real link here instead of a dead CTA.
+  it("offers the rules-policies tour deep-link only on the CE rules route (AC-004-05)", () => {
+    pathname = "/ce/rules";
+    render(<HelpLauncher />);
+    fireEvent.click(screen.getByRole("button", { name: /help/i }));
+
+    expect(screen.getByRole("link", { name: /take the rules-policies tour/i })).toHaveAttribute(
+      "href",
+      "/ce/rules?tour=rules-policies",
+    );
+  });
+
+  it("does not offer the rules-policies tour deep-link off the CE rules route", () => {
+    pathname = "/ce";
+    render(<HelpLauncher />);
+    fireEvent.click(screen.getByRole("button", { name: /help/i }));
+
+    expect(screen.queryByRole("link", { name: /take the rules-policies tour/i })).not.toBeInTheDocument();
+  });
+
   describe("keyboard shortcut (AC-013-03)", () => {
     it("opens on ? pressed outside a text field", () => {
       render(<HelpLauncher />);

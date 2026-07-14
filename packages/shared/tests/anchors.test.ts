@@ -57,9 +57,10 @@ describe("ANCHORS registry", () => {
     expect(M2_ANCHOR_IDS.every((id) => id in ANCHORS)).toBe(true);
   });
 
-  // ONB-V1-TASK-002 ships its two GE anchors, and ONB-V1-TASK-003 ships the 5
-  // role-home anchors, in the same PR as their data-tour-id attributes
-  // (ADR-008 atomicity) -- everything else in the m2-delta §3 set stays unshipped until its own
+  // ONB-V1-TASK-002 ships its two GE anchors, ONB-V1-TASK-003 ships the 5
+  // role-home anchors, and ONB-V1-TASK-004 ships its 4 GE/CE trust anchors,
+  // all in the same PR as their data-tour-id attributes (ADR-008 atomicity)
+  // -- everything else in the m2-delta §3 set stays unshipped until its own
   // planting task lands.
   const SHIPPED_M2_ANCHOR_IDS = [
     "ge.overlay.controls",
@@ -69,6 +70,10 @@ describe("ANCHORS registry", () => {
     "plat.role-home.completeness-map",
     "plat.role-home.next-action",
     "plat.role-home.summary-tiles",
+    "ge.versions.panel",
+    "ge.filters.governed-content",
+    "ce.rules.shape-list",
+    "ce.rules.violation-report",
   ];
 
   it.each(M2_ANCHOR_IDS)("m2 anchor %s has an owning planted_by task", (id) => {

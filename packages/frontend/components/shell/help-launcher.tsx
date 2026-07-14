@@ -24,9 +24,8 @@ function isTextField(target: EventTarget | null): boolean {
  * tour, offered only while on an Explorer route -- the same deep-link the
  * ExplorerTour component autostarts on (`?tour=completeness-map`).
  *
- * ONB-TASK-013 partial-delivery note: this is the only "Take tour" entry the
- * launcher ships. No page besides `/explorer` mounts a tour-engine host, and
- * `/explorer`'s host is itself hardcoded to this one tour -- see
+ * ONB-TASK-013 partial-delivery note (now superseded by TASK-004's two
+ * entries below): `/explorer`'s host was hardcoded to this one tour -- see
  * `.claude/state/escalations/ONB-TASK-013-partial.md`. */
 function CompletenessTourEntry() {
   const pathname = usePathname();
@@ -34,6 +33,33 @@ function CompletenessTourEntry() {
   return (
     <a href="/explorer?tour=completeness-map" className={LINK_CLASS}>
       Take the completeness-map tour
+    </a>
+  );
+}
+
+/** ONB-V1-TASK-004 AC-004-01: same route-conditional deep-link pattern as
+ * CompletenessTourEntry, into `tour.ge.trust-mechanics` (ExplorerTour's
+ * second engine, `?tour=trust-mechanics`). */
+function TrustMechanicsTourEntry() {
+  const pathname = usePathname();
+  if (!pathname?.startsWith("/explorer")) return null;
+  return (
+    <a href="/explorer?tour=trust-mechanics" className={LINK_CLASS}>
+      Take the trust-mechanics tour
+    </a>
+  );
+}
+
+/** ONB-V1-TASK-004 AC-004-05: rules-policies deep-link, shown on the CE
+ * rules route for every role. Role tailoring only narrows the *proactive*
+ * offer (availableTours/onboarding path config) -- Business/Admin still
+ * reach this tour through this link, so it's never a dead CTA. */
+function RulesPoliciesTourEntry() {
+  const pathname = usePathname();
+  if (pathname !== "/ce/rules") return null;
+  return (
+    <a href="/ce/rules?tour=rules-policies" className={LINK_CLASS}>
+      Take the rules-policies tour
     </a>
   );
 }
@@ -59,6 +85,8 @@ function HelpTopics() {
         See the whole company — Graph Explorer
       </a>
       <CompletenessTourEntry />
+      <TrustMechanicsTourEntry />
+      <RulesPoliciesTourEntry />
       <a href="/build" className={LINK_CLASS}>
         Request an application generated from your model — Build
       </a>
