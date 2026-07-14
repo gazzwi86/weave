@@ -562,3 +562,15 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
   ONB-010 Checklist(a49ca7915 0090-91 weaveonb010) / ONB-012 Training-Lib(a2fe45428 0092-93 weaveonb012) /
   CE-019 Import-Page(ac128aa81 0094-95 weavece019).
 - Genuine backlog after this wave: CE-024/029/030(chain on 023), ONB-005/009/013/015, ONB-V1-002/003/004/005(on 001), connectors(parked).
+
+## 2026-07-14 ~21:40 AEST — BLOCKER for morning HITL: missing beacon/modal renderer
+- ONB-V1-TASK-002 blocked: brief assumes the M1 beacon/welcome-modal RENDERER (ONB-TASK-008 UI half)
+  exists. It does NOT — #86 shipped only TASK-008's state/dismissal-persistence routes, never the
+  beacon/modal UI components. Grep: zero frontend consumers of content/beacons, no WelcomeModal.
+- Blocks the BEACON ACs of ONB-V1-TASK-002/003/004/005 (shared infra gap). Tour-halves are buildable.
+- Auto-decision overnight: shipped tour-half of each, deferred beacon ACs (tracked in each task's
+  escalation file). ONB-V1-002 escalation: .claude/state/escalations/ONB-V1-TASK-002-blocker.md.
+- HITL DECISION NEEDED (morning): formalize a prerequisite task to build the shared beacon/modal
+  renderer (finish TASK-008 UI half) vs. build it inline. Recommended: a dedicated shared-renderer
+  task since 002/003/004/005 all need it. Secondary schema gaps noted: BeaconSchema has no CTA/href
+  field; legend DOM target is conditionally rendered.
