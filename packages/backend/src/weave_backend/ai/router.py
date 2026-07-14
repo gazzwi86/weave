@@ -1,7 +1,8 @@
 """AC-4: routes a (tier, prompt) call to the right model via the configured
-provider. ``WEAVE_MODEL_PROVIDER=bedrock|anthropic|ollama`` selects the
-provider; callers may also inject one directly (tests always do — Law F, no
-live Bedrock/Anthropic/Ollama calls).
+provider. ``WEAVE_MODEL_PROVIDER=bedrock|anthropic|ollama|fixture`` selects
+the provider; callers may also inject one directly (tests always do — Law F,
+no live Bedrock/Anthropic/Ollama calls). ``fixture`` (CE-V1-TASK-019) is
+opt-in only, for deterministic E2E runs -- never the default.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from weave_backend.ai.config import MODEL_ROUTING_TABLE
 from weave_backend.ai.providers import (
     AnthropicProvider,
     BedrockProvider,
+    FixtureProvider,
     ModelProvider,
     OllamaProvider,
 )
@@ -23,6 +25,8 @@ def _select_provider() -> ModelProvider:
         return BedrockProvider()
     if provider_name == "ollama":
         return OllamaProvider()
+    if provider_name == "fixture":
+        return FixtureProvider()
     return AnthropicProvider()
 
 
