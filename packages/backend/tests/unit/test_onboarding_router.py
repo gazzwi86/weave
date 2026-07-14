@@ -23,6 +23,7 @@ from weave_backend import app
         ("PUT", "/api/onboarding/dismissals/beacon/b-1", None),
         ("DELETE", "/api/onboarding/dismissals/beacon/b-1", None),
         ("DELETE", "/api/onboarding/dismissals/beacon", None),
+        ("POST", "/api/onboarding/exercises/CE-01/check", {"signals": []}),
     ],
 )
 async def test_onboarding_route_returns_401_without_jwt(
