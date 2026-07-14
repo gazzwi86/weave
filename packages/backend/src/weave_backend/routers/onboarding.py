@@ -9,6 +9,7 @@ build, since one never arrives).
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 import asyncpg
@@ -35,12 +36,16 @@ from weave_backend.schemas.onboarding import (
     OnboardingStateOut,
     OnboardingStatePatchRequest,
     SandboxOut,
+    SandboxResetOut,
     SavedResponse,
     SelfMarkResponse,
     TourProgressRequest,
 )
 from weave_backend.settings.resolver import SettingNotFound, resolve_setting
 from weave_backend.settings.scope import company_iri
+from weave_backend.tenancy.workspaces import delete_workspace
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
 
@@ -228,6 +233,66 @@ async def ensure_sandbox_route(
         # surfaced as a retryable client error, never a bare 500.
         raise HTTPException(status_code=502, detail={"error": "sandbox_fork_failed"}) from exc
     return SandboxOut(workspace_id=result.workspace_id, reused=result.reused)
+
+
+@router.post("/sandbox/reset", response_model=SandboxResetOut)
+async def reset_sandbox_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> SandboxResetOut:
+    """AC-005-01/02/03/04/05/06: the ONLY entry point that can ever reset a
+    sandbox -- explicit endpoint, no timer/navigation trigger anywhere else
+    (AC-005-05). Blue/green, pointer-last (ADR-002 Sec4): the "green"
+    workspace is built on its own connection/transaction first (a multi-
+    second step that must never hold the pointer-flip transaction open), the
+    pointer-flip + exercise-flag clear is a second, tight transaction (AC-
+    005-03), and the old "blue" workspace's delete is a third, independent
+    attempt -- its failure (commonly a `workspace_members`/`principals` FK)
+    is logged as an orphan for sweep (AC-005-06) and never unwinds the swap
+    that already committed.
+    """
+    artefact = _seed_artefact()
+    async with tenant_connection(principal.tenant_id) as conn:
+        old_workspace_id = await store.get_sandbox_workspace_id(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+    if old_workspace_id is None:
+        # AC-005-02 presupposes a sandbox already exists to reset into.
+        raise HTTPException(status_code=409, detail={"error": "sandbox_not_provisioned"})
+
+    try:
+        async with tenant_connection(principal.tenant_id) as conn:
+            new_workspace = await sandbox.build_reset_workspace(
+                conn, tenant_id=principal.tenant_id, user_sub=principal.sub, artefact=artefact
+            )
+    except sandbox.SandboxForkFailed as exc:
+        # AC-005-04: the pointer was never touched -- old sandbox stays live.
+        raise HTTPException(status_code=502, detail={"error": "sandbox_reset_failed"}) from exc
+
+    async with tenant_connection(principal.tenant_id) as conn:
+        await store.swap_sandbox_pointer(
+            conn,
+            tenant_id=principal.tenant_id,
+            user_id=principal.principal_iri,
+            workspace_id=new_workspace.id,
+            semver=artefact.semver,
+        )
+
+    orphaned_workspace_id: str | None = None
+    try:
+        async with tenant_connection(principal.tenant_id) as conn:
+            await delete_workspace(
+                conn, tenant_id=principal.tenant_id, workspace_id=old_workspace_id
+            )
+    except Exception:  # AC-005-06: any delete failure is an orphan, not a reset failure.
+        orphaned_workspace_id = old_workspace_id
+        logger.warning(
+            "sandbox reset: old workspace %s orphaned (delete failed), swept later",
+            old_workspace_id,
+        )
+
+    return SandboxResetOut(
+        workspace_id=new_workspace.id, orphaned_workspace_id=orphaned_workspace_id
+    )
 
 
 @router.put("/path", response_model=OnboardingPathOut)

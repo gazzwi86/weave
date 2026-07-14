@@ -1,8 +1,9 @@
-"""TASK-004 (ADR-002): sandbox-as-workspace provisioning -- the tenant-local
-canonical Hammerbarn template and each user's lazy-forked, per-user sandbox.
+"""TASK-004/TASK-005 (ADR-002): sandbox-as-workspace provisioning -- the
+tenant-local canonical Hammerbarn template, each user's lazy-forked
+per-user sandbox, and the blue/green reset of that sandbox.
 
-Fork and canonical materialisation share one code path (`_apply_and_publish`)
--- ADR-002's "one implementation, three uses" (reset is TASK-005's third use).
+Fork, canonical materialisation, and reset's "green" build share one code
+path (`_apply_and_publish`) -- ADR-002's "one implementation, three uses".
 
 **Attribution / DoR "demo service principal minted via PLAT-IDENTITY-1":**
 this module mints a real registered principal via `ensure_agent_principal`
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from uuid import uuid4
 
 import asyncpg
 
@@ -170,6 +172,60 @@ async def provision_canonical_template(
     return workspace
 
 
+async def _grant_sandbox_membership(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, user_sub: str
+) -> None:
+    """Shared by fork (`ensure_sandbox`) and reset (`build_reset_workspace`)
+    -- a sandbox is the user's own workspace, so they get "author" on it
+    directly rather than routing through the human invite-then-accept flow.
+    `invite_member`'s own `(tenant_id, workspace_id, email)` upsert already
+    makes this idempotent across retries; `MemberAlreadyActive` just means an
+    earlier attempt already granted it.
+    """
+    member_email = f"{user_sub}@sandbox.weave.local"
+    try:
+        await invite_member(
+            conn, tenant_id=tenant_id, workspace_id=workspace_id, email=member_email, role="author"
+        )
+        await activate_member(
+            conn, workspace_id=workspace_id, email=member_email, user_sub=user_sub
+        )
+    except MemberAlreadyActive:
+        pass
+
+
+async def build_reset_workspace(
+    conn: asyncpg.Connection,
+    *,
+    tenant_id: str,
+    user_sub: str,
+    artefact: CompiledArtefact,
+) -> Workspace:
+    """TASK-005 (ADR-002 §4): the "green" half of blue/green reset -- builds
+    a brand-new workspace on a randomised slug (never the deterministic
+    `sandbox_slug`, which still names the "blue" workspace the pointer
+    currently targets) and seeds it via the same `_apply_and_publish` fork
+    uses. Raises `SandboxForkFailed` on any step; the caller must not swap
+    the pointer in that case -- the blue workspace stays live and untouched,
+    and this half-built green workspace is a harmless orphan (nothing reads
+    it until the pointer flips).
+    """
+    slug = f"{sandbox_slug(user_sub)}-reset-{uuid4().hex[:8]}"
+    workspace = await create_workspace(
+        conn, tenant_id=tenant_id, slug=slug, display_name="Hammerbarn Demo"
+    )
+    await _grant_sandbox_membership(
+        conn, tenant_id=tenant_id, workspace_id=workspace.id, user_sub=user_sub
+    )
+    actor_iri = await ensure_demo_service_principal(
+        conn, tenant_id=tenant_id, workspace_id=workspace.id
+    )
+    await _apply_and_publish(
+        conn, tenant_id=tenant_id, workspace=workspace, actor_iri=actor_iri, artefact=artefact
+    )
+    return workspace
+
+
 async def ensure_sandbox(
     conn: asyncpg.Connection,
     *,
@@ -203,21 +259,9 @@ async def ensure_sandbox(
             conn, tenant_id=tenant_id, slug=slug, display_name="Hammerbarn Demo"
         )
 
-    # ponytail: sandbox is the user's own workspace, so they get "author" on
-    # it directly rather than routing through the human invite-then-accept
-    # flow -- invite_member's own (tenant_id, workspace_id, email) upsert
-    # already makes this idempotent across retries; MemberAlreadyActive just
-    # means an earlier fork attempt already granted it.
-    member_email = f"{user_sub}@sandbox.weave.local"
-    try:
-        await invite_member(
-            conn, tenant_id=tenant_id, workspace_id=workspace.id, email=member_email, role="author"
-        )
-        await activate_member(
-            conn, workspace_id=workspace.id, email=member_email, user_sub=user_sub
-        )
-    except MemberAlreadyActive:
-        pass
+    await _grant_sandbox_membership(
+        conn, tenant_id=tenant_id, workspace_id=workspace.id, user_sub=user_sub
+    )
 
     actor_iri = await ensure_demo_service_principal(
         conn, tenant_id=tenant_id, workspace_id=workspace.id
