@@ -398,3 +398,9 @@ job runs pytest -m "not docker and not e2e" with NO services then ConnectError t
 policy): every reconcile-verify + QA MUST run pytest -m "not docker and not e2e" with endpoints POISONED
 (LOCALSTACK_ENDPOINT_URL/OXIGRAPH_URL=http://127.0.0.1:1) or docker fully DOWN, never trust a run with a live stack. Unit tests
 needing a service must mock the client or be marked docker. Phase-gate: audit tests/unit for unmocked network seams.
+
+## PROJ-COV-SEGFAULT — coverage.py + asyncpg C-extension segfault (backend --cov)
+- **Raised:** 2026-07-14 (ONB-TASK-005 QA; 2nd occurrence — TASK-004 hit it first → Law 11 escalation to project level).
+- **Symptom:** `pytest --cov` segfaults during `platform_stack` fixture setup after the asyncpg C-extension loads (coverage.py sysmon core interaction). Reproduced independently, not a fabricated excuse.
+- **Effect:** backend numeric coverage % cannot be obtained in-worktree; QA falls back to branch-by-inspection (WARN-grade, not PASS-grade).
+- **Owner:** Engineer/harness. **Fix candidates:** pin coverage.py off sysmon core (`COVERAGE_CORE=ctrace`), or exclude the C-ext path, or run coverage without the docker fixture. Phase-gate item.
