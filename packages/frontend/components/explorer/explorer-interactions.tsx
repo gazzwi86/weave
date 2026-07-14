@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import { fetchOntologyTypes } from "@/lib/explorer/fetch-ontology-types";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
-import type { NodeKind } from "@/lib/explorer/types";
+import type { NodeKind, RelKind } from "@/lib/explorer/types";
 import type { OntologyRelationshipEntry } from "@/lib/explorer/validate-closure";
+import { canEditCanvas } from "@/lib/explorer/can-edit-canvas";
 
 import { Button } from "../ui/button";
 import { Toast } from "../ui/toast";
@@ -12,7 +13,9 @@ import { CanvasFilterChrome } from "./canvas-filter-chrome";
 import { CompletenessNotice } from "./completeness-notice";
 import { ConfirmDialog } from "./confirm-dialog";
 import { DomainFocusNotice } from "./domain-focus-notice";
+import { DrawEdgeOverlay } from "./draw-edge-overlay";
 import { NodeContextMenu } from "./node-context-menu";
+import { QuickAddOverlay } from "./quick-add-overlay";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
@@ -26,6 +29,7 @@ import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotl
 import { useEventPollWiring } from "./use-event-poll-wiring";
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
+import { useRelTypes } from "./use-rel-types";
 import { useSavedViewsWiring } from "./use-saved-views-wiring";
 import { useSearchOverlay } from "./use-search-overlay";
 import { useVersionsPanel } from "./use-versions-panel";
@@ -59,6 +63,11 @@ export interface ExplorerInteractionsProps {
   fetchDomainMembers?: UseDomainFocusOptions["fetchDomainMembers"];
   fetchLayerNodes?: UseFilterPanelOptions["fetchLayerNodes"];
   fetchPalette?: () => Promise<NodeKind[]>;
+  fetchRelTypes?: () => Promise<RelKind[]>;
+  /** TASK-023 AC-7: session role claim (getSessionClaims, resolved by
+   * app/explorer/page.tsx's server shell) -- the UX-only half of
+   * canEditCanvas; CE-WRITE-1 independently rejects server-side. */
+  role?: string | null;
 }
 
 /** TASK-004: `graphId` defaults to config's single M1 canvas graph id --
@@ -239,8 +248,11 @@ export function ExplorerInteractions({
   fetchDomainMembers,
   fetchLayerNodes,
   fetchPalette,
+  fetchRelTypes,
+  role = null,
 }: ExplorerInteractionsProps) {
   const overlayControls = useOverlayControls({ adapter, config });
+  const relTypes = useRelTypes(fetchRelTypes);
   const relationships = useRelationshipLabels();
   const completenessOverlay = useCompletenessOverlay({
     adapter,
@@ -264,6 +276,10 @@ export function ExplorerInteractions({
   const confirmState = neighbourExpansion.state;
   const chrome = useCanvasChromePanels(adapter, config, fetchLayerNodes, fetchPalette, domainFocus, overlayControls);
   usePinnedImpact({ adapter });
+  // AC-7 UX layer -- CE-WRITE-1 independently rejects server-side regardless
+  // of this flag (ADR-019). isDraftCanvas mirrors NodeInteractionOverlays'
+  // own readOnly check above.
+  const canEdit = canEditCanvas({ role, isDraftCanvas: !chrome.versionsPanel.readOnly });
 
   return (
     <>
@@ -302,6 +318,8 @@ export function ExplorerInteractions({
         neighbourExpansion={neighbourExpansion}
         domainFocus={domainFocus}
       />
+      <QuickAddOverlay adapter={adapter} config={config} canEdit={canEdit} kinds={chrome.legend.palette} />
+      <DrawEdgeOverlay adapter={adapter} config={config} canEdit={canEdit} relTypes={relTypes} />
     </>
   );
 }

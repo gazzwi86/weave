@@ -11,6 +11,7 @@ vi.mock("../use-explorer-canvas", () => ({ useExplorerCanvas: vi.fn() }));
 vi.mock("@/lib/explorer/fetch-graph", () => ({
   fetchPalette: vi.fn(async () => []),
   fetchGraph: vi.fn(async () => []),
+  fetchRelTypes: vi.fn(async () => []),
 }));
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));

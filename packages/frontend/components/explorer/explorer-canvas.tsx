@@ -7,13 +7,16 @@ import { useExplorerCanvas, type UseExplorerCanvasOptions } from "./use-explorer
 
 export interface ExplorerCanvasProps {
   options?: UseExplorerCanvasOptions;
+  /** TASK-023 AC-7: session role claim, threaded down to ExplorerInteractions'
+   * canEditCanvas gate -- see explorer-interactions.tsx's own doc comment. */
+  role?: string | null;
 }
 
 /** AC-1/AC-2/AC-5: renders the CE-error empty-state on load failure (no
  * canvas div mounted, so Cytoscape never partially renders), otherwise the
  * force canvas container + bottom-right mini-map. TASK-003 adds the
  * spotlight side panel + search overlay once the renderer adapter exists. */
-export function ExplorerCanvas({ options }: ExplorerCanvasProps) {
+export function ExplorerCanvas({ options, role = null }: ExplorerCanvasProps) {
   const { loadState, errorMessage, minimapIndicator, containerRef, retry, adapter } = useExplorerCanvas(options);
   const config = options?.config ?? DEFAULT_EXPLORER_CONFIG;
 
@@ -34,7 +37,7 @@ export function ExplorerCanvas({ options }: ExplorerCanvasProps) {
        * inset-based size (inset only offsets absolute/fixed/sticky boxes). */}
       <div ref={containerRef} data-testid="explorer-canvas" className="h-full w-full" />
       <MiniMap indicator={minimapIndicator} />
-      {adapter && <ExplorerInteractions adapter={adapter} config={config} graphId={config.layoutGraphId} />}
+      {adapter && <ExplorerInteractions adapter={adapter} config={config} graphId={config.layoutGraphId} role={role} />}
     </div>
   );
 }

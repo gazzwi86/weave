@@ -30,6 +30,7 @@ vi.mock("@/lib/explorer/layout-client", async (importOriginal) => {
 vi.mock("@/lib/explorer/fetch-graph", () => ({
   fetchPalette: vi.fn(async () => []),
   fetchGraph: vi.fn(async () => []),
+  fetchRelTypes: vi.fn(async () => []),
 }));
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
@@ -607,5 +608,45 @@ describe("ExplorerInteractions -- ?focus= deep link", () => {
       vi.useRealTimers();
       window.history.replaceState(null, "", "/");
     }
+  });
+});
+
+// TASK-023 AC-3/AC-6/AC-7: quick-add and draw-edge are wired onto the real
+// component tree, gated by the role/canvas-mode-derived canEdit flag --
+// closes the "coded but never imported" integration gap this task's own
+// escalation note flagged.
+describe("ExplorerInteractions -- TASK-023 edit affordances", () => {
+  function fakeAdapterWithDoubleClick(): RendererAdapter & { fireDoubleClick: (position: { x: number; y: number }) => void } {
+    let handler: ((position: { x: number; y: number }) => void) | undefined;
+    const adapter = fakeAdapter({
+      onBackgroundDoubleClick: vi.fn((h: (position: { x: number; y: number }) => void) => {
+        handler = h;
+        return vi.fn();
+      }),
+    });
+    return Object.assign(adapter, {
+      fireDoubleClick: (position: { x: number; y: number }) => handler?.(position),
+    });
+  }
+
+  it("opens the quick-add popover on double-click for an editor role on the draft canvas", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role="business_analyst_sme" />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.getByLabelText("Add node")).toBeInTheDocument();
+  });
+
+  it("never opens the quick-add popover for the viewer role", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role="viewer" />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.queryByLabelText("Add node")).not.toBeInTheDocument();
+  });
+
+  it("never opens the quick-add popover when no role is present", () => {
+    const adapter = fakeAdapterWithDoubleClick();
+    render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role={null} />);
+    act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
+    expect(screen.queryByLabelText("Add node")).not.toBeInTheDocument();
   });
 });

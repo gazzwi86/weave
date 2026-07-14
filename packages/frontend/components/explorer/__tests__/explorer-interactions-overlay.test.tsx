@@ -10,7 +10,7 @@ import { ExplorerInteractions } from "../explorer-interactions";
 // useCanvasLegend's default fetchPalette hits the real CE-READ-1 proxy --
 // every test here passes its own fetchPalette, but the module import still
 // needs a safe stub (mirrors explorer-interactions.test.tsx).
-vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []), fetchRelTypes: vi.fn(async () => []) }));
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
 vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
