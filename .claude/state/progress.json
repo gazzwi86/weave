@@ -1822,7 +1822,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "M1 Exit-Criteria E2E Suite (Gate 1 evidence)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-TASK-005",
         "ONB-TASK-009",
