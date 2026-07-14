@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-11T20:48:22+00:00
+Captured at: 2026-07-14T06:32:35+00:00
 Event: pre-compact
 
 ## Current State
@@ -1816,7 +1816,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
       "title": "Role→Starter-Widget Mapping handed to Platform",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-003",
         "ONB-TASK-006"
