@@ -35,3 +35,24 @@ Status: done, HEAD `ff4beffb` on `feature/ONB-EPIC-006`.
 - Playwright E2E (`training-library.spec.ts`): 1/1 passed, includes zero-axe-violations assertion.
 - Isolated docker stack (`weaveonb012`) spun up for the E2E run, torn down after (`down -v`),
   `.env` removed, verified no leftover containers/processes.
+
+## QA pass (2026-07-14) — FAIL
+
+- Re-ran independently in the worktree: `npx vitest run` 301 files / 1473 tests green (repo-wide);
+  `tsc --noEmit` clean; `eslint` (onboarding scope) 0 errors; Playwright `training-library.spec.ts`
+  ran as a real browser test (not skipped), 1/1 passed, zero axe violations, search + walkthrough
+  interaction both exercised.
+- AC-012-01, 02, 03, 04, 05: PASS — each has a named test, verified independently. AC-012-02 perf
+  test uses 500 synthetic entries (well above M1's ~2 real entries), meaningful budget check.
+  AC-012-04's PATCH round-trips through the pre-existing tenant+user-scoped `patch_state` store
+  (RLS-scoped, TASK-001 infra) — real backend persistence, not client-only state.
+- AC-012-06: **FAIL** — `app/help/training/page.tsx` hard-codes the page title, subtitle, and the
+  "Mark What's new as read" button label as raw English strings (no `t()` / i18n key), and hard-codes
+  `h-[8px] w-[8px]` for the unread dot where `var(--space-2)` already exists and is used one line
+  above. axe-core returned zero violations (neither issue is an a11y rule) but Category 15's
+  token/i18n conformance gate is separate and is a FAIL, not a WARN, per the design-system rule.
+- Edge-case tests added (commit `e8fa8cd6` on `feature/ONB-EPIC-006`): PATCH `/api/onboarding/state`
+  rejecting a malformed `whats_new_seen_at` and a missing body — the Zod validation guard (Law 13)
+  had no test before this pass.
+- Cross-task finding logged: `XT-ONB012-1` in `.claude/state/qa-cross-task-findings.md`, flags risk
+  to ONB-TASK-013 (launcher) which renders a similar unread-dot pattern.
