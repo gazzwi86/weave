@@ -630,3 +630,15 @@ STATUS: #106 CE-030 ce030 fixing 5 CI items (bad upload-artifact SHA, mutmut pat
   DECISION 1 (you): register these 4 M2 gate jobs (axe-m2/lighthouse-explorer/perf-m2/invariants-check) as branch-protection REQUIRED checks? I did NOT — that's a repo-settings call. They're fail-loud in ci.yml (AC-7 satisfied) but not merge-blocking at the GitHub-ruleset level.
   DECISION 2 (you/architect): the axe-canvas / perf-p95 / lighthouse-score assertions are only truly enforceable in a real/dedicated env, not the shared CI runner — consistent with the whole harness deferring ui_verify to real-env epic-close. Confirm that's the intended model, or fund CI-runner tuning (dedicated perf runner, stable canvas harness, seeded roles).
   MERGE PLAN: once ce030's honest-green push lands (3 UI jobs green-on-runnable), #106 auto-merges per policy (all real gates green, review-clean after the 2 fix rounds).
+
+---
+## 2026-07-15 — CE-030 (#106) FINAL DISPOSITION: held open, real a11y-debt finding
+After 5 rounds, all 3 UI gate jobs are now FUNCTIONAL (perf-m2 green; lighthouse + axe run the full served-app stack end-to-end — every round fixed a real CI-plumbing bug: upload-artifact SHA, mutmut path, grep -E, versions-mock, welcome-modal-intercept, chrome install, login-script, seed_demo, perf payload). What REMAINS red is NOT plumbing:
+  - lighthouse-explorer: `categories.accessibility minScore` FAIL (perf correctly warn) — the Explorer route's real Lighthouse a11y score is below the 0.95 bar.
+  - axe-m2: running the full stack, almost certainly catching the same real a11y violations on Explorer panels.
+  This is PRE-EXISTING Explorer a11y debt (CE-020/021/022 panel code, already merged), NOT introduced by TASK-030. TASK-030 is test-only ("a failure here is fixed in the owning task, never in the suite") — the gate is correctly RED, doing its job.
+DISPOSITION: #106 HELD OPEN (not merged — per your own merge policy, axe/lighthouse are NOT in the ce-perf/mutation-strict ignore list). Everything TASK-030 OWNS is green (isolation, invariants-check genuine 24/24, gate bundle, AC-7, perf-m2, all standard gates). ce030 stood down — no more rounds.
+DECISIONS FOR YOU (phase-gate / morning):
+  1. Explorer a11y debt: fix the Explorer panels to clear Lighthouse a11y ≥0.95 + zero axe violations (a remediation task on CE-020/021/022 owning code), OR calibrate the 0.95 threshold, OR designate these 2 jobs real-env-only. Then #106 merges.
+  2. (still open) branch-protection required-check registration for the 4 M2 gate jobs.
+NEW FINDING logged to qa ledger: Explorer route (M2 panels) fails Lighthouse a11y <0.95 + likely axe violations — real a11y remediation needed on CE-020/021/022 owning code.

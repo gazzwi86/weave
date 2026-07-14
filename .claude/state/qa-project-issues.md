@@ -404,3 +404,6 @@ needing a service must mock the client or be marked docker. Phase-gate: audit te
 - **Symptom:** `pytest --cov` segfaults during `platform_stack` fixture setup after the asyncpg C-extension loads (coverage.py sysmon core interaction). Reproduced independently, not a fabricated excuse.
 - **Effect:** backend numeric coverage % cannot be obtained in-worktree; QA falls back to branch-by-inspection (WARN-grade, not PASS-grade).
 - **Owner:** Engineer/harness. **Fix candidates:** pin coverage.py off sysmon core (`COVERAGE_CORE=ctrace`), or exclude the C-ext path, or run coverage without the docker fixture. Phase-gate item.
+
+## PROJ-A11Y-EXPLORER (2026-07-15, surfaced by CE-030 M2 a11y gate) — OPEN
+The M2 UI a11y gates CE-030 wired (axe-m2 + lighthouse-explorer) are now live and RED on the Explorer route: Lighthouse accessibility score < 0.95 (perf is warn-only), and axe likely reports real violations on the M2 Explorer panels. This is PRE-EXISTING debt in the Explorer panel code (CE-V1-TASK-020/021/022, merged), not CE-030 (test-only gate). ACTION (phase-gate remediation / owning-task): fix Explorer panel a11y to clear Lighthouse a11y ≥0.95 + zero axe violations, or calibrate thresholds with an architect amendment. Blocks CE-030 (#106) from a fully-green merge until resolved.
