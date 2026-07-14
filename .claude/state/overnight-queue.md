@@ -551,3 +551,14 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
   CE-023 Edit-Ctrl RESUME reconcile(0085-89 weavece023, ~10 in-prog commits on feature/CE-V1-EPIC-017) /
   ONB-V1-001 M2-Anchor(0096-98 weaveonbv1001) / ONB-002 hammerbarn-seed(0099-100 weaveonb002).
 - CE-V1-EPIC-017 worktree RECLASSIFIED: not stale — live partial CE-023 work, being resumed.
+
+## 2026-07-14 ~18:35 AEST — SPINE-DRIFT corrected + wave re-launched
+- BUG: 3 of first 5 lanes (ONB-003/006/002) duplicated already-merged work; spine falsely backlog.
+  Audit: 17 backlog tasks actually merged (#71-#86). Marked done -> 101/125. Killed 3 dup lanes,
+  cleaned worktrees. Memory saved: reference_spine-drift-audit-before-lanes.
+- Connector tasks (PLAT-V1-EPIC-007/006: PLAT-006/018-025) remain PARKED (not building).
+- 5 lanes now in flight (all genuine-unbuilt, verified vs main):
+  CE-023 Edit-Ctrl resume(a4e8983dd 0085-89 weavece023) / ONB-V1-001 M2-Anchor(aade3dfb2 0096-98 weaveonbv1001) /
+  ONB-010 Checklist(a49ca7915 0090-91 weaveonb010) / ONB-012 Training-Lib(a2fe45428 0092-93 weaveonb012) /
+  CE-019 Import-Page(ac128aa81 0094-95 weavece019).
+- Genuine backlog after this wave: CE-024/029/030(chain on 023), ONB-005/009/013/015, ONB-V1-002/003/004/005(on 001), connectors(parked).
