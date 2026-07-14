@@ -134,6 +134,7 @@ asyncio_mode = "auto"
 markers = [
   "integration: needs terraform/docker/network; excluded from the default fast run",
   "e2e: static or live end-to-end assertions; excluded from the default fast run",
+  "onboarding_release_gate: ONB-TASK-015 M1 Gate 1 evidence set (isolation trio, reset known-state, exactly-once activation, RLS fail-closed, role matrix) -- collected for citability, not a job selector on its own; each test also already runs in whichever of the fast/integration jobs its own integration/docker marks select",
   "docker: boots the full docker-compose stack (slow, image pulls); local/nightly only",
   "stack: manages its own full docker-compose lifecycle (incl. ollama); excluded from the CI integration job, which starts only the services it needs",
 ]
