@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OnboardingHintsHost } from "../onboarding-hints-host";
@@ -149,5 +149,54 @@ describe("OnboardingHintsHost", () => {
       expect(fetch).toHaveBeenCalledWith("/api/onboarding/state");
     });
     expect(screen.queryByRole("button", { name: /hint available/i })).not.toBeInTheDocument();
+  });
+
+  // Regression (ONB-V1-TASK-004 review): the host is mounted once in the app
+  // shell and persists across route navigations, so ActiveTour must remount
+  // (via key=tourId) when a second beacon's "Learn more" starts a different
+  // tour -- otherwise the first tour's `started` ref blocks the second one.
+  it("starts a second area's tour after a first beacon's Learn-more already started one (Blocker 2)", async () => {
+    // Both areas' welcome modals pre-dismissed: useDismissals fetches once
+    // on mount and this test never remounts the host (that's the point --
+    // it persists across route navigations in the real app shell too).
+    mockState = {
+      dismissals: [
+        { kind: "welcome_modal", ref_id: "welcome-constitution" },
+        { kind: "welcome_modal", ref_id: "welcome-explorer" },
+      ],
+    };
+    mockUsePathname.mockReturnValue("/ce");
+    const { rerender } = render(
+      <>
+        <main data-tour-id="ce.versions">
+          <div data-tour-id="ce.overview">overview</div>
+          <div data-tour-id="ce.glossary">glossary</div>
+          <div data-tour-id="ce.query">query</div>
+          <div data-tour-id="ce.rules">rules</div>
+        </main>
+        <OnboardingHintsHost />
+      </>,
+    );
+    await waitFor(() => screen.getByRole("button", { name: /hint available/i }));
+    fireEvent.click(screen.getByRole("button", { name: /hint available/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /learn more/i }));
+    expect(await screen.findByText("1 of 4")).toBeInTheDocument();
+
+    mockUsePathname.mockReturnValue("/explorer");
+    rerender(
+      <>
+        <main>
+          <div data-tour-id="ge.overlay.completeness-legend">legend</div>
+          <div data-tour-id="ge.canvas">canvas</div>
+          <div data-tour-id="ge.canvas.spotlight-control">spotlight</div>
+        </main>
+        <OnboardingHintsHost />
+      </>,
+    );
+    await waitFor(() => screen.getByRole("button", { name: /hint available/i }));
+    fireEvent.click(screen.getByRole("button", { name: /hint available/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /learn more/i }));
+
+    expect(await screen.findByText("1 of 2")).toBeInTheDocument();
   });
 });

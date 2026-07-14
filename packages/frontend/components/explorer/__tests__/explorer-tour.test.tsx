@@ -166,4 +166,31 @@ describe("ExplorerTour trust-mechanics (AC-004-01/04)", () => {
 
     expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
   });
+
+  // Regression: Next.js does a query-only navigation (no remount) when a
+  // user follows the help-launcher's ?tour= deep link while already on
+  // /explorer -- a bare `started` boolean would permanently block the
+  // second tour from ever starting.
+  it("starts trust-mechanics after switching from a completed completeness-map deep link", async () => {
+    mockResolvedBusinessPath();
+
+    const { rerender } = render(
+      <>
+        <AnchorHarness />
+        <ExplorerTour tourParam="completeness-map" />
+      </>,
+    );
+    await flushRaf();
+    expect(await screen.findByText("1 of 2")).toBeInTheDocument();
+
+    rerender(
+      <>
+        <AnchorHarness />
+        <ExplorerTour tourParam="trust-mechanics" />
+      </>,
+    );
+    await flushRaf();
+
+    expect(await screen.findByText("1 of 3")).toBeInTheDocument();
+  });
 });

@@ -56,18 +56,23 @@ export function ExplorerTour({ tourParam }: ExplorerTourProps) {
   const { path } = useOnboardingPath();
   const completenessEngine = useTourEngine({ tour: COMPLETENESS_TOUR, onPersist: persistProgress(COMPLETENESS_TOUR) });
   const trustEngine = useTourEngine({ tour: TRUST_MECHANICS_TOUR, onPersist: persistProgress(TRUST_MECHANICS_TOUR) });
-  const started = useRef(false);
+  // Keyed by tourParam, not a bare boolean: Next.js doesn't remount this
+  // component on a query-only navigation, so a bare `started` ref would
+  // permanently block a second deep-link (e.g. completeness-map ->
+  // trust-mechanics via the help launcher) from ever starting.
+  const started = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (started.current) return;
+    if (started.current === tourParam) return;
     if (shouldAutoStartCompletenessTour(tourParam, path?.role_path ?? null, COMPLETENESS_TOUR)) {
-      started.current = true;
+      started.current = tourParam;
       completenessEngine.start();
     } else if (shouldAutoStartQueryTour(tourParam, TRUST_MECHANICS_TOUR_QUERY_VALUE, TRUST_MECHANICS_TOUR)) {
-      started.current = true;
+      started.current = tourParam;
       trustEngine.start();
     }
-  }, [tourParam, path, completenessEngine, trustEngine]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- engine identities are new every render; gate on the inputs that actually change.
+  }, [tourParam, path?.role_path]);
 
   return (
     <>

@@ -128,7 +128,11 @@ export function OnboardingHintsHost() {
           onStartTour={startTour}
         />
       ) : null}
-      {activeTourId ? <ActiveTour tourId={activeTourId} /> : null}
+      {/* key=tourId forces a remount per tour so ActiveTour's `started` ref
+          resets -- without it React reuses the same instance across a
+          beacon-A -> beacon-B switch (same type, same tree position) and
+          the second tour never starts (same bug class as explorer-tour.tsx). */}
+      {activeTourId ? <ActiveTour key={activeTourId} tourId={activeTourId} /> : null}
     </>
   );
 }
