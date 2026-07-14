@@ -26,7 +26,7 @@ describe("HelpLauncher", () => {
     unread = false;
     markSeen.mockClear();
     vi.restoreAllMocks();
-    vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+    vi.spyOn(global, "fetch").mockImplementation(() => Promise.resolve(Response.json({})));
   });
 
   it("opens a contextual help panel without navigating away (AC-7)", () => {
