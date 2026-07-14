@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { ANCHORS, anchorIds } from "../onboarding/anchors";
 
+const M2_ANCHOR_IDS = [
+  "plat.role-home.nav-entry",
+  "plat.role-home.capabilities",
+  "plat.role-home.completeness-map",
+  "plat.role-home.next-action",
+  "plat.role-home.summary-tiles",
+  "ge.overlay.controls",
+  "ge.overlay.completeness-legend",
+  "ge.versions.panel",
+  "ge.filters.governed-content",
+  "ce.rules.shape-list",
+  "ce.rules.violation-report",
+] as const;
+
 describe("ANCHORS registry", () => {
   it("seeds the M1 Constitution (CE) and Explorer anchor set", () => {
     expect(ANCHORS["ce.overview"]).toEqual({
@@ -36,28 +50,15 @@ describe("ANCHORS registry", () => {
     expect(anchorIds).toEqual(Object.keys(ANCHORS));
   });
 
-  it("registers exactly the 11 m2-delta §3 anchors, each shipped:false with a planted_by owner (AC-001-01)", () => {
-    const M2_ANCHOR_IDS = [
-      "plat.role-home.nav-entry",
-      "plat.role-home.capabilities",
-      "plat.role-home.completeness-map",
-      "plat.role-home.next-action",
-      "plat.role-home.summary-tiles",
-      "ge.overlay.controls",
-      "ge.overlay.completeness-legend",
-      "ge.versions.panel",
-      "ge.filters.governed-content",
-      "ce.rules.shape-list",
-      "ce.rules.violation-report",
-    ] as const;
+  it("registers exactly the 11 m2-delta §3 anchors (AC-001-01)", () => {
+    expect(M2_ANCHOR_IDS).toHaveLength(11);
+    expect(M2_ANCHOR_IDS.every((id) => id in ANCHORS)).toBe(true);
+  });
 
-    expect(M2_ANCHOR_IDS.length).toBe(11);
-    for (const id of M2_ANCHOR_IDS) {
-      const anchor = ANCHORS[id as keyof typeof ANCHORS];
-      expect(anchor, `missing anchor "${id}"`).toBeDefined();
-      expect(anchor.phase).toBe("m2");
-      expect(anchor.shipped).toBe(false);
-      expect(anchor.planted_by).toMatch(/^TASK-00[234]$/);
-    }
+  it.each(M2_ANCHOR_IDS)("m2 anchor %s is shipped:false with an owning planted_by task", (id) => {
+    const anchor = ANCHORS[id as keyof typeof ANCHORS];
+    expect(anchor.phase).toBe("m2");
+    expect(anchor.shipped).toBe(false);
+    expect(anchor.planted_by).toMatch(/^TASK-00[234]$/);
   });
 });

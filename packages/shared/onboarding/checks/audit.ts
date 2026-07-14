@@ -22,6 +22,8 @@ export type AuditResult = {
   unregistered: string[];
   /** `shipped: true` registry entries whose attribute is missing from code -- drift (ADR-008). */
   missingShipped: string[];
+  /** data-tour-id present in code for a registered anchor still `shipped: false` (AC-001-03b). */
+  plantedNotShipped: string[];
 };
 
 /**
@@ -29,6 +31,9 @@ export type AuditResult = {
  * ADR-008). At TASK-003 every anchor is `shipped: false` and no frontend code
  * plants an attribute yet, so `missingShipped` is empty by construction; the
  * check still runs so it starts failing the moment a later task's PR drifts.
+ * `plantedNotShipped` closes the other direction (AC-001-03b): an attribute
+ * landed in code before its registry entry's `shipped` flip is atomicity
+ * drift too, not just the reverse.
  */
 export function auditAnchors(registry: Record<string, Anchor>, codeIds: Set<string>): AuditResult {
   const registryIds = new Set(Object.keys(registry));
@@ -37,6 +42,12 @@ export function auditAnchors(registry: Record<string, Anchor>, codeIds: Set<stri
     .filter(([, anchor]) => anchor.shipped)
     .map(([id]) => id)
     .filter((id) => !codeIds.has(id));
+  const plantedNotShipped = [...codeIds].filter((id) => registryIds.has(id) && !registry[id]!.shipped);
 
-  return { ok: unregistered.length === 0 && missingShipped.length === 0, unregistered, missingShipped };
+  return {
+    ok: unregistered.length === 0 && missingShipped.length === 0 && plantedNotShipped.length === 0,
+    unregistered,
+    missingShipped,
+    plantedNotShipped,
+  };
 }
