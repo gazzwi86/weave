@@ -53,7 +53,11 @@ const SPARQL_PAGE = {
   has_more_pages: false,
   page: 0,
 };
-const VERSIONS = { versions: [{ version_iri: "v1", label: "1.0.0", published_at: "2026-07-01T00:00:00Z" }] };
+// GET /api/proxy/ontology/versions returns a bare VersionEntry[] (see
+// lib/explorer/versions/fetch-versions.ts), not a { versions: [...] }
+// envelope -- wrapping it here was the bug (versions.map crashed on the
+// real page, VersionsPanel got the wrapper object instead of the array).
+const VERSIONS = [{ version_iri: "v1", semver: "1.0.0", published_at: "2026-07-01T00:00:00Z", is_latest: true }];
 const ce_resource_route = "**/api/proxy/ontology/resource/**";
 
 async function mockExplorer(page: Page): Promise<void> {
