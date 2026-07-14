@@ -54,12 +54,14 @@ async def close_app_pool() -> None:
 async def untenanted_connection() -> AsyncIterator[asyncpg.Connection]:
     """A pooled connection with no ``app.tenant_id`` set (ADR-005).
 
-    Only safe for operations that don't depend on the RLS policy scoping --
-    in practice, that's exactly one caller today: ``identity.registry
-    .resolve_workspace_tenant``, which calls a ``SECURITY DEFINER`` SQL
-    function that bypasses RLS itself regardless of ``app.tenant_id``. Never
-    use this for an ordinary tenancy-table query; every such query must go
-    through ``tenant_connection``.
+    Only safe for operations that don't depend on the RLS policy scoping.
+    Two callers today: ``identity.registry.resolve_workspace_tenant``, which
+    calls a ``SECURITY DEFINER`` SQL function that bypasses RLS itself
+    regardless of ``app.tenant_id``; and ``onboarding.scheduler``, which
+    needs the list of distinct tenant IDs to poll -- inherently a
+    cross-tenant query, not scopable to one tenant. Never use this for an
+    ordinary tenancy-table query; every such query must go through
+    ``tenant_connection``.
     """
     pool = await get_app_pool()
     async with pool.acquire() as conn:

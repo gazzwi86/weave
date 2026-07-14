@@ -58,10 +58,43 @@ class WidgetOut(BaseModel):
     status: WidgetStatus
     pending_fields: list[str] = Field(default_factory=list)
     suggested: bool = False
+    #: TASK-014 AC-3: drives the client auto-refresh loop's per-widget
+    #: cadence. Stored per-row (default 300s at insert time) -- a
+    #: PLAT-SETTINGS-1 tenant-wide override cascade is not wired yet
+    #: (ponytail: add if a tunable-cadence request actually lands).
+    refresh_interval_s: int = 300
 
 
 class WidgetListResponse(BaseModel):
     widgets: list[WidgetOut]
+
+
+class PublishRequest(BaseModel):
+    """TASK-015 AC-1: publish a pinned `scope='user'` widget to the tenant
+    library. `widget_id` must be a widget the caller owns (404 otherwise).
+    """
+
+    widget_id: str
+    name: str = Field(min_length=1)
+    description: str | None = None
+
+
+class LibraryItemOut(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    author_principal_iri: str
+    published_at: datetime
+    component_type: ComponentType
+    data_source_contracts: list[str]
+    #: TASK-015 AC-6: same "source engine not yet available" tag the
+    #: honest-state matrix uses elsewhere -- computed at read time, never
+    #: stored, so a library item ages the same way a widget's own status does.
+    source_available: bool
+
+
+class LibraryListResponse(BaseModel):
+    items: list[LibraryItemOut]
 
 
 class WidgetRefreshResponse(BaseModel):
@@ -120,6 +153,17 @@ class UpdateWidgetSpecRequest(BaseModel):
     """
 
     spec: ComponentTypePatch
+
+
+class OrderPatchRequest(BaseModel):
+    """Law 13: `PATCH /api/dashboard/widgets/order` request body (TASK-014
+    AC-5) -- one batch reorder, one audit entry."""
+
+    ids_in_order: list[str] = Field(min_length=1)
+
+
+class OrderPatchResponse(BaseModel):
+    updated: int
 
 
 class RestoreWidgetRequest(BaseModel):

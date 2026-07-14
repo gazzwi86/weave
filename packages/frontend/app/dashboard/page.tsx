@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { PromptBarContainer } from "@/components/dashboard/prompt-bar-container";
-import { WidgetGrid } from "@/components/dashboard/widget-grid";
-import type { WidgetOut } from "@/components/dashboard/types";
+import type { LibraryItemOut, WidgetOut } from "@/components/dashboard/types";
 import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
 import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
@@ -30,15 +30,28 @@ async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> 
  * never calls CE-METRICS-1 itself (that only happens on a refresh action),
  * so this stays a plain server-side fetch, same shape as fetchWhoami.
  */
-async function fetchDashboardWidgets(accessToken: string): Promise<WidgetOut[]> {
+async function fetchDashboardWidgets(accessToken: string, scope: "tenant_default" | "user"): Promise<WidgetOut[]> {
   const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
   const response = await fetch(
-    `${backendUrl}/api/dashboard/widgets?scope=tenant_default`,
+    `${backendUrl}/api/dashboard/widgets?scope=${scope}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" }
   );
   if (!response.ok) return [];
   const body = (await response.json()) as { widgets: WidgetOut[] };
   return body.widgets;
+}
+
+/** TASK-015 AC-4: initial tenant library list, server-rendered same as the
+ * default widgets above -- client only re-fetches on publish/add mutations. */
+async function fetchLibraryItems(accessToken: string): Promise<LibraryItemOut[]> {
+  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const response = await fetch(`${backendUrl}/api/dashboard/library`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!response.ok) return [];
+  const body = (await response.json()) as { items: LibraryItemOut[] };
+  return body.items;
 }
 
 /** Protected page (middleware.ts enforces the redirect). Fetches
@@ -48,7 +61,14 @@ async function fetchDashboardWidgets(accessToken: string): Promise<WidgetOut[]> 
 export default async function DashboardPage() {
   const session = await auth();
   const principal = session?.accessToken ? await fetchWhoami(session.accessToken) : null;
-  const widgets = session?.accessToken ? await fetchDashboardWidgets(session.accessToken) : [];
+  const [defaultWidgets, userWidgets, libraryItems] = session?.accessToken
+    ? await Promise.all([
+        fetchDashboardWidgets(session.accessToken, "tenant_default"),
+        fetchDashboardWidgets(session.accessToken, "user"),
+        fetchLibraryItems(session.accessToken),
+      ])
+    : [[], [], []];
+  const widgets = [...defaultWidgets, ...userWidgets];
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-[var(--space-4)]">
@@ -79,7 +99,7 @@ export default async function DashboardPage() {
       </Link>
       <PromptBarContainer />
       <div className="w-full max-w-[1440px] px-[var(--space-5)]">
-        <WidgetGrid widgets={widgets} />
+        <DashboardClient initialWidgets={widgets} initialLibraryItems={libraryItems} />
       </div>
     </main>
   );

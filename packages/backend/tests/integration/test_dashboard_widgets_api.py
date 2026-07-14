@@ -410,3 +410,159 @@ async def test_stale_bound_renders_on_read_for_user_scope_starters(client: Async
     assert resp.status_code == 200
     widget = next(w for w in resp.json()["widgets"] if w["id"] == widget_id)
     assert widget["status"] == "stale"
+
+
+# --- PLAT-V1-TASK-014: pin, unpin audit, reorder (AC-1, AC-2, AC-5, AC-6) ---
+
+
+async def test_pin_clears_suggested_and_audited(client: AsyncClient) -> None:
+    """AC-1/AC-2/AC-6: pinning a suggested starter clears `suggested` and
+    writes a `dashboard.widget.pinned` audit entry in the same transaction.
+    """
+    tenant_id = _unique_tenant("dash-pin")
+    owner_iri = human_principal_iri("u-pin")
+    tokens = await issue_token_pair(sub="u-pin", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        widget_id = rows[0].id
+        assert rows[0].suggested is True
+
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/pin",
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["suggested"] is False
+
+    async with tenant_connection(tenant_id) as conn:
+        audit_row = await conn.fetchrow(
+            "SELECT event_type FROM audit_entries"
+            " WHERE tenant_id = $1 AND event_type = 'dashboard.widget.pinned'",
+            tenant_id,
+        )
+        assert audit_row is not None
+
+
+async def test_pin_owner_only(client: AsyncClient) -> None:
+    """AC-1/IDOR: pinning another user's private widget is a 404, not a 403
+    (same IDOR-safe shape as delete/refresh)."""
+    tenant_id = _unique_tenant("dash-pin-idor")
+    owner_iri = human_principal_iri("u-pin-owner")
+    other_tokens = await issue_token_pair(sub="u-pin-other", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        widget_id = rows[0].id
+
+    resp = await client.post(
+        f"/api/dashboard/widgets/{widget_id}/pin",
+        headers={"Authorization": f"Bearer {other_tokens.access_token}"},
+    )
+    assert resp.status_code == 404
+
+
+async def test_unpin_is_audited(client: AsyncClient) -> None:
+    """AC-2: DELETE (unpin) writes `dashboard.widget.unpinned` in the same
+    transaction -- TASK-010 shipped this route with no audit call."""
+    tenant_id = _unique_tenant("dash-unpin-audit")
+    owner_iri = human_principal_iri("u-unpin")
+    tokens = await issue_token_pair(sub="u-unpin", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        widget_id = rows[0].id
+
+    resp = await client.delete(
+        f"/api/dashboard/widgets/{widget_id}",
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 204
+
+    async with tenant_connection(tenant_id) as conn:
+        audit_row = await conn.fetchrow(
+            "SELECT event_type FROM audit_entries"
+            " WHERE tenant_id = $1 AND event_type = 'dashboard.widget.unpinned'",
+            tenant_id,
+        )
+        assert audit_row is not None
+
+
+async def test_reorder_batch_single_audit(client: AsyncClient) -> None:
+    """AC-5: dragging N widgets to a new order is one PATCH, one audit
+    entry -- not N."""
+    tenant_id = _unique_tenant("dash-reorder")
+    owner_iri = human_principal_iri("u-reorder")
+    tokens = await issue_token_pair(sub="u-reorder", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="publish"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        assert len(rows) >= 2
+        ids = [row.id for row in rows]
+        reversed_ids = list(reversed(ids))
+
+    resp = await client.patch(
+        "/api/dashboard/widgets/order",
+        json={"ids_in_order": reversed_ids},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["updated"] == len(reversed_ids)
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        assert [row.id for row in rows] == reversed_ids
+
+        audit_rows = await conn.fetch(
+            "SELECT event_type FROM audit_entries"
+            " WHERE tenant_id = $1 AND event_type = 'dashboard.widget.reordered'",
+            tenant_id,
+        )
+        assert len(audit_rows) == 1
+
+
+async def test_reorder_cross_tenant_ids_ignored(client: AsyncClient) -> None:
+    """AC-5 edge case: an id belonging to a different tenant/owner in the
+    batch is silently skipped, not a 500 or a cross-tenant write."""
+    tenant_id = _unique_tenant("dash-reorder-idor")
+    owner_iri = human_principal_iri("u-reorder-idor")
+    tokens = await issue_token_pair(sub="u-reorder-idor", tenant_id=tenant_id)
+
+    async with tenant_connection(tenant_id) as conn:
+        await store.ensure_user_starters(
+            conn, tenant_id=tenant_id, owner_principal_iri=owner_iri, role="read"
+        )
+        rows = await store.list_widgets(
+            conn, tenant_id=tenant_id, scope="user", owner_principal_iri=owner_iri
+        )
+        real_id = rows[0].id
+
+    resp = await client.patch(
+        "/api/dashboard/widgets/order",
+        json={"ids_in_order": [real_id, "00000000-0000-0000-0000-000000000000"]},
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["updated"] == 1

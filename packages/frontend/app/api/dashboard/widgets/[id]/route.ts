@@ -47,3 +47,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams): Prom
     body: JSON.stringify(parsed.data),
   });
 }
+
+/** Proxies `DELETE /api/dashboard/widgets/{id}` (TASK-014 AC-1/AC-2: unpin).
+ * Owner-only / IDOR-safe-404 shape is the backend's job. */
+export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+  const session = await auth();
+  if (!session?.accessToken) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  return forwardToBackend(`/api/dashboard/widgets/${encodeURIComponent(id)}`, session.accessToken, {
+    method: "DELETE",
+  });
+}
