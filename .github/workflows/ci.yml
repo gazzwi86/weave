@@ -202,7 +202,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - run: python3 scripts/m2_gate/invariants_check.py --out artefacts/m2-gate/invariants.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa9 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: m2-gate-invariants
@@ -251,7 +251,7 @@ jobs:
         env:
           AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa9 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: m2-gate-axe
@@ -318,7 +318,7 @@ jobs:
           BACKEND_API_URL: http://localhost:8000
       - working-directory: packages/frontend
         run: npx @lhci/cli@0.14 autorun --config=./lighthouserc-explorer.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa9 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: m2-gate-lighthouse
@@ -369,7 +369,7 @@ jobs:
       - name: View-save perf benchmark (800ms p95)
         working-directory: packages/backend
         run: uv run python ../../scripts/benchmarks/ce-perf/run_view_save_benchmark.py
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa9 # v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: m2-gate-perf
