@@ -178,8 +178,9 @@ async def refresh_widget_route(
         ):
             raise HTTPException(status_code=404)
 
+        ce_headers = {"Authorization": authorization} if authorization else None
+
         if row.spec.bindings.get("category") is not None:
-            ce_headers = {"Authorization": authorization} if authorization else None
             return await _refresh_category_widget(
                 conn,
                 tenant_id=principal.tenant_id,
@@ -193,7 +194,7 @@ async def refresh_widget_route(
         last_result = row.last_result
         fetched_at = row.fetched_at
         try:
-            last_result = await fetch_ce_metric(ce_client, row.spec.bindings)
+            last_result = await fetch_ce_metric(ce_client, row.spec.bindings, headers=ce_headers)
             fetched_at = store.utcnow()
         except CeMetricsUnavailable:
             fetch_failed = True
@@ -239,6 +240,7 @@ async def generate_widget_route(
     principal: Annotated[Principal, Depends(get_current_principal)],
     ce_client: Annotated[AsyncClient, Depends(get_ce_metrics_client)],
     resolver: Annotated[Resolver, Depends(get_dashboard_agent_resolver)],
+    authorization: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     """AC-1..AC-8 (TASK-011): SSE widget-generation pipeline. Gate order is
     budget -> resolver -> registry -> fetch, all inside `generate_widget_stream`
@@ -246,6 +248,7 @@ async def generate_widget_route(
     `StreamingResponse` pattern as `routers/requests.py::stream_request_route`.
     """
     redis = get_redis()
+    ce_headers = {"Authorization": authorization} if authorization else None
     return StreamingResponse(
         generate_widget_stream(
             GenerateRequest(
@@ -256,6 +259,7 @@ async def generate_widget_route(
             resolver=resolver,
             ce_client=ce_client,
             redis=redis,
+            ce_headers=ce_headers,
         ),
         media_type="text/event-stream",
     )

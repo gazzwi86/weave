@@ -17,7 +17,8 @@ from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
 
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
-from weave_backend.dashboard import bindings
+from weave_backend.dashboard import bindings, store
+from weave_backend.dashboard.ce_metrics import get_ce_metrics_client
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
@@ -240,6 +241,79 @@ async def test_410_rebaseline_scoped_by_ce_headers_not_cross_tenant(
     entity_iris = [row["entity_iri"] for row in result.rows]
     assert "urn:b:1" not in entity_iris, "tenant B's entity leaked into tenant A's 410 re-seed"
     assert "urn:a:1" in entity_iris
+
+
+def _tenant_scoped_ce_metrics_stub(tenant_bodies: dict[str, dict[str, object]]) -> AsyncClient:
+    """Same simulated-real-CE pattern as `_tenant_scoped_ce_stub`, but for
+    CE-METRICS-1's `/api/metrics/ontology` -- the field-tile fetch path
+    (`ce_metrics.fetch`), not CE-READ-1's `/api/sparql`.
+    """
+
+    def _handler(request: Request) -> Response:
+        auth = request.headers.get("Authorization", "")
+        tenant = auth.removeprefix("Bearer ")
+        return Response(200, json=tenant_bodies.get(tenant, tenant_bodies["__leaked__"]))
+
+    return AsyncClient(transport=MockTransport(_handler), base_url="http://ce-metrics")
+
+
+async def test_field_widget_refresh_scoped_by_ce_headers_not_cross_tenant(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #91 re-review: the field-tile refresh path (`fetch_ce_metric`,
+    `routers/dashboard.py`'s non-category branch) must also forward the
+    caller's `Authorization` header -- without it every CE-METRICS-1 field
+    tile (entity_count_by_kind, shacl_errors_by_severity, etc.) returns
+    whatever the CE stub falls back to on missing/wrong auth (here: tenant
+    B's count), not tenant A's own aggregate. Fails before the `headers=
+    ce_headers` fix, passes after.
+    """
+    tenant_a = _unique_tenant("field-leak-a")
+    workspace_a = await _make_workspace(tenant_a, label="collab")
+    headers_a = await _authed_headers(client, tenant_id=tenant_a, workspace_id=workspace_a.id)
+
+    ce_stub = _tenant_scoped_ce_metrics_stub(
+        {
+            f"Bearer {tenant_a}": {"entity_count_by_kind": {"Process": 4}},
+            "__leaked__": {"entity_count_by_kind": {"Process": 999}},
+        }
+    )
+    async def _override_ce_client() -> AsyncIterator[AsyncClient]:
+        yield ce_stub
+
+    app.dependency_overrides[get_ce_metrics_client] = _override_ce_client
+
+    try:
+        create_resp = await client.post(
+            "/api/dashboard/widgets",
+            json={
+                "scope": "user",
+                "spec": {
+                    "component_type": "kpi_card",
+                    "title": "Entities in model",
+                    "data_source_contracts": ["CE-METRICS-1"],
+                    "bindings": {"field": "entity_count_by_kind", "aggregate": "sum"},
+                    "column_span": 3,
+                },
+                "position": 0,
+            },
+            headers=headers_a,
+        )
+        assert create_resp.status_code == 201
+        widget_id = create_resp.json()["id"]
+
+        refresh_resp = await client.post(
+            f"/api/dashboard/widgets/{widget_id}/refresh", headers=headers_a
+        )
+        assert refresh_resp.status_code == 200
+        assert refresh_resp.json()["status"] == "fresh"
+
+        async with tenant_connection(tenant_a) as conn:
+            saved = await store.get_widget(conn, tenant_id=tenant_a, widget_id=widget_id)
+        assert saved is not None
+        assert saved.last_result == 4, "tenant B's aggregate leaked into tenant A's field tile"
+    finally:
+        app.dependency_overrides.pop(get_ce_metrics_client, None)
 
 
 async def test_feed_error_degrades_stale_never_blank(
