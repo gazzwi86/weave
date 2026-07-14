@@ -136,6 +136,62 @@ Integration/E2E section above for the project name/ports. Torn down after the ru
 (`docker compose -p weaveonb011 down -v`). The frontend toast E2E has no docker dependency (it's
 unregistered).
 
+## PR #92 re-review: 3 Blockers + 1 Minor, all closed
+
+Second re-review pass found the dispatcher was built+tested but never invoked, plus two
+tenant-scoping gaps and no real backoff. Fixed in commit `4f096ff6`:
+
+- **Blocker 1 (dispatcher never runs).** `spawn_dispatcher()` (new, mirrors `spawn_scheduler()`)
+  wired into the same `@app.on_event("startup")` handler in `weave_backend/__init__.py`. Grep-proven
+  call chain: `__init__.py:172` `spawn_scheduler()` / `__init__.py:175` `spawn_dispatcher()` →
+  `scheduler.py:107` `await flush_pending(conn, tenant_id)` inside `_flush_all_tenants()`, looped
+  every `DISPATCH_INTERVAL_SECONDS` (30s) by `_dispatch_run_forever()`.
+- **Blocker 2 (fetch relied on RLS only).** `flush_pending(conn, tenant_id, ...)` now takes an
+  explicit `tenant_id` and the fetch's `WHERE` carries `tenant_id = $1` — a silent RLS
+  misconfiguration can no longer leak another tenant's rows into a drain.
+- **Blocker 3 (attempt_count UPDATE unscoped).** Both the dispatch-claim `UPDATE` and the
+  attempt-count-bump `UPDATE` now carry `WHERE id = $1 AND tenant_id = $2`.
+- **Minor → real backoff.** `attempt_count` now gates delivery eligibility: `30s * 2^attempt_count`
+  (capped at 1h), with `MAX_ATTEMPTS = 10` as a dead-letter cap (row just stops being picked up,
+  no separate dead-letter table — `ponytail:` comment in the code names the upgrade path). A fresh
+  row (`attempt_count = 0`) is always immediately eligible — backoff only gates a *retry*, never the
+  first attempt.
+
+**Real bug found by the new dispatcher-is-scheduled integration test** (not in the original brief,
+found by tracing the fix end-to-end rather than patching only what was named): `onboarding_state`
+`FORCE ROW LEVEL SECURITY`s (migration 0082), so the scheduler's untenanted "list every tenant to
+poll" query (`SELECT DISTINCT tenant_id FROM onboarding_state`) silently returned **zero rows,
+always** — `app.tenant_id` is deliberately unset on that connection, and RLS denies every row when
+it's NULL. This means `spawn_scheduler()`'s poller (already merged as of the first PR #92 pass) had
+never actually discovered a tenant in production either — invisible because every scheduler unit
+test mocks `_fetch_tenant_ids` directly, and no prior integration test exercised the real
+"discover tenants" path. Fixed with **migration `0084_onboarding_list_pollable_tenants.sql`**: a
+narrow, read-only `SECURITY DEFINER` function (`list_pollable_tenants()`), the exact same pattern as
+`0002_identity.sql`'s `resolve_workspace_tenant`. This reopens the "no new migration" claim from the
+first pass of this task — 0084 is real and needed (confirmed the next free global migration number
+by the coordinator: main is at 0083, no other open branch claims 0084).
+
+New/changed tests (all green, both unit and against a fresh isolated docker stack):
+
+- `test_onboarding_outbox_dispatcher.py`: added `test_flush_pending_never_dispatches_another_tenants_row`
+  (tenant-scoping) and `test_flush_pending_gives_up_after_max_attempts` (dead-letter cap); `FakeConn`
+  updated to model the tenant + max-attempts filter.
+- `test_onboarding_scheduler.py`: added `test_flush_all_tenants_drains_every_tenants_outbox`,
+  `test_dispatch_run_forever_sleeps_the_dispatch_interval`,
+  `test_dispatch_run_forever_survives_a_cycle_that_raises`,
+  `test_spawn_dispatcher_adds_and_discards_the_task` (symmetric with the existing
+  `spawn_scheduler` tests).
+- `test_onboarding_activation_integration.py`: extended `test_notify_outage_retries_then_dispatches_once_on_recovery`
+  to prove an immediate re-flush does NOT redeliver (still inside the backoff window), then
+  backdates `created_at` to simulate the window elapsing before asserting exactly-once delivery.
+  Added `test_spawn_dispatcher_drains_a_real_outbox_row` — spawns the real `spawn_dispatcher()`
+  task (interval shrunk to 0.05s for the test) and polls until a real outbox row dispatches,
+  proving the full startup → dispatcher → flush_pending → PLAT-NOTIFY-1 chain end to end.
+
+All 4 integration tests + the poison-endpoint unit suite + whole-repo ruff + mypy re-confirmed green
+after these fixes, on a second worktree-local isolated docker stack run (same `weaveonb011` project
+name/ports, spun up and torn down again for this pass).
+
 ## No new ADR
 
 The in-process (non-HTTP) CE access pattern for a background poller (no request-scoped JWT to
