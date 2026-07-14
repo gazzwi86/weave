@@ -11,7 +11,12 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
-from weave_backend.ai.providers import AnthropicProvider, BedrockProvider, OllamaProvider
+from weave_backend.ai.providers import (
+    AnthropicProvider,
+    BedrockProvider,
+    FixtureProvider,
+    OllamaProvider,
+)
 from weave_backend.ai.router import _select_provider
 
 
@@ -131,12 +136,45 @@ def test_ollama_provider_propagates_connection_errors() -> None:
         provider.complete("claude-sonnet-5", "hello")
 
 
+def test_fixture_provider_returns_default_canned_json_when_env_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("WEAVE_FIXTURE_RESPONSE", raising=False)
+    provider = FixtureProvider()
+
+    result = provider.complete("claude-sonnet-5", "any prompt")
+
+    payload = json.loads(result)
+    assert payload["candidates"][0]["kind"]
+    assert payload["candidates"][0]["ops"][0]["op"] == "add_node"
+
+
+def test_fixture_provider_returns_env_configured_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    canned = json.dumps({"candidates": []})
+    monkeypatch.setenv("WEAVE_FIXTURE_RESPONSE", canned)
+    provider = FixtureProvider()
+
+    assert provider.complete("claude-sonnet-5", "any prompt") == canned
+
+
+def test_fixture_provider_ignores_prompt_and_model_id_deterministic() -> None:
+    provider = FixtureProvider()
+
+    first = provider.complete("model-a", "prompt one")
+    second = provider.complete("model-b", "prompt two")
+
+    assert first == second
+
+
 @pytest.mark.parametrize(
     ("env_value", "expected_type"),
     [
         ("bedrock", BedrockProvider),
         ("anthropic", AnthropicProvider),
         ("ollama", OllamaProvider),
+        ("fixture", FixtureProvider),
         (None, AnthropicProvider),
     ],
 )
@@ -151,5 +189,7 @@ def test_select_provider_reads_env(
     provider = _select_provider()
 
     assert isinstance(provider, expected_type)
-    assert isinstance(provider, (AnthropicProvider, BedrockProvider, OllamaProvider))
+    assert isinstance(
+        provider, (AnthropicProvider, BedrockProvider, OllamaProvider, FixtureProvider)
+    )
     assert provider._client is not None

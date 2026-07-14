@@ -99,3 +99,46 @@ class OllamaProvider:
         )
         response.raise_for_status()
         return str(response.json()["response"])
+
+
+#: CE-V1-TASK-019 (AC-008-04, Law F): a deterministic single-candidate
+#: extraction result, shaped to satisfy `document_extractor.py`'s
+#: `_ExtractionResult`/CE-WRITE-1 `Op` schemas, used when no
+#: `WEAVE_FIXTURE_RESPONSE` override is set.
+_DEFAULT_FIXTURE_RESPONSE = json.dumps(
+    {
+        "candidates": [
+            {
+                "kind": "Process",
+                "label": "Customer Onboarding",
+                "confidence": 0.91,
+                "span": "Runbook > Customer Onboarding",
+                "reason": "e2e fixture",
+                "ops": [
+                    {
+                        "op": "add_node",
+                        "ref": "n1",
+                        "kind": "Process",
+                        "label": "Customer Onboarding",
+                    }
+                ],
+            }
+        ]
+    }
+)
+
+
+class FixtureProvider:
+    """Never calls a real model (Law F). Returns `WEAVE_FIXTURE_RESPONSE`
+    verbatim if set, else a canned single-candidate extraction result --
+    deterministic and prompt-independent, so a Playwright E2E can drive the
+    real ingest pipeline (real DB, real CE-WRITE-1 commit) without a live
+    LLM call. `WEAVE_MODEL_PROVIDER=fixture` opts in; never the default.
+    """
+
+    def __init__(self) -> None:
+        self._client = "fixture"  # sentinel, no real client to construct
+
+    def complete(self, model_id: str, prompt: str, **kwargs: Any) -> str:
+        del model_id, prompt, kwargs
+        return os.environ.get("WEAVE_FIXTURE_RESPONSE", _DEFAULT_FIXTURE_RESPONSE)

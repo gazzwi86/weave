@@ -27,6 +27,7 @@ export const ANCHORS = {
   "ce.types": { engine: "constitution", area: "constitution", phase: "m1", shipped: true, planted_by: "TASK-007" },
   "ce.versions": { engine: "constitution", area: "constitution", phase: "m1", shipped: true, planted_by: "TASK-007" },
   "ce.brand": { engine: "constitution", area: "constitution", phase: "m1", shipped: true, planted_by: "TASK-007" },
+  "ce.import": { engine: "constitution", area: "constitution", phase: "m1", shipped: true, planted_by: "TASK-019" },
   // M1 -- Graph Explorer.
   "ge.canvas": { engine: "graph-explorer", area: "explorer", phase: "m1", shipped: true, planted_by: "TASK-007" },
   "ge.canvas.spotlight-control": { engine: "graph-explorer", area: "explorer", phase: "m1", shipped: true, planted_by: "TASK-007" },
