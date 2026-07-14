@@ -34,6 +34,15 @@ const settings: WelcomeModal = {
   ctas: [{ kind: "read-the-guide", labelKey: "onboarding.cta.read-the-guide" }],
 };
 
-export const WELCOME_MODALS: WelcomeModal[] = [constitution, explorer, compliance, settings].map((m) =>
+// M2 -- role-home welcome modal (m2-delta.md §4; first visit to role-home).
+const roleHome: WelcomeModal = {
+  modalId: "welcome-role-home",
+  area: "role-home",
+  titleKey: "onboarding.modal.role-home.title",
+  bodyKey: "onboarding.modal.role-home.body",
+  ctas: [{ kind: "tour", tourId: "tour.plat.role-home" }],
+};
+
+export const WELCOME_MODALS: WelcomeModal[] = [constitution, explorer, compliance, settings, roleHome].map((m) =>
   WelcomeModalSchema.parse(m),
 );

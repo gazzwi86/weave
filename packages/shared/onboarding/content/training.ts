@@ -20,6 +20,13 @@ const entries: TrainingEntry[] = [
     videoId: "explorer-basics-01",
     durationSeconds: 245,
   },
+  // M2 -- deep-link target for checklist.add-competency-questions (m2-delta.md §4).
+  {
+    trainingId: "declare-competency-questions",
+    titleKey: "onboarding.training.declare-competency-questions.title",
+    descriptionKey: "onboarding.training.declare-competency-questions.description",
+    category: "ontologies",
+  },
 ];
 
 export const TRAINING_ENTRIES: TrainingEntry[] = entries.map((t) => TrainingEntrySchema.parse(t));
