@@ -9,6 +9,7 @@ import shutil
 import uuid
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -62,6 +63,10 @@ async def _ctx(tenant_id: str, conn: object, ce_client: AsyncClient) -> bindings
         context_iri=f"urn:weave:tenant:{tenant_id}:company",
         conn=conn,
         ce_client=ce_client,
+        # PR #91 fail-closed guard (ce_metrics/coverage_gap.require_headers)
+        # rejects a missing Authorization header -- every real caller
+        # forwards one, so tests must too.
+        ce_headers={"Authorization": "Bearer test-token"},
     )
 
 
@@ -336,4 +341,4 @@ async def test_compliance_deep_link(platform_stack: Path) -> None:
     contraventions = result.rows["contraventions"]
     assert len(contraventions) == 1
     assert contraventions[0]["entity_iri"] == entity_iri
-    assert contraventions[0]["href"] == f"/resource/{entity_iri}"
+    assert contraventions[0]["href"] == f"/resource/{quote(entity_iri, safe='')}"

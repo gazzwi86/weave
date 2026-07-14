@@ -23,8 +23,16 @@ _client_loop: asyncio.AbstractEventLoop | None = None
 class CeMetricsUnavailable(Exception):
     """CE-METRICS-1 unreachable or returned a non-2xx status -- the caller
     turns this into ``status=unavailable``/``stale`` per the honest-state
-    matrix, never a raised 500 (AC-4).
+    matrix, never a raised 500 (AC-4). Also raised by ``_require_headers``
+    (PR #91 hardening: fail closed rather than call CE-METRICS-1 unscoped)
+    so every existing caller's degrade handling covers both cases for free.
     """
+
+
+def _require_headers(headers: dict[str, str] | None) -> dict[str, str]:
+    if not headers or not headers.get("Authorization"):
+        raise CeMetricsUnavailable("refusing unscoped CE-METRICS-1 call: no Authorization header")
+    return headers
 
 
 async def get_ce_metrics_client() -> AsyncIterator[httpx.AsyncClient]:
@@ -51,6 +59,7 @@ async def fetch_body(
     """TASK-016 S1: the full CE-METRICS-1 payload, all five fields --
     unlike ``fetch``, which projects to one bound field.
     """
+    headers = _require_headers(headers)
     try:
         response = await client.get("/api/metrics/ontology", headers=headers)
         response.raise_for_status()
@@ -67,6 +76,7 @@ async def fetch(
     through untouched -- never coerced to a zero or dropped.
     """
     field_name = bindings["field"]
+    headers = _require_headers(headers)
     try:
         response = await client.get("/api/metrics/ontology", headers=headers)
         response.raise_for_status()

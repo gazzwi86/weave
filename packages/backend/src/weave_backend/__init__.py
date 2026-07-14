@@ -33,6 +33,7 @@ from weave_backend.routers.dashboard_refine import router as dashboard_refine_ro
 from weave_backend.routers.decisions import router as decisions_router
 from weave_backend.routers.deploy import router as deploy_router
 from weave_backend.routers.events import router as events_router
+from weave_backend.routers.events_proxy import router as events_proxy_router
 from weave_backend.routers.functions import router as functions_router
 from weave_backend.routers.gates import router as gates_router
 from weave_backend.routers.generation import router as generation_router
@@ -109,6 +110,7 @@ app.include_router(settings_router)
 app.include_router(sparql_router)
 app.include_router(operations_router)
 app.include_router(events_router)
+app.include_router(events_proxy_router)
 app.include_router(ontology_router)
 app.include_router(brand_router)
 app.include_router(identity_router)
