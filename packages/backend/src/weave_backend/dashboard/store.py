@@ -111,13 +111,54 @@ async def ensure_user_starters(
         )
 
 
+#: TASK-017 (m2-delta.md §7, brief pseudocode): one placeholder spec, the
+#: route composes its own payload rather than rendering this generically --
+#: `bindings`/`component_type` here are markers only, never consumed by a
+#: generic widget renderer.
+_ROLE_HOME_TILE_SPEC = WidgetSpec(
+    component_type="table",
+    title="Role home snapshot",
+    data_source_contracts=["CE-METRICS-1", "CE-READ-1"],
+    bindings={"field": "role_home_snapshot"},
+    column_span=12,
+)
+
+
+async def ensure_role_home_tile(conn: asyncpg.Connection, *, tenant_id: str) -> None:
+    """AC-5: one `scope='role_home'` row per tenant -- the SWR cache
+    role-home's degradation rides, same idempotent-insert pattern as
+    `ensure_user_starters` above. Tenant-wide, not per-user: the cached
+    payload is tenant-scoped CE data (ontology health/completeness);
+    role-specific filtering happens in the response builder, not the
+    stored row. `widget_instances_check1` (0071_widget_state.sql) requires
+    `owner_principal_iri IS NULL` for any scope other than `user`, so this
+    follows `tenant_default`'s existing NULL-owner pattern rather than
+    widening that constraint.
+    """
+    await conn.execute(
+        """
+        INSERT INTO widget_instances (tenant_id, scope, spec, "position")
+        VALUES ($1, 'role_home', $2::jsonb, 0)
+        ON CONFLICT (tenant_id, scope, COALESCE(owner_principal_iri, ''), "position")
+        DO NOTHING
+        """,
+        tenant_id,
+        _ROLE_HOME_TILE_SPEC.model_dump_json(),
+    )
+
+
+#: `scope='user'` rows are the only owner-scoped rows -- `role_home` (like
+#: `tenant_default`) is a tenant-wide singleton with no owner filter.
+_OWNER_SCOPED_SCOPES = ("user",)
+
+
 async def list_widgets(
     conn: asyncpg.Connection, *, tenant_id: str, scope: str, owner_principal_iri: str | None
 ) -> list[WidgetRow]:
     """AC-6: pure SWR read -- returns whatever is already stored, no
     upstream CE call.
     """
-    if scope == "user":
+    if scope in _OWNER_SCOPED_SCOPES:
         rows = await conn.fetch(
             "SELECT * FROM widget_instances WHERE tenant_id = $1 AND scope = $2"
             ' AND owner_principal_iri = $3 ORDER BY "position"',
