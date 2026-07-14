@@ -2,7 +2,10 @@
 // unauthenticated request to /auth/login) -- lighthouserc-explorer.json's
 // `puppeteerScript` runs this before each collect pass so Lighthouse scores
 // the real, panel-loaded Explorer page, not the login redirect.
-module.exports = async (page) => {
+module.exports = async (browser) => {
+  // LHCI's puppeteerScript contract passes (browser, context), not a page --
+  // see @lhci/cli puppeteer-manager.js's invokePuppeteerScriptForUrl.
+  const page = await browser.newPage();
   await page.goto("http://localhost:3000/explorer", { waitUntil: "networkidle0" });
   await page.click('button::-p-text("Sign in with Weave")');
   await page.waitForSelector('h1::-p-text("Weave Mock OIDC — Sign in")');
