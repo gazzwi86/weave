@@ -420,3 +420,7 @@ path-filter or anchor logic should be verified there too.
 ## XT-mock-oidc-editor-role (Major) — 2026-07-14
 affects: [CE-V1-TASK-023, CE-V1-TASK-024, CE-V1-TASK-027, CE-V1-TASK-029, CE-V1-TASK-030]
 mock-oidc `session-claims.ts` fallback only issues `admin`/`author` roles, never `business_analyst_sme`/`enterprise_architect`. So `canEditCanvas`-gated Playwright E2E (edit-affordance family) is UNREACHABLE in E2E — those specs are `test.fixme`'d and covered by integration/component tests instead. FIX: extend the mock-oidc claims fallback to issue an editor role (or a per-test role override) so editor-gated E2E can run. Phase-gate item.
+
+## ONB-TASK-008 (PR #105) — 2 minor review findings (non-blocking, 2026-07-15)
+- [ ] beacon.tsx:83 — Radix Popover.Content carries role="dialog" (Radix default). Interactive (Learn-more link) so defensible; axe zero-violations. Consider role="tooltip"/labelled region if pure-informational later. MINOR.
+- [ ] use-dismissals.ts:38 (PRE-EXISTING, TASK-001 — not in PR #105 diff) — optimistic dismissal update, no rollback on fetch failure. Silent reject. Cheap-fix candidate for an onboarding epic that touches this file. MINOR.

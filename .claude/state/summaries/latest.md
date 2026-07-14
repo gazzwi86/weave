@@ -1,6 +1,6 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T13:20:48+00:00
+Captured at: 2026-07-14T14:07:57+00:00
 Event: pre-compact
 
 ## Current State
@@ -1206,7 +1206,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "M2 Release-Gate Suite (isolation, a11y, perf, invariants)",
-      "status": "backlog",
+      "status": "in_progress",
       "blocked_by": [
         "CE-V1-TASK-022",
         "CE-V1-TASK-024",
@@ -1734,7 +1734,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Beacons & Welcome Modals with server-side dismissal",
-      "status": "done",
+      "status": "in_progress",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
