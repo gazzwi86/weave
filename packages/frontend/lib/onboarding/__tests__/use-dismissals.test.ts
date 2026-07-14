@@ -24,6 +24,30 @@ describe("useDismissals (AC-008-02/04)", () => {
     await waitFor(() => expect(result.current.isDismissed("beacon", "ce-versions")).toBe(true));
   });
 
+  it("ONB-V1-TASK-003: exposes checklist signals + rolePath from the same bootstrap fetch (no second call)", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        dismissals: [],
+        role_path: "business",
+        sandbox_workspace_id: null,
+        sandbox_forked_at: null,
+        tours: [],
+        exercise_completions: [],
+        activations: [{ milestone_id: "add_competency_questions", activated_at: "2026-01-01T00:00:00Z", source: "manual" }],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useDismissals());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.rolePath).toBe("business");
+    expect(result.current.signals.activations).toEqual([
+      { milestone_id: "add_competency_questions", activated_at: "2026-01-01T00:00:00Z", source: "manual" },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("dismiss() PUTs the dismissal and marks it dismissed optimistically", async () => {
     const fetchMock = vi
       .fn()
