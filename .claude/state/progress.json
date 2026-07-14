@@ -1781,7 +1781,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-006",
       "title": "Training Library & What's New",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
