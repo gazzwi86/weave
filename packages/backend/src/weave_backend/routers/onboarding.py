@@ -18,6 +18,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.db.pool import tenant_connection
 from weave_backend.onboarding import sandbox, store
+from weave_backend.onboarding.exercise_checker import (
+    UnsupportedCompletionKindError,
+    check_completion,
+)
+from weave_backend.onboarding.exercises import EXERCISES, gate_exercise
 from weave_backend.onboarding.hammerbarn_seed.compile import (
     CompiledArtefact,
     allowed_kinds_from_ontology_types,
@@ -31,6 +36,8 @@ from weave_backend.schemas.onboarding import (
     BulkDeletedResponse,
     DeletedResponse,
     DismissalKindIn,
+    ExerciseCheckRequest,
+    ExerciseCheckResult,
     OnboardingPathChoiceRequest,
     OnboardingPathOut,
     OnboardingStateOut,
@@ -43,7 +50,7 @@ from weave_backend.schemas.onboarding import (
 )
 from weave_backend.settings.resolver import SettingNotFound, resolve_setting
 from weave_backend.settings.scope import company_iri
-from weave_backend.tenancy.workspaces import delete_workspace
+from weave_backend.tenancy.workspaces import delete_workspace, get_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -376,3 +383,90 @@ async def delete_dismissal_route(
             ref_id=ref_id,
         )
     return DeletedResponse(deleted=found)
+
+
+async def _resolve_sandbox_named_graph(
+    conn: asyncpg.Connection, *, tenant_id: str, user_id: str
+) -> str:
+    """AC-009-02: the sandbox `named_graph_iri` a `sparql_ask` check runs
+    against is always resolved server-side from the caller's own sandbox
+    pointer -- never a client-supplied graph IRI.
+    """
+    workspace_id = await store.get_sandbox_workspace_id(conn, tenant_id=tenant_id, user_id=user_id)
+    workspace = (
+        await get_workspace(conn, tenant_id=tenant_id, workspace_id=workspace_id)
+        if workspace_id
+        else None
+    )
+    if workspace is None:
+        raise HTTPException(status_code=409, detail={"error": "no_sandbox"})
+    return workspace.named_graph_iri
+
+
+@router.post("/exercises/{exercise_id}/check", response_model=ExerciseCheckResult)
+async def check_exercise_route(
+    exercise_id: str,
+    body: ExerciseCheckRequest,
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> ExerciseCheckResult:
+    """AC-009-01/02/03/04: server-verified exercise completion -- gating,
+    the sandbox graph resolution, and the persisted state are all decided
+    here, never trusted from the client.
+    """
+    exercise = EXERCISES.get(exercise_id)
+    if exercise is None:
+        raise HTTPException(status_code=404, detail={"error": "unknown_exercise"})
+
+    async with tenant_connection(principal.tenant_id) as conn:
+        onboarding_state = await store.get_state(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+        gate = gate_exercise(
+            exercise_id,
+            role_path=onboarding_state.role_path,
+            path_variant=onboarding_state.path_variant,
+        )
+        if not gate.available:
+            raise HTTPException(status_code=403, detail={"error": gate.reason})
+
+        named_graph_iri = None
+        if exercise["completion"]["kind"] == "sparql_ask":
+            named_graph_iri = await _resolve_sandbox_named_graph(
+                conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+            )
+
+        try:
+            outcome = await check_completion(
+                exercise["completion"],
+                named_graph_iri=named_graph_iri,
+                claimed_signals=frozenset(body.signals),
+            )
+        except UnsupportedCompletionKindError as exc:
+            raise HTTPException(
+                status_code=422, detail={"error": "unsupported_completion_kind"}
+            ) from exc
+
+        if not outcome.verified:
+            return ExerciseCheckResult(exercise_id=exercise_id, verified=False)
+
+        await store.record_exercise_completion_with_retry(
+            conn,
+            tenant_id=principal.tenant_id,
+            user_id=principal.principal_iri,
+            exercise_id=exercise_id,
+            verified_signal=outcome.verified_signal,
+        )
+        refreshed = await store.get_state(
+            conn, tenant_id=principal.tenant_id, user_id=principal.principal_iri
+        )
+
+    completed_at = next(
+        (c.completed_at for c in refreshed.exercise_completions if c.exercise_id == exercise_id),
+        None,
+    )
+    return ExerciseCheckResult(
+        exercise_id=exercise_id,
+        verified=True,
+        verified_signal=outcome.verified_signal,
+        completed_at=completed_at,
+    )

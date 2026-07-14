@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "../app-shell";
 
@@ -10,6 +10,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("AppShell", () => {
+  // ONB-TASK-013: HelpLauncher's unread-dot fetches /api/onboarding/state on
+  // mount -- stub it so unrelated AppShell tests don't hit jsdom's no-base-URL
+  // fetch failure.
+  beforeEach(() => {
+    vi.spyOn(global, "fetch").mockImplementation(() => Promise.resolve(Response.json({})));
+  });
+
+
   it("renders nav and help launcher plus children on a protected route", () => {
     pathname = "/dashboard";
     render(
