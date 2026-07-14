@@ -91,7 +91,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Tools",
         items: [
-          { label: "Ingest", tag: "v1.0" },
+          { label: "Ingest", href: "/ce/import", tag: "v1.0" },
           { label: "Reasoning", tag: "post-v1" },
         ],
       },

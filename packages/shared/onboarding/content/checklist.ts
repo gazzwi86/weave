@@ -85,6 +85,22 @@ const items: ChecklistItem[] = [
     autoCompleteOn: "manual",
     lockedUntilPhase: "post-v1",
   },
+  // M2 -- competency-question guidance (m2-delta.md §4/§5, OQ-M2-1 amended: manual self-mark,
+  // zero schema change -- CE ships no per-tenant count to auto-clear against).
+  {
+    itemId: "add-competency-questions",
+    paths: ["business", "technical"],
+    phase: "m2",
+    labelKey: "onboarding.checklist.add-competency-questions.label",
+    whyKey: "onboarding.checklist.add-competency-questions.why",
+    deepLink: "/training/declare-competency-questions",
+    autoCompleteOn: "manual",
+    // Merge fix (TASK-010 reconciliation): `phase: "m2"` alone isn't a lock
+    // gate -- `lockedUntilPhase` is. Without it this M2-only item renders
+    // unlocked+incomplete in M1 and permanently blocks the widget's 100%
+    // celebration gate. Locked items never block completion (AC-010-04).
+    lockedUntilPhase: "m2",
+  },
 ];
 
 export const CHECKLIST_ITEMS: ChecklistItem[] = items.map((i) => ChecklistItemSchema.parse(i));

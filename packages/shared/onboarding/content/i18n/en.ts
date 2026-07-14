@@ -94,9 +94,79 @@ export const en: Record<string, string> = {
     "A short walkthrough of the graph, the query tools, and your first commit.",
   "onboarding.training.explorer-basics.title": "Explorer basics",
   "onboarding.training.explorer-basics.description": "Navigate the canvas, spotlight, and trace relationships.",
+  "onboarding.training.getting-started.walkthrough": "Read the walkthrough",
+  "onboarding.training.getting-started.walkthrough-body":
+    "Step through the graph, run your first query, and make your first commit -- at your own pace.",
+  "onboarding.training.category.introduction": "Introduction",
+  "onboarding.training.category.ontologies": "Ontologies",
+  "onboarding.training.category.graph-explorer": "Graph Explorer",
+  "onboarding.training.category.build": "Build",
+  "onboarding.training.category.automation": "Automation",
+  "onboarding.training.category.compliance-governance": "Compliance & Governance",
+  "onboarding.training.category.administration": "Administration",
+  "onboarding.training.category-post-v1-flag": "Available when this engine ships",
+  "onboarding.training.video-coming-soon": "Video — coming soon",
+  "onboarding.training.video-error": "Couldn't load this video. Try again later.",
+  "onboarding.training.search-label": "Search training",
+  "onboarding.training.search-placeholder": "Search videos and walkthroughs...",
+  "onboarding.training.empty": "No training content matches your search.",
+  "onboarding.training.page-title": "Training library",
+  "onboarding.training.page-subtitle": "Search videos and written walkthroughs, at your own pace.",
   // What's new.
   "onboarding.whats-new.launch.title": "Weave is here",
   "onboarding.whats-new.launch.body": "Your company's knowledge graph, live and queryable from day one.",
+  "onboarding.whats-new.empty": "Nothing new to report right now.",
+  "onboarding.whats-new.heading": "What's new",
+  "onboarding.whats-new.mark-read": "Mark What's new as read",
+  // M2 tour: completeness-map.
+  "onboarding.tour.ge-completeness-map.step1.title": "Turn on the overlay",
+  "onboarding.tour.ge-completeness-map.step1.body":
+    "Overlay controls light up the canvas with what's modelled and what's missing, at a glance.",
+  "onboarding.tour.ge-completeness-map.step2.title": "Read the coverage gaps",
+  "onboarding.tour.ge-completeness-map.step2.body":
+    "The legend shows exactly which areas of your business still need modelling -- start there.",
+  // M2 tour: role-home guidance.
+  "onboarding.tour.plat-role-home.step1.title": "Your home base",
+  "onboarding.tour.plat-role-home.step1.body": "Everything you need lives behind this nav entry -- come back here any time.",
+  "onboarding.tour.plat-role-home.step2.title": "What Weave can do for you",
+  "onboarding.tour.plat-role-home.step2.body": "These capability cards are tailored to your role -- pick one to jump right in.",
+  "onboarding.tour.plat-role-home.step3.title": "How complete is your model",
+  "onboarding.tour.plat-role-home.step3.body": "This tile tracks how much of your business is modelled so far, updated live.",
+  "onboarding.tour.plat-role-home.step4.title": "What to do next",
+  "onboarding.tour.plat-role-home.step4.body": "This banner always points at your single highest-value next action.",
+  "onboarding.tour.plat-role-home.step5.title": "Your summary at a glance",
+  "onboarding.tour.plat-role-home.step5.body": "A live snapshot of everything modelled so far, grouped the way you think about it.",
+  // M2 tour: trust-mechanics.
+  "onboarding.tour.ge-trust-mechanics.step1.title": "Overlays you can trust",
+  "onboarding.tour.ge-trust-mechanics.step1.body": "Every overlay here is generated straight from the graph -- nothing hand-drawn.",
+  "onboarding.tour.ge-trust-mechanics.step2.title": "See what changed",
+  "onboarding.tour.ge-trust-mechanics.step2.body": "Compare any two versions side by side and see exactly what moved.",
+  "onboarding.tour.ge-trust-mechanics.step3.title": "Filter to what's governed",
+  "onboarding.tour.ge-trust-mechanics.step3.body": "Narrow the canvas to only the entities under active governance rules.",
+  // M2 tour: rules & policies.
+  "onboarding.tour.ce-rules-policies.step1.title": "Your rules, listed",
+  "onboarding.tour.ce-rules-policies.step1.body": "Every governance rule your company runs on lives here, in one searchable list.",
+  "onboarding.tour.ce-rules-policies.step2.title": "See what's breaking a rule",
+  "onboarding.tour.ce-rules-policies.step2.body": "Open any rule to see exactly which entities violate it, and why.",
+  // M2 beacons.
+  "onboarding.beacon.ge-completeness-map.body":
+    "Coverage gaps update live as your model grows -- check back after every big commit.",
+  "onboarding.beacon.plat-role-home.body":
+    "This tile updates automatically as you model more of your business -- no action needed here.",
+  "onboarding.beacon.ge-trust-mechanics.body":
+    "Every version here is a real snapshot -- pick any two to diff exactly what changed and who changed it.",
+  "onboarding.beacon.ce-rules-policies.body":
+    "Violations shown here are live -- fixing the underlying entity clears them automatically on next check.",
+  // M2 welcome modal: role-home.
+  "onboarding.modal.role-home.title": "Welcome home",
+  "onboarding.modal.role-home.body": "This is your role-tailored home base. Take a quick tour?",
+  // M2 checklist: competency questions.
+  "onboarding.checklist.add-competency-questions.label": "Add your domain competency questions",
+  "onboarding.checklist.add-competency-questions.why": "Competency questions keep your model focused on what actually matters.",
+  // M2 training: competency questions article.
+  "onboarding.training.declare-competency-questions.title": "Declare your domain competency questions",
+  "onboarding.training.declare-competency-questions.description":
+    "How to write competency questions that keep your model grounded in real business questions.",
   // Test-only fixtures (unit-test-local content) -- never referenced by real content.
   "x.body": "A short body well within budget.",
   "onboarding.fixture.over-budget-tour": Array(41).fill("word").join(" "),

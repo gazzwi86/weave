@@ -7,5 +7,6 @@ export { WELCOME_MODALS } from "./modals";
 export { EXERCISES } from "./exercises";
 export { CHECKLIST_ITEMS } from "./checklist";
 export { TRAINING_ENTRIES } from "./training";
+export { TRAINING_CATEGORIES } from "./categories";
 export { WHATS_NEW_ITEMS } from "./whats-new";
 export { WIDGET_MAPPING } from "./widget-mapping";
