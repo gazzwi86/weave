@@ -1,13 +1,13 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T07:01:53+00:00
+Captured at: 2026-07-14T13:20:48+00:00
 Event: pre-compact
 
 ## Current State
 
 {
   "project": "weave",
-  "phase": "build-engine-v1/phase-1",
+  "phase": "onboarding/phase-1",
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
@@ -796,7 +796,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-002",
       "title": "Widget-library category bindings: 10 CE/platform-sourced categories (EPIC-002)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-010",
         "PLAT-V1-TASK-012"
@@ -1032,7 +1032,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-007",
       "title": "Agent-Grounding Authority & Escalation Patterns (E7-S4, base-links descope)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-010.md",
       "retry_count": 0
@@ -1064,7 +1064,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Document Corpus Store: Chunking, Embeddings, Retrieval, NL Citations",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-012",
         "CE-V1-TASK-013",
@@ -1078,7 +1078,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-012",
       "title": "Import & Ingest Page, Epic E2E, CI Closure",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-013",
         "CE-V1-TASK-014"
@@ -1113,7 +1113,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-020",
       "title": "Versions Panel + Diff Overlay (CE-VERSION-1 / CE-DIFF-1)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-021"
       ],
@@ -1125,7 +1125,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-017",
       "title": "Edit Controller + Write Proxy + Quick-Add Node + Draw Edge",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-023.md",
       "retry_count": 0
@@ -1135,7 +1135,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-017",
       "title": "Side-Panel Property Edit + Delete Node/Edge + Concurrency Guard",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-023"
       ],
@@ -1157,7 +1157,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-018",
       "title": "Saved Views UI + Share + Comments + Live-Refresh Poll",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-020",
         "CE-V1-TASK-025"
@@ -1170,7 +1170,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-022",
       "title": "Model-Completeness Map (coverage_gap overlay)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-021"
       ],
@@ -1194,12 +1194,12 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-021",
       "title": "GE-CANVAS-1 Packaging + Contract Conformance Suite",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-023"
       ],
       "brief": "docs/specs/weave/engines/constitution-engine/v1/tasks/TASK-029.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "CE-V1-TASK-030",
@@ -1489,7 +1489,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "M2 Anchor-Registry + Content-Config (zero schema change)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-001.md",
       "retry_count": 0
@@ -1499,7 +1499,7 @@ Event: pre-compact
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "Model-Completeness Map Tour + Beacons (Explorer overlay + role-home tile)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-V1-TASK-001"
       ],
@@ -1581,7 +1581,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-012",
       "title": "Marketing entry + working /login (R6)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1593,7 +1593,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-009",
       "title": "Audit & compliance surfaces v2 — tiles/charts rebuild (R8)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1605,7 +1605,7 @@ Event: pre-compact
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-004",
       "title": "Settings completeness — Members + notification preferences (R9 + R7 copy)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1617,7 +1617,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-023",
       "title": "Instance browser v2 — browse/search + SHACL drawer + glass chat aside (R3)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1629,7 +1629,7 @@ Event: pre-compact
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-024",
       "title": "Query & ask v2 — lifecycle states + Graph/Table/Raw + speech input (R5)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
       ],
@@ -1663,7 +1663,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "hammerbarn-seed CLI: compile + apply canonical seed via CE-WRITE-1",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-002.md",
       "retry_count": 0
@@ -1673,7 +1673,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Anchor Registry + Content Config Package with CI Checks",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-003.md",
       "retry_count": 0
@@ -1683,7 +1683,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Sandbox Provisioning, Canonical Template & Three Isolation Boundaries",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-002"
@@ -1696,7 +1696,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Reset Demo: blue/green re-fork with known-state guarantee",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-004"
       ],
@@ -1708,7 +1708,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
       "title": "Role-Path Resolution: 10→4 mapping, choose-path, change-path",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001"
       ],
@@ -1720,7 +1720,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Tour Engine: Driver.js wrapper + CE/Explorer guided tours",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003",
@@ -1734,7 +1734,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-002",
       "title": "Beacons & Welcome Modals with server-side dismissal",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
@@ -1747,7 +1747,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-004",
       "title": "Hands-On Exercises CE-01/02/03/03b + GE-01/02 with contract-signal checks",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-003",
         "ONB-TASK-004",
@@ -1761,21 +1761,21 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-005",
       "title": "Onboarding Checklist Widget on the Dashboard",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003",
         "ONB-TASK-006"
       ],
       "brief": "docs/specs/weave/engines/onboarding/m1/tasks/TASK-010.md",
-      "retry_count": 0
+      "retry_count": 1
     },
     {
       "id": "ONB-TASK-011",
       "engine": "onboarding",
       "epic": "ONB-EPIC-005",
       "title": "Activation Detection: poll-first recorder with exactly-once fire + outbox",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-006"
@@ -1788,7 +1788,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-006",
       "title": "Training Library & What's New",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-001",
         "ONB-TASK-003"
@@ -1801,7 +1801,7 @@ Event: pre-compact
       "engine": "onboarding",
       "epic": "ONB-EPIC-007",
       "title": "Help Launcher & Contextual Help Panel",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-007",
         "ONB-TASK-008",
@@ -1845,141 +1845,136 @@ Event: pre-compact
 ## Last Phase Summary
 
 ---
-title: "Phase Gate: Build-Engine Phase 1 — M1 Program Terminus"
+title: "Phase Gate: build-engine-v1 / Phase 1"
 status: Approved
-phase: build-engine/phase-1
-date: 2026-07-09
-security_verdict: PASS (full review over ac0ad18..HEAD, 2026-07-09 — 0 Blocker/High/Medium)
-mutation_score: 92.0% (local mutation-strict mirror, 60% bar — CI-outage waiver)
+phase: build-engine-v1/phase-1
+date: 2026-07-14
+security_verdict: PASS
+mutation_score: 60%+ (CI-enforced, per-PR)
 ---
 
-# Phase Gate: Build-Engine Phase 1 — M1 Program Terminus
+# Phase Gate: build-engine-v1 / Phase 1
 
-`build-engine/phase-1` is the **last** entry in `phase_plan`. Approving this gate is not a phase
-advance — it is the **program-M1 sign-off** across all four engines (platform, constitution,
-graph-explorer, build). It must not pass while any M1 quality signal is red.
-
-> Filename note: the skill's `PHASE-<N>.md` convention (N=1) collides with the already-Approved
-> `PHASE-1.md` (weave-platform gate, 2026-07-05). Written to a distinct path to preserve that
-> audit record rather than overwrite it.
+> **Governing principle.** A phase gate protects the next phase from inheriting unresolved debt.
+> If any quality signal is red, the phase is paused, not ended. Every section below is
+> evidence-based, not optimistic.
 
 ## Gate Criteria
 
-| Field | Value |
-|---|---|
-| Phase | build-engine/phase-1 (M1 terminus) |
-| Triggered | All 31 tasks / 23 epics at `done` |
-| Approver | Human (HITL) |
+**Phase:** build-engine-v1/phase-1 (cross-engine v1 wave — PLAT / CE / ONB tasks built in parallel
+worktree lanes)
+**Triggered:** all tasks in the active phase at `done`; `progress.sh phase-check` = COMPLETE
+(84/125 program tasks done; the remaining 41 are later-milestone tasks gated behind this advance)
+**Approver:** Human (HITL) — this gate is the **engine-boundary sign-off** releasing
+`onboarding/phase-1`.
 
 ## Checklist
 
 ### Deliverables
 
-- [x] All 31 M1 tasks `done` (23/23 epics), across platform / CE / graph-explorer / build.
-- [x] All four `phase_plan` engine phases complete.
-- [x] Open escalation `TASK-001-blocker` resolved (paired `GE-TASK-001-resolved.md`).
+- [x] All tasks in the active phase marked Done (phase-check = COMPLETE)
+- [x] All tests passing — every merged PR green on real CI gates
+      (api, integration, web, shared, mutation-a, mutation-b, semgrep, secrets)
+- [x] Test coverage meets threshold — enforced per-PR in CI (≥ 80%)
 
 ### Quality
 
-- [x] **Security — semgrep (blocking CI scanner): GREEN on main** (`semgrep` job `success` on the
-      last runs). Per-task `/code-review` + per-PR review ran on every merged epic.
-- [ ] **Full `/security-review` phase backstop: NOT RUN** — deferred to the post-#46 re-gate so it
-      evaluates the final green-main state. Recorded as pending, not a pass.
-- [ ] **Mutation: RED.** Main's blocking `mutation-strict` job fails — mutmut's clean-test baseline
-      hits `429` in `test_identity_rbac::test_agent_registry_tenant_scoped` (module-level rate-limit
-      stores accumulate across the full-suite baseline), so the gate sees 0 killed mutants.
-      **Root-caused and fixed in PR #46** (autouse conftest store-reset). When green the job measures
-      ~77% (above the 60% bar). RED until #46 merges and the next main run is green.
-- [ ] **UI-verify (`ui_verify.sh --full`): NOT RE-RUN** — deferred to the post-#46 re-gate. #46 is
-      test/CI-only (no UI change) so the result carries forward, but the M1 sign-off should run it
-      against the final green state. Recorded as pending, not a pass.
-- [x] Complexity budgets (Law E) enforced per-task through the loop; no open waivers surfaced.
+- [x] No lint errors — ruff + mypy + tsc + eslint green per-PR (pre-commit + CI)
+- [x] Complexity within thresholds — Plugin Law E enforced per-PR
+- [x] QA review complete — every epic had a non-authoring-reviewer pass; tenancy-critical PRs
+      (#91 recent-edits, #92 activation poller) re-reviewed twice; zero Blocker/Major at merge
+- [x] No unresolved failure reports — escalations triaged (see Notes); none block this phase
+- [x] Mutation score ≥ 60% — CI mutation-a + mutation-b GREEN on all 5 merged PRs (#88/#90/#91/#92/#93)
 
 ### Artifacts
 
-- [x] Conventional commits (last 10 verified: `fix:` `feat:` `chore:` `test:` `docs:`).
-- [x] One open PR: **#46** (the CI fix). All 23 epic PRs merged.
-- [ ] Documentation generation (README / api / architecture) — pending; roll into the re-gate.
+- [x] PRs created and reviewable — 5 epic PRs, all merged; 0 open
+- [x] Commits follow conventional format — feat/fix/docs/chore throughout
+- [x] Documentation updated — ADRs (incl. ADR-022 pin-semantics, preserved from a numbering
+      collision); per-task summaries in `.claude/state/summaries/`
 
-### Environment (Weave stack)
+### Environment
 
-- Backend: `uv run uvicorn ...` (FastAPI) · Frontend: `npm run dev` (Next.js)
-- Tests: `uv run pytest` / `npm test` · Build: `npm run build` · SPARQL: `docker compose up oxigraph`
+- [x] App runs locally — Next.js `npm run dev` / FastAPI `uv run uvicorn`
+- [x] Test suite runs — `uv run pytest` (Python) / `npm test` (TS); isolated-docker integration per lane
+- [x] Build succeeds — `npm run build`; CI build stage green per-PR
+- [x] Multi-tenancy isolation re-asserted — security backstop PASS (see Security)
+
+## Security
+
+**Verdict: PASS — zero HIGH/CRITICAL.** Independent backstop review of all 5 merged PRs' code
+(not PR descriptions), on top of the per-PR semgrep + secrets CI gates:
+
+- Multi-tenancy: every CE call forwards `ce_headers`; fail-closed guards
+  (`coverage_gap.require_headers` → `CeReadUnscoped`, `ce_metrics._require_headers` →
+  `CeMetricsUnavailable`) on all data-bearing CE calls. The one unguarded CE call
+  (`role_home.py` → `/api/ontology/types`) hits the tenant-agnostic BPMO grammar endpoint (no tenant
+  data — not a finding). Migration 0084 `list_pollable_tenants()` is read-only, single-column,
+  `SECURITY DEFINER`, explicit `SET search_path`, narrow GRANT.
+- SQLi: all asyncpg queries parameterized; the 2 `reorder_widgets` `nosemgrep` lines are genuine FPs
+  (static quoted `"position"` identifier, values bound `$1–$4`).
+- Auth boundary: all routes `Depends(get_current_principal)`, scoped via `tenant_connection`.
+- IDOR: pin/update/delete/publish pre-check owner → 404-not-403 on foreign rows.
+
+Non-blocking defense-in-depth note (deferred, not a finding): `store.pin_widget` / `store.delete_widget`
+scope the SQL by `tenant_id + id`, relying on the router owner pre-check for owner-scoping; adding
+`AND owner_principal_iri = $n` there would be belt-and-suspenders.
+
+## UI Verification
+
+**Verdict: GREEN by CI E2E evidence.** The 4 UI features delivered this phase each carry a real
+Playwright E2E spec on main, which ran green via the per-PR CI `web` gate on the exact merged commits:
+
+- `dashboard-widget-actions.spec.ts` (pin/reorder/publish — #93)
+- `recent-edits-widget.spec.ts` (#91)
+- `role-home.spec.ts` (#90)
+- `onboarding-activation-toast.spec.ts` (#92)
+
+**Disclosure (gate's weakest point):** a live in-gate `ui_verify.sh --full` re-run was **not**
+executed — it requires serving the full multi-service stack (backend + frontend + oxigraph +
+Postgres + LocalStack), a cloud-cost/time constraint (Plugin Law F: synthetic-only). The substitute
+is the identical Playwright specs run by CI (not the engineer) on the merged commits — the same
+deterministic enforcing seam, executed in CI rather than re-run here.
 
 ## Cost Summary
 
 | Metric | Estimated | Actual |
-|---|---|---|
+|--------|-----------|--------|
 | Total tokens (input) | — | N/A (not instrumented) |
 | Total tokens (output) | — | N/A (not instrumented) |
 | Total cost | — | N/A (not instrumented) |
 | Variance | — | — |
 
-## Blocker to Approve
-
-**Main CI is RED** — the `mutation-strict` blocking job fails on the 429 baseline. PR #46 fixes it
-but is **unmerged**. Gate Law 3 (mutation RED blocks Approve) + the governing principle (a red
-signal pauses the phase) mean the M1 sign-off cannot honestly Approve now.
-
-**Recommended path:** Amend → merge #46 → confirm the next main push run is green → re-gate, which
-runs the full `/security-review` backstop + `mutation-strict` (green, ~77%) + `ui_verify --full`
-against the final state, then records the sign-off in `PROGRAM-M1-SIGNOFF.md`.
-
 ## Decision
 
-- [ ] Approve
-- [ ] Amend
-- [ ] Reject
+- [x] **Approve** — proceed to next phase (`onboarding/phase-1`)
+- [ ] **Amend** — address specific items before proceeding
+- [ ] **Reject** — significant rework needed
 
 ## Notes
 
-**HITL decision 2026-07-07: AMEND.** M1 sign-off held — cannot Approve against a red main pipeline.
-Amendment: merge PR #46 (CI fix) → confirm the next `main` push run is green → re-invoke this gate,
-which then runs the full `/security-review` backstop + `mutation-strict` (expect ~77%) +
-`ui_verify --full` against the final state and, on Approve, records `PROGRAM-M1-SIGNOFF.md`.
-`progress.json` NOT advanced (correct — terminus phase; only the program sign-off ceremony advances
-state, and only on Approve).
+Approved by human (HITL) 2026-07-14 — engine-boundary sign-off releasing `onboarding/phase-1`.
+Approver accepted the disclosed UI-verify substitution (CI-run Playwright E2E in lieu of a live
+in-gate `ui_verify.sh --full`). Followups below carried forward, none blocking.
 
-Follow-up raised during amend and **resolved**: `ce-perf` failed on #46 on a real metric — CE
-write p95 890ms > the 800ms M1 budget (my migrate fix un-stuck the benchmark, exposing the first
-real measurement). Root cause: `emit_mutation_outcome_metric` (best-effort CloudWatch) awaited
-inline on the write critical path (ADR-004 hotspot). Fixed by making it fire-and-forget
-(`perf(ce)` commit) → write p95 890 → 717ms, ce-perf gate PASS. Not a gate-weakening (the 800ms
-budget is unchanged).
+**Escalation triage (evidence for "no unresolved failure reports"):**
 
+- `GE-TASK-001-resolved.md` — RESOLVED (closeable).
+- `TASK-001-blocker.md` — disclosed-default (benchmark param substitution, stated in ADR-001); resolved-by-progress.
+- `TASK-016-blocker.md` / `TASK-026-blocker.md` — old dependency blockers; those tasks are now done on main.
+- `TASK-031-blocker.md` — "Non-blocking descope, task proceeds" (architect flag, informational).
+- `CE-V1-TASK-014-blocker.md` — **only genuinely-open item.** CE-014's XML-parse branch is
+  disclosed-descoped to post-v1 (blocked-by TASK-015); the non-XML path shipped. CE-014 is a
+  later-milestone task — does **not** block this phase gate.
+
+**Phase-gate followups (non-blocking, carry forward):**
+
+1. `store.pin_widget` docstring (`store.py:276`) cites stale "(ADR-021)" — the decision is now ADR-022. Trivial doc fix.
+2. Pin the semgrep ruleset or repo-sweep split-literal SQL (the `--config auto` registry drift that
+   caused the asyncpg-sqli FP). Harness-touching → HITL / harness PR.
+3. Optional defense-in-depth: add `AND owner_principal_iri = $n` to `store.pin_widget`/`delete_widget` SQL.
+4. Clean stale `weave-CE-V1-EPIC-017` worktree (no open PR).
 
 ---
-
-## Re-gate 2026-07-09 (closing the 2026-07-07 Amend)
-
-The two open amendment items are resolved with evidence; the full verification record is
-[`.claude/state/PROGRAM-M1-SIGNOFF.md`](../PROGRAM-M1-SIGNOFF.md) (committed `e136667`).
-
-| Amend item (2026-07-07) | Resolution (2026-07-09) |
-|---|---|
-| Full `/security-review` backstop not run | Run over `ac0ad18..HEAD`: **PASS**, 0 Blocker/High/Medium, 2 informational Lows (in-memory bearer token in `DraftingRequest`; tenant-wide workspace list is by-design). |
-| Mutation RED (CI failing pre-#46) | #46 merged; local mutation-strict mirror of the CI recipe (mutmut + gate, live services): **92.0% vs the 60% bar**. CI itself unavailable until 2026-08-01 — user-approved waiver recorded in the signoff. |
-
-Additional gates re-executed this cycle (not trusted from prior passes):
-
-- Backend unit+integration vs live services: PASS (pytest exit 0).
-- Frontend unit: 470/470.
-- Playwright e2e: 54 passed / 0 failed / 1 intentional skip — after realigning 4 stale specs to
-  intentionally shipped behaviour and two suite-infrastructure fixes (`AUTH_RATE_LIMIT_MAX`
-  300→600 for the 55-test suite; global-search locator scoped to the dialog). No app code changed.
-- `ui_verify.sh --full --target http://localhost:3000`: **exit 0** (structural+a11y pass,
-  click-through 54/0/1, Lighthouse pass). Run without the optional `--runbook` flag on this
-  re-execution; two extra confirmation runs went pass/fail/pass — the single-run flake on
-  global-search.spec.ts:38 is recorded as a known issue in the signoff, not hidden.
-
-Known issues carried (non-blocking, all ledgered): PROJ-010/011 (harness-governed doc staleness,
-advisor-consulted fix pending), PROJ-012 (single unreproduced audit chain-broken sighting —
-monitor + instrument), residual global-search flake (CI retries would absorb; timeout bump
-suggested).
-
-**APPROVED — gazzwi86, 2026-07-09 (AskUserQuestion HITL).**
-
-M1-terminus note: this approval is the **program-M1 sign-off** (per the 2026-07-07 gate doc).
-Since the phase_plan now extends past M1, approval also advances `progress.json` to
-`build-engine-v1/phase-1` — the approver is releasing the next engine to build.
+*HITL gate. Reviewed by the human approver.*
 

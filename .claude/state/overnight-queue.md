@@ -597,3 +597,14 @@ Full detail: `.claude/state/summaries/CE-V1-TASK-014.md`.
 - Still blocked: connectors (PLAT-006/018-025 parked), ONB-015 (needs 009+013), ONB-V1-005 (needs 003+004).
 - Approaching batched phase-gate: after CE-030/ONB-013/ONB-009 land, remaining buildable = beacon-tour-halves
   + ONB-015 (needs UI hosts) → mostly HITL-gated. Surface ONE batched phase-gate when buildable backlog empty/blocked.
+
+---
+## 2026-07-14 — FINAL PUSH: onboarding UI-host sweep + CE-030 finish (user decisions)
+User picked: (a) push CE-030 finish autonomously; build ONB TASK-008; connectors STAY PARKED; run batched phase-gate after these complete.
+Q-answers: gate jobs = REQUIRED-but only "no continue-on-error / fail-loud" in ci.yml (NOT registered as branch-protection required checks — that bit FLAGGED for user, per their "don't confuse with own ci" guardrail); onboarding = FULL UI-host sweep; invariant naming-drift = RENAME tests to match spec (spec authoritative).
+Advisor-priced constraints: sandbox has no Postgres for Playwright webServer → onboarding done-criteria = unit/component + tsc + test.fixme'd E2E; real E2E + ui_verify deferred to real-env epic-close; do NOT mark ONB-015 done on inference.
+Lane plan (TASK-008 is keystone; TourEngine already exists, beacon/modal renderer was the gap):
+  - LANE ce030 (../weave-CE-030w, feature/CE-V1-EPIC-016): reconcile origin/main → AC-2/3/4/5/6/7 (4 gate jobs no-continue-on-error, rename 9 invariant tests, gate-bundle script). LAUNCHED.
+  - LANE onb008 (../weave-ONB-008w, feature/ONB-EPIC-002 off origin/main): beacon+welcome-modal renderer + shell mount. LAUNCHED.
+  - THEN: ONB-V1-003 ∥ ONB-V1-004 (wiring, need 008 merged) → ONB-V1-005 (needs 003+004) → ONB-015 (E2E, real-env only).
+FLAG FOR USER: (1) branch-protection required-check registration for the 4 M2 gate jobs is NOT done by me — your call/settings. (2) 8 PLAT connector tasks stay backlog; relocate briefs to post-v1/ at phase-gate so the spine is honest (never-delete-briefs).
