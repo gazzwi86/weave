@@ -21,6 +21,7 @@ function kpiWidget(overrides: Partial<WidgetOut> = {}): WidgetOut {
     status: "fresh",
     pending_fields: [],
     suggested: false,
+    refresh_interval_s: 300,
     ...overrides,
   };
 }
@@ -42,6 +43,7 @@ function barWidget(overrides: Partial<WidgetOut> = {}): WidgetOut {
     status: "fresh",
     pending_fields: [],
     suggested: false,
+    refresh_interval_s: 300,
     ...overrides,
   };
 }

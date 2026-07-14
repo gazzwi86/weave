@@ -1,9 +1,14 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, HTMLAttributes } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 import type { WidgetOut } from "./types";
+
+function formatStaleTimestamp(fetchedAt: string | null): string {
+  if (fetchedAt === null) return "";
+  return new Date(fetchedAt).toLocaleString();
+}
 
 /** True only for CE-METRICS-1's "not ready yet" sentinel (ADR-013,
  * status.py::pending_fields_of) -- never a real 0/empty value.
@@ -92,20 +97,101 @@ export function renderWidgetValue(componentType: string, value: unknown) {
  * hint), it only inspects the payload shape to pick a renderer once a
  * body is known to be real data.
  */
+export interface WidgetTileProps {
+  widget: WidgetOut;
+  style?: CSSProperties;
+  /** AC-1/AC-2/AC-6: pin promotes a suggested tile / audits an explicit
+   * pin; unpin removes a `scope=user` widget. Both omitted for read-only
+   * (e.g. `tenant_default`) tiles. */
+  onPin?: () => void;
+  onUnpin?: () => void;
+  /** AC-7: keyboard alternative to drag-reorder. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  /** TASK-015 AC-1: publish a pinned `scope='user'` widget to the tenant
+   * library -- omitted for `tenant_default`/read-only tiles. */
+  onPublish?: () => void;
+  dragHandleProps?: HTMLAttributes<HTMLDivElement>;
+}
+
+/** Extracted from `WidgetTile` so the button-row conditionals don't push
+ * the parent component over the complexity budget. */
+function TileControls({
+  title,
+  onPin,
+  onUnpin,
+  onMoveUp,
+  onMoveDown,
+  onPublish,
+  showPin,
+}: {
+  title: string;
+  onPin?: () => void;
+  onUnpin?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onPublish?: () => void;
+  showPin: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-[var(--space-1)]">
+      {onMoveUp && (
+        <button type="button" aria-label={`Move ${title} up`} onClick={onMoveUp}>
+          ↑
+        </button>
+      )}
+      {onMoveDown && (
+        <button type="button" aria-label={`Move ${title} down`} onClick={onMoveDown}>
+          ↓
+        </button>
+      )}
+      {onPin && showPin && (
+        <button type="button" aria-label={`Pin ${title}`} onClick={onPin}>
+          Pin
+        </button>
+      )}
+      {onUnpin && (
+        <button type="button" aria-label={`Unpin ${title}`} onClick={onUnpin}>
+          Unpin
+        </button>
+      )}
+      {onPublish && (
+        <button type="button" aria-label={`Publish ${title} to library`} onClick={onPublish}>
+          Publish
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function WidgetTile({
   widget,
   style,
-}: {
-  widget: WidgetOut;
-  style?: CSSProperties;
-}) {
+  onPin,
+  onUnpin,
+  onMoveUp,
+  onMoveDown,
+  onPublish,
+  dragHandleProps,
+}: WidgetTileProps) {
   const contract = widget.spec.data_source_contracts[0];
 
   return (
-    <Card data-testid={`widget-tile-${widget.id}`} style={style}>
-      <h3 className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        {widget.spec.title}
-      </h3>
+    <Card data-testid={`widget-tile-${widget.id}`} style={style} {...dragHandleProps}>
+      <div className="flex items-start justify-between gap-[var(--space-2)]">
+        <h3 className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+          {widget.spec.title}
+        </h3>
+        <TileControls
+          title={widget.spec.title}
+          onPin={onPin}
+          onUnpin={onUnpin}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onPublish={onPublish}
+          showPin={widget.suggested}
+        />
+      </div>
       <div className="mt-[var(--space-3)]">
         {widget.status === "unavailable" && (
           <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
@@ -124,7 +210,9 @@ export function WidgetTile({
       </div>
       <footer className="mt-[var(--space-3)] flex items-center gap-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
         <span>{contract}</span>
-        {widget.status === "stale" && <Badge variant="warn">Stale</Badge>}
+        {widget.status === "stale" && (
+          <Badge variant="warn">{`Stale — last updated ${formatStaleTimestamp(widget.fetched_at)}`}</Badge>
+        )}
       </footer>
     </Card>
   );
