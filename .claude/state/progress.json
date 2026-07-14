@@ -1482,7 +1482,7 @@
       "engine": "onboarding-v1",
       "epic": "ONB-V1-EPIC-002",
       "title": "M2 Anchor-Registry + Content-Config (zero schema change)",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/onboarding/v1/tasks/TASK-001.md",
       "retry_count": 0
