@@ -25,12 +25,13 @@ function RulesBody({ report, loading, error, run }: RulesState) {
   }
   if (!report) return null;
   return (
-    <ul data-testid="rule-list" className="flex flex-col">
-      {report.rules.map((rule) => (
+    <ul data-testid="rule-list" data-tour-id="ce.rules.shape-list" className="flex flex-col">
+      {report.rules.map((rule, index) => (
         <RuleRow
           key={rule.shape_iri}
           rule={rule}
           violatingEntities={report.results.filter((entry) => entry.shape_iri === rule.shape_iri)}
+          isFirst={index === 0}
         />
       ))}
     </ul>

@@ -67,10 +67,14 @@ const geTrustMechanics: Tour = {
 };
 
 // M2 -- rules & policies trust tour (EPIC-002, m2-delta.md §3).
+// AC-004-05: proactive on Compliance + Technical only -- Business/Admin
+// still reach this tour via the help launcher (help-launcher.tsx), which
+// is not gated by `paths` (that field only drives availableTours()'s
+// proactive-offer filter, per tour-content.ts).
 const ceRulesPolicies: Tour = {
   tourId: "tour.ce.rules-policies",
   area: "constitution",
-  paths: [...allPaths],
+  paths: ["compliance", "technical"],
   phase: "m2",
   steps: [
     { anchorId: "ce.rules.shape-list", titleKey: "onboarding.tour.ce-rules-policies.step1.title", bodyKey: "onboarding.tour.ce-rules-policies.step1.body" },

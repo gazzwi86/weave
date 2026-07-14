@@ -33,18 +33,13 @@ const geTrustMechanicsBeacon: Beacon = {
   bodyKey: "onboarding.beacon.ge-trust-mechanics.body",
 };
 
-const ceRulesPoliciesBeacon: Beacon = {
-  beaconId: "ce-rules-policies",
-  anchorId: "ce.rules.violation-report",
-  paths: ["business", "technical", "compliance", "admin"],
-  phase: "m2",
-  bodyKey: "onboarding.beacon.ce-rules-policies.body",
-};
+// m2-delta.md §3 re-anchoring note: the CE beacon is dropped -- rules &
+// policies has no run-report control to hint at, and AC-004-03 scopes the
+// M2 trust-mechanics beacon budget to the one on ge.versions.panel only.
 
 export const BEACONS: Beacon[] = [
   ceVersions,
   geCompletenessMapBeacon,
   platRoleHomeBeacon,
   geTrustMechanicsBeacon,
-  ceRulesPoliciesBeacon,
 ].map((b) => BeaconSchema.parse(b));

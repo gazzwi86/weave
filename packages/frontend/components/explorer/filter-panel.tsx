@@ -155,7 +155,7 @@ function LayerToggleList({
   onToggleLayer: (layer: GovernedLayer) => void;
 }) {
   return (
-    <ul className={SECTION_CLASS}>
+    <ul className={SECTION_CLASS} data-tour-id="ge.filters.governed-content">
       {GOVERNED_LAYERS.map((layer) => {
         const status = layerStatus[layer];
         const label = LAYER_LABEL[layer];
