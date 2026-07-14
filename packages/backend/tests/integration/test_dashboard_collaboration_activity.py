@@ -6,6 +6,7 @@ against a real docker Postgres stack (AC-1, AC-2, AC-3, AC-6, AC-7). Follows
 
 from __future__ import annotations
 
+import json
 import shutil
 import uuid
 from collections.abc import AsyncIterator
@@ -18,7 +19,7 @@ from httpx import ASGITransport, AsyncClient, MockTransport, Request, Response
 
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
-from weave_backend.dashboard import bindings, store
+from weave_backend.dashboard import bindings, ce_metrics, coverage_gap, store
 from weave_backend.dashboard.ce_metrics import get_ce_metrics_client
 from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
@@ -54,11 +55,16 @@ def _ce_stub(handlers: dict[str, object]) -> AsyncClient:
 async def _ctx(
     tenant_id: str, conn: object, ce_client: AsyncClient, *, prior_result: object = None
 ) -> bindings.BindingContext:
+    # PR #91 hardening: coverage_gap/ce_metrics now fail closed without a
+    # forwarded Authorization header. These binding-level tests aren't
+    # exercising the auth boundary itself (that's the fail-closed HTTP tests
+    # below) -- a fixed synthetic header keeps them scoped to binding logic.
     return bindings.BindingContext(
         tenant_id=tenant_id,
         context_iri=f"urn:weave:tenant:{tenant_id}:company",
         conn=conn,
         ce_client=ce_client,
+        ce_headers={"Authorization": "Bearer test-binding-token"},
         prior_result=prior_result,
     )
 
@@ -303,6 +309,122 @@ def _tenant_scoped_ce_metrics_stub(tenant_bodies: dict[str, dict[str, object]]) 
         return Response(200, json=tenant_bodies.get(tenant, tenant_bodies["__leaked__"]))
 
     return AsyncClient(transport=MockTransport(_handler), base_url="http://ce-metrics")
+
+
+async def test_ce_calls_refuse_missing_headers_fail_closed() -> None:
+    """PR #91 final hardening: the shared seam (`ce_metrics.require_headers`,
+    `coverage_gap.require_headers`) refuses to call CE unscoped rather than
+    querying without tenant scoping -- proven directly, independent of the
+    HTTP auth layer that makes `ce_headers=None` unreachable today.
+    """
+    metrics_stub = _ce_stub(
+        {"/api/metrics/ontology": {"entity_count_by_kind": {"Process": 999}}}
+    )
+    with pytest.raises(ce_metrics.CeMetricsUnavailable):
+        await ce_metrics.fetch(metrics_stub, {"field": "entity_count_by_kind"}, headers=None)
+
+    read_stub = _ce_stub({"/api/sparql": {"rows": [{"entity_iri": "urn:leak:1"}]}})
+    with pytest.raises(coverage_gap.CeReadUnscoped):
+        await coverage_gap.contraventions(read_stub, headers=None)
+    with pytest.raises(coverage_gap.CeReadUnscoped):
+        await coverage_gap.recently_updated_entities(read_stub, limit=10, headers=None)
+
+
+async def test_refresh_without_authorization_header_fails_closed(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #91 final hardening: a refresh call with no Authorization header
+    must never surface CE data (own or another tenant's) -- the existing
+    auth dependency 401s before the handler runs; the new fail-closed guard
+    is defence-in-depth for the day that dependency changes.
+    """
+    tenant_a = _unique_tenant("noauth-a")
+    workspace_a = await _make_workspace(tenant_a, label="collab")
+    headers_a = await _authed_headers(client, tenant_id=tenant_a, workspace_id=workspace_a.id)
+    widget_id = await _insert_widget(
+        tenant_a,
+        owner_sub="u-1",
+        spec=WidgetSpec(
+            component_type="kpi_card",
+            title="Entities in model",
+            data_source_contracts=["CE-METRICS-1"],
+            bindings={"field": "entity_count_by_kind", "aggregate": "sum"},
+            column_span=3,
+        ),
+    )
+
+    refresh_resp = await client.post(f"/api/dashboard/widgets/{widget_id}/refresh")
+    assert refresh_resp.status_code == 401
+
+    async with tenant_connection(tenant_a) as conn:
+        saved = await store.get_widget(conn, tenant_id=tenant_a, widget_id=widget_id)
+    assert saved is not None
+    assert saved.last_result is None, "unauthenticated refresh must never populate CE data"
+    _ = headers_a  # only used to provision the workspace/member above
+
+
+async def test_410_rebaseline_scoped_by_real_jwt_not_cross_tenant(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """PR #91 final hardening: the synthetic `f"Bearer {tenant_id}"` variant
+    above proves the plumbing; this proves it over the real HTTP refresh
+    route with a real `issue_token_pair` JWT, same as the CE-METRICS-1
+    leak test.
+    """
+    tenant_a = _unique_tenant("collab-realjwt-a")
+    tenant_b = _unique_tenant("collab-realjwt-b")
+    workspace_a = await _make_workspace(tenant_a, label="collab")
+    headers_a = await _authed_headers(client, tenant_id=tenant_a, workspace_id=workspace_a.id)
+    await _commit(client, headers_a, "a1")
+    await _age_out_events(tenant_a)
+
+    ce_stub = _tenant_scoped_ce_stub(
+        {
+            headers_a["Authorization"].removeprefix("Bearer "): [
+                {"entity_iri": "urn:a:1", "label": "Tenant A entity"}
+            ],
+            tenant_b: [{"entity_iri": "urn:b:1", "label": "Tenant B entity"}],
+        }
+    )
+
+    async def _override_ce_client() -> AsyncIterator[AsyncClient]:
+        yield ce_stub
+
+    app.dependency_overrides[get_ce_metrics_client] = _override_ce_client
+    try:
+        widget_id = await _insert_widget(
+            tenant_a,
+            owner_sub="u-1",
+            spec=WidgetSpec(
+                component_type="activity_feed",
+                title="Recent edits",
+                data_source_contracts=["CE-EVENT-1", "CE-READ-1"],
+                bindings={"category": "collaboration-activity"},
+                column_span=6,
+            ),
+        )
+        async with tenant_connection(tenant_a) as conn:
+            await conn.execute(
+                "UPDATE widget_instances SET last_result = $1::jsonb"
+                " WHERE id = $2",
+                json.dumps({"last_seq": 0, "rows": []}),
+                widget_id,
+            )
+
+        refresh_resp = await client.post(
+            f"/api/dashboard/widgets/{widget_id}/refresh", headers=headers_a
+        )
+        assert refresh_resp.status_code == 200
+
+        async with tenant_connection(tenant_a) as conn:
+            saved = await store.get_widget(conn, tenant_id=tenant_a, widget_id=widget_id)
+        assert saved is not None
+        rows = saved.last_result.get("rows", []) if isinstance(saved.last_result, dict) else []
+        entity_iris = [row.get("entity_iri") for row in rows]
+        assert "urn:b:1" not in entity_iris, "tenant B leaked via a real-JWT 410 re-baseline"
+        assert "urn:a:1" in entity_iris
+    finally:
+        app.dependency_overrides.pop(get_ce_metrics_client, None)
 
 
 async def test_field_widget_refresh_scoped_by_ce_headers_not_cross_tenant(

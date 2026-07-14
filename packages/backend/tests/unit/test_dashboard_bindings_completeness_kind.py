@@ -40,6 +40,9 @@ async def test_completeness_gaps_carry_kind_tag(monkeypatch: pytest.MonkeyPatch)
         context_iri="urn:weave:tenant:t-1:company",
         conn=_StubConn(),
         ce_client=_ce_stub(),
+        # PR #91 hardening: coverage_gap now fails closed without a
+        # forwarded Authorization header.
+        ce_headers={"Authorization": "Bearer test-binding-token"},
     )
     result = await bindings._completeness(ctx)
     kinds = {gap["kind"] for gap in result.rows["gaps"]}

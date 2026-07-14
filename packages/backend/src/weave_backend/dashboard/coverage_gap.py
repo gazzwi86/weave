@@ -13,6 +13,25 @@ from urllib.parse import quote
 
 import httpx
 
+
+class CeReadUnscoped(httpx.HTTPError):
+    """PR #91 hardening: fail closed rather than call CE-READ-1 unscoped.
+    Auth is required upstream so `headers` is always populated today --
+    this guard exists so a future refactor can't silently open a
+    cross-tenant read. Subclasses `httpx.HTTPError` so it's caught by
+    every existing `except httpx.HTTPError` degrade handler for free.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("refusing unscoped CE-READ-1 call: no Authorization header")
+
+
+def require_headers(headers: dict[str, str] | None) -> dict[str, str]:
+    if not headers or not headers.get("Authorization"):
+        raise CeReadUnscoped
+    return headers
+
+
 _QUERY_TEMPLATE = """
 PREFIX weave: <https://weave.io/ontology/>
 SELECT ?entity_iri ?missing_link
@@ -45,6 +64,7 @@ async def coverage_gap(
     (contracts.md CE-READ-1 `coverage_gap` shape).
     """
     query = build_query(kind, required_links)
+    headers = require_headers(headers)
     response = await client.post("/api/sparql", json={"query": query}, headers=headers)
     response.raise_for_status()
     body = response.json()
@@ -77,6 +97,7 @@ async def contraventions(
     (no new CE route), and the `/resource/{iri}` href convention already
     established by `routers/requests.py`'s grounding-entity links.
     """
+    headers = require_headers(headers)
     response = await client.post(
         "/api/sparql", json={"query": _CONTRAVENTIONS_QUERY}, headers=headers
     )
@@ -120,6 +141,7 @@ async def recently_updated_entities(
     label}` per row, deep-linkable the same way as `contraventions`.
     """
     query = _RECENTLY_UPDATED_QUERY_TEMPLATE.format(limit=limit)
+    headers = require_headers(headers)
     response = await client.post("/api/sparql", json={"query": query}, headers=headers)
     response.raise_for_status()
     body = response.json()

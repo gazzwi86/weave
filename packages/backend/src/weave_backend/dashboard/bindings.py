@@ -186,7 +186,9 @@ async def _ontology_issues(ctx: BindingContext) -> BindingResult:
         inconsistencies = await ce_metrics.fetch(
             ctx.ce_client, {"field": "owl_inconsistencies"}, headers=ctx.ce_headers
         )
-        versions_resp = await ctx.ce_client.get("/api/ontology/versions", headers=ctx.ce_headers)
+        versions_resp = await ctx.ce_client.get(
+            "/api/ontology/versions", headers=coverage_gap.require_headers(ctx.ce_headers)
+        )
         versions_resp.raise_for_status()
         versions = versions_resp.json().get("versions", [])
     except (ce_metrics.CeMetricsUnavailable, httpx.HTTPError):
