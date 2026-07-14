@@ -259,6 +259,25 @@ async def set_sandbox_pointer(
     )
 
 
+async def swap_sandbox_pointer(
+    conn: asyncpg.Connection, *, tenant_id: str, user_id: str, workspace_id: str, semver: str
+) -> None:
+    """TASK-005 AC-005-02/03: reset's atomic swap -- pointer flip and
+    ``exercise_completion`` clear happen in the caller's single open
+    transaction (`tenant_connection` already wraps one), so there is never a
+    window where the new pointer is visible with stale exercise flags still
+    attached. ``activation`` rows are never touched here (ADR-003).
+    """
+    await set_sandbox_pointer(
+        conn, tenant_id=tenant_id, user_id=user_id, workspace_id=workspace_id, semver=semver
+    )
+    await conn.execute(
+        "DELETE FROM exercise_completion WHERE tenant_id = $1 AND user_id = $2",
+        tenant_id,
+        user_id,
+    )
+
+
 async def upsert_tour_progress(
     conn: asyncpg.Connection,
     *,

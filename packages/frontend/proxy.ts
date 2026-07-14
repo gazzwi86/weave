@@ -25,7 +25,10 @@ export default auth((req) => {
   const isAuthenticated = Boolean(req.auth) && !req.auth?.error;
   if (!PUBLIC_PATHS.has(pathname) && !isAuthenticated) {
     const loginUrl = new URL("/auth/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("return_to", pathname);
+    // TASK-029: pathname alone dropped query strings on the redirect round
+    // trip (embeddable routes like ge-canvas-preview carry state in the
+    // query) -- preserve the full original path+search, not just pathname.
+    loginUrl.searchParams.set("return_to", pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 

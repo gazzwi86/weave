@@ -26,6 +26,7 @@ import { useLayoutPersistence } from "./use-layout-persistence";
 import { useNeighbourExpansion } from "./use-neighbour-expansion";
 import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
+import { usePanelEdit } from "./use-panel-edit";
 import { useEventPollWiring } from "./use-event-poll-wiring";
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
@@ -137,6 +138,9 @@ interface NodeInteractionOverlaysProps {
   search: ReturnType<typeof useSearchOverlay>;
   saveFailed: boolean;
   onDismissSaveFailure: () => void;
+  /** TASK-024 AC-1..AC-8: property edit + delete, mounted into SidePanel. */
+  panelEdit: ReturnType<typeof usePanelEdit>;
+  canEdit: boolean;
 }
 
 interface ExpansionOverlaysProps {
@@ -185,6 +189,8 @@ function NodeInteractionOverlays({
   search,
   saveFailed,
   onDismissSaveFailure,
+  panelEdit,
+  canEdit,
 }: NodeInteractionOverlaysProps) {
   return (
     <>
@@ -197,7 +203,7 @@ function NodeInteractionOverlays({
           Reset layout
         </Button>
       )}
-      <SidePanel state={panel} onClose={onClosePanel} onRetry={onRetryPanel} />
+      <SidePanel state={panel} onClose={onClosePanel} onRetry={onRetryPanel} panelEdit={panelEdit} canEdit={canEdit} />
       <SearchOverlay
         open={search.open}
         query={search.query}
@@ -232,6 +238,27 @@ function useCanvasChromePanels(
   // AC-7: draft-mode-only polling -- never while pinned to a read-only version.
   useEventPollWiring({ adapter, config, active: !versionsPanel.readOnly });
   return { filterPanel, legend, versionsPanel, savedViewsPanel };
+}
+
+interface UseEditingStateOptions {
+  adapter: RendererAdapter;
+  config: ExplorerConfig;
+  panel: ReturnType<typeof useNodeSpotlight>["panel"];
+  role: string | null;
+  chrome: ReturnType<typeof useCanvasChromePanels>;
+  retry: () => void;
+  close: () => void;
+}
+
+/** TASK-024 AC-1..AC-8: the canEditCanvas UX gate + usePanelEdit, bundled
+ * so the property-edit/delete wiring is a single line in
+ * ExplorerInteractions -- kept out to stay under Law E's 50-line budget.
+ * retry re-fetches the panel node (an edit's new values render); close
+ * drops the panel (a deleted node isn't left showing). */
+function useEditingState({ adapter, config, panel, role, chrome, retry, close }: UseEditingStateOptions) {
+  const canEdit = canEditCanvas({ role, isDraftCanvas: !chrome.versionsPanel.readOnly });
+  const panelEdit = usePanelEdit({ adapter, config, panel, canEdit, onSaved: retry, onDeleted: close });
+  return { canEdit, panelEdit };
 }
 
 /** AC-1..AC-10: composes node-spotlight, search, domain-focus, and
@@ -279,7 +306,7 @@ export function ExplorerInteractions({
   // AC-7 UX layer -- CE-WRITE-1 independently rejects server-side regardless
   // of this flag (ADR-019). isDraftCanvas mirrors NodeInteractionOverlays'
   // own readOnly check above.
-  const canEdit = canEditCanvas({ role, isDraftCanvas: !chrome.versionsPanel.readOnly });
+  const editing = useEditingState({ adapter, config, panel, role, chrome, retry, close });
 
   return (
     <>
@@ -309,6 +336,8 @@ export function ExplorerInteractions({
         search={search}
         saveFailed={saveFailed}
         onDismissSaveFailure={dismissSaveFailure}
+        panelEdit={editing.panelEdit}
+        canEdit={editing.canEdit}
       />
       <ExpansionOverlays
         menu={menu}
@@ -318,8 +347,8 @@ export function ExplorerInteractions({
         neighbourExpansion={neighbourExpansion}
         domainFocus={domainFocus}
       />
-      <QuickAddOverlay adapter={adapter} config={config} canEdit={canEdit} kinds={chrome.legend.palette} />
-      <DrawEdgeOverlay adapter={adapter} config={config} canEdit={canEdit} relTypes={relTypes} />
+      <QuickAddOverlay adapter={adapter} config={config} canEdit={editing.canEdit} kinds={chrome.legend.palette} />
+      <DrawEdgeOverlay adapter={adapter} config={config} canEdit={editing.canEdit} relTypes={relTypes} />
     </>
   );
 }

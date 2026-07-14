@@ -132,3 +132,21 @@ async def list_workspaces(conn: asyncpg.Connection, *, tenant_id: str) -> list[W
         )
         for row in rows
     ]
+
+
+async def delete_workspace(conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str) -> None:
+    """TASK-005 AC-005-06: best-effort delete of an old blue/green
+    workspace. `workspace_members`/`principals` reference this row with the
+    default RESTRICT `ON DELETE`, so this commonly raises
+    `asyncpg.ForeignKeyViolationError` -- callers must catch that and log an
+    orphan for sweep rather than treat it as a reset failure; the swap that
+    matters (the pointer flip) has already committed by the time this runs.
+    """
+    # False positive: static literal SQL; tenant_id/workspace_id are bound
+    # as positional parameters ($1/$2), never interpolated into the query text.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    await conn.execute(
+        "DELETE FROM workspaces WHERE tenant_id = $1 AND id = $2",
+        tenant_id,
+        workspace_id,
+    )

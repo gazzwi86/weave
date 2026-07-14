@@ -108,6 +108,16 @@ class SandboxOut(BaseModel):
     reused: bool
 
 
+class SandboxResetOut(BaseModel):
+    """TASK-005 AC-005-02: `POST /api/onboarding/sandbox/reset` response --
+    the swapped-in workspace id and whether the old workspace's delete had
+    to be deferred to the orphan sweep (AC-005-06).
+    """
+
+    workspace_id: str
+    orphaned_workspace_id: str | None
+
+
 class DeletedResponse(BaseModel):
     deleted: bool
 

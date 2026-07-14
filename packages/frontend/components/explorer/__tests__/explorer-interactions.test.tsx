@@ -4,8 +4,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
 import type { FetchDomainMembersResult } from "@/lib/explorer/fetch-domain-members";
@@ -648,5 +649,89 @@ describe("ExplorerInteractions -- TASK-023 edit affordances", () => {
     render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} role={null} />);
     act(() => adapter.fireDoubleClick({ x: 10, y: 10 }));
     expect(screen.queryByLabelText("Add node")).not.toBeInTheDocument();
+  });
+});
+
+// TASK-024 AC-1..AC-8: usePanelEdit mounted into the real SidePanel via
+// ExplorerInteractions -- closes the "hook built, never mounted" gap the
+// coordinator flagged. Reuses this file's fetchNodeProps fixture (one
+// neighbour -> a 1-edge incident batch) and stubs the global fetch that
+// postToWriteProxy (the default writeProxy) calls.
+describe("ExplorerInteractions -- TASK-024 property edit + delete", () => {
+  // save()'s drift re-check calls the real (non-injected) fetchNodeProps,
+  // which requires an absolute IRI -- "n1" alone would 422 before ever
+  // reaching fetch, so this node id is a urn: like the rest of the file.
+  const NODE_IRI = "urn:weave:process:invoicing";
+
+  async function openLoadedPanel(adapter: RendererAdapter) {
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchNodeProps={fetchNodeProps}
+        role="business_analyst_sme"
+      />
+    );
+    const onNodeTap = vi.mocked(adapter.onNodeTap).mock.calls[0]![0];
+    await act(async () => onNodeTap(NODE_IRI));
+    await screen.findByText("Invoicing");
+  }
+
+  beforeEach(async () => {
+    const { resetDraftHeadForTests } = await import("@/lib/explorer/draft-head");
+    resetDraftHeadForTests();
+  });
+
+  it("surfaces a conflict notice when the drift head advances between edit-start and save", async () => {
+    const { bumpDraftHead } = await import("@/lib/explorer/draft-head");
+    // The re-check inside save() calls the real (non-injected) CE-READ-1
+    // fetch -- distinct from this file's fetchNodeProps prop, which only
+    // feeds useNodeSpotlight's initial open.
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ label: "Invoicing (server)", type_label: "Process", key_properties: [], raw_iri: null, neighbours: [] }),
+        { status: 200 }
+      )
+    );
+    const adapter = fakeAdapter();
+    await openLoadedPanel(adapter);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    bumpDraftHead(); // a second writer commits while this edit is open
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("This node changed since you started editing.")).toBeInTheDocument();
+  });
+
+  it("shows the incident-edge batch count and only commits delete after Continue is confirmed", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 201 })
+    );
+    const adapter = fakeAdapter();
+    await openLoadedPanel(adapter);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(screen.getByText("This removes the node and its 1 connected edge.")).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalledWith("/api/proxy/operations/apply", expect.anything()); // no write until confirmed
+
+    const dialog = screen.getByRole("dialog", { name: "Delete this node?" });
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Delete" })));
+
+    expect(fetchSpy).toHaveBeenCalledWith("/api/proxy/operations/apply", expect.anything());
+    expect(adapter.removeElements).toHaveBeenCalled();
+  });
+
+  it("leaves the canvas untouched and shows a failure toast when the delete request times out", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("timeout"));
+    const adapter = fakeAdapter();
+    await openLoadedPanel(adapter);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete this node?" });
+    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Delete" })));
+
+    expect(await screen.findByText("Delete failed -- canvas unchanged. Try again.")).toBeInTheDocument();
+    expect(adapter.removeElements).not.toHaveBeenCalled();
   });
 });
