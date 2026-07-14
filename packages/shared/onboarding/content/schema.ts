@@ -77,16 +77,39 @@ export const ChecklistItemSchema = z.object({
   lockedUntilPhase: PhaseSchema.optional(),
 });
 
+/** ONB-TASK-012 (E6-S1): the seven training categories -- `build`/`automation`
+ * are flagged post-v1 (available when those engines ship), reusing
+ * `EngineAvailabilitySchema` rather than a parallel enum. */
+export const TrainingCategoryIdSchema = z.enum([
+  "introduction",
+  "ontologies",
+  "graph-explorer",
+  "build",
+  "automation",
+  "compliance-governance",
+  "administration",
+]);
+
 export const TrainingEntrySchema = z.object({
   trainingId: z.string(),
   titleKey: z.string(),
   descriptionKey: z.string(),
+  category: TrainingCategoryIdSchema,
   videoId: z.string().optional(),
+  durationSeconds: z.number().positive().optional(),
   writtenWalkthroughUrl: z.string().optional(),
+  walkthroughBodyKey: z.string().optional(),
+});
+
+export const TrainingCategorySchema = z.object({
+  categoryId: TrainingCategoryIdSchema,
+  labelKey: z.string(),
+  availability: EngineAvailabilitySchema,
 });
 
 export const WhatsNewItemSchema = z.object({
   itemId: z.string(),
+  version: z.string(),
   titleKey: z.string(),
   bodyKey: z.string(),
   publishedAt: z.string(),
@@ -105,6 +128,8 @@ export type Beacon = z.infer<typeof BeaconSchema>;
 export type WelcomeModal = z.infer<typeof WelcomeModalSchema>;
 export type Exercise = z.infer<typeof ExerciseSchema>;
 export type ChecklistItem = z.infer<typeof ChecklistItemSchema>;
+export type TrainingCategoryId = z.infer<typeof TrainingCategoryIdSchema>;
 export type TrainingEntry = z.infer<typeof TrainingEntrySchema>;
+export type TrainingCategory = z.infer<typeof TrainingCategorySchema>;
 export type WhatsNewItem = z.infer<typeof WhatsNewItemSchema>;
 export type WidgetMapping = z.infer<typeof WidgetMappingSchema>;
