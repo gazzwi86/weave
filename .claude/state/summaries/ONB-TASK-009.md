@@ -99,3 +99,28 @@ TASK-001's `0082_onboarding_state.sql`.
 - AC-009-05 (reset → re-earn) — blocked on TASK-005, not started.
 - AC-009-07 (exercise-panel UI, any surface) — no UI host component exists for any exercise.
 - No Playwright E2E — nothing to drive without AC-009-07.
+
+## QA (2026-07-14)
+
+**Verdict: PASS** (backend slice). Re-ran everything, did not take self-report at face value:
+- Unit: `pytest tests/unit -k onboarding` → 82 passed (81 + 1 new edge test).
+- Docker integration (isolated `COMPOSE_PROJECT_NAME=weaveonb009`, custom ports, torn down after):
+  `pytest tests/integration/test_onboarding_exercise_check_route.py -m integration` → 4 passed,
+  confirmed the sparql_ask test does a REAL `POST /api/operations/apply` write (not a stub) —
+  unmet on bare fork, met only after the write.
+- Coverage: new route lines (`check_exercise_route`, `_resolve_sandbox_named_graph`) covered
+  across unit+integration combined (the one line missed in unit-only coverage, `named_graph_iri =
+  await _resolve_sandbox_named_graph(...)`, is hit by the integration test). `routers/onboarding.py`
+  54% confirmed pre-existing/untouched routes only, not the new code.
+- ruff + mypy: clean on all changed files.
+- Tenancy: confirmed `check_exercise_route` and `record_exercise_completion_with_retry` are bound
+  to `principal.tenant_id`/`principal.principal_iri` throughout, no client-supplied ids, RLS backstop
+  on `exercise_completion`, `clock_timestamp()` used. No cross-tenant/cross-user path found.
+- ADR-011/012 present, sequential, no collision with ADR-001..010.
+- Deferrals (AC-009-05/07) honest and tracked in the escalation file; ONB-015 correctly NOT marked
+  unblocked.
+- Edge case added: `test_record_exercise_completion_upsert_overwrites_prior_signal` (re-earn upsert
+  semantics) — commit `a0e7c82b` on `feature/ONB-EPIC-004`.
+- Gap noted, not blocking: no API perf/load test run against `/exercises/{id}/check` this pass
+  (Plugin Law #3) — flag for the next QA pass or phase-gate if a perf target exists in the
+  onboarding tech-spec.
