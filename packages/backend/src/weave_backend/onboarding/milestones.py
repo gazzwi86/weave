@@ -33,6 +33,12 @@ MILESTONE_ID_BY_PATH: dict[str, str] = {
     "technical": "first_committed_entity",
 }
 
+#: TASK-010 AC-010-03: milestone ids the self-mark route may write --
+#: OQ-08's Admin-invite item has no poller signal (PLAT-IDENTITY-1 isn't
+#: contracted), so it's manual-only. An allowlist (not a free-text
+#: milestone_id) so a client can't self-mark an arbitrary/poller-owned id.
+MANUAL_ONLY_MILESTONE_IDS: frozenset[str] = frozenset({"invite_admin"})
+
 
 async def has_committed_entity(named_graph_iri: str, principal_iri: str) -> bool:
     """AC-011-01/07: ASKs the user's own-workspace prov graph for any
