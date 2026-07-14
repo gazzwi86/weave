@@ -1689,7 +1689,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-001",
       "title": "Reset Demo: blue/green re-fork with known-state guarantee",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-004"
       ],
