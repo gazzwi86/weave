@@ -37,11 +37,11 @@ export const ANCHORS = {
   // M2 -- registered now, no DOM yet (ADR-005).
   "ce.metrics-tile": { engine: "constitution", area: "constitution", phase: "m2", shipped: false, planted_by: "TASK-014" },
   // M2 -- Platform role-home guidance surfaces (m2-delta.md §3; EPIC-003, owned by Platform TASK-017).
-  "plat.role-home.nav-entry": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
-  "plat.role-home.capabilities": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
-  "plat.role-home.completeness-map": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
-  "plat.role-home.next-action": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
-  "plat.role-home.summary-tiles": { engine: "platform", area: "role-home", phase: "m2", shipped: false, planted_by: "TASK-003" },
+  "plat.role-home.nav-entry": { engine: "platform", area: "role-home", phase: "m2", shipped: true, planted_by: "TASK-003" },
+  "plat.role-home.capabilities": { engine: "platform", area: "role-home", phase: "m2", shipped: true, planted_by: "TASK-003" },
+  "plat.role-home.completeness-map": { engine: "platform", area: "role-home", phase: "m2", shipped: true, planted_by: "TASK-003" },
+  "plat.role-home.next-action": { engine: "platform", area: "role-home", phase: "m2", shipped: true, planted_by: "TASK-003" },
+  "plat.role-home.summary-tiles": { engine: "platform", area: "role-home", phase: "m2", shipped: true, planted_by: "TASK-003" },
   // M2 -- Graph Explorer completeness-map + trust-mechanics overlays (m2-delta.md §3; EPIC-002).
   "ge.overlay.controls": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: true, planted_by: "TASK-002" },
   "ge.overlay.completeness-legend": { engine: "graph-explorer", area: "explorer", phase: "m2", shipped: true, planted_by: "TASK-002" },

@@ -14,9 +14,27 @@ import { isAreaShipped } from "../../lib/onboarding/dismissals";
 import { areaForPathname } from "../../../shared/onboarding/content/contextual-help";
 import { ANCHORS } from "../../../shared/onboarding/anchors";
 import { BEACONS } from "../../../shared/onboarding/content/beacons";
+import { CHECKLIST_ITEMS } from "../../../shared/onboarding/content/checklist";
 import { WELCOME_MODALS } from "../../../shared/onboarding/content/modals";
 import { TOURS } from "../../../shared/onboarding/content/tours";
+import { isChecklistItemOpen } from "../../../shared/onboarding/derive-checklist";
 import type { Tour } from "../../../shared/onboarding/content/schema";
+import type { ChecklistSignals } from "../../../shared/onboarding/derive-checklist";
+import type { RolePath } from "../../../shared/onboarding/types";
+
+// ONB-V1-TASK-003 AC-003-03: only one beacon today gates on checklist-item
+// state -- a hardcoded single-purpose map beats a speculative schema field
+// on every Beacon config (YAGNI; add a `gatedOnItemId` field if a second
+// beacon ever needs this).
+const BEACON_CHECKLIST_GATE: Record<string, string> = {
+  "plat-role-home": "add-competency-questions",
+};
+
+function isBeaconGateOpen(beaconId: string, signals: ChecklistSignals, rolePath: RolePath): boolean {
+  const itemId = BEACON_CHECKLIST_GATE[beaconId];
+  if (!itemId) return true;
+  return isChecklistItemOpen(itemId, CHECKLIST_ITEMS, signals, rolePath, "m2");
+}
 
 // Fallback so useTourEngine (an unconditional hook) always has a real Tour
 // to call even when the requested tourId doesn't resolve -- start() is never
@@ -67,7 +85,7 @@ export function OnboardingHintsHost() {
   const pathname = usePathname();
   const area = areaForPathname(pathname ?? null);
   const { path } = useOnboardingPath();
-  const { loading, isDismissed, dismiss } = useDismissals();
+  const { loading, isDismissed, dismiss, signals, rolePath: signalsRolePath } = useDismissals();
   const [activeTourId, setActiveTourId] = useState<string | null>(null);
 
   // AC-008-06: a feature-flagged-off area (no shipped anchor at all) renders
@@ -82,7 +100,8 @@ export function OnboardingHintsHost() {
       ANCHORS[beacon.anchorId].area === area &&
       ANCHORS[beacon.anchorId].shipped &&
       beacon.paths.includes(rolePath) &&
-      !isDismissed("beacon", beacon.beaconId),
+      !isDismissed("beacon", beacon.beaconId) &&
+      isBeaconGateOpen(beacon.beaconId, signals, signalsRolePath ?? rolePath),
   );
 
   // AC-008-04: first-visit only -- "no dismissal row" is the whole check, so
