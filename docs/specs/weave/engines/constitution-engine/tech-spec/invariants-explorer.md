@@ -35,8 +35,9 @@ presence across `packages/backend/tests/` and `packages/frontend/**/__tests__|te
   named test `test_no_partial_render_on_ce_error`.
 - No predicate IRI literal in traversal/drill-in code; closure and domain-membership predicates
   load from config — verify-by: `packages/frontend/lib/explorer/traversal-walk.ts` +
-  `packages/frontend/lib/explorer/closure-config.ts` + `grep -r "weave:"` (hits allowed only in
-  the config module/fixture files).
+  `packages/frontend/lib/explorer/closure-config.ts` + `grep -r "weave:"` (must be empty — both
+  files build predicate IRIs from a `WEAVE_ONTOLOGY_NS` namespace constant, never the literal
+  string).
 - Renderer accessed only through the adapter interface (`load/onNodeClick/getViewport/
   setLayout/pin`) — verify-by: `grep -r "from 'cytoscape'"` outside
   `packages/frontend/lib/explorer/renderer-adapter.ts` (must be empty).

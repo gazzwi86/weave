@@ -38,7 +38,14 @@ _GREP_PATTERN = re.compile(r"grep(?:\s+-\w+)*\s+\"([^\"]+)\"")
 
 def _test_defined(name: str) -> bool:
     result = subprocess.run(
-        ["grep", "-rlE", rf'(def {name}\(|"{name}"|\x27{name}\x27)', "packages"],
+        [
+            "grep",
+            "-rlE",
+            "--exclude-dir=node_modules",
+            "--exclude-dir=.next",
+            rf'(def {name}\(|"{name}"|\x27{name}\x27)',
+            "packages",
+        ],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
