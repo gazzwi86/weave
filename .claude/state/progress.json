@@ -1794,7 +1794,7 @@
       "engine": "onboarding",
       "epic": "ONB-EPIC-007",
       "title": "Help Launcher & Contextual Help Panel",
-      "status": "backlog",
+      "status": "done",
       "blocked_by": [
         "ONB-TASK-007",
         "ONB-TASK-008",
