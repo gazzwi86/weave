@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { auth } from "@/auth";
 
-import { GET } from "../route";
+import { GET, PATCH } from "../route";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 
@@ -64,5 +64,43 @@ describe("GET /api/onboarding/state", () => {
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "upstream_unavailable" });
+  });
+});
+
+// ONB-TASK-012 AC-012-04: PATCH clears the What's-new unread dot.
+describe("PATCH /api/onboarding/state", () => {
+  beforeEach(() => {
+    vi.mocked(auth).mockReset();
+    stubFetch(new Response(JSON.stringify(stateBody), { status: 200, headers: { "content-type": "application/json" } }));
+  });
+
+  it("returns 401 when there is no session", async () => {
+    vi.mocked(auth).mockResolvedValue(null as never);
+
+    const response = await PATCH(new Request("http://localhost/api/onboarding/state", { method: "PATCH", body: "{}" }));
+
+    expect(response.status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("forwards the bearer token and body to the backend", async () => {
+    vi.mocked(auth).mockResolvedValue({ accessToken: "token-abc" } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/onboarding/state", {
+        method: "PATCH",
+        body: JSON.stringify({ whats_new_seen_at: "2026-07-14T00:00:00Z" }),
+      })
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/onboarding/state"),
+      expect.objectContaining({
+        method: "PATCH",
+        headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
+        body: JSON.stringify({ whats_new_seen_at: "2026-07-14T00:00:00Z" }),
+      })
+    );
+    expect(response.status).toBe(200);
   });
 });
