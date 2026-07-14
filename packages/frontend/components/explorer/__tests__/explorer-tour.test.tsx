@@ -23,6 +23,8 @@ function AnchorHarness() {
     <main>
       <div data-tour-id="ge.overlay.controls">Overlay controls</div>
       <div data-tour-id="ge.overlay.completeness-legend">Completeness legend</div>
+      <div data-tour-id="ge.versions.panel">Versions panel</div>
+      <div data-tour-id="ge.filters.governed-content">Governed content filters</div>
     </main>
   );
 }
@@ -123,5 +125,45 @@ describe("ExplorerTour (AC-002-01/04)", () => {
 
     const results = await axe(document.body);
     expect(results.violations).toEqual([]);
+  });
+});
+
+describe("ExplorerTour trust-mechanics (AC-004-01/04)", () => {
+  beforeEach(stubDomAndFetch);
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+  });
+
+  it("auto-starts the trust-mechanics tour from ?tour=trust-mechanics", async () => {
+    mockResolvedBusinessPath();
+
+    render(
+      <>
+        <AnchorHarness />
+        <ExplorerTour tourParam="trust-mechanics" />
+      </>,
+    );
+
+    await flushRaf();
+
+    expect(await screen.findByText("1 of 3")).toBeInTheDocument();
+  });
+
+  it("does not double-start completeness-map from a trust-mechanics deep link, or vice-versa", async () => {
+    mockResolvedBusinessPath();
+
+    render(
+      <>
+        <AnchorHarness />
+        <ExplorerTour tourParam="trust-mechanics" />
+      </>,
+    );
+
+    await flushRaf();
+
+    expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
   });
 });
