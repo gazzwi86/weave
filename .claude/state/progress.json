@@ -1,6 +1,6 @@
 {
   "project": "weave",
-  "phase": "weave-platform-v1/phase-1",
+  "phase": "program-v1-complete",
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
