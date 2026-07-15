@@ -1,4 +1,22 @@
 # ============================================================
+# ✅ HOUSEKEEPING DECISIONS RESOLVED (2026-07-16) — human-answered via MCQ
+# ============================================================
+# Final-assessment pass. The morning-batch / loose-end decisions below are now CLOSED:
+#   Q1 main↔origin divergence  → MERGED origin/main into local main (17 code PRs, #94–#110); spine-drift
+#                                resolved (was NOT state-only). Merge commit 0b670782, behind=0.
+#   Q2 ge005-backup orphan     → KEEP + file verify task → PROJ-GE005-RECONCILE (qa-project-issues.md).
+#   Q3 kept-branch trail       → wrote .claude/state/kept-branches.md (3 kept branches documented).
+#   Q4 CE-030 Explorer a11y    → DEFER to real-env (PROJ-A11Y-EXPLORER stays open/accepted debt).
+#   Q5 4 M2 gate jobs          → REGISTER as branch-protection required checks (USER repo-settings action, pending).
+#   Q6 competency self-mark 404→ FIXED: add_competency_questions added to MANUAL_ONLY_MILESTONE_IDS (commit 9cd7d075).
+#   Q7 ONB-015 AC-015-01       → FIXED: reworded to server-side sandbox-pointer, dropped retired switcher (9cd7d075).
+#   Q8 settings.json jcodemunch→ COMMITTED as-is per explicit human override of governance rule 2 (commit 1f1d3198).
+#   Q9 latest.md rewrite       → discarded (auto-regen session snapshot).
+# Dev env stood up for manual testing: frontend deps reinstalled; make migrate + make seed run;
+# weave_app role created (0001_tenancy.sql); app pool connects as weave_app, 229 tables. `make dev` unblocked.
+# Still USER-owned/open: Q5 (repo settings), PROJ-GE005-RECONCILE, XT-PLAT010-1 IDOR, real-env ui-verify sweep.
+
+# ============================================================
 # ✅ PHASE COMPLETE — build-engine-v1/phase-1 (phase-check confirmed 2026-07-12)
 # ============================================================
 78/125 tasks, 40/67 epics done. The remaining PLAT/CE/ONB backlog is LATER phases/milestones, not this phase.
