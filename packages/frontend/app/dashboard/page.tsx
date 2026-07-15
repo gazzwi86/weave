@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { ChecklistWidget } from "@/components/onboarding/checklist-widget";
 import { PromptBarContainer } from "@/components/dashboard/prompt-bar-container";
 import type { LibraryItemOut, WidgetOut } from "@/components/dashboard/types";
 import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
@@ -99,6 +100,7 @@ export default async function DashboardPage() {
       </Link>
       <PromptBarContainer />
       <div className="w-full max-w-[1440px] px-[var(--space-5)]">
+        <ChecklistWidget />
         <DashboardClient initialWidgets={widgets} initialLibraryItems={libraryItems} />
       </div>
     </main>

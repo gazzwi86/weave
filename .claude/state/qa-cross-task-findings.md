@@ -424,3 +424,14 @@ mock-oidc `session-claims.ts` fallback only issues `admin`/`author` roles, never
 ## ONB-TASK-008 (PR #105) — 2 minor review findings (non-blocking, 2026-07-15)
 - [ ] beacon.tsx:83 — Radix Popover.Content carries role="dialog" (Radix default). Interactive (Learn-more link) so defensible; axe zero-violations. Consider role="tooltip"/labelled region if pure-informational later. MINOR.
 - [ ] use-dismissals.ts:38 (PRE-EXISTING, TASK-001 — not in PR #105 diff) — optimistic dismissal update, no rollback on fetch failure. Silent reject. Cheap-fix candidate for an onboarding epic that touches this file. MINOR.
+
+## XT-ONBV1-1: stray pre-M2 anchor entries in packages/shared/onboarding/anchors.ts — 2026-07-14
+ONB-V1-TASK-001 (feature/ONB-V1-EPIC-002) added the 11 m2-delta §3 anchors correctly (verified byte-exact match, QA PASS).
+Pre-existing in the SAME file (not touched by this task, confirmed via `git diff <parent> <feat-commit>` — these lines are
+unchanged context, not additions): `ce.metrics-tile` (phase: "m2", planted_by: "TASK-014") and two `post-v1` entries
+(`build.project-list`, `events.rule-list`, both planted_by: "TASK-014") — none are in m2-delta.md §3's 11-anchor set, and
+"TASK-014" does not correspond to any of this task's owning tasks (TASK-002/003/004). Likely leftover from an earlier
+milestone/task-numbering scheme. Not a FAIL of AC-001-01 ("exactly the 11 m2-delta §3 anchor ids" — plain reading scopes to
+the named set, which IS exactly 11 and byte-correct). affects: [ONB-V1-TASK-002, ONB-V1-TASK-003, ONB-V1-TASK-004]
+(whichever milestone/cleanup task next touches anchors.ts should reconcile or retire these 3 orphan entries — resolve what
+"TASK-014" refers to under current numbering, or remove if dead). Status: OPEN.

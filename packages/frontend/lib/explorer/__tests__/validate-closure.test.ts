@@ -16,7 +16,9 @@ describe("validateClosure (TASK-028 AC-2)", () => {
     expect(result).toEqual({ ok: true, missing: [] });
   });
 
-  it("should disable traversal with named missing predicates when types response lacks one", () => {
+  // should disable traversal with named missing predicates when types
+  // response lacks one -- invariants-explorer.md M2 delta
+  it("test_closure_drift_guard_fails_loud", () => {
     const result = validateClosure(CLOSURE, [{ path: "https://weave.io/ontology/dependsOn" }]);
     expect(result.ok).toBe(false);
     expect(result.missing).toEqual(["https://weave.io/ontology/hasField"]);

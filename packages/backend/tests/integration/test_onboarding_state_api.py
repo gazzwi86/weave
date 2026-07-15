@@ -72,6 +72,7 @@ async def test_all_six_onboarding_tables_have_row_level_security_enabled_and_for
     assert all(enabled and forced for enabled, forced in found.values())
 
 
+@pytest.mark.onboarding_release_gate  # RLS fail-closed
 async def test_onboarding_tables_zero_rows_without_session_context(platform_stack: Path) -> None:
     """AC-001-02 fail-closed leg: a connection with no `app.tenant_id` set at
     all (not merely a different tenant) must see zero rows on every table --
@@ -339,6 +340,28 @@ async def test_dismissal_put_and_delete_via_http(client: AsyncClient, platform_s
     assert state_after.json()["dismissals"] == []
 
 
+async def test_trust_mechanics_beacon_dismissal_persists_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """ONB-V1-TASK-004 AC-004-03: the versions-panel compare/diff-discoverability
+    beacon (`ge-trust-mechanics` in shared/onboarding/content/beacons.ts) persists
+    its dismissal server-side per (tenant, user) through the same generic
+    dismissal route the M1 beacons use -- no new endpoint, just proof the real
+    production beacon id round-trips.
+    """
+    tenant_id = _unique_tenant("onb-trust-beacon")
+    tokens = await issue_token_pair(sub="u-onb-trust-beacon", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    put_response = await client.put(
+        "/api/onboarding/dismissals/beacon/ge-trust-mechanics", headers=headers
+    )
+    assert put_response.status_code == 200
+
+    state = await client.get("/api/onboarding/state", headers=headers)
+    assert [d["ref_id"] for d in state.json()["dismissals"]] == ["ge-trust-mechanics"]
+
+
 async def test_delete_beacon_dismissals_bulk_via_http(
     client: AsyncClient, platform_stack: Path
 ) -> None:
@@ -481,3 +504,101 @@ async def test_put_path_sets_manual_choice_and_persists_across_reads(
     )
     assert get_response.json()["role_path"] == "technical"
     assert get_response.json()["path_chosen_manually"] is True
+
+
+async def test_checklist_dismiss_and_restore_round_trip_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """TASK-010 AC-010-05: dismiss persists; restore clears it back to null
+    (the one case `PATCH /state`'s COALESCE contract can't do itself).
+    """
+    tenant_id = _unique_tenant("onb-checklist-restore")
+    tokens = await issue_token_pair(sub="u-onb-restore", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    dismiss_response = await client.patch(
+        "/api/onboarding/state",
+        json={"checklist_dismissed_at": "2026-01-01T00:00:00Z"},
+        headers=headers,
+    )
+    assert dismiss_response.status_code == 200
+    assert dismiss_response.json()["checklist_dismissed_at"] is not None
+
+    restore_response = await client.post("/api/onboarding/checklist/restore", headers=headers)
+    assert restore_response.status_code == 200
+    assert restore_response.json()["checklist_dismissed_at"] is None
+
+    follow_up = await client.get("/api/onboarding/state", headers=headers)
+    assert follow_up.json()["checklist_dismissed_at"] is None
+
+
+async def test_get_state_exposes_auto_dismiss_default_and_sandbox_fields(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """TASK-010 AC-010-04/02: falls back to the documented 7-day default
+    when no settings-cascade override exists; sandbox pointer round-trips
+    for the "visited the demo" derivation signal.
+    """
+    tenant_id = _unique_tenant("onb-checklist-defaults")
+    tokens = await issue_token_pair(sub="u-onb-defaults", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.get("/api/onboarding/state", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["checklist_auto_dismiss_days"] == 7
+    assert body["sandbox_workspace_id"] is None
+
+
+async def test_self_mark_milestone_is_idempotent_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """TASK-010 AC-010-03 / DoD "double-click => one row": self-mark writes
+    an `activation` row with `source=manual`; a repeat call is a no-op, not
+    a duplicate row (same PK the poller/recorder rely on, ADR-003).
+    """
+    tenant_id = _unique_tenant("onb-selfmark")
+    user_sub = "u-onb-selfmark"
+    user_id = human_principal_iri(user_sub)
+    tokens = await issue_token_pair(sub=user_sub, tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    first = await client.post(
+        "/api/onboarding/milestones/invite_admin/self-mark", headers=headers
+    )
+    second = await client.post(
+        "/api/onboarding/milestones/invite_admin/self-mark", headers=headers
+    )
+
+    assert first.status_code == 200
+    assert first.json() == {"marked": True}
+    assert second.status_code == 200
+    assert second.json() == {"marked": False}
+
+    async with tenant_connection(tenant_id) as conn:
+        rows = await conn.fetch(
+            "SELECT source FROM activation WHERE tenant_id = $1 AND user_id = $2"
+            " AND milestone_id = 'invite_admin'",
+            tenant_id,
+            user_id,
+        )
+    assert len(rows) == 1
+    assert rows[0]["source"] == "manual"
+
+
+async def test_self_mark_rejects_non_manual_milestone_id_via_http(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """AC-010-03: the allowlist is enforced end-to-end, not just at the
+    unit level -- a poller-owned milestone_id must 404, never write a row.
+    """
+    tenant_id = _unique_tenant("onb-selfmark-reject")
+    tokens = await issue_token_pair(sub="u-onb-selfmark-reject", tenant_id=tenant_id)
+    headers = {"Authorization": f"Bearer {tokens.access_token}"}
+
+    response = await client.post(
+        "/api/onboarding/milestones/first_committed_entity/self-mark", headers=headers
+    )
+
+    assert response.status_code == 404

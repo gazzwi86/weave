@@ -1,6 +1,6 @@
 import { CeReadError } from "./ce-read-error";
 import { mapRowsToElements } from "./map-rows-to-elements";
-import type { CytoscapeElement, NodeKind, SparqlPage } from "./types";
+import type { CytoscapeElement, NodeKind, RelKind, SparqlPage } from "./types";
 
 /** Same-origin proxy routes attach the caller's session bearer token
  * server-side (see app/api/proxy/*\/route.ts) -- the client never handles
@@ -28,6 +28,17 @@ export async function fetchPalette(): Promise<NodeKind[]> {
   const response = await proxyFetch("/api/proxy/node-kinds");
   const data = (await response.json()) as { kinds: NodeKind[] };
   return data.kinds;
+}
+
+/** TASK-023 AC-6: the relationship-type palette for the draw-edge picker --
+ * same route fetchPalette calls, its relTypes field (single CE-READ-1
+ * catalogue call on the server side, no second endpoint). */
+export async function fetchRelTypes(): Promise<RelKind[]> {
+  const response = await proxyFetch("/api/proxy/node-kinds");
+  const data = (await response.json()) as { relTypes?: RelKind[] };
+  // A missing relTypes field (mock drift, upstream contract change) must not
+  // crash DrawEdgePicker's relTypes[0] access -- fall back to empty palette.
+  return data.relTypes ?? [];
 }
 
 function assertWithinDeadline(deadline: number): void {

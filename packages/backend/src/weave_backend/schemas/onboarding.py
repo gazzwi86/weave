@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 RolePathIn = Literal["business", "technical", "compliance", "admin"]
 PathVariantIn = Literal["default", "read_only"]
@@ -21,6 +21,7 @@ class OnboardingStatePatchRequest(BaseModel):
     path_variant: PathVariantIn | None = None
     path_chosen_manually: bool | None = None
     checklist_dismissed_at: datetime | None = None
+    checklist_completed_at: datetime | None = None
     whats_new_seen_at: datetime | None = None
 
 
@@ -62,10 +63,20 @@ class OnboardingStateOut(BaseModel):
     checklist_dismissed_at: datetime | None
     checklist_completed_at: datetime | None
     whats_new_seen_at: datetime | None
+    sandbox_workspace_id: str | None
+    sandbox_forked_at: datetime | None
+    #: TASK-010 AC-010-04: resolved 7-day-default settings-cascade tunable
+    #: (company -> domain -> project), so the widget's auto-dismiss window
+    #: arithmetic is config-driven, not hard-coded (FR-020).
+    checklist_auto_dismiss_days: int
     tours: list[TourProgressOut]
     dismissals: list[DismissalOut]
     exercise_completions: list[ExerciseCompletionOut]
     activations: list[ActivationOut]
+
+
+class SelfMarkResponse(BaseModel):
+    marked: bool
 
 
 class OnboardingPathOut(BaseModel):
@@ -97,9 +108,35 @@ class SandboxOut(BaseModel):
     reused: bool
 
 
+class SandboxResetOut(BaseModel):
+    """TASK-005 AC-005-02: `POST /api/onboarding/sandbox/reset` response --
+    the swapped-in workspace id and whether the old workspace's delete had
+    to be deferred to the orphan sweep (AC-005-06).
+    """
+
+    workspace_id: str
+    orphaned_workspace_id: str | None
+
+
 class DeletedResponse(BaseModel):
     deleted: bool
 
 
 class BulkDeletedResponse(BaseModel):
     deleted_count: int
+
+
+class ExerciseCheckRequest(BaseModel):
+    """TASK-009: client-observed signals this session (nav_signal/
+    canvas_state kinds only -- sparql_ask ignores this, the server runs its
+    own static ASK). Bounded so a caller can't post an unbounded list.
+    """
+
+    signals: list[str] = Field(default_factory=list, max_length=20)
+
+
+class ExerciseCheckResult(BaseModel):
+    exercise_id: str
+    verified: bool
+    verified_signal: str | None = None
+    completed_at: datetime | None = None

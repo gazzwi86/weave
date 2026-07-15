@@ -25,12 +25,15 @@ function fakeAdapter(
     })),
     listNodes: vi.fn(() => []),
     centerOn: vi.fn(),
-    onNodeDragEnd: vi.fn(() => vi.fn()),
+    onNodeDragEnd: vi.fn(() => vi.fn()),    onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
     expandNode: vi.fn(() => []),
     collapseNode: vi.fn(),
     hasExpandedNeighbours: vi.fn(() => false),
     addLayerNodes: vi.fn(() => []),
     removeElements: vi.fn(),
+    reconcileElement: vi.fn(),
+    onBackgroundDoubleClick: vi.fn(),
     listElements: vi.fn(() => []),
     applyNodeColours: vi.fn(),
     clearNodeColours: vi.fn(),    setTraceHighlight: vi.fn(),
@@ -115,12 +118,20 @@ describe("useNodeSpotlight", () => {
 
   // AC-2: no raw IRI for a viewer -- the panel only ever receives what the
   // proxy route decided to send (rawIri: null here).
-  it("does NOT include a raw IRI in the loaded panel state for a viewer role", async () => {
+  // does NOT include a raw IRI in the loaded panel state for a viewer role --
+  // invariants-explorer.md M1
+  it("test_iri_hidden_non_ontologist", async () => {
     const adapter = fakeAdapter();
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours: [],
+      },
     }));
 
     const { result } = renderHook(() =>
@@ -144,7 +155,13 @@ describe("useNodeSpotlight", () => {
     const iri = "https://weave.example/entity/cust-onboarding";
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: iri, neighbours: [] },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: iri,
+        neighbours: [],
+      },
     }));
 
     const { result } = renderHook(() =>
@@ -177,10 +194,22 @@ describe("useNodeSpotlight", () => {
     ];
     const fetchNodeProps = vi.fn(async () => ({
       type: "ok" as const,
-      data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours },
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours,
+      },
     }));
 
-    const { result } = renderHook(() => useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }));
+    const { result } = renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+      }),
+    );
     events.tapNode("n1");
 
     await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
@@ -216,7 +245,9 @@ describe("useNodeSpotlight", () => {
 
   // AC-8: a 404 (cross-tenant or genuinely missing) is "Not found" -- distinct
   // from AC-3's generic fallback, and never carries any loaded label/type.
-  it("shows 'not-found' (not the generic error fallback) on a 404", async () => {
+  // shows 'not-found' (not the generic error fallback) on a 404 --
+  // invariants-explorer.md M1
+  it("test_cross_tenant_iri_not_found", async () => {
     const adapter = fakeAdapter();
     const events = capture(adapter);
     const fetchNodeProps = vi.fn(async () => ({
@@ -294,7 +325,13 @@ describe("useNodeSpotlight", () => {
       .mockResolvedValueOnce({ type: "error", status: 503 })
       .mockResolvedValueOnce({
         type: "ok",
-        data: { label: "Customer Onboarding", typeLabel: "Process", keyProperties: [], rawIri: null, neighbours: [] },
+        data: {
+          label: "Customer Onboarding",
+          typeLabel: "Process",
+          keyProperties: [],
+          rawIri: null,
+          neighbours: [],
+        },
       });
 
     const { result } = renderHook(() =>

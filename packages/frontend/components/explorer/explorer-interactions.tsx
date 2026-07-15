@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import { fetchOntologyTypes } from "@/lib/explorer/fetch-ontology-types";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
-import type { NodeKind } from "@/lib/explorer/types";
+import type { NodeKind, RelKind } from "@/lib/explorer/types";
 import type { OntologyRelationshipEntry } from "@/lib/explorer/validate-closure";
+import { canEditCanvas } from "@/lib/explorer/can-edit-canvas";
 
 import { Button } from "../ui/button";
 import { Toast } from "../ui/toast";
@@ -12,7 +13,9 @@ import { CanvasFilterChrome } from "./canvas-filter-chrome";
 import { CompletenessNotice } from "./completeness-notice";
 import { ConfirmDialog } from "./confirm-dialog";
 import { DomainFocusNotice } from "./domain-focus-notice";
+import { DrawEdgeOverlay } from "./draw-edge-overlay";
 import { NodeContextMenu } from "./node-context-menu";
+import { QuickAddOverlay } from "./quick-add-overlay";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
@@ -23,9 +26,11 @@ import { useLayoutPersistence } from "./use-layout-persistence";
 import { useNeighbourExpansion } from "./use-neighbour-expansion";
 import { useNodeContextMenu } from "./use-node-context-menu";
 import { useNodeSpotlight, type UseNodeSpotlightOptions } from "./use-node-spotlight";
+import { usePanelEdit } from "./use-panel-edit";
 import { useEventPollWiring } from "./use-event-poll-wiring";
 import { useOverlayControls } from "./use-overlay-controls";
 import { usePinnedImpact } from "./use-pinned-impact";
+import { useRelTypes } from "./use-rel-types";
 import { useSavedViewsWiring } from "./use-saved-views-wiring";
 import { useSearchOverlay } from "./use-search-overlay";
 import { useVersionsPanel } from "./use-versions-panel";
@@ -59,6 +64,11 @@ export interface ExplorerInteractionsProps {
   fetchDomainMembers?: UseDomainFocusOptions["fetchDomainMembers"];
   fetchLayerNodes?: UseFilterPanelOptions["fetchLayerNodes"];
   fetchPalette?: () => Promise<NodeKind[]>;
+  fetchRelTypes?: () => Promise<RelKind[]>;
+  /** TASK-023 AC-7: session role claim (getSessionClaims, resolved by
+   * app/explorer/page.tsx's server shell) -- the UX-only half of
+   * canEditCanvas; CE-WRITE-1 independently rejects server-side. */
+  role?: string | null;
 }
 
 /** TASK-004: `graphId` defaults to config's single M1 canvas graph id --
@@ -128,6 +138,9 @@ interface NodeInteractionOverlaysProps {
   search: ReturnType<typeof useSearchOverlay>;
   saveFailed: boolean;
   onDismissSaveFailure: () => void;
+  /** TASK-024 AC-1..AC-8: property edit + delete, mounted into SidePanel. */
+  panelEdit: ReturnType<typeof usePanelEdit>;
+  canEdit: boolean;
 }
 
 interface ExpansionOverlaysProps {
@@ -176,6 +189,8 @@ function NodeInteractionOverlays({
   search,
   saveFailed,
   onDismissSaveFailure,
+  panelEdit,
+  canEdit,
 }: NodeInteractionOverlaysProps) {
   return (
     <>
@@ -188,7 +203,7 @@ function NodeInteractionOverlays({
           Reset layout
         </Button>
       )}
-      <SidePanel state={panel} onClose={onClosePanel} onRetry={onRetryPanel} />
+      <SidePanel state={panel} onClose={onClosePanel} onRetry={onRetryPanel} panelEdit={panelEdit} canEdit={canEdit} />
       <SearchOverlay
         open={search.open}
         query={search.query}
@@ -225,6 +240,27 @@ function useCanvasChromePanels(
   return { filterPanel, legend, versionsPanel, savedViewsPanel };
 }
 
+interface UseEditingStateOptions {
+  adapter: RendererAdapter;
+  config: ExplorerConfig;
+  panel: ReturnType<typeof useNodeSpotlight>["panel"];
+  role: string | null;
+  chrome: ReturnType<typeof useCanvasChromePanels>;
+  retry: () => void;
+  close: () => void;
+}
+
+/** TASK-024 AC-1..AC-8: the canEditCanvas UX gate + usePanelEdit, bundled
+ * so the property-edit/delete wiring is a single line in
+ * ExplorerInteractions -- kept out to stay under Law E's 50-line budget.
+ * retry re-fetches the panel node (an edit's new values render); close
+ * drops the panel (a deleted node isn't left showing). */
+function useEditingState({ adapter, config, panel, role, chrome, retry, close }: UseEditingStateOptions) {
+  const canEdit = canEditCanvas({ role, isDraftCanvas: !chrome.versionsPanel.readOnly });
+  const panelEdit = usePanelEdit({ adapter, config, panel, canEdit, onSaved: retry, onDeleted: close });
+  return { canEdit, panelEdit };
+}
+
 /** AC-1..AC-10: composes node-spotlight, search, domain-focus, and
  * neighbour expand/collapse onto the ADR-001 renderer-adapter seam. A
  * search-result click hands off to the same node-spotlight flow as a
@@ -239,8 +275,11 @@ export function ExplorerInteractions({
   fetchDomainMembers,
   fetchLayerNodes,
   fetchPalette,
+  fetchRelTypes,
+  role = null,
 }: ExplorerInteractionsProps) {
   const overlayControls = useOverlayControls({ adapter, config });
+  const relTypes = useRelTypes(fetchRelTypes);
   const relationships = useRelationshipLabels();
   const completenessOverlay = useCompletenessOverlay({
     adapter,
@@ -264,6 +303,10 @@ export function ExplorerInteractions({
   const confirmState = neighbourExpansion.state;
   const chrome = useCanvasChromePanels(adapter, config, fetchLayerNodes, fetchPalette, domainFocus, overlayControls);
   usePinnedImpact({ adapter });
+  // AC-7 UX layer -- CE-WRITE-1 independently rejects server-side regardless
+  // of this flag (ADR-019). isDraftCanvas mirrors NodeInteractionOverlays'
+  // own readOnly check above.
+  const editing = useEditingState({ adapter, config, panel, role, chrome, retry, close });
 
   return (
     <>
@@ -293,6 +336,8 @@ export function ExplorerInteractions({
         search={search}
         saveFailed={saveFailed}
         onDismissSaveFailure={dismissSaveFailure}
+        panelEdit={editing.panelEdit}
+        canEdit={editing.canEdit}
       />
       <ExpansionOverlays
         menu={menu}
@@ -302,6 +347,8 @@ export function ExplorerInteractions({
         neighbourExpansion={neighbourExpansion}
         domainFocus={domainFocus}
       />
+      <QuickAddOverlay adapter={adapter} config={config} canEdit={editing.canEdit} kinds={chrome.legend.palette} />
+      <DrawEdgeOverlay adapter={adapter} config={config} canEdit={editing.canEdit} relTypes={relTypes} />
     </>
   );
 }

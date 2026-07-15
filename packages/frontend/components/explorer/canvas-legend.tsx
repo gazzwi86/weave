@@ -40,7 +40,14 @@ function LegendSwatchRow({ label, colour }: { label: string; colour: string }) {
 // entry's label (AC-1/AC-6).
 function OverlayLegendSection({ overlay }: { overlay: OverlayLegendModel }) {
   return (
-    <div className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-2)]">
+    // ONB-V1-TASK-002: tour/beacon anchor for tour.ge.completeness-map step 2 --
+    // additive attribute. Renders only while an overlay is active (known limitation
+    // for the tour, see the task's escalation note -- AC-002-04's skip-with-warning
+    // fallback covers it, no half-rendered overlay).
+    <div
+      className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-2)]"
+      data-tour-id="ge.overlay.completeness-legend"
+    >
       <h3 className={"text-[length:var(--text-caption)] text-[var(--color-text-subtle)]"}>{overlay.title}</h3>
       <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
         {overlay.entries.map((entry) => (

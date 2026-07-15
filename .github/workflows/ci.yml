@@ -194,6 +194,204 @@ jobs:
       - run: npm test
       - run: npx tsx onboarding/scripts/audit-anchors.ts ../frontend
 
+  invariants-check:
+    # TASK-030 AC-5: runs the M2 invariants checklist runner -- no services
+    # needed, pure static/grep checks against the repo tree.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: python3 scripts/m2_gate/invariants_check.py --out artefacts/m2-gate/invariants.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: m2-gate-invariants
+          path: artefacts/m2-gate/invariants.json
+
+  axe-m2:
+    # TASK-030 AC-2: zero axe-core violations on every M2 panel/dialog.
+    # Same docker-compose + migrate precondition as `integration`; Explorer
+    # itself boots via playwright.config.ts's own webServer entries (frontend
+    # dev server + backend uvicorn + mock-oidc), same as the `web` job's
+    # existing E2E runs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/frontend/package-lock.json
+      - run: docker compose up -d --wait postgres redis oxigraph localstack
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - working-directory: packages/backend
+        run: uv sync
+      - name: Apply DB migrations (creates the weave_app role + schema)
+        working-directory: packages/backend
+        run: uv run python -m weave_backend.db.migrate
+      - working-directory: packages/frontend
+        run: npm ci
+      - working-directory: packages/shared
+        run: npm ci
+      - working-directory: packages/frontend
+        run: npx playwright install --with-deps chromium
+      - working-directory: packages/frontend
+        run: npx playwright test tests/e2e/explorer-a11y-m2.spec.ts
+        env:
+          AUTH_SECRET: build-time-placeholder-not-used-at-runtime
+          OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: m2-gate-axe
+          path: packages/frontend/playwright-report/
+      - if: always()
+        run: docker compose down -v
+
+  lighthouse-explorer:
+    # TASK-030 AC-3: Lighthouse on the Explorer route with M2 panels active
+    # -- performance >= 90, accessibility >= 95, best practices >= 90.
+    # Same stack precondition as axe-m2; frontend served directly (not via
+    # playwright.config.ts's webServer) since lhci drives its own Chrome.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/frontend/package-lock.json
+      - run: docker compose up -d --wait postgres redis oxigraph localstack
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - working-directory: packages/backend
+        run: uv sync
+      - working-directory: packages/backend
+        run: uv run python -m weave_backend.db.migrate
+      # lhci's puppeteerScript hits the real backend unmocked (unlike
+      # axe-m2's Playwright spec, which mocks every proxy route) -- without
+      # seeding, mock-oidc's default login has no workspace membership, so
+      # every workspace-scoped route 400s post-login and the canvas never
+      # mounts (loadCanvas catches -> loadState "error" -> layoutstop never
+      # fires -> lhci-explorer-login.js's waitForFunction times out at 30s).
+      - name: Seed demo data (workspace membership for mock-oidc login)
+        working-directory: packages/backend
+        run: uv run python -m weave_backend.db.seed_demo
+      - name: Start backend + mock OIDC
+        working-directory: packages/backend
+        run: |
+          uv run uvicorn weave_backend:app --port 8000 &
+          uv run weave-mock-oidc &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/health && break
+            sleep 2
+          done
+      - working-directory: packages/frontend
+        run: npm ci
+      - working-directory: packages/shared
+        run: npm ci
+      - name: Start Explorer frontend
+        working-directory: packages/frontend
+        run: |
+          npm run dev &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 && break
+            sleep 2
+          done
+        env:
+          AUTH_SECRET: build-time-placeholder-not-used-at-runtime
+          OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
+          OIDC_ISSUER_URL: http://localhost:9001
+          OIDC_CLIENT_ID: weave-dev
+          BACKEND_API_URL: http://localhost:8000
+      - id: setup-chrome
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2
+      - working-directory: packages/frontend
+        run: npx @lhci/cli@0.14 autorun --config=./lighthouserc-explorer.json
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: m2-gate-lighthouse
+          path: artefacts/m2-gate/lighthouse/
+      - if: always()
+        run: docker compose down -v
+
+  perf-m2:
+    # TASK-030 AC-4: filter/overlay/badge apply <= 300ms p95 (existing
+    # p95-tagged Playwright specs), view save <= 800ms p95
+    # (run_view_save_benchmark.py, ADR-004 in-process percentile-loop
+    # pattern -- mirrors ce-perf's own run_benchmark.py).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/frontend/package-lock.json
+      - run: docker compose up -d --wait postgres redis oxigraph localstack
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - working-directory: packages/backend
+        run: uv sync
+      - working-directory: packages/backend
+        run: uv run python -m weave_backend.db.migrate
+      - name: Client-apply perf specs (filter/overlay/badge, 300ms p95)
+        working-directory: packages/frontend
+        run: |
+          npm ci
+          (cd ../shared && npm ci)
+          npx playwright install --with-deps chromium
+          npx playwright test -g "p95" tests/e2e/canvas-load.spec.ts tests/e2e/explorer-filters-layers.spec.ts tests/e2e/explorer-overlays.spec.ts
+        env:
+          AUTH_SECRET: build-time-placeholder-not-used-at-runtime
+          OIDC_CLIENT_SECRET: build-time-placeholder-not-used-at-runtime
+      - name: View-save perf benchmark (800ms p95)
+        working-directory: packages/backend
+        run: uv run python ../../scripts/benchmarks/ce-perf/run_view_save_benchmark.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: m2-gate-perf
+          path: |
+            packages/frontend/playwright-report/
+            scripts/benchmarks/ce-perf/reports/view-save-summary.json
+      - if: always()
+        run: docker compose down -v
+
   mutation:
     # Per-PR tier. Runs unit tests only (fast, no services). Enforces the single
     # 60% mutation bar (ADV-005) via mutation_gate's default — no threshold

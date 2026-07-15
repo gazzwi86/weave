@@ -51,7 +51,7 @@ export function VersionsPanel(props: UseVersionsPanelResult) {
   const { versions, listError, readOnly, pinnedIri, loadError, compareFrom, compareTo, diffNote, diffError } = props;
 
   return (
-    <div data-testid="explorer-versions-panel">
+    <div data-testid="explorer-versions-panel" data-tour-id="ge.versions.panel">
       <h3 className={HEADING_CLASS}>Versions</h3>
 
       {listError && <p className={BANNER_CLASS}>Unable to load versions.</p>}

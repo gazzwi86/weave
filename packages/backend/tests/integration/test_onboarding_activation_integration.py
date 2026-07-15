@@ -122,6 +122,7 @@ async def _seed_onboarding_row(tenant_id: str, user_id: str) -> None:
         )
 
 
+@pytest.mark.onboarding_release_gate  # exactly-once activation, FR-022/ADR-003
 async def test_activation_exactly_once_under_concurrent_writers(platform_stack: Path) -> None:
     """AC-011-02/03 release gate: two concurrent record_milestone calls for
     the same (tenant, user, milestone) -- e.g. the poller and a self-mark

@@ -31,7 +31,9 @@ describe("OverlayPanel", () => {
   // AC-2: mutual exclusion -- a disabled sibling stays keyboard-reachable
   // (never removed from the tab order) but can't be activated until the
   // active one is turned off first.
-  it("disables a sibling overlay's switch while another is active, without hiding it (AC-2)", () => {
+  // disables a sibling overlay's switch while another is active, without
+  // hiding it (AC-2) -- invariants-explorer.md M2 delta
+  it("test_overlay_mutual_exclusion", () => {
     const toggles: OverlayToggle[] = [{ ...TOGGLES[0]!, active: true }, { ...TOGGLES[1]!, disabled: true }];
     render(<OverlayPanel toggles={toggles} onToggleOverlay={vi.fn()} />);
 

@@ -4,16 +4,24 @@ import type { RuleCoverage, ValidationResultEntry } from "./types";
 interface RuleRowProps {
   rule: RuleCoverage;
   violatingEntities: ValidationResultEntry[];
+  /** ONB-V1-TASK-004: the `ce.rules.violation-report` anchor lands on the
+   * first row's severity/count bar -- always present once the shape list
+   * renders at all, unlike the expandable entity list below it which is
+   * absent for zero-violation rules. */
+  isFirst?: boolean;
 }
 
 /** One rule's catalogue row (AC-006-03/-05): shows even at zero violations,
  * and links each violating entity to its resource view (explorer's
  * established `?focus=<iri>` convention) so an auditor can jump straight
  * from a rule to the offending data. */
-export function RuleRow({ rule, violatingEntities }: RuleRowProps) {
+export function RuleRow({ rule, violatingEntities, isFirst }: RuleRowProps) {
   return (
     <li className="flex flex-col gap-[var(--space-2)] border-b border-[var(--color-border)] py-[var(--space-3)] last:border-0">
-      <div className="flex items-center gap-[var(--space-3)]">
+      <div
+        className="flex items-center gap-[var(--space-3)]"
+        data-tour-id={isFirst ? "ce.rules.violation-report" : undefined}
+      >
         <SeverityBadge severity={rule.severity} />
         <span className="text-[length:var(--text-body)] font-[var(--font-weight-medium)] text-[var(--color-text-default)]">
           {rule.description}

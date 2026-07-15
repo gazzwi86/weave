@@ -7,6 +7,13 @@ export interface SecondarySidebarItem {
   tag?: string;
 }
 
+/** ONB-V1-TASK-003: the sidebar row whose `href` matches this literal gets
+ * `data-tour-id="plat.role-home.nav-entry"`. Kept as a static string
+ * (never `item.tourId`-style interpolation) because `audit-anchors.ts`'s
+ * scanner is a literal-attribute regex, not a JSX evaluator -- a dynamic
+ * prop would be invisible to it (ADR-005 two-way audit). */
+const ROLE_HOME_NAV_ENTRY_HREF = "/role-home";
+
 export interface SecondarySidebarGroup {
   heading: string;
   items: SecondarySidebarItem[];
@@ -31,17 +38,28 @@ function SidebarRow({ item, isActive }: { item: SecondarySidebarItem; isActive: 
     );
   }
 
+  const linkClassName = cn(
+    rowClass,
+    "text-[var(--color-text-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
+    isActive && "bg-[var(--color-raised)] text-[var(--color-text-default)]"
+  );
+
+  // ADR-008: only the role-home entry plants an anchor -- a literal branch
+  // (see ROLE_HOME_NAV_ENTRY_HREF) rather than an interpolated attribute.
+  if (item.href === ROLE_HOME_NAV_ENTRY_HREF) {
+    return (
+      <li>
+        <a href={item.href} aria-current={isActive ? "page" : undefined} data-tour-id="plat.role-home.nav-entry" className={linkClassName}>
+          <span>{item.label}</span>
+          {item.tag ? <span className="text-[length:var(--text-caption)]">{item.tag}</span> : null}
+        </a>
+      </li>
+    );
+  }
+
   return (
     <li>
-      <a
-        href={item.href}
-        aria-current={isActive ? "page" : undefined}
-        className={cn(
-          rowClass,
-          "text-[var(--color-text-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
-          isActive && "bg-[var(--color-raised)] text-[var(--color-text-default)]"
-        )}
-      >
+      <a href={item.href} aria-current={isActive ? "page" : undefined} className={linkClassName}>
         <span>{item.label}</span>
         {item.tag ? <span className="text-[length:var(--text-caption)]">{item.tag}</span> : null}
       </a>

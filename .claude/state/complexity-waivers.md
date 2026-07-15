@@ -62,3 +62,27 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   `project_iri`, a fresh `run_id`, and the resolved `turn_cap`) — grouping them into a
   dataclass would add an unrequested wrapper layer for a single call site
   (`routers/runs.py`, `routers/prompts.py`). Left as a waiver rather than restructuring.
+
+## `ExplorerInteractions` (`packages/frontend/components/explorer/explorer-interactions.tsx`)
+
+- **Threshold:** function ≤ 50 lines (Law E) — ESLint `max-lines-per-function` severity is WARN (not error).
+- **Actual:** 78 lint-counted lines (CE-V1-TASK-024, EPIC-017).
+- **Reason:** pre-existing violation (76 lines before this task, from prior composition-root growth
+  across TASK-004/005/020/022/023/026/027) — this task added 2 lines (one `useEditingState` call, two
+  new props threaded to `NodeInteractionOverlays`). The hook logic itself is already extracted
+  (`useEditingState`, `useCanvasChromePanels`, `useContextMenuActions`, etc. all pulled out per the
+  established pattern); what remains in the body is one line per already-extracted hook plus the JSX
+  composition, which is the intentional shape of this file (a single "wire everything onto the
+  renderer-adapter seam" composition root). WARN-level, out of TASK-024's wiring scope to restructure.
+  **Follow-up queued:** split `ExplorerInteractions`'s JSX return into a sibling
+  `ExplorerInteractionsChrome` component the next time a task touches this file.
+
+## `describe("ExplorerInteractions -- TASK-024 property edit + delete", ...)` (`packages/frontend/components/explorer/__tests__/explorer-interactions.test.tsx`)
+
+- **Threshold:** function ≤ 50 lines (Law E) — ESLint `max-lines-per-function` severity WARN.
+- **Actual:** 59 lint-counted lines.
+- **Reason:** this test file already carries 7 pre-existing WARN-level line-budget violations of the
+  same class (its top-level `describe` blocks each run 50-225 lines; `max-lines` itself is already
+  breached at 551 lines before this task). Splitting one new `describe` block while its 6 siblings
+  stay over budget doesn't change the file's actual complexity profile. WARN-level, consistent with
+  the file's existing (already-waived-by-convention) shape.

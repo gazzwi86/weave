@@ -8,7 +8,11 @@ vi.mock("../use-explorer-canvas", () => ({ useExplorerCanvas: vi.fn() }));
 // ExplorerInteractions (rendered for real here) pulls in useCanvasLegend's
 // default fetchPalette, which hits the real CE-READ-1 proxy -- stub it so
 // this file's real-adapter tests don't fire a genuine network call.
-vi.mock("@/lib/explorer/fetch-graph", () => ({ fetchPalette: vi.fn(async () => []), fetchGraph: vi.fn(async () => []) }));
+vi.mock("@/lib/explorer/fetch-graph", () => ({
+  fetchPalette: vi.fn(async () => []),
+  fetchGraph: vi.fn(async () => []),
+  fetchRelTypes: vi.fn(async () => []),
+}));
 vi.mock("@/lib/explorer/versions/fetch-versions", () => ({ fetchVersions: vi.fn(async () => ({ type: "ok", versions: [] })) }));
 vi.mock("@/lib/explorer/versions/fetch-diff", () => ({ fetchDiff: vi.fn(async () => ({ type: "ok", diff: { added: [], removed: [], modified: [] } })) }));
 vi.mock("@/lib/explorer/fetch-ontology-types", () => ({ fetchOntologyTypes: vi.fn(async () => ({ type: "ok", relationships: [] })) }));
@@ -58,13 +62,16 @@ describe("ExplorerCanvas", () => {
         getNodeData: vi.fn(),
         listNodes: vi.fn(() => []),
         centerOn: vi.fn(),
-        onNodeDragEnd: vi.fn(() => vi.fn()),
+        onNodeDragEnd: vi.fn(() => vi.fn()),        onEdgeDrawComplete: vi.fn(() => vi.fn()),
+
         expandNode: vi.fn(() => []),
         collapseNode: vi.fn(),
         hasExpandedNeighbours: vi.fn(() => false),
         applyFilterVisibility: vi.fn(),
         addLayerNodes: vi.fn(() => []),
         removeElements: vi.fn(),
+        reconcileElement: vi.fn(),
+        onBackgroundDoubleClick: vi.fn(),
         listElements: vi.fn(() => []),
         applyNodeColours: vi.fn(),
         clearNodeColours: vi.fn(),        setTraceHighlight: vi.fn(),
@@ -86,7 +93,9 @@ describe("ExplorerCanvas", () => {
     expect(screen.getByTestId("explorer-search-button")).toBeInTheDocument();
   });
 
-  it("renders the empty-state with retry wired to the hook on CE error, no canvas mounted (AC-2)", () => {
+  // renders the empty-state with retry wired to the hook on CE error, no
+  // canvas mounted (AC-2) -- invariants-explorer.md M1
+  it("test_no_partial_render_on_ce_error", () => {
     const retry = vi.fn();
     mockedUseExplorerCanvas.mockReturnValue({
       loadState: "error",
