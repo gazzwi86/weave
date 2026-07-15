@@ -35,7 +35,12 @@ export default auth((req) => {
   return NextResponse.next();
 });
 
-// AC-2/AC-3: guards every page/route except Next's own static assets.
+// AC-2/AC-3: guards every page/route except Next's own static assets AND
+// files served from `public/` (they carry a file extension — logo-lockup.png,
+// marketing/*.png). Without the extension exclusion the guard 307-redirects
+// public landing-page images to /auth/login, so they render broken.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|gif|svg|webp|ico|css|js|txt|woff2?)$).*)",
+  ],
 };
