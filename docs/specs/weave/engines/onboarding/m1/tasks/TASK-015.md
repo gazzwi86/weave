@@ -48,7 +48,7 @@ is: demo workspace, 4 role paths, CE/GE exercise set, checklist widget.
 
 | ID | Criterion (EARS) |
 |---|---|
-| AC-015-01 | WHEN a brand-new user signs in THE SUITE SHALL verify: switcher shows "Hammerbarn Demo" ("Demo — fictional data"), CE + Explorer areas render seed content, Build/Automate are flagged off — asserting the sandbox pointer server-side (roadmap exit 1). |
+| AC-015-01 | WHEN a brand-new user signs in THE SUITE SHALL verify: the active workspace resolves to the seeded demo sandbox ("Demo — fictional data"), CE + Explorer areas render seed content, Build/Automate are flagged off — asserting the sandbox pointer server-side (roadmap exit 1). Note: the workspace-switcher UI was retired by the workspace≡company tenancy realignment; assert the server-side sandbox pointer, not a switcher control. |
 | AC-015-02 | WHEN the persistence + reset spec runs THE SUITE SHALL verify edits survive sign-out/sign-in and only an explicit reset restores canonical within the default 30 s target, exercise flags cleared, activation retained (roadmap exit 4). |
 | AC-015-03 | WHEN the role-matrix E2E runs THE SUITE SHALL verify path resolution end-to-end for representative roles (single, multi → prompt, zero → Business read-only) against seeded identities (roadmap exit 5). |
 | AC-015-04 | WHEN the activation spec runs THE SUITE SHALL verify a first own-workspace outcome fires toast + checklist + one PLAT-NOTIFY-1 publish exactly once, and a re-trigger produces nothing (roadmap exit 6). |

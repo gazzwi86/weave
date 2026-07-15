@@ -37,7 +37,12 @@ MILESTONE_ID_BY_PATH: dict[str, str] = {
 #: OQ-08's Admin-invite item has no poller signal (PLAT-IDENTITY-1 isn't
 #: contracted), so it's manual-only. An allowlist (not a free-text
 #: milestone_id) so a client can't self-mark an arbitrary/poller-owned id.
-MANUAL_ONLY_MILESTONE_IDS: frozenset[str] = frozenset({"invite_admin"})
+#: `add_competency_questions` (ONB-V1 competency-question beacon) is likewise
+#: a user-declared action with no poller detector -- without it the beacon's
+#: self-mark 404s (`milestone_not_manual`).
+MANUAL_ONLY_MILESTONE_IDS: frozenset[str] = frozenset(
+    {"invite_admin", "add_competency_questions"}
+)
 
 
 async def has_committed_entity(named_graph_iri: str, principal_iri: str) -> bool:

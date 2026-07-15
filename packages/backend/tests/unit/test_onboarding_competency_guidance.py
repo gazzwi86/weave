@@ -116,3 +116,13 @@ async def test_self_mark_idempotent() -> None:
     assert second is False
     assert len(conn.outbox_rows) == 1
     assert conn.outbox_rows[0]["payload"]["milestone_id"] == _COMPETENCY_MILESTONE_ID
+
+
+def test_competency_milestone_is_self_markable() -> None:
+    """The beacon self-marks via the manual route, which allowlists ids --
+    omitting this one 404s the self-mark (`milestone_not_manual`). Guards the
+    regression where the id was absent from `MANUAL_ONLY_MILESTONE_IDS`.
+    """
+    from weave_backend.onboarding.milestones import MANUAL_ONLY_MILESTONE_IDS
+
+    assert _COMPETENCY_MILESTONE_ID in MANUAL_ONLY_MILESTONE_IDS
