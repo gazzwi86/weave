@@ -824,31 +824,31 @@
     },
     {
       "id": "PLAT-V1-TASK-006",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Managed connector config and health monitoring (PLAT-CONNECTOR-1, v1.0)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-TASK-004"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-006.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-006.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-018",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Connector sync scheduler + ingestion framework (E7-S3 core, PLAT-CONNECTOR-1)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-006"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-018.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-018.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-019",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Atlassian connector: ingest + bidirectional write-back reference implementation",
       "status": "backlog",
@@ -856,24 +856,24 @@
         "PLAT-V1-TASK-018",
         "PLAT-V1-TASK-025"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-019.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-019.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-020",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "ServiceNow connector: ingest + write-back",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-019"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-020.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-020.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-021",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Read-only data connectors: Snowflake, Databricks, AWS, Azure Data Lake",
       "status": "backlog",
@@ -881,12 +881,12 @@
         "PLAT-V1-TASK-018",
         "PLAT-V1-TASK-019"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-021.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-021.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-022",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-006",
       "title": "Slack connector + PLAT-NOTIFY-1 Slack delivery channel (EPIC-006 v1)",
       "status": "backlog",
@@ -894,12 +894,12 @@
         "PLAT-V1-TASK-006",
         "PLAT-V1-TASK-018"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-022.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-022.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-023",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-002",
       "title": "Connector-health dashboard widget rows (E2-S8, v1 activation)",
       "status": "backlog",
@@ -907,19 +907,19 @@
         "PLAT-V1-TASK-006",
         "PLAT-V1-TASK-016"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-023.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-023.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-025",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "OAuth authorization-code connector auth (authorize + callback, v1.0)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-006"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-025.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-025.md",
       "retry_count": 0
     },
     {
