@@ -55,7 +55,8 @@ Cross-links between area pages use standard markdown: `[src-api](src-api.md)`.
 | `/okf-validate` | Conformance check against OKF v0.1 §9 |
 | `/okf-visualize` | Render `docs/viz.html` (interactive graph of full docs/ bundle) |
 
-The `mark-anatomy-stale` PostToolUse hook appends `<!-- stale: <path> -->` markers when
+The `mark-anatomy-stale` PostToolUse hook appends `
+` markers when
 a tracked source file changes; `/anatomy refresh <files>` regenerates the page and clears
 them. The pre-push hook blocks if any stale markers remain.
 
