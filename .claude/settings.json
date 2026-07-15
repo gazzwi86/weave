@@ -237,6 +237,12 @@
         "headroom-ai",
         "mcp"
       ]
+    },
+    "jcodemunch": {
+      "command": "uvx",
+      "args": [
+        "jcodemunch-mcp"
+      ]
     }
   }
 }
