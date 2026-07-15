@@ -410,3 +410,15 @@ The M2 UI a11y gates CE-030 wired (axe-m2 + lighthouse-explorer) are now live an
 
 ## PROJ-FLAKY-BILLING-PERF (2026-07-15) — OPEN
 `test_billing.py::test_simulate_ai_call_under_cap_calls_ai_client_and_records_usage` asserts a WALL-CLOCK budget `elapsed_ms < 100` (metering write); flaked at 226.7ms on a loaded CI runner (#110 integration job, unrelated PR). Wall-clock perf assertions in integration tests flake under CI contention. FIX (owning task PLAT-TASK-008/billing): assert a server-reported op duration or give CI headroom, per the ONB-015 reset-test precedent (server duration, not browser wall-clock). Phase-gate remediation candidate.
+
+## PROJ-GE005-RECONCILE (2026-07-15, housekeeping pass) — OPEN
+
+`ge005-backup` branch holds 14 real feat/test commits + ADR-004 for **GE-TASK-005** (Graph Explorer:
+domain-focus, `NodeContextMenu`, `useNeighbourExpansion`, `DomainFocusNotice`, expand/collapse) that
+have **no task record** — `progress.json` has zero `GE-EPIC`/`GE-TASK` entries and no brief. The Graph
+Explorer engine was folded into Constitution (Explorer now ships under CE task IDs — ADR-025,
+`architecture-explorer.md`, CE-V1-TASK-023/024), but the `ge005-backup` component names are **not on
+`origin/main`** under those names. ACTION: verify the CE-V1 Explorer implementation covers GE-TASK-005's
+acceptance criteria (domain-focus, right-click context menu, confirmed neighbour-expansion). IF covered
+→ drop `ge005-backup`. IF gaps → file a CE post-v1 task to port the missing behaviour. Branch kept until
+verified (never blind-delete unmerged unique work). See `.claude/state/kept-branches.md`.
