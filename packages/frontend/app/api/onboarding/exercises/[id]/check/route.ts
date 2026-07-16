@@ -17,9 +17,12 @@ export async function POST(
   }
 
   const { id } = await params;
+  // The backend requires an ExerciseCheckRequest body ({signals:[]}); sparql_ask
+  // exercises ignore it and run their own server-side ASK. The opportunistic
+  // checker observes no client signals, so an empty list is correct here.
   const upstream = await fetchUpstream(
     `/api/onboarding/exercises/${encodeURIComponent(id)}/check`,
-    { method: "POST" },
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ signals: [] }) },
     token
   );
   if (!upstream) {
