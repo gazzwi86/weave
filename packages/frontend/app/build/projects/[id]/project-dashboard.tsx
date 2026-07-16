@@ -99,6 +99,14 @@ function DashboardNav({ projectId }: { projectId: string }): React.JSX.Element {
       <Link href={`/build/projects/${encodeURIComponent(projectId)}/kanban`} className="underline">
         Open Kanban
       </Link>
+      {/* v5 discoverability: Request Studio + Decision Log were only reachable
+       * by hand-editing the URL -- surface them in the project header. */}
+      <Link href={`/build/projects/${encodeURIComponent(projectId)}/request`} className="underline">
+        Request Studio
+      </Link>
+      <Link href={`/build/projects/${encodeURIComponent(projectId)}/decisions`} className="underline">
+        Decision Log
+      </Link>
     </div>
   );
 }

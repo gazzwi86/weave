@@ -51,6 +51,21 @@ function stubFetch(url: string): Response {
   if (url.includes("/api/dashboard/library")) {
     return new Response(JSON.stringify({ items: [] }), { status: 200 });
   }
+  // v5 Home: recent-activity feed reads the newest audit entries (admin-only
+  // upstream; fail-soft to [] otherwise).
+  if (url.includes("/api/audit")) {
+    return new Response(
+      JSON.stringify({
+        entries: [
+          { seq: 9, ts: "2026-07-16T10:00:00Z", engine: "Build", event_type: "run.completed", target_iri: "https://weave.io/instances/returns-intake" },
+        ],
+        total: 1,
+        page: 1,
+        per_page: 6,
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
   if (url.includes("scope=user")) {
     return new Response(JSON.stringify({ widgets: [] }), { status: 200 });
   }
@@ -112,15 +127,19 @@ describe("DashboardPage", () => {
     expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
-  it("issues exactly five outbound fetch calls total (whoami + both widget scopes + library + checklist state, no more)", async () => {
+  it("issues a bounded set of outbound fetches (whoami + both widget scopes + library + recent activity + checklist state), no CE-METRICS creep", async () => {
     render(await DashboardPage());
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(5));
+    // Six: the five original SWR reads plus the v5 recent-activity feed. The
+    // point of this guard is "no unbounded/CE-METRICS-on-load creep" (AC-6),
+    // not a frozen literal -- every URL below is asserted explicitly.
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(6));
 
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
     expect(calledUrls.some((url) => url.includes("/api/whoami"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("scope=tenant_default"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("scope=user"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/dashboard/library"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/audit"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/onboarding/state"))).toBe(true);
   });
 });

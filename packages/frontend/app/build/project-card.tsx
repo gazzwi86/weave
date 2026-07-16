@@ -42,14 +42,23 @@ export function ProjectCard({ project }: { project: ProjectCardData }): React.JS
           </span>
         </p>
       </Link>
-      {/* TASK-024: makes the "Request application" form (F-D20) nav-reachable
-       * -- previously only reachable by hand-editing the URL (CE-023 lesson). */}
-      <Link
-        href={`/build/projects/${encodeURIComponent(project.project_iri)}/request`}
-        className="mt-[var(--space-2)] inline-block text-[length:var(--text-caption)] text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
-      >
-        Request build
-      </Link>
+      {/* TASK-024 + v5 discoverability: the Request Studio (F-D20) and the
+       * Decision Log are otherwise only reachable by hand-editing the URL
+       * (CE-023 lesson) -- surface both as card actions. */}
+      <div className="mt-[var(--space-2)] flex gap-[var(--space-3)]">
+        <Link
+          href={`/build/projects/${encodeURIComponent(project.project_iri)}/request`}
+          className="text-[length:var(--text-caption)] text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
+        >
+          Request build
+        </Link>
+        <Link
+          href={`/build/projects/${encodeURIComponent(project.project_iri)}/decisions`}
+          className="text-[length:var(--text-caption)] text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
+        >
+          Decisions
+        </Link>
+      </div>
     </Card>
   );
 }
