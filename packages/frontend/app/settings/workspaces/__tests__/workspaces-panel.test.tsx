@@ -42,6 +42,16 @@ describe("WorkspacesPanel", () => {
     expect(screen.getByTestId("workspace-row")).toHaveTextContent("ops");
   });
 
+  // Guards the practice-mode entry point stays mounted -- an orphaned
+  // DemoWorkspaceCard is why the banner never appeared in a QA sweep.
+  it("renders the Hammerbarn demo entry (Enter practice mode)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(WORKSPACES)));
+
+    render(<WorkspacesPanel />);
+
+    expect(await screen.findByRole("button", { name: /Enter practice mode/i })).toBeInTheDocument();
+  });
+
   it("shows the empty state when there are no workspaces", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([])));
 

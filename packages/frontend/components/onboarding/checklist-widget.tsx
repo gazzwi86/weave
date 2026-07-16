@@ -39,6 +39,22 @@ function toSignals(body: BootstrapState): ChecklistSignals {
   };
 }
 
+/** Exercise ids still worth (re)checking: those backing an incomplete
+ * checklist item for this role. The backend ASK is idempotent, so this is a
+ * safe "did they do it yet?" poll -- returns [] outside a sandbox (no graph
+ * to check) so it never fires for non-demo users. Exported for its unit test. */
+export function pendingExerciseChecks(state: BootstrapState): string[] {
+  if (!state.sandbox_forked_at) return [];
+  const done = new Set(state.exercise_completions.map((c) => c.exercise_id));
+  const ids = CHECKLIST_ITEMS.filter(
+    (item) =>
+      item.autoCompleteOn === "exercise_complete" &&
+      item.paths.includes(state.role_path) &&
+      !(item.signalRefs ?? []).some((ref) => done.has(ref))
+  ).flatMap((item) => item.signalRefs ?? []);
+  return [...new Set(ids)];
+}
+
 /** TASK-010: fetches bootstrap state once and derives checklist completion
  * client-side (AC-010-02) -- no separate "is this done" round trip, matches
  * the codebase's existing bootstrap-once precedent (use-dismissals.ts). */
@@ -186,6 +202,33 @@ export function ChecklistWidget(): React.JSX.Element | null {
     });
     await refresh();
   }, [refresh]);
+
+  // ONB-TASK-009 wiring: when in the demo sandbox, opportunistically re-check
+  // the hands-on exercises (inspect-a-node / run-a-query / edit-an-instance).
+  // The user does the exercise on its screen, then returns here -- this mount
+  // pass verifies it via the backend ASK and records completion. Fires only
+  // in a sandbox with pending exercises, so it never runs for non-demo users.
+  useEffect(() => {
+    if (!state) return;
+    const pending = pendingExerciseChecks(state);
+    if (pending.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      pending.map((id) =>
+        fetch(`/api/onboarding/exercises/${id}/check`, { method: "POST" })
+          .then((r) => (r.ok ? (r.json() as Promise<{ verified?: boolean }>) : null))
+          .catch(() => null)
+      )
+    ).then((results) => {
+      // Refresh only on a NEW verification -- otherwise a not-yet-done
+      // exercise (verified:false) would refresh -> re-run -> loop forever.
+      if (!cancelled && results.some((r) => r?.verified)) void refresh();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one pass per state settle; refresh is stable
+  }, [state]);
 
   // ponytail: skip derivation once dismissed -- a dismissed bootstrap
   // payload isn't guaranteed to carry the full signal shape.
