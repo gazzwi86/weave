@@ -82,7 +82,7 @@ export function CanvasLegend({ palette, loading, overlay }: CanvasLegendProps) {
   return (
     <div data-testid="explorer-legend" className={GLASS_PANEL_CLASS}>
       <div className="flex items-center justify-between gap-[var(--space-3)]">
-        <h3 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Legend</h3>
+        <h2 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Legend</h2>
         <button
           type="button"
           aria-label="Collapse legend"

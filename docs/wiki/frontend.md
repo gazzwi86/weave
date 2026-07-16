@@ -142,3 +142,7 @@ saved views, coverage gaps), `lib/onboarding/` (anchors, upstream-fetch proxy, t
 `lib/{auth,build,dashboard,glossary,instances}/`.
 
 Related: [backend](backend.md), [shared](shared.md)
+
+<!-- stale: packages/frontend/app/api/proxy/ontology/versions/route.ts --> <!-- at: 2026-07-16T12:12:40.873405+00:00 -->
+
+<!-- stale: packages/frontend/app/api/proxy/ontology/versions/__tests__/route.test.ts --> <!-- at: 2026-07-16T12:13:08.818822+00:00 -->

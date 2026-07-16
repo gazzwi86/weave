@@ -60,7 +60,10 @@ depend on. CE owns and publishes ALL of the following.
     behind the curtain. Kind/relationship names and cardinalities are finalised in the CE
     data-model tech spec.
 - `GET /api/ontology/resource/{iri}` → a single entity with its properties + edges.
-- `GET /api/ontology/versions` → `[{version_iri, semver, published_at, is_latest}]`.
+- `GET /api/ontology/versions` → `[{version_iri, semver, published_at, is_latest}]`. **Wire shape:**
+  the backend returns this list inside a paginated envelope
+  `{ versions: [...], total, page, per_page }` (`VersionsResponse`); consumers unwrap to the array
+  (the Python `ce_version_client` and the SPA's `/api/proxy/ontology/versions` route both do).
 - `GET /api/sparql?version=<iri|latest>&page=<n>` — **SPARQL 1.1 SELECT-only**, `SERVICE`
   keyword blocked (SSRF), **paginated** (no silent row cap). `version=latest` resolves to the
   newest published version (default; downstream auto-tracks unless pinned).
