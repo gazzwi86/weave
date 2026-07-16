@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ const inviteSchema = z.object({
   role: z.string().min(1).max(50),
 });
 
-const backendUrl = () => process.env.BACKEND_API_URL ?? "http://localhost:8000";
 
 function proxyJson(upstream: Response): Promise<NextResponse> {
   const contentType = upstream.headers.get("content-type") ?? "";
@@ -41,7 +41,7 @@ export async function GET(
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/workspaces/${encodeURIComponent(parsedId.data)}/members`, {
+    upstream = await fetch(`${backendApiUrl()}/api/workspaces/${encodeURIComponent(parsedId.data)}/members`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
     });
@@ -68,7 +68,7 @@ export async function POST(
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/workspaces/${encodeURIComponent(parsedId.data)}/members`, {
+    upstream = await fetch(`${backendApiUrl()}/api/workspaces/${encodeURIComponent(parsedId.data)}/members`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${session.accessToken}`,

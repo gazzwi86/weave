@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,7 @@ export async function POST(
     return NextResponse.json({ error: "invalid_proposal_id" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getSessionClaims } from "@/lib/auth/session-claims";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_query" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const query = buildBackendQuery(caller.tenantId, parsed.data);
   let upstream: Response;
   try {

@@ -70,7 +70,7 @@ describe("POST /api/ingest/artefacts", () => {
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ artefact_iri: "urn:weave:artefact:1", job_id: "job-1" });
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/ingest/artefacts");
+    expect(url).toBe("http://127.0.0.1:8000/api/ingest/artefacts");
     expect(init.headers).toMatchObject({ Authorization: "Bearer token-abc" });
     const forwarded = init.body as FormData;
     expect((forwarded.get("file") as File).name).toBe("runbook.md");

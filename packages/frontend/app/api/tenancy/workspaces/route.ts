@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getSessionClaims } from "@/lib/auth/session-claims";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}/api/tenants/${caller.tenantId}/workspaces`, {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}/api/tenants/${caller.tenantId}/workspaces`, {

@@ -6,6 +6,7 @@ import { WidgetGrid } from "@/components/dashboard/widget-grid";
 import type { WidgetOut } from "@/components/dashboard/types";
 import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 interface RoleHomeCapability {
   id: string;
@@ -39,7 +40,7 @@ interface RoleHomeResponse {
  * server-side on the `scope='role_home'` tile (m2-delta §7).
  */
 async function fetchRoleHome(accessToken: string): Promise<RoleHomeResponse | null> {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const response = await fetch(`${backendUrl}/api/role-home`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",

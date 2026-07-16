@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,7 @@ function parseListQuery(request: NextRequest): ListQuery | null {
 }
 
 function backendNotificationsUrl(query: ListQuery): string {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const params = new URLSearchParams({
     unread: query.unread ?? "false",
     page: String(query.page),
