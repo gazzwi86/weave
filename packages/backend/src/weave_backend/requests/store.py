@@ -97,6 +97,9 @@ class RequestRecord:
     name: str = ""
     grounding_entity_iris: list[str] = field(default_factory=list)
     target_repo_name: str | None = None
+    #: set on `failed`/`timed_out` -- why the pipeline stopped (budget
+    #: timeout vs. a slow per-section provider call vs. another error).
+    reason: str | None = None
 
 
 async def create_request_record(client: redis.Redis, record: RequestRecord) -> None:
@@ -121,6 +124,7 @@ async def create_request_record(client: redis.Redis, record: RequestRecord) -> N
             "name": record.name,
             "grounding_entity_iris": json.dumps(record.grounding_entity_iris),
             "target_repo_name": record.target_repo_name or "",
+            "reason": record.reason or "",
         },
     )
     await client.expire(key, REQUEST_TTL_SECONDS)
@@ -160,6 +164,7 @@ async def get_request_record(
         name=str(raw.get("name", "")),
         grounding_entity_iris=json.loads(str(raw.get("grounding_entity_iris") or "[]")),
         target_repo_name=str(raw["target_repo_name"]) if raw.get("target_repo_name") else None,
+        reason=str(raw["reason"]) if raw.get("reason") else None,
     )
 
 

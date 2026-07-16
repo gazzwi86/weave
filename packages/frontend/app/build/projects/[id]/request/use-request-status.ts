@@ -15,6 +15,8 @@ export interface BuildRequest {
   name?: string;
   grounding_entity_iris?: string[];
   target_repo_name?: string | null;
+  stream_url?: string;
+  reason?: string | null;
 }
 
 /** TASK-024: fields the form collects beyond prompt/run_mode/description. */
@@ -136,8 +138,17 @@ export function useRequestStatus(): RequestStatusState {
           setError(await submitErrorMessage(res));
           return;
         }
-        const body = (await res.json()) as { request_id: string; status: string };
-        setRequest({ request_id: body.request_id, status: body.status, draft_content: null });
+        const body = (await res.json()) as {
+          request_id: string;
+          status: string;
+          stream_url?: string;
+        };
+        setRequest({
+          request_id: body.request_id,
+          status: body.status,
+          draft_content: null,
+          stream_url: body.stream_url,
+        });
       } catch {
         setError("Unable to submit the request — try again shortly.");
       } finally {

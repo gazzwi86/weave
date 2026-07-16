@@ -116,7 +116,9 @@ async def _ground_in_ce_read(
     return graph_context
 
 
-async def _fire_generation_failure(tenant_id: str, request_id: str, actor_iri: str) -> None:
+async def _fire_generation_failure(
+    tenant_id: str, request_id: str, actor_iri: str, *, reason: str
+) -> None:
     async with tenant_connection(tenant_id) as conn:
         await dispatch_notification(
             conn,
@@ -124,7 +126,7 @@ async def _fire_generation_failure(tenant_id: str, request_id: str, actor_iri: s
                 tenant_id=tenant_id,
                 recipient_iri=actor_iri,
                 event_type="generation_failure",
-                payload={"request_id": request_id, "reason": "timeout"},
+                payload={"request_id": request_id, "reason": reason},
                 actor_iri=BUILD_SERVICE_PRINCIPAL_IRI,
             ),
         )
@@ -151,9 +153,11 @@ async def run_drafting_pipeline(
     await store.update_request_record(client, draft_request.request_id, graph_context=graph_context)
 
     sections: dict[str, str] = {}
+    current_section = SECTIONS[0]
     try:
         async with asyncio.timeout(timeout_s):
             for section in SECTIONS:
+                current_section = section
                 content = await _draft_section(
                     section, draft_request.prompt, graph_context, provider
                 )
@@ -164,23 +168,62 @@ async def run_drafting_pipeline(
                     {"section": section, "content": content, "done": False},
                 )
     except TimeoutError:
+        reason = f"drafting exceeded the {timeout_s:.0f}s overall budget"
         await store.update_request_record(
-            client, draft_request.request_id, status="timed_out", draft_content=sections
+            client,
+            draft_request.request_id,
+            status="timed_out",
+            draft_content=sections,
+            reason=reason,
         )
         await store.publish_event(client, draft_request.request_id, {"done": True})
         await _fire_generation_failure(
-            draft_request.tenant_id, draft_request.request_id, draft_request.actor_iri
+            draft_request.tenant_id,
+            draft_request.request_id,
+            draft_request.actor_iri,
+            reason=reason,
         )
         return
-    except Exception:  # provider failure (e.g. httpx.ReadTimeout from a slow
-        # local model) -- without this the background task dies unhandled and
-        # the record is stuck at "drafting" forever, so pollers never stop.
+    except httpx.TimeoutException:
+        # A per-section provider call (e.g. a slow local model) timed out
+        # without tripping the overall asyncio.timeout budget above --
+        # httpx.TimeoutException is not a TimeoutError subclass, so it needs
+        # its own branch. Classified the same as the budget timeout
+        # (status=timed_out) since it's the same failure mode from the
+        # caller's perspective: partial sections, no answer in time.
+        reason = f"model provider timed out drafting the {current_section!r} section"
         await store.update_request_record(
-            client, draft_request.request_id, status="failed", draft_content=sections
+            client,
+            draft_request.request_id,
+            status="timed_out",
+            draft_content=sections,
+            reason=reason,
         )
         await store.publish_event(client, draft_request.request_id, {"done": True})
         await _fire_generation_failure(
-            draft_request.tenant_id, draft_request.request_id, draft_request.actor_iri
+            draft_request.tenant_id,
+            draft_request.request_id,
+            draft_request.actor_iri,
+            reason=reason,
+        )
+        return
+    except Exception as exc:  # any other provider failure -- without this
+        # the background task dies unhandled and the record is stuck at
+        # "drafting" forever, so pollers never stop.
+        reason = f"drafting failed: {exc}"
+        await store.update_request_record(
+            client,
+            draft_request.request_id,
+            status="failed",
+            draft_content=sections,
+            reason=reason,
+        )
+        await store.publish_event(client, draft_request.request_id, {"done": True})
+        await _fire_generation_failure(
+            draft_request.tenant_id,
+            draft_request.request_id,
+            draft_request.actor_iri,
+            reason=reason,
         )
         return
 

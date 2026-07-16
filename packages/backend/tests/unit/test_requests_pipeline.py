@@ -9,6 +9,7 @@ double.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
@@ -258,6 +259,87 @@ async def test_drafting_times_out_marks_request_and_fires_notify() -> None:
 
     events_raw = redis_client._lists["request:r1:events"]
     assert events_raw[-1] == '{"done": true}'
+
+
+async def test_drafting_per_section_read_timeout_marks_timed_out_with_reason() -> None:
+    """The bug this closes: a per-section provider call that times out
+    (`httpx.ReadTimeout`, e.g. a slow local Ollama model) is NOT an
+    `asyncio.TimeoutError` -- it used to fall into the generic `except
+    Exception` and get marked `failed` with no reason. It must be
+    classified `timed_out` (same family as the overall-budget timeout),
+    keep whatever sections drafted before the slow one, and carry a
+    human-readable `reason`.
+    """
+    redis_client = _FakeRedis()
+    await create_request_record(
+        redis_client,  # type: ignore[arg-type]
+        RequestRecord(
+            request_id="r1", tenant_id="t1", run_mode="draft_spec_only", status="drafting"
+        ),
+    )
+    dispatch_mock = AsyncMock()
+
+    async def _flaky(section: str, *_args: object, **_kwargs: object) -> str:
+        if section == SECTIONS[0]:
+            return "draft-for:brief"
+        raise httpx.ReadTimeout("timed out waiting for the model")
+
+    with (
+        patch("weave_backend.requests.pipeline._draft_section", _flaky),
+        patch("weave_backend.requests.pipeline.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.requests.pipeline.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.requests.pipeline.dispatch_notification", dispatch_mock),
+    ):
+        await run_drafting_pipeline(
+            _draft_request(),
+            ce_client=_ce_stub(),
+            provider=_RecordingProvider(),
+            redis_client=redis_client,  # type: ignore[arg-type]
+        )
+
+    stored = await redis_client.hgetall("request:r1:record")
+    assert stored["status"] == "timed_out"
+    assert SECTIONS[1] in stored["reason"]  # names the section that stalled
+    assert json.loads(stored["draft_content"]) == {SECTIONS[0]: "draft-for:brief"}
+    dispatch_mock.assert_awaited_once()
+    assert dispatch_mock.await_args is not None
+    _conn, event = dispatch_mock.await_args.args
+    assert event.event_type == "generation_failure"
+    assert event.payload["reason"] == stored["reason"]
+
+
+async def test_drafting_other_provider_failure_marks_failed_with_reason() -> None:
+    """Any other provider error (not a timeout of either kind) stays
+    classified `failed`, but must now also carry a `reason` string
+    instead of dying silently.
+    """
+    redis_client = _FakeRedis()
+    await create_request_record(
+        redis_client,  # type: ignore[arg-type]
+        RequestRecord(
+            request_id="r1", tenant_id="t1", run_mode="draft_spec_only", status="drafting"
+        ),
+    )
+
+    async def _boom(*_args: object, **_kwargs: object) -> str:
+        raise ValueError("model returned malformed output")
+
+    with (
+        patch("weave_backend.requests.pipeline._draft_section", _boom),
+        patch("weave_backend.requests.pipeline.default_audit_emitter.emit", AsyncMock()),
+        patch("weave_backend.requests.pipeline.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.requests.pipeline.dispatch_notification", AsyncMock()),
+    ):
+        await run_drafting_pipeline(
+            _draft_request(),
+            ce_client=_ce_stub(),
+            provider=_RecordingProvider(),
+            redis_client=redis_client,  # type: ignore[arg-type]
+        )
+
+    stored = await redis_client.hgetall("request:r1:record")
+    assert stored["status"] == "failed"
+    assert "model returned malformed output" in stored["reason"]
 
 
 @pytest.mark.parametrize("section", SECTIONS)

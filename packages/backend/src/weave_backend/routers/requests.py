@@ -213,6 +213,7 @@ async def get_request_route(
         name=record.name,
         grounding_entity_iris=record.grounding_entity_iris,
         target_repo_name=record.target_repo_name,
+        reason=record.reason,
         provenance_links=_provenance_links(record),
     )
 
