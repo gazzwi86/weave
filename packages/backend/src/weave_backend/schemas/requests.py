@@ -62,6 +62,8 @@ class RequestStatusResponse(BaseModel):
     name: str = ""
     grounding_entity_iris: list[str] = Field(default_factory=list)
     target_repo_name: str | None = None
+    #: set when `status` is `failed`/`timed_out` -- why drafting stopped.
+    reason: str | None = None
     #: TASK-024 AC-7: always at least one link, unless CE-READ-1 was
     #: unreachable at draft time (`graph_context == "unavailable"` -- no
     #: valid pinned-version IRI exists to link, so the record legitimately

@@ -110,6 +110,67 @@ describe("BuildPage", () => {
     expect(fetchMock.mock.calls).toHaveLength(callsAtTerminal);
   });
 
+  it("shows live per-section progress from the drafting stream", async () => {
+    const streamBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode('data: {"section":"brief","content":"x","done":false}\n\n')
+        );
+        controller.enqueue(
+          new TextEncoder().encode('data: {"section":"prd","content":"y","done":false}\n\n')
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === ACCEPTED.stream_url) {
+        return new Response(streamBody, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        });
+      }
+      return init?.method === "POST" ? jsonResponse(ACCEPTED, 202) : jsonResponse(ACCEPTED);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<BuildPage />);
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("request-progress")).toHaveTextContent("brief, prd")
+    );
+  });
+
+  it("shows the failure reason on a timed-out request", async () => {
+    vi.useFakeTimers();
+    const timedOut = {
+      request_id: "req-1",
+      status: "timed_out",
+      run_mode: "draft_spec_only",
+      graph_context: {},
+      draft_content: { brief: "partial" },
+      reason: "model provider timed out drafting the 'prd' section",
+      created_at: "2026-07-08T00:00:00Z",
+    };
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+      init?.method === "POST" ? jsonResponse(ACCEPTED, 202) : jsonResponse(timedOut)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<BuildPage />);
+    fillAndSubmit();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(screen.getByTestId("request-reason")).toHaveTextContent(
+      "model provider timed out drafting the 'prd' section"
+    );
+  });
+
   it("shows the provider-unavailable message on 503", async () => {
     vi.stubGlobal(
       "fetch",

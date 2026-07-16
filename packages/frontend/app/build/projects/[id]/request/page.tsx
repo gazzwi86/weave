@@ -5,9 +5,13 @@ import { useState } from "react";
 import { RequestForm, type TypeaheadResult } from "@/components/templates/RequestForm";
 import { Card, CardContent } from "@/components/ui/card";
 
+import { useDraftingProgress } from "./use-drafting-progress";
 import { type BuildRequest, type RunMode, useRequestStatus } from "./use-request-status";
 
 function StatusCard({ request }: { request: BuildRequest }) {
+  const drafting = request.status === "drafting";
+  const completedSections = useDraftingProgress(request.stream_url, drafting);
+
   return (
     <Card>
       {/* Plain text, not CardTitle -- same axe heading-order trap as
@@ -18,6 +22,12 @@ function StatusCard({ request }: { request: BuildRequest }) {
       </p>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
         <p data-testid="request-status">Status: {request.status}</p>
+        {drafting && completedSections.length > 0 && (
+          <p data-testid="request-progress">Drafted so far: {completedSections.join(", ")}</p>
+        )}
+        {request.reason && (
+          <p data-testid="request-reason">{request.reason}</p>
+        )}
         {request.target_repo_name && (
           <p data-testid="request-target-repo">Target repo: {request.target_repo_name}</p>
         )}
