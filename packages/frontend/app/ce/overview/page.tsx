@@ -9,7 +9,10 @@ import { useOverview, type OverviewStats } from "./use-overview";
 const QUICK_LINKS = [
   { label: "Explore", href: "/explorer" },
   { label: "Query", href: "/ce/query" },
+  { label: "Ontology / Types", href: "/ce/types" },
   { label: "Instances", href: "/ce" },
+  { label: "Glossary", href: "/ce/glossary" },
+  { label: "Rules & policies", href: "/ce/rules" },
   { label: "Audit trail", href: "/audit" },
 ] as const;
 
@@ -80,10 +83,19 @@ export default function CeOverviewPage() {
   const { stats, loadError } = useOverview();
 
   return (
-    <main data-tour-id="ce.overview" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Constitution overview
-      </h1>
+    <main data-tour-id="ce.overview" className="flex flex-col gap-[var(--space-5)] p-[var(--space-6)]">
+      <div>
+        <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
+          Constitution
+        </p>
+        <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+          Overview
+        </h1>
+        <p className="mt-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+          The living knowledge graph of how your company operates — model health at a glance, and quick
+          links into the model.
+        </p>
+      </div>
 
       {loadError && !stats && (
         <p data-testid="overview-error" className="text-[var(--color-text-muted)]">
@@ -97,19 +109,27 @@ export default function CeOverviewPage() {
         </p>
       )}
 
-      {stats && <GlanceCard stats={stats} />}
-
-      <nav aria-label="Quick links" className="flex gap-[var(--space-4)]">
-        {QUICK_LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)] hover:underline"
-          >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+        {stats && <GlanceCard stats={stats} />}
+        <Card>
+          <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+            Jump into the model
+          </p>
+          <CardContent>
+            <nav aria-label="Quick links" className="grid grid-cols-2 gap-[var(--space-2)]">
+              {QUICK_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-[var(--radius-sm)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:bg-[var(--color-hover)] hover:text-[var(--color-accent-hover)]"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }
