@@ -122,7 +122,11 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
         </header>
         <CommandPalette />
         <OnboardingHintsHost />
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        {/* Content wrapper is a plain div, not <main>: every page renders its
+            own <main> landmark, so a <main> here would duplicate it (axe
+            landmark-no-duplicate-main). The flex/overflow scroll chain is
+            tag-agnostic. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
