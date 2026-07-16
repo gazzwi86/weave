@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { GuidedForm } from "../chat/guided-form";
 import type { KindEntry } from "../chat/types";
 import { AuthoringDrawer } from "./authoring-drawer";
 import { ChatAside } from "./chat-aside";
@@ -56,6 +55,43 @@ function InspectorActions({ iri, onEdit }: { iri: string; onEdit: () => void }) 
   );
 }
 
+/** Create-flow kind chooser: a native select over the CE-READ-1 kind
+ * catalogue, so a business analyst picks which kind to create instead of
+ * being locked to whichever sorts first (the R1 cert bug). */
+function KindPicker({ kinds, onPick, onClose }: { kinds: KindEntry[]; onPick: (kind: KindEntry) => void; onClose: () => void }) {
+  return (
+    <div className="flex flex-col gap-[var(--space-3)] p-[var(--space-4)]">
+      <label htmlFor="add-kind" className="text-[length:var(--text-small)] text-[var(--color-text-subtle)]">
+        Kind
+      </label>
+      <select
+        id="add-kind"
+        aria-label="Kind"
+        defaultValue=""
+        onChange={(event) => {
+          const kind = kinds.find((k) => k.iri === event.target.value);
+          if (kind) onPick(kind);
+        }}
+        className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-3)] py-[var(--space-2)] text-[var(--color-text-default)]"
+      >
+        <option value="" disabled>
+          Choose a kind…
+        </option>
+        {kinds.map((kind) => (
+          <option key={kind.iri} value={kind.iri}>
+            {kind.label}
+          </option>
+        ))}
+      </select>
+      <div>
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function buildInspectorProps(resource: InspectedResource | null, loading: boolean, onEdit: () => void) {
   if (!resource) return null;
   return {
@@ -70,9 +106,9 @@ function buildInspectorProps(resource: InspectedResource | null, loading: boolea
 
 /** AC-1..AC-7: container -- binds `useInstanceBrowser`/`useInspector` data
  * to the presentational `InstanceBrowserPage` template; the guided
- * `AuthoringDrawer` opens for create (kind picker via `GuidedForm`'s
- * existing kind select) and edit (row-inspector "Edit" action).
- */
+ * `AuthoringDrawer` opens for create (via `KindPicker` -> chosen kind) and
+ * edit (row-inspector "Edit" action). Both get SHACL fields + relationship
+ * entity-pickers from the drawer. */
 export default function InstancesPage() {
   const browser = useInstanceBrowser();
   const [selectedIri, setSelectedIri] = useState<string | null>(null);
@@ -87,20 +123,28 @@ export default function InstancesPage() {
     if (selectedKind) setDrawerShape(selectedKind);
   };
 
-  if (drawerShape && selectedRow) {
+  const closeDrawer = () => {
+    setDrawerShape(null);
+    setAddingKind(false);
+  };
+
+  // One drawer for both flows: edit binds to the selected row, create binds
+  // to the kind picked below (no selectedRow). AuthoringDrawer already renders
+  // relationship fields via EntityPicker, so create gets pickers for free.
+  if (drawerShape) {
     return (
       <AuthoringDrawer
         shape={drawerShape}
-        mode="edit"
-        targetIri={selectedRow.iri}
-        initialValues={{ label: selectedRow.label }}
-        onClose={() => setDrawerShape(null)}
+        mode={selectedRow ? "edit" : "create"}
+        targetIri={selectedRow?.iri}
+        initialValues={selectedRow ? { label: selectedRow.label } : undefined}
+        onClose={closeDrawer}
       />
     );
   }
 
   if (addingKind) {
-    return <GuidedForm kindIri={browser.kinds[0]?.iri ?? ""} onClose={() => setAddingKind(false)} />;
+    return <KindPicker kinds={browser.kinds} onPick={setDrawerShape} onClose={() => setAddingKind(false)} />;
   }
 
   return (

@@ -161,6 +161,12 @@ const LABEL_SHAPE: PropertyShape = {
   severity: "Violation",
 };
 
+// Some kinds' SHACL shapes declare their own rdfs:label property; the
+// dedicated Label field above already wires `add_node.label`, so drop the
+// duplicate (mirrors GuidedForm) — otherwise the kind shows two "Label *"
+// fields and the required SHACL one blocks save.
+const LABEL_PREDICATE_IRI = "https://weave.io/ontology/label";
+
 type DrawerState = ReturnType<typeof useDrawerState>;
 
 /** The label field + one field per SHACL property, split out of
@@ -176,7 +182,9 @@ function DrawerFields({ shape, values, errors, setField, runBlurCheck }: DrawerS
         onBlurCheck={() => runBlurCheck(LABEL_SHAPE)}
         onChange={(value) => setField("label", value)}
       />
-      {shape.properties.map((property) =>
+      {shape.properties
+        .filter((property) => property.path !== LABEL_PREDICATE_IRI)
+        .map((property) =>
         property.is_relationship ? (
           <RelationshipField
             key={property.path}
