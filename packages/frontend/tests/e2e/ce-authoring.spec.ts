@@ -1,6 +1,30 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+// ONB-TASK-008: a first-visit-per-area welcome modal (WELCOME_MODALS,
+// shared/onboarding/content/modals.ts) now fires on real logins against the
+// seeded stack. Every CTA dismisses it (constitution/explorer/role-home also
+// start a driver.js tour, which this then skips) -- a real user would click
+// through it too, so tests must, or every later selector on the page times
+// out behind its overlay.
+async function dismissOnboarding(page: Page): Promise<void> {
+  const welcome = page.getByRole("dialog").filter({ hasText: /welcome/i });
+  try {
+    await welcome.waitFor({ state: "visible", timeout: 3000 });
+    await welcome.getByRole("button").last().click();
+  } catch {
+    // no welcome modal for this area/session.
+  }
+  const skipTour = page.getByRole("button", { name: "Skip tour" });
+  try {
+    await skipTour.waitFor({ state: "visible", timeout: 2000 });
+    await skipTour.click();
+  } catch {
+    // no tour started (non-tour-CTA area, or already seen).
+  }
+}
+
+
 // TASK-006: mirrors auth.spec.ts's flow against the mock OIDC provider, but
 // lands on /ce (return_to survives the round trip -- proven by auth.spec.ts).
 async function loginAndGoToCe(page: Page): Promise<void> {
@@ -9,6 +33,7 @@ async function loginAndGoToCe(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/ce$/);
+  await dismissOnboarding(page);
   // Cold Next.js dev compile can lag behind first paint; without this, an
   // early click on the "Send" submit button races React's hydration and
   // falls back to a native form GET (seen as a spurious "/ce?" navigation).
@@ -42,7 +67,7 @@ async function routeKinds(page: Page): Promise<void> {
 
 test.describe("CE authoring surfaces", () => {
   // AC-006-02/-03: NL prompt -> propose -> confirm -> CE-WRITE-1 -> IRI in chat.
-  test("types 'add a Process called Customer Onboarding', confirms, sees the entity (AC-006-02/-03)", async ({
+  test("types 'add a Process called Customer Onboarding', confirms, sees the entity (AC-006-02/-03) @behavioural", async ({
     page,
   }) => {
     type ApplyBody = { operations: { op: string; label?: string }[] };
