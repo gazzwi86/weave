@@ -12,7 +12,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.dashboard.store import seed_tenant_default_tiles
 from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
-from weave_backend.rbac import require_workspace_role
+from weave_backend.rbac import require_tenant_admin, require_workspace_role
 from weave_backend.schemas.tenancy import (
     CreateWorkspaceRequest,
     InviteMemberRequest,
@@ -70,7 +70,10 @@ async def _grant_creator_admin_membership(
 @router.get("/tenants/{tenant_id}/workspaces", response_model=list[WorkspaceResponse])
 async def list_workspaces_route(
     tenant_id: str,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    # Security fix: workspace listing is an admin-only settings surface (the
+    # frontend already gates the whole page on role == "admin") -- gate the
+    # backend the same way rather than leaving it open to any tenant member.
+    principal: Annotated[Principal, Depends(require_tenant_admin)],
 ) -> list[WorkspaceResponse]:
     _require_own_tenant(principal, tenant_id)
     async with tenant_connection(tenant_id) as conn:
@@ -82,7 +85,16 @@ async def list_workspaces_route(
 async def create_workspace_route(
     tenant_id: str,
     body: CreateWorkspaceRequest,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    # Security fix: this route previously had NO role check -- any
+    # authenticated tenant principal (including one never invited to any
+    # workspace) could call it and `_grant_creator_admin_membership` below
+    # would hand them admin, which `is_tenant_admin` treats as tenant-wide
+    # admin. Gate on existing tenant-admin, matching invite/revoke below.
+    # A tenant's first workspace+admin is provisioned out-of-band (FR-045
+    # platform-operator console / `seed_demo.py` / `onboarding/sandbox.py`,
+    # all of which call `create_workspace()` directly, never this route) --
+    # so there is no bootstrap case here that needs a no-admin exception.
+    principal: Annotated[Principal, Depends(require_tenant_admin)],
 ) -> WorkspaceResponse:
     _require_own_tenant(principal, tenant_id)
     async with tenant_connection(tenant_id) as conn:
