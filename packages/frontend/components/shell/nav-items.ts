@@ -170,7 +170,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
           { label: "Notifications", href: "/settings/notifications", tag: "built" },
           { label: "Models & AI", href: "/settings/models", tag: "built" },
           { label: "Billing & budgets", href: "/billing", tag: "built" },
-          { label: "Integrations", tag: "v1.0" },
+          { label: "Integrations", href: "/settings/integrations", tag: "v1.0" },
         ],
       },
       {

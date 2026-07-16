@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_query" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const upstreamUrl =
     `${backendUrl}/api/ontology/diff?` +
     `from=${encodeURIComponent(parsed.data.from)}&to=${encodeURIComponent(parsed.data.to)}`;

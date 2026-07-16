@@ -16,6 +16,7 @@ from weave_backend.auth.dependencies import Principal, get_current_principal
 from weave_backend.build.board import build_board, build_task_tree
 from weave_backend.build.state_spine import StateSpine, load_state_spine
 from weave_backend.db.pool import tenant_connection
+from weave_backend.projects.model import get_project
 from weave_backend.schemas.board import BoardResponse, TaskTreeResponse
 
 router = APIRouter(tags=["board"])
@@ -26,9 +27,17 @@ async def _load_spine_or_404(project_iri: str, principal: Principal) -> StateSpi
         spine = await load_state_spine(
             conn, tenant_id=principal.tenant_id, project_iri=project_iri
         )
-    if spine is None:
+        if spine is not None:
+            return spine
+        # BUG-06: a project with no run yet has no `state_spines` row --
+        # that is a valid, empty board/tree, not a missing project. Only
+        # fall through to 404 when the project itself doesn't exist.
+        project = await get_project(
+            conn, tenant_id=principal.tenant_id, project_iri=project_iri
+        )
+    if project is None:
         raise HTTPException(status_code=404, detail={"error": "not_found"})
-    return spine
+    return StateSpine(project_iri=project_iri, tenant_id=principal.tenant_id, run_id="", turn_cap=0)
 
 
 @router.get("/api/projects/{project_iri}/board", response_model=BoardResponse)

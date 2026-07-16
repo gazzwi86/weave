@@ -1,9 +1,10 @@
 """AC-1/AC-3/AC-7 (BE-V1-TASK-017, build-engine EPIC-004): real Postgres
 round-trip for `GET /api/projects/{project_iri}/board` and
 `GET /api/projects/{project_iri}/task-tree` over a committed state spine,
-same docker-marked stack conventions as `test_runs_api.py`. Project-row
-seeding is out of scope -- like `get_state_route`, these routes key purely
-off `state_spines` (tenant_id, project_iri), no `projects` row join.
+same docker-marked stack conventions as `test_runs_api.py`. Most cases key
+purely off `state_spines` (tenant_id, project_iri), no `projects` row
+needed -- except the BUG-06 empty-board case, which does seed a `projects`
+row to prove a run-less project reads as empty rather than 404.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from weave_backend.build.state_spine import StateSpine, TaskState, commit_state_
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.projects.model import NewProject, create_project
 
 pytestmark = [
     pytest.mark.integration,
@@ -101,6 +103,57 @@ async def test_task_tree_route_flags_missing_dependency(
     nodes_by_id = {node["id"]: node for node in response.json()["nodes"]}
     assert nodes_by_id["t-missing"]["missing"] is True
     assert nodes_by_id["t-3"]["missing"] is False
+
+
+async def _seed_project(tenant_id: str, slug: str) -> str:
+    async with tenant_connection(tenant_id) as conn:
+        project = await create_project(
+            conn,
+            NewProject(
+                tenant_id=tenant_id,
+                slug=slug,
+                name=slug,
+                description=None,
+                pinned_graph_version_iri=f"urn:weave:graph-version:{uuid.uuid4().hex[:8]}",
+            ),
+        )
+    return project.project_iri
+
+
+async def test_board_route_project_with_no_run_yet_returns_empty_board(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """BUG-06: a project seeded with zero runs has no `state_spines` row --
+    that must read as an empty board, not a 404."""
+    tenant_id = _unique_tenant("tenant-board-empty")
+    project_iri = await _seed_project(tenant_id, "hv")
+
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    response = await client.get(
+        f"/api/projects/{project_iri}/board",
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lanes"] == ["Backlog", "Ready", "In Progress", "Review", "QA", "Done"]
+    assert body["cards"] == []
+
+
+async def test_task_tree_route_project_with_no_run_yet_returns_empty_tree(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    tenant_id = _unique_tenant("tenant-tree-empty")
+    project_iri = await _seed_project(tenant_id, "hv")
+
+    tokens = await issue_token_pair(sub="u-1", tenant_id=tenant_id)
+    response = await client.get(
+        f"/api/projects/{project_iri}/task-tree",
+        headers={"Authorization": f"Bearer {tokens.access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["nodes"] == []
 
 
 async def test_board_route_rls_tenant_b_sees_404(client: AsyncClient, platform_stack: Path) -> None:

@@ -68,7 +68,7 @@ export function NewProjectModal({
       <Button onClick={() => dialogRef.current?.showModal()}>New project</Button>
       <dialog
         ref={dialogRef}
-        className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-6)] backdrop:bg-[var(--color-overlay)]"
+        className="m-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-6)] backdrop:bg-[var(--color-overlay)] backdrop:opacity-80"
       >
         <NewProjectForm
           saving={saving}

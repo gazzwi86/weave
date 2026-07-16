@@ -82,7 +82,7 @@ function PromptBarInput({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={onSubmit} className="flex items-center gap-[var(--space-2)]">
       <label htmlFor="prompt-bar-input" className="sr-only">
         Describe the view you want
       </label>
@@ -94,6 +94,9 @@ function PromptBarInput({
         placeholder="Describe the view you want…"
         className="w-full rounded-[var(--radius-base)] border border-[var(--color-border)] bg-transparent px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)] outline-none focus-visible:ring-[var(--ring-focus)]"
       />
+      <Button type="submit" disabled={!prompt.trim()}>
+        Generate
+      </Button>
     </form>
   );
 }

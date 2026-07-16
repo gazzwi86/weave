@@ -59,6 +59,22 @@ describe("SettingsModelsPage", () => {
     );
   });
 
+  it("shows an inline error and does not submit when the amount is empty (BUG-04)", () => {
+    const fetchMock = vi.fn(async () => jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<SettingsModelsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Set cap" }));
+
+    expect(screen.getByTestId("cap-validation-error")).toHaveTextContent(
+      "Enter an amount greater than $0.00."
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/billing/caps",
+      expect.objectContaining({ method: "PUT" })
+    );
+  });
+
   it("shows the parent-cap message on a 422 cap_exceeds_parent", async () => {
     vi.stubGlobal(
       "fetch",

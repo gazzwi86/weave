@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 import { getCognitoRoleClaim } from "@/lib/explorer/get-cognito-role-claim";
 import { stripLangTag } from "@/lib/explorer/strip-lang-tag";
 
@@ -86,7 +87,7 @@ export async function GET(
     return NextResponse.json({ error: "invalid_iri" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const outcome = await fetchUpstreamResource(backendUrl, parsed.data, session.accessToken);
   if (outcome.type === "not_found") {
     return NextResponse.json({ error: "not_found" }, { status: 404 });

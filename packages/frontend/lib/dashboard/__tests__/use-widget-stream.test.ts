@@ -30,6 +30,34 @@ describe("useWidgetStream", () => {
     expect(result.current.state).toEqual({ status: "idle" });
   });
 
+  it("goes submitting immediately, before the first SSE byte (slow-provider gap)", async () => {
+    let resolveFetch: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve)))
+    );
+    const { result } = renderHook(() => useWidgetStream());
+
+    act(() => {
+      result.current.generate("show entities");
+    });
+
+    expect(result.current.state).toEqual({ status: "submitting" });
+    resolveFetch(sseResponse([SPEC_EVENT, DONE_EVENT]));
+  });
+
+  it("surfaces a rejected fetch (network failure) as an error state, not silence", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
+    const { result } = renderHook(() => useWidgetStream());
+
+    act(() => {
+      result.current.generate("show entities");
+    });
+
+    await waitFor(() => expect(result.current.state.status).toBe("error"));
+    expect(result.current.state).toMatchObject({ status: "error", reason: "network down" });
+  });
+
   it("transitions idle -> streaming -> done across the SSE grammar", async () => {
     vi.stubGlobal(
       "fetch",

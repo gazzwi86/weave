@@ -74,25 +74,29 @@ export default function BillingPage() {
 
       {usage && <UsageCard usage={usage} />}
 
-      <Card>
-        <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Simulate AI call (harness)
-        </p>
-        <CardContent className="flex flex-col gap-[var(--space-3)]">
-          <Input
-            aria-label="Workspace ID"
-            placeholder="workspace id"
-            value={workspaceId}
-            onChange={(e) => setWorkspaceId(e.target.value)}
-          />
-          <Button
-            disabled={!workspaceId || simulating}
-            onClick={() => simulateAiCall(workspaceId)}
-          >
-            {simulating ? "Simulating…" : "Simulate AI call"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* CLEANUP-1: harness-only debug widget, same dev-gate convention as
+       * app/build/ge-canvas-preview/page.tsx -- never rendered in prod. */}
+      {process.env.NODE_ENV !== "production" && (
+        <Card>
+          <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+            Simulate AI call (harness)
+          </p>
+          <CardContent className="flex flex-col gap-[var(--space-3)]">
+            <Input
+              aria-label="Workspace ID"
+              placeholder="workspace id"
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+            />
+            <Button
+              disabled={!workspaceId || simulating}
+              onClick={() => simulateAiCall(workspaceId)}
+            >
+              {simulating ? "Simulating…" : "Simulate AI call"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }

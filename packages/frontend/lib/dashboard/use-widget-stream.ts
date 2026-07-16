@@ -8,6 +8,7 @@ import { parseSseEvents } from "./parse-sse-events";
 
 export type WidgetStreamState =
   | { status: "idle" }
+  | { status: "submitting" }
   | { status: "streaming"; spec: WidgetSpec; rows: unknown[] }
   | { status: "done"; spec: WidgetSpec; rows: unknown[]; tokenCount: number; widgetId: string }
   | { status: "error"; errorState: SseErrorState; reason: string; spec?: WidgetSpec };
@@ -34,8 +35,15 @@ export function useWidgetStream(): {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setState({ status: "idle" });
-    void streamGenerate(prompt, endpoint ?? GENERATE_ENDPOINT, controller.signal, setState);
+    setState({ status: "submitting" });
+    streamGenerate(prompt, endpoint ?? GENERATE_ENDPOINT, controller.signal, setState).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setState({
+        status: "error",
+        errorState: "unavailable",
+        reason: error instanceof Error ? error.message : "Widget generation request failed.",
+      });
+    });
   }, []);
 
   return { state, generate };
@@ -53,8 +61,9 @@ async function streamGenerate(
     body: JSON.stringify({ prompt }),
     signal,
   });
+  if (!response.ok) throw new Error(`Widget generation request failed (${response.status}).`);
   const reader = response.body?.getReader();
-  if (!reader) return;
+  if (!reader) throw new Error("Widget generation response had no body.");
 
   const decoder = new TextDecoder();
   let buffered = "";

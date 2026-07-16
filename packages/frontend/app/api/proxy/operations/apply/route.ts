@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
 import { getPrincipalIriClaim } from "@/lib/explorer/get-principal-iri-claim";
 import { opSchema } from "@/lib/explorer/operations-schema";
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "no_principal" }, { status: 401 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const outcome = await forwardToCe(
     backendUrl,
     session.accessToken,

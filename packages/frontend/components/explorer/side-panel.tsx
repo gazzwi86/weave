@@ -46,7 +46,7 @@ function Heading({ label, typeLabel, onClose }: { label: string; typeLabel: stri
   return (
     <div className="flex items-start justify-between gap-[var(--space-2)]">
       <div>
-        <p className="text-[length:var(--text-h4)] text-[var(--color-text-default)]">{label}</p>
+        <p className="break-words text-[length:var(--text-h4)] text-[var(--color-text-default)]">{label}</p>
         <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">{typeLabel}</p>
       </div>
       <CloseButton onClose={onClose} />

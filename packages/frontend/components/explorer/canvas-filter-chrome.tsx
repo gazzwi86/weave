@@ -94,9 +94,11 @@ export function CanvasFilterChrome({
         onSetPropertyFilters={filterPanel.setPropertyFilters}
         onToggleLayer={filterPanel.toggleLayer}
       />
-      <OverlayPanel toggles={toggles} onToggleOverlay={onToggleOverlay} />
-      <VersionsPanel {...versionsPanel} />
-      <SavedViewsPanel {...savedViewsPanel} />
+      <div className="absolute bottom-[var(--space-4)] right-[var(--space-4)] z-[var(--z-panel)] flex w-80 max-h-[calc(100%-var(--space-8))] flex-col gap-[var(--space-3)] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)] shadow-[var(--shadow-panel)]">
+        <OverlayPanel toggles={toggles} onToggleOverlay={onToggleOverlay} />
+        <VersionsPanel {...versionsPanel} />
+        <SavedViewsPanel {...savedViewsPanel} />
+      </div>
     </>
   );
 }

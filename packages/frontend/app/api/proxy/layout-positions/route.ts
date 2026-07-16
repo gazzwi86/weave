@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -17,7 +18,7 @@ const savePositionBodySchema = z.object({
 });
 
 function backendUrl(): string {
-  return process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  return backendApiUrl();
 }
 
 /** Forwards the backend's response verbatim, except for the two failure
