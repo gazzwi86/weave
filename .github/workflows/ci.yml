@@ -90,6 +90,12 @@ jobs:
     # minutes on known timeouts. INFORMATIONAL (continue-on-error) until the
     # first green run is validated and the 100k delta-patch remediation lands;
     # promote to blocking then (mirrors the mutation-strict validation path).
+    #
+    # Push-only (like mutation-strict): the 10k benchmark is informational and
+    # red-by-design, so running it per-PR just clutters every PR's check list
+    # with a non-blocking failure. Run it post-merge on main for the benchmark
+    # data; promote to a real per-PR gate once the remediation above lands.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     continue-on-error: true
