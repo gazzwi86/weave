@@ -98,6 +98,11 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* app-shell fixed dimensions (layout-grid.md: 56px icon rail, 232px
+     secondary sidebar, 44px top bar) */
+  --size-rail: 56px;
+  --size-sidebar: 232px;
+
   /* radius */
   --radius-sm: 4px;
   --radius-base: 8px;

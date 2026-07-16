@@ -123,6 +123,15 @@ export function CommandPalette() {
   const pathname = usePathname();
   useCommandPaletteHotkey(setOpen, pathname);
 
+  // The top-bar command button opens the palette from anywhere via this
+  // event -- an explicit click bypasses the ⌘K route guard (e.g. /dashboard,
+  // where ⌘K belongs to the PromptBar) without lifting state through the shell.
+  useEffect(() => {
+    const open = () => setOpen(true);
+    window.addEventListener("weave:open-command-palette", open);
+    return () => window.removeEventListener("weave:open-command-palette", open);
+  }, []);
+
   function handleSelectEntity(iri: string) {
     setOpen(false);
     router.push(`/ce/resource?iri=${encodeURIComponent(iri)}`);
@@ -147,7 +156,7 @@ export function CommandPalette() {
       // `contentClassName` targets the Radix Dialog.Content (role="dialog")
       // element -- `className` alone lands on the inner Command root, not
       // the dialog container.
-      contentClassName="fixed left-1/2 top-[20vh] z-[var(--z-command)] w-full max-w-[560px] -translate-x-1/2 rounded-[var(--radius-lg)] border border-transparent bg-[var(--color-surface)] bg-clip-padding p-[var(--space-2)] shadow-[var(--shadow-overlay)] [background-image:linear-gradient(var(--color-surface),var(--color-surface)),var(--gradient-accent)] [background-origin:border-box] [background-clip:padding-box,border-box]"
+      contentClassName="fixed left-1/2 top-[20vh] z-[var(--z-command)] w-full max-w-[560px] -translate-x-1/2 rounded-[var(--radius-lg)] border border-transparent bg-[var(--color-overlay)]/80 bg-clip-padding p-[var(--space-2)] shadow-[var(--shadow-overlay)] backdrop-blur-md [background-image:linear-gradient(var(--color-overlay),var(--color-overlay)),var(--gradient-accent)] [background-origin:border-box] [background-clip:padding-box,border-box]"
     >
       <Command.Input
         autoFocus

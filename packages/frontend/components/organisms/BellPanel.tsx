@@ -130,7 +130,7 @@ export function BellPanel({
       role="region"
       aria-label="Notifications"
       className={cn(
-        "h-full w-full max-w-xs border-l border-[var(--color-border)] bg-[var(--color-surface)]",
+        "h-full w-full max-w-xs border-l border-[var(--color-border)] bg-[var(--color-overlay)]/80 backdrop-blur-md",
         "p-[var(--space-5)] shadow-[var(--shadow-panel)]",
         className
       )}

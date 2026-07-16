@@ -200,7 +200,7 @@ export function HelpLauncher() {
         <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content
           aria-label="Help"
-          className="fixed right-0 top-0 h-full w-full max-w-[360px] border-l border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-5)] shadow-[var(--shadow-panel)]"
+          className="fixed right-0 top-0 h-full w-full max-w-[360px] border-l border-[var(--color-border)] bg-[var(--color-overlay)]/80 p-[var(--space-5)] shadow-[var(--shadow-panel)] backdrop-blur-md"
         >
           <Dialog.Title className="text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
             {t("onboarding.launcher.title")}

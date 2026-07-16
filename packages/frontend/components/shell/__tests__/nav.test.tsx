@@ -28,6 +28,16 @@ describe("Nav", () => {
     expect(inactive).not.toHaveAttribute("aria-current");
   });
 
+  // v5 icon rail: every area is an icon-only link, so its accessible name
+  // must come from aria-label (axe: icon buttons need a discernible name).
+  it("gives every icon-rail area an aria-label accessible name", () => {
+    pathname = "/dashboard";
+    render(<Nav />);
+    for (const label of ["Home", "Constitution", "Build", "Events", "Audit trail", "Settings"]) {
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute("aria-label", label);
+    }
+  });
+
   it("marks Audit trail active on /audit/compliance (AC-6 canonical route)", () => {
     pathname = "/audit/compliance";
     render(<Nav />);
@@ -72,15 +82,16 @@ describe("SectionRail", () => {
     expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute("href", "/notifications");
   });
 
-  // AC-1: collapse toggle persists across page loads via localStorage.
-  it("collapses on toggle click and restores the collapsed state on remount (reload proxy)", () => {
+  // AC-1: collapse toggle persists across page loads via localStorage. The
+  // expand affordance now lives in the top bar (see app-shell.test.tsx) --
+  // a collapsed SectionRail simply renders no Secondary nav.
+  it("collapses on toggle click and stays collapsed on remount (reload proxy)", () => {
     pathname = "/ce/query";
     localStorage.clear();
     const { unmount } = render(<SectionRail role="admin" />);
 
     expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
-    const toggle = screen.getByRole("button", { name: /collapse sidebar/i });
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: /collapse sidebar/i }));
 
     expect(localStorage.getItem("weave.sectionRail.collapsed")).toBe("true");
     expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
@@ -88,7 +99,6 @@ describe("SectionRail", () => {
     unmount();
     render(<SectionRail role="admin" />);
     expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /expand sidebar/i })).toBeInTheDocument();
   });
 
   // Edge case (QA): a corrupted/foreign localStorage value must not be

@@ -28,7 +28,7 @@ export function AvatarMenu({ userName, role }: AvatarMenuProps) {
         <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content
           aria-label="Account menu"
-          className="fixed right-[var(--space-4)] top-[var(--space-10)] w-full max-w-[240px] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] shadow-[var(--shadow-overlay)]"
+          className="fixed right-[var(--space-4)] top-[var(--space-10)] w-full max-w-[240px] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)]/80 p-[var(--space-3)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
         >
           <Dialog.Title className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
             {userName}

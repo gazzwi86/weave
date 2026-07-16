@@ -25,3 +25,7 @@ export const Default: Story = { args: { groups: GROUPS } };
 export const DefaultDark: Story = { ...Default, parameters: { theme: "dark" } };
 export const Selected: Story = { args: { groups: GROUPS, activeHref: "/explorer" } };
 export const SelectedDark: Story = { ...Selected, parameters: { theme: "dark" } };
+export const WithHead: Story = {
+  args: { groups: GROUPS, activeHref: "/explorer", title: "Constitution", onCollapse: () => {} },
+};
+export const WithHeadDark: Story = { ...WithHead, parameters: { theme: "dark" } };
