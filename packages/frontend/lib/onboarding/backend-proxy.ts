@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 // ONB-TASK-008: shared proxy plumbing, extracted from TASK-006's
 // path/route.ts pattern -- now reused by state + dismissal routes too.
-export const backendUrl = (): string => process.env.BACKEND_API_URL ?? "http://localhost:8000";
+export const backendUrl = (): string => backendApiUrl();
 
 export function proxyJson(upstream: Response): Promise<NextResponse> {
   const contentType = upstream.headers.get("content-type") ?? "";

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { backendApiUrl } from "@/lib/backend-url";
+
 /** Shared by the TASK-026 proxy routes (views/comments/events) -- same
  * network/non-JSON-failure collapse as app/api/proxy/layout-positions'
  * local `forward()`, plus unwrapping FastAPI's `{"detail": {...}}`
@@ -36,5 +38,5 @@ export function unauthorised(): NextResponse {
 }
 
 export function backendUrl(): string {
-  return process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  return backendApiUrl();
 }

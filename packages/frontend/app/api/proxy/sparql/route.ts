@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 import type { GraphRow, SparqlPage } from "@/lib/explorer/types";
 
 export const runtime = "nodejs";
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Client pages are 0-indexed (fetch-graph.ts starts at page=0); CE-READ-1
   // pages are 1-indexed (`Query(default=1, ge=1)`, routers/sparql.py).
   const backendPage = parsed.data.page + 1;
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const upstreamUrl =
     `${backendUrl}/api/sparql?` +
     `query=${encodeURIComponent(DEFAULT_GRAPH_QUERY)}` +
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}/api/sparql`, {

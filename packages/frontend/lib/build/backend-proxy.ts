@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { backendApiUrl } from "@/lib/backend-url";
+
 /** Forwards a validated request to the backend with the caller's bearer
  * token, normalising network/non-JSON failures to a 502 envelope. Shared
  * by every `/api/build/**` proxy route (TASK-015) -- mirrors the
@@ -10,7 +12,7 @@ export async function forwardToBackend(
   token: string,
   init?: RequestInit
 ): Promise<NextResponse> {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}${path}`, {
