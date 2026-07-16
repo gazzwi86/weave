@@ -52,7 +52,7 @@ export function VersionsPanel(props: UseVersionsPanelResult) {
 
   return (
     <div data-testid="explorer-versions-panel" data-tour-id="ge.versions.panel">
-      <h3 className={HEADING_CLASS}>Versions</h3>
+      <h2 className={HEADING_CLASS}>Versions</h2>
 
       {listError && <p className={BANNER_CLASS}>Unable to load versions.</p>}
       {loadError && <p className={BANNER_CLASS}>{loadError}</p>}

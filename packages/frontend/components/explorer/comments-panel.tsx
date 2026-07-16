@@ -40,7 +40,7 @@ export function CommentsPanel({ targetKind, targetRef }: CommentsPanelProps) {
 
   return (
     <section className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-3)]">
-      <h3 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Comments</h3>
+      <h2 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Comments</h2>
       {comments.length > 0 && (
         <ul className="mt-[var(--space-2)]" data-testid="comments-list">
           {comments.map((comment) => (

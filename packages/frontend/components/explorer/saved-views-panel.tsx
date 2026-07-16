@@ -137,7 +137,7 @@ function LibraryRow({ view, onOpen, onDelete, onShare }: LibraryRowProps): React
 export function SavedViewsPanel(props: UseSavedViewsResult): React.ReactElement {
   return (
     <div data-testid="explorer-saved-views-panel">
-      <h3 className={HEADING_CLASS}>Saved views</h3>
+      <h2 className={HEADING_CLASS}>Saved views</h2>
       <SaveForm onSave={props.save} />
       <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
         {props.views.map((view) => (
