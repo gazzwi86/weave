@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { normalizeUrn } from "@/lib/build/normalize-urn";
+
 import type { BoardResponse, TaskTreeResponse } from "./types";
 
 export interface BoardState {
@@ -21,7 +23,7 @@ export function useBoard(projectIri: string): BoardState {
 
   useEffect(() => {
     const controller = new AbortController();
-    const encoded = encodeURIComponent(projectIri);
+    const encoded = encodeURIComponent(normalizeUrn(projectIri));
 
     Promise.all([
       fetch(`/api/projects/${encoded}/board`, { signal: controller.signal, cache: "no-store" }),
@@ -40,6 +42,7 @@ export function useBoard(projectIri: string): BoardState {
         if (controller.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) {
           return;
         }
+        console.error("Board load failed", err);
         setLoadError(true);
       });
 

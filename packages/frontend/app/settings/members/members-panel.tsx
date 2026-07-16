@@ -56,9 +56,15 @@ function InviteForm({
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(CANONICAL_ROLES[0]?.slug ?? "viewer");
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!email.trim()) {
+      setFieldError("Email is required.");
+      return;
+    }
+    setFieldError(null);
     if (await onInvite(email, role)) {
       setEmail("");
     }
@@ -87,13 +93,19 @@ function InviteForm({
         ))}
       </select>
 
+      {fieldError && (
+        <p data-testid="invite-field-error" role="alert" className="text-[var(--color-danger)]">
+          {fieldError}
+        </p>
+      )}
+
       {inviteError && (
         <p data-testid="invite-error" className="text-[var(--color-text-muted)]">
           {inviteError}
         </p>
       )}
 
-      <Button type="submit" disabled={!email || inviting}>
+      <Button type="submit" disabled={inviting}>
         {inviting ? "Inviting…" : "Invite"}
       </Button>
     </form>

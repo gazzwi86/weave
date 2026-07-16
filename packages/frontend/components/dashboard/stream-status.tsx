@@ -95,6 +95,18 @@ function DoneStreamBody({
   );
 }
 
+function SubmittingBody() {
+  return (
+    <p
+      aria-busy
+      data-testid="prompt-bar-status"
+      className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]"
+    >
+      Generating…
+    </p>
+  );
+}
+
 function StreamingBody({ state }: { state: Extract<WidgetStreamState, { status: "streaming" }> }) {
   return (
     <div aria-busy>
@@ -155,6 +167,7 @@ export function StreamStatus({
       />
     );
   }
+  if (state.status === "submitting") return <SubmittingBody />;
   if (state.status === "streaming") return <StreamingBody state={state} />;
   if (state.status === "error") return <ErrorBody state={state} onRetry={onRetry} />;
   return null;

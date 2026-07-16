@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { normalizeUrn } from "@/lib/build/normalize-urn";
+
 export interface TaskState {
   id: string;
   status: string;
@@ -23,7 +25,7 @@ export function useTaskList(projectId: string): TaskListState {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/build/projects/${encodeURIComponent(projectId)}/tasks`)
+    fetch(`/api/build/projects/${encodeURIComponent(normalizeUrn(projectId))}/tasks`)
       .then((res) => (res.ok ? (res.json() as Promise<{ tasks: TaskState[] }>) : null))
       .then((body) => {
         if (cancelled) return;

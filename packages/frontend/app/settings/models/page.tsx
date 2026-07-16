@@ -133,6 +133,7 @@ function BudgetCapCard() {
   const [workspaceId, setWorkspaceId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CapResult | null>(null);
+  const [validationMsg, setValidationMsg] = useState<string | null>(null);
   const workspaces = useWorkspaceOptions();
 
   const valueUsd = Number(amount);
@@ -140,7 +141,12 @@ function BudgetCapCard() {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!valid || submitting) return;
+    if (!valid) {
+      setValidationMsg("Enter an amount greater than $0.00.");
+      return;
+    }
+    if (submitting) return;
+    setValidationMsg(null);
     setSubmitting(true);
     setResult(await putCap(valueUsd, workspaceId.trim()));
     setSubmitting(false);
@@ -156,7 +162,6 @@ function BudgetCapCard() {
             type="number"
             min="0.01"
             step="0.01"
-            required
             placeholder="amount in USD"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -175,10 +180,15 @@ function BudgetCapCard() {
               </option>
             ))}
           </select>
-          <Button type="submit" disabled={!valid || submitting}>
+          <Button type="submit" disabled={submitting}>
             {submitting ? "Setting…" : "Set cap"}
           </Button>
         </form>
+        {validationMsg && (
+          <p role="alert" data-testid="cap-validation-error" className="text-[var(--color-danger)]">
+            {validationMsg}
+          </p>
+        )}
         {result && (
           <p
             role={result.tone === "danger" ? "alert" : "status"}

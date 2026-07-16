@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { normalizeUrn } from "@/lib/build/normalize-urn";
+
 export type DecisionKind = "decision" | "task_update" | "system";
 export type KindFilter = "all" | DecisionKind;
 
@@ -57,7 +59,7 @@ function fetchPage(
   cursor: number | null
 ): Promise<DecisionPage | { auditUnavailable: true }> {
   return fetch(
-    `/api/build/projects/${encodeURIComponent(projectId)}/decisions?${buildQuery(kind, search, cursor)}`
+    `/api/build/projects/${encodeURIComponent(normalizeUrn(projectId))}/decisions?${buildQuery(kind, search, cursor)}`
   ).then((res): DecisionPage | { auditUnavailable: true } | Promise<DecisionPage> => {
     if (res.status === 503) return { auditUnavailable: true as const };
     if (!res.ok) throw new Error("decisions_failed");

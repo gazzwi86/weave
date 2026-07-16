@@ -24,6 +24,7 @@ const USAGE_SUMMARY = {
 describe("BillingPage", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("renders the tenant-wide usage summary (AC-5)", async () => {
@@ -79,5 +80,18 @@ describe("BillingPage", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Budget cap reached"));
     expect(screen.getByRole("alert")).toHaveTextContent("$10.00 of $10.00");
+  });
+
+  it("hides the harness-only Simulate AI call widget in production (CLEANUP-1)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(USAGE_SUMMARY))
+    );
+    vi.stubEnv("NODE_ENV", "production");
+
+    render(<BillingPage />);
+
+    await waitFor(() => expect(screen.getByTestId("total-cost")).toBeInTheDocument());
+    expect(screen.queryByText("Simulate AI call (harness)")).not.toBeInTheDocument();
   });
 });

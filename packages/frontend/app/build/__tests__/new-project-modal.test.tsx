@@ -98,6 +98,18 @@ describe("NewProjectModal", () => {
     );
   });
 
+  it("shows an inline error and does not submit when Name is empty (BUG-04)", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<NewProjectModal onCreated={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Name is required.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("closes the dialog without creating a project on Cancel", () => {
     render(<NewProjectModal onCreated={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "New project" }));

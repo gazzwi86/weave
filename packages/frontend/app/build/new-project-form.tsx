@@ -34,6 +34,16 @@ export function NewProjectForm({
     description: "",
     secretRef: "",
   });
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  function handleCreate(): void {
+    if (!values.name.trim()) {
+      setNameError("Name is required.");
+      return;
+    }
+    setNameError(null);
+    onSubmit(values);
+  }
 
   return (
     <form
@@ -51,6 +61,11 @@ export function NewProjectForm({
           onChange={(e) => setValues({ ...values, name: e.target.value })}
           required
         />
+        {nameError && (
+          <span role="alert" className="text-[length:var(--text-label)] text-[var(--color-danger)]">
+            {nameError}
+          </span>
+        )}
       </label>
       <label className="flex flex-col gap-[var(--space-1)]">
         <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">
@@ -85,11 +100,7 @@ export function NewProjectForm({
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button
-          type="button"
-          disabled={!values.name || saving}
-          onClick={() => onSubmit(values)}
-        >
+        <Button type="button" disabled={saving} onClick={handleCreate}>
           Create
         </Button>
       </div>
