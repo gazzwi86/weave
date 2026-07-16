@@ -76,4 +76,22 @@ describe("refreshAccessToken", () => {
 
     expect(result.error).toBe("RefreshTokenError");
   });
+  it("test_transient_refresh_network_failure_no_bounce: a network error leaves the token unchanged for retry", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await refreshAccessToken(BASE_TOKEN, MOCK_OIDC_CONFIG);
+
+    expect(result).toEqual(BASE_TOKEN);
+    expect(result.error).toBeUndefined();
+  });
+
+  it("test_transient_refresh_5xx_no_bounce: a provider 5xx leaves the token unchanged for retry", async () => {
+    mockFetchJsonResponse({}, 503);
+
+    const result = await refreshAccessToken(BASE_TOKEN, MOCK_OIDC_CONFIG);
+
+    expect(result).toEqual(BASE_TOKEN);
+    expect(result.error).toBeUndefined();
+  });
 });
