@@ -21,7 +21,9 @@ async function fetchVersions(): Promise<VersionEntry[]> {
   const response = await fetch("/api/proxy/ontology/versions?page=1&per_page=50");
   if (!response.ok) throw new Error(`versions_failed_${response.status}`);
   const body = (await response.json()) as VersionsResponse;
-  return body.versions;
+  // A 200 body missing `versions` (e.g. a workspace with no published model)
+  // must not set state to undefined -- that crashes every `.map` consumer.
+  return body.versions ?? [];
 }
 
 /** Maps a publish response status to an outcome the UI can branch on --
