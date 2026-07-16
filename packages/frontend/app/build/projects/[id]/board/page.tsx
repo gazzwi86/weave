@@ -15,7 +15,7 @@ import { LANE_ORDER } from "./types";
 import { useBoard } from "./use-board";
 
 /** AC-1: the six lane columns, each showing only its own cards. */
-function LaneGrid({ cards }: { cards: BoardCard[] }): React.JSX.Element {
+function LaneGrid({ cards, projectId }: { cards: BoardCard[]; projectId: string }): React.JSX.Element {
   return (
     <div
       data-testid="board-lanes"
@@ -29,7 +29,7 @@ function LaneGrid({ cards }: { cards: BoardCard[] }): React.JSX.Element {
           {cards
             .filter((card) => card.lane === lane)
             .map((card) => (
-              <Card key={card.id} card={card} />
+              <Card key={card.id} card={card} projectId={projectId} />
             ))}
         </div>
       ))}
@@ -76,7 +76,7 @@ export default function BoardPage(): React.JSX.Element {
       {visibleCards.length === 0 ? (
         <EmptyState onReset={() => setFilter("All")} />
       ) : (
-        <LaneGrid cards={visibleCards} />
+        <LaneGrid cards={visibleCards} projectId={id} />
       )}
 
       <UiCard>
