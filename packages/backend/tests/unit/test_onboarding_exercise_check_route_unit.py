@@ -48,6 +48,7 @@ def _state(
         activations=[],
         sandbox_workspace_id=None,
         sandbox_forked_at=None,
+        sandbox_batch_semver=None,
     )
 
 

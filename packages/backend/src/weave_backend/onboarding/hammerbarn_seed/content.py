@@ -226,7 +226,8 @@ _EVENTS = [
 
 # -- Processes (weave:Process) + their steps (weave:Activity) ---------------
 # Each process: (ref, label, in_domain, realizes_cap, triggered_by[], performed_by[],
-#                runs_on[], data_consumes[], data_produces[], governed_by|None, steps)
+#                runs_on[], accesses[], data_consumes[], data_produces[], governed_by|None,
+#                steps)
 # steps: (ref, label, step_order)
 _PROCESSES = [
     (
@@ -237,8 +238,9 @@ _PROCESSES = [
         ["event-delivery-arrived"],
         ["actor-warehouse-operative"],
         ["system-wms"],
+        ["system-erp-inventory"],
         ["data-purchase-orders"],
-        ["data-stock-ledger"],
+        ["data-stock-ledger", "event-goods-received"],
         "policy-goods-inward-po-match",
         [
             ("act-receive-delivery", "Receive delivery", 1),
@@ -257,6 +259,7 @@ _PROCESSES = [
         ["event-low-stock", "event-cycle-count-due"],
         ["actor-store-manager", "actor-warehouse-operative"],
         ["system-erp-inventory"],
+        ["system-wms"],
         ["data-stock-ledger"],
         ["data-stock-ledger", "data-purchase-orders"],
         "policy-quarterly-stock-count",
@@ -276,6 +279,7 @@ _PROCESSES = [
         ["event-order-placed"],
         ["actor-checkout-operator", "actor-trade-account-manager"],
         ["system-pos", "system-ecommerce"],
+        ["service-payment", "service-notification"],
         ["data-stock-ledger", "data-customer-records"],
         ["data-sales-orders"],
         "policy-trade-credit-limit",
@@ -297,6 +301,7 @@ _PROCESSES = [
         ["event-return-requested"],
         ["actor-checkout-operator", "actor-store-manager"],
         ["system-pos"],
+        ["service-payment", "system-erp-inventory"],
         ["data-sales-orders"],
         ["data-stock-ledger"],
         "policy-refund-approval-threshold",
@@ -314,15 +319,18 @@ _PROCESSES = [
         "domain-merchandising",
         "cap-pricing-promotion",
         ["event-price-review-due", "event-promotion-planned"],
-        ["actor-buyer"],
-        ["system-pricing"],
-        ["data-product-catalogue"],
+        ["actor-buyer", "actor-regional-manager"],
+        ["system-erp-inventory"],
+        ["system-pos", "system-ecommerce"],
+        [],
         ["data-product-catalogue"],
         "policy-price-change-dual-auth",
         [
-            ("act-review-price", "Review price", 1),
-            ("act-authorise-price-change", "Authorise price change (dual auth)", 2),
-            ("act-publish-price", "Publish price", 3),
+            ("act-propose-price-change", "Propose price change", 1),
+            ("act-check-margin", "Check against margin floor", 2),
+            ("act-dual-authorise", "Dual authorise", 3),
+            ("act-publish-price", "Publish price (propagate to POS/e-commerce)", 4),
+            ("act-schedule-promotion", "Schedule promotion", 5),
         ],
     ),
 ]
@@ -480,6 +488,7 @@ def _process_node_ops() -> list[AddNodeOp | AddEdgeOp]:
         _trig,
         perf_refs,
         _runs,
+        _accesses,
         _consumes,
         _produces,
         _governs,
@@ -510,6 +519,7 @@ def _process_edge_ops() -> list[AddEdgeOp]:
         trig_refs,
         _perf_refs,
         runs_refs,
+        accesses_refs,
         consumes_refs,
         produces_refs,
         governs_ref,
@@ -521,6 +531,7 @@ def _process_edge_ops() -> list[AddEdgeOp]:
         # performedBy is emitted in _process_node_ops(), not here -- see that
         # function's docstring (weave:ProcessShape minCount 1 requirement).
         edges.extend(_edge(ref, "runsOn", runs) for runs in runs_refs)
+        edges.extend(_edge(ref, "accesses", accessed) for accessed in accesses_refs)
         edges.extend(_edge(ref, "consumes", consumed) for consumed in consumes_refs)
         edges.extend(_edge(ref, "produces", produced) for produced in produces_refs)
         if governs_ref is not None:

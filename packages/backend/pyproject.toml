@@ -32,6 +32,7 @@ dependencies = [
 [project.scripts]
 weave-backend = "weave_backend:main"
 weave-mock-oidc = "weave_backend.mock_oidc.app:main"
+weave-hammerbarn-seed = "weave_backend.onboarding.hammerbarn_seed.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.3,<0.12.0"]

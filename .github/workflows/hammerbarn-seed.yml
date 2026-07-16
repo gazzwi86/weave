@@ -1,0 +1,109 @@
+name: Hammerbarn seed (canonical apply)
+
+# AC-002-06 (onboarding TASK-002): re-seeding the CANONICAL Hammerbarn workspace is either an
+# explicit human dispatch, or CE's ontology semver bumping MAJOR (a breaking ontology change can
+# invalidate the existing canonical seed's shape). Minor/patch bumps never touch the canonical
+# graph -- advisory-only note on the run, no apply, no gate needed.
+#
+# `repository_dispatch` is the trigger CE's own version-publish code would fire on a real bump
+# (client_payload.bump: major|minor|patch) -- the emitter side of that wiring is CE's own task, out
+# of scope here; this workflow only needs to react correctly to the event shape once it exists.
+on:
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [ce-ontology-version-bump]
+
+jobs:
+  advisory:
+    # Minor/patch: no canonical apply -- just a visible note on the run. No PR/issue-comment write
+    # scope needed for that, so this stays a plain job-summary echo.
+    if: github.event_name == 'repository_dispatch' && github.event.client_payload.bump != 'major'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Advisory note (no canonical apply)
+        run: |
+          echo "CE ontology bump '${{ github.event.client_payload.bump }}' is minor/patch -- no \
+            canonical re-seed triggered. Re-seed only runs on a MAJOR bump or manual \
+            workflow_dispatch." | tee -a "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.client_payload.bump == 'major'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # AC-002-06's HITL publish/generate gate: required reviewers (content admin + Tech Lead) are
+    # configured on this GitHub environment in the repo's own Settings > Environments UI (DoR
+    # item -- a workflow YAML can reference an environment's name but cannot itself declare who its
+    # reviewers are, that's repo-settings state, not file content).
+    environment: hammerbarn-seed-canonical
+    defaults:
+      run:
+        working-directory: packages/backend
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - working-directory: .
+        run: docker compose up -d --wait postgres redis oxigraph
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - run: uv sync
+      - name: Apply DB migrations (creates the weave_app role + schema)
+        run: uv run python -m weave_backend.db.migrate
+      # AC-002-07 (Law F): CI never makes real cloud calls -- the canonical apply below runs
+      # against this job's own ephemeral docker-compose stack + mock OIDC, same as every other
+      # docker-marked job in ci.yml, never a real deployed tenant.
+      - name: Seed demo data (provisions the admin@weave.local super-admin principal)
+        run: uv run python -m weave_backend.db.seed_demo
+      - name: Start backend + mock OIDC
+        run: |
+          uv run uvicorn weave_backend:app --port 8000 &
+          uv run weave-mock-oidc &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/health && break
+            sleep 2
+          done
+      - name: Mint a super-admin bearer token via mock OIDC's real /login + /token
+        # ponytail: curl output captured to a var before piping (not `curl | interpreter`
+        # directly) -- same shape semgrep's gha-curl-pipe-shell rule already accepted for the
+        # workspace-creation step below; keeps a single local endpoint's response off a live pipe
+        # into python3/sed without downloading+verifying a script (there's no script here, just
+        # JSON/header parsing of a same-job localhost response).
+        run: |
+          login_response=$(curl -s -i -X POST http://localhost:9001/login \
+            --data-urlencode "redirect_uri=http://localhost:3000/callback" \
+            --data-urlencode "email=admin@weave.local" \
+            --data-urlencode "tenant_id=acme-corp")
+          code=$(printf '%s' "$login_response" | grep -i '^location:' | sed -E 's/.*code=([^&[:space:]]*).*/\1/')
+          token_response=$(curl -s -X POST http://localhost:9001/token \
+            --data-urlencode "grant_type=authorization_code" \
+            --data-urlencode "code=$code")
+          token=$(printf '%s' "$token_response" | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+          echo "::add-mask::$token"
+          echo "HB_TOKEN=$token" >> "$GITHUB_ENV"
+      - name: Create (or reuse) the canonical workspace
+        run: |
+          ws=$(curl -s -X POST http://localhost:8000/api/tenants/acme-corp/workspaces \
+            -H "Authorization: Bearer $HB_TOKEN" -H "Content-Type: application/json" \
+            -d '{"slug":"hammerbarn-canonical","display_name":"Hammerbarn (canonical)"}')
+          echo "HB_WORKSPACE_ID=$(echo "$ws" | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")" >> "$GITHUB_ENV"
+      - name: Compile + apply + publish
+        run: |
+          uv run weave-hammerbarn-seed --apply --workspace "$HB_WORKSPACE_ID" --token "$HB_TOKEN" \
+            --base-url http://localhost:8000
+      - name: Verify (non-zero triple count)
+        run: |
+          uv run weave-hammerbarn-seed --verify --workspace "$HB_WORKSPACE_ID" --token "$HB_TOKEN" \
+            --base-url http://localhost:8000
+      - if: always()
+        working-directory: .
+        run: docker compose down -v

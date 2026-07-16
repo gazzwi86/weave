@@ -64,6 +64,7 @@ class _FakeConnection:
                 "whats_new_seen_at": None,
                 "sandbox_workspace_id": None,
                 "sandbox_forked_at": None,
+                "sandbox_batch_semver": None,
             }
             self.spine = {
                 "role_path": role_path if role_path is not None else existing["role_path"],
@@ -92,6 +93,7 @@ class _FakeConnection:
                 ),
                 "sandbox_workspace_id": existing.get("sandbox_workspace_id"),
                 "sandbox_forked_at": existing.get("sandbox_forked_at"),
+                "sandbox_batch_semver": existing.get("sandbox_batch_semver"),
             }
             return "INSERT 0 1"
         if "INSERT INTO tour_progress" in query:
@@ -290,12 +292,14 @@ async def test_get_state_exposes_sandbox_fields() -> None:
         "whats_new_seen_at": None,
         "sandbox_workspace_id": "ws-1",
         "sandbox_forked_at": datetime.now(UTC),
+        "sandbox_batch_semver": "1.1.0",
     }
 
     record = await store.get_state(conn, tenant_id=_TENANT, user_id=_USER)
 
     assert record.sandbox_workspace_id == "ws-1"
     assert record.sandbox_forked_at is not None
+    assert record.sandbox_batch_semver == "1.1.0"
 
 
 async def test_clear_checklist_dismissal_nulls_the_field() -> None:
