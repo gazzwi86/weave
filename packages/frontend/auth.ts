@@ -37,18 +37,20 @@ function tokenEndpointConfig() {
 
 // RFC 6265 scopes cookies by host, not port, so parallel dev stacks on
 // e.g. :3000 and :3100 share one session cookie jar and clobber each
-// other's login. Defaulting to next-auth's own cookie name keeps behaviour
-// byte-identical when the env var is unset; a shared AUTH_SECRET was
-// rejected as a fix since it doesn't isolate sessions either.
-const SESSION_COOKIE_NAME = process.env.AUTH_SESSION_COOKIE_NAME ?? "authjs.session-token";
+// other's login. Only pass a `cookies` block when the env var is set --
+// next-auth's own default cookie name is dynamic (`__Secure-` prefixed over
+// https, unprefixed over http), so hardcoding a fallback string here would
+// pin the http name and break the `__Secure-` guarantee in production.
+// Leaving `cookies` out entirely when unset keeps that dynamic default
+// completely untouched. A shared AUTH_SECRET was rejected as a fix since it
+// doesn't isolate sessions either.
+const SESSION_COOKIE_NAME = process.env.AUTH_SESSION_COOKIE_NAME;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: requireAuthSecret(),
-  cookies: {
-    sessionToken: {
-      name: SESSION_COOKIE_NAME,
-    },
-  },
+  ...(SESSION_COOKIE_NAME
+    ? { cookies: { sessionToken: { name: SESSION_COOKIE_NAME } } }
+    : {}),
   providers: [
     Cognito({
       clientId: OIDC_CLIENT_ID,
