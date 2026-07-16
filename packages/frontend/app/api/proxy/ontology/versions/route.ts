@@ -22,6 +22,15 @@ function buildForwardedParams(data: { page?: number; per_page?: number }): URLSe
 
 type UpstreamResult = { status: number; body: unknown } | null;
 
+/** Extracts the bare `VersionEntry[]` from CE-VERSION-1's paginated envelope
+ * `{ versions, ... }` (tolerating a bare array too, for forward-compat).
+ * Kept out of GET so its cyclomatic complexity stays within budget. */
+function unwrapVersions(body: unknown): unknown[] {
+  if (Array.isArray(body)) return body;
+  const versions = (body as { versions?: unknown } | null)?.versions;
+  return Array.isArray(versions) ? versions : [];
+}
+
 /** Fetches CE-READ-1's version list; null signals "treat as unavailable"
  * (network failure or a non-JSON upstream response), kept separate from
  * GET so the caller has one branch to handle instead of nesting try/catch
@@ -38,10 +47,17 @@ async function fetchUpstreamVersions(url: string, token: string): Promise<Upstre
   return { status: upstream.status, body: (await upstream.json()) as unknown };
 }
 
-/** Proxies CE-READ-1's `GET /api/ontology/versions` -- the version list is
- * returned as-is (no reshaping needed), attaching the caller's session
- * bearer token server-side. Drafts-visible-to-author-only is enforced by
- * the backend, not this route.
+/** Proxies CE-READ-1's `GET /api/ontology/versions`, attaching the caller's
+ * session bearer token server-side. Drafts-visible-to-author-only is enforced
+ * by the backend, not this route.
+ *
+ * CE-VERSION-1's backend returns a paginated envelope
+ * `{ versions, total, page, per_page }` (see backend `VersionsResponse` /
+ * `ce_version_client._extract_versions`), but CE-READ-1 documents — and the
+ * SPA's `fetch-versions.ts` consumes — a bare `VersionEntry[]`. Unwrap to the
+ * array here (the frontend uses no pagination metadata); without it
+ * `VersionsPanel` runs `.map` on the envelope object and the Explorer page
+ * crashes to Next's error boundary. Error statuses pass through untouched.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const session = await auth();
@@ -65,6 +81,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   );
   if (result === null) {
     return NextResponse.json({ error: "store_unavailable" }, { status: 503 });
+  }
+  if (result.status === 200) {
+    return NextResponse.json(unwrapVersions(result.body), { status: 200 });
   }
   return NextResponse.json(result.body, { status: result.status });
 }

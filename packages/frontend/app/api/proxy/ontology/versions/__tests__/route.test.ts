@@ -50,7 +50,7 @@ describe("GET /api/proxy/ontology/versions", () => {
     expect(response.status).toBe(401);
   });
 
-  it("forwards page/per_page and the bearer token, passes through the body", async () => {
+  it("forwards page/per_page and the bearer token, unwraps the envelope to a bare versions array", async () => {
     mockAuthedSession();
     stubFetch(
       new Response(JSON.stringify(BACKEND_BODY), { status: 200, headers: { "content-type": "application/json" } })
@@ -64,7 +64,7 @@ describe("GET /api/proxy/ontology/versions", () => {
     expect(calledUrl).toContain("per_page=10");
     expect(options.headers).toEqual({ Authorization: `Bearer ${TOKEN}` });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual(BACKEND_BODY);
+    expect(await response.json()).toEqual(BACKEND_BODY.versions);
   });
 
   it("omits page/per_page from the upstream URL when the caller doesn't supply them", async () => {
