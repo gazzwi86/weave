@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from weave_backend.onboarding.hammerbarn_seed import content
 from weave_backend.schemas.operations import AddNodeOp, Op
 
-SEED_SEMVER = "1.0.0"
+SEED_SEMVER = "1.1.0"
 BATCH_SIZE = 50
 
 

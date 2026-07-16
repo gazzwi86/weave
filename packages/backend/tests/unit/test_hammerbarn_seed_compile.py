@@ -31,7 +31,7 @@ def test_compile_against_real_ontology_types_succeeds() -> None:
 
     artefact = compile_seed(allowed_kinds=allowed_kinds)
 
-    assert artefact.semver == "1.0.0"
+    assert artefact.semver == "1.1.0"
     assert len(artefact.batches) > 0
     total_ops = sum(len(batch) for batch in artefact.batches)
     assert total_ops == len(content.node_ops()) + len(content.edge_ops())
