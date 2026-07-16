@@ -22,6 +22,10 @@ export interface SecondarySidebarGroup {
 export interface SecondarySidebarProps {
   groups: SecondarySidebarGroup[];
   activeHref?: string;
+  /** Section name shown in the sidebar head (v5 shell). Omit for no head. */
+  title?: string;
+  /** Collapse control in the head; the button is omitted when absent. */
+  onCollapse?: () => void;
   className?: string;
 }
 
@@ -69,15 +73,34 @@ function SidebarRow({ item, isActive }: { item: SecondarySidebarItem; isActive: 
 
 /** Section-scoped left rail (extracted from the stateful
  * `components/shell/section-rail.tsx`, which owns `usePathname` + RBAC filtering). */
-export function SecondarySidebar({ groups, activeHref, className }: SecondarySidebarProps) {
+export function SecondarySidebar({ groups, activeHref, title, onCollapse, className }: SecondarySidebarProps) {
   return (
     <nav
       aria-label="Secondary"
       className={cn(
-        "w-52 shrink-0 border-r border-[var(--color-border)] px-[var(--space-2)] py-[var(--space-4)]",
+        "w-[var(--size-sidebar)] shrink-0 overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-3)] py-[var(--space-4)]",
         className
       )}
     >
+      {title || onCollapse ? (
+        <div className="mb-[var(--space-3)] flex items-center justify-between px-[var(--space-2)]">
+          {title ? (
+            <span className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)]">
+              {title}
+            </span>
+          ) : null}
+          {onCollapse ? (
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              onClick={onCollapse}
+              className="flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] text-[length:var(--text-label)] text-[var(--color-text-subtle)] hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
+            >
+              «
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {groups.map((group) => (
         <div key={group.heading} className="mb-[var(--space-4)]">
           <p className="px-[var(--space-2)] pb-[var(--space-1)] text-[length:var(--text-overline)] tracking-[var(--text-overline-tracking)] uppercase text-[var(--color-text-muted)]">

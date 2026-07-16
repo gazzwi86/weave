@@ -2,10 +2,16 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import { NavRail } from "./NavRail";
 
+const dot = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+    <circle cx="12" cy="12" r="7" />
+  </svg>
+);
+
 const ITEMS = [
-  { label: "Home", href: "/dashboard" },
-  { label: "Constitution", href: "/ce" },
-  { label: "Build", href: "/build" },
+  { label: "Home", href: "/dashboard", icon: dot },
+  { label: "Constitution", href: "/ce", icon: dot },
+  { label: "Build", href: "/build", icon: dot },
 ];
 
 const meta: Meta<typeof NavRail> = {

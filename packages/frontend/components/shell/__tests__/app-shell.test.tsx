@@ -110,4 +110,23 @@ describe("AppShell", () => {
 
     expect(screen.queryByRole("combobox", { name: "Active workspace" })).not.toBeInTheDocument();
   });
+
+  // AC-1 (v5 shell): the sidebar collapses from its own head and re-expands
+  // from the top-bar affordance -- the two share one persisted state.
+  it("collapses the sidebar and re-expands it from the top-bar button", () => {
+    pathname = "/ce/query";
+    localStorage.clear();
+    render(
+      <AppShell role="admin">
+        <p>page content</p>
+      </AppShell>
+    );
+
+    expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /collapse sidebar/i }));
+    expect(screen.queryByRole("navigation", { name: "Secondary" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /expand sidebar/i }));
+    expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+  });
 });
