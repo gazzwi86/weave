@@ -219,4 +219,32 @@ describe("GET /api/proxy/ontology/resource/[iri] -- errors and cross-tenant isol
 
     expect(response.status).toBe(503);
   });
+
+  // Known-issue regression: a 2xx + json-content-type upstream response that
+  // then fails to parse used to escape as an uncaught exception -- Next.js
+  // renders that as a raw 500 with an empty body (the intermittent
+  // 500/503-empty-body symptom Lane A saw during BUG-02 verification). It
+  // must instead collapse to the same structured 503 as any other outage.
+  it("returns structured 503 (not an uncaught 500) when the upstream 2xx body is malformed JSON", async () => {
+    stubFetch(new Response("{not valid json", { status: 200, headers: { "content-type": "application/json" } }));
+
+    const response = await GET(makeRequest(IRI), paramsFor(IRI));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "store_unavailable" });
+  });
+
+  it("returns structured 503 (not an uncaught 500) when the upstream 2xx body has an unexpected shape", async () => {
+    stubFetch(
+      new Response(JSON.stringify({ iri: IRI, label: "X@en" /* missing type_label/key_properties */ }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+    const response = await GET(makeRequest(IRI), paramsFor(IRI));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "store_unavailable" });
+  });
 });
