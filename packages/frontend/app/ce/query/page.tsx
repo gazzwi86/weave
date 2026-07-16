@@ -11,7 +11,7 @@ import { useSparqlEditor } from "./use-sparql-editor";
  * (AC-9) -- one page, two panels.
  */
 export interface QueryPageProps {
-  /** Test seam -- overrides the ask lifecycle's default 15s timeout. */
+  /** Test seam -- overrides the ask lifecycle's default 310s timeout. */
   timeoutMs?: number;
 }
 

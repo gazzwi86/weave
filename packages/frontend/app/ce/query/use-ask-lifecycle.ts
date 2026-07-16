@@ -60,10 +60,15 @@ export function classifyFailureStatus(status: number): "provider-missing" | "err
   return status === 503 || status === 502 ? "provider-missing" : "error";
 }
 
-// ponytail: 15s flat client-side timer, not a server-negotiated budget --
-// upgrade path is reading a server-advertised timeout header if p95 latency
-// data later shows 15s is miscalibrated (brief's own note).
-const DEFAULT_TIMEOUT_MS = 15000;
+// R2: was 15s -- 20x shorter than the backend's OLLAMA_TIMEOUT_S=300 budget,
+// so real generations got aborted and misreported as "timed out" long before
+// the backend actually gave up. Set just above the backend budget so timeout
+// only fires once the backend has truly failed.
+// ponytail: still a flat client constant, not read from the backend -- no
+// shared config surface exists yet (grepped, only OLLAMA_TIMEOUT_S server-side
+// env var). Upgrade path: expose it via a response header if the two values
+// ever need to drift independently.
+export const DEFAULT_TIMEOUT_MS = 310000;
 
 interface AskCallbacks {
   onStatus: (status: AskStatus) => void;
