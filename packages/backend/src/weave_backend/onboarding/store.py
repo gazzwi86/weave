@@ -62,6 +62,12 @@ class OnboardingStateRecord(BaseModel):
     #: per the brief's implementation hint) without a second round-trip.
     sandbox_workspace_id: str | None
     sandbox_forked_at: datetime | None
+    #: "report demo status" (exists/version/last-reset): the Hammerbarn seed
+    #: `semver` last written to this pointer by `set_sandbox_pointer` (fork
+    #: or reset -- both call it, so this doubles as "last-reset-or-forked
+    #: version"). `None` alongside a `None` `sandbox_workspace_id` means
+    #: "never provisioned".
+    sandbox_batch_semver: str | None
     tours: list[TourProgressRecord]
     dismissals: list[DismissalRecord]
     exercise_completions: list[ExerciseCompletionRecord]
@@ -106,7 +112,8 @@ async def get_state(
     """
     spine = await conn.fetchrow(
         "SELECT role_path, path_variant, path_chosen_manually, checklist_dismissed_at,"
-        " checklist_completed_at, whats_new_seen_at, sandbox_workspace_id, sandbox_forked_at"
+        " checklist_completed_at, whats_new_seen_at, sandbox_workspace_id, sandbox_forked_at,"
+        " sandbox_batch_semver"
         " FROM onboarding_state WHERE tenant_id = $1 AND user_id = $2",
         tenant_id,
         user_id,
@@ -157,6 +164,7 @@ def _assemble_state(
             else None
         ),
         sandbox_forked_at=spine["sandbox_forked_at"] if spine else None,
+        sandbox_batch_semver=spine["sandbox_batch_semver"] if spine else None,
         tours=[TourProgressRecord(**row) for row in tours],
         dismissals=[DismissalRecord(**row) for row in dismissals],
         exercise_completions=[ExerciseCompletionRecord(**row) for row in exercises],

@@ -65,6 +65,11 @@ class OnboardingStateOut(BaseModel):
     whats_new_seen_at: datetime | None
     sandbox_workspace_id: str | None
     sandbox_forked_at: datetime | None
+    #: Hammerbarn demo status (exists/version/last-reset): the seed `semver`
+    #: applied at the last fork-or-reset. `sandbox_forked_at` doubles as
+    #: "last-reset-or-forked-at" -- both `ensure_sandbox` (fork) and
+    #: `build_reset_workspace`+swap (reset) write the same pointer columns.
+    sandbox_batch_semver: str | None
     #: TASK-010 AC-010-04: resolved 7-day-default settings-cascade tunable
     #: (company -> domain -> project), so the widget's auto-dismiss window
     #: arithmetic is config-driven, not hard-coded (FR-020).
