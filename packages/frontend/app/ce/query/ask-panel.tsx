@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { AskPanelTemplate } from "@/components/templates/AskPanelTemplate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,12 +9,20 @@ import { ResultFrame } from "./result-frame";
 import { VersionSelect } from "./version-select";
 import type { AskLifecycleState } from "./use-ask-lifecycle";
 
-/** CE-V1-TASK-032 AC-1: the submitting state's visible-progress indicator --
- * always rendered the instant `ask()` fires, never a silent gap. */
+/** CE-V1-TASK-032 AC-1 + R2: the submitting state's visible-progress
+ * indicator -- rendered the instant `ask()` fires, and ticking every second
+ * so a long (up to 310s) wait reads as live progress, not a frozen spinner.
+ * Mounts/unmounts with the "submitting" branch, so the interval is scoped
+ * for free -- no manual status check needed. */
 function SubmittingState() {
+  const [elapsedS, setElapsedS] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setElapsedS((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
   return (
     <p role="status" data-testid="ask-submitting" className="text-[var(--color-text-muted)]">
-      Asking…
+      Generating… ({elapsedS}s)
     </p>
   );
 }

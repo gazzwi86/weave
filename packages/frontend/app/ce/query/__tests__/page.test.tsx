@@ -86,6 +86,23 @@ describe("QueryPage ask lifecycle", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
+  // R2: a long wait must show live progress, not a frozen "Asking..." line.
+  it("test_submitting_state_ticks_elapsed_seconds_not_a_frozen_spinner", async () => {
+    vi.useFakeTimers();
+    stubVersionsFetch(() => new Promise(() => undefined));
+    render(<QueryPage />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Ask a question" }), {
+      target: { value: "What processes exist?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(screen.getByTestId("ask-submitting")).toHaveTextContent("Generating… (0s)");
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(screen.getByTestId("ask-submitting")).toHaveTextContent("Generating… (3s)");
+    vi.useRealTimers();
+  });
+
   // AC-4: non-timeout failure names what went wrong, with examples.
   it("test_error_state_names_failure_with_examples", async () => {
     stubVersionsFetch(() => Promise.resolve(jsonResponse(400, { error: "translation_failed" })));
