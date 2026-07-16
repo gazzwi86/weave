@@ -1,5 +1,6 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,13 @@ function PromptBarInput({
   );
 }
 
+/** Radix Dialog gives the WAI-ARIA modal behaviour the hand-rolled div
+ * lacked: Escape-to-close, click-outside (overlay) close, focus trap, and
+ * focus restored to the invoking control on close -- all via `onOpenChange`,
+ * no bespoke keyboard/focus code. */
 function PromptBarDialog({
+  open,
+  onOpenChange,
   prompt,
   onPromptChange,
   onSubmit,
@@ -113,6 +120,8 @@ function PromptBarDialog({
   componentType,
   onComponentTypeChange,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   prompt: string;
   onPromptChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -125,27 +134,31 @@ function PromptBarDialog({
   onComponentTypeChange: (componentType: ComponentType) => void;
 }) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Generate a dashboard widget"
-      className="fixed left-1/2 top-[20vh] w-full max-w-[560px] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] shadow-[var(--shadow-overlay)]"
-    >
-      <PromptBarInput prompt={prompt} onPromptChange={onPromptChange} onSubmit={onSubmit} />
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)]/80" />
+        <Dialog.Content
+          aria-label="Generate a dashboard widget"
+          className="fixed left-1/2 top-[20vh] w-full max-w-[560px] -translate-x-1/2 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] shadow-[var(--shadow-overlay)]"
+        >
+          <Dialog.Title className="sr-only">Generate a dashboard widget</Dialog.Title>
+          <PromptBarInput prompt={prompt} onPromptChange={onPromptChange} onSubmit={onSubmit} />
 
-      {showExamples && examplePrompts && (
-        <ExamplePromptList prompts={examplePrompts.prompts} onSelect={onExampleSelect} />
-      )}
+          {showExamples && examplePrompts && (
+            <ExamplePromptList prompts={examplePrompts.prompts} onSelect={onExampleSelect} />
+          )}
 
-      <div className="mt-[var(--space-3)]" aria-live="polite">
-        <StreamStatus
-          state={state}
-          onRetry={onRetry}
-          componentType={componentType}
-          onComponentTypeChange={onComponentTypeChange}
-        />
-      </div>
-    </div>
+          <div className="mt-[var(--space-3)]" aria-live="polite">
+            <StreamStatus
+              state={state}
+              onRetry={onRetry}
+              componentType={componentType}
+              onComponentTypeChange={onComponentTypeChange}
+            />
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -242,20 +255,20 @@ export function PromptBar({
       <Button data-testid="prompt-bar-trigger" onClick={() => setOpen(true)}>
         Generate a widget
       </Button>
-      {open && (
-        <PromptBarDialog
-          prompt={prompt}
-          onPromptChange={setPrompt}
-          onSubmit={handleSubmit}
-          showExamples={showExamples}
-          examplePrompts={examplePrompts}
-          onExampleSelect={handleExampleSelect}
-          state={state}
-          onRetry={onRetry}
-          componentType={componentType}
-          onComponentTypeChange={setComponentType}
-        />
-      )}
+      <PromptBarDialog
+        open={open}
+        onOpenChange={setOpen}
+        prompt={prompt}
+        onPromptChange={setPrompt}
+        onSubmit={handleSubmit}
+        showExamples={showExamples}
+        examplePrompts={examplePrompts}
+        onExampleSelect={handleExampleSelect}
+        state={state}
+        onRetry={onRetry}
+        componentType={componentType}
+        onComponentTypeChange={setComponentType}
+      />
     </>
   );
 }

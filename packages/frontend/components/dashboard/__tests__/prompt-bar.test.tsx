@@ -44,6 +44,18 @@ describe("PromptBar", () => {
     expect((await axe(container)).violations).toHaveLength(0);
   });
 
+  // WAI-ARIA modal: Escape must dismiss (the hand-rolled div never did).
+  it("closes on Escape", async () => {
+    stubFetch(() => new Response(JSON.stringify({ prompts: [], hide_after: 3 }), { status: 200 }));
+    render(<PromptBar generatedCount={0} />);
+    fireEvent.click(screen.getByTestId("prompt-bar-trigger"));
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
   it("shows example prompts when empty and under the hide-after count", async () => {
     stubFetch(() =>
       new Response(JSON.stringify({ prompts: ["show entities by kind"], hide_after: 3 }), {
