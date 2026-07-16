@@ -32,10 +32,20 @@ interface TokenEndpointResponse {
 
 /**
  * Exchange `token.refreshToken` for a new access token via the OIDC token
- * endpoint. Returns the token unchanged but flagged with
- * `error: "RefreshTokenError"` when there is no refresh token to use, or the
- * provider rejects it (expired/revoked) — callers (middleware) treat that
- * flag as "sign the user out".
+ * endpoint.
+ *
+ * - Network/provider-unreachable failures (fetch throws, or a 5xx from the
+ *   provider) are transient: the token is returned unchanged, un-flagged, so
+ *   the next request's `jwt` callback simply retries the refresh. The jwt
+ *   callback must never see this function throw — an uncaught throw here
+ *   propagates into Auth.js's session action, which treats it as a fatal
+ *   JWT error and wipes the session cookie outright (see
+ *   @auth/core/lib/actions/session.js), logging the user out for what may
+ *   be a one-off blip.
+ * - A definitive rejection (no refresh token to use, or the provider
+ *   responds with a 4xx — e.g. expired/revoked refresh token) is flagged
+ *   `error: "RefreshTokenError"`; callers (middleware) treat that flag as
+ *   "sign the user out".
  */
 export async function refreshAccessToken(
   token: WeaveJWT,
@@ -45,16 +55,27 @@ export async function refreshAccessToken(
     return { ...token, error: "RefreshTokenError" };
   }
 
-  const response = await fetch(config.tokenUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: token.refreshToken,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(config.tokenUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: token.refreshToken,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+      }),
+    });
+  } catch {
+    // Provider unreachable (network error, DNS, timeout) — transient, retry next request.
+    return token;
+  }
+
+  if (response.status >= 500) {
+    // Provider-side failure — also transient, retry next request rather than sign out.
+    return token;
+  }
 
   if (!response.ok) {
     return { ...token, error: "RefreshTokenError" };
