@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getSessionClaims } from "@/lib/auth/session-claims";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ const updateSchema = z.object({
   channels: z.array(z.string()).min(1),
 });
 
-const backendUrl = () => process.env.BACKEND_API_URL ?? "http://localhost:8000";
 
 function proxyJson(upstream: Response): Promise<NextResponse> {
   const contentType = upstream.headers.get("content-type") ?? "";
@@ -32,7 +32,7 @@ export async function GET(): Promise<NextResponse> {
   }
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/notifications/preferences`, {
+    upstream = await fetch(`${backendApiUrl()}/api/notifications/preferences`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
     });
@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/notifications/preferences`, {
+    upstream = await fetch(`${backendApiUrl()}/api/notifications/preferences`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${session.accessToken}`,

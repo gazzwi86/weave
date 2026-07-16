@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { getSessionClaims } from "@/lib/auth/session-claims";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     ? `urn:weave:tenant:${tenantId}:ws:${workspaceId}`
     : `urn:weave:tenant:${tenantId}:company`;
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}/api/billing/caps`, {

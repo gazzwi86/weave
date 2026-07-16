@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { opSchema } from "@/lib/explorer/operations-schema";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // authorization (see ApplyRequest.actor docstring in operations.py).
   const actor = session.user?.email ?? "unknown-actor";
 
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   let upstream: Response;
   try {
     upstream = await fetch(`${backendUrl}/api/operations/apply`, {

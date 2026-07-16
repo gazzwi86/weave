@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,6 @@ const choiceSchema = z.object({
   role_path: z.enum(["business", "technical", "compliance", "admin"]),
 });
 
-const backendUrl = () => process.env.BACKEND_API_URL ?? "http://localhost:8000";
 
 function proxyJson(upstream: Response): Promise<NextResponse> {
   const contentType = upstream.headers.get("content-type") ?? "";
@@ -29,7 +29,7 @@ export async function GET(): Promise<NextResponse> {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/onboarding/path`, {
+    upstream = await fetch(`${backendApiUrl()}/api/onboarding/path`, {
       headers: { Authorization: `Bearer ${session.accessToken}` },
       cache: "no-store",
     });
@@ -54,7 +54,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/onboarding/path`, {
+    upstream = await fetch(`${backendApiUrl()}/api/onboarding/path`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${session.accessToken}`,

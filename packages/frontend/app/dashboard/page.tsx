@@ -8,6 +8,7 @@ import type { LibraryItemOut, WidgetOut } from "@/components/dashboard/types";
 import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
 import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 interface WhoamiResponse {
   sub: string;
@@ -19,7 +20,7 @@ interface WhoamiResponse {
  * if this page grows more than the reads below.
  */
 async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const response = await fetch(`${backendUrl}/api/whoami`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
@@ -32,7 +33,7 @@ async function fetchWhoami(accessToken: string): Promise<WhoamiResponse | null> 
  * so this stays a plain server-side fetch, same shape as fetchWhoami.
  */
 async function fetchDashboardWidgets(accessToken: string, scope: "tenant_default" | "user"): Promise<WidgetOut[]> {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const response = await fetch(
     `${backendUrl}/api/dashboard/widgets?scope=${scope}`,
     { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" }
@@ -45,7 +46,7 @@ async function fetchDashboardWidgets(accessToken: string, scope: "tenant_default
 /** TASK-015 AC-4: initial tenant library list, server-rendered same as the
  * default widgets above -- client only re-fetches on publish/add mutations. */
 async function fetchLibraryItems(accessToken: string): Promise<LibraryItemOut[]> {
-  const backendUrl = process.env.BACKEND_API_URL ?? "http://localhost:8000";
+  const backendUrl = backendApiUrl();
   const response = await fetch(`${backendUrl}/api/dashboard/library`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",

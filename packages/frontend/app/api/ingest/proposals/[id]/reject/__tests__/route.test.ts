@@ -46,7 +46,7 @@ describe("POST /api/ingest/proposals/[id]/reject", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ id: "p1", status: "rejected" });
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/ingest/proposals/p1/reject");
+    expect(url).toBe("http://127.0.0.1:8000/api/ingest/proposals/p1/reject");
     expect(init.method).toBe("POST");
   });
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { backendApiUrl } from "@/lib/backend-url";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,6 @@ const progressSchema = z.object({
   skipped: z.boolean().optional(),
 });
 
-const backendUrl = () => process.env.BACKEND_API_URL ?? "http://localhost:8000";
 
 function proxyJson(upstream: Response): Promise<NextResponse> {
   const contentType = upstream.headers.get("content-type") ?? "";
@@ -40,7 +40,7 @@ export async function PUT(
   const { tourId } = await params;
   let upstream: Response;
   try {
-    upstream = await fetch(`${backendUrl()}/api/onboarding/tours/${encodeURIComponent(tourId)}/progress`, {
+    upstream = await fetch(`${backendApiUrl()}/api/onboarding/tours/${encodeURIComponent(tourId)}/progress`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${session.accessToken}`,

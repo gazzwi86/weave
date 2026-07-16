@@ -46,7 +46,7 @@ describe("GET /api/ingest/jobs/[id]", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ status: "awaiting-review" });
     const [url, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/ingest/jobs/job-1");
+    expect(url).toBe("http://127.0.0.1:8000/api/ingest/jobs/job-1");
     expect(init.headers).toMatchObject({ Authorization: "Bearer token-abc" });
   });
 

@@ -65,7 +65,7 @@ describe("POST /api/requests", () => {
     const response = await POST(makePost(VALID_BODY));
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/requests",
+      "http://127.0.0.1:8000/api/requests",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ Authorization: "Bearer token-abc" }),
@@ -138,7 +138,7 @@ describe("GET /api/requests/[id]", () => {
     const response = await GET(request, { params: Promise.resolve({ id: "req-1" }) });
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/requests/req-1",
+      "http://127.0.0.1:8000/api/requests/req-1",
       expect.objectContaining({
         headers: { Authorization: "Bearer token-abc" },
       })
