@@ -22,6 +22,8 @@ from weave_backend.build import store
 from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.tenancy.members import activate_member, invite_member
+from weave_backend.tenancy.workspaces import create_workspace
 
 pytestmark = [
     pytest.mark.integration,
@@ -50,14 +52,31 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
 async def _create_workspace_via_route(
     client: AsyncClient, *, tenant_id: str, admin_sub: str, slug: str
 ) -> dict[str, str]:
+    """Bootstraps a workspace + its admin membership directly (mirrors
+    seed_demo.py/onboarding/sandbox.py's out-of-band provisioning).
+    `POST /tenants/{id}/workspaces` now requires an existing tenant admin
+    (security fix: closed the workspace-create privilege-escalation hole),
+    so a fresh test tenant with no admin yet can no longer bootstrap
+    through the route -- these tests aren't exercising that route, they
+    just need a workspace + an admin identity to drive the build lifecycle.
+    """
     tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
-    response = await client.post(
-        f"/api/tenants/{tenant_id}/workspaces",
-        json={"slug": slug, "display_name": slug},
-        headers=headers,
-    )
-    assert response.status_code == 201, response.text
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug=slug, display_name=slug
+        )
+        placeholder_email = f"{admin_sub}@workspace-owner.invalid"
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=placeholder_email,
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=placeholder_email, user_sub=admin_sub
+        )
     return headers
 
 

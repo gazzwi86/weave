@@ -24,6 +24,8 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.tenancy.members import activate_member, invite_member
+from weave_backend.tenancy.workspaces import create_workspace
 
 pytestmark = [
     pytest.mark.integration,
@@ -61,19 +63,47 @@ def _ce_metrics_stub(body: dict[str, object], *, status_code: int = 200) -> Asyn
 
 
 async def test_default_tiles_seeded_on_tenant_create(client: AsyncClient) -> None:
-    """AC-2: creating a tenant's first workspace seeds the 6-tile fixed
-    default dashboard (`create_workspace_route` is this codebase's
-    tenant-provisioning hook -- no separate route composes/reorders it).
+    """AC-2: `create_workspace_route` seeds the 6-tile fixed default
+    dashboard the first time it runs for a tenant -- no separate route
+    composes/reorders it.
+
+    The tenant's actual first workspace (and its admin) is bootstrapped
+    directly here, mirroring seed_demo.py/onboarding/sandbox.py's real
+    out-of-band provisioning: `POST /tenants/{id}/workspaces` now requires
+    an existing tenant admin (security fix: closed the workspace-create
+    privilege-escalation hole), so it can no longer double as a no-admin
+    bootstrap. That direct bootstrap never calls the tile-seeding step
+    (only the router does), so calling the route as the now-established
+    admin to create a *second* workspace still exercises the router's
+    seeding path for the first time for this tenant -- same assertion,
+    same code path, just not literally the tenant's first-ever workspace.
     """
     tenant_id = _unique_tenant("dash-seed")
-    tokens = await issue_token_pair(sub="u-seed", tenant_id=tenant_id)
+    admin_sub = "u-seed"
+    async with tenant_connection(tenant_id) as conn:
+        bootstrap_workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug="bootstrap", display_name="Bootstrap"
+        )
+        placeholder_email = f"{admin_sub}@workspace-owner.invalid"
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=bootstrap_workspace.id,
+            email=placeholder_email,
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=bootstrap_workspace.id, email=placeholder_email, user_sub=admin_sub
+        )
+
+    tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
 
     create_resp = await client.post(
         f"/api/tenants/{tenant_id}/workspaces",
         json={"slug": "primary", "display_name": "Primary"},
         headers={"Authorization": f"Bearer {tokens.access_token}"},
     )
-    assert create_resp.status_code == 201
+    assert create_resp.status_code == 201, create_resp.text
 
     list_resp = await client.get(
         "/api/dashboard/widgets",

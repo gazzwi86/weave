@@ -62,18 +62,32 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
 async def _create_workspace_via_route(
     client: AsyncClient, *, tenant_id: str, admin_sub: str, slug: str
 ) -> tuple[str, dict[str, str]]:
-    """Creates a workspace through the real HTTP route (not a raw DB call),
-    so the creator gets the router's auto-admin-membership bootstrap.
+    """Bootstraps a workspace + its admin membership directly (mirrors
+    seed_demo.py/onboarding/sandbox.py's out-of-band provisioning).
+    `POST /tenants/{id}/workspaces` now requires an existing tenant admin
+    (security fix: closed the workspace-create privilege-escalation hole),
+    so a fresh test tenant with no admin yet can no longer bootstrap
+    through the route -- these tests aren't exercising that route, they
+    just need a workspace + an admin identity to test RBAC against.
     """
     tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
-    response = await client.post(
-        f"/api/tenants/{tenant_id}/workspaces",
-        json={"slug": slug, "display_name": slug},
-        headers=headers,
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["id"], headers
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug=slug, display_name=slug
+        )
+        placeholder_email = f"{admin_sub}@workspace-owner.invalid"
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=placeholder_email,
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=placeholder_email, user_sub=admin_sub
+        )
+    return workspace.id, headers
 
 
 async def test_agent_sts_auth_mints_iri(client: AsyncClient) -> None:
@@ -503,3 +517,101 @@ async def test_workspace_role_enforced_against_the_requested_workspace_not_anoth
         f"/api/workspaces/{workspace_a}/switch", headers=member_a_headers
     )
     assert own_switch_response.status_code == 200, own_switch_response.text
+
+
+async def test_non_admin_cannot_create_workspace_and_escalation_chain_is_broken(
+    client: AsyncClient,
+) -> None:
+    """RBAC-cert regression: `POST /tenants/{id}/workspaces` used to have NO
+    role check -- only `_require_own_tenant` (same-tenant, any principal).
+    Any authenticated tenant principal, including one with zero membership
+    rows anywhere in the tenant, could call it; `_grant_creator_admin_membership`
+    then handed them `admin` on the new workspace, and `is_tenant_admin`
+    treats "admin in ANY workspace" as tenant-wide admin -- e.g. tenant-wide
+    `GET /api/billing/usage` returning 200. This is the exact chain proven
+    against a fresh identity (`freshnobody@weave.local` in the RBAC cert
+    report); reproduced here with a fresh, never-invited sub in a tenant
+    that already has a legitimate admin.
+    """
+    tenant_id = _unique_tenant("tenant-privesc")
+    # The tenant's real admin, bootstrapped out-of-band (mirrors
+    # seed_demo.py/onboarding/sandbox.py's real provisioning path) --
+    # matches every other test in this file's use of this helper.
+    _workspace_id, _admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-privesc", slug="ws-privesc"
+    )
+
+    fresh_tokens = await issue_token_pair(sub="freshnobody", tenant_id=tenant_id)
+    fresh_headers = {"Authorization": f"Bearer {fresh_tokens.access_token}"}
+
+    create_response = await client.post(
+        f"/api/tenants/{tenant_id}/workspaces",
+        json={"slug": "attacker-ws", "display_name": "Attacker Workspace"},
+        headers=fresh_headers,
+    )
+    assert create_response.status_code == 403, create_response.text
+    assert create_response.json()["detail"] == {"error": "forbidden", "required_role": "admin"}
+
+    # No membership was ever granted -- the escalation chain is broken at
+    # its root, so the fresh identity also can't reach tenant-wide billing.
+    billing_response = await client.get("/api/billing/usage", headers=fresh_headers)
+    assert billing_response.status_code == 403, billing_response.text
+
+
+async def test_tenant_admin_can_still_create_additional_workspace(client: AsyncClient) -> None:
+    """Positive counterpart: a real tenant admin (the workspace creator,
+    auto-admin per PLAT-TASK-004's bootstrap) can still create further
+    workspaces and reach tenant-wide billing -- proves the fix rejects the
+    escalation path without locking out the legitimate admin.
+    """
+    tenant_id = _unique_tenant("tenant-admin-create")
+    _workspace_id, admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-create", slug="ws-first"
+    )
+
+    create_response = await client.post(
+        f"/api/tenants/{tenant_id}/workspaces",
+        json={"slug": "ws-second", "display_name": "Second Workspace"},
+        headers=admin_headers,
+    )
+    assert create_response.status_code == 201, create_response.text
+
+    billing_response = await client.get("/api/billing/usage", headers=admin_headers)
+    assert billing_response.status_code == 200, billing_response.text
+
+
+async def test_non_admin_cannot_list_workspaces(client: AsyncClient) -> None:
+    """Companion fix: `GET /tenants/{id}/workspaces` had the same missing
+    role check (RBAC cert rated it lower severity -- listing, not
+    mutating). The Settings -> Workspaces page is an admin-only surface
+    end to end (the frontend page gates the whole panel on `role ==
+    "admin"`), so the backend must reject a non-admin member the same way
+    it rejects create.
+    """
+    tenant_id = _unique_tenant("tenant-list-privesc")
+    workspace_id, _admin_headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-list", slug="ws-list"
+    )
+    author_sub = "u-author-list"
+    async with tenant_connection(tenant_id) as conn:
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            email="author-list@example.invalid",
+            role="author",
+        )
+        await activate_member(
+            conn,
+            workspace_id=workspace_id,
+            email="author-list@example.invalid",
+            user_sub=author_sub,
+        )
+    author_tokens = await issue_token_pair(sub=author_sub, tenant_id=tenant_id)
+
+    list_response = await client.get(
+        f"/api/tenants/{tenant_id}/workspaces",
+        headers={"Authorization": f"Bearer {author_tokens.access_token}"},
+    )
+    assert list_response.status_code == 403, list_response.text
+    assert list_response.json()["detail"] == {"error": "forbidden", "required_role": "admin"}

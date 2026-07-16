@@ -23,8 +23,11 @@ from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.billing.period import current_period
 from weave_backend.db.migrate import _dsn
 from weave_backend.db.pool import tenant_connection
+from weave_backend.identity.registry import human_principal_iri
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
+from weave_backend.tenancy.members import activate_member, invite_member
+from weave_backend.tenancy.workspaces import create_workspace
 
 pytestmark = [
     pytest.mark.integration,
@@ -52,19 +55,45 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
 async def _create_workspace_via_route(
     client: AsyncClient, *, tenant_id: str, admin_sub: str, slug: str
 ) -> tuple[str, dict[str, str]]:
-    """Creating a workspace makes `admin_sub` its admin, which -- via
-    `is_tenant_admin` -- also satisfies tenant-wide admin gates (same
-    pattern `test_billing.py` relies on).
+    """Bootstraps a workspace + its admin membership + the router's own
+    `workspace.created` audit event directly (mirrors seed_demo.py's
+    out-of-band provisioning plus `create_workspace_route`'s audit
+    emission). `POST /tenants/{id}/workspaces` now requires an existing
+    tenant admin (security fix: closed the workspace-create privilege-
+    escalation hole), so a fresh test tenant with no admin yet can no
+    longer bootstrap through the route -- but this file's assertions
+    (`total`, `entries_checked`) depend on exactly one `workspace.created`
+    chain entry per call, so the emission has to happen here directly to
+    keep parity with what the route used to do unconditionally.
     """
     tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
-    response = await client.post(
-        f"/api/tenants/{tenant_id}/workspaces",
-        json={"slug": slug, "display_name": slug},
-        headers=headers,
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["id"], headers
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug=slug, display_name=slug
+        )
+        placeholder_email = f"{admin_sub}@workspace-owner.invalid"
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=placeholder_email,
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=placeholder_email, user_sub=admin_sub
+        )
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=tenant_id,
+                event_type="workspace.created",
+                actor_iri=human_principal_iri(admin_sub),
+                subject_iri=workspace.named_graph_iri,
+                payload={"slug": workspace.slug},
+            ),
+        )
+    return workspace.id, headers
 
 
 async def test_audit_table_update_rejected_at_db(platform_stack: Path) -> None:

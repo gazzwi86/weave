@@ -27,7 +27,9 @@ from weave_backend.db.pool import tenant_connection
 from weave_backend.mock_oidc.app import app as mock_oidc_app
 from weave_backend.mock_oidc.tokens import issue_token_pair
 from weave_backend.settings.scope import company_iri, workspace_iri
+from weave_backend.tenancy.members import activate_member, invite_member
 from weave_backend.tenancy.sessions import get_redis
+from weave_backend.tenancy.workspaces import create_workspace
 
 pytestmark = [
     pytest.mark.integration,
@@ -52,18 +54,35 @@ async def client(platform_stack: Path) -> AsyncIterator[AsyncClient]:
     app.dependency_overrides.clear()
 
 
-async def _create_workspace_via_route(
+async def _bootstrap_admin_workspace(
     client: AsyncClient, *, tenant_id: str, admin_sub: str, slug: str
 ) -> tuple[str, dict[str, str]]:
+    """Bootstraps a workspace + its admin membership directly (mirrors
+    seed_demo.py/onboarding/sandbox.py's out-of-band provisioning).
+    `POST /tenants/{id}/workspaces` now requires an existing tenant admin
+    (security fix: closed the workspace-create privilege-escalation hole),
+    so a fresh test tenant with no admin yet can no longer bootstrap
+    through the route -- these tests aren't exercising that route, they
+    just need a workspace + an admin identity to test billing against.
+    """
     tokens = await issue_token_pair(sub=admin_sub, tenant_id=tenant_id)
     headers = {"Authorization": f"Bearer {tokens.access_token}"}
-    response = await client.post(
-        f"/api/tenants/{tenant_id}/workspaces",
-        json={"slug": slug, "display_name": slug},
-        headers=headers,
-    )
-    assert response.status_code == 201, response.text
-    return response.json()["id"], headers
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await create_workspace(
+            conn, tenant_id=tenant_id, slug=slug, display_name=slug
+        )
+        placeholder_email = f"{admin_sub}@workspace-owner.invalid"
+        await invite_member(
+            conn,
+            tenant_id=tenant_id,
+            workspace_id=workspace.id,
+            email=placeholder_email,
+            role="admin",
+        )
+        await activate_member(
+            conn, workspace_id=workspace.id, email=placeholder_email, user_sub=admin_sub
+        )
+    return workspace.id, headers
 
 
 async def _wait_for_row(tenant_id: str, query: str, *args: object) -> tuple[Any, float]:
@@ -107,7 +126,7 @@ async def test_set_cap_rejects_workspace_cap_exceeding_company_parent(
     client: AsyncClient,
 ) -> None:
     tenant_id = _unique_tenant("billing-cap-parent")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin", slug="ws-cap"
     )
 
@@ -130,7 +149,7 @@ async def test_set_cap_rejects_workspace_cap_exceeding_company_parent(
 
 async def test_set_cap_within_parent_succeeds(client: AsyncClient) -> None:
     tenant_id = _unique_tenant("billing-cap-ok")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin", slug="ws-cap-ok"
     )
 
@@ -159,7 +178,7 @@ async def test_simulate_ai_call_rejected_at_cap_never_calls_ai_client(
     external AI client) is ever called.
     """
     tenant_id = _unique_tenant("billing-gate")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin", slug="ws-gate"
     )
     await client.put(
@@ -192,7 +211,7 @@ async def test_simulate_ai_call_under_cap_calls_ai_client_and_records_usage(
     client: AsyncClient,
 ) -> None:
     tenant_id = _unique_tenant("billing-under-cap")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin", slug="ws-under-cap"
     )
     await client.put(
@@ -257,10 +276,10 @@ async def test_usage_summary_workspace_admin_sees_only_own_workspace(client: Asy
     workspace's cost, even though both belong to the same tenant.
     """
     tenant_id = _unique_tenant("billing-scope")
-    workspace_a, headers_a = await _create_workspace_via_route(
+    workspace_a, headers_a = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin-a", slug="ws-a"
     )
-    workspace_b, _headers_b = await _create_workspace_via_route(
+    workspace_b, _headers_b = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin-b", slug="ws-b"
     )
     await _seed_usage(tenant_id=tenant_id, workspace_id=workspace_a, cost_usd=5.0)
@@ -285,7 +304,7 @@ async def test_usage_summary_tenant_wide_requires_tenant_admin(client: AsyncClie
     caller's own tenant and requires tenant-admin standing.
     """
     tenant_id = _unique_tenant("billing-tenant-wide")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin", slug="ws-wide"
     )
     await _seed_usage(tenant_id=tenant_id, workspace_id=workspace_id, cost_usd=3.0)
@@ -304,7 +323,7 @@ async def test_cap_warning_and_reached_notify_workspace_admins(client: AsyncClie
     centre.
     """
     tenant_id = _unique_tenant("billing-notify")
-    workspace_id, headers = await _create_workspace_via_route(
+    workspace_id, headers = await _bootstrap_admin_workspace(
         client, tenant_id=tenant_id, admin_sub="u-admin-notify", slug="ws-notify"
     )
     await client.put(
