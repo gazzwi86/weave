@@ -195,7 +195,7 @@ export function FilterPanel({
 }: FilterPanelProps) {
   return (
     <div data-testid="explorer-filter-panel" className={SHELL_CLASS}>
-      <h3 className={HEADING_CLASS}>Filters &amp; layers</h3>
+      <h2 className={HEADING_CLASS}>Filters &amp; layers</h2>
       <div className="mt-[var(--space-3)] space-y-[var(--space-4)]">
         <div className={SECTION_CLASS}>
           <h3 className={HEADING_CLASS}>Entity types</h3>

@@ -38,7 +38,7 @@ export function OverlayPanel({ toggles, onToggleOverlay }: OverlayPanelProps) {
     // ONB-V1-TASK-002: tour/beacon anchor for tour.ge.completeness-map step 1 --
     // additive attribute, m2-delta.md §3 ("panel section is the stable DOM").
     <div data-testid="explorer-overlay-panel" data-tour-id="ge.overlay.controls">
-      <h3 className={HEADING_CLASS}>Overlays</h3>
+      <h2 className={HEADING_CLASS}>Overlays</h2>
       <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
         {toggles.map((toggle) => (
           <OverlayToggleRow key={toggle.id} toggle={toggle} onToggleOverlay={onToggleOverlay} />

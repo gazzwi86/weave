@@ -84,7 +84,7 @@ function MissingLinks({ nodeId, gaps, onEditGap }: MissingLinksProps) {
   if (gaps.length === 0) return null;
   return (
     <div className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-2)]">
-      <h3 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Missing links</h3>
+      <h2 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Missing links</h2>
       <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
         {gaps.map((gap) =>
           onEditGap ? (
