@@ -1,6 +1,30 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
+// ONB-TASK-008: a first-visit-per-area welcome modal (WELCOME_MODALS,
+// shared/onboarding/content/modals.ts) now fires on real logins against the
+// seeded stack. Every CTA dismisses it (constitution/explorer/role-home also
+// start a driver.js tour, which this then skips) -- a real user would click
+// through it too, so tests must, or every later selector on the page times
+// out behind its overlay.
+async function dismissOnboarding(page: Page): Promise<void> {
+  const welcome = page.getByRole("dialog").filter({ hasText: /welcome/i });
+  try {
+    await welcome.waitFor({ state: "visible", timeout: 3000 });
+    await welcome.getByRole("button").last().click();
+  } catch {
+    // no welcome modal for this area/session.
+  }
+  const skipTour = page.getByRole("button", { name: "Skip tour" });
+  try {
+    await skipTour.waitFor({ state: "visible", timeout: 2000 });
+    await skipTour.click();
+  } catch {
+    // no tour started (non-tour-CTA area, or already seen).
+  }
+}
+
+
 // Mirrors workspaces-provisioning.spec.ts's flow against the mock OIDC
 // provider -- default mock user is admin@weave.local (workspace_admin rank).
 async function loginAndGoTo(page: Page, path: string): Promise<void> {
@@ -9,6 +33,7 @@ async function loginAndGoTo(page: Page, path: string): Promise<void> {
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(new RegExp(`${path}$`));
+  await dismissOnboarding(page);
 }
 
 // TASK-030 AC-2: Members page renders a DataTable with working invite and
@@ -28,7 +53,7 @@ test("test_settings_members_page_invite_and_revoke_work", async ({ page }) => {
 
 // TASK-030 AC-5: Notifications matrix is pre-filled from GET and toggling
 // an unlocked in-app cell persists via PUT -- reload proves it saved.
-test("test_settings_notifications_matrix_prefilled_and_toggle_saves", async ({ page }) => {
+test("test_settings_notifications_matrix_prefilled_and_toggle_saves @behavioural", async ({ page }) => {
   await loginAndGoTo(page, "/settings/notifications");
 
   const toggle = page.getByTestId("toggle-in-app-billing.cap.warning");

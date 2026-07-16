@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test:behavioural": "playwright test --grep @behavioural"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.18",
