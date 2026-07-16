@@ -14,6 +14,7 @@ import { NotificationCenter } from "./notification-center";
 import { SectionRail } from "./section-rail";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 import { OnboardingHintsHost } from "../onboarding/onboarding-hints-host";
+import { PracticeModeBanner } from "../onboarding/practice-mode-banner";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -120,6 +121,7 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
             <AvatarMenu userName={userName ?? "Signed in"} role={role} />
           </div>
         </header>
+        <PracticeModeBanner />
         <CommandPalette />
         <OnboardingHintsHost />
         {/* Content wrapper is a plain div, not <main>: every page renders its
