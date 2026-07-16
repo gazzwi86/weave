@@ -35,8 +35,20 @@ function tokenEndpointConfig() {
   };
 }
 
+// RFC 6265 scopes cookies by host, not port, so parallel dev stacks on
+// e.g. :3000 and :3100 share one session cookie jar and clobber each
+// other's login. Defaulting to next-auth's own cookie name keeps behaviour
+// byte-identical when the env var is unset; a shared AUTH_SECRET was
+// rejected as a fix since it doesn't isolate sessions either.
+const SESSION_COOKIE_NAME = process.env.AUTH_SESSION_COOKIE_NAME ?? "authjs.session-token";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: requireAuthSecret(),
+  cookies: {
+    sessionToken: {
+      name: SESSION_COOKIE_NAME,
+    },
+  },
   providers: [
     Cognito({
       clientId: OIDC_CLIENT_ID,
