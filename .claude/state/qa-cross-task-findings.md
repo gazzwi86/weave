@@ -389,6 +389,42 @@ contradicting the AC table. QA correctly did NOT fail CE-011 for it. FIX (PO/arc
 GE-engine task + mark deferred in TASK-011. Also: framework.shacl.ttl is a MERGE HOTSPOT (CE-001 GlossaryTermShape[merged] +
 CE-003 brand shapes[EPIC-004] + CE-011 skos:definitions[EPIC-010]) → sequence epic merges + union the ttl each time.
 
+## XT-ONB012-1: page-level literal strings + hard-coded px bypass i18n/tokens (2026-07-14)
+`app/help/training/page.tsx` (ONB-TASK-012): `PageHeaderSlot` title/subtitle ("Training library",
+"Search videos and written walkthroughs, at your own pace.") and the mark-as-read button label
+("Mark What's new as read") are raw English literals, not `t()` calls — violates AC-012-06's own
+i18n-keys requirement. Same file also hard-codes `h-[8px] w-[8px]` for the unread dot where
+`var(--space-2)` already exists and is used one line above for margin. axe-core did not catch
+either (neither is an a11y rule) — Category 15 token/i18n conformance is a separate gate from
+axe-zero. Risk: TASK-013 (launcher, unlocked by this task) renders the same unread-dot pattern and
+may copy the same shortcut. affects: [ONB-TASK-013]. Status: OPEN — sent to Engineer as a FAIL on
+ONB-TASK-012.
+
+## XT-ONB010-1: checklist widget skips role-path filtering + auto-dismiss anchor ignores non-tour completions (2026-07-14)
+
+ONB-TASK-010 (Onboarding Checklist Widget). `checklist-widget.tsx` passes the full
+`CHECKLIST_ITEMS` set straight to `deriveChecklist` with no `role_path`/`paths` filter — every
+user sees every path's items (admin-only "Invite your team" / "Connect data source" render for
+business/technical paths too), violating AC-010-01's "user's path-configured items" and the
+Scope Note's per-path item sets. Separately, `completionAnchor()` in the same file reads only
+`state.tours[].completed_at`; when the checklist's last completion is an exercise or activation
+milestone (not a tour), it falls back to `new Date()` on every render, so `shouldAutoDismiss`
+never crosses its window — AC-010-04's 7-day auto-dismiss silently never fires on that path.
+Both gaps are undisclosed (distinct from the Engineer's named deferrals: widget-level
+auto-dismiss E2E and browser Playwright E2E). QA-added failing test:
+`components/onboarding/__tests__/checklist-widget.test.tsx` "AC-010-01 a non-admin path must not
+render admin-only items" (commit 9d47ed12). `affects: [ONB-TASK-013]` — TASK-013 owns the
+Help-launcher restore entry point and inherits the same widget; any follow-up patch to the
+path-filter or anchor logic should be verified there too.
+
+## XT-mock-oidc-editor-role (Major) — 2026-07-14
+affects: [CE-V1-TASK-023, CE-V1-TASK-024, CE-V1-TASK-027, CE-V1-TASK-029, CE-V1-TASK-030]
+mock-oidc `session-claims.ts` fallback only issues `admin`/`author` roles, never `business_analyst_sme`/`enterprise_architect`. So `canEditCanvas`-gated Playwright E2E (edit-affordance family) is UNREACHABLE in E2E — those specs are `test.fixme`'d and covered by integration/component tests instead. FIX: extend the mock-oidc claims fallback to issue an editor role (or a per-test role override) so editor-gated E2E can run. Phase-gate item.
+
+## ONB-TASK-008 (PR #105) — 2 minor review findings (non-blocking, 2026-07-15)
+- [ ] beacon.tsx:83 — Radix Popover.Content carries role="dialog" (Radix default). Interactive (Learn-more link) so defensible; axe zero-violations. Consider role="tooltip"/labelled region if pure-informational later. MINOR.
+- [ ] use-dismissals.ts:38 (PRE-EXISTING, TASK-001 — not in PR #105 diff) — optimistic dismissal update, no rollback on fetch failure. Silent reject. Cheap-fix candidate for an onboarding epic that touches this file. MINOR.
+
 ## XT-ONBV1-1: stray pre-M2 anchor entries in packages/shared/onboarding/anchors.ts — 2026-07-14
 ONB-V1-TASK-001 (feature/ONB-V1-EPIC-002) added the 11 m2-delta §3 anchors correctly (verified byte-exact match, QA PASS).
 Pre-existing in the SAME file (not touched by this task, confirmed via `git diff <parent> <feat-commit>` — these lines are

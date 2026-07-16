@@ -26,3 +26,9 @@
     - Restart on next task if not in progress every 5 hours, picking up 5 paralel agents
     - Compact every 30mins
     - Check main ci pipeline and fix as needed every 5 hours
+
+- We need to capture metadata when ingesting or recieving updates/mutations to the onotlogy. also to events, automations, etc.
+
+- Analytics for the platform - post v1
+
+- A light, cheap, AWS Architecture? Can we use cheaper things to RDS, Neptune etc?

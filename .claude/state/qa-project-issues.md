@@ -398,3 +398,27 @@ job runs pytest -m "not docker and not e2e" with NO services then ConnectError t
 policy): every reconcile-verify + QA MUST run pytest -m "not docker and not e2e" with endpoints POISONED
 (LOCALSTACK_ENDPOINT_URL/OXIGRAPH_URL=http://127.0.0.1:1) or docker fully DOWN, never trust a run with a live stack. Unit tests
 needing a service must mock the client or be marked docker. Phase-gate: audit tests/unit for unmocked network seams.
+
+## PROJ-COV-SEGFAULT — coverage.py + asyncpg C-extension segfault (backend --cov)
+- **Raised:** 2026-07-14 (ONB-TASK-005 QA; 2nd occurrence — TASK-004 hit it first → Law 11 escalation to project level).
+- **Symptom:** `pytest --cov` segfaults during `platform_stack` fixture setup after the asyncpg C-extension loads (coverage.py sysmon core interaction). Reproduced independently, not a fabricated excuse.
+- **Effect:** backend numeric coverage % cannot be obtained in-worktree; QA falls back to branch-by-inspection (WARN-grade, not PASS-grade).
+- **Owner:** Engineer/harness. **Fix candidates:** pin coverage.py off sysmon core (`COVERAGE_CORE=ctrace`), or exclude the C-ext path, or run coverage without the docker fixture. Phase-gate item.
+
+## PROJ-A11Y-EXPLORER (2026-07-15, surfaced by CE-030 M2 a11y gate) — OPEN
+The M2 UI a11y gates CE-030 wired (axe-m2 + lighthouse-explorer) are now live and RED on the Explorer route: Lighthouse accessibility score < 0.95 (perf is warn-only), and axe likely reports real violations on the M2 Explorer panels. This is PRE-EXISTING debt in the Explorer panel code (CE-V1-TASK-020/021/022, merged), not CE-030 (test-only gate). ACTION (phase-gate remediation / owning-task): fix Explorer panel a11y to clear Lighthouse a11y ≥0.95 + zero axe violations, or calibrate thresholds with an architect amendment. Blocks CE-030 (#106) from a fully-green merge until resolved.
+
+## PROJ-FLAKY-BILLING-PERF (2026-07-15) — OPEN
+`test_billing.py::test_simulate_ai_call_under_cap_calls_ai_client_and_records_usage` asserts a WALL-CLOCK budget `elapsed_ms < 100` (metering write); flaked at 226.7ms on a loaded CI runner (#110 integration job, unrelated PR). Wall-clock perf assertions in integration tests flake under CI contention. FIX (owning task PLAT-TASK-008/billing): assert a server-reported op duration or give CI headroom, per the ONB-015 reset-test precedent (server duration, not browser wall-clock). Phase-gate remediation candidate.
+
+## PROJ-GE005-RECONCILE (2026-07-15, housekeeping pass) — OPEN
+
+`ge005-backup` branch holds 14 real feat/test commits + ADR-004 for **GE-TASK-005** (Graph Explorer:
+domain-focus, `NodeContextMenu`, `useNeighbourExpansion`, `DomainFocusNotice`, expand/collapse) that
+have **no task record** — `progress.json` has zero `GE-EPIC`/`GE-TASK` entries and no brief. The Graph
+Explorer engine was folded into Constitution (Explorer now ships under CE task IDs — ADR-025,
+`architecture-explorer.md`, CE-V1-TASK-023/024), but the `ge005-backup` component names are **not on
+`origin/main`** under those names. ACTION: verify the CE-V1 Explorer implementation covers GE-TASK-005's
+acceptance criteria (domain-focus, right-click context menu, confirmed neighbour-expansion). IF covered
+→ drop `ge005-backup`. IF gaps → file a CE post-v1 task to port the missing behaviour. Branch kept until
+verified (never blind-delete unmerged unique work). See `.claude/state/kept-branches.md`.
