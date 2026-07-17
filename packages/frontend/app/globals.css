@@ -131,6 +131,17 @@
   --size-popover: 300px;
   /* refit-mock.html `.modal` confirm/attach dialog width. */
   --size-modal: 420px;
+  /* refit-mock.html `.modal.md`/`.modal.lg` -- entity-picker / attach-with-body widths. */
+  --size-modal-md: 440px;
+  --size-modal-lg: 460px;
+  /* refit-mock.html `.drawer` edit-drawer default width. */
+  --size-drawer: 440px;
+  /* refit-mock.html `.drawer.lg`. */
+  --size-drawer-lg: 480px;
+  /* refit-mock.html `.drawer.xl`. */
+  --size-drawer-xl: 520px;
+  /* refit-mock.html `.drawer.doc` -- brief/epics rich-content drawer. */
+  --size-drawer-doc: 640px;
   /* refit-mock.html `.qtip-pop` title dot / kind-dot pattern diameter. */
   --size-dot: 6px;
 
@@ -304,6 +315,17 @@
   from {
     opacity: 0;
     transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
   }
   to {
     opacity: 1;
