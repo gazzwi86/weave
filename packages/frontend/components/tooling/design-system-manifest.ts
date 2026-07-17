@@ -41,6 +41,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "KanbanLane", layer: "molecules", states: ["default"] },
   { name: "KpiStrip", layer: "molecules", states: ["default"] },
   { name: "ControlDock", layer: "molecules", states: ["default", "selected"] },
+  { name: "OverlayKey", layer: "molecules", states: ["default"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },
