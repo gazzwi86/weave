@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { SecondarySidebar, type SecondarySidebarGroup } from "@/components/organisms/SecondarySidebar";
-import { findSection, TAG_LABEL, type SecondaryNavItem } from "./nav-items";
+import { findSection, type SecondaryNavItem } from "./nav-items";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function visibleItems(items: SecondaryNavItem[], role: string | null): SecondaryNavItem[] {
@@ -19,7 +19,9 @@ function toSidebarGroups(
     items: visibleItems(group.items, role).map((item) => ({
       label: item.label,
       href: item.href,
-      tag: item.tag !== "built" ? TAG_LABEL[item.tag] : undefined,
+      // feedback_no_phase_pills.md: one plain "soon" pill for anything not
+      // shipped -- no M1/M2/v1.0/post-v1 jargon in the UI.
+      tag: item.built ? undefined : "soon",
     })),
   }));
 }

@@ -12,12 +12,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Nav", () => {
-  it("renders the six IA areas with the active one aria-current", () => {
+  // Events is the one IA area not yet built (nav-items.ts's disabled: true)
+  // -- it renders dimmed and non-navigable, never a link (task item 2).
+  const LINK_AREAS = ["Home", "Constitution", "Build", "Audit trail", "Settings"];
+
+  it("renders the built IA areas as links, with the active one aria-current", () => {
     pathname = "/ce/query/history";
     render(<Nav />);
 
-    const areas = ["Home", "Constitution", "Build", "Events", "Audit trail", "Settings"];
-    for (const label of areas) {
+    for (const label of LINK_AREAS) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
 
@@ -30,12 +33,22 @@ describe("Nav", () => {
 
   // v5 icon rail: every area is an icon-only link, so its accessible name
   // must come from aria-label (axe: icon buttons need a discernible name).
-  it("gives every icon-rail area an aria-label accessible name", () => {
+  it("gives every icon-rail link area an aria-label accessible name", () => {
     pathname = "/dashboard";
     render(<Nav />);
-    for (const label of ["Home", "Constitution", "Build", "Events", "Audit trail", "Settings"]) {
+    for (const label of LINK_AREAS) {
       expect(screen.getByRole("link", { name: label })).toHaveAttribute("aria-label", label);
     }
+  });
+
+  // feedback_no_phase_pills.md: unbuilt IA areas render disabled with a
+  // plain "coming soon" tooltip, never a working link.
+  it("renders Events disabled with a coming-soon tooltip, not a link", () => {
+    pathname = "/dashboard";
+    render(<Nav />);
+    expect(screen.queryByRole("link", { name: /Events/ })).not.toBeInTheDocument();
+    const disabledItem = screen.getByLabelText(/Events.*coming soon/i);
+    expect(disabledItem).toHaveAttribute("aria-disabled", "true");
   });
 
   it("marks Audit trail active on /audit/compliance (AC-6 canonical route)", () => {
@@ -58,12 +71,14 @@ describe("SectionRail", () => {
       "href",
       "/ce/instances"
     );
-    // Glossary shipped in TASK-002 -- now a real link, not an M2 placeholder.
+    // Glossary shipped in TASK-002 -- now a real link, not a placeholder.
     expect(screen.getByRole("link", { name: /Glossary/ })).toHaveAttribute(
       "href",
       "/ce/glossary"
     );
-    const pills = screen.getAllByText("M2");
+    // feedback_no_phase_pills.md: unbuilt items get one plain "soon" pill,
+    // never M1/M2/v1.0/post-v1 jargon.
+    const pills = screen.getAllByText("soon");
     expect(pills.length).toBeGreaterThan(0);
   });
 
