@@ -10,13 +10,26 @@ export default meta;
 
 type Story = StoryObj<typeof CanvasLegend>;
 
-export const Default: Story = {
+const ENTRIES = [
+  { kind: "process" as const, label: "Process" },
+  { kind: "actor" as const, label: "Actor" },
+  { kind: "event" as const, label: "Event" },
+];
+
+export const Default: Story = { args: { entries: ENTRIES } };
+export const DefaultDark: Story = { ...Default, parameters: { theme: "dark" } };
+
+export const WithTools: Story = {
   args: {
-    entries: [
-      { kind: "process", label: "Process" },
-      { kind: "actor", label: "Actor" },
-      { kind: "event", label: "Event" },
-    ],
+    entries: ENTRIES,
+    statusLabel: "12 kinds · published v14",
+    zoomControls: (
+      <>
+        <button aria-label="Zoom in">+</button>
+        <button aria-label="Zoom out">−</button>
+        <button aria-label="Fit">⤢</button>
+      </>
+    ),
   },
 };
-export const DefaultDark: Story = { ...Default, parameters: { theme: "dark" } };
+export const WithToolsDark: Story = { ...WithTools, parameters: { theme: "dark" } };
