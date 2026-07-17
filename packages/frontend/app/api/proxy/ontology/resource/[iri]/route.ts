@@ -30,8 +30,105 @@ interface CeResourceBody {
   neighbours?: CeResourceNeighbourBody[];
 }
 
+// CE-READ-1's real `GET /api/ontology/resource/{iri}` shape (schemas/ontology.py's
+// ResourceResponse) -- NOT the panel shape below. The two were previously
+// conflated (this route parsed the upstream body as if it were already
+// panel-shaped), so `stripLangTags` threw on every real request
+// (`key_properties` doesn't exist upstream) and every node click collapsed
+// to a 503 "Details unavailable". `toPanelBody` below is the fix: an
+// explicit mapping step between the two shapes.
+interface OntologyTriple {
+  subject: string;
+  predicate: string;
+  object: string;
+}
+
+interface OntologyOutgoingEdge {
+  predicate: string;
+  target: string;
+}
+
+interface OntologyIncomingEdge {
+  predicate: string;
+  source: string;
+}
+
+interface OntologyResourceBody {
+  iri: string;
+  kind: string | null;
+  label: string;
+  version_iri: string;
+  triples: OntologyTriple[];
+  outgoing: OntologyOutgoingEdge[];
+  incoming: OntologyIncomingEdge[];
+}
+
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
 // Law 13: the path param is untrusted input -- validated via zod, never cast.
 const iriSchema = z.string().url();
+
+function localName(iri: string): string {
+  const hashIndex = iri.lastIndexOf("#");
+  const slashIndex = iri.lastIndexOf("/");
+  return iri.slice(Math.max(hashIndex, slashIndex) + 1);
+}
+
+/** Self-attribute triples only. CE-READ-1's resource.py appends every self
+ * triple to `triples` unconditionally -- including the `rdf:type` triple and
+ * the label triple -- so without excluding them, an edit-and-save round trip
+ * (use-panel-edit.ts -> update_node) would rewrite the node's type/label as
+ * a plain string literal. Also excludes any triple whose (predicate, object)
+ * already appears in `outgoing`: those are relationship edges, not scalar
+ * properties. */
+function toKeyProperties(body: OntologyResourceBody): KeyProperty[] {
+  const edgeKeys = new Set(body.outgoing.map((edge) => `${edge.predicate}|${edge.target}`));
+  return body.triples
+    .filter((triple) => triple.subject === body.iri)
+    .filter((triple) => triple.predicate !== RDF_TYPE)
+    .filter((triple) => localName(triple.predicate) !== "label")
+    .filter((triple) => !edgeKeys.has(`${triple.predicate}|${triple.object}`))
+    .map((triple) => ({ path: triple.predicate, label: localName(triple.predicate), value: triple.object }));
+}
+
+/** Neighbour label/kind are a genuine CE-READ-1 data gap -- edges carry only
+ * `predicate` + `target`/`source`, no label or kind for the neighbour node
+ * itself. Falls back to the IRI's local name and an empty kind; harmless for
+ * the delete flow (edit-controller.ts's buildDeleteOps needs only
+ * predicate/iri/direction), only expand-render cosmetics (node icon/label)
+ * degrade until CE-READ-1 embeds neighbour summaries. */
+function toNeighbours(body: OntologyResourceBody): CeResourceNeighbourBody[] {
+  return [
+    ...body.outgoing.map((edge) => ({
+      iri: edge.target,
+      label: localName(edge.target),
+      bpmo_kind: "",
+      edge_predicate: edge.predicate,
+      edge_direction: "outgoing" as const,
+    })),
+    ...body.incoming.map((edge) => ({
+      iri: edge.source,
+      label: localName(edge.source),
+      bpmo_kind: "",
+      edge_predicate: edge.predicate,
+      edge_direction: "incoming" as const,
+    })),
+  ];
+}
+
+/** Maps CE-READ-1's real resource shape to the panel shape
+ * fetch-node-props.ts expects (label/type_label/bpmo_kind/key_properties/
+ * neighbours). This is the single choke point for the mismatch -- see the
+ * interface comments above. */
+function toPanelBody(body: OntologyResourceBody): CeResourceBody {
+  return {
+    label: body.label,
+    type_label: body.kind ?? "",
+    bpmo_kind: body.kind ?? undefined,
+    key_properties: toKeyProperties(body),
+    neighbours: toNeighbours(body),
+  };
+}
 
 function stripLangTags(body: CeResourceBody): CeResourceBody {
   return {
@@ -65,13 +162,14 @@ async function fetchUpstreamResource(backendUrl: string, iri: string, accessToke
 
   // Known issue (intermittent 500/empty-body): a 2xx + json content-type
   // response can still fail to parse (malformed body) or fail shape
-  // validation in stripLangTags (unexpected upstream shape). Either throw
-  // must collapse to the same "unavailable" outcome as a bad status code,
-  // not escape as an uncaught exception -- Next.js renders those as a raw
-  // 500 with no body, which is indistinguishable from a real outage.
+  // validation in toPanelBody/stripLangTags (unexpected upstream shape).
+  // Either throw must collapse to the same "unavailable" outcome as a bad
+  // status code, not escape as an uncaught exception -- Next.js renders
+  // those as a raw 500 with no body, which is indistinguishable from a real
+  // outage.
   try {
-    const body = (await upstream.json()) as CeResourceBody;
-    return { type: "ok", body: stripLangTags(body) };
+    const body = (await upstream.json()) as OntologyResourceBody;
+    return { type: "ok", body: stripLangTags(toPanelBody(body)) };
   } catch {
     return { type: "unavailable" };
   }
