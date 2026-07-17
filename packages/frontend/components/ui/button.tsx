@@ -23,7 +23,7 @@ const buttonVariants = cva(
           "bg-[var(--color-accent-primary)] text-[var(--color-bg)] hover:bg-[var(--color-accent-hover)]",
         secondary:
           "bg-[var(--color-surface)] text-[var(--color-text-default)] border border-[var(--color-border)] hover:bg-[var(--color-hover)]",
-        danger: "bg-[var(--color-danger)] text-[var(--color-bg)] hover:opacity-90",
+        danger: "bg-[var(--color-danger)] text-[var(--color-on-danger)] hover:opacity-90",
         ghost:
           "bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
       },

@@ -53,6 +53,11 @@
   --color-danger: #ef4444;
   --color-danger-soft: rgba(239, 68, 68, 0.1);
   --color-info: #7dd3fc;
+  /* refit-mock.html `.btn-danger{color:#fff}` -- fixed white text on the
+     danger button fill, same in both themes (unlike the primary button's
+     text-follows-bg trick, --color-bg isn't white/dark enough for
+     --color-danger's mid-lightness red in dark mode). */
+  --color-on-danger: #ffffff;
 
   /* color: BPMO kind palette (dark variants, docs/standards/design/color.md
    * OQ-08 table -- OKLCH-tuned to >=4.5:1 on navy). Token name is the kind
