@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * C2a styled-render gate (Law 20): boots Storybook, visits every C2a
+ * Styled-render gate (Law 20): boots Storybook, visits every covered
  * component story's iframe URL with `colorScheme: 'dark'` forced, and
  * asserts the page actually rendered the dark-first design-system theme
  * (not an unstyled/white iframe -- the failure mode this catches is
  * globals.css failing to load into the Storybook build, which a plain
- * "does it throw" smoke test wouldn't notice).
+ * "does it throw" smoke test wouldn't notice). Originally C2a-only; C2b
+ * (data + canvas organisms) titles are appended to the same prefix list
+ * as each component lands rather than standing up a second gate script.
  *
  * Usage: node scripts/styled-render-gate.mjs
  * Exit code is non-zero if any story fails to load or renders light/white.
@@ -20,9 +22,9 @@ const PORT = 6107;
 const BASE_URL = `http://localhost:${PORT}`;
 const OUTPUT_DIR = path.join(process.cwd(), "test-results", "styled-render-gate");
 
-// The C2a component titles (round 1 + this round) -- every Storybook entry
-// whose title starts with one of these is included, whatever export names
-// its stories use.
+// Component titles covered so far (C2a round + C2b round) -- every
+// Storybook entry whose title starts with one of these is included,
+// whatever export names its stories use.
 const C2A_TITLE_PREFIXES = [
   "Organisms/Drawer",
   "Organisms/ModalShell",
@@ -31,6 +33,8 @@ const C2A_TITLE_PREFIXES = [
   "Molecules/RelationshipsEditor",
   "Organisms/EntityEditDrawer",
   "Organisms/DocDrawer",
+  // C2b -- data + canvas organisms (refit-mock.html)
+  "Organisms/DataTable",
 ];
 
 function waitForServer(url, timeoutMs) {
