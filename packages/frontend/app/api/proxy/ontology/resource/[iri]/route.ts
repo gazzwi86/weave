@@ -28,6 +28,7 @@ interface CeResourceBody {
   bpmo_kind?: string;
   key_properties: KeyProperty[];
   neighbours?: CeResourceNeighbourBody[];
+  raw_iri?: string | null;
 }
 
 // CE-READ-1's real `GET /api/ontology/resource/{iri}` shape (schemas/ontology.py's

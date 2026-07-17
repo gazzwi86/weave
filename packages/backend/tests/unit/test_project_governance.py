@@ -161,3 +161,5 @@ async def test_create_project_shell_emits_project_created_audit_event() -> None:
     assert audit_event.event_type == "project.created"
     assert audit_event.actor_iri == "urn:weave:principal:user:u-1"
     assert audit_event.subject_iri == _PROJECT_IRI
+    assert audit_event.payload == {"slug": "widget-factory"}
+    assert audit_event.engine == "build"
