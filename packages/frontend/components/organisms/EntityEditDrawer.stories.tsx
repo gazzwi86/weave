@@ -42,6 +42,7 @@ export const EditWithRels: Story = {
     onDelete: noop,
     relationships: (
       <RelationshipsEditor
+        hideLabel
         rels={[
           { predicate: "related to", target: "Vendor risk policy" },
           { predicate: "governs", target: "Compliance officer" },

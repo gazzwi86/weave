@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { RelationshipsEditor } from "../../molecules/RelationshipsEditor";
 import { EntityEditDrawer } from "../EntityEditDrawer";
 
 function renderDrawer(overrides: Partial<React.ComponentProps<typeof EntityEditDrawer>> = {}) {
@@ -68,6 +69,15 @@ describe("EntityEditDrawer", () => {
     renderDrawer({ relationships: <div>Rel editor</div> });
     expect(screen.getByText("Relationships")).toBeInTheDocument();
     expect(screen.getByText("Rel editor")).toBeInTheDocument();
+  });
+
+  it("renders exactly one 'Relationships' label when the slot is a real RelationshipsEditor", () => {
+    renderDrawer({
+      relationships: (
+        <RelationshipsEditor hideLabel rels={[]} onAdd={vi.fn()} onRemove={vi.fn()} />
+      ),
+    });
+    expect(screen.getAllByText("Relationships")).toHaveLength(1);
   });
 
   it("calls onClose on Cancel and onSave on Save changes", () => {

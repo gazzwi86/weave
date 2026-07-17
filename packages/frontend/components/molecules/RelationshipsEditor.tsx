@@ -15,6 +15,10 @@ export interface RelationshipsEditorProps {
   rels: Relationship[];
   onAdd: (predicate: string, target: string) => void;
   onRemove: (index: number) => void;
+  /** Set when a caller (e.g. EntityEditDrawer) already renders its own
+   * "Relationships" section label -- suppresses this component's internal
+   * one so the field doesn't show the label twice. */
+  hideLabel?: boolean;
 }
 
 const PREDICATES = ["related to", "broader", "narrower", "governs", "uses"];
@@ -41,7 +45,7 @@ function RelChip({ rel, onRemove }: { rel: Relationship; onRemove: () => void })
  * reports intent (`onAdd`/`onRemove`). The add-row's own draft
  * predicate/target is local UI state, not lifted -- nothing outside this
  * component needs it mid-typing. */
-export function RelationshipsEditor({ rels, onAdd, onRemove }: RelationshipsEditorProps) {
+export function RelationshipsEditor({ rels, onAdd, onRemove, hideLabel }: RelationshipsEditorProps) {
   const [predicate, setPredicate] = useState<string>(PREDICATES[0]!);
   const [target, setTarget] = useState("");
 
@@ -53,9 +57,11 @@ export function RelationshipsEditor({ rels, onAdd, onRemove }: RelationshipsEdit
 
   return (
     <div className="flex flex-col gap-[var(--space-2)]">
-      <label className="text-[length:var(--text-caption)] font-[var(--font-weight-medium)] text-[var(--color-text-muted)]">
-        Relationships
-      </label>
+      {hideLabel ? null : (
+        <label className="text-[length:var(--text-caption)] font-[var(--font-weight-medium)] text-[var(--color-text-muted)]">
+          Relationships
+        </label>
+      )}
       <div className="flex flex-wrap gap-[var(--space-2)]">
         {rels.map((rel, index) => (
           <RelChip key={`${rel.predicate}-${rel.target}-${index}`} rel={rel} onRemove={() => onRemove(index)} />
@@ -66,7 +72,7 @@ export function RelationshipsEditor({ rels, onAdd, onRemove }: RelationshipsEdit
           aria-label="Relationship predicate"
           value={predicate}
           onChange={(event) => setPredicate(event.target.value)}
-          className="shrink-0 rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)]"
+          className="shrink-0 rounded-[var(--radius-base)] border border-[var(--color-border-strong)] bg-[var(--color-raised)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)]"
         >
           {PREDICATES.map((option) => (
             <option key={option} value={option}>

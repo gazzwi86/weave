@@ -56,4 +56,14 @@ describe("RelationshipsEditor", () => {
       screen.getByText("Links live in the graph — they appear on the canvas and in queries immediately.")
     ).toBeInTheDocument();
   });
+
+  it("renders its own 'Relationships' label by default", () => {
+    renderEditor();
+    expect(screen.getByText("Relationships")).toBeInTheDocument();
+  });
+
+  it("omits its own label when hideLabel is set (caller renders the section label instead)", () => {
+    renderEditor({ hideLabel: true });
+    expect(screen.queryByText("Relationships")).not.toBeInTheDocument();
+  });
 });
