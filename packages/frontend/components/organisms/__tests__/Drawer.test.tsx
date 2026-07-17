@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { userEvent } from "storybook/test";
 import { describe, expect, it, vi } from "vitest";
 
 import { Drawer } from "../Drawer";
@@ -42,9 +43,12 @@ describe("Drawer", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onClose on Escape (Radix's built-in close)", () => {
+  it("calls onClose on Escape (Radix's built-in close)", async () => {
+    // Radix's dismissable-layer listens for Escape at the document level, not
+    // on the dialog node -- fireEvent.keyDown(dialog, ...) never reaches it.
+    // userEvent.keyboard dispatches the real document-level keydown.
     const { onClose } = renderDrawer();
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

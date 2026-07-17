@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { userEvent } from "storybook/test";
 import { describe, expect, it, vi } from "vitest";
 
 import { ConfirmDialog } from "../confirm-dialog";
@@ -66,9 +67,17 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
   });
 
-  it("calls onCancel on Escape (Radix's built-in close)", () => {
+  it("calls onCancel on Escape (Radix's built-in close)", async () => {
+    // Same real document-level path as Drawer -- fireEvent.keyDown(dialog)
+    // never reaches Radix's dismissable-layer listener.
     const { onCancel } = renderDialog();
-    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    await userEvent.keyboard("{Escape}");
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("pins the recomposed structure -- Title/Description render within the ModalShell dialog and are announced", () => {
+    renderDialog();
+    const dialog = screen.getByRole("dialog", { name: 'Delete workspace "Hammerbarn"?' });
+    expect(dialog).toHaveAccessibleDescription("This can't be undone.");
   });
 });
