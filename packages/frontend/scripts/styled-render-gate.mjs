@@ -41,6 +41,11 @@ const C2A_TITLE_PREFIXES = [
   "Molecules/Gantt",
   "Molecules/KanbanCard",
   "Molecules/KanbanLane",
+  "Molecules/KpiStrip",
+  "Molecules/ControlDock",
+  "Molecules/OverlayKey",
+  "Molecules/CanvasLegend",
+  "Molecules/Minimap",
 ];
 
 function waitForServer(url, timeoutMs) {
