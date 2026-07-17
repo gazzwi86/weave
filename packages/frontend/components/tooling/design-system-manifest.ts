@@ -34,6 +34,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "EmptyState", layer: "molecules", states: ["default"] },
   { name: "RelationshipsEditor", layer: "molecules", states: ["default", "empty"] },
   { name: "FilterForm", layer: "molecules", states: ["default"] },
+  { name: "TypeaheadField", layer: "molecules", states: ["default", "selected"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },
