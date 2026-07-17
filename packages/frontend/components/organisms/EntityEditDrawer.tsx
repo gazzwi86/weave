@@ -112,7 +112,6 @@ export function EntityEditDrawer(props: EntityEditDrawerProps) {
       icon={icon}
       tone={tone}
       title={title}
-      size="default"
       dangerSlot={
         onDelete ? (
           <Button variant="ghost" className="text-[var(--color-danger)]" onClick={onDelete}>

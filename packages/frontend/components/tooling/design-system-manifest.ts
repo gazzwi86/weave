@@ -46,6 +46,9 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "GlassPanel", layer: "organisms", states: ["default"] },
   { name: "EntityEditDrawer", layer: "organisms", states: ["default"] },
   { name: "DocDrawer", layer: "organisms", states: ["default"] },
+  { name: "Drawer", layer: "organisms", states: ["default"] },
+  { name: "ModalShell", layer: "organisms", states: ["default"] },
+  { name: "EntityPickerModal", layer: "organisms", states: ["default"] },
 
   // templates
   { name: "CanvasPage", layer: "templates", states: ["default"] },
