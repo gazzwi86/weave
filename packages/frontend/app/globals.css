@@ -122,6 +122,10 @@
   --size-cmdbar: 440px;
   /* header flyout width (refit-mock.html's `.flyout` -- Bell/Help panels). */
   --size-flyout: 380px;
+  /* refit-mock.html `.qtip-pop` explainer popover width. */
+  --size-popover: 300px;
+  /* refit-mock.html `.modal` confirm/attach dialog width. */
+  --size-modal: 420px;
 
   /* radius */
   --radius-sm: 4px;
