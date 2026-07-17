@@ -29,6 +29,17 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof EntityPicker
 }
 
 describe("EntityPickerModal", () => {
+  it("caps the option list height and scrolls overflow (JSDOM cannot exercise real scroll)", () => {
+    const many: EntityPickerOption[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `e${i}`, label: `Entity ${i}`, kind: "process" as const, kindLabel: "Process",
+    }));
+    renderModal({ options: many });
+    const list = screen.getByRole("listbox");
+    expect(list.className).toContain("max-h-[var(--size-picker-list-max)]");
+    expect(list.className).toContain("overflow-y-auto");
+  });
+
+
   it("renders nothing when closed", () => {
     render(
       <EntityPickerModal
