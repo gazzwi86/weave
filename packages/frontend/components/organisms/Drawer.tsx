@@ -110,7 +110,15 @@ export function Drawer({
           )}
         >
           <DrawerHead icon={icon} tone={tone} title={title} pill={pill} onClose={onClose} />
-          <div className="flex-1 overflow-y-auto px-[var(--space-5)] py-[var(--space-4)]">{children}</div>
+          {/* tabIndex makes the scroll region itself keyboard-reachable
+              (arrow/Page-Down scroll) when its content has no focusable
+              children of its own -- axe `scrollable-region-focusable`. */}
+          <div
+            tabIndex={0}
+            className="flex-1 overflow-y-auto px-[var(--space-5)] py-[var(--space-4)]"
+          >
+            {children}
+          </div>
           <DrawerFoot footer={footer} dangerSlot={dangerSlot} />
         </Dialog.Content>
       </Dialog.Portal>

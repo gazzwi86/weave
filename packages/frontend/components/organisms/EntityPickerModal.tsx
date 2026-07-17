@@ -1,5 +1,7 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
+
 import { cn } from "@/lib/utils";
 
 import { type BpmoKind, KindChip } from "../molecules/KindChip";
@@ -70,13 +72,14 @@ export function EntityPickerModal({
 }: EntityPickerModalProps) {
   return (
     <ModalShell open={open} onClose={onClose} size="md">
-      <h4 className="mb-[var(--space-2)] text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+      <Dialog.Title className="mb-[var(--space-2)] text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         {title}
-      </h4>
+      </Dialog.Title>
       <SearchInput value={search.value} onChange={search.onChange} label="Search entities" />
       <div
         role="listbox"
         aria-multiselectable="true"
+        aria-label={title}
         className="my-[var(--space-3)] max-h-[var(--size-picker-list-max)] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-border)]"
       >
         {options.map((option) => (
