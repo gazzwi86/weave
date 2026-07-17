@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Weave">
+  <defs>
+    <linearGradient id="lgAB" x1="6" y1="14" x2="16" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#E879F9"/>
+    </linearGradient>
+    <linearGradient id="lgBC" x1="16" y1="50" x2="32" y2="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E879F9"/><stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="lgCD" x1="32" y1="22" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <linearGradient id="lgDE" x1="48" y1="50" x2="58" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2DD4BF"/><stop offset="1" stop-color="#A3E635"/>
+    </linearGradient>
+  </defs>
+  <g stroke-width="5" stroke-linecap="round">
+    <line x1="6" y1="14" x2="16" y2="50" stroke="url(#lgAB)"/>
+    <line x1="16" y1="50" x2="32" y2="22" stroke="url(#lgBC)"/>
+    <line x1="32" y1="22" x2="48" y2="50" stroke="url(#lgCD)"/>
+    <line x1="48" y1="50" x2="58" y2="14" stroke="url(#lgDE)"/>
+  </g>
+  <g>
+    <circle cx="6" cy="14" r="5.5" fill="#22D3EE"/>
+    <circle cx="16" cy="50" r="5.5" fill="#E879F9"/>
+    <circle cx="32" cy="22" r="5.5" fill="#FBBF24"/>
+    <circle cx="48" cy="50" r="5.5" fill="#2DD4BF"/>
+    <circle cx="58" cy="14" r="5.5" fill="#A3E635"/>
+  </g>
+</svg>
