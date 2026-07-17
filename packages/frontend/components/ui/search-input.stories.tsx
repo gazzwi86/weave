@@ -12,12 +12,13 @@ export default meta;
 type Story = StoryObj<typeof SearchInput>;
 
 const noop = () => {};
+const LABEL = "Search entities";
 
-export const Default: Story = { args: { value: "", placeholder: "Search entities", onChange: noop } };
+export const Default: Story = { args: { value: "", label: LABEL, placeholder: LABEL, onChange: noop } };
 export const DefaultDark: Story = { ...Default, parameters: { theme: "dark" } };
 
 export const Focused: Story = {
-  args: { value: "", placeholder: "Search entities", onChange: noop },
+  args: { value: "", label: LABEL, placeholder: LABEL, onChange: noop },
   play: async ({ canvasElement }) => {
     canvasElement.querySelector("input")?.focus();
   },
@@ -31,5 +32,5 @@ export const WithValue: Story = {
     }
     return <Wrapped />;
   },
-  args: { value: "", placeholder: "Search entities", onChange: noop },
+  args: { value: "", label: LABEL, placeholder: LABEL, onChange: noop },
 };

@@ -5,6 +5,10 @@ import { Icon } from "./icon";
 export interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
+  /** Accessible name (aria-label) -- required, distinct from `placeholder`
+   * so the textbox is never left unnamed when a placeholder is omitted
+   * (WCAG 4.1.2). */
+  label: string;
   placeholder?: string;
   className?: string;
 }
@@ -12,7 +16,7 @@ export interface SearchInputProps {
 /** refit-mock.html `.search-input` -- icon + borderless input inside a
  * bordered shell, accent glow on focus-within (reuses the same accent ring
  * as Input's own focus-visible state). */
-export function SearchInput({ value, onChange, placeholder, className }: SearchInputProps) {
+export function SearchInput({ value, onChange, label, placeholder, className }: SearchInputProps) {
   return (
     <div
       className={cn(
@@ -26,7 +30,7 @@ export function SearchInput({ value, onChange, placeholder, className }: SearchI
       <Icon name="search" size={14} />
       <input
         type="text"
-        aria-label={placeholder}
+        aria-label={label}
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}

@@ -33,7 +33,7 @@ describe("FilterBar", () => {
         chips={CHIPS}
         activeIds={[]}
         onToggle={vi.fn()}
-        search={{ value: "", onChange: vi.fn(), placeholder: "Search kinds" }}
+        search={{ value: "", onChange: vi.fn(), label: "Search kinds", placeholder: "Search kinds" }}
       />
     );
     expect(screen.getByRole("textbox")).toBeInTheDocument();

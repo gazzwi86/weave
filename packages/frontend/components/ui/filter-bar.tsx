@@ -17,7 +17,7 @@ export interface FilterBarProps {
   activeIds: readonly string[];
   onToggle: (id: string) => void;
   /** Omit to render the bar without a leading SearchInput. */
-  search?: { value: string; onChange: (value: string) => void; placeholder?: string };
+  search?: { value: string; onChange: (value: string) => void; label: string; placeholder?: string };
   /** Right-aligned slot (mock's "Sort: instance count" label, etc). */
   trailing?: ReactNode;
   className?: string;
@@ -33,7 +33,12 @@ export function FilterBar({ chips, activeIds, onToggle, search, trailing, classN
   return (
     <div className={cn("flex flex-wrap items-center gap-[var(--space-2)]", className)}>
       {search && (
-        <SearchInput value={search.value} onChange={search.onChange} placeholder={search.placeholder} />
+        <SearchInput
+          value={search.value}
+          onChange={search.onChange}
+          label={search.label}
+          placeholder={search.placeholder}
+        />
       )}
       {chips.map((chip) => {
         const isOn = activeIds.includes(chip.id);

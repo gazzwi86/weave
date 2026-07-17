@@ -29,7 +29,12 @@ export const WithSearch: Story = {
   render: (args) => {
     function Wrapped() {
       const [value, setValue] = useState("");
-      return <FilterBar {...args} search={{ value, onChange: setValue, placeholder: "Search kinds & relationship types…" }} />;
+      return (
+        <FilterBar
+          {...args}
+          search={{ value, onChange: setValue, label: "Search kinds & relationship types", placeholder: "Search kinds & relationship types…" }}
+        />
+      );
     }
     return <Wrapped />;
   },
