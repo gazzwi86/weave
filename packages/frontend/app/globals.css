@@ -34,6 +34,19 @@
      "Command palette" brand moment), never a hardcoded literal in components. */
   --gradient-accent: linear-gradient(120deg, #22d3ee, #a78bfa);
 
+  /* full brand-spectrum gradient (refit-mock.html's command-bar border) --
+     same 7 stops as --color-series-1..6 plus the accent, theme-invariant. */
+  --gradient-brand: linear-gradient(
+    100deg,
+    #22d3ee,
+    #2dd4bf,
+    #e879f9,
+    #a78bfa,
+    #fbbf24,
+    #a3e635,
+    #60a5fa
+  );
+
   /* color: semantic status (dark) */
   --color-success: #10b981;
   --color-warn: #f59e0b;
@@ -101,9 +114,10 @@
   --space-10: 64px;
 
   /* app-shell fixed dimensions (layout-grid.md: 56px icon rail, 232px
-     secondary sidebar, 44px top bar) */
+     secondary sidebar, 48px top bar -- refit-mock.html's .topbar) */
   --size-rail: 56px;
   --size-sidebar: 232px;
+  --size-topbar: 48px;
 
   /* radius */
   --radius-sm: 4px;
@@ -230,6 +244,65 @@
     --color-kind-field: #498500;
     --color-kind-class: #bb5b00;
     --color-kind-fallback: #64748b;
+  }
+}
+
+/* Shell motion keyframes (refit-mock.html): GPU-friendly (transform/opacity
+ * only, plus box-shadow for the notification dot pulse). Curve is
+ * --ease-standard -- the mock's own --ease-out literal (cubic-bezier(.2,.8,
+ * .2,1)) is the SAME curve as this file's existing --ease-standard, not its
+ * existing --ease-out (cubic-bezier(0.16,1,0.3,1)), so shell animations
+ * reuse --ease-standard rather than redefining --ease-out and re-timing
+ * every other animation in the app that already reads it. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes flyDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes screenIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
   }
 }
 
