@@ -40,6 +40,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "KanbanCard", layer: "molecules", states: ["default"] },
   { name: "KanbanLane", layer: "molecules", states: ["default"] },
   { name: "KpiStrip", layer: "molecules", states: ["default"] },
+  { name: "ControlDock", layer: "molecules", states: ["default", "selected"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },
