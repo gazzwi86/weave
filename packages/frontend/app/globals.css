@@ -148,6 +148,10 @@
   --size-picker-list-max: 220px;
   /* refit-mock.html `.gantt-row`/`.gantt-scale` fixed label column. */
   --size-gantt-label: 150px;
+  /* refit-mock.html `.kanban-lane` fixed width. */
+  --size-kanban-lane: 216px;
+  /* refit-mock.html `.kanban-lane` card-list max-height before internal scroll. */
+  --size-kanban-lane-max: 520px;
 
   /* radius */
   --radius-sm: 4px;

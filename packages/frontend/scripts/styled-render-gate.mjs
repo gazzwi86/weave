@@ -39,6 +39,8 @@ const C2A_TITLE_PREFIXES = [
   "Molecules/TypeaheadField",
   "Molecules/Timeline",
   "Molecules/Gantt",
+  "Molecules/KanbanCard",
+  "Molecules/KanbanLane",
 ];
 
 function waitForServer(url, timeoutMs) {
