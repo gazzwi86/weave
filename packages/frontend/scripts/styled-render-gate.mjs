@@ -37,6 +37,7 @@ const C2A_TITLE_PREFIXES = [
   "Organisms/DataTable",
   "Molecules/FilterForm",
   "Molecules/TypeaheadField",
+  "Molecules/Timeline",
 ];
 
 function waitForServer(url, timeoutMs) {
