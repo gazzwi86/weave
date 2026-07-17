@@ -33,6 +33,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "CanvasToolbar", layer: "molecules", states: ["default", "selected"] },
   { name: "EmptyState", layer: "molecules", states: ["default"] },
   { name: "RelationshipsEditor", layer: "molecules", states: ["default", "empty"] },
+  { name: "FilterForm", layer: "molecules", states: ["default"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },

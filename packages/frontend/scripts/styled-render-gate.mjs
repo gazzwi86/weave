@@ -35,6 +35,7 @@ const C2A_TITLE_PREFIXES = [
   "Organisms/DocDrawer",
   // C2b -- data + canvas organisms (refit-mock.html)
   "Organisms/DataTable",
+  "Molecules/FilterForm",
 ];
 
 function waitForServer(url, timeoutMs) {
