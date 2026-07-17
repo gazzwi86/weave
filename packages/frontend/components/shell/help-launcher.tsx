@@ -4,10 +4,15 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Icon } from "@/components/ui/icon";
+import { HelpPanel, type HelpCardItem } from "@/components/organisms/HelpPanel";
+import { TourOverlay } from "@/components/onboarding/tour-overlay";
 import { t } from "@/lib/onboarding/i18n";
+import { useTourEngine, type UseTourEngineResult } from "@/lib/onboarding/use-tour-engine";
 import { useWhatsNewUnread } from "@/lib/onboarding/use-whats-new-unread";
 
 import { areaForPathname, CONTEXTUAL_HELP } from "../../../shared/onboarding/content/contextual-help";
+import { TOURS } from "../../../shared/onboarding/content/tours";
 
 const LINK_CLASS = "text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline";
 const TEXT_FIELD_SELECTOR = "input, textarea, [contenteditable]";
@@ -18,6 +23,60 @@ const TEXT_FIELD_SELECTOR = "input, textarea, [contenteditable]";
  * standard layout, so a single check covers both phrasings in the AC). */
 function isTextField(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(TEXT_FIELD_SELECTOR) !== null;
+}
+
+function requireCeOverviewTour() {
+  const tour = TOURS.find((entry) => entry.tourId === "ce-overview");
+  if (!tour) throw new Error("ce-overview missing from TOURS -- HelpPanel guided-tour card regressed");
+  return tour;
+}
+
+const CE_OVERVIEW_TOUR = requireCeOverviewTour();
+
+function persistCeOverviewProgress(progress: { lastCompletedStep: number; completed: boolean; skipped: boolean }): void {
+  void fetch(`/api/onboarding/tours/${CE_OVERVIEW_TOUR.tourId}/progress`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      last_completed_step: progress.lastCompletedStep,
+      completed: progress.completed,
+      skipped: progress.skipped,
+    }),
+  });
+}
+
+/** HelpPanel's "Get going" cards (guided tour / docs & concepts / contact
+ * support). Guided tour closes the panel first so driver.js highlights the
+ * live page instead of sitting behind the flyout, then starts `ce-overview`
+ * -- the engine's own anchor-filtering makes this a no-op off Constitution
+ * routes rather than a broken tour (see `useTourEngine`'s `steps`). */
+function useHelpCards(engine: UseTourEngineResult, closePanel: () => void): HelpCardItem[] {
+  return [
+    {
+      icon: "play",
+      title: "Guided tour",
+      subtitle: "3 minutes — overview, glossary, query, rules",
+      onClick: () => {
+        closePanel();
+        engine.start();
+      },
+    },
+    {
+      icon: "book",
+      tone: "purple",
+      title: "Docs & concepts",
+      subtitle: "What is the Constitution? Kinds, versions, publishing",
+      href: "/ce/glossary",
+    },
+    {
+      icon: "msg",
+      tone: "green",
+      title: "Contact support",
+      // ponytail: mailto placeholder -- swap for a real support surface once one ships.
+      subtitle: "We reply within a business day",
+      href: "mailto:support@weave.app",
+    },
+  ];
 }
 
 /** ONB-V1-TASK-002 AC-002-01: help-launcher entry into the completeness-map
@@ -68,7 +127,7 @@ function RulesPoliciesTourEntry() {
  * tours land with the v1.0 docs surface. */
 function HelpTopics() {
   return (
-    <nav aria-label="Help topics" className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+    <nav aria-label="Help topics" className="flex flex-col gap-[var(--space-2)]">
       <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         Get started
       </p>
@@ -110,7 +169,7 @@ function ContextualHelpPanel() {
   if (!links || links.length === 0) return null;
 
   return (
-    <nav aria-label="Help for this page" className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+    <nav aria-label="Help for this page" className="flex flex-col gap-[var(--space-2)]">
       <p className="text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         {t("onboarding.launcher.for-page.heading")}
       </p>
@@ -142,7 +201,7 @@ function UnreadDot({ show }: { show: boolean }) {
  * (training/what's-new) -- AC-013-05: every entry resolves a live surface. */
 function LauncherEntries() {
   return (
-    <div className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
+    <div className="flex flex-col gap-[var(--space-2)]">
       <button
         type="button"
         onClick={() => void fetch("/api/onboarding/dismissals/beacon", { method: "DELETE" })}
@@ -156,6 +215,13 @@ function LauncherEntries() {
       <a href="/settings/onboarding-path" className={LINK_CLASS}>
         {t("onboarding.launcher.change-path")}
       </a>
+      <button
+        type="button"
+        onClick={() => void fetch("/api/onboarding/checklist/restore", { method: "POST" })}
+        className={`${LINK_CLASS} text-left`}
+      >
+        {t("onboarding.checklist.restore")}
+      </button>
     </div>
   );
 }
@@ -175,65 +241,62 @@ function useShortcutOpen(setOpen: (open: boolean) => void) {
   }, [setOpen]);
 }
 
+function CloseHelpButton() {
+  return (
+    <Dialog.Close asChild>
+      <button
+        type="button"
+        aria-label="Close help"
+        className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
+      >
+        <Icon name="x" size={14} />
+      </button>
+    </Dialog.Close>
+  );
+}
+
 /** AC-7 / AC-013-03: "?" icon in the nav opens a contextual help panel in
  * place -- a Radix Dialog (focus-trap, Escape-to-close, restore-focus)
- * rather than a navigation to a /help route.
+ * rather than a navigation to a /help route. Presentation lives in the
+ * `HelpPanel` organism (refit-mock.html's `#help-backdrop`); this wrapper
+ * owns the Dialog, route gating, every fetch call, and the guided-tour
+ * engine.
  */
 export function HelpLauncher() {
   const [open, setOpen] = useState(false);
   const { unread } = useWhatsNewUnread();
   useShortcutOpen(setOpen);
+  const tourEngine = useTourEngine({ tour: CE_OVERVIEW_TOUR, onPersist: persistCeOverviewProgress });
+  const cards = useHelpCards(tourEngine, () => setOpen(false));
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>
-        <button
-          type="button"
-          aria-label="Help"
-          className="relative rounded-[var(--radius-full)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-        >
-          ?
-          <UnreadDot show={unread} />
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
-        <Dialog.Content
-          aria-label="Help"
-          className="fixed right-0 top-0 h-full w-full max-w-[360px] border-l border-[var(--color-border)] bg-[var(--color-overlay)]/80 p-[var(--space-5)] shadow-[var(--shadow-panel)] backdrop-blur-md"
-        >
-          <Dialog.Title className="text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            {t("onboarding.launcher.title")}
-          </Dialog.Title>
-          <Dialog.Description className="mt-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
-            {t("onboarding.launcher.description")}
-          </Dialog.Description>
-          <ContextualHelpPanel />
-          <HelpTopics />
-          <LauncherEntries />
-          {/* TASK-010 AC-010-05: restore a dismissed dashboard checklist. */}
+    <>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Trigger asChild>
           <button
             type="button"
-            onClick={() => void fetch("/api/onboarding/checklist/restore", { method: "POST" })}
-            className="mt-[var(--space-4)] text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline"
+            aria-label="Help"
+            className="relative rounded-[var(--radius-full)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
           >
-            {t("onboarding.checklist.restore")}
+            ?
+            <UnreadDot show={unread} />
           </button>
-          <p className="mt-[var(--space-4)] text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-            {t("onboarding.launcher.shortcuts.heading")}: {t("onboarding.launcher.shortcuts.open")} ·{" "}
-            {t("onboarding.launcher.shortcuts.close")}
-          </p>
-          <Dialog.Close asChild>
-            <button
-              type="button"
-              aria-label="Close help"
-              className="mt-[var(--space-4)] text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-            >
-              Close
-            </button>
-          </Dialog.Close>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
+          <Dialog.Content asChild aria-label="Help" className="fixed right-[var(--space-4)] top-[var(--space-10)]">
+            <div>
+              <Dialog.Title className="sr-only">Help &amp; learning</Dialog.Title>
+              <HelpPanel cards={cards} closeSlot={<CloseHelpButton />}>
+                <ContextualHelpPanel />
+                <HelpTopics />
+                <LauncherEntries />
+              </HelpPanel>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <TourOverlay engine={tourEngine} />
+    </>
   );
 }

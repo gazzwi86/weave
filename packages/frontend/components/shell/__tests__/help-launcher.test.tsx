@@ -216,6 +216,28 @@ describe("HelpLauncher", () => {
     });
   });
 
+  describe("Get going cards (HelpPanel extraction)", () => {
+    it("renders the docs and support cards as real links", () => {
+      render(<HelpLauncher />);
+      fireEvent.click(screen.getByRole("button", { name: /help/i }));
+      expect(screen.getByRole("link", { name: /docs & concepts/i })).toHaveAttribute("href", "/ce/glossary");
+      expect(screen.getByRole("link", { name: /contact support/i })).toHaveAttribute(
+        "href",
+        "mailto:support@weave.app",
+      );
+    });
+
+    it("closes the panel and starts the guided tour when the tour card is clicked", () => {
+      render(<HelpLauncher />);
+      fireEvent.click(screen.getByRole("button", { name: /help/i }));
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /guided tour/i }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
   it("has zero axe violations (AC-013-06)", async () => {
     pathname = "/ce";
     render(<HelpLauncher />);
