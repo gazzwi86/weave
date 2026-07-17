@@ -39,6 +39,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "AppHeader", layer: "organisms", states: ["default"] },
   { name: "CommandBar", layer: "organisms", states: ["default", "loading", "empty"] },
   { name: "BellPanel", layer: "organisms", states: ["default", "empty"] },
+  { name: "UserMenu", layer: "organisms", states: ["default"] },
   { name: "DataTable", layer: "organisms", states: ["default", "loading", "empty", "error", "selected"] },
   { name: "InspectorPanel", layer: "organisms", states: ["default", "loading", "empty"] },
   { name: "GlassPanel", layer: "organisms", states: ["default"] },

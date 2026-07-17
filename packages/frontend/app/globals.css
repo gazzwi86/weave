@@ -118,6 +118,8 @@
   --size-rail: 56px;
   --size-sidebar: 232px;
   --size-topbar: 48px;
+  --size-topbar-zone: 320px;
+  --size-cmdbar: 440px;
 
   /* radius */
   --radius-sm: 4px;
