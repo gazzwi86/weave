@@ -165,6 +165,7 @@ async def create_project_route(
                         source_control.token_secret_ref if source_control else None
                     ),
                 ),
+                actor_iri=principal.principal_iri,
                 headers=headers,
             )
         except CeVersionUnavailable as exc:
