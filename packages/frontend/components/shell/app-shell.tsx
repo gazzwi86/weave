@@ -13,7 +13,7 @@ import { Nav } from "./nav";
 import { findSection } from "./nav-items";
 import { NotificationCenter } from "./notification-center";
 import { SectionRail } from "./section-rail";
-import { useSidebarCollapsed } from "./use-sidebar-collapsed";
+import { useSidebarCollapseHotkey, useSidebarCollapsed } from "./use-sidebar-collapsed";
 import { OnboardingHintsHost } from "../onboarding/onboarding-hints-host";
 import { PracticeModeBanner } from "../onboarding/practice-mode-banner";
 
@@ -70,6 +70,7 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
   const [collapsed, expand] = useSidebarCollapsed();
   const section = findSection(pathname);
   const canExpand = Boolean(section && section.groups.length > 0);
+  useSidebarCollapseHotkey(expand);
 
   if (isPublic) {
     return <>{children}</>;

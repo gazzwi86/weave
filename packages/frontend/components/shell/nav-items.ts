@@ -13,6 +13,8 @@
  * next.config.ts) to resolve a route-naming conflict with the design ruling.
  */
 
+import type { IconName } from "@/components/ui/icon";
+
 export interface SecondaryNavItem {
   label: string;
   /** Absent for phase placeholders — rendered dimmed with a "soon" pill, no route. */
@@ -20,6 +22,8 @@ export interface SecondaryNavItem {
   built: boolean;
   /** Rendered only for workspace admins (RBAC display split, IA §5). */
   adminOnly?: boolean;
+  /** Small stroke icon shown left of the label (refit-mock.html's per-item `i-*` icons). */
+  icon: IconName;
 }
 
 export interface SecondaryNavGroup {
@@ -47,8 +51,8 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Home",
         items: [
-          { label: "What can Weave do for you?", href: "/role-home", built: true },
-          { label: "Notifications", href: "/notifications", built: true },
+          { label: "What can Weave do for you?", href: "/role-home", built: true, icon: "home" },
+          { label: "Notifications", href: "/notifications", built: true, icon: "bell" },
         ],
       },
     ],
@@ -61,33 +65,33 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Model",
         items: [
-          { label: "Overview", href: "/ce/overview", built: true },
-          { label: "Explore", href: "/explorer", built: true },
-          { label: "Ontology / Types", href: "/ce/types", built: true },
-          { label: "Instances / Data", href: "/ce/instances", built: true },
+          { label: "Overview", href: "/ce/overview", built: true, icon: "home" },
+          { label: "Explore", href: "/explorer", built: true, icon: "graph" },
+          { label: "Ontology / Types", href: "/ce/types", built: true, icon: "tag" },
+          { label: "Instances / Data", href: "/ce/instances", built: true, icon: "table" },
         ],
       },
       {
         heading: "Query",
         items: [
-          { label: "Query", href: "/ce/query", built: true },
-          { label: "Versions", href: "/ce/versions", built: false },
+          { label: "Query", href: "/ce/query", built: true, icon: "sparkles" },
+          { label: "Versions", href: "/ce/versions", built: false, icon: "git" },
         ],
       },
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", href: "/ce/glossary", built: true },
-          { label: "Brand & voice", href: "/ce/brand", built: true },
-          { label: "Rules & policies", href: "/ce/rules", built: true },
-          { label: "Strategy & motivation", built: false },
+          { label: "Glossary", href: "/ce/glossary", built: true, icon: "book" },
+          { label: "Brand & voice", href: "/ce/brand", built: true, icon: "mic" },
+          { label: "Rules & policies", href: "/ce/rules", built: true, icon: "shield" },
+          { label: "Strategy & motivation", built: false, icon: "target" },
         ],
       },
       {
         heading: "Tools",
         items: [
-          { label: "Ingest", href: "/ce/import", built: false },
-          { label: "Reasoning", built: false },
+          { label: "Ingest", href: "/ce/import", built: false, icon: "upload" },
+          { label: "Reasoning", built: false, icon: "brain" },
         ],
       },
     ],
@@ -100,10 +104,10 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Build",
         items: [
-          { label: "Registry", href: "/build", built: true },
-          { label: "Dashboard", built: false },
-          { label: "Kanban", href: "/build/board", built: true },
-          { label: "Task briefs & decisions", built: false },
+          { label: "Registry", href: "/build", built: true, icon: "folder" },
+          { label: "Dashboard", built: false, icon: "gauge" },
+          { label: "Kanban", href: "/build/board", built: true, icon: "layers" },
+          { label: "Task briefs & decisions", built: false, icon: "list" },
         ],
       },
     ],
@@ -117,9 +121,9 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Automation",
         items: [
-          { label: "Automations", href: "/events", built: false },
-          { label: "Triggers", built: false },
-          { label: "Runs", built: false },
+          { label: "Automations", href: "/events", built: false, icon: "zap" },
+          { label: "Triggers", built: false, icon: "swap" },
+          { label: "Runs", built: false, icon: "list" },
         ],
       },
     ],
@@ -135,20 +139,20 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Audit",
         items: [
-          { label: "Dashboard", href: "/audit", built: true },
-          { label: "View logs", href: "/audit/logs", built: true },
-          { label: "Compliance", href: "/audit/compliance", built: true },
+          { label: "Dashboard", href: "/audit", built: true, icon: "gauge" },
+          { label: "View logs", href: "/audit/logs", built: true, icon: "list" },
+          { label: "Compliance", href: "/audit/compliance", built: true, icon: "shield" },
         ],
       },
       {
         heading: "Inference",
         items: [
-          { label: "Sentiment", built: false },
-          { label: "Intent & urgency", built: false },
-          { label: "Topics", built: false },
-          { label: "Satisfaction", built: false },
-          { label: "Quality & safety", built: false },
-          { label: "Model metrics", built: false },
+          { label: "Sentiment", built: false, icon: "sparkles" },
+          { label: "Intent & urgency", built: false, icon: "target" },
+          { label: "Topics", built: false, icon: "tag" },
+          { label: "Satisfaction", built: false, icon: "check" },
+          { label: "Quality & safety", built: false, icon: "shield" },
+          { label: "Model metrics", built: false, icon: "graph" },
         ],
       },
     ],
@@ -161,18 +165,24 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
-          { label: "Members", href: "/settings/members", built: true },
-          { label: "Onboarding path", href: "/settings/onboarding-path", built: true },
-          { label: "Notifications", href: "/settings/notifications", built: true },
-          { label: "Models & AI", href: "/settings/models", built: true },
-          { label: "Billing & budgets", href: "/billing", built: true },
-          { label: "Integrations", href: "/settings/integrations", built: false },
+          { label: "Members", href: "/settings/members", built: true, icon: "user" },
+          { label: "Onboarding path", href: "/settings/onboarding-path", built: true, icon: "play" },
+          { label: "Notifications", href: "/settings/notifications", built: true, icon: "bell" },
+          { label: "Models & AI", href: "/settings/models", built: true, icon: "sparkles" },
+          { label: "Billing & budgets", href: "/billing", built: true, icon: "scroll" },
+          { label: "Integrations", href: "/settings/integrations", built: false, icon: "swap" },
         ],
       },
       {
         heading: "Provisioning",
         items: [
-          { label: "Workspaces", href: "/settings/workspaces", built: true, adminOnly: true },
+          {
+            label: "Workspaces",
+            href: "/settings/workspaces",
+            built: true,
+            adminOnly: true,
+            icon: "layers",
+          },
         ],
       },
     ],
