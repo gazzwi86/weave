@@ -146,6 +146,8 @@
   --size-dot: 6px;
   /* refit-mock.html `.picker-list` max-height before internal scroll. */
   --size-picker-list-max: 220px;
+  /* refit-mock.html `.gantt-row`/`.gantt-scale` fixed label column. */
+  --size-gantt-label: 150px;
 
   /* radius */
   --radius-sm: 4px;
