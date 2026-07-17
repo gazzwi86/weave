@@ -58,6 +58,14 @@
      text-follows-bg trick, --color-bg isn't white/dark enough for
      --color-danger's mid-lightness red in dark mode). */
   --color-on-danger: #ffffff;
+  /* text-on-tinted-background pair: --color-warn/--color-accent-primary at
+     10-12% tint (badge/chip/pill "soft" backgrounds) fall short of 4.5:1 in
+     light mode even though the base token passes on a solid surface (see
+     color.md OQ-08 -- tokens were only validated against solid backgrounds).
+     Dark passes through unchanged; light gets a darker shade. Same pattern
+     as --color-on-danger above -- fixed override, not a base token edit. */
+  --color-on-warn-soft: var(--color-warn);
+  --color-on-accent-soft: var(--color-accent-primary);
 
   /* color: BPMO kind palette (dark variants, docs/standards/design/color.md
    * OQ-08 table -- OKLCH-tuned to >=4.5:1 on navy). Token name is the kind
@@ -262,6 +270,11 @@
     --color-danger: #b91c1c;
     --color-danger-soft: rgba(185, 28, 28, 0.1);
     --color-info: #0369a1;
+    /* darker shades of --color-warn/--color-accent-primary for text sitting
+       on their own tinted (~10%) backgrounds -- 5.58:1 / 5.72:1 vs the base
+       tokens' 4.02:1 / 4.28:1 on the same tint (axe color-contrast). */
+    --color-on-warn-soft: #92400e;
+    --color-on-accent-soft: #155e75;
     /* BPMO kind palette, light variants (color.md OQ-08 table). */
     --color-kind-process: #dc2626;
     --color-kind-activity: #b36100;

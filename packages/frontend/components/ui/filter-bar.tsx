@@ -24,11 +24,15 @@ export interface FilterBarProps {
 }
 
 /** refit-mock.html `.filter-bar` -- SearchInput + a toggleable kind-chip
- * row. `.kchip.off` is a real mock rule (dimmed, deselected); `.kchip.on`
- * has no rule of its own there, so its accent-tinted look is inferred from
- * the sibling `.dock-tab.on`/`.toggle-sw.on` convention used elsewhere in
- * the mock. Props are a flat chip list today; a labelled multi-field
- * variant can wrap this later without changing FilterChip/onToggle. */
+ * row. The mock's `.kchip.off` (opacity:.38) is a separate *excluded*
+ * state toggled by its own JS, never the default unselected look (every
+ * static `.kchip` instance in the mock markup is plain, undimmed) -- this
+ * binary on/not-on component maps not-on to that plain look, not `.off`.
+ * `.kchip.on` has no rule of its own there, so its accent-tinted look is
+ * inferred from the sibling `.dock-tab.on`/`.toggle-sw.on` convention used
+ * elsewhere in the mock. Props are a flat chip list today; a labelled
+ * multi-field variant can wrap this later without changing FilterChip/
+ * onToggle. */
 export function FilterBar({ chips, activeIds, onToggle, search, trailing, className }: FilterBarProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-[var(--space-2)]", className)}>
@@ -53,8 +57,8 @@ export function FilterBar({ chips, activeIds, onToggle, search, trailing, classN
               "px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-caption)] font-[var(--font-weight-medium)]",
               "transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:border-[var(--color-accent-primary)]",
               isOn
-                ? "border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] text-[var(--color-accent-primary)]"
-                : "border-[var(--color-border-strong)] bg-[var(--color-raised)] text-[var(--color-text-muted)] opacity-[.38]"
+                ? "border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] text-[var(--color-on-accent-soft)]"
+                : "border-[var(--color-border-strong)] bg-[var(--color-raised)] text-[var(--color-text-muted)]"
             )}
           >
             {chip.color && (

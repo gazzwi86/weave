@@ -21,6 +21,6 @@ describe("KanbanCard", () => {
 
   it("dims the card when marked done", () => {
     render(<KanbanCard taskId="TASK-001" title="Intake form" dimmed />);
-    expect(screen.getByTestId("kanban-card-TASK-001")).toHaveClass("opacity-70");
+    expect(screen.getByTestId("kanban-card-TASK-001")).toHaveClass("opacity-90");
   });
 });

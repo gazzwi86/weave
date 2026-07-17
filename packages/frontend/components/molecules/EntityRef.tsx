@@ -17,7 +17,7 @@ export function EntityRef({ label, id, className }: EntityRefProps) {
   return (
     <span className={cn("inline-flex items-center gap-[var(--space-2)]", className)}>
       <span className="text-[length:var(--text-body)] text-[var(--color-text-default)]">{label}</span>
-      <span className="rounded-[var(--radius-sm)] bg-[var(--color-raised)] px-[var(--space-2)] text-[length:var(--text-mono-sm)] text-[var(--color-text-subtle)] font-[var(--font-mono)]">
+      <span className="rounded-[var(--radius-sm)] bg-[var(--color-raised)] px-[var(--space-2)] text-[length:var(--text-mono-sm)] text-[var(--color-text-muted)] font-[var(--font-mono)]">
         {id}
       </span>
     </span>

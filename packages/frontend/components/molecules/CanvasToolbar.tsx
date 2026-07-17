@@ -37,7 +37,7 @@ export function CanvasToolbar({ tools, activeToolId, onSelect, className }: Canv
               "rounded-[var(--radius-sm)] px-[var(--space-2)] py-[var(--space-1)]",
               "text-[length:var(--text-caption)] text-[var(--color-text-muted)]",
               "hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]",
-              isActive && "bg-[var(--color-accent-soft)] text-[var(--color-accent-primary)]"
+              isActive && "bg-[var(--color-accent-soft)] text-[var(--color-on-accent-soft)]"
             )}
           >
             {tool.label}

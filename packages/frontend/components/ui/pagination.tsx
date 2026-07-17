@@ -55,7 +55,7 @@ function PageEntry({ entry, current, onPageChange }: PageEntryProps) {
       className={cn(
         PAGE_BTN,
         entry === current &&
-          "border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] font-[var(--font-weight-semibold)] text-[var(--color-accent-primary)]"
+          "border-[var(--color-accent-primary)]/30 bg-[var(--color-accent-soft)] font-[var(--font-weight-semibold)] text-[var(--color-on-accent-soft)]"
       )}
     >
       {entry}

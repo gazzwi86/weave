@@ -93,7 +93,7 @@ function HelpCard({ card }: { card: HelpCardItem }) {
         <span className="block text-[length:var(--text-label)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
           {card.title}
         </span>
-        <span className="block text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
+        <span className="block text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
           {card.subtitle}
         </span>
       </span>

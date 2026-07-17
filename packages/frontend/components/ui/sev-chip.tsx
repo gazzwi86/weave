@@ -10,7 +10,7 @@ export interface SevChipProps {
 const SEVERITY_STYLE: Record<Severity, string> = {
   violation: "text-[var(--color-danger)] bg-[var(--color-danger)]/10 before:bg-[var(--color-danger)]",
   critical: "text-[var(--color-danger)] bg-[var(--color-danger)]/10 before:bg-[var(--color-danger)]",
-  warning: "text-[var(--color-warn)] bg-[var(--color-warn)]/10 before:bg-[var(--color-warn)]",
+  warning: "text-[var(--color-on-warn-soft)] bg-[var(--color-warn)]/10 before:bg-[var(--color-warn)]",
   info: "text-[var(--color-text-muted)] bg-[var(--color-overlay)] before:bg-[var(--color-text-subtle)]",
   normal: "text-[var(--color-text-muted)] bg-[var(--color-overlay)] before:bg-[var(--color-text-subtle)]",
 };

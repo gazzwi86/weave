@@ -13,7 +13,7 @@ export interface StatusPillProps {
 const STATUS_STYLE: Record<Status, string> = {
   active: "text-[var(--color-success)] bg-[var(--color-success)]/10",
   published: "text-[var(--color-success)] bg-[var(--color-success)]/10",
-  draft: "text-[var(--color-warn)] bg-[var(--color-warn)]/10",
+  draft: "text-[var(--color-on-warn-soft)] bg-[var(--color-warn)]/10",
   custom: "text-[var(--color-text-muted)] bg-[var(--color-overlay)]",
 };
 
