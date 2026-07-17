@@ -144,6 +144,8 @@
   --size-drawer-doc: 640px;
   /* refit-mock.html `.qtip-pop` title dot / kind-dot pattern diameter. */
   --size-dot: 6px;
+  /* refit-mock.html `.picker-list` max-height before internal scroll. */
+  --size-picker-list-max: 220px;
 
   /* radius */
   --radius-sm: 4px;
