@@ -47,7 +47,7 @@ export function Toast({ message, onDismiss, action, variant = "error", closing =
     >
       <span
         className={cn(
-          "flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)]",
+          "flex h-[var(--space-5)] w-[var(--space-5)] shrink-0 items-center justify-center rounded-[var(--radius-sm)]",
           VARIANT_CHIP_STYLE[variant]
         )}
       >
@@ -69,7 +69,7 @@ export function Toast({ message, onDismiss, action, variant = "error", closing =
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]"
+        className="flex h-[var(--space-5)] w-[var(--space-5)] shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)]"
       >
         <Icon name="x" size={13} />
       </button>

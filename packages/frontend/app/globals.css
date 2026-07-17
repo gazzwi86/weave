@@ -126,6 +126,8 @@
   --size-popover: 300px;
   /* refit-mock.html `.modal` confirm/attach dialog width. */
   --size-modal: 420px;
+  /* refit-mock.html `.qtip-pop` title dot / kind-dot pattern diameter. */
+  --size-dot: 6px;
 
   /* radius */
   --radius-sm: 4px;

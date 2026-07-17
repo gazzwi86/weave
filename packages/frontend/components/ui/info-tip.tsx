@@ -37,7 +37,7 @@ export function InfoTip({ title, body, how, side = "center", direction = "down",
         onBlur={() => setOpen(false)}
         onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
         className={cn(
-          "flex h-4 w-4 items-center justify-center rounded-[var(--radius-full)] border border-[var(--color-border-strong)]",
+          "flex h-[var(--space-4)] w-[var(--space-4)] items-center justify-center rounded-[var(--radius-full)] border border-[var(--color-border-strong)]",
           "bg-[var(--color-raised)] text-[length:var(--text-caption)] font-[var(--font-weight-bold)] text-[var(--color-text-subtle)]",
           "cursor-help transition-[color,border-color,background-color] duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
           "group-hover:border-[var(--color-accent-primary)] group-hover:bg-[var(--color-accent-soft)] group-hover:text-[var(--color-accent-primary)]",
@@ -63,7 +63,7 @@ export function InfoTip({ title, body, how, side = "center", direction = "down",
         )}
       >
         <span className="mb-[var(--space-1)] flex items-center gap-[var(--space-2)] text-[length:var(--text-body-sm)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-[var(--radius-full)] bg-[var(--color-accent-primary)]" />
+          <span aria-hidden="true" className="h-[var(--size-dot)] w-[var(--size-dot)] shrink-0 rounded-[var(--radius-full)] bg-[var(--color-accent-primary)]" />
           {title}
         </span>
         <span id={bodyId} className="block text-[length:var(--text-caption)] leading-relaxed text-[var(--color-text-muted)]">
