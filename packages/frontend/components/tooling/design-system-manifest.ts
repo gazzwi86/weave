@@ -32,6 +32,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "AskBar", layer: "molecules", states: ["default", "loading"] },
   { name: "CanvasToolbar", layer: "molecules", states: ["default", "selected"] },
   { name: "EmptyState", layer: "molecules", states: ["default"] },
+  { name: "RelationshipsEditor", layer: "molecules", states: ["default", "empty"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },
@@ -43,6 +44,8 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "DataTable", layer: "organisms", states: ["default", "loading", "empty", "error", "selected"] },
   { name: "InspectorPanel", layer: "organisms", states: ["default", "loading", "empty"] },
   { name: "GlassPanel", layer: "organisms", states: ["default"] },
+  { name: "EntityEditDrawer", layer: "organisms", states: ["default"] },
+  { name: "DocDrawer", layer: "organisms", states: ["default"] },
 
   // templates
   { name: "CanvasPage", layer: "templates", states: ["default"] },
