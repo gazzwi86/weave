@@ -120,6 +120,8 @@
   --size-topbar: 48px;
   --size-topbar-zone: 320px;
   --size-cmdbar: 440px;
+  /* header flyout width (refit-mock.html's `.flyout` -- Bell/Help panels). */
+  --size-flyout: 380px;
 
   /* radius */
   --radius-sm: 4px;
