@@ -9,7 +9,7 @@ const items: ChecklistItem[] = [
     phase: "m1",
     labelKey: "onboarding.checklist.visit-demo.label",
     whyKey: "onboarding.checklist.visit-demo.why",
-    deepLink: "/ce/overview",
+    deepLink: "/ce",
     autoCompleteOn: "demo_visit",
   },
   {
@@ -28,7 +28,7 @@ const items: ChecklistItem[] = [
     phase: "m1",
     labelKey: "onboarding.checklist.first-commit.label",
     whyKey: "onboarding.checklist.first-commit.why",
-    deepLink: "/ce/overview",
+    deepLink: "/ce",
     autoCompleteOn: "exercise_complete",
     // ponytail: technical's raw-SPARQL exercise (CE-03) and the guided
     // write-commit equivalent (CE-03b) both satisfy "first commit" here.
@@ -55,7 +55,7 @@ const items: ChecklistItem[] = [
     phase: "m1",
     labelKey: "onboarding.checklist.first-activation.label",
     whyKey: "onboarding.checklist.first-activation.why",
-    deepLink: "/ce/overview",
+    deepLink: "/ce",
     autoCompleteOn: "activation_milestone",
     signalRefs: ["first_committed_entity"],
   },

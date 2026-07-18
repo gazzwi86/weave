@@ -6,7 +6,7 @@ const GROUPS = [
   {
     heading: "Model",
     items: [
-      { label: "Overview", href: "/ce/overview", icon: "home" as const },
+      { label: "Overview", href: "/ce", icon: "home" as const },
       { label: "Explore", href: "/explorer", icon: "graph" as const },
       { label: "Strategy & motivation", tag: "soon", icon: "target" as const },
     ],

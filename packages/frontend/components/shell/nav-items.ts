@@ -65,7 +65,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Model",
         items: [
-          { label: "Overview", href: "/ce/overview", built: true, icon: "home" },
+          { label: "Overview", href: "/ce", built: true, icon: "home" },
           { label: "Explore", href: "/explorer", built: true, icon: "graph" },
           { label: "Ontology / Types", href: "/ce/types", built: true, icon: "tag" },
           { label: "Instances / Data", href: "/ce/instances", built: true, icon: "table" },

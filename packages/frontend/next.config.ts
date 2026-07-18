@@ -45,12 +45,15 @@ const nextConfig: NextConfig = {
   // AC-6 (bare /login): F-D25's literal URL -- /auth/login is the real,
   // already-working sign-in route (TASK-002). AC-6 (/compliance): legacy --
   // /audit/compliance is the binding route (visual-direction.md "Compliance
-  // placement"). Both additive redirects, not breaking moves, so nothing
-  // 404s mid-migration.
+  // placement"). /ce/overview: V2 folded the overview into the /ce landing
+  // itself (app/ce/page.tsx) -- this catches stale bookmarks/links rather
+  // than 404ing them. All additive redirects, not breaking moves, so
+  // nothing 404s mid-migration.
   async redirects() {
     return [
       { source: "/login", destination: "/auth/login", permanent: false },
       { source: "/compliance", destination: "/audit/compliance", permanent: false },
+      { source: "/ce/overview", destination: "/ce", permanent: false },
     ];
   },
 };
