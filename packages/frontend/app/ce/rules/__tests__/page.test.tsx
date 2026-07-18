@@ -92,4 +92,59 @@ describe("CeRulesPage", () => {
       expect(screen.getByText("Could not load the validation report.")).toBeInTheDocument()
     );
   });
+
+  it("opens the New rule drawer and refreshes the rule list once a rule is committed", async () => {
+    let validateCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const target = String(url);
+        if (target.startsWith("/api/proxy/validate")) {
+          validateCalls += 1;
+          return jsonResponse(200, validateCalls === 1 ? PENDING : REPORT);
+        }
+        if (target.endsWith("/preview")) return jsonResponse(200, { shape_turtle: "weave:FooShape a sh:NodeShape ." });
+        if (target.endsWith("/commit")) return jsonResponse(201, { shape_iri: "urn:weave:shapes:FooShape" });
+        throw new Error(`unexpected fetch: ${target}`);
+      })
+    );
+
+    render(<CeRulesPage />);
+    await waitFor(() => expect(screen.getByTestId("rules-pending")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("New rule"));
+    fireEvent.change(screen.getByLabelText("Describe the rule"), {
+      target: { value: "Every Foo must have a bar." },
+    });
+    fireEvent.click(screen.getByText("Preview"));
+    await waitFor(() => expect(screen.getByDisplayValue("weave:FooShape a sh:NodeShape .")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Commit"));
+
+    await waitFor(() => expect(screen.getByTestId("rule-list")).toBeInTheDocument());
+    expect(validateCalls).toBe(2);
+  });
+
+  it("switches to the Policies tab, lists policies and opens the attach picker", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const target = String(url);
+        if (target.startsWith("/api/proxy/validate")) return jsonResponse(200, PENDING);
+        if (target === "/api/proxy/sparql") {
+          return jsonResponse(200, { rows: [{ s: "urn:weave:instances:policy-1", label: "Vendor risk policy" }] });
+        }
+        return jsonResponse(200, { results: [] });
+      })
+    );
+
+    render(<CeRulesPage />);
+    await waitFor(() => expect(screen.getByTestId("rules-pending")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("tab", { name: "Policies" }));
+    await waitFor(() => expect(screen.getByText("Vendor risk policy")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Attach"));
+    expect(screen.getByText("Attach to Vendor risk policy")).toBeInTheDocument();
+  });
 });
