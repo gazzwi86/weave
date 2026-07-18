@@ -10,7 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function summaryFor(period: string) {
+function summaryFor(period: string, extra: Record<string, unknown> = {}) {
   return {
     chain_status: "valid",
     entries_checked: 42,
@@ -20,15 +20,16 @@ function summaryFor(period: string) {
     period,
     shacl_validated: 737,
     shacl_rejections: 12,
+    ...extra,
   };
 }
 
 /** Echoes the requested ?period= so current and previous months render as
- * distinct legend labels (the v5 chart is period-over-period). */
-function periodAwareFetch() {
+ * distinct series (the dashboard's category chart is period-over-period). */
+function periodAwareFetch(extra: Record<string, unknown> = {}) {
   return vi.fn(async (url: string) => {
     const period = new URL(url, "http://localhost").searchParams.get("period") ?? "2026-07";
-    return jsonResponse(summaryFor(period));
+    return jsonResponse(summaryFor(period, extra));
   });
 }
 
@@ -37,33 +38,21 @@ describe("AuditDashboardPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the chain badge, counts, friendly actors, and the logs link", async () => {
+  it("renders the chain status chip linking to Compliance, once loaded", async () => {
     vi.stubGlobal("fetch", periodAwareFetch());
 
     render(<AuditDashboardPage />);
 
-    await waitFor(() => expect(screen.getByTestId("chain-status")).toHaveTextContent("Valid"));
-    expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
-    // v5: SHACL health tiles from the same summary.
-    expect(screen.getByTestId("shacl-validated")).toHaveTextContent("98.4%");
-    expect(screen.getByTestId("shacl-rejections")).toHaveTextContent("12");
-    // Current period appears once (as the current-series legend label).
-    expect(screen.getByText("2026-07")).toBeInTheDocument();
-    // v5: friendly actor label (last IRI segment), raw IRI kept in the row title.
-    expect(screen.getByTestId("top-actors-list")).toHaveTextContent("abc123");
-    expect(screen.getByTestId("top-actors-list")).toHaveTextContent("45");
-    expect(screen.getByRole("link", { name: "View logs" })).toHaveAttribute("href", "/audit/logs");
+    await waitFor(() => expect(screen.getByTestId("chain-status")).toHaveTextContent(/valid/i));
+    expect(screen.getByTestId("chain-status")).toHaveAttribute("href", "/audit/compliance");
   });
 
-  // AC-1 + AC-3: KPI tiles + drill-in bar chart, not plain text rows.
-  it("renders KPI tiles and a drill-in bar chart, not text rows", async () => {
+  it("renders the events-by-category bar chart with a drill-in link to logs", async () => {
     vi.stubGlobal("fetch", periodAwareFetch());
 
     render(<AuditDashboardPage />);
 
     await waitFor(() => expect(screen.getByTestId("bar-chart")).toBeInTheDocument());
-    expect(screen.getByTestId("chain-status")).toHaveTextContent("Valid");
-    expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
     expect(screen.getAllByTestId("bar-chart-segment").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "workspace" })).toHaveAttribute(
       "href",
@@ -71,7 +60,51 @@ describe("AuditDashboardPage", () => {
     );
   });
 
-  it("shows a muted load error when the summary fetch fails", async () => {
+  it("shows the model-edits-by-kind card as pending (G5 has no backing endpoint)", async () => {
+    vi.stubGlobal("fetch", periodAwareFetch());
+
+    render(<AuditDashboardPage />);
+
+    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
+    expect(screen.getByTestId("kind-edits-pending")).toBeInTheDocument();
+  });
+
+  it("shows busiest entities as pending when top_targets is absent from the response", async () => {
+    vi.stubGlobal("fetch", periodAwareFetch());
+
+    render(<AuditDashboardPage />);
+
+    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
+    expect(screen.getByTestId("busiest-entities-pending")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View logs" })).toHaveAttribute("href", "/audit/logs");
+  });
+
+  it("renders busiest entities from top_targets when the backend provides it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      periodAwareFetch({ top_targets: [{ target_iri: "urn:weave:process:order-handling", count: 48 }] })
+    );
+
+    render(<AuditDashboardPage />);
+
+    await waitFor(() => expect(screen.queryByTestId("busiest-entities-pending")).not.toBeInTheDocument());
+    expect(screen.getByText("order-handling")).toBeInTheDocument();
+  });
+
+  it("shows the Security/Governance/Budget/Reliability row as pending (G6 has no backing endpoint)", async () => {
+    vi.stubGlobal("fetch", periodAwareFetch());
+
+    render(<AuditDashboardPage />);
+
+    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
+    expect(screen.getByText("Security")).toBeInTheDocument();
+    expect(screen.getByText("Governance")).toBeInTheDocument();
+    expect(screen.getByText("Budget")).toBeInTheDocument();
+    expect(screen.getByText("Reliability")).toBeInTheDocument();
+    expect(screen.getAllByTestId("event-counts-pending")).toHaveLength(4);
+  });
+
+  it("shows a load error when the summary fetch fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse({ error: "upstream_unavailable" }, 502))
