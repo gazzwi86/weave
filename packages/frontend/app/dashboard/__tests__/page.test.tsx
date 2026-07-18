@@ -169,7 +169,9 @@ describe("DashboardPage", () => {
     expect(calledUrls.some((url) => url.includes("scope=tenant_default"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("scope=user"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/dashboard/library"))).toBe(true);
-    expect(calledUrls.some((url) => url.includes("/api/audit"))).toBe(true);
+    // Assert the audit call carries tenant_id -- the exact param whose absence
+    // caused the 422 regression; a bare "/api/audit fires" check wouldn't catch a re-drop.
+    expect(calledUrls.some((url) => url.includes("/api/audit") && url.includes("tenant_id=tenant-1"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/onboarding/state"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/proxy/validate"))).toBe(true);
   });
