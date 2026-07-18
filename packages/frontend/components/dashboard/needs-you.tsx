@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { useRules } from "@/app/ce/rules/use-rules";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
@@ -61,9 +62,9 @@ export function NeedsYou() {
       aria-label="Needs you"
       className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)]"
     >
-      <h2 className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+      <h2 className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)]">
         <Icon name="bell" size={13} />
-        Needs you
+        <Eyebrow as="span">Needs you</Eyebrow>
       </h2>
       <NeedsYouRow
         tone="warn"

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ActivityFeed, type ActivityEntry } from "@/components/dashboard/activity-feed";
 import { Card, CardContent } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { ChecklistWidget } from "@/components/onboarding/checklist-widget";
 import { ExplainBand } from "@/components/ui/explain-band";
@@ -99,9 +100,7 @@ function BentoGrid({ entityCount }: { entityCount: number | null }) {
     <div className="grid gap-[var(--space-4)] md:grid-cols-3">
       {BENTO.map((tile) => (
         <Card key={tile.href}>
-          <p className="text-[length:var(--text-overline)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)]">
-            {tile.heading}
-          </p>
+          <Eyebrow>{tile.heading}</Eyebrow>
           <CardContent className="flex flex-col gap-[var(--space-3)]">
             {tile.heading === "Constitution" && entityCount !== null ? (
               <p className="text-[length:var(--text-h2)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
@@ -144,11 +143,8 @@ export default async function DashboardPage() {
     <main className="mx-auto flex w-full max-w-[1440px] flex-col gap-[var(--space-5)] p-[var(--space-6)]">
       <div className="flex items-start justify-between gap-[var(--space-4)]">
         <div>
-          <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
-            Home
-          </p>
           {/* AC-2: PageHeader organism -- --text-h1 title, no bespoke heading size. */}
-          <PageHeaderSlot title="Weave Dashboard" />
+          <PageHeaderSlot eyebrow="Home" title="Weave Dashboard" />
         </div>
         <Card className="shrink-0">
           <CardContent>
