@@ -71,6 +71,12 @@ class TaskBrief(BaseModel):
     #: JSONB). Task Detail's Brief tab resolves each entry to a Decision
     #: Log record via `audit.decisions`.
     adr_refs: list[str] = Field(default_factory=list)
+    #: G9 (docs/design/remediation-2-api-gaps.md): no epic entity exists in
+    #: the DB -- same additive-JSONB-field precedent as `adr_refs`. The
+    #: epic rollup (`build.epics`) groups tasks by `epic_id`, falling back
+    #: to an "unassigned" bucket when absent.
+    epic_id: str | None = None
+    epic_title: str | None = None
 
     @model_validator(mode="after")
     def _every_ac_is_test_mapped(self) -> TaskBrief:
