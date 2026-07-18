@@ -50,8 +50,9 @@ before rebaselining, or the suite will flake on every run.
 
 ## 2. Storybook per-story baselines (`storybook.spec.ts`)
 
-One baseline per story in the catalogue (109 at last count), screenshotting
-just the `#storybook-root` element (not the full iframe canvas).
+One baseline per story in the catalogue (239 at last count -- grew from 109
+once the design-system component library landed), screenshotting just the
+`#storybook-root` element (not the full iframe canvas).
 
 ### Why not `@storybook/test-runner`
 
@@ -107,9 +108,39 @@ a deterministic shell/story render has no excuse for pixel drift once
 fonts/animations are pinned.
 
 Both suites were run twice consecutively during development with zero
-diffs on the second run (the first shell run picked up a cold Next.js dev
-server compile; every run after that was clean) -- see the git history for
-this directory.
+diffs on the second run -- see the git history for this directory.
+
+### Determinism hazards found during the shell-refit rebaseline
+
+This dev machine runs several agent worktrees in parallel, each capable of
+starting its own `next dev` / backend / Storybook dev server. Both configs
+used to bind the *shared, conventional* default ports (frontend `3000`,
+Storybook `6006`) with `reuseExistingServer: true`, which trusts whatever
+already answers on that port -- it does not check the answer came from
+*this* worktree. Two failure modes surfaced from that:
+
+- **Wrong dev server reused**: a sibling worktree's `next dev` was already
+  listening on `3000`. This suite's `reuseExistingServer: true` screenshotted
+  *that* worktree's build, not this one's.
+- **Live backend reused**: a sibling worktree's real backend was listening
+  on `8000` (this suite's `webServer` deliberately never starts one). The
+  shell fetched real workspace state through it -- including a "Practice
+  mode" banner -- shifting every pixel below the header and blowing the
+  `0.001` diff ratio on `/ce default`, `sidebar collapsed`, and
+  `command palette open`, and flipping `notifications flyout open`'s
+  expected error state to a real (empty) list.
+
+Fix (in `playwright.visual.config.ts` / `playwright.storybook-visual.config.ts`):
+this suite's own dev server now binds a port off the shared convention
+(`3500` for `next dev`, `6500` for the Storybook static server) instead of
+the defaults every worktree reaches for, and the frontend's upstream is
+pinned to `BACKEND_API_URL=http://127.0.0.1:1` (port 1 is privileged --
+nothing can bind it without root, so "backend down" is guaranteed true
+regardless of what else is running on the machine) unless the environment
+already sets `BACKEND_API_URL`. This is a workstation port-contention
+hazard, not a code defect in the app -- documenting it here rather than a
+`mask:` region, since no pixel-level mask fixes a page that fetched the
+wrong data entirely.
 
 ## Intended CI job (not wired into `.github/workflows/` by this task)
 

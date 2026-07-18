@@ -10,6 +10,14 @@ import { defineConfig, devices } from "@playwright/test";
 // must register every test() call synchronously -- no top-level await, this repo's
 // package.json has no "type": "module") -- so `npm run build-storybook` MUST run before this
 // config (see package.json's test:storybook-visual script), not inside it.
+//
+// PORT pinning (found during rebaseline, see README "Determinism hazards"): 6006 is
+// Storybook's own default dev-server port, shared by every worktree on this machine.
+// `reuseExistingServer: true` trusts whatever answers there -- with no isolation it can
+// silently screenshot a sibling worktree's live dev-mode Storybook instead of this suite's
+// own static `storybook-static/` build. Bind to a port nothing else on this convention uses.
+const STATIC_PORT = 6500;
+
 export default defineConfig({
   testDir: "./tests/visual",
   testMatch: "storybook.spec.ts",
@@ -20,7 +28,7 @@ export default defineConfig({
   reporter: [["list"]],
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: "disabled" } },
   use: {
-    baseURL: "http://localhost:6006",
+    baseURL: `http://localhost:${STATIC_PORT}`,
     viewport: { width: 1024, height: 768 },
     // `reducedMotion` is nested under `contextOptions` in this installed Playwright
     // version's types (`PlaywrightTestOptions.contextOptions: BrowserContextOptions`) --
@@ -42,8 +50,8 @@ export default defineConfig({
   webServer: {
     // Stdlib static server -- no new devDependency (serve/http-server) for what a
     // pre-built storybook-static/ directory needs.
-    command: "python3 -m http.server 6006 --directory storybook-static",
-    url: "http://localhost:6006/index.json",
+    command: `python3 -m http.server ${STATIC_PORT} --directory storybook-static`,
+    url: `http://localhost:${STATIC_PORT}/index.json`,
     reuseExistingServer: true,
   },
 });

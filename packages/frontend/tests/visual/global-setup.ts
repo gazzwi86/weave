@@ -12,7 +12,7 @@ const AUTH_STATE_PATH = "tests/visual/.auth/state.json";
  * by next-auth's own encode path -- not a hand-crafted JWT -- so it can
  * never drift out of sync with an auth.ts change. */
 export default async function globalSetup(config: FullConfig): Promise<void> {
-  const baseURL = config.projects[0]?.use?.baseURL ?? "http://localhost:3000";
+  const baseURL = config.projects[0]?.use?.baseURL ?? "http://localhost:3500";
   const browser = await chromium.launch();
   const page = await browser.newPage({ baseURL });
 
