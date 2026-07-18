@@ -58,9 +58,11 @@ from weave_backend.operations.versioning import (
 from weave_backend.rdf.oxigraph_client import fetch_graph_ntriples, load_graph, run_query
 from weave_backend.schemas.events import ChangeType
 from weave_backend.schemas.operations import (
+    AddEdgeOp,
     AddNodeOp,
     ApplyRequest,
     ApplyResponse,
+    DeleteEdgeOp,
     Op,
     ViolationDetail,
     ViolationsResponse,
@@ -212,13 +214,31 @@ async def _fetch_scratch_graph(source_graph_iri: str) -> Graph:
     return graph
 
 
+#: G5 (audit card A): kind_counts buckets `add_node` ops by their BPMO kind
+#: and every edge op (add/delete) under "edges" -- `update_node`/
+#: `delete_node` address an existing IRI with no kind on the wire, so they
+#: contribute nothing here (the "model edits by kind" card only needs
+#: kind-bearing ops).
+_EDGE_BUCKET = "edges"
+
+
+def _kind_counts(operations: list[Op]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for op in operations:
+        if isinstance(op, AddNodeOp):
+            counts[op.kind] = counts.get(op.kind, 0) + 1
+        elif isinstance(op, AddEdgeOp | DeleteEdgeOp):
+            counts[_EDGE_BUCKET] = counts.get(_EDGE_BUCKET, 0) + 1
+    return counts
+
+
 async def _commit(
     ctx: ApplyContext,
     scratch: Graph,
     *,
     source_graph_iri: str,
     claimed_actor_iri: str,
-    applied_count: int,
+    operations: list[Op],
 ) -> tuple[str, str, str]:
     """Mints the version row, the version-graph snapshot, the PROV activity,
     and the audit outbox entry -- everything failable, all before the caller
@@ -275,7 +295,13 @@ async def _commit(
             payload={
                 "target_graph_iri": ctx.named_graph_iri,
                 "activity_iri": activity_iri,
-                "applied_count": applied_count,
+                #: `apply_operations` (graph_ops.py) increments this once per
+                #: op unconditionally, so it always equals len(operations) --
+                #: no need to thread the pre-computed count through as well.
+                "applied_count": len(operations),
+                #: G5: per-kind breakdown of the ops batch -- powers the
+                #: "model edits by kind" compliance card (see `_kind_counts`).
+                "kind_counts": _kind_counts(operations),
                 #: Client-claimed actor (ApplyRequest.actor) -- descriptive
                 #: only, never trusted for attribution. Kept here so a
                 #: mismatch with `actor_principal_iri` above is visible in
@@ -369,7 +395,7 @@ async def _apply_uncached(
         scratch,
         source_graph_iri=source_graph_iri,
         claimed_actor_iri=request.actor,
-        applied_count=apply_result.applied_count,
+        operations=request.operations,
     )
     # AC-008-01: same connection/transaction the version row just committed
     # on -- ctx.conn's transaction only actually commits when the router's
