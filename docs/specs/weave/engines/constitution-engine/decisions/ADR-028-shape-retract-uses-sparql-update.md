@@ -67,7 +67,12 @@ Add `oxigraph_client.run_update(update: str)` — a thin POST to Oxigraph's `/up
 this codebase issues names its target graph explicitly via `GRAPH <iri> { ... }`.
 
 `governance_shapes.py` gets one shared helper, `_retract_shape_subject_closure(graph_iri,
-shape_iri)`, used by both callers:
+shape_iri)`, used by both callers. **This decision's query shape went through two revisions before
+landing on the one actually shipped** — both are recorded here because the failure mode of the
+first revision (silent over-deletion) is exactly the kind of regression a future editor could
+reintroduce without realising it:
+
+**Revision 1 (originally accepted, since replaced):**
 
 ```sparql
 DELETE { GRAPH <G> { ?s ?p ?o } }
@@ -81,10 +86,51 @@ WHERE {
 ```
 
 The `(!(<...>))*` property path is the standard SPARQL "any predicate, zero-or-more hops" idiom
-(negate a property nobody uses, then repeat) — it walks from `SHAPE` through every predicate,
-however deep, and the `FILTER` keeps only `SHAPE` itself and blank nodes reached along the way. A
-named node reached in passing (e.g. `sh:targetClass`'s object) is excluded by the `isBlank` half of
-the filter, so its own triples are never touched even if the walk passes through it.
+(negate a property nobody uses, then repeat). It looked right: walk from `SHAPE` through every
+predicate however deep, then `FILTER` down to `SHAPE` itself plus blank nodes reached along the
+way. It shipped, and a later integration test (a shape A referencing a distinct shape B via
+`sh:node`) caught the bug: a SPARQL property path has no way to filter on node *kind* mid-traversal
+— it walks *through* a named node it passes (B, reached via A's `sh:node`) and keeps collecting
+that named node's own blank-node children too. Retiring A silently deleted B's `sh:property` rule
+along with it, even though B is a separate, independently-committed shape.
+
+**Revision 2 (also rejected, kept here as a warning):** nest the walk as N levels of explicit
+`OPTIONAL`, each new level gated `FILTER(isBlank(previous_level_object))` before binding the next
+subject, so traversal stops dead the instant it lands on a named node. Correctness-wise this
+worked. Shippability-wise it did not: Oxigraph's query planner costs this **exponentially in the
+query's own nesting depth**, independent of how much data it actually matches. Verified against a
+real Oxigraph instance on a trivial 2-triple-shape graph: 10 nested levels took 0.57s, 13 took
+6.4s, 15 OOM-killed the Oxigraph process (exit 137). A fixed hop budget generous enough for
+real SHACL nesting (~20, well past the observed ~5 in practice) would crash on essentially every
+commit/retire call in production.
+
+**Shipped:**
+
+```sparql
+DELETE { GRAPH <G> { ?s ?p ?o } }
+WHERE {
+  GRAPH <G> {
+    { BIND(<SHAPE> AS ?s) ?s ?p ?o }
+    UNION
+    { <SHAPE> ?p0 ?o0 . FILTER(isBlank(?o0)) BIND(?o0 AS ?s) ?s ?p ?o }
+    UNION
+    { <SHAPE> ?p0 ?o0 . FILTER(isBlank(?o0))
+      ?o0 ?p1 ?o1 . FILTER(isBlank(?o1)) BIND(?o1 AS ?s) ?s ?p ?o }
+    UNION
+    ... one arm per hop depth 0..20 ...
+  }
+}
+```
+
+A `UNION` of independent, fixed-length blank-only chains — one arm per depth from 0 (the shape's
+own triples) to a 20-hop bound (`_MAX_CLOSURE_DEPTH`). Each arm is its own linear basic graph
+pattern; the planner evaluates and unions N cheap independent plans instead of combining every
+"did/didn't descend" branch of one shared nested tree, so cost stays linear in depth. Same
+real-Oxigraph check measured 0.02s at 20 hops on the same graph — three orders of magnitude
+cheaper than the rejected nested-`OPTIONAL` form at less than half that depth. A named node reached
+in passing (e.g. `sh:targetClass`'s object, or another shape's IRI via `sh:node`) still stops every
+arm's chain dead via the same `isBlank` filter — the correctness property revision 1 lacked, kept,
+without revision 2's cost cliff.
 
 - **G2** (`commit_tenant_shape`): retract-then-append — `_retract_shape_subject_closure` runs first,
   `append_graph` writes the new version second. A brand-new `shape_iri` has an empty closure, so the
