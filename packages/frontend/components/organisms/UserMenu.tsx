@@ -19,6 +19,9 @@ export interface UserMenuProps {
   email?: string;
   role?: string | null;
   items: UserMenuItem[];
+  /** Renders between the identity row and the item list (mock's super-admin
+   * company switcher section) -- absent for every role that doesn't get one. */
+  beforeItems?: ReactNode;
   className?: string;
 }
 
@@ -63,7 +66,7 @@ function MenuRow({ item }: { item: UserMenuItem }) {
  * avatar + name/role, then icon menu rows -- extracted from
  * `components/shell/avatar-menu.tsx`, which owns the Radix Dialog and the
  * real hrefs/handlers. */
-export function UserMenu({ name, email, role, items, className }: UserMenuProps) {
+export function UserMenu({ name, email, role, items, beforeItems, className }: UserMenuProps) {
   return (
     <div className={cn("flex flex-col", className)}>
       <div className="flex items-center gap-[var(--space-2)] px-[var(--space-2)] pb-[var(--space-2)]">
@@ -85,6 +88,7 @@ export function UserMenu({ name, email, role, items, className }: UserMenuProps)
           ) : null}
         </div>
       </div>
+      {beforeItems}
       <div className="flex flex-col">
         {items.map((item) => (
           <MenuRow key={item.label} item={item} />
