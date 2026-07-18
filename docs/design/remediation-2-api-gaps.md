@@ -150,3 +150,47 @@ Cards D/E are shippable now against category buckets (approximate); exact splits
   backend exposes per-exercise availability (e.g. on `GET /api/onboarding/state`, an
   `available_exercises` set computed via `gate_exercise`) so the client only checks available ones,
   with no gate-logic duplication client-side. Fail-soft today (caught, no loop), so log-noise-only.
+
+## T4 visual-remediation directives (2026-07-18, user MCQ answers + follow-up asks)
+
+Process mandate (applies to ALL items below): make every visual change via **Storybook + atomic
+design** (dumb components in the library; pages stay data-binding-only), and **update the affected
+tests** in turn. No bespoke CSS in pages.
+
+- [x] **V1 · Section-header eyebrow styling (do-now, no decision)** — mock uses small muted UPPERCASE
+  letter-spaced eyebrow labels; app uses large title-case. Cross-cutting; lifts Home/Audit/Build/
+  Settings/Operator. One shared atom/molecule fix.
+- [x] **V1b · Apply Eyebrow to Audit/Build/Settings headers** — the Eyebrow primitive (components/ui/
+  eyebrow.tsx) + PageHeader eyebrow slot + Home application landed in V1 core (PR #151); apply the muted
+  Eyebrow to Audit/Build/Settings section+card headers next (first lane hit the tool-use cap). Reuses the primitive.
+
+- [x] **V2 · Constitution `/ce` = polished overview landing** — user: /ce should land on a polished
+  OVERVIEW page similar to the mock (NOT explore-first, NOT the current bare panel + raw file input).
+  Add logical widgets. Explore stays at /explorer.
+- [ ] **V3 · Explore graph legibility** — user: show ALL nodes but with strong default filters +
+  clustering + label-thinning so it's legible at scale (not a curated 8-node seed). Also: human-
+  readable labels (not machine IDs), restore the "Ask the model" bar, populate the KPI strip.
+  Remove the injected "Graph Explorer" H1.
+- [ ] **V3-axe-fix · Explorer a11y panels violation (blocks #152)** — explorer-a11y-m2 "Explorer M2 panels zero-violations" test fails on V3 core (#152). Repro locally (serve V3 app, run the spec) to get the exact axe rule+node, fix, re-push #152. Keep the sr-only h1.
+
+- [ ] **V3b · Explore ask-bar + KPI + de-hairball** — V3 core (PR #152) landed H1 removal + human labels.
+  Remaining: wire the existing `components/molecules/AskBar.tsx` onto the canvas bottom-centre (partial unwired
+  scaffold lib/explorer/fetch-ask-answer.ts exists in the v3 worktree); populate the KPI strip from loaded graph
+  data; de-hairball via strong default filters/clustering/label-thinning (the hard part). Scope as SMALL lanes.
+
+- [ ] **V4 · Off-spec elements** — user: REMOVE injected page H1s to match mock. KEEP value-adding
+  functionality (e.g. Build search/filter) but RESTYLE to the mock's look/feel. KEEP the "Generate a
+  widget" CTA (intentional) but update it to match the mock's approaches/trends.
+- [x] **V5 · Profile menu → Operator (super-admin) console link** — avatar-menu.tsx lacks the mock's
+  role-gated "Operator console — provision companies" entry (super-admins only). Add it.
+- [ ] **V6 · Super-admin company switcher (NUANCE — confirm before building)** — the mock's switcher
+  is explicitly "company switcher — SUPER ADMIN ONLY (members never see this; workspace ≡ company)".
+  A prior binding ruling (header-scope.ts cites v1-design-requirements.md R7) RETIRED the *general*
+  header workspace switcher for all roles; provisioning lives in Settings->Workspaces. So the mock's
+  switcher is a SUPER-ADMIN company switcher (adjacent to the Operator console / V5), NOT a general
+  one. CONFIRM with user: build the super-admin company switcher per mock, vs the existing
+  Settings->Workspaces + operator console already cover it. Do NOT resurrect the general switcher
+  against the ruling. The avatar "Switch workspace" item stays regardless.
+- [ ] **V7 · Card/panel styling + empty states** — audit/build cards render flat/borderless + empty
+  "Not available yet"; mock has bordered panels with populated data. Styling now (bordered panels,
+  gradient bars); DATA population (G12, CE-METRICS, registry summary field) deferred per user.
