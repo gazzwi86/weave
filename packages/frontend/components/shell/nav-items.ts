@@ -165,6 +165,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
+          { label: "General", href: "/settings", built: true, icon: "gear" },
           { label: "Members", href: "/settings/members", built: true, icon: "user" },
           { label: "Onboarding path", href: "/settings/onboarding-path", built: true, icon: "play" },
           { label: "Notifications", href: "/settings/notifications", built: true, icon: "bell" },

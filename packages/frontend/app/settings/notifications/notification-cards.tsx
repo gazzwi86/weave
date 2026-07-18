@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { canSuppressNotificationType } from "@/app/notifications/can-suppress";
 import { usePreferences, type PreferenceType } from "./use-preferences";
 
@@ -11,16 +11,6 @@ import { usePreferences, type PreferenceType } from "./use-preferences";
 // it `disabled`). Rendering the real groups instead of inventing an empty
 // "Automations" card or silently merging Governance/Account into it.
 const GROUP_ORDER = ["Model", "Build", "Governance", "Account"];
-
-const SWITCH_CLASS = cn(
-  "relative h-[17px] w-[30px] shrink-0 cursor-pointer appearance-none rounded-[var(--radius-full)] border",
-  "border-[var(--color-border-strong)] bg-[var(--color-overlay)] transition-colors duration-[var(--duration-fast)]",
-  "checked:border-[var(--color-accent-primary)] checked:bg-[var(--color-accent-soft)]",
-  "after:absolute after:left-[2px] after:top-[1.5px] after:h-[12px] after:w-[12px] after:rounded-[var(--radius-full)]",
-  "after:bg-[var(--color-text-subtle)] after:transition-[left] after:duration-[var(--duration-fast)]",
-  "checked:after:left-[14px] checked:after:bg-[var(--color-accent-primary)]",
-  "disabled:cursor-not-allowed disabled:opacity-60"
-);
 
 function groupTypes(types: PreferenceType[]): Map<string, PreferenceType[]> {
   const byGroup = new Map<string, PreferenceType[]>();
@@ -48,14 +38,12 @@ function ToggleRow({
       <span className="font-mono text-[length:var(--text-body-sm)] text-[var(--color-text-default)]">
         {type.event_type}
       </span>
-      <input
-        type="checkbox"
+      <Switch
         aria-label={`${type.event_type} in-app`}
         data-testid={`toggle-in-app-${type.event_type}`}
         checked={type.in_app_enabled}
         disabled={locked}
         onChange={(e) => onToggle(type.event_type, e.target.checked)}
-        className={SWITCH_CLASS}
       />
     </div>
   );
