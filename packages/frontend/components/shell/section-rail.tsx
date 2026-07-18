@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { SecondarySidebar, type SecondarySidebarGroup } from "@/components/organisms/SecondarySidebar";
 import { findSection, type SecondaryNavItem } from "./nav-items";
+import { useCurrentBuildProject } from "./use-current-build-project";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function visibleItems(items: SecondaryNavItem[], role: string | null): SecondaryNavItem[] {
@@ -27,6 +28,62 @@ function toSidebarGroups(
   }));
 }
 
+function projectScopedHref(projectIri: string, path: string): string {
+  return `/build/projects/${encodeURIComponent(projectIri)}${path}`;
+}
+
+/** Appends the Build rail's dynamic "Current project" group (switcher +
+ * the 5 project-scoped links) to the static "Projects" group. Returns the
+ * static groups unchanged for every other section. */
+function useBuildSidebarGroups(
+  section: NonNullable<ReturnType<typeof findSection>>,
+  role: string | null,
+  pathname: string
+): SecondarySidebarGroup[] {
+  const staticGroups = toSidebarGroups(section, role);
+  const isBuild = section.label === "Build";
+  const { projects, currentProjectIri, setCurrentProjectIri } = useCurrentBuildProject(
+    pathname,
+    isBuild
+  );
+
+  if (!isBuild) return staticGroups;
+  if (!currentProjectIri) return staticGroups;
+
+  const links = [
+    { label: "Dashboard", path: "" },
+    { label: "Request studio", path: "/request" },
+    { label: "Kanban", path: "/board" },
+    { label: "Decision log", path: "/decisions" },
+    { label: "Settings", path: "/settings" },
+  ];
+
+  return [
+    ...staticGroups,
+    {
+      heading: "Current project",
+      selector: (
+        <select
+          aria-label="Current project"
+          value={currentProjectIri}
+          onChange={(e) => setCurrentProjectIri(e.target.value)}
+          className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
+        >
+          {projects.map((project) => (
+            <option key={project.projectIri} value={project.projectIri}>
+              {project.name}
+            </option>
+          ))}
+        </select>
+      ),
+      items: links.map((link) => ({
+        label: link.label,
+        href: projectScopedHref(currentProjectIri, link.path),
+      })),
+    },
+  ];
+}
+
 /** Section-scoped left sidebar (IA §3): grouped secondary nav for the
  * section owning the current pathname; nothing for rail-less sections
  * (Home). Stays mounted (width/opacity `collapsed` prop) rather than
@@ -38,12 +95,20 @@ export function SectionRail({ role }: { role: string | null }) {
   const pathname = usePathname();
   const section = findSection(pathname);
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  // Unconditional hook call (rules-of-hooks) -- returns a no-op default
+  // when there's no section to avoid a conditional-hook-call, cheap since
+  // the fetch effect only fires once per mount either way.
+  const buildGroups = useBuildSidebarGroups(
+    section ?? { label: "", href: "", prefixes: [], groups: [] },
+    role,
+    pathname
+  );
 
   if (!section || section.groups.length === 0) return null;
 
   return (
     <SecondarySidebar
-      groups={toSidebarGroups(section, role)}
+      groups={buildGroups}
       activeHref={pathname}
       title={section.label}
       onCollapse={toggleCollapsed}

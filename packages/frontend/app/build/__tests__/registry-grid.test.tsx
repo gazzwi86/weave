@@ -46,8 +46,11 @@ describe("RegistryGrid", () => {
 
     await waitFor(() => expect(screen.getByText("Ledger Sync")).toBeInTheDocument());
     expect(screen.getByText("Claims Triage")).toBeInTheDocument();
-    expect(screen.getByText("Speccing", { selector: "span" })).toBeInTheDocument();
-    expect(screen.getByText("Live monitoring", { selector: "span" })).toBeInTheDocument();
+    // Phase pill uses the mock's own vocabulary (building/live/archived/
+    // speccing), not the API's lifecycle_phase string verbatim -- see
+    // project-card.test.tsx.
+    expect(screen.getByText("speccing", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("live", { selector: "span" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Search projects"), {
       target: { value: "ledger" },

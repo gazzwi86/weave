@@ -1,177 +1,73 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 
-import type {
-  BlockersTilePayload,
-  BudgetTilePayload,
-  DemoTilePayload,
-  ForecastTilePayload,
-  RibbonTilePayload,
-  SelfImprovementItem,
-  TaskCountsTilePayload,
-} from "./dashboard-types";
-import { PromptBox } from "./prompt-box";
-import { SelfImprovementCard } from "./self-improvement-card";
-import { Tile } from "./tile";
-import { usePromptAccess } from "./use-prompt-access";
+import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
+import { Card, CardTitle } from "@/components/ui/card";
+
+import { useBoard } from "./board/use-board";
+import { DashboardActivityPanel } from "./dashboard-activity-panel";
+import { DashboardGateBand, findPendingGateCard } from "./dashboard-gate-band";
+import { DashboardKpiRow } from "./dashboard-kpi-row";
+import { DashboardRoadmapPanel } from "./dashboard-roadmap-panel";
+import { DashboardSpecLinks } from "./dashboard-spec-links";
+import type { BlockersTilePayload, BudgetTilePayload, RibbonTilePayload } from "./dashboard-types";
+import { ReviewGateDrawer } from "./review-gate-drawer";
 import { useTile } from "./use-tile";
 
-function DemoTileBody({ data }: { data: DemoTilePayload }): React.JSX.Element {
-  return (
-    <>
-      <p>{data.output_location_ref ?? "Not yet deployed"}</p>
-      {data.last_run_status === "failed" && (
-        <p className="text-[var(--color-status-danger)]">
-          Deploy failed — showing last successful demo
-        </p>
-      )}
-    </>
-  );
-}
-
-function BudgetTileBody({ data }: { data: BudgetTilePayload }): React.JSX.Element {
-  return (
-    <>
-      <p>estimated ${data.total_estimate_usd.toFixed(2)}</p>
-      <p>{data.level ? `capped at ${data.level}` : "no cap configured"}</p>
-    </>
-  );
-}
-
-function ForecastTileBody({ data }: { data: ForecastTilePayload }): React.JSX.Element {
-  return (
-    <>
-      <p>estimated ${data.forecast_usd.toFixed(2)}</p>
-      <p>
-        {data.forecast_inputs.completed_count} done / {data.forecast_inputs.remaining_count}{" "}
-        remaining
-      </p>
-    </>
-  );
-}
-
-function TasksTileBody({ data }: { data: TaskCountsTilePayload }): React.JSX.Element {
-  return (
-    <p>
-      {data.ready} ready · {data.blocked} blocked · {data.done} done
-    </p>
-  );
-}
-
-function BlockersTileBody({ data }: { data: BlockersTilePayload }): React.JSX.Element {
-  return (
-    <ul>
-      {data.items.map((item) => (
-        <li key={item.task_id}>
-          {item.task_id}: {item.reason}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function RibbonTileBody({ data }: { data: RibbonTilePayload }): React.JSX.Element {
-  return (
-    <ul>
-      {data.runs.map((run) => (
-        <li key={run.run_id}>
-          <a href={run.repo_url ?? "#"}>{run.commit_sha}</a> {run.branch}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** BE-V1-TASK-019 (FR-013): six independently-fetched tiles (AC-1) --
- * each `useTile` call is its own fetch/error/retry, and `<Tile>` owns a
- * native error boundary on top, so one tile's outage can never blank the
- * page (AC-2, the core AC). "Open Kanban" is a forward-reference nav
- * link to TASK-017's board (unbuilt on main; not a dependency of this
- * task -- the href, not a missing symbol).
+/** refit-mock.html `#sub-bld-dashboard`: gate band, KPI row, roadmap +
+ * spec-links, recent activity. Replaces the earlier six-tile grid
+ * (BE-V1-TASK-019) -- budget/blockers/ribbon are still per-tile fetches
+ * (AC-1/AC-2 isolation preserved), demo/forecast/tasks/prompt-box/
+ * self-improvement dropped, board/task-tree now drive the gate band + KPI
+ * counts. Gaps: G9 (no epics endpoint -- KPI "epics created" stays
+ * pending), G10 (no epic timeline data -- roadmap panel stays
+ * pending-state), G11 (no live spec-artefact API -- Brief/PRD/Roadmap/Tech
+ * spec/Epics open a static placeholder DocDrawer; "Task briefs" is real),
+ * G12 (no pending-review-gates endpoint -- gate band derives from the
+ * board's Review/QA lane).
  */
-function DashboardNav({ projectId }: { projectId: string }): React.JSX.Element {
-  return (
-    <div className="flex gap-[var(--space-4)] text-[length:var(--text-caption)]">
-      <Link href={`/build/projects/${encodeURIComponent(projectId)}/settings`} className="underline">
-        Project settings
-      </Link>
-      <Link href={`/build/projects/${encodeURIComponent(projectId)}/kanban`} className="underline">
-        Open Kanban
-      </Link>
-      {/* v5 discoverability: Request Studio + Decision Log were only reachable
-       * by hand-editing the URL -- surface them in the project header. */}
-      <Link href={`/build/projects/${encodeURIComponent(projectId)}/request`} className="underline">
-        Request Studio
-      </Link>
-      <Link href={`/build/projects/${encodeURIComponent(projectId)}/decisions`} className="underline">
-        Decision Log
-      </Link>
-    </div>
-  );
-}
+export function ProjectDashboard({ projectId }: { projectId: string }): React.JSX.Element {
+  const { board } = useBoard(projectId);
+  const budget = useTile<BudgetTilePayload>(projectId, "budget");
+  const blockers = useTile<BlockersTilePayload>(projectId, "blockers");
+  const ribbon = useTile<RibbonTilePayload>(projectId, "ribbon");
+  const [reviewTaskId, setReviewTaskId] = useState<string | null>(null);
 
-/** One `useTile` call per tile keeps each fetch/error/retry cycle
- * independent (AC-1/AC-2) -- extracting this into a hook would hide that
- * isolation behind one call site, which is the opposite of the intent.
- */
-function useDashboardTiles(projectId: string) {
-  return {
-    demo: useTile<DemoTilePayload>(projectId, "demo"),
-    budget: useTile<BudgetTilePayload>(projectId, "budget"),
-    forecast: useTile<ForecastTilePayload>(projectId, "forecast"),
-    tasks: useTile<TaskCountsTilePayload>(projectId, "tasks"),
-    blockers: useTile<BlockersTilePayload>(projectId, "blockers"),
-    ribbon: useTile<RibbonTilePayload>(projectId, "ribbon"),
-  };
-}
-
-function DashboardTiles({ tiles }: { tiles: ReturnType<typeof useDashboardTiles> }): React.JSX.Element {
-  const { demo, budget, forecast, tasks, blockers, ribbon } = tiles;
-  return (
-    <div className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-2 lg:grid-cols-3">
-      <Tile title="Demo readiness" loading={demo.loading} error={demo.error} retry={demo.retry}>
-        {demo.data && <DemoTileBody data={demo.data} />}
-      </Tile>
-      <Tile title="Budget" loading={budget.loading} error={budget.error} retry={budget.retry}>
-        {budget.data && <BudgetTileBody data={budget.data} />}
-      </Tile>
-      <Tile title="Forecast" loading={forecast.loading} error={forecast.error} retry={forecast.retry}>
-        {forecast.data && <ForecastTileBody data={forecast.data} />}
-      </Tile>
-      <Tile title="Tasks in flight" loading={tasks.loading} error={tasks.error} retry={tasks.retry}>
-        {tasks.data && <TasksTileBody data={tasks.data} />}
-      </Tile>
-      <Tile title="Blockers" loading={blockers.loading} error={blockers.error} retry={blockers.retry}>
-        {blockers.data && <BlockersTileBody data={blockers.data} />}
-      </Tile>
-      <Tile title="Git ribbon" loading={ribbon.loading} error={ribbon.error} retry={ribbon.retry}>
-        {ribbon.data && <RibbonTileBody data={ribbon.data} />}
-      </Tile>
-    </div>
-  );
-}
-
-export function ProjectDashboard({
-  projectId,
-  selfImprovementItems = [],
-  tenantRole = null,
-  principalIri = null,
-}: {
-  projectId: string;
-  selfImprovementItems?: SelfImprovementItem[];
-  tenantRole?: string | null;
-  principalIri?: string | null;
-}): React.JSX.Element {
-  const tiles = useDashboardTiles(projectId);
-  const canPrompt = usePromptAccess(projectId, tenantRole, principalIri);
+  const gateCard = findPendingGateCard(board);
 
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
-      <DashboardNav projectId={projectId} />
-      <DashboardTiles tiles={tiles} />
-      <PromptBox projectId={projectId} canPrompt={canPrompt} />
-      <SelfImprovementCard items={selfImprovementItems} />
+      <PageHeaderSlot title="Dashboard" subtitle="Where the build is, what it costs, and what needs you." />
+      <DashboardGateBand board={board} onReview={setReviewTaskId} />
+      <DashboardKpiRow board={board} budget={budget.data} />
+      <div className="grid grid-cols-1 gap-[var(--space-4)] lg:grid-cols-[1.4fr_1fr]">
+        <Card>
+          <CardTitle>Roadmap</CardTitle>
+          <div className="mt-[var(--space-2)]">
+            <DashboardRoadmapPanel />
+          </div>
+        </Card>
+        <Card>
+          <CardTitle>Spec — this project&apos;s source of truth</CardTitle>
+          <div className="mt-[var(--space-2)]">
+            <DashboardSpecLinks board={board} />
+          </div>
+        </Card>
+      </div>
+      <Card>
+        <CardTitle>Recent build activity</CardTitle>
+        <div className="mt-[var(--space-2)]">
+          <DashboardActivityPanel blockers={blockers.data} ribbon={ribbon.data} />
+        </div>
+      </Card>
+      <ReviewGateDrawer
+        key={reviewTaskId ?? gateCard?.id ?? "none"}
+        open={reviewTaskId !== null}
+        onClose={() => setReviewTaskId(null)}
+        projectId={projectId}
+        taskId={reviewTaskId}
+      />
     </div>
   );
 }

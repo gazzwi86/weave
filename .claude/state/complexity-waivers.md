@@ -87,16 +87,15 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   stay over budget doesn't change the file's actual complexity profile. WARN-level, consistent with
   the file's existing (already-waived-by-convention) shape.
 
-## `useExplorerCanvas` (`packages/frontend/components/explorer/use-explorer-canvas.ts`)
+## `BuildPage` (`packages/frontend/app/build/projects/[id]/request/page.tsx`)
 
-- **Threshold:** file ≤ 300 lines (Law E).
-- **Actual:** 358 lines (Explore-canvas lane, item 1: minimap node-dot wiring).
-- **Reason:** pre-existing violation (326 lines before this task, mostly dev-only Playwright
-  introspection hooks -- `resetDevIntrospection`/`nodeInfoLookup`/`exposeDevIntrospection`/
-  `clearDevIntrospection` -- untouched here). This task's own addition (`minimapNodes` state +
-  threading it through `LoadCanvasParams`/`wireCanvas`) is already minimised: the actual per-node
-  scaling/colour-lookup logic was pulled into a new sibling file
-  (`compute-minimap-state.ts`, independently unit-tested) rather than inlined, so the net growth
-  here is ~32 lines of plumbing, not the full feature. Restructuring the pre-existing dev-hook debt
-  is out of this task's scope ("touch only what you must"). **Follow-up queued:** split the
-  dev-introspection hooks into their own sibling file next time this file is touched.
+- **Threshold:** function ≤ 50 lines (Law E) — ESLint `max-lines-per-function` severity is WARN (not error).
+- **Actual:** 89 lint-counted lines.
+- **Reason:** pre-existing violation (67 lines before this task, refit-mock lane R2c `#sub-bld-studio`)
+  from the composition root wiring ~20 props onto `RequestForm`. This task's studio refit (conversational
+  thread + proposed-plan card + refine box) added the `Thread`/`PlanCard`/`RefineBox` render branch and a
+  handful of handlers; the turn-tracking state itself was already pulled out into its own hook
+  (`use-studio-thread.ts`, matching the existing `useRequestStatus`/`useDraftingProgress` pattern in this
+  folder) to keep the addition as small as possible. What remains is one line per handler plus the
+  `RequestForm` prop wiring, which is the intentional shape of a container component. WARN-level, out of
+  this task's data-binding scope to restructure `RequestForm`'s prop surface.
