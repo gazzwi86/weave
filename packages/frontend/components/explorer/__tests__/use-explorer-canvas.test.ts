@@ -144,4 +144,53 @@ describe("useExplorerCanvas", () => {
     const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
     expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", randomize: true }));
   });
+
+  // Item 3 (layout): mock's entrance animation must honour
+  // `prefers-reduced-motion` -- fcose's own animate params stay ADR-014-pinned
+  // in fcose-params.ts, so the override happens only at this call site.
+  it("disables the fcose entrance animation when the user prefers reduced motion", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(fakeCy);
+    const prefersReducedMotion = vi.fn(() => true);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({
+        fetchPalette,
+        fetchGraph,
+        createCy,
+        fetchLayoutPositions: noSavedPositions,
+        prefersReducedMotion,
+      })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.layout).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "fcose", animate: false, animationDuration: 0 })
+    );
+  });
+
+  it("keeps fcose's default animation when the user has no reduced-motion preference", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(fakeCy);
+    const prefersReducedMotion = vi.fn(() => false);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({
+        fetchPalette,
+        fetchGraph,
+        createCy,
+        fetchLayoutPositions: noSavedPositions,
+        prefersReducedMotion,
+      })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", animate: true }));
+  });
 });

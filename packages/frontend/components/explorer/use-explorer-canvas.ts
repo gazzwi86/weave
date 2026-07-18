@@ -88,6 +88,11 @@ export interface UseExplorerCanvasOptions {
   createCy?: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
   /** TASK-004 AC-3/AC-5: test seam -- defaults to the real proxy fetch. */
   fetchLayoutPositions?: (graphId: string) => Promise<SavedLayoutPosition[]>;
+  /** Item 3 (layout): test seam -- defaults to the real
+   * `prefers-reduced-motion` media query. fcose's own params stay
+   * ADR-014-pinned in fcose-params.ts; this only overrides the entrance
+   * animation at the call site. */
+  prefersReducedMotion?: () => boolean;
 }
 
 export interface ExplorerCanvasState {
@@ -103,6 +108,13 @@ export interface ExplorerCanvasState {
 
 function errorMessageFor(err: unknown): string {
   return err instanceof CeReadError ? err.message : "Unable to load the graph.";
+}
+
+/** Item 3 (layout): real default for `prefersReducedMotion` -- guarded for
+ * SSR/test environments where `window.matchMedia` may not exist. */
+function defaultPrefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** AC-1/AC-5/AC-6/AC-7: wires semantic zoom, focus-scoped key bindings, and
@@ -184,6 +196,7 @@ interface LoadCanvasParams {
   fetchPalette: () => Promise<NodeKind[]>;
   fetchGraph: (timeoutMs: number) => Promise<CytoscapeElement[]>;
   fetchLayoutPositions: (graphId: string) => Promise<SavedLayoutPosition[]>;
+  prefersReducedMotion: () => boolean;
   createCy: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
   containerRef: RefObject<HTMLDivElement | null>;
   cyRef: RefObject<CyLike | null>;
@@ -204,6 +217,7 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     fetchPalette,
     fetchGraph,
     fetchLayoutPositions,
+    prefersReducedMotion,
     createCy,
     containerRef,
     cyRef,
@@ -237,7 +251,15 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     const positionedElements = applySavedPositions(elements, savedPositions);
     canvasAdapter.load(positionedElements);
     // TASK-004 AC-3/AC-5: a restored layout must not be re-randomized.
-    canvasAdapter.setLayout("fcose", { ...config.fcoseParams, randomize: savedPositions.length === 0 });
+    // Item 3: a reduced-motion preference skips the entrance animation --
+    // fcose's own animate/animationDuration params stay ADR-014-pinned in
+    // fcose-params.ts, overridden only here at the call site.
+    const motionOverride = prefersReducedMotion() ? { animate: false, animationDuration: 0 } : {};
+    canvasAdapter.setLayout("fcose", {
+      ...config.fcoseParams,
+      randomize: savedPositions.length === 0,
+      ...motionOverride,
+    });
     unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
     cyRef.current = cy;
     exposeDevIntrospection(cy, elements, loadStartedAt);
@@ -256,6 +278,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const fetchGraph = options.fetchGraph ?? defaultFetchGraph;
   const createCy = options.createCy ?? createCytoscapeInstance;
   const fetchLayoutPositions = options.fetchLayoutPositions ?? defaultFetchLayoutPositions;
+  const prefersReducedMotion = options.prefersReducedMotion ?? defaultPrefersReducedMotion;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<CyLike | null>(null);
@@ -274,6 +297,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       fetchPalette,
       fetchGraph,
       fetchLayoutPositions,
+      prefersReducedMotion,
       createCy,
       containerRef,
       cyRef,
@@ -293,7 +317,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       setAdapter(null);
       clearDevIntrospection();
     };
-  }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, createCy, retryToken]);
+  }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, prefersReducedMotion, createCy, retryToken]);
 
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 
