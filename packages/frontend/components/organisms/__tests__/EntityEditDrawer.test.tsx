@@ -80,6 +80,16 @@ describe("EntityEditDrawer", () => {
     expect(screen.getAllByText("Relationships")).toHaveLength(1);
   });
 
+  it("renders no error banner by default", () => {
+    renderDrawer();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders a failed-save error anchored in the drawer when given (AC-002-04)", () => {
+    renderDrawer({ error: "Values do not have unique language tags (duplicate language tag: en)" });
+    expect(screen.getByRole("alert")).toHaveTextContent(/duplicate language tag/i);
+  });
+
   it("calls onClose on Cancel and onSave on Save changes", () => {
     const { onClose, onSave } = renderDrawer();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

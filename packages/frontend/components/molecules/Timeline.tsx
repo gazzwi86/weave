@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 import { Badge } from "../ui/badge";
@@ -17,6 +19,10 @@ export interface TimelineEntry {
   /** Highlights the dot + shows the "latest" badge. */
   latest?: boolean;
   actions?: TimelineEntryAction[];
+  /** Extra content rendered below the actions row when present (e.g. an
+   * inline diff or a gap note toggled open by an action) -- generalized
+   * minimally for the Versions page's per-row "Diff" toggle. */
+  expandedContent?: ReactNode;
 }
 
 export interface TimelineProps {
@@ -60,6 +66,7 @@ function TimelineCard({ entry }: { entry: TimelineEntry }) {
           ))}
         </div>
       )}
+      {entry.expandedContent && <div className="mt-[var(--space-3)]">{entry.expandedContent}</div>}
     </div>
   );
 }

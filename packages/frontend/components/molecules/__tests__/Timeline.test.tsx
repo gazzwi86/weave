@@ -59,4 +59,15 @@ describe("Timeline", () => {
     expect(errorSpy.mock.calls.join(" ")).not.toMatch(/same key/i);
     errorSpy.mockRestore();
   });
+
+  it("renders an entry's expandedContent when present", () => {
+    const entries = [{ ...OLDER_ENTRY, expandedContent: <p>Gap note text</p> }];
+    render(<Timeline entries={entries} />);
+    expect(screen.getByText("Gap note text")).toBeInTheDocument();
+  });
+
+  it("omits expandedContent entirely when an entry has none", () => {
+    render(<Timeline entries={[OLDER_ENTRY]} />);
+    expect(screen.queryByText("Gap note text")).not.toBeInTheDocument();
+  });
 });

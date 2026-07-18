@@ -65,6 +65,7 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "TablePage", layer: "templates", states: ["default"] },
   { name: "FormDrawerPage", layer: "templates", states: ["default"] },
   { name: "DashboardGrid", layer: "templates", states: ["default"] },
+  { name: "FilterableTablePage", layer: "templates", states: ["default"] },
 ];
 
 function pascalState(state: StoryState): string {
