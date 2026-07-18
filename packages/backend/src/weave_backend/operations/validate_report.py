@@ -75,6 +75,8 @@ async def build_report(
             description=rule.description,
             origin=rule.origin,  # type: ignore[arg-type]
             violation_count=counts.get(rule.shape_iri, 0),
+            target_class=rule.target_class,
+            constraint_summary=rule.constraint_summary,
         )
         for rule in shacl.list_rules(shapes, tenant_id=tenant_id)
     ]
