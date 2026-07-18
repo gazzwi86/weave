@@ -50,6 +50,7 @@ from weave_backend.routers.notifications import router as notifications_router
 from weave_backend.routers.onboarding import router as onboarding_router
 from weave_backend.routers.ontology import router as ontology_router
 from weave_backend.routers.operations import router as operations_router
+from weave_backend.routers.operator import router as operator_router
 from weave_backend.routers.project_bindings import router as project_bindings_router
 from weave_backend.routers.project_contributors import router as project_contributors_router
 from weave_backend.routers.project_dashboard import router as project_dashboard_router
@@ -109,6 +110,7 @@ app.include_router(tenancy_router)
 app.include_router(settings_router)
 app.include_router(sparql_router)
 app.include_router(operations_router)
+app.include_router(operator_router)
 app.include_router(events_router)
 app.include_router(events_proxy_router)
 app.include_router(ontology_router)
