@@ -2,168 +2,244 @@
 
 import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import type { DataTableRow } from "@/components/templates/FilterableTablePage";
+import { FilterableTablePage } from "@/components/templates/FilterableTablePage";
+import { RelationshipsEditorSlot } from "@/components/templates/RelationshipsEditorSlot";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type { GlossaryBrowseRow, GlossaryTermRow } from "@/lib/glossary/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import type { FilterChip } from "@/components/ui/filter-bar";
+import { Icon } from "@/components/ui/icon";
+import { InfoTip } from "@/components/ui/info-tip";
+import { useToast } from "@/components/ui/toast";
+import { createGlossaryTerm } from "@/lib/glossary/create-glossary-term";
+import type { GlossaryBrowseRow } from "@/lib/glossary/types";
 
-import { ChatPanel } from "../chat/chat-panel";
-import { GlossaryCreateForm } from "./glossary-create-form";
-import { GlossaryRow } from "./glossary-row";
+import { buildGlossaryRows, labelByIri, type GlossaryAlphaFilter } from "./glossary-rows";
+import { deleteGlossaryTerm, updateGlossaryTerm } from "./glossary-ops";
+import type { GlossaryBrowseState } from "./use-glossary-browse";
 import { useGlossaryBrowse } from "./use-glossary-browse";
-import { useGlossarySearch } from "./use-glossary-search";
+import type { GlossaryDrawerState } from "./use-glossary-drawer";
+import { useGlossaryDrawer } from "./use-glossary-drawer";
 
-function labelsByIri(rows: GlossaryBrowseRow[]): Map<string, string> {
-  return new Map(rows.map((row) => [row.iri, row.prefLabel]));
-}
+const ALPHA_CHIPS: FilterChip[] = [
+  { id: "all", label: "All" },
+  { id: "a-f", label: "A–F" },
+  { id: "g-m", label: "G–M" },
+  { id: "n-s", label: "N–S" },
+  { id: "t-z", label: "T–Z" },
+];
 
-function SearchResultRow({ term }: { term: GlossaryTermRow }) {
+const GLOSSARY_COLUMNS = [
+  { key: "term", label: "Term" },
+  { key: "definition", label: "Definition" },
+  { key: "related", label: "Related" },
+];
+
+const REL_EDIT_GAP_TOAST =
+  "Relationship edits aren't wired to add_edge/delete_edge yet -- the editor has no target-IRI picker for glossary terms in M1.";
+
+function GlossaryHeader({ onNew }: { onNew: () => void }) {
   return (
-    <li className="flex items-center gap-[var(--space-2)] p-[var(--space-2)]">
-      <span className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        {term.prefLabel}
-      </span>
-      {term.isOwlClass && <Badge variant="info">also class</Badge>}
-    </li>
-  );
-}
-
-/** AC-002-01/-02: search box + on-demand results; a zero-result search opens
- * the create-term empty-state (`emptyState(q) -> CreateTermForm(prefill=q)`,
- * TASK-002 pseudocode). */
-function SearchSection({
-  search,
-  onCreated,
-}: {
-  search: ReturnType<typeof useGlossarySearch>;
-  onCreated: (iri: string) => void;
-}) {
-  const showEmptyState = search.searched && search.results.length === 0;
-
-  return (
-    <div className="flex flex-col gap-[var(--space-3)]">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          search.search();
-        }}
-        className="flex items-end gap-[var(--space-2)]"
-      >
-        <div className="flex flex-1 flex-col gap-[var(--space-1)]">
-          <label htmlFor="glossary-search" className="text-[length:var(--text-small)] text-[var(--color-text-subtle)]">
-            Search glossary
-          </label>
-          <Input
-            id="glossary-search"
-            value={search.query}
-            onChange={(event) => search.setQuery(event.target.value)}
-          />
-        </div>
-        <Button type="submit">Search</Button>
-      </form>
-
-      {search.searched && search.results.length > 0 && (
-        <ul data-testid="glossary-search-results" className="flex flex-col gap-[var(--space-1)]">
-          {search.results.map((term) => (
-            <SearchResultRow key={term.iri} term={term} />
-          ))}
-        </ul>
-      )}
-
-      {showEmptyState && (
-        <div data-testid="glossary-empty-state" className="flex flex-col gap-[var(--space-2)]">
-          <p className="text-[var(--color-text-muted)]">
-            No terms matched &ldquo;{search.query}&rdquo;. Create it below.
-          </p>
-          <GlossaryCreateForm prefill={search.query} onCreated={onCreated} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** AC-002-03: 50-row browse page, ordered by prefLabel; broader/narrower
- * chips call `onNavigate` to highlight (`aria-current`) the target row. */
-function BrowseSection({
-  browse,
-  labelByIri,
-  highlightedIri,
-  onNavigate,
-}: {
-  browse: ReturnType<typeof useGlossaryBrowse>;
-  labelByIri: Map<string, string>;
-  highlightedIri: string | null;
-  onNavigate: (iri: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-[var(--space-2)]">
-      <ul data-testid="glossary-browse-list" className="flex flex-col gap-[var(--space-1)]">
-        {browse.rows.map((row) => (
-          <GlossaryRow
-            key={row.iri}
-            term={row}
-            labelByIri={labelByIri}
-            highlighted={row.iri === highlightedIri}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </ul>
-      <div className="flex gap-[var(--space-2)]">
-        <Button type="button" variant="secondary" onClick={browse.prevPage} disabled={browse.page === 1}>
-          Previous
-        </Button>
-        <Button type="button" variant="secondary" onClick={browse.nextPage}>
-          Next
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/** AC-002-02: owns the "created" confirmation + refresh so a create-term
- * submit (from either the empty-state form or the chat surface) shows up in
- * the browse list without a full page reload. */
-function useGlossaryPageState() {
-  const search = useGlossarySearch();
-  const browse = useGlossaryBrowse();
-  const [highlightedIri, setHighlightedIri] = useState<string | null>(null);
-  const [createdMessage, setCreatedMessage] = useState<string | null>(null);
-
-  const handleCreated = (iri: string) => {
-    setCreatedMessage(`Created ${iri}`);
-    browse.reload();
-  };
-
-  return { search, browse, highlightedIri, setHighlightedIri, createdMessage, handleCreated };
-}
-
-/** TASK-002 (EPIC-003 E3-S3 + E3-S1): glossary search/browse plus the
- * no-match create-term path, sharing the CE-WRITE-1 op batch with the
- * persistent chat surface (AC-002-05 keeps the form path live on a chat
- * 503). */
-export default function GlossaryPage() {
-  const { search, browse, highlightedIri, setHighlightedIri, createdMessage, handleCreated } =
-    useGlossaryPageState();
-
-  return (
-    <main data-tour-id="ce.glossary" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+    <div className="flex items-center gap-[var(--space-3)]">
       <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         Glossary
       </h1>
+      <InfoTip
+        title="The shared language of the business"
+        body="A glossary term is a SKOS concept -- linked into the model, so it shows up on the canvas and in queries, not just as a definition."
+        how="A term punned as an owl:Class (badged 'also class') can also carry its own instances."
+      />
+      <Button className="ml-auto" onClick={onNew}>
+        <Icon name="plus" size={13} />
+        New term
+      </Button>
+    </div>
+  );
+}
 
-      <div className="grid flex-1 grid-cols-1 gap-[var(--space-4)] md:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-[var(--space-4)]">
-          <SearchSection search={search} onCreated={handleCreated} />
-          {createdMessage && <p role="status">{createdMessage}</p>}
-          <BrowseSection
-            browse={browse}
-            labelByIri={labelsByIri(browse.rows)}
-            highlightedIri={highlightedIri}
-            onNavigate={setHighlightedIri}
-          />
-        </div>
-        <ChatPanel />
-      </div>
+/** Builds the hover-reveal edit/delete actions for a row, given the loaded
+ * page so a row id resolves back to its term (kept out of the page body
+ * for the Law E line budget). */
+function makeRowActions(rows: GlossaryBrowseRow[], onEdit: (term: GlossaryBrowseRow) => void, onDelete: (term: GlossaryBrowseRow) => void) {
+  return function renderRowActions(row: DataTableRow) {
+    const term = rows.find((entry) => entry.iri === row.id);
+    if (!term) return null;
+    return (
+      <>
+        <Button variant="ghost" aria-label={`Edit ${term.prefLabel}`} onClick={() => onEdit(term)}>
+          <Icon name="pencil" size={13} />
+        </Button>
+        <Button variant="ghost" aria-label={`Delete ${term.prefLabel}`} onClick={() => onDelete(term)}>
+          <Icon name="trash" size={13} />
+        </Button>
+      </>
+    );
+  };
+}
+
+function relatedCount(term: GlossaryBrowseRow): number {
+  return term.broaderIris.length + term.narrowerIris.length;
+}
+
+/** refit-mock.html `#sub-glossary`'s delete-confirm copy: "Links from N
+ * related item(s) will be dropped." -- 0 related items is honest rather
+ * than fabricating a plural count the mock's static sample never shows. */
+function deleteConsequence(term: GlossaryBrowseRow): string {
+  const count = relatedCount(term);
+  if (count === 0) return "This term has no related links.";
+  return `Links from ${count} related item${count === 1 ? "" : "s"} will be dropped.`;
+}
+
+interface GlossaryTableArgs {
+  filter: GlossaryAlphaFilter;
+  search: string;
+  onFilter: (id: string) => void;
+  onSearch: (value: string) => void;
+  pageRows: DataTableRow[];
+  browse: GlossaryBrowseState;
+  rowActions: ReturnType<typeof makeRowActions>;
+  drawerProps: ReturnType<typeof buildDrawerProps>;
+}
+
+/** Assembles the full `FilterableTablePage` prop set (kept out of the page
+ * body for the Law E line budget). `pageCount` is a next-page heuristic,
+ * not a real total -- see `glossary-rows.ts`'s module doc for why no
+ * corpus-wide count exists. */
+function buildGlossaryTableProps(args: GlossaryTableArgs) {
+  const { filter, search, onFilter, onSearch, pageRows, browse, rowActions, drawerProps } = args;
+  const hasMore = browse.rows.length >= 50;
+  return {
+    filterBar: {
+      chips: ALPHA_CHIPS,
+      activeIds: [filter],
+      onToggle: onFilter,
+      search: { value: search, onChange: onSearch, label: "Search terms", placeholder: "Search terms on this page…" },
+    },
+    columns: GLOSSARY_COLUMNS,
+    rows: pageRows,
+    loading: browse.loading,
+    renderRowActions: rowActions,
+    pagination: {
+      page: browse.page,
+      pageCount: hasMore ? browse.page + 1 : browse.page,
+      rangeLabel:
+        pageRows.length === browse.rows.length
+          ? `Showing ${browse.rows.length} terms`
+          : `Showing ${pageRows.length} of ${browse.rows.length} loaded terms`,
+      onPageChange: (page: number) => (page > browse.page ? browse.nextPage() : browse.prevPage()),
+    },
+    error: browse.error
+      ? { title: "Couldn't load the glossary", body: "The glossary browse endpoint didn't respond.", onRetry: browse.reload }
+      : undefined,
+    drawer: drawerProps,
+  };
+}
+
+/** Maps drawer draft state onto `EntityEditDrawer` props (kept out of the
+ * page body for the Law E line budget). */
+function buildDrawerProps(drawer: GlossaryDrawerState, onSave: () => void, onDeleteRequest: (term: GlossaryBrowseRow) => void) {
+  return {
+    open: drawer.open,
+    onClose: drawer.close,
+    onSave,
+    onDelete: drawer.term ? () => onDeleteRequest(drawer.term!) : undefined,
+    icon: "book" as const,
+    tone: "var(--color-accent-primary)",
+    title: drawer.term ? `Edit term — ${drawer.term.prefLabel}` : "New term",
+    label: drawer.label,
+    onLabelChange: drawer.setLabel,
+    description: drawer.definition,
+    onDescriptionChange: drawer.setDefinition,
+    relationships: <RelationshipsEditorSlot rels={drawer.rels} onAdd={drawer.addRel} onRemove={drawer.removeRel} hideLabel />,
+  };
+}
+
+/** Resolves the drawer save button to a real CE-WRITE-1 op: `add_node`
+ * (existing `createGlossaryTerm`) for a new term, `update_node` for an
+ * edit -- unlike the Types page, a glossary term is a plain graph node so
+ * both ops apply directly, no shape-mutation gap. A changed relationships
+ * draft still gets a gap toast (see `REL_EDIT_GAP_TOAST`). */
+async function saveGlossaryTerm(
+  drawer: GlossaryDrawerState,
+  toast: ReturnType<typeof useToast>["toast"],
+  reload: () => void
+): Promise<void> {
+  const input = { prefLabel: drawer.label, lang: "en", definition: drawer.definition };
+  const result = drawer.term ? await updateGlossaryTerm(drawer.term.iri, input) : await createGlossaryTerm(input);
+
+  if (result.type === "ok") {
+    toast({ message: drawer.term ? `Saved changes to "${drawer.label}".` : `Created "${drawer.label}".`, variant: "success" });
+    reload();
+    drawer.close();
+  } else if (result.type === "violations") {
+    toast({ message: Object.values(result.errors).join(" "), variant: "error" });
+  } else {
+    toast({ message: drawer.term ? "Could not save the term." : "Could not create the term.", variant: "error" });
+  }
+
+  if (drawer.relsChanged) {
+    toast({ message: REL_EDIT_GAP_TOAST, variant: "info" });
+  }
+}
+
+/** Glossary (IA `#sub-glossary`): the shared-language SKOS term catalogue,
+ * refit onto the `FilterableTablePage` template. Browse is a single
+ * server-paged 50-row CE-READ-1 SPARQL query (see `glossary-rows.ts`), so
+ * the alphabetic/search filters and the pagination range label are both
+ * honestly scoped to the currently loaded page, not the whole corpus.
+ * `lib/glossary/*` stays untouched; edit/delete/create wire real
+ * CE-WRITE-1 ops (`glossary-ops.ts`), only relationship-chip persistence
+ * is gap-toasted. Page stays data-binding only: filtering/row-shaping in
+ * `glossary-rows.tsx`, drawer draft state in `use-glossary-drawer.ts`.
+ */
+export default function GlossaryPage() {
+  const browse = useGlossaryBrowse();
+  const drawer = useGlossaryDrawer();
+  const { toast } = useToast();
+  const [filter, setFilter] = useState<GlossaryAlphaFilter>("all");
+  const [search, setSearch] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<GlossaryBrowseRow | null>(null);
+
+  const pageRows = buildGlossaryRows(browse.rows, filter, search);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    const result = await deleteGlossaryTerm(pendingDelete.iri);
+    if (result.type === "ok") {
+      toast({ message: `Deleted "${pendingDelete.prefLabel}".`, variant: "success" });
+      browse.reload();
+    } else {
+      toast({ message: "Could not delete the term.", variant: "error" });
+    }
+    setPendingDelete(null);
+    drawer.close();
+  };
+
+  const tableProps = buildGlossaryTableProps({
+    filter,
+    search,
+    onFilter: (id) => setFilter(id as GlossaryAlphaFilter),
+    onSearch: setSearch,
+    pageRows,
+    browse,
+    rowActions: makeRowActions(browse.rows, (term) => drawer.openEdit(term, labelByIri(browse.rows)), setPendingDelete),
+    drawerProps: buildDrawerProps(drawer, () => void saveGlossaryTerm(drawer, toast, browse.reload), setPendingDelete),
+  });
+
+  return (
+    <main data-tour-id="ce.glossary" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+      <GlossaryHeader onNew={drawer.openNew} />
+      <FilterableTablePage {...tableProps} />
+      {pendingDelete && (
+        <ConfirmDialog
+          open
+          entityType="term"
+          entityName={pendingDelete.prefLabel}
+          consequence={deleteConsequence(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      )}
     </main>
   );
 }
