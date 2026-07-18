@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppHeader } from "@/components/organisms/AppHeader";
+import { ToastProvider } from "@/components/ui/toast/toast-provider";
 import { PUBLIC_PATHS } from "@/lib/public-paths";
 
 import { AvatarMenu } from "./avatar-menu";
@@ -77,29 +78,31 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Nav userName={userName} />
-      <SectionRail role={role} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AppHeader
-          tenantChip={<TenantChip tenantId={tenantId} />}
-          breadcrumb={<Breadcrumb pathname={pathname} />}
-          sidebarCollapsed={collapsed && canExpand}
-          onExpandSidebar={expand}
-          onOpenCommandBar={openCommandPalette}
-          notifications={<NotificationCenter role={role} />}
-          help={<HelpLauncher />}
-          account={<AvatarMenu userName={userName ?? "Signed in"} role={role} />}
-        />
-        <PracticeModeBanner />
-        <CommandPalette />
-        <OnboardingHintsHost />
-        {/* Content wrapper is a plain div, not <main>: every page renders its
-            own <main> landmark, so a <main> here would duplicate it (axe
-            landmark-no-duplicate-main). The flex/overflow scroll chain is
-            tag-agnostic. */}
-        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+    <ToastProvider>
+      <div className="flex h-screen overflow-hidden">
+        <Nav userName={userName} />
+        <SectionRail role={role} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppHeader
+            tenantChip={<TenantChip tenantId={tenantId} />}
+            breadcrumb={<Breadcrumb pathname={pathname} />}
+            sidebarCollapsed={collapsed && canExpand}
+            onExpandSidebar={expand}
+            onOpenCommandBar={openCommandPalette}
+            notifications={<NotificationCenter role={role} />}
+            help={<HelpLauncher />}
+            account={<AvatarMenu userName={userName ?? "Signed in"} role={role} />}
+          />
+          <PracticeModeBanner />
+          <CommandPalette />
+          <OnboardingHintsHost />
+          {/* Content wrapper is a plain div, not <main>: every page renders its
+              own <main> landmark, so a <main> here would duplicate it (axe
+              landmark-no-duplicate-main). The flex/overflow scroll chain is
+              tag-agnostic. */}
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

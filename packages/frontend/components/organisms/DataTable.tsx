@@ -118,7 +118,7 @@ function DataTableRowActionsCell({ row, renderRowActions }: { row: DataTableRow;
 function DataTableDetailRow({ row, colSpan, expandable }: { row: DataTableRow; colSpan: number; expandable: DataTableExpandable }) {
   if (expandable.expandedRowId !== row.id) return null;
   return (
-    <tr>
+    <tr data-testid={`table-row-detail-${row.id}`}>
       <td colSpan={colSpan} className="bg-[var(--color-raised)] p-0">
         <div className="flex flex-col gap-[var(--space-2)] py-[var(--space-4)] pr-[var(--space-4)] pl-[var(--space-8)]">
           {expandable.renderDetail(row)}
@@ -144,6 +144,7 @@ function DataTableDataRow({ row, columns, selectedRowId, onSelectRow, renderRowA
   return (
     <>
       <tr
+        data-testid={`table-row-${row.id}`}
         aria-selected={row.id === selectedRowId || undefined}
         onClick={clickHandler}
         className={cn(
