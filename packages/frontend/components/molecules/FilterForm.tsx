@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 import { Button } from "../ui/button";
@@ -23,6 +25,11 @@ export interface FilterFormField {
   width?: string;
   /** Field takes remaining row space (`flex: 1`) instead of a fixed width. */
   grow?: boolean;
+  /** Escape hatch for a field whose control isn't text/select/date (e.g.
+   * `TypeaheadField` for the Actor filter) -- when present, FilterForm skips
+   * its own `<label>`/input and renders this instead, since the custom
+   * control owns its own label. */
+  render?: () => ReactNode;
 }
 
 export interface FilterFormProps {
@@ -71,13 +78,19 @@ function FilterFormFieldGroup({ field }: { field: FilterFormField }) {
       className={cn("flex min-w-0 flex-col gap-[var(--space-1)]", field.grow && "flex-1")}
       style={!field.grow && field.width ? { width: field.width } : undefined}
     >
-      <label
-        htmlFor={`ff-field-${field.id}`}
-        className="text-[length:var(--text-caption)] font-[var(--font-weight-semibold)] tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)] uppercase"
-      >
-        {field.label}
-      </label>
-      <FilterFormFieldInput field={field} />
+      {field.render ? (
+        field.render()
+      ) : (
+        <>
+          <label
+            htmlFor={`ff-field-${field.id}`}
+            className="text-[length:var(--text-caption)] font-[var(--font-weight-semibold)] tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)] uppercase"
+          >
+            {field.label}
+          </label>
+          <FilterFormFieldInput field={field} />
+        </>
+      )}
     </div>
   );
 }
