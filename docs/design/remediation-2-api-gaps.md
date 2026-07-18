@@ -117,3 +117,36 @@ Cards D/E are shippable now against category buckets (approximate); exact splits
   cited in its tooltip (`use-canvas-overlay-toggles.ts`) rather than faked data.
   *(numbered G17, not G15/16 — those were claimed by concurrent backend lanes in flight at the
   time this gap was logged; renumber down if this doc is consolidated after those land.)*
+
+## T4-derived follow-ups (2026-07-18 coverage-reconciliation MCQ — user decisions)
+
+- [ ] **T5 L · Consolidate Home → Dashboard (canonical, post-login landing)** — user decision: the
+  canonical Home is **`/dashboard`**, and it is the page users land on immediately after login.
+  `/role-home` is demoted. But role-home carries UNIQUE surface dashboard lacks — the **next-action
+  banner** (`data-tour-id="plat.role-home.next-action"`), **capability cards** (role-scoped), and
+  the **completeness map** — plus the guided-tour anchor. So routing and migration are one unit:
+  migrate those three surfaces (and re-anchor the tour) INTO dashboard, set dashboard as the login
+  landing, THEN delist role-home. Do NOT delist role-home before the migration (it would drop the
+  guided onboarding for the defer window). Dashboard already has ChecklistWidget + GetGoing, so the
+  onboarding checklist half is already present. Feature-sized; own PR, off the T4 remediation path.
+
+- [ ] **T6 L · `/build/ge-canvas-preview` → project-scoped filtered Explore** — user decision: this
+  is a KEPT, intended surface, not a dev artifact. Rebuild it to be **functional like `/explorer`
+  but filtered to a single project** — showing only the entities/processes/data created, affected,
+  or relevant to that project (a focused, filtered project-level graph view). Link it from the
+  **build-project nav** (per project, not top-level). Aim: users build out and augment processes as
+  they build an app / feature / data pipeline. Optionally model a project-level ontology linked to
+  the parent graph. Feature-sized; own PR, off the T4 remediation path. Related canvas bug: G19.
+
+- [ ] **T7 S · `/events` → disabled "coming soon" nav item** — Events & Actions engine ships
+  post-MVP (build order) and the mock has no Events screen. Per the no-phase-pills rule
+  (`feedback_no_phase_pills`): keep it in the nav but disabled with a "soon" affordance, not a live
+  bare stub. Small; can land with the T4 remediation follow-up.
+
+- [ ] **T8 M · Onboarding exercise-availability (kill the 403 noise)** — the checklist widget POSTs
+  `/api/onboarding/exercises/{id}/check` for exercises the backend gates off (403: `read_only_locked`
+  for CE-02, `path_gated` for CE-03 — the client's checklist-item paths and the backend exercise
+  paths disagree, and the client doesn't know `path_variant`). User decision: **fix properly** —
+  backend exposes per-exercise availability (e.g. on `GET /api/onboarding/state`, an
+  `available_exercises` set computed via `gate_exercise`) so the client only checks available ones,
+  with no gate-logic duplication client-side. Fail-soft today (caught, no loop), so log-noise-only.
