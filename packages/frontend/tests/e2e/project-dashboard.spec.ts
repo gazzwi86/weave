@@ -29,10 +29,10 @@ async function createProject(page: Page): Promise<string> {
   return projectId;
 }
 
-// AC-1: the dashboard root renders all six tiles, each from its own
-// per-tile endpoint -- reached from the Registry grid (project-card.tsx),
-// not just by direct URL.
-test("renders six tiles from per-tile endpoints, reachable from the project card", async ({
+// refit-mock.html #sub-bld-dashboard: the KPI row + roadmap/spec-links +
+// activity panels replace the earlier six-tile grid -- reached from the
+// Registry grid (project-card.tsx), not just by direct URL.
+test("renders the dashboard KPI row and spec links, reachable from the project card", async ({
   page,
 }) => {
   await loginAs(page, "admin@weave.local");
@@ -42,17 +42,17 @@ test("renders six tiles from per-tile endpoints, reachable from the project card
   await page.locator(`a[href="/build/projects/${projectId}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/build/projects/${projectId}$`));
 
-  await expect(page.getByText("Demo readiness")).toBeVisible();
-  await expect(page.getByText("Budget")).toBeVisible();
-  await expect(page.getByText("Forecast")).toBeVisible();
-  await expect(page.getByText("Tasks in flight")).toBeVisible();
-  await expect(page.getByText("Blockers")).toBeVisible();
-  await expect(page.getByText("Git ribbon")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByText("tasks created")).toBeVisible();
+  await expect(page.getByText("tasks done")).toBeVisible();
+  await expect(page.getByText("blocked — needs decision")).toBeVisible();
+  await expect(page.getByText("epics created")).toBeVisible();
+  await expect(page.getByText("Task briefs")).toBeVisible();
 });
 
-// AC-2 (core isolation AC): stubbing one tile's endpoint down must never
-// blank the page -- the other five tiles still render.
-test("keeps five tiles alive when one endpoint is stubbed down", async ({ page }) => {
+// A fresh project has no Review/QA lane cards -- the gate band (G12) stays
+// absent rather than rendering a placeholder.
+test("keeps the dashboard usable when the budget tile endpoint is stubbed down", async ({ page }) => {
   await loginAs(page, "admin@weave.local");
   const projectId = await createProject(page);
 
@@ -67,10 +67,7 @@ test("keeps five tiles alive when one endpoint is stubbed down", async ({ page }
   await page.locator(`a[href="/build/projects/${projectId}"]`).click();
   await expect(page).toHaveURL(new RegExp(`/build/projects/${projectId}$`));
 
-  await expect(page.getByText(/couldn't load/i)).toBeVisible();
-  await expect(page.getByText("Demo readiness")).toBeVisible();
-  await expect(page.getByText("Forecast")).toBeVisible();
-  await expect(page.getByText("Tasks in flight")).toBeVisible();
-  await expect(page.getByText("Blockers")).toBeVisible();
-  await expect(page.getByText("Git ribbon")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByText("tasks created")).toBeVisible();
+  await expect(page.getByText("budget", { exact: true })).toBeVisible();
 });

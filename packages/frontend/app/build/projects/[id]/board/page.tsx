@@ -4,40 +4,17 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { Card as UiCard, CardTitle } from "@/components/ui/card";
 
-import { Card } from "./card";
 import { EmptyState } from "./empty-state";
 import { FilterBar } from "./filter-bar";
 import { type BoardFilter, filterCards, isValidFilter } from "./filters";
+import { LaneGrid } from "./lane-grid";
 import { Legend } from "./legend";
 import { TaskTree } from "./task-tree";
-import type { BoardCard } from "./types";
-import { LANE_ORDER } from "./types";
 import { useBoard } from "./use-board";
 
-/** AC-1: the six lane columns, each showing only its own cards. */
-function LaneGrid({ cards, projectId }: { cards: BoardCard[]; projectId: string }): React.JSX.Element {
-  return (
-    <div
-      data-testid="board-lanes"
-      className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-3 lg:grid-cols-6"
-    >
-      {LANE_ORDER.map((lane) => (
-        <div key={lane} data-testid={`lane-${lane}`} className="flex flex-col gap-[var(--space-2)]">
-          <h2 className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            {lane}
-          </h2>
-          {cards
-            .filter((card) => card.lane === lane)
-            .map((card) => (
-              <Card key={card.id} card={card} projectId={projectId} />
-            ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** BE-V1-TASK-017: six-lane board + task tree, FR-015/016/017. */
+/** BE-V1-TASK-017: six-lane board + task tree, FR-015/016/017.
+ * refit-mock.html #sub-bld-kanban: lanes render via `LaneGrid`, which is
+ * built on the `KanbanLane`/`KanbanCard` design-system molecules. */
 export default function BoardPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();

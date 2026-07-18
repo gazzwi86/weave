@@ -48,4 +48,19 @@ describe("FilterForm", () => {
     expect(onApply).toHaveBeenCalledTimes(1);
     expect(onReset).toHaveBeenCalledTimes(1);
   });
+
+  it("renders a field's own custom control via render(), skipping FilterForm's built-in label", () => {
+    const customField: FilterFormField = {
+      id: "actor",
+      label: "Actor",
+      type: "text",
+      value: "",
+      onChange: vi.fn(),
+      render: () => <div data-testid="custom-actor-control">custom</div>,
+    };
+    render(<FilterForm fields={[customField]} onApply={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByTestId("custom-actor-control")).toBeInTheDocument();
+    // The built-in FIELD_INPUT_CLASS input for "actor" must not also render.
+    expect(screen.queryByLabelText("Actor")).not.toBeInTheDocument();
+  });
 });

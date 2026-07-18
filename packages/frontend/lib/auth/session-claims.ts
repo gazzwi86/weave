@@ -39,6 +39,16 @@ export function getSessionClaims(jwt: string | undefined): SessionClaims {
   return { role: sub === "admin" ? "admin" : "author", tenantId };
 }
 
+// ponytail: no dedicated super-admin claim exists yet (same gap
+// header-scope.ts already flags) -- "admin" stands in for it here too. This
+// predicate is the ONE place that decision lives so the operator route and
+// the avatar-menu item can't drift apart; tracked as part of gap G15
+// (docs/design/remediation-2-api-gaps.md) to tighten before the operator
+// console talks to a real cross-tenant backend.
+export function isPlatformOperator(role: string | null): boolean {
+  return role === "admin";
+}
+
 /** Reads the `principal_iri` claim (issued directly by mock_oidc --
  * `identity/registry.py::human_principal_iri`) so callers can match the
  * signed-in user against a project's contributor rows (TASK-015 AC-4):

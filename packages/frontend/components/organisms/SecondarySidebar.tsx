@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { Icon, type IconName } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +22,10 @@ const ROLE_HOME_NAV_ENTRY_HREF = "/role-home";
 export interface SecondarySidebarGroup {
   heading: string;
   items: SecondarySidebarItem[];
+  /** Optional control rendered above the group's items (e.g. Build's
+   * "Current project" `<select>` switcher, refit-mock.html
+   * buildSidebarHTML) -- a plain slot, no Build-specific knowledge here. */
+  selector?: ReactNode;
 }
 
 export interface SecondarySidebarProps {
@@ -115,6 +121,7 @@ function SidebarGroup({ group, activeHref }: { group: SecondarySidebarGroup; act
       <p className="px-[var(--space-2)] pb-[var(--space-1)] text-[length:var(--text-overline)] tracking-[var(--text-overline-tracking)] uppercase text-[var(--color-text-muted)]">
         {group.heading}
       </p>
+      {group.selector ? <div className="px-[var(--space-2)] pb-[var(--space-2)]">{group.selector}</div> : null}
       <ul className="flex flex-col gap-[var(--space-1)]">
         {group.items.map((item) => (
           <SidebarRow key={item.label} item={item} isActive={item.href === activeHref} />

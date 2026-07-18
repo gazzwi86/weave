@@ -98,7 +98,7 @@ describe("BuildPage", () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
     expect(screen.getByTestId("request-status")).toHaveTextContent("spec_ready");
-    expect(screen.getByTestId("draft-content")).toHaveTextContent(
+    expect(screen.getByTestId("plan-card")).toHaveTextContent(
       "Expense tracker draft spec"
     );
 
@@ -199,5 +199,90 @@ describe("BuildPage", () => {
     fillAndSubmit();
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent('"prompt"'));
+  });
+
+  // refit-mock.html #sub-bld-studio: conversational thread + proposed-plan
+  // card, both data-bound to the existing useRequestStatus/useDraftingProgress
+  // clients -- no new backend wiring (blast-radius/cost-estimate/sign-off
+  // stay gapped, see the plan card's disabled Approve/Estimate buttons).
+  describe("refit-mock #sub-bld-studio: thread + plan card", () => {
+    it("shows the submitted prompt as a user message in the thread", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ACCEPTED, 202)));
+
+      render(<BuildPage />);
+      fillAndSubmit();
+
+      await waitFor(() => expect(screen.getByTestId("thread")).toHaveTextContent("an expense tracker"));
+    });
+
+    it("renders draft_content sections as numbered plan steps once drafted", async () => {
+      vi.useFakeTimers();
+      const terminal = {
+        request_id: "req-1",
+        status: "draft_complete",
+        run_mode: "draft_spec_only",
+        graph_context: {},
+        draft_content: { brief: "the brief text", prd: "the prd text" },
+        created_at: "2026-07-08T00:00:00Z",
+      };
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "POST" ? jsonResponse(ACCEPTED, 202) : jsonResponse(terminal)
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<BuildPage />);
+      fillAndSubmit();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      const plan = screen.getByTestId("plan-card");
+      expect(plan).toHaveTextContent("1");
+      expect(plan).toHaveTextContent("brief");
+      expect(plan).toHaveTextContent("2");
+      expect(plan).toHaveTextContent("prd");
+    });
+
+    it("renders Approve and Estimate as disabled -- sign-off/cost-estimate aren't wired yet (gap)", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ACCEPTED, 202)));
+
+      render(<BuildPage />);
+      fillAndSubmit();
+      await waitFor(() => expect(screen.getByTestId("thread")).toBeInTheDocument());
+
+      expect(screen.getByRole("button", { name: /Approve plan/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Estimate/ })).toBeDisabled();
+    });
+
+    it("refine re-submits via the existing request client, adding a new thread turn", async () => {
+      const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "POST" ? jsonResponse(ACCEPTED, 202) : jsonResponse(ACCEPTED)
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<BuildPage />);
+      fillAndSubmit();
+      await waitFor(() => expect(screen.getByTestId("thread")).toBeInTheDocument());
+
+      fireEvent.change(screen.getByLabelText("Refine the plan or ask a follow-up"), {
+        target: { value: "make the email bilingual" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId("thread")).toHaveTextContent("make the email bilingual")
+      );
+      // Both the original prompt and the refine turn stay visible.
+      expect(screen.getByTestId("thread")).toHaveTextContent("an expense tracker");
+
+      const postCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+      expect(postCalls).toHaveLength(2);
+      const secondBody = JSON.parse(postCalls[1]?.[1]?.body as string) as { prompt: string; name: string };
+      expect(secondBody.prompt).toBe("make the email bilingual");
+      expect(secondBody.name).toBe("Expense tracker");
+    });
   });
 });
