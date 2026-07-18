@@ -37,3 +37,9 @@ export const WithBreadcrumbAndActions: Story = {
   },
 };
 export const WithBreadcrumbAndActionsDark: Story = { ...WithBreadcrumbAndActions, parameters: { theme: "dark" } };
+
+// Mock's accent page-kicker (e.g. "Home") above the title.
+export const WithEyebrow: Story = {
+  args: { eyebrow: "Home", title: "Weave Dashboard" },
+};
+export const WithEyebrowDark: Story = { ...WithEyebrow, parameters: { theme: "dark" } };

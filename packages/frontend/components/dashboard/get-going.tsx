@@ -1,4 +1,5 @@
 import { HelpCard } from "@/components/organisms/HelpPanel";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 import { GuidedTourCard } from "./guided-tour-card";
 
@@ -11,8 +12,8 @@ export function GetGoing() {
       aria-label="Get going"
       className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)]"
     >
-      <h2 className="mb-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Get going
+      <h2 className="mb-[var(--space-2)]">
+        <Eyebrow as="span">Get going</Eyebrow>
       </h2>
       <div className="flex flex-col gap-[var(--space-2)]">
         <GuidedTourCard />

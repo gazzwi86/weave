@@ -47,6 +47,17 @@ describe("PageHeader", () => {
     expect(heading).toContainElement(trailing);
   });
 
+  it("renders an accent eyebrow above the title when supplied", () => {
+    render(<PageHeader title={TITLE} eyebrow="Home" />);
+    const eyebrow = screen.getByText("Home");
+    expect(eyebrow.className).toContain("text-[var(--color-accent-primary)]");
+  });
+
+  it("renders no eyebrow when the prop is omitted", () => {
+    render(<PageHeader title={TITLE} />);
+    expect(screen.queryByText("Home")).not.toBeInTheDocument();
+  });
+
   it("supports a single primary action alongside secondary/ghost actions with no second bright button", () => {
     render(
       <PageHeader

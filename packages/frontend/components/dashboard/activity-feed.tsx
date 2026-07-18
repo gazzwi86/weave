@@ -1,4 +1,5 @@
 import { RelativeTime } from "@/components/molecules/RelativeTime";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 
 export interface ActivityEntry {
@@ -33,8 +34,8 @@ export function ActivityFeed({ entries }: { entries: ActivityEntry[] }) {
       aria-label="Recent activity"
       className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)]"
     >
-      <h2 className="mb-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Recent activity
+      <h2 className="mb-[var(--space-2)]">
+        <Eyebrow as="span">Recent activity</Eyebrow>
       </h2>
       {entries.length === 0 ? (
         <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
