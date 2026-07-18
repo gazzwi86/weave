@@ -59,25 +59,34 @@ describe("BrandPage", () => {
     window.localStorage.clear();
   });
 
-  // AC-004-01..04: standards + voice-rule forms and the extraction
+  // AC-004-01..04: standards + brand-rule forms and the extraction
   // affordance are all mounted (not just built) on this one page.
-  it("mounts the standards list, tabs, and both authoring forms", async () => {
+  it("mounts the standards cards, tabs, and both authoring forms", async () => {
     stubFetch();
     render(<BrandPage />);
 
-    await screen.findByTestId("standard-list");
+    await screen.findByTestId("standard-cards");
     expect(screen.getByLabelText(/content type/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /extract from source/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: /voice rules/i }));
-    await screen.findByTestId("voice-rule-list");
+    fireEvent.click(screen.getByRole("tab", { name: /brand rules/i }));
+    await screen.findByTestId("brand-rules-table");
     expect(screen.getByLabelText(/rule id/i)).toBeInTheDocument();
+  });
+
+  // G14 (remediation-2-api-gaps.md): the brand-conformance KPI has no
+  // backend aggregation yet -- the page must show its honest pending note.
+  it("shows the G14 brand-conformance KPI as pending, not a fake number", async () => {
+    stubFetch();
+    render(<BrandPage />);
+    await screen.findByTestId("standard-cards");
+    expect(screen.getByText(/not yet available/i)).toBeInTheDocument();
   });
 
   it("has no axe violations", async () => {
     stubFetch();
     const { container } = render(<BrandPage />);
-    await screen.findByTestId("standard-list");
+    await screen.findByTestId("standard-cards");
     expect((await axe(container)).violations).toHaveLength(0);
   });
 
@@ -100,7 +109,7 @@ describe("BrandPage", () => {
     });
     render(<BrandPage />);
 
-    await screen.findByTestId("standard-list");
+    await screen.findByTestId("standard-cards");
     expect(screen.queryByText(/acme\.new-tone/)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/content type/i), { target: { value: "acme.new-tone" } });
@@ -111,5 +120,30 @@ describe("BrandPage", () => {
 
     await waitFor(() => expect(listCallCount.count).toBeGreaterThan(1));
     expect(await screen.findByText(/acme\.new-tone/)).toBeInTheDocument();
+  });
+
+  // Integration: Edit on a standard card opens StandardEditDrawer, saving
+  // dispatches update_node and re-lists via the same refreshKey bump path.
+  it("edits a standard via the drawer and re-lists it", async () => {
+    const listCallCount = { count: 0 };
+    stubFetch(listCallCount);
+    const listFetch = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/operations/apply")) {
+        return jsonResponse(201, { version_iri: "urn:weave:versions:v3" });
+      }
+      return listFetch(input, init);
+    });
+    render(<BrandPage />);
+
+    await screen.findByTestId("standard-cards");
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+
+    const ownerField = await screen.findByLabelText("Owner", { selector: "#standard-edit-owner" });
+    fireEvent.change(ownerField, { target: { value: "New Owner" } });
+    const saveButtons = screen.getAllByRole("button", { name: /^save$/i });
+    fireEvent.click(saveButtons[saveButtons.length - 1]!);
+
+    await waitFor(() => expect(listCallCount.count).toBeGreaterThan(1));
   });
 });

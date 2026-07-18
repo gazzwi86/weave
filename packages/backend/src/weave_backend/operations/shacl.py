@@ -317,6 +317,14 @@ class RuleSummary:
     severity: str
     description: str
     origin: str  # "framework" | "tenant"
+    #: G1 (remediation-2-api-gaps.md): `sh:targetClass`, when the shape
+    #: declares one. `None` for a `sh:targetSubjectsOf`-style shape (e.g.
+    #: `weave:AutomatableShape`) -- never fabricated from another source.
+    target_class: str | None = None
+    #: G1: short human-readable rundown of the shape's `sh:property`
+    #: constraints (path + minCount/datatype), so the Rules page can show
+    #: what a rule enforces without a second SPARQL round-trip.
+    constraint_summary: str | None = None
 
 
 def _rule_severity(shapes: Graph, node_shape: Node) -> str:
@@ -347,6 +355,46 @@ def _rule_description(shapes: Graph, node_shape: Node) -> str:
     return ""
 
 
+def _local_name(term: Node) -> str:
+    text = str(term)
+    if "#" in text:
+        return text.rsplit("#", 1)[-1]
+    return text.rstrip("/").rsplit("/", 1)[-1]
+
+
+def _rule_target_class(shapes: Graph, node_shape: Node) -> str | None:
+    """G1: `sh:targetClass`, when the shape declares one -- `None` for a
+    `sh:targetSubjectsOf`-style shape (e.g. `weave:AutomatableShape`)."""
+    target = shapes.value(node_shape, SH.targetClass)
+    return str(target) if target is not None else None
+
+
+def _property_constraint_text(shapes: Graph, prop: Node) -> str:
+    path = shapes.value(prop, SH.path)
+    if path is None:
+        return ""
+    parts = [_local_name(path)]
+    min_count = shapes.value(prop, SH.minCount)
+    if min_count is not None:
+        parts.append(f"min {min_count}")
+    datatype = shapes.value(prop, SH.datatype)
+    if datatype is not None:
+        parts.append(_local_name(datatype))
+    return " ".join(parts)
+
+
+def _rule_constraint_summary(shapes: Graph, node_shape: Node) -> str | None:
+    """G1: short human-readable rundown of the shape's `sh:property`
+    constraints, sorted for determinism -- `None` when the shape has none
+    (e.g. `sh:or`-only shapes like `weave:BrandStandardShape`)."""
+    texts = sorted(
+        text
+        for prop in shapes.objects(node_shape, SH.property)
+        if (text := _property_constraint_text(shapes, prop))
+    )
+    return "; ".join(texts) if texts else None
+
+
 def list_rules(shapes: Graph, *, tenant_id: str) -> list[RuleSummary]:
     """CE-TASK-006 AC-006-03: catalogue of every governance rule (framework
     + this tenant's own) -- a pure enumeration of the shapes graph, so a
@@ -364,6 +412,8 @@ def list_rules(shapes: Graph, *, tenant_id: str) -> list[RuleSummary]:
             severity=_rule_severity(shapes, node_shape),
             description=_rule_description(shapes, node_shape),
             origin="framework" if str(node_shape) in framework_iris else "tenant",
+            target_class=_rule_target_class(shapes, node_shape),
+            constraint_summary=_rule_constraint_summary(shapes, node_shape),
         )
         for node_shape in node_shapes
     ]

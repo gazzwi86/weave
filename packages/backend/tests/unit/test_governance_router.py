@@ -17,7 +17,15 @@ from rdflib import Graph
 
 from weave_backend.auth.dependencies import Principal
 from weave_backend.authoring.shapes import ShapeGenerationError
-from weave_backend.routers.governance import commit_shape_route, preview_shape_route
+from weave_backend.operations.governance_shapes import (
+    FrameworkShapeImmutableError,
+    ShapeNotFoundError,
+)
+from weave_backend.routers.governance import (
+    commit_shape_route,
+    preview_shape_route,
+    retire_shape_route,
+)
 from weave_backend.schemas.governance import ShapeRuleCommitRequest, ShapeRulePreviewRequest
 
 _PRINCIPAL = Principal(sub="u-1", tenant_id="t1", principal_iri="urn:weave:principal:user:u-1")
@@ -125,3 +133,54 @@ async def test_commit_route_commits_valid_shape_and_returns_activity_iri() -> No
     assert request.ai_generated is True
     assert response.activity_iri == "urn:weave:instances:activity-1"
     assert response.shape_iri == "https://weave.io/instances/shape-abc"
+
+
+# G3 (remediation-2-api-gaps.md): DELETE /api/ontology/authoring/shapes
+
+
+async def test_retire_route_retires_and_returns_204() -> None:
+    retire_spy = AsyncMock()
+    with (
+        patch("weave_backend.routers.governance.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.governance.get_redis", return_value=AsyncMock()),
+        patch("weave_backend.routers.governance.retire_tenant_shape", retire_spy),
+    ):
+        await retire_shape_route("https://weave.io/instances/shape-abc", _PRINCIPAL)
+
+    retire_spy.assert_awaited_once()
+    kwargs = retire_spy.call_args.kwargs
+    assert kwargs["tenant_id"] == "t1"
+    assert kwargs["approver_iri"] == _PRINCIPAL.principal_iri
+    assert kwargs["shape_iri"] == "https://weave.io/instances/shape-abc"
+
+
+async def test_retire_route_returns_404_for_unknown_shape() -> None:
+    with (
+        patch("weave_backend.routers.governance.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.governance.get_redis", return_value=AsyncMock()),
+        patch(
+            "weave_backend.routers.governance.retire_tenant_shape",
+            AsyncMock(side_effect=ShapeNotFoundError("urn:x")),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await retire_shape_route("urn:x", _PRINCIPAL)
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail["error"] == "shape_not_found"  # type: ignore[index]
+
+
+async def test_retire_route_returns_403_for_framework_shape() -> None:
+    with (
+        patch("weave_backend.routers.governance.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.governance.get_redis", return_value=AsyncMock()),
+        patch(
+            "weave_backend.routers.governance.retire_tenant_shape",
+            AsyncMock(side_effect=FrameworkShapeImmutableError("https://weave.io/ontology/ProcessShape")),
+        ),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await retire_shape_route("https://weave.io/ontology/ProcessShape", _PRINCIPAL)
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["error"] == "framework_shape_immutable"  # type: ignore[index]

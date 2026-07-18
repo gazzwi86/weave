@@ -82,7 +82,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         heading: "Vocabulary & standards",
         items: [
           { label: "Glossary", href: "/ce/glossary", built: true, icon: "book" },
-          { label: "Brand & voice", href: "/ce/brand", built: true, icon: "mic" },
+          { label: "Branding & standards", href: "/ce/brand", built: true, icon: "mic" },
           { label: "Rules & policies", href: "/ce/rules", built: true, icon: "shield" },
           { label: "Strategy & motivation", built: false, icon: "target" },
         ],
