@@ -7,7 +7,8 @@ posture as `build/board.py`'s `build_board`.
 
 from __future__ import annotations
 
-from weave_backend.build.epics import EpicRef, build_epic_rollup
+from weave_backend.briefs.store import EpicRef
+from weave_backend.build.epics import build_epic_rollup
 from weave_backend.build.state_spine import StateSpine, TaskState
 
 

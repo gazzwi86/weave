@@ -82,6 +82,28 @@ def test_task_brief_rejects_ac_id_absent_from_ac_to_test_map() -> None:
         TaskBrief.model_validate(kwargs)
 
 
+def test_epic_id_and_title_are_optional_and_default_to_none() -> None:
+    """G9 (docs/design/remediation-2-api-gaps.md): additive, optional
+    fields -- same no-migration precedent as `adr_refs` (`content` is
+    JSONB) -- so a brief with no epic association still parses.
+    """
+    brief = TaskBrief.model_validate(_valid_brief_kwargs())
+
+    assert brief.epic_id is None
+    assert brief.epic_title is None
+
+
+def test_epic_id_and_title_round_trip_when_provided() -> None:
+    kwargs = _valid_brief_kwargs()
+    kwargs["epic_id"] = "EPIC-004"
+    kwargs["epic_title"] = "Build dashboard"
+
+    brief = TaskBrief.model_validate(kwargs)
+
+    assert brief.epic_id == "EPIC-004"
+    assert brief.epic_title == "Build dashboard"
+
+
 def test_dep_chain_and_cost_estimate_are_typed_submodels() -> None:
     brief = TaskBrief.model_validate(_valid_brief_kwargs())
 
