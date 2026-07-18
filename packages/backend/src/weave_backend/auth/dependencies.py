@@ -20,9 +20,11 @@ from pydantic import BaseModel, Field, ValidationError
 
 from weave_backend.auth.oidc_client import get_oidc_client
 from weave_backend.auth.verify import TokenTtlExceeded, TokenVerificationError, verify_access_token
+from weave_backend.db.pool import untenanted_connection
 from weave_backend.observability.context import principal_iri_var, tenant_id_var
 from weave_backend.observability.tracing import add_tenant_attributes
 from weave_backend.tenancy.sessions import get_session_version
+from weave_backend.tenancy.tenants import TenantRecord, get_tenant
 
 
 class RoleGrant(BaseModel):
@@ -30,9 +32,14 @@ class RoleGrant(BaseModel):
     tenant-wide grant (`scope="tenant"`) or a domain/project-scoped grant.
     `role` is an open string (e.g. "admin"/"owner"/"editor"); this shape does
     not enumerate the vocabulary, only validates the claim's structure.
+
+    `scope="platform"` (G15/ADR-023) is a distinct, higher tier: a platform
+    operator (`role="super_admin"`), not a member of any one tenant --
+    checked by `rbac.has_platform_grant`/`require_super_admin`, never by
+    the tenant/domain-scope `has_admin_grant` overlay.
     """
 
-    scope: Literal["tenant", "domain", "project"]
+    scope: Literal["tenant", "domain", "project", "platform"]
     role: str
     domain_iri: str | None = None
     project_iri: str | None = None
@@ -101,6 +108,31 @@ def _bearer_token(request: Request) -> str:
     return auth_header.removeprefix("Bearer ")
 
 
+def _tenant_status_blocks_auth(tenant: TenantRecord | None) -> bool:
+    """G15/ADR-023 point 3, pure decision: only a *registered, suspended*
+    tenant blocks. `tenant is None` (no `tenants` row -- every tenant
+    provisioned before G15) always passes, same as an `active` tenant --
+    fail-closed here would turn "no operator record" into "nobody can
+    log in", which ADR-023 explicitly rejects.
+    """
+    return tenant is not None and tenant.status == "suspended"
+
+
+async def _is_tenant_suspended(tenant_id: str) -> bool:
+    """DB-backed wrapper around `_tenant_status_blocks_auth`. Fails OPEN on
+    any DB error (bad pool, connection refused, etc) -- matching
+    `get_session_version`'s degrade-silently posture (ADR-023): Postgres
+    must never become a second hard dependency for "am I allowed to
+    authenticate at all".
+    """
+    try:
+        async with untenanted_connection() as conn:
+            tenant = await get_tenant(conn, tenant_id=tenant_id)
+    except Exception:
+        return False
+    return _tenant_status_blocks_auth(tenant)
+
+
 async def get_current_principal(
     request: Request,
     client: Annotated[AsyncClient, Depends(get_oidc_client)],
@@ -139,4 +171,7 @@ async def get_current_principal(
     current_session_version = await get_session_version(principal.tenant_id, principal.sub)
     if current_session_version != principal.session_version:
         raise HTTPException(status_code=401, detail={"error": "session_revoked"})
+
+    if await _is_tenant_suspended(principal.tenant_id):
+        raise HTTPException(status_code=403, detail={"error": "tenant_suspended"})
     return principal

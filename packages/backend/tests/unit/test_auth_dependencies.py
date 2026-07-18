@@ -6,10 +6,18 @@ Redis), which is a truer test than mocking every collaborator here.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 from fastapi import Request
 
-from weave_backend.auth.dependencies import UnauthorisedError, _bearer_token, _parse_roles_claim
+from weave_backend.auth.dependencies import (
+    UnauthorisedError,
+    _bearer_token,
+    _parse_roles_claim,
+    _tenant_status_blocks_auth,
+)
+from weave_backend.tenancy.tenants import TenantRecord
 
 
 def _request_with_header(value: str | None) -> Request:
@@ -58,3 +66,29 @@ def test_parse_roles_claim_degrades_to_empty_for_a_malformed_entry() -> None:
     raw = [{"scope": "not-a-real-scope", "role": "admin"}]
 
     assert _parse_roles_claim(raw) == []
+
+
+def _tenant(*, status: str) -> TenantRecord:
+    return TenantRecord(
+        tenant_id="acme",
+        name="Acme",
+        industry="retail",
+        region="us",
+        status=status,
+        created_at=datetime(2026, 1, 1),
+    )
+
+
+def test_tenant_status_blocks_auth_true_for_a_suspended_tenant() -> None:
+    assert _tenant_status_blocks_auth(_tenant(status="suspended")) is True
+
+
+def test_tenant_status_blocks_auth_false_for_an_active_tenant() -> None:
+    assert _tenant_status_blocks_auth(_tenant(status="active")) is False
+
+
+def test_tenant_status_blocks_auth_false_for_an_unregistered_tenant() -> None:
+    """G15/ADR-023: no `tenants` row (every pre-G15 tenant) must fail OPEN,
+    never lock out an authenticated caller.
+    """
+    assert _tenant_status_blocks_auth(None) is False
