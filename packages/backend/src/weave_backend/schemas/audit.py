@@ -74,3 +74,27 @@ class AuditQueryParams(BaseModel):
     date_from: str | None = None
     date_to: str | None = None
     q: str | None = None
+
+
+class AuditCountsQueryParams(BaseModel):
+    """G6: validates `GET /api/audit/counts` -- same filter dimensions as
+    `AuditQueryParams` minus pagination (a grouped-count response has no
+    page/per_page)."""
+
+    tenant_id: str = Field(min_length=1)
+    engine: str | None = None
+    event_type: str | None = None
+    actor_principal_iri: str | None = None
+    target_iri: str | None = None
+    date_from: str | None = None
+    date_to: str | None = None
+    q: str | None = None
+
+
+class EventTypeCountResponse(BaseModel):
+    event_type: str
+    count: int
+
+
+class EventTypeCountsResponse(BaseModel):
+    counts: list[EventTypeCountResponse]

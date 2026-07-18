@@ -8,9 +8,15 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+from unittest.mock import AsyncMock
 
 from weave_backend.audit import listing
-from weave_backend.audit.listing import AuditFilters, _event_type_clause_values, list_entries
+from weave_backend.audit.listing import (
+    AuditFilters,
+    _event_type_clause_values,
+    count_by_event_type,
+    list_entries,
+)
 
 _TENANT = "tenant-abc"
 
@@ -305,3 +311,39 @@ def test_list_and_count_query_escape_clause_preserves_backslash() -> None:
     # literal `%`/`_` in `q`/`event_type` filters could wildcard-inject.
     assert "ESCAPE '\\'" in listing._LIST_QUERY
     assert "ESCAPE '\\'" in listing._COUNT_QUERY
+
+
+# G6: `count_by_event_type` -- grouped counts powering dashboard cards D/E/F/I.
+
+
+async def test_count_by_event_type_groups_by_full_event_type() -> None:
+    conn = AsyncMock()
+    conn.fetch.return_value = [
+        {"event_type": "billing.cap.changed", "c": 3},
+        {"event_type": "billing.budget.breach", "c": 1},
+    ]
+
+    counts = await count_by_event_type(conn, tenant_id=_TENANT)
+
+    assert {(c.event_type, c.count) for c in counts} == {
+        ("billing.cap.changed", 3),
+        ("billing.budget.breach", 1),
+    }
+
+
+async def test_count_by_event_type_composes_existing_filters_incl_prefix() -> None:
+    conn = AsyncMock()
+    conn.fetch.return_value = []
+
+    await count_by_event_type(
+        conn,
+        tenant_id=_TENANT,
+        filters=AuditFilters(engine="platform", event_type="billing.*"),
+    )
+
+    query, *args = conn.fetch.await_args.args
+    assert "GROUP BY event_type" in query
+    assert args[0] == _TENANT
+    assert args[1] == "platform"
+    assert args[2] is None  # exact event_type -- prefix mode used instead
+    assert args[8] == "billing.%"  # escaped prefix pattern

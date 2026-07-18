@@ -98,6 +98,27 @@ _COUNT_QUERY = r"""
       AND ($9::text IS NULL OR event_type LIKE $9 ESCAPE '\')
     """
 
+# G6: same filter dimensions as `_LIST_QUERY`/`_COUNT_QUERY`, grouped by the
+# full event_type instead of listed -- powers dashboard cards D/E/F/I.
+_COUNTS_QUERY = r"""
+    SELECT event_type, COUNT(*) AS c
+    FROM audit_entries
+    WHERE tenant_id = $1
+      AND ($2::text IS NULL OR engine = $2)
+      AND ($3::text IS NULL OR event_type = $3)
+      AND ($4::text IS NULL OR actor_principal_iri = $4)
+      AND ($5::text IS NULL OR target_iri = $5)
+      AND ($6::timestamptz IS NULL OR ts::timestamptz >= $6)
+      AND ($7::timestamptz IS NULL OR ts::timestamptz <= $7)
+      AND (
+        $8::text IS NULL
+        OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
+        OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
+      )
+      AND ($9::text IS NULL OR event_type LIKE $9 ESCAPE '\')
+    GROUP BY event_type
+    """
+
 
 def _escape_like(value: str) -> str:
     """Escapes LIKE/ILIKE wildcards in a user-supplied value so typing a
@@ -162,3 +183,23 @@ async def list_entries(
     total_row = await conn.fetchrow(_COUNT_QUERY, *args)
     total = int(total_row["c"]) if total_row is not None else 0
     return AuditEntryPage(entries=[_row_to_record(row) for row in rows], total=total)
+
+
+@dataclass(frozen=True)
+class EventTypeCount:
+    event_type: str
+    count: int
+
+
+async def count_by_event_type(
+    conn: asyncpg.Connection, *, tenant_id: str, filters: AuditFilters | None = None
+) -> list[EventTypeCount]:
+    """G6: per-`event_type` counts honouring the same `PLAT-AUDIT-1` filters
+    as `list_entries` (incl. G4's prefix semantics), grouped by the full
+    event_type rather than the first-segment category `compliance.py`
+    already aggregates -- e.g. `billing.cap.changed` vs
+    `billing.budget.breach` stay distinct.
+    """
+    args = _filter_args(tenant_id, filters or AuditFilters())
+    rows = await conn.fetch(_COUNTS_QUERY, *args)
+    return [EventTypeCount(event_type=row["event_type"], count=int(row["c"])) for row in rows]
