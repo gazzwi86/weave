@@ -12,6 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from weave_backend.audit.brand_conformance import get_brand_conformance
 from weave_backend.audit.compliance import get_compliance_summary
 from weave_backend.audit.listing import AuditFilters, list_entries
 from weave_backend.audit.verify import verify_chain
@@ -23,6 +24,7 @@ from weave_backend.schemas.audit import (
     AuditEntriesResponse,
     AuditEntryResponse,
     AuditQueryParams,
+    BrandConformanceResponse,
     ComplianceResponse,
     VerifyChainResponse,
 )
@@ -98,3 +100,19 @@ async def compliance_view_route(
         shacl_validated=summary.shacl_validated,
         shacl_rejections=summary.shacl_rejections,
     )
+
+
+@router.get("/brand-conformance", response_model=BrandConformanceResponse)
+async def brand_conformance_view_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+    window_days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> BrandConformanceResponse:
+    """G14: pass-rate KPI over `gate_result_brand` audit events. Open to any
+    authenticated tenant member -- like `/compliance`, this never echoes
+    `diff_summary`, so there is nothing for a non-admin to leak.
+    """
+    async with tenant_connection(principal.tenant_id) as conn:
+        summary = await get_brand_conformance(
+            conn, principal.tenant_id, window_days=window_days
+        )
+    return BrandConformanceResponse(**summary.__dict__)

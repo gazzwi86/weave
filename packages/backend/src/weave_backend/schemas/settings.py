@@ -23,3 +23,22 @@ class SetSettingResponse(BaseModel):
     key: str
     scope_iri: str
     value: Any
+
+
+class ModelTierInfo(BaseModel):
+    """G13: one PDAC tier's current selection + the full validated allow-list."""
+
+    selected: str
+    allowed: list[str]
+
+
+class ModelsSettingsResponse(BaseModel):
+    #: keyed by the real internal tier name (`fable`/`sonnet` --
+    #: `ai/config.py::MODEL_ROUTING_TABLE`), not a fixed literal set, so a
+    #: future tier rename/addition needs no schema change here.
+    tiers: dict[str, ModelTierInfo]
+
+
+class SetModelSettingsRequest(BaseModel):
+    tier: str = Field(min_length=1)
+    model: str = Field(min_length=1)
