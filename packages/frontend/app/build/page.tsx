@@ -11,6 +11,7 @@ export default function BuildRegistryPage(): React.JSX.Element {
   return (
     <main className="flex min-h-screen flex-col gap-[var(--space-6)] p-[var(--space-6)]">
       <PageHeaderSlot
+        eyebrow="Build"
         title="Projects"
         subtitle="Everything Weave is building or running for you — grounded in the Constitution."
         actions={<NewProjectAction />}
