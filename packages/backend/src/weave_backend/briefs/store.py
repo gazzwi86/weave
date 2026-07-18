@@ -149,3 +149,62 @@ async def estimates(
         parsed = json.loads(content) if isinstance(content, str) else content
         result.append(_to_brief_estimate(row["task_id"], parsed))
     return result
+
+
+@dataclass(frozen=True)
+class EpicRef:
+    """G9 (docs/design/remediation-2-api-gaps.md): a brief's optional epic
+    association -- `build.epics.build_epic_rollup`'s join key.
+    """
+
+    epic_id: str | None = None
+    epic_title: str | None = None
+
+
+async def epic_refs(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
+) -> dict[str, EpicRef]:
+    """Every brief's `epic_id`/`epic_title` for a project, `task_id`-keyed
+    -- same query shape as `estimates`, different projection.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        "SELECT task_id, content FROM task_briefs WHERE tenant_id = $1 AND project_iri = $2",
+        tenant_id,
+        project_iri,
+    )
+    result: dict[str, EpicRef] = {}
+    for row in rows:
+        content = row["content"]
+        parsed = json.loads(content) if isinstance(content, str) else content
+        result[row["task_id"]] = EpicRef(
+            epic_id=parsed.get("epic_id"), epic_title=parsed.get("epic_title")
+        )
+    return result
+
+
+@dataclass(frozen=True)
+class BriefRef:
+    """G11 (docs/design/remediation-2-api-gaps.md): a project's brief
+    identity pair -- `build.spec_artifacts.build_spec_artifact_index`'s
+    only real (API-served) row source.
+    """
+
+    task_id: str
+    brief_iri: str
+
+
+async def list_project_briefs(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
+) -> list[BriefRef]:
+    """Every brief's `task_id`/`brief_iri` for a project -- same query
+    shape as `estimates`/`epic_refs`, projecting identity columns instead
+    of `content`.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        "SELECT task_id, brief_iri FROM task_briefs WHERE tenant_id = $1 AND project_iri = $2",
+        tenant_id,
+        project_iri,
+    )
+    return [BriefRef(task_id=row["task_id"], brief_iri=row["brief_iri"]) for row in rows]

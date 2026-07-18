@@ -80,9 +80,7 @@ async def test_create_brief_route_emits_audit_event_on_model_routing_miss() -> N
             "weave_backend.routers.briefs.draft_brief_document",
             side_effect=ModelRoutingMiss("fable"),
         ),
-        patch(
-            "weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()
-        ) as mock_emit,
+        patch("weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()) as mock_emit,
         pytest.raises(HTTPException) as exc_info,
     ):
         await create_brief_route(_PROJECT_IRI, body, _PRINCIPAL, httpx.AsyncClient())
@@ -198,9 +196,7 @@ async def test_create_brief_route_returns_201_and_emits_audit_event() -> None:
             "weave_backend.routers.briefs.insert_task_brief",
             AsyncMock(return_value=created_at),
         ),
-        patch(
-            "weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()
-        ) as mock_emit,
+        patch("weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()) as mock_emit,
     ):
         result = await create_brief_route(_PROJECT_IRI, body, _PRINCIPAL, httpx.AsyncClient())
 
@@ -210,3 +206,55 @@ async def test_create_brief_route_returns_201_and_emits_audit_event() -> None:
     assert mock_emit.await_args is not None
     emitted_event = mock_emit.await_args.args[1]
     assert emitted_event.event_type == "brief_generated"
+
+
+async def test_create_brief_route_threads_epic_id_and_title_into_persisted_content() -> None:
+    """G9 (docs/design/remediation-2-api-gaps.md): the architect draft
+    (`draft_brief_document`) never knows about epics -- the caller supplies
+    `epic_id`/`epic_title` on the request, and the router stamps them onto
+    the brief before persisting, same as `task_id`/`project_iri`.
+    """
+    body = CreateBriefRequest(
+        task_description="Do the thing", epic_id="EPIC-004", epic_title="Build dashboard"
+    )
+    valid_raw_brief = {
+        "schema_version": "1.0",
+        "task_id": "will-be-overwritten",
+        "project_iri": _PROJECT_IRI,
+        "title": "Do the thing",
+        "user_story": "As a user I want the thing so that value",
+        "acceptance_criteria": [
+            {"id": "AC-1", "criterion": "WHEN X THE SYSTEM SHALL Y", "test_mapping": "test_x"}
+        ],
+        "ac_to_test_map": [{"ac_id": "AC-1", "test_name": "test_x"}],
+        "dor_checklist": ["User story clear"],
+        "dod_checklist": ["All AC met"],
+        "dep_chain": {"blocked_by": [], "unlocks": []},
+        "cost_estimate": {
+            "complexity": "S",
+            "estimated_tokens_input_k": 1,
+            "estimated_tokens_output_k": 1,
+            "estimated_cost_usd": 0.1,
+        },
+        "generated_at": "2026-07-04T00:00:00Z",
+    }
+
+    with (
+        patch("weave_backend.routers.briefs.tenant_connection", _fake_tenant_connection),
+        patch("weave_backend.routers.briefs.get_bpmo_context", AsyncMock(return_value={})),
+        patch(
+            "weave_backend.routers.briefs.draft_brief_document",
+            return_value=valid_raw_brief,
+        ),
+        patch(
+            "weave_backend.routers.briefs.insert_task_brief",
+            AsyncMock(return_value=datetime.now(UTC)),
+        ) as mock_insert,
+        patch("weave_backend.routers.briefs.default_audit_emitter.emit", AsyncMock()),
+    ):
+        await create_brief_route(_PROJECT_IRI, body, _PRINCIPAL, httpx.AsyncClient())
+
+    assert mock_insert.await_args is not None
+    stored_content = mock_insert.await_args.args[1].content
+    assert stored_content["epic_id"] == "EPIC-004"
+    assert stored_content["epic_title"] == "Build dashboard"

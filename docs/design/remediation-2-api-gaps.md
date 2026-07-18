@@ -60,42 +60,42 @@ breaches.
 
 ## Gaps (checkbox = closed when fixed + verified)
 
-- [ ] **G1 M · Rules list detail** — `GET /api/validate` `RuleCoverage` lacks `sh:targetClass` +
+- [x] **G1 M · Rules list detail** — `GET /api/validate` `RuleCoverage` lacks `sh:targetClass` +
   constraint summary; SPARQL over the tenant shapes graph unproven. → extend RuleCoverage (or add a
   shapes-catalogue endpoint).
-- [ ] **G2 M · Shape EDIT is unsafe** — `commit_tenant_shape` is append-only; re-committing the same
+- [x] **G2 M · Shape EDIT is unsafe** — `commit_tenant_shape` is append-only; re-committing the same
   shape IRI stacks duplicate/conflicting constraint triples. → replace-by-subject semantics before
   any edit UI ships. *(bug-class, not just gap)*
-- [ ] **G3 M · Shape DELETE/retire missing** — no retract path anywhere. → add retire endpoint
+- [x] **G3 M · Shape DELETE/retire missing** — no retract path anywhere. → add retire endpoint
   (retraction from shapes graph + audit event).
-- [ ] **G4 S · `event_type` prefix filter not implemented** — contract promises `event_type=ce.*`;
+- [x] **G4 S · `event_type` prefix filter not implemented** — contract promises `event_type=ce.*`;
   `audit/listing.py:63` does exact match only. → implement prefix match. *(contract violation)*
-- [ ] **G5 L · Audit card A (model edits by kind)** — `operations.applied` payload carries no entity
+- [x] **G5 L · Audit card A (model edits by kind)** — `operations.applied` payload carries no entity
   kind and no per-op breakdown; unbuildable even client-side. → emit per-kind counts in the
   operations pipeline's audit payload.
-- [ ] **G6 M · Audit card F (budget sub-events)** — compliance aggregates first-segment categories
+- [x] **G6 M · Audit card F (budget sub-events)** — compliance aggregates first-segment categories
   only; `cap.changed` vs `budget.breach` indistinguishable server-side. → sub-event aggregation
   (generalises to D/E/I too; one `group by event_type` with prefix filter closes G4/G6/G8 family).
-- [ ] **G7 M · Audit card G (top targets)** — compliance groups by actor only. → add top-target
+- [x] **G7 M · Audit card G (top targets)** — compliance groups by actor only. → add top-target
   aggregation.
-- [ ] **G8 S · Audit card I (audit_outage)** — emitted but not aggregated. → include in compliance
+- [x] **G8 S · Audit card I (audit_outage)** — emitted but not aggregated. → include in compliance
   response.
-- [ ] **G9 M · Epic grouping/counts** — board + state spine are task-level only; no epic entity in
+- [x] **G9 M · Epic grouping/counts** — board + state spine are task-level only; no epic entity in
   the API. → expose epic rollups (count, per-epic task status).
-- [ ] **G10 L · Roadmap/gantt data** — no epic date-ranges/ordering endpoint. → smallest viable:
+- [x] **G10 L · Roadmap/gantt data** — no epic date-ranges/ordering endpoint. → smallest viable:
   epic list with status + ordinal + started/completed timestamps (gantt draws from that).
-- [ ] **G11 M · Spec artifact links** — only per-task briefs retrievable; no PRD/roadmap/tech-spec
+- [x] **G11 M · Spec artifact links** — only per-task briefs retrievable; no PRD/roadmap/tech-spec
   retrieval or link metadata. → spec-artifact index endpoint (id, type, status, approved_at, link).
-- [ ] **G12 M · Pending-gates list** — no endpoint listing tasks awaiting a HITL gate; UI must know
+- [x] **G12 M · Pending-gates list** — no endpoint listing tasks awaiting a HITL gate; UI must know
   task_id and stitch 4 evidence routes. → `GET /api/projects/{iri}/gates?status=pending` returning
   gate + evidence bundle refs.
 
-- [ ] **G13 S · Allowed-models endpoint** — Settings > Models & AI picker needs the validated
+- [x] **G13 S · Allowed-models endpoint** — Settings > Models & AI picker needs the validated
   model allow-list + current tier routing; backend holds `ALLOWED_MODELS` + routing config
   internally but exposes no read/write endpoint for it. → `GET/PUT /api/settings/models`
   (admin-gated, values validated against the allow-list).
 
-- [ ] **G14 S · Brand-conformance rollup** — the "brand conformance, last 30 days" KPI. Source is
+- [x] **G14 S · Brand-conformance rollup** — the "brand conformance, last 30 days" KPI. Source is
   NOT OTel: every generated artefact already passes a brand gate that emits `gate_result_brand`
   audit events (backend emits these today). Conformance = pass rate over those events in the
   window; critical-rule failures tracked separately. → aggregation endpoint (or fold into the G6

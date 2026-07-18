@@ -373,3 +373,45 @@ async def test_compliance_view_rejects_invalid_period(client: AsyncClient) -> No
         "/api/audit/compliance", params={"period": "not-a-period"}, headers=headers
     )
     assert response.status_code == 422
+
+
+async def test_brand_conformance_view_returns_pass_rate_over_window(
+    client: AsyncClient,
+) -> None:
+    """G14 (docs/design/remediation-2-api-gaps.md): `GET
+    /api/audit/brand-conformance` rolls up `gate_result_brand` audit events
+    (emitted by `generation/service.py::_default_record_brand_gate`) into a
+    pass-rate KPI, scoped to the caller's own tenant.
+    """
+    tenant_id = _unique_tenant("tenant-brand-conformance")
+    _, headers = await _create_workspace_via_route(
+        client, tenant_id=tenant_id, admin_sub="u-admin-brand", slug="ws-brand"
+    )
+    async with tenant_connection(tenant_id) as conn:
+        for status, extra in [
+            ("passed", {}),
+            ("passed", {}),
+            ("failed", {"critical_failures": ["r1"]}),
+        ]:
+            await default_audit_emitter.emit(
+                conn,
+                AuditEvent(
+                    tenant_id=tenant_id,
+                    event_type="gate_result_brand",
+                    actor_iri=human_principal_iri("u-admin-brand"),
+                    subject_iri="urn:weave:project:tenant-brand-conformance:proj-1",
+                    payload={"task_id": "t1", "status": status, **extra},
+                    engine="build",
+                ),
+            )
+
+    response = await client.get(
+        "/api/audit/brand-conformance", params={"window_days": 30}, headers=headers
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["window_days"] == 30
+    assert body["passed"] == 2
+    assert body["failed"] == 1
+    assert body["critical_failures"] == 1
+    assert body["conformance_pct"] == pytest.approx(200 / 3)

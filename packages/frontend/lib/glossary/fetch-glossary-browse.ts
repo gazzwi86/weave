@@ -6,19 +6,21 @@ interface RawGlossaryBrowseRow {
   prefLabel: string;
   definition?: string;
   owlRole: string;
-  broader: string;
-  narrower: string;
+  broader?: string;
+  narrower?: string;
 }
 
 interface GlossaryBrowseResponseBody {
   rows: RawGlossaryBrowseRow[];
 }
 
-/** `GROUP_CONCAT(...; separator="|")` yields `""` (never absent) when no
- * relationship exists -- splitting an empty string would produce `[""]`,
- * one phantom chip, so the empty case is guarded explicitly. */
-function splitChipIris(value: string): string[] {
-  return value === "" ? [] : value.split("|");
+/** `GROUP_CONCAT(...; separator="|")` yields `""` when no relationship
+ * exists, but the SPARQL proxy omits an unbound GROUP_CONCAT column
+ * entirely (no key at all), so `value` can also be `undefined`. Splitting
+ * an empty string would produce `[""]`, one phantom chip -- both the
+ * empty and absent cases are guarded explicitly. */
+function splitChipIris(value: string | undefined): string[] {
+  return value ? value.split("|") : [];
 }
 
 function toBrowseRow(row: RawGlossaryBrowseRow): GlossaryBrowseRow {

@@ -20,6 +20,7 @@ from typing import Any
 import asyncpg
 import httpx
 
+from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.build.costs import BUDGET_CAP_KEY
 from weave_backend.projects.ce_version_client import get_pinned_latest_version
 from weave_backend.projects.model import NewProject, Project, build_project_iri, create_project
@@ -143,6 +144,7 @@ async def create_project_shell(
     *,
     ce_client: httpx.AsyncClient,
     fields: NewProjectShell,
+    actor_iri: str,
     headers: dict[str, str] | None = None,
 ) -> tuple[Project, GovernanceSnapshot]:
     """ADR-009 Decision #1: THE shared create path. Both callers (direct
@@ -152,6 +154,10 @@ async def create_project_shell(
     the insert. Raises `CeVersionUnavailable` / `ProjectExists` same as the
     functions it wraps -- callers keep their own pre-check and error
     handling unchanged.
+
+    Emits a `project.created` audit event on success, mirroring
+    `routers/tenancy.py`'s `workspace.created` emit -- both callers route
+    through here so the event can't be missed on either path.
     """
     pinned_version = await get_pinned_latest_version(ce_client, headers=headers)
     project_iri = build_project_iri(fields.tenant_id, fields.slug)
@@ -169,6 +175,17 @@ async def create_project_shell(
             source_control_provider=fields.source_control_provider,
             source_control_token_secret_ref=fields.source_control_token_secret_ref,
             repo_name_hint=fields.repo_name_hint,
+        ),
+    )
+    await default_audit_emitter.emit(
+        conn,
+        AuditEvent(
+            tenant_id=fields.tenant_id,
+            event_type="project.created",
+            actor_iri=actor_iri,
+            subject_iri=project.project_iri,
+            payload={"slug": fields.slug},
+            engine="build",
         ),
     )
     return project, governance

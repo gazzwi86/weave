@@ -51,6 +51,17 @@ describe("fetchGlossaryBrowse", () => {
     });
   });
 
+  it("treats an absent GROUP_CONCAT column (unbound, omitted by the proxy) as no relationships", async () => {
+    stubBrowseFetch([{ iri: "urn:term:y", prefLabel: "Y", owlRole: "false" }]);
+    const result = await fetchGlossaryBrowse(1, 5000);
+    expect(result).toEqual({
+      type: "ok",
+      rows: [
+        { iri: "urn:term:y", prefLabel: "Y", definition: null, isOwlClass: false, broaderIris: [], narrowerIris: [] },
+      ],
+    });
+  });
+
   it("requests the offset for the given page", async () => {
     const fetchMock = stubBrowseFetch([]);
 
