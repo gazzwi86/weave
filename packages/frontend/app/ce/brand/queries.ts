@@ -22,15 +22,21 @@ function offsetFor(page: number): number {
  * fixed queries never select it since their callers only need the
  * flattened token/rule shape).
  */
+// Bodies run inside GRAPH ?g { ... } -- the backend's validate_query
+// (packages/backend rdf/query_rewriter.py) rejects any SELECT/CONSTRUCT
+// whose WHERE clause has no GRAPH pattern with unscoped_query_rejected
+// (400), mirroring the glossary browse query's scoping.
 export function standardsQuery(page: number): string {
   return `${_PREFIX}
 SELECT ?s ?contentType ?contentBody ?sourceUri ?effectiveDate ?owner WHERE {
-  ?s a weave:BrandStandard ;
-     weave:contentType ?contentType ;
-     weave:effectiveDate ?effectiveDate ;
-     weave:owner ?owner .
-  OPTIONAL { ?s weave:contentBody ?contentBody }
-  OPTIONAL { ?s weave:sourceUri ?sourceUri }
+  GRAPH ?g {
+    ?s a weave:BrandStandard ;
+       weave:contentType ?contentType ;
+       weave:effectiveDate ?effectiveDate ;
+       weave:owner ?owner .
+    OPTIONAL { ?s weave:contentBody ?contentBody }
+    OPTIONAL { ?s weave:sourceUri ?sourceUri }
+  }
 }
 ORDER BY ?s
 LIMIT ${PAGE_SIZE + 1} OFFSET ${offsetFor(page)}
@@ -40,10 +46,12 @@ LIMIT ${PAGE_SIZE + 1} OFFSET ${offsetFor(page)}
 export function voiceRulesQuery(page: number): string {
   return `${_PREFIX}
 SELECT ?s ?ruleId ?severity ?assertion WHERE {
-  ?s a weave:VoiceRule ;
-     weave:ruleId ?ruleId ;
-     weave:severity ?severity ;
-     weave:assertion ?assertion .
+  GRAPH ?g {
+    ?s a weave:VoiceRule ;
+       weave:ruleId ?ruleId ;
+       weave:severity ?severity ;
+       weave:assertion ?assertion .
+  }
 }
 ORDER BY ?s
 LIMIT ${PAGE_SIZE + 1} OFFSET ${offsetFor(page)}

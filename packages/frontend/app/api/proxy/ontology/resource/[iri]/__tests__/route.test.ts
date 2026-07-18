@@ -37,12 +37,25 @@ function mockAuthedSession(accessToken: string | null): void {
   vi.mocked(auth).mockResolvedValue((accessToken ? { accessToken } : null) as never);
 }
 
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+const LABEL_PREDICATE = "https://weave.example/ontology/weave#label";
+const COMMENT_PREDICATE = "http://www.w3.org/2000/01/rdf-schema#comment";
+
+// CE-READ-1's real `GET /api/ontology/resource/{iri}` shape (schemas/ontology.py's
+// ResourceResponse) -- iri/kind/label/version_iri/triples/outgoing/incoming,
+// NOT the pre-shaped panel body the route used to (wrongly) assume.
 const CE_RESPONSE_BODY = {
   iri: IRI,
+  kind: "Process",
   label: "Customer Onboarding@en",
-  type_label: "Process@en",
-  bpmo_kind: "Process",
-  key_properties: [{ path: "rdfs:comment", label: "Description", value: "Onboards a new customer@en" }],
+  version_iri: "https://weave.example/versions/v1",
+  triples: [
+    { subject: IRI, predicate: RDF_TYPE, object: "https://weave.example/ontology/bpmo#Process" },
+    { subject: IRI, predicate: LABEL_PREDICATE, object: "Customer Onboarding@en" },
+    { subject: IRI, predicate: COMMENT_PREDICATE, object: "Onboards a new customer@en" },
+  ],
+  outgoing: [],
+  incoming: [],
 };
 
 describe("GET /api/proxy/ontology/resource/[iri] -- auth and validation", () => {
@@ -100,6 +113,52 @@ describe("GET /api/proxy/ontology/resource/[iri] -- forwarding and role-gated ra
     expect(body.key_properties[0].value).toBe("Onboards a new customer");
   });
 
+  // Bug fix regression: CE-READ-1's resource.py appends every self triple to
+  // `triples` unconditionally, including rdf:type and the label triple --
+  // without excluding them, key_properties would carry them, and
+  // use-panel-edit.ts's save path would rewrite the node's type/label as a
+  // plain string literal on the next edit.
+  it("maps kind/triples/outgoing/incoming to type_label/bpmo_kind/key_properties, excluding rdf:type, the label triple, and edge-duplicate triples", async () => {
+    mockAuthedSession(fakeJwt({ sub: "u1" }));
+    const RELATED_IRI = "https://weave.example/entity/invoice-1";
+    const RELATES_TO = "https://weave.example/ontology/bpmo#relatesTo";
+    stubFetch(
+      new Response(
+        JSON.stringify({
+          iri: IRI,
+          kind: "Process",
+          label: "Customer Onboarding",
+          version_iri: "https://weave.example/versions/v1",
+          triples: [
+            { subject: IRI, predicate: RDF_TYPE, object: "https://weave.example/ontology/bpmo#Process" },
+            { subject: IRI, predicate: LABEL_PREDICATE, object: "Customer Onboarding" },
+            { subject: IRI, predicate: RELATES_TO, object: RELATED_IRI },
+            { subject: IRI, predicate: COMMENT_PREDICATE, object: "Onboards a new customer" },
+          ],
+          outgoing: [{ predicate: RELATES_TO, target: RELATED_IRI }],
+          incoming: [],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+
+    const response = await GET(makeRequest(IRI), paramsFor(IRI));
+    const body = await response.json();
+
+    expect(body.type_label).toBe("Process");
+    expect(body.bpmo_kind).toBe("Process");
+    expect(body.key_properties).toEqual([{ path: COMMENT_PREDICATE, label: "comment", value: "Onboards a new customer" }]);
+  });
+});
+
+describe("GET /api/proxy/ontology/resource/[iri] -- role-gated raw IRI and neighbours", () => {
+  beforeEach(() => {
+    vi.mocked(auth).mockReset();
+    stubFetch(
+      new Response(JSON.stringify(CE_RESPONSE_BODY), { status: 200, headers: { "content-type": "application/json" } })
+    );
+  });
+
   it("omits raw_iri (null) for a viewer/no-role JWT (AC-2)", async () => {
     mockAuthedSession(fakeJwt({ sub: "u1" }));
 
@@ -118,9 +177,9 @@ describe("GET /api/proxy/ontology/resource/[iri] -- forwarding and role-gated ra
     expect(body.raw_iri).toBe(IRI);
   });
 
-  // TASK-005 AC-3: defaults to [] when upstream omits neighbours -- callers
-  // (fetch-node-props.ts) always get an array, never undefined.
-  it("defaults neighbours to [] when the upstream response omits it", async () => {
+  // TASK-005 AC-3: [] when upstream's outgoing/incoming are both empty --
+  // callers (fetch-node-props.ts) always get an array, never undefined.
+  it("returns [] neighbours when the upstream outgoing/incoming edges are both empty", async () => {
     mockAuthedSession(fakeJwt({ sub: "u1" }));
 
     const response = await GET(makeRequest(IRI), paramsFor(IRI));
@@ -129,23 +188,29 @@ describe("GET /api/proxy/ontology/resource/[iri] -- forwarding and role-gated ra
     expect(body.neighbours).toEqual([]);
   });
 
-  // TASK-005 AC-3: neighbours pass through with the same @lang stripping
-  // applied to every other label -- this is the same fetch fetch-node-props.ts
-  // already issues for the side panel, reused for expansion (no second
-  // CE-READ-1 round trip, see renderer-adapter.ts's expandNode).
-  it("passes through neighbours with @lang stripped from each label (AC-3)", async () => {
+  // TASK-005 AC-3: outgoing/incoming edges map to neighbours with direction,
+  // @lang stripped from the fallback (local-name) label -- this is the same
+  // fetch fetch-node-props.ts already issues for the side panel, reused for
+  // expansion (no second CE-READ-1 round trip, see renderer-adapter.ts's
+  // expandNode). CE-READ-1's edges carry no neighbour label/kind (a genuine
+  // data gap -- see route.ts's toNeighbours comment), so the mapper falls
+  // back to the target/source IRI's local name and an empty kind.
+  it("maps outgoing/incoming edges to neighbours with direction (AC-3)", async () => {
     mockAuthedSession(fakeJwt({ sub: "u1" }));
     stubFetch(
       new Response(
         JSON.stringify({
           ...CE_RESPONSE_BODY,
-          neighbours: [
+          outgoing: [
             {
-              iri: "https://weave.example/entity/invoice-1",
-              label: "Invoice 1@en",
-              bpmo_kind: "DataAsset",
-              edge_predicate: "https://weave.example/ontology/bpmo#relatesTo",
-              edge_direction: "outgoing",
+              predicate: "https://weave.example/ontology/bpmo#relatesTo",
+              target: "https://weave.example/entity/invoice-1",
+            },
+          ],
+          incoming: [
+            {
+              predicate: "https://weave.example/ontology/bpmo#ownedBy",
+              source: "https://weave.example/entity/finance-team",
             },
           ],
         }),
@@ -159,10 +224,17 @@ describe("GET /api/proxy/ontology/resource/[iri] -- forwarding and role-gated ra
     expect(body.neighbours).toEqual([
       {
         iri: "https://weave.example/entity/invoice-1",
-        label: "Invoice 1",
-        bpmo_kind: "DataAsset",
+        label: "invoice-1",
+        bpmo_kind: "",
         edge_predicate: "https://weave.example/ontology/bpmo#relatesTo",
         edge_direction: "outgoing",
+      },
+      {
+        iri: "https://weave.example/entity/finance-team",
+        label: "finance-team",
+        bpmo_kind: "",
+        edge_predicate: "https://weave.example/ontology/bpmo#ownedBy",
+        edge_direction: "incoming",
       },
     ]);
   });
@@ -236,7 +308,7 @@ describe("GET /api/proxy/ontology/resource/[iri] -- errors and cross-tenant isol
 
   it("returns structured 503 (not an uncaught 500) when the upstream 2xx body has an unexpected shape", async () => {
     stubFetch(
-      new Response(JSON.stringify({ iri: IRI, label: "X@en" /* missing type_label/key_properties */ }), {
+      new Response(JSON.stringify({ iri: IRI, label: "X@en" /* missing kind/triples/outgoing/incoming */ }), {
         status: 200,
         headers: { "content-type": "application/json" },
       })

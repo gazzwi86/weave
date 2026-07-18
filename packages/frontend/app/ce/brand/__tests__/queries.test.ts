@@ -15,6 +15,14 @@ describe("brand list SPARQL query builders", () => {
   it("clamps a negative page to offset 0", () => {
     expect(standardsQuery(-3)).toContain("OFFSET 0");
   });
+
+  it("standardsQuery scopes its WHERE body in GRAPH ?g (backend rejects unscoped queries)", () => {
+    expect(standardsQuery(0)).toMatch(/WHERE\s*{\s*GRAPH \?g\s*{/);
+  });
+
+  it("voiceRulesQuery scopes its WHERE body in GRAPH ?g (backend rejects unscoped queries)", () => {
+    expect(voiceRulesQuery(0)).toMatch(/WHERE\s*{\s*GRAPH \?g\s*{/);
+  });
 });
 
 describe("paginate", () => {

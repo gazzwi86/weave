@@ -129,7 +129,7 @@ def _project_name_from_prompt(prompt: str) -> str:
 async def _auto_create_project(
     conn: asyncpg.Connection,
     *,
-    tenant_id: str,
+    principal: Principal,
     record: RequestRecord,
     ce_client: httpx.AsyncClient,
     headers: dict[str, str] | None = None,
@@ -142,8 +142,11 @@ async def _auto_create_project(
     (TASK-024 AC-1/AC-5 fields) over the `prompt`-derived slug -- the
     prompt fallback only fires for pre-TASK-024 records that never
     captured a name. Takes the whole `record` (not separate prompt/name/
-    target_repo_name params) to stay under Law E's 5-param budget.
+    target_repo_name params) to stay under Law E's 5-param budget; takes
+    `principal` (not a separate `tenant_id`/`actor_iri` pair) for the same
+    reason -- both are already on it.
     """
+    tenant_id = principal.tenant_id
     name = record.name.strip() or _project_name_from_prompt(record.prompt)
     slug = slugify(name)
     existing = await find_existing_project_iri(conn, tenant_id=tenant_id, slug=slug)
@@ -162,6 +165,7 @@ async def _auto_create_project(
                 name=name,
                 repo_name_hint=record.target_repo_name,
             ),
+            actor_iri=principal.principal_iri,
             headers=headers,
         )
     except ProjectExists as exc:
@@ -204,7 +208,7 @@ async def _process_approval(
     try:
         project_iri = await _auto_create_project(
             conn,
-            tenant_id=principal.tenant_id,
+            principal=principal,
             record=record,
             ce_client=ce_client,
             headers=headers,
