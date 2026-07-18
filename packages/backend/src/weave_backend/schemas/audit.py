@@ -50,6 +50,14 @@ class ComplianceResponse(BaseModel):
     shacl_rejections: int
 
 
+class BrandConformanceResponse(BaseModel):
+    window_days: int
+    passed: int
+    failed: int
+    critical_failures: int
+    conformance_pct: float
+
+
 class AuditQueryParams(BaseModel):
     """Validates the `GET /api/audit` query string (Law 13 -- never cast raw
     query params). `tenant_id` must equal the caller's own tenant; the route
