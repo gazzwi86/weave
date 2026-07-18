@@ -20,11 +20,17 @@ owner: gazzwi86
   already exercised by the mock-verification scripts become the spec); Storybook stories covered
   via Chromatic or `@storybook/test-runner` + pixel diff; wire into CI as a required check; real
   click paths only (no evaluate shortcuts). Baselines captured from the signed-off refit.
-- [ ] **T1b · Dark-mode test coverage is fake** — the vitest browser-mode story runs and the
+- [x] **T1b · Dark-mode test coverage is fake** — the vitest browser-mode story runs and the
   visual suites don't flip `prefers-color-scheme`, so every "Dark" story variant currently runs in
   light mode (duplicate coverage, zero dark assertions). Fix: emulate `colorScheme: 'dark'` per
   Dark variant in the story test config + a dark projection in the visual-regression configs.
-  (Found during the a11y-contrast fix lane, 2026-07-18.)
+  (Found during the a11y-contrast fix lane, 2026-07-18.) Fixed 2026-07-18: `storybook.spec.ts`
+  emulates `colorScheme` per story keyed off the `-dark` id suffix, plus an acceptance test
+  asserting the `--color-bg` token actually differs between a Dark/Light story pair;
+  `playwright.visual.config.ts` gained a `chromium-dark` project. See
+  `packages/frontend/tests/visual/README.md` for the dark-coverage notes and two other findings
+  made along the way (a stale/rebuilt `storybook-static/` catalogue surfacing 34 unbaselined
+  portal-based dialog stories, and a pre-existing practice-mode-banner timing race).
 - [ ] **T2 · Close the API gaps** — G1–G14 below, as small TDD backend tasks (sonnet lanes),
   sequenced so each UI lane's data is live before its pages land (see lane table in session notes:
   R2a needs G1–G3; R2b needs G4–G8+G14; R2c needs G9–G12; R2d needs G13).

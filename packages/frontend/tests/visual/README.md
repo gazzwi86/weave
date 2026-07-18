@@ -17,6 +17,16 @@ no backend dependency) are what's started.
 States covered: `/ce` default, sidebar collapsed, notifications flyout,
 help flyout, user menu, command palette (⌘K).
 
+### Dark-mode coverage (T1b)
+
+Two Playwright projects: `chromium` (light, the default `colorScheme`) and
+`chromium-dark` (`use: { colorScheme: 'dark' }`), so every shell state gets
+a real capture under `app/globals.css`'s `@media (prefers-color-scheme: dark)`
+rule, not just a relabelled light screenshot. `snapshotPathTemplate` includes
+`{projectName}` so the two projects' baselines live in separate
+`__screenshots__/shell.spec.ts/chromium/` and `.../chromium-dark/` folders
+instead of colliding on the same file path.
+
 ### Run
 
 ```bash
@@ -50,9 +60,38 @@ before rebaselining, or the suite will flake on every run.
 
 ## 2. Storybook per-story baselines (`storybook.spec.ts`)
 
-One baseline per story in the catalogue (239 at last count -- grew from 109
+One baseline per story in the catalogue (273 at last count -- grew from 109
 once the design-system component library landed), screenshotting just the
 `#storybook-root` element (not the full iframe canvas).
+
+### Dark-mode coverage (T1b)
+
+Every `*Dark`-suffixed story export (e.g. `DefaultDark`) gets a
+deterministic `-dark`-suffixed Storybook id (e.g. `atoms-button--default-dark`).
+Before each story loads, the spec calls `page.emulateMedia({ colorScheme })`,
+`dark` for those ids and `light` for every other id -- exercising the app's
+real `prefers-color-scheme` CSS path directly, not a Storybook decorator or
+`data-theme` attribute (the app has neither). A dedicated acceptance test
+("storybook: dark mode actually renders dark") reads `--color-bg` off
+`document.documentElement` for a Dark/Light story pair and asserts the
+values differ, so a regression that silently drops the `emulateMedia` call
+fails a real assertion instead of only drifting pixels that
+`--update-snapshots` would happily re-bless.
+
+### Portal-based dialogs and the root-attachment sanity check (found during T1b)
+
+Rebuilding `storybook-static/` for this task (stale since 239, current
+catalogue is 273 stories) surfaced 34 stories --
+`ConfirmDialog`/`Drawer`/`DocDrawer`/`EntityEditDrawer`/`EntityPickerModal`/`ModalShell`,
+added in earlier unrelated commits -- that had never been baselined at all.
+They render via a React portal straight to `document.body`, so
+`#storybook-root` has zero children even on a fully successful render; the
+pre-existing "did the story actually render" sanity check
+(`toBeAttached()` on root's first child, guarding against a real
+crash/import error) only checked root's own children and timed out on all
+34. Fixed by accepting either a root child (the common case) or a
+portalled `[role="dialog"]` anywhere on the page -- unrelated to dark mode,
+but blocking a clean baseline run so fixed alongside it.
 
 ### Why not `@storybook/test-runner`
 
@@ -141,6 +180,24 @@ already sets `BACKEND_API_URL`. This is a workstation port-contention
 hazard, not a code defect in the app -- documenting it here rather than a
 `mask:` region, since no pixel-level mask fixes a page that fetched the
 wrong data entirely.
+
+### Practice-mode banner is a timing race, not a stable backend-down state
+
+Found during the T1b dark-mode rebaseline: `help flyout open` and
+`user menu open`'s previously-committed baselines showed the "Practice
+mode" banner (`components/onboarding/practice-mode-banner.tsx`); a fresh
+capture on this same commit does not. The banner's own logic is a plain
+`if (!sandbox?.sandbox_forked_at) return null` after a `fetch("/api/onboarding/state")`
+that's expected to fail with the backend pinned unreachable -- so "banner
+absent" is the logically-correct backend-down state, and the previously
+committed baseline was likely captured while some other locally-reachable
+service answered that fetch (the same class of contamination as the
+port-contention hazard above, just via `/api/onboarding/state` rather than
+the frontend/backend dev-server ports already pinned). Two consecutive
+fresh runs in this session matched each other exactly (true determinism
+within a session) but not the older baseline -- so this is a capture-time
+environmental flake, not a suite regression. The regenerated baselines
+(banner absent) were kept as the more-correct capture.
 
 ## Intended CI job (not wired into `.github/workflows/` by this task)
 

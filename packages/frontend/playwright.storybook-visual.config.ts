@@ -18,6 +18,10 @@ import { defineConfig, devices } from "@playwright/test";
 // own static `storybook-static/` build. Bind to a port nothing else on this convention uses.
 const STATIC_PORT = 6500;
 
+// T1b: no dark projection needed here (unlike playwright.visual.config.ts) -- storybook.spec.ts
+// already calls `page.emulateMedia({ colorScheme })` per story, keyed off the `-dark` id
+// suffix, so light/dark already vary per test within the single "chromium" project below.
+
 export default defineConfig({
   testDir: "./tests/visual",
   testMatch: "storybook.spec.ts",

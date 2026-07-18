@@ -30,7 +30,9 @@ const UNREACHABLE_BACKEND = "http://127.0.0.1:1";
 export default defineConfig({
   testDir: "./tests/visual",
   testMatch: "shell.spec.ts",
-  snapshotPathTemplate: "{testDir}/__screenshots__/{testFileName}/{arg}{ext}",
+  // {projectName} splits light/dark into separate baseline folders (T1b) -- without it both
+  // projects below write the same `{arg}{ext}` path and silently clobber each other's baseline.
+  snapshotPathTemplate: "{testDir}/__screenshots__/{testFileName}/{projectName}/{arg}{ext}",
   fullyParallel: true,
   retries: 0,
   workers: 1,
@@ -60,7 +62,15 @@ export default defineConfig({
       ],
     },
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // T1b: a dark projection so the shell states get a REAL dark capture (real `next dev` app
+  // under `page.emulateMedia({ colorScheme: 'dark' })`, exercising app/globals.css's
+  // `@media (prefers-color-scheme: dark)` rule), alongside the existing light coverage --
+  // `colorScheme` is a top-level `use` field in this Playwright version (unlike
+  // `reducedMotion` above, which is nested under `contextOptions`), so no nesting needed here.
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium-dark", use: { ...devices["Desktop Chrome"], colorScheme: "dark" } },
+  ],
   webServer: [
     {
       command: `npm run dev -- -p ${DEV_PORT}`,
