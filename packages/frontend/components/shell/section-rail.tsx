@@ -33,7 +33,7 @@ function projectScopedHref(projectIri: string, path: string): string {
 }
 
 /** Appends the Build rail's dynamic "Current project" group (switcher +
- * the 5 project-scoped links) to the static "Projects" group. Returns the
+ * the 6 project-scoped links) to the static "Projects" group. Returns the
  * static groups unchanged for every other section. */
 function useBuildSidebarGroups(
   section: NonNullable<ReturnType<typeof findSection>>,
@@ -55,6 +55,9 @@ function useBuildSidebarGroups(
     { label: "Request studio", path: "/request" },
     { label: "Kanban", path: "/board" },
     { label: "Decision log", path: "/decisions" },
+    // T6 placeholder: real graph/backend deferred, but the intent is
+    // navigable now (docs/specs/features/T6_PROJECT_EXPLORER_SPEC.md).
+    { label: "Model canvas", path: "/canvas" },
     { label: "Settings", path: "/settings" },
   ];
 
