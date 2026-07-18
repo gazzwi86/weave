@@ -41,9 +41,13 @@ function useBuildSidebarGroups(
   pathname: string
 ): SecondarySidebarGroup[] {
   const staticGroups = toSidebarGroups(section, role);
-  const { projects, currentProjectIri, setCurrentProjectIri } = useCurrentBuildProject(pathname);
+  const isBuild = section.label === "Build";
+  const { projects, currentProjectIri, setCurrentProjectIri } = useCurrentBuildProject(
+    pathname,
+    isBuild
+  );
 
-  if (section.label !== "Build") return staticGroups;
+  if (!isBuild) return staticGroups;
   if (!currentProjectIri) return staticGroups;
 
   const links = [

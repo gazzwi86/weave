@@ -57,4 +57,16 @@ describe("SectionRail — Build project switcher", () => {
       "/build/projects/urn%3Aweave%3Aproject%3Ap-2/board"
     );
   });
+
+  // Regression: the Build project switcher's fetch used to fire on every
+  // route (rules-of-hooks means the hook is always called) -- confirm a
+  // non-Build page renders its own static groups and never calls it.
+  it("does not fetch the Build project list on a non-Build section", async () => {
+    pathname = "/explorer";
+    render(<SectionRail role="member" />);
+
+    expect(await screen.findByRole("link", { name: "Explore" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /current project/i })).not.toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });

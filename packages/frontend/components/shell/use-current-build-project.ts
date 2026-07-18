@@ -22,7 +22,10 @@ function projectIdFromPath(pathname: string): string | null {
  * layer decoupled from a single route's feature hook) and picks the
  * current project from the URL when on a project-scoped route, else the
  * first project in the list (mock's static default). */
-export function useCurrentBuildProject(pathname: string): {
+export function useCurrentBuildProject(
+  pathname: string,
+  enabled: boolean
+): {
   projects: BuildProjectOption[];
   currentProjectIri: string | null;
   setCurrentProjectIri: (iri: string) => void;
@@ -31,6 +34,11 @@ export function useCurrentBuildProject(pathname: string): {
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
+    // ponytail: SectionRail calls this hook on every route (rules of
+    // hooks), but the project list is only ever rendered in the Build
+    // section -- skip the fetch elsewhere instead of firing an unused
+    // request + state update on every non-Build page.
+    if (!enabled) return;
     const controller = new AbortController();
     fetch("/api/build/projects", { signal: controller.signal })
       .then(async (res) => {
@@ -46,7 +54,7 @@ export function useCurrentBuildProject(pathname: string): {
          * the Registry grid already owns the load-error affordance. */
       });
     return () => controller.abort();
-  }, []);
+  }, [enabled]);
 
   // On a project-scoped route the URL is the source of truth (e.g.
   // clicking a Registry card) -- a manual dropdown pick only matters off
