@@ -53,8 +53,12 @@ test.describe("storybook: per-story baselines", () => {
       const root = page.locator("#storybook-root");
       // Sanity check that the story actually rendered (catches a real crash/import
       // error) without requiring a non-zero layout box -- see the fixed-position
-      // note below for why box size can't be the check here.
-      await expect(root.locator(":scope > *").first()).toBeAttached();
+      // note below for why box size can't be the check here. Dialog/Drawer/Modal
+      // stories (ConfirmDialog, Drawer, DocDrawer, EntityEditDrawer, EntityPickerModal,
+      // ModalShell) render via a React portal straight to `document.body`, so root
+      // itself has ZERO children even on a successful render -- accept either a root
+      // child (the common case) or a portalled `[role="dialog"]` anywhere on the page.
+      await expect(root.locator(":scope > *").first().or(page.getByRole("dialog").first())).toBeAttached();
       await page.waitForLoadState("networkidle");
       // ponytail: fixed buffer for the handful of stories with a `play` function (typing
       // simulation etc) to settle -- upgrade to a real "story rendered" signal if this
