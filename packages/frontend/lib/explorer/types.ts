@@ -17,8 +17,6 @@ export interface GraphRow {
   predicate: string;
   object: string;
   bpmo_kind?: string;
-  label?: string;
-  skos_pref_label?: string;
 }
 
 export interface SparqlPage {

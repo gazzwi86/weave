@@ -22,9 +22,11 @@ export default async function ExplorerPage({ searchParams }: ExplorerPageProps) 
 
   return (
     <main data-tour-id="ge.canvas" className="flex h-screen flex-col overflow-hidden">
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] p-[var(--space-6)]">
-        Graph Explorer
-      </h1>
+      {/* The mock shows no visible page title (the breadcrumb carries context),
+          but a11y requires a top-level heading (axe `page-has-heading-one`), so
+          the title stays as a visually-hidden sr-only h1 -- same sr-only pattern
+          the shell dialogs use. */}
+      <h1 className="sr-only">Graph Explorer</h1>
       <ExplorerCanvasLoader role={role} />
       <ExplorerTour tourParam={tour ?? null} />
     </main>
