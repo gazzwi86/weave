@@ -45,3 +45,30 @@ class PreScaffoldGateResponse(BaseModel):
     result: Literal["PROCEED", "BLOCKED"]
     findings: list[PreScaffoldFinding]
     failing_step: str | None = None
+
+
+class PendingGateEvidence(BaseModel):
+    """G12 (docs/design/remediation-2-api-gaps.md): the 4 evidence
+    sub-routes + the HITL action route the UI previously had to stitch
+    together by hand from a bare `task_id`.
+    """
+
+    task_detail: str
+    audit: str
+    console_log: str
+    captures: str
+    hitl_action: str
+
+
+class PendingGateEntry(BaseModel):
+    task_id: str
+    #: No per-task gate-type (DoR/DoD/pre-scaffold) is captured in the
+    #: state spine -- deferred, generic `"hitl"` literal only (module
+    #: docstring, `build/pending_gates.py`).
+    gate: Literal["hitl"]
+    evidence: PendingGateEvidence
+
+
+class PendingGatesResponse(BaseModel):
+    project_iri: str
+    gates: list[PendingGateEntry]
