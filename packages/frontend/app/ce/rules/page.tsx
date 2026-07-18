@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { RuleRow } from "./rule-row";
+import { RulesTable } from "./rules-table";
 import { RulesTour } from "./rules-tour";
 import type { RulesState } from "./use-rules";
 import { useRules } from "./use-rules";
@@ -29,18 +29,7 @@ function RulesBody({ report, loading, error, run }: RulesState) {
     );
   }
   if (!report) return null;
-  return (
-    <ul data-testid="rule-list" data-tour-id="ce.rules.shape-list" className="flex flex-col">
-      {report.rules.map((rule, index) => (
-        <RuleRow
-          key={rule.shape_iri}
-          rule={rule}
-          violatingEntities={report.results.filter((entry) => entry.shape_iri === rule.shape_iri)}
-          isFirst={index === 0}
-        />
-      ))}
-    </ul>
-  );
+  return <RulesTable rules={report.rules} results={report.results} />;
 }
 
 /** Rules & Policies (IA §2.x): CE-TASK-006's `GET /api/validate` audit

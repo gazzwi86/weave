@@ -17,8 +17,24 @@ const REPORT = {
     },
   ],
   rules: [
-    { shape_iri: "urn:s1", severity: "Violation", description: "Activity must have a description", origin: "tenant", violation_count: 1 },
-    { shape_iri: "urn:s2", severity: "Info", description: "Goal should link a servesGoal", origin: "framework", violation_count: 0 },
+    {
+      shape_iri: "urn:s1",
+      severity: "Violation",
+      description: "Activity must have a description",
+      origin: "tenant",
+      violation_count: 1,
+      target_class: "urn:weave:ontology:Activity",
+      constraint_summary: "sh:minCount 1 on weave:description",
+    },
+    {
+      shape_iri: "urn:s2",
+      severity: "Info",
+      description: "Goal should link a servesGoal",
+      origin: "framework",
+      violation_count: 0,
+      target_class: null,
+      constraint_summary: null,
+    },
   ],
   ran_at: "2026-07-11T00:00:00Z",
   version_resolved: "unversioned",
@@ -58,6 +74,14 @@ describe("CeRulesPage", () => {
     expect(screen.getByText("Info")).toBeInTheDocument();
     expect(screen.getByText("Activity must have a description")).toBeInTheDocument();
     expect(screen.getByText("Goal should link a servesGoal")).toBeInTheDocument();
+    // G1: constraint_summary shows the formal SHACL constraint, distinct from description.
+    expect(screen.getByText("sh:minCount 1 on weave:description")).toBeInTheDocument();
+
+    // Violating entities collapse behind the expandable row (rules-table.tsx)
+    // -- expand the first rule to see them, matching refit-mock.html's
+    // click-to-toggle `.viol-row`.
+    expect(screen.queryByText("urn:e1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("s1"));
     expect(screen.getByText("urn:e1")).toBeInTheDocument();
   });
 

@@ -12,13 +12,18 @@ export interface ValidationResultEntry {
 
 /** CE-TASK-006's per-rule catalogue entry -- included even with zero
  * violations (AC-006-03). Violating entities are derived client-side from
- * `results` (never eagerly paginated into this entry, task brief hint). */
+ * `results` (never eagerly paginated into this entry, task brief hint).
+ * `target_class`/`constraint_summary` (G1, remediation-2-api-gaps.md):
+ * `sh:targetClass` + a short constraint rundown, nullable when a shape
+ * doesn't declare a single target class or the summary can't be derived. */
 export interface RuleCoverage {
   shape_iri: string;
   severity: Severity;
   description: string;
   origin: RuleOrigin;
   violation_count: number;
+  target_class: string | null;
+  constraint_summary: string | null;
 }
 
 export interface ValidationReport {
