@@ -68,6 +68,7 @@ from weave_backend.routers.search import router as search_router
 from weave_backend.routers.settings import router as settings_router
 from weave_backend.routers.source_control import router as source_control_router
 from weave_backend.routers.sparql import router as sparql_router
+from weave_backend.routers.spec_artifacts import router as spec_artifacts_router
 from weave_backend.routers.specs import router as specs_router
 from weave_backend.routers.standards import router as standards_router
 from weave_backend.routers.task_detail import router as task_detail_router
@@ -151,6 +152,7 @@ app.include_router(prompts_router)
 app.include_router(role_home_router)
 app.include_router(board_router)
 app.include_router(epics_router)
+app.include_router(spec_artifacts_router)
 app.include_router(gates_router)
 app.include_router(standards_router)
 app.include_router(metrics_router)
