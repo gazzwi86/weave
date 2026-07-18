@@ -553,6 +553,33 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
   });
 });
 
+// refit deferred item 1: the Overlays tab merges use-overlay-controls'
+// colour toggles (heatmap/domain-colouring) with useCanvasOverlayToggles'
+// completeness/impact/version-diff/change-heatmap rows -- one end-to-end
+// check that the merge/dispatch in canvas-filter-chrome.tsx actually
+// reaches the DOM, since neither hook is exercised together anywhere else.
+describe("ExplorerInteractions -- refit deferred item 1: Overlays tab merge", () => {
+  it("lists both the colour overlays and the new toggles under one Overlays tab", async () => {
+    const adapter = fakeAdapter();
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={vi.fn(async () => [])}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Overlays" }));
+
+    expect(screen.getByRole("switch", { name: "Coverage gaps" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Impact of selection" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Version diff" })).toBeInTheDocument();
+    const heatmapToggle = screen.getByRole("switch", { name: "Change heatmap (pending)" });
+    expect(heatmapToggle).toBeDisabled();
+    expect(heatmapToggle).toHaveAttribute("title", expect.stringMatching(/G17/));
+  });
+});
+
 // Deep-link focus: /explorer?focus=<iri> waits for the async graph load
 // (polls getNodeData) before centering + spotlighting the node.
 describe("ExplorerInteractions -- ?focus= deep link", () => {

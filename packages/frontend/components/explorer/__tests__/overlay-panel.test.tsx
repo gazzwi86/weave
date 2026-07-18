@@ -40,4 +40,19 @@ describe("OverlayPanel", () => {
     const domainSwitch = screen.getByRole("switch", { name: "Domain colouring" });
     expect(domainSwitch).toBeDisabled();
   });
+
+  // refit deferred item 1: a pending toggle (e.g. Change heatmap, no data
+  // source yet) carries its own reason instead of the generic mutual-
+  // exclusion message.
+  it("shows a toggle's own disabledReason instead of the generic mutual-exclusion tooltip", () => {
+    const toggles: OverlayToggle[] = [
+      { id: "change-heatmap", label: "Change heatmap (pending)", active: false, disabled: true, disabledReason: "No per-entity change-frequency data source yet -- see gap G17." },
+    ];
+    render(<OverlayPanel toggles={toggles} onToggleOverlay={vi.fn()} />);
+
+    expect(screen.getByRole("switch", { name: "Change heatmap (pending)" })).toHaveAttribute(
+      "title",
+      "No per-entity change-frequency data source yet -- see gap G17."
+    );
+  });
 });

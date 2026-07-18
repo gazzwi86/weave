@@ -19,7 +19,7 @@ function OverlayToggleRow({ toggle, onToggleOverlay }: { toggle: OverlayToggle; 
         aria-checked={toggle.active}
         aria-label={toggle.label}
         disabled={toggle.disabled}
-        title={toggle.disabled ? "Turn off the active overlay first" : undefined}
+        title={toggle.disabled ? (toggle.disabledReason ?? "Turn off the active overlay first") : undefined}
         onClick={() => onToggleOverlay(toggle.id)}
         className="flex w-full items-center justify-between rounded-[var(--radius-sm)] border border-[var(--color-border)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] disabled:pointer-events-none disabled:opacity-50"
       >

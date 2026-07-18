@@ -295,6 +295,27 @@ describe("useNodeSpotlight", () => {
     );
   });
 
+  // refit deferred item 1 "Impact of selection": default (unset/true) keeps
+  // the existing AC-1 always-on dim -- disabling it drops the dim opacity
+  // to fully opaque (1) while the panel still opens normally.
+  it("spotlights at full opacity (no dim) when impactEnabled is explicitly false", async () => {
+    const adapter = fakeAdapter();
+    const events = capture(adapter);
+    const fetchNodeProps = vi.fn(() => new Promise<never>(() => {}));
+
+    renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+        impactEnabled: false,
+      }),
+    );
+    events.tapNode("n1");
+
+    expect(adapter.spotlightNode).toHaveBeenCalledWith("n1", 1);
+  });
+
   // AC-4: background click restores opacity and closes the panel.
   it("resets opacity and closes the panel on a background tap", async () => {
     const adapter = fakeAdapter();

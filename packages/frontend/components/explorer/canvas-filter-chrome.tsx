@@ -15,10 +15,10 @@ import { EmptyState } from "./empty-state";
 import { FilterPanel, LayerPanel } from "./filter-panel";
 import { OverlayPanel } from "./overlay-panel";
 import { SavedViewsPanel } from "./saved-views-panel";
+import type { UseCanvasOverlayTogglesResult } from "./use-canvas-overlay-toggles";
 import { useCanvasLegend } from "./use-canvas-legend";
-import type { UseCompletenessOverlayResult } from "./use-completeness-overlay";
 import { useFilterPanel } from "./use-filter-panel";
-import { useOverlayControls } from "./use-overlay-controls";
+import { useOverlayControls, type OverlayToggle } from "./use-overlay-controls";
 import type { useSavedViewsWiring } from "./use-saved-views-wiring";
 import { useVersionsPanel } from "./use-versions-panel";
 import { VersionsPanel } from "./versions-panel";
@@ -84,7 +84,7 @@ interface DockTabsOptions {
   filterPanel: ReturnType<typeof useFilterPanel>;
   versionsPanel: ReturnType<typeof useVersionsPanel>;
   savedViewsPanel: ReturnType<typeof useSavedViewsWiring>;
-  toggles: { id: string; label: string; active: boolean; disabled: boolean }[];
+  toggles: OverlayToggle[];
   onToggleOverlay: (id: string) => void;
 }
 
@@ -141,9 +141,10 @@ interface CanvasFilterChromeProps {
   overlayControls: ReturnType<typeof useOverlayControls>;
   versionsPanel: ReturnType<typeof useVersionsPanel>;
   savedViewsPanel: ReturnType<typeof useSavedViewsWiring>;
-  /** TASK-027: no exclusiveGroup, so it isn't part of
-   * overlayControls.toggles -- appended as its own OverlayPanel row. */
-  completenessOverlay: UseCompletenessOverlayResult;
+  /** refit deferred item 1: completeness/impact/version-diff/change-heatmap
+   * -- none carry a "colour" exclusiveGroup, so they're appended as their
+   * own OverlayPanel rows rather than folded into overlayControls.toggles. */
+  canvasOverlayToggles: UseCanvasOverlayTogglesResult;
 }
 
 // TASK-020/022: the shared corner-docked chrome (D-1..D-6) -- search
@@ -158,14 +159,14 @@ export function CanvasFilterChrome({
   overlayControls,
   versionsPanel,
   savedViewsPanel,
-  completenessOverlay,
+  canvasOverlayToggles,
 }: CanvasFilterChromeProps) {
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const toggles = [
-    ...overlayControls.toggles,
-    { id: "completeness", label: "Coverage gaps", active: completenessOverlay.active, disabled: false },
-  ];
-  const onToggleOverlay = (id: string) => (id === "completeness" ? completenessOverlay.toggle() : overlayControls.toggleOverlay(id));
+  const toggles = [...overlayControls.toggles, ...canvasOverlayToggles.toggles];
+  const onToggleOverlay = (id: string) =>
+    overlayControls.toggles.some((toggle) => toggle.id === id)
+      ? overlayControls.toggleOverlay(id)
+      : canvasOverlayToggles.onToggleOverlay(id);
   const tabs = buildDockTabs({ filterPanel, versionsPanel, savedViewsPanel, toggles, onToggleOverlay });
 
   return (
