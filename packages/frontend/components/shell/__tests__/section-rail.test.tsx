@@ -29,9 +29,9 @@ describe("SectionRail — Build project switcher", () => {
   });
 
   // refit-mock.html buildSidebarHTML(): "Projects" group (Registry link)
-  // plus a "Current project" group with a live <select> switcher + the 5
+  // plus a "Current project" group with a live <select> switcher + the 6
   // project-scoped links, on every Build-section page.
-  it("renders a Projects group and a Current project switcher with 5 project-scoped links", async () => {
+  it("renders a Projects group and a Current project switcher with 6 project-scoped links", async () => {
     pathname = "/build";
     render(<SectionRail role="member" />);
 
@@ -39,7 +39,14 @@ describe("SectionRail — Build project switcher", () => {
     expect(screen.getByRole("option", { name: "Returns flow" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Supplier portal" })).toBeInTheDocument();
 
-    for (const label of ["Dashboard", "Request studio", "Kanban", "Decision log", "Settings"]) {
+    for (const label of [
+      "Dashboard",
+      "Request studio",
+      "Kanban",
+      "Decision log",
+      "Model canvas",
+      "Settings",
+    ]) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("link", { name: "Registry" })).toBeInTheDocument();

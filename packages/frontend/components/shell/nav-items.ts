@@ -102,7 +102,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
     prefixes: ["/build"],
     // refit-mock.html buildSidebarHTML(): a static "Projects" group
     // (Registry) plus a dynamic "Current project" group (switcher + the
-    // 5 project-scoped links) -- the dynamic group is built at render
+    // 6 project-scoped links) -- the dynamic group is built at render
     // time by `section-rail.tsx` (`useCurrentBuildProject`), since it
     // needs the live project list + URL-derived current project id, data
     // this static config can't carry. This groups array is the fallback
