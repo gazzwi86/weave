@@ -101,7 +101,7 @@ function TypeaheadDropdown({
     <ul
       id={`${id}-listbox`}
       role="listbox"
-      className="absolute top-[calc(100%+var(--space-1))] left-0 right-0 z-[var(--z-overlay)] overflow-hidden rounded-[var(--radius-base)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)] shadow-[var(--shadow-overlay)]"
+      className="absolute top-[calc(100%+var(--space-1))] left-0 right-0 z-[var(--z-overlay)] max-h-[var(--size-picker-list-max)] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)] shadow-[var(--shadow-overlay)]"
     >
       {options.map((option, index) => (
         <li

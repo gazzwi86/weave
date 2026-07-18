@@ -9,7 +9,13 @@ const OPTIONS: TypeaheadOption[] = [
   { value: "b", label: "Beta", sub: "urn:weave:beta" },
 ];
 
-function Controlled({ onPick }: { onPick: (option: TypeaheadOption) => void }) {
+function Controlled({
+  onPick,
+  options = OPTIONS,
+}: {
+  onPick: (option: TypeaheadOption) => void;
+  options?: TypeaheadOption[];
+}) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
   return (
@@ -18,7 +24,7 @@ function Controlled({ onPick }: { onPick: (option: TypeaheadOption) => void }) {
       label="Search"
       value={value}
       onValueChange={setValue}
-      options={OPTIONS}
+      options={options}
       open={open}
       onOpenChange={setOpen}
       onPick={(option) => {
@@ -75,5 +81,19 @@ describe("TypeaheadField", () => {
     fireEvent.change(input, { target: { value: "Al" } });
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+});
+
+describe("TypeaheadField listbox height", () => {
+  it("caps the listbox height and scrolls instead of growing unbounded for a long option list", () => {
+    const manyOptions: TypeaheadOption[] = Array.from({ length: 40 }, (_, index) => ({
+      value: `opt-${index}`,
+      label: `Option ${index}`,
+    }));
+    render(<Controlled onPick={vi.fn()} options={manyOptions} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Option" } });
+    const listbox = screen.getByRole("listbox");
+    expect(listbox).toHaveClass("max-h-[var(--size-picker-list-max)]");
+    expect(listbox).toHaveClass("overflow-y-auto");
   });
 });
