@@ -493,7 +493,13 @@ async def test_retiring_a_shape_stops_it_being_enforced_and_listed(
 
         report = await client.get(
             "/api/validate",
-            params={"workspace_id": workspace.id, "run": "true"},
+            # version="draft" -- operations/apply mints a draft row only
+            # (publish is a separate lifecycle step), and the default
+            # version="latest" resolves to the newest PUBLISHED version
+            # only (versioning.resolve_version), so it 404s here with no
+            # publish ever having happened. Matches every other run=true
+            # integration assertion in test_validate_api.py.
+            params={"workspace_id": workspace.id, "run": "true", "version": "draft"},
             headers=headers,
         )
         assert report.status_code == 200, report.text
@@ -508,6 +514,106 @@ async def test_retiring_a_shape_stops_it_being_enforced_and_listed(
             )
         assert len(rows) == 1
         assert rows[0]["target_iri"] == shape_iri
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(tenant_shapes_graph_iri(tenant_id))
+
+
+#: Council finding (ADR-028 follow-up): `_retract_shape_subject_closure`'s
+#: SPARQL property path traverses THROUGH named nodes it passes on the way
+#: to a blank node, so a shape B *referenced* from shape A (e.g. via
+#: `sh:node`) had its own `sh:property` blank-node children swept into A's
+#: retraction even though B itself is a distinct, independently-committed
+#: shape. `_LINKED_SHAPE_B_IRI` is committed on its own first (the
+#: realistic case -- a shared shape other shapes point at); `_LINKED_SHAPE_A_TTL`
+#: then references it purely by IRI via a top-level `sh:node`, without
+#: redeclaring any of B's own triples -- exactly the "shape A referencing
+#: shape B" structural shape a retract must never reach through.
+_LINKED_SHAPE_B_IRI = "https://weave.io/instances/shape-linked-b"
+_LINKED_SHAPE_B_TTL = f"""
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix weave: <https://weave.io/ontology/> .
+<{_LINKED_SHAPE_B_IRI}> a sh:NodeShape ;
+    sh:targetClass weave:Actor ;
+    sh:property [
+        sh:path weave:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Actor must carry a description."@en ;
+    ] .
+"""
+_LINKED_SHAPE_A_IRI = "https://weave.io/instances/shape-linked-a"
+_LINKED_SHAPE_A_TTL = f"""
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix weave: <https://weave.io/ontology/> .
+<{_LINKED_SHAPE_A_IRI}> a sh:NodeShape ;
+    sh:targetClass weave:Activity ;
+    sh:node <{_LINKED_SHAPE_B_IRI}> ;
+    sh:property [
+        sh:path weave:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Activity must carry a description."@en ;
+    ] .
+"""
+
+
+async def test_retiring_a_shape_leaves_a_shape_it_references_via_sh_node_fully_intact(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """Council finding: retiring shape A (which points at shape B via
+    `sh:node`) must not touch B's own triples or B's `sh:property` blank
+    node -- B is a distinct, independently-committed shape reached only in
+    passing while walking A's closure.
+    """
+    tenant_id = _unique_tenant("gov-linked")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        commit_b = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _LINKED_SHAPE_B_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert commit_b.status_code == 201, commit_b.text
+
+        commit_a = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _LINKED_SHAPE_A_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert commit_a.status_code == 201, commit_a.text
+
+        retire_response = await client.request(
+            "DELETE",
+            "/api/ontology/authoring/shapes",
+            params={"shape_iri": _LINKED_SHAPE_A_IRI},
+            headers=headers,
+        )
+        assert retire_response.status_code == 204, retire_response.text
+
+        # B's own rule must still block -- proves B's sh:property blank
+        # node (sh:path/sh:minCount/sh:severity) is still fully present.
+        actor_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_actor_op("actor-linked")], "actor": "urn:weave:t"},
+            headers=headers,
+        )
+        assert actor_response.status_code == 422, actor_response.text
+
+        turtle = await fetch_graph_turtle(tenant_shapes_graph_iri(tenant_id))
+        graph = Graph()
+        graph.parse(data=turtle, format="turtle")
+        assert (URIRef(_LINKED_SHAPE_B_IRI), RDF.type, SH.NodeShape) in graph
+        b_properties = list(graph.objects(URIRef(_LINKED_SHAPE_B_IRI), URIRef(str(SH.property))))
+        assert len(b_properties) == 1, "B's sh:property blank node must survive A's retraction"
+        b_property_node = b_properties[0]
+        assert (b_property_node, URIRef(str(SH.minCount)), None) in graph
+        assert (b_property_node, URIRef(str(SH.path)), None) in graph
     finally:
         await clear_graph(workspace.named_graph_iri)
         await clear_graph(tenant_shapes_graph_iri(tenant_id))
