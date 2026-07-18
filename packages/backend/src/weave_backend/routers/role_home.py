@@ -152,13 +152,21 @@ def _summary_for_level(level: str, payload: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+def _as_int(value: Any) -> int:
+    """CE-METRICS-1 metrics arrive as a `{"pending": true}` sentinel dict until
+    computed -- never a real value. The next-action rule compares them with `>`,
+    so a non-int (pending) must degrade to 0 (no actionable signal yet) rather
+    than crash the whole /api/role-home response with `dict > int`."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
 def _build_response(level: str, payload: dict[str, Any], tile: WidgetOut) -> RoleHomeResponse:
     severity = payload.get("shacl_by_severity") or {}
     metrics = role_home.NextActionMetrics(
-        shacl_violations=severity.get("violation", 0) if isinstance(severity, dict) else 0,
+        shacl_violations=_as_int(severity.get("violation", 0)) if isinstance(severity, dict) else 0,
         coverage_gap_count=len(payload.get("gaps", [])),
-        draft_published_delta=payload.get("draft_published_delta", 0),
-        unassigned_users=payload.get("unassigned_users", 0),
+        draft_published_delta=_as_int(payload.get("draft_published_delta", 0)),
+        unassigned_users=_as_int(payload.get("unassigned_users", 0)),
     )
     capabilities = [
         RoleHomeCapability(**cap) for cap in role_home.capabilities_for_level(level)

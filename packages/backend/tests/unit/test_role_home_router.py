@@ -88,3 +88,17 @@ async def test_fetch_live_payload_admin_rbac_fresh_none_rows_no_crash(
 
     assert result is not None
     assert result["unassigned_users"] == 0
+
+
+def test_as_int_coerces_pending_sentinel_to_zero() -> None:
+    """The /api/role-home 500 regression: CE-METRICS-1 metrics arrive as a
+    `{"pending": true}` sentinel dict until computed. `next_action_rule`
+    compares them with `>`, so a non-int must degrade to 0 rather than crash
+    the whole response with `dict > int` (seen live on GET /api/role-home).
+    """
+    assert role_home_router._as_int({"pending": True}) == 0
+    assert role_home_router._as_int(None) == 0
+    assert role_home_router._as_int("7") == 0
+    assert role_home_router._as_int(True) == 0  # bool is not a real count
+    assert role_home_router._as_int(0) == 0
+    assert role_home_router._as_int(5) == 5
