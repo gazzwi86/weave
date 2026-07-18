@@ -2,7 +2,7 @@
 type: Design
 title: "UI refit — remediation step 2: active task list + API gaps"
 description: "Checkboxed rollout task list (visual regression, gap closure, post-refit burn-down)
-  plus the endpoint-level API gaps (G1-G14) behind the signed-off refit mock."
+  plus the endpoint-level API gaps (G1-G14, G17) behind the signed-off refit mock."
 tags: [design, refit, api-gaps, tasks]
 status: "Active — worked under the 2026-07-18 rollout goal"
 timestamp: 2026-07-17T00:00:00Z
@@ -102,3 +102,13 @@ breaches.
   count-by-event-type work) returning `{window, passed, failed, critical_failures}`.
 
 Cards D/E are shippable now against category buckets (approximate); exact splits arrive with G6.
+
+- [ ] **G17 S · Change heatmap overlay (per-entity change frequency)** — Explorer's Overlays tab
+  wants a "Change heatmap" toggle colouring nodes by recent edit frequency. No source exists:
+  `CE-METRICS-1` is aggregate-only (no per-entity breakdown) and the audit log's `target_iri`
+  linkage needed to derive it is tenant-admin-gated (not viewer-facing). → either extend
+  `CE-METRICS-1` with a per-entity change-count facet, or add a viewer-safe read over
+  `target_iri`-grouped audit counts. Shipped today as a permanently disabled toggle with this gap
+  cited in its tooltip (`use-canvas-overlay-toggles.ts`) rather than faked data.
+  *(numbered G17, not G15/16 — those were claimed by concurrent backend lanes in flight at the
+  time this gap was logged; renumber down if this doc is consolidated after those land.)*

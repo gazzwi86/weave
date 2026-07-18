@@ -86,3 +86,17 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   breached at 551 lines before this task). Splitting one new `describe` block while its 6 siblings
   stay over budget doesn't change the file's actual complexity profile. WARN-level, consistent with
   the file's existing (already-waived-by-convention) shape.
+
+## `useExplorerCanvas` (`packages/frontend/components/explorer/use-explorer-canvas.ts`)
+
+- **Threshold:** file ≤ 300 lines (Law E).
+- **Actual:** 358 lines (Explore-canvas lane, item 1: minimap node-dot wiring).
+- **Reason:** pre-existing violation (326 lines before this task, mostly dev-only Playwright
+  introspection hooks -- `resetDevIntrospection`/`nodeInfoLookup`/`exposeDevIntrospection`/
+  `clearDevIntrospection` -- untouched here). This task's own addition (`minimapNodes` state +
+  threading it through `LoadCanvasParams`/`wireCanvas`) is already minimised: the actual per-node
+  scaling/colour-lookup logic was pulled into a new sibling file
+  (`compute-minimap-state.ts`, independently unit-tested) rather than inlined, so the net growth
+  here is ~32 lines of plumbing, not the full feature. Restructuring the pre-existing dev-hook debt
+  is out of this task's scope ("touch only what you must"). **Follow-up queued:** split the
+  dev-introspection hooks into their own sibling file next time this file is touched.

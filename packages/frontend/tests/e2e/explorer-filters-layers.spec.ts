@@ -82,6 +82,8 @@ test.describe("Filters & layers panel (TASK-020)", () => {
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
 
+    // Refit: filters live behind the ControlDock's "Filters" tab.
+    await page.getByRole("button", { name: "Filters" }).click();
     await expect(page.getByTestId("explorer-filter-panel")).toBeVisible();
     await expect.poll(async () => (await nodeInfo(page, ONBOARDING))?.visible).toBe(true);
 
@@ -104,6 +106,8 @@ test.describe("Filters & layers panel (TASK-020)", () => {
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
 
+    // Refit: property filters live behind the ControlDock's "Filters" tab.
+    await page.getByRole("button", { name: "Filters" }).click();
     await page.getByLabel("Property path").focus();
     await page.keyboard.type("status");
     await page.keyboard.press("Tab");
@@ -139,6 +143,7 @@ test.describe("Filters & layers panel (TASK-020)", () => {
 
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
+    await page.getByRole("button", { name: "Filters" }).click();
 
     const durations: number[] = [];
     for (let rep = 0; rep < 5; rep++) {

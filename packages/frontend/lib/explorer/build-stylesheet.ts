@@ -6,10 +6,38 @@ import type { NodeKind } from "./types";
  * `bpmo_kind` -- design token, not an ad-hoc hex (docs/standards/design/color.md). */
 export const UNKNOWN_KIND_COLOUR = "var(--color-kind-fallback)";
 
+/** refit round 1 item 1: cytoscape shape per BPMO kind -- colour alone never
+ * carries kind (WCAG 1.4.1), shape is the second channel. Keyed lowercase to
+ * match the palette proxy's token-lookup casing (`app/api/proxy/node-kinds/
+ * route.ts`'s `id.toLowerCase()`), not the raw PascalCase IRI-local id.
+ * Kinds the task brief didn't map (goal/concept/field/class) fall through to
+ * the base "node" rule's default ellipse -- an acceptable, documented gap,
+ * not a silent omission. "Policy=shield" has no cytoscape shape; round-tag
+ * is the closest built-in (badge-like). "Event=ellipse w/ ring" is the same
+ * ellipse as Actor plus a border, so the two don't collide. */
+const KIND_SHAPES: Record<string, cytoscape.Css.Node> = {
+  process: { shape: "diamond" },
+  activity: { shape: "round-rectangle" },
+  event: { shape: "ellipse", "border-width": 3, "border-color": "var(--color-bg)" },
+  actor: { shape: "ellipse" },
+  policy: { shape: "round-tag" },
+  businessdomain: { shape: "hexagon" },
+  businesscapability: { shape: "round-rectangle", "corner-radius": "24" },
+  system: { shape: "rectangle" },
+  service: { shape: "triangle" },
+  dataasset: { shape: "barrel" },
+};
+
+/** Exported for its own unit coverage (kind->shape is genuinely new pure
+ * logic) and reused by `kindStyle` below. */
+export function shapeForKind(kindId: string): cytoscape.Css.Node {
+  return KIND_SHAPES[kindId.toLowerCase()] ?? {};
+}
+
 function kindStyle(kind: NodeKind): cytoscape.StylesheetStyle {
   return {
     selector: `node[bpmo_kind="${kind.id}"]`,
-    style: { "background-color": kind.colour },
+    style: { "background-color": kind.colour, ...shapeForKind(kind.id) },
   };
 }
 
@@ -64,22 +92,61 @@ export function resolveStylesheetTokens(
   }));
 }
 
-/** AC-3: single ellipse shape for every node in M1 (kind→shape mapping is
- * deferred, OQ-08) coloured by the CE-READ-1 palette, with a grey fallback
- * for anything the palette doesn't recognise. */
+/** refit round 1 item 1: readability fix -- name below the node, white
+ * body-sm/semibold with a canvas-colour outline halo so text stays legible
+ * crossing an edge. Cytoscape has one label per node, so the mock's
+ * separate "kind caption above" isn't reproduced here -- kind rides
+ * shape+colour+legend+inspector instead (round 2 could add an HTML-overlay
+ * layer for a true second label; not attempted). */
+function baseNodeStyle(): cytoscape.Css.Node {
+  return {
+    label: "data(label)",
+    "text-valign": "bottom",
+    "text-halign": "center",
+    "text-margin-y": 6,
+    color: "var(--color-text-default)",
+    "font-size": "var(--text-body-sm)",
+    // FontWeight's TS type is a closed literal union -- the real value is a
+    // design token resolved by resolveStylesheetTokens before it ever
+    // reaches Cytoscape (create-cytoscape.ts), same seam as every colour
+    // here; this cast documents that, not a data escape hatch.
+    "font-weight": "var(--font-weight-semibold)" as unknown as cytoscape.Css.FontWeight,
+    "text-outline-width": 2,
+    "text-outline-color": "var(--color-bg)",
+    shape: "ellipse",
+    "background-color": UNKNOWN_KIND_COLOUR,
+  };
+}
+
+/** refit round 1 item 2: muted stroke + mono relationship-label halo. */
+function baseEdgeStyle(): cytoscape.Css.Edge {
+  return {
+    label: "data(label)",
+    "curve-style": "bezier",
+    "line-color": "var(--color-border)",
+    "target-arrow-color": "var(--color-border)",
+    "target-arrow-shape": "triangle",
+    width: 1.5,
+    // Closest existing mono-scale token to the mock's literal 10.5px (no
+    // token sits exactly there) -- reuse, don't invent one.
+    "font-family": "var(--font-mono)",
+    "font-size": "var(--text-mono-sm)",
+    color: "var(--color-text-muted)",
+    "text-background-color": "var(--color-bg)",
+    "text-background-opacity": 1,
+    "text-background-padding": "2",
+  };
+}
+
+/** AC-3 + refit round 1 items 1-2: per-kind cytoscape shape (`shapeForKind`)
+ * and colour from the CE-READ-1 palette, with a grey-ellipse fallback for
+ * anything the palette doesn't recognise. Superseded the earlier M1
+ * "single ellipse for every node, shape deferred (OQ-08)" placeholder. */
 export function buildStylesheet(palette: NodeKind[]): cytoscape.StylesheetStyle[] {
   return [
-    {
-      selector: "node",
-      style: {
-        label: "data(label)",
-        "font-size": 12,
-        shape: "ellipse",
-        "background-color": UNKNOWN_KIND_COLOUR,
-      },
-    },
+    { selector: "node", style: baseNodeStyle() },
     ...palette.map(kindStyle),
-    { selector: "edge", style: { label: "data(label)", "curve-style": "bezier" } },
+    { selector: "edge", style: baseEdgeStyle() },
     {
       selector: `node.${EXPLORER_HIGHLIGHT_CLASS}`,
       style: { "border-width": 3, "border-color": "var(--color-accent-primary)" },

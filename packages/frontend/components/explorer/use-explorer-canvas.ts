@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type cytoscape from "cytoscape";
 
+import type { MinimapNode } from "@/components/molecules/Minimap";
 import { buildStylesheet } from "@/lib/explorer/build-stylesheet";
 import { CeReadError } from "@/lib/explorer/ce-read-error";
 import { DEFAULT_EXPLORER_CONFIG, type ExplorerConfig } from "@/lib/explorer/config";
@@ -14,15 +15,19 @@ import {
   fetchLayoutPositions as defaultFetchLayoutPositions,
   type SavedLayoutPosition,
 } from "@/lib/explorer/layout-client";
-import { computeViewportIndicator, type ViewportIndicator } from "@/lib/explorer/minimap-geometry";
+import type { ViewportIndicator } from "@/lib/explorer/minimap-geometry";
 import { rafThrottle } from "@/lib/explorer/raf-throttle";
 import { createRendererAdapter, type AdaptableCy, type RendererAdapter } from "@/lib/explorer/renderer-adapter";
 import { applySemanticZoom } from "@/lib/explorer/semantic-zoom";
 import type { CytoscapeElement, NodeKind } from "@/lib/explorer/types";
 
+import { computeMinimapState } from "./compute-minimap-state";
+
 export type LoadState = "loading" | "ready" | "error";
 
-const MINIMAP_SIZE = { width: 160, height: 100 };
+// mock's `#minimap` viewBox (refit-mock.html) -- the scale space every
+// minimap coordinate (viewport rect + node dots) is computed into.
+const MINIMAP_SIZE = { width: 148, height: 88 };
 
 declare global {
   interface Window {
@@ -88,12 +93,20 @@ export interface UseExplorerCanvasOptions {
   createCy?: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
   /** TASK-004 AC-3/AC-5: test seam -- defaults to the real proxy fetch. */
   fetchLayoutPositions?: (graphId: string) => Promise<SavedLayoutPosition[]>;
+  /** Item 3 (layout): test seam -- defaults to the real
+   * `prefers-reduced-motion` media query. fcose's own params stay
+   * ADR-014-pinned in fcose-params.ts; this only overrides the entrance
+   * animation at the call site. */
+  prefersReducedMotion?: () => boolean;
 }
 
 export interface ExplorerCanvasState {
   loadState: LoadState;
   errorMessage: string | null;
   minimapIndicator: ViewportIndicator | null;
+  /** Item 1 (minimap): every node's current position, scaled into minimap
+   * coordinate space -- empty until the first "viewport" tick after load. */
+  minimapNodes: MinimapNode[];
   containerRef: RefObject<HTMLDivElement | null>;
   retry: () => void;
   /** TASK-003: the ADR-001 renderer-adapter seam for the tapped node/search
@@ -105,15 +118,35 @@ function errorMessageFor(err: unknown): string {
   return err instanceof CeReadError ? err.message : "Unable to load the graph.";
 }
 
+/** Item 3 (layout): real default for `prefersReducedMotion` -- guarded for
+ * SSR/test environments where `window.matchMedia` may not exist. */
+function defaultPrefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+interface WireCanvasParams {
+  cy: CyLike;
+  /** Item 1 (minimap): node id/position/kind live on the adapter
+   * (`listNodes`/`allNodePositions`), not on `CyLike` -- this is the
+   * already-constructed adapter for the same real cytoscape instance. */
+  adapter: RendererAdapter;
+  config: ExplorerConfig;
+  onViewportChange: (indicator: ViewportIndicator, nodes: MinimapNode[]) => void;
+}
+
 /** AC-1/AC-5/AC-6/AC-7: wires semantic zoom, focus-scoped key bindings, and
- * rAF-throttled mini-map tracking onto a freshly-constructed canvas. Returns
- * the key-binding cleanup so the caller can unregister it on unmount. */
-function wireCanvas(cy: CyLike, config: ExplorerConfig, onViewportChange: (indicator: ViewportIndicator) => void) {
+ * rAF-throttled mini-map tracking (viewport rect + per-node dots) onto a
+ * freshly-constructed canvas. Returns the key-binding cleanup so the caller
+ * can unregister it on unmount. */
+function wireCanvas(params: WireCanvasParams) {
+  const { cy, adapter, config, onViewportChange } = params;
   const thresholds = { nodeLabelThreshold: config.nodeLabelThreshold, edgeLabelThreshold: config.edgeLabelThreshold };
   cy.on("zoom", () => applySemanticZoom(cy, thresholds));
 
   const updateMinimap = rafThrottle(() => {
-    onViewportChange(computeViewportIndicator(cy.elements().boundingBox(), cy.extent(), MINIMAP_SIZE));
+    const { indicator, nodes } = computeMinimapState(cy, adapter, MINIMAP_SIZE);
+    onViewportChange(indicator, nodes);
   });
   cy.on("viewport", updateMinimap);
   updateMinimap();
@@ -184,6 +217,7 @@ interface LoadCanvasParams {
   fetchPalette: () => Promise<NodeKind[]>;
   fetchGraph: (timeoutMs: number) => Promise<CytoscapeElement[]>;
   fetchLayoutPositions: (graphId: string) => Promise<SavedLayoutPosition[]>;
+  prefersReducedMotion: () => boolean;
   createCy: (container: HTMLElement | null, stylesheet: cytoscape.StylesheetStyle[]) => CyLike;
   containerRef: RefObject<HTMLDivElement | null>;
   cyRef: RefObject<CyLike | null>;
@@ -192,6 +226,7 @@ interface LoadCanvasParams {
   setLoadState: (state: LoadState) => void;
   setErrorMessage: (message: string | null) => void;
   setMinimapIndicator: (indicator: ViewportIndicator | null) => void;
+  setMinimapNodes: (nodes: MinimapNode[]) => void;
   setAdapter: (adapter: RendererAdapter | null) => void;
 }
 
@@ -204,6 +239,7 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     fetchPalette,
     fetchGraph,
     fetchLayoutPositions,
+    prefersReducedMotion,
     createCy,
     containerRef,
     cyRef,
@@ -212,6 +248,7 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     setLoadState,
     setErrorMessage,
     setMinimapIndicator,
+    setMinimapNodes,
     setAdapter,
   } = params;
 
@@ -237,8 +274,24 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     const positionedElements = applySavedPositions(elements, savedPositions);
     canvasAdapter.load(positionedElements);
     // TASK-004 AC-3/AC-5: a restored layout must not be re-randomized.
-    canvasAdapter.setLayout("fcose", { ...config.fcoseParams, randomize: savedPositions.length === 0 });
-    unregisterRef.current = wireCanvas(cy, config, setMinimapIndicator);
+    // Item 3: a reduced-motion preference skips the entrance animation --
+    // fcose's own animate/animationDuration params stay ADR-014-pinned in
+    // fcose-params.ts, overridden only here at the call site.
+    const motionOverride = prefersReducedMotion() ? { animate: false, animationDuration: 0 } : {};
+    canvasAdapter.setLayout("fcose", {
+      ...config.fcoseParams,
+      randomize: savedPositions.length === 0,
+      ...motionOverride,
+    });
+    unregisterRef.current = wireCanvas({
+      cy,
+      adapter: canvasAdapter,
+      config,
+      onViewportChange: (indicator, nodes) => {
+        setMinimapIndicator(indicator);
+        setMinimapNodes(nodes);
+      },
+    });
     cyRef.current = cy;
     exposeDevIntrospection(cy, elements, loadStartedAt);
     setAdapter(canvasAdapter);
@@ -256,6 +309,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const fetchGraph = options.fetchGraph ?? defaultFetchGraph;
   const createCy = options.createCy ?? createCytoscapeInstance;
   const fetchLayoutPositions = options.fetchLayoutPositions ?? defaultFetchLayoutPositions;
+  const prefersReducedMotion = options.prefersReducedMotion ?? defaultPrefersReducedMotion;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<CyLike | null>(null);
@@ -263,6 +317,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [minimapIndicator, setMinimapIndicator] = useState<ViewportIndicator | null>(null);
+  const [minimapNodes, setMinimapNodes] = useState<MinimapNode[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const [adapter, setAdapter] = useState<RendererAdapter | null>(null);
 
@@ -274,6 +329,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       fetchPalette,
       fetchGraph,
       fetchLayoutPositions,
+      prefersReducedMotion,
       createCy,
       containerRef,
       cyRef,
@@ -282,6 +338,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       setLoadState,
       setErrorMessage,
       setMinimapIndicator,
+      setMinimapNodes,
       setAdapter,
     });
 
@@ -293,9 +350,9 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       setAdapter(null);
       clearDevIntrospection();
     };
-  }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, createCy, retryToken]);
+  }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, prefersReducedMotion, createCy, retryToken]);
 
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 
-  return { loadState, errorMessage, minimapIndicator, containerRef, retry, adapter };
+  return { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter };
 }

@@ -10,6 +10,9 @@ export interface OverlaySection {
   id: string;
   label: string;
   rows: OverlayKeyRow[];
+  /** Free-text extras a fixed row list can't carry (unmatched count,
+   * palette-cycle notice) -- `OverlayLegendModel.note` (TASK-021 AC-3/AC-6). */
+  note?: string;
 }
 
 export interface OverlayKeyProps {
@@ -47,6 +50,7 @@ export function OverlayKey({ sections, className }: OverlayKeyProps) {
               {row.label}
             </div>
           ))}
+          {section.note && <p className="mt-[var(--space-1)] text-[var(--color-text-subtle)]">{section.note}</p>}
         </div>
       ))}
     </div>

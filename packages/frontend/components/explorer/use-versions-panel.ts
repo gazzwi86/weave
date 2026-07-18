@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 
 import { buildDiffExport } from "@/lib/explorer/diff/build-diff-export";
 import { groupTriples } from "@/lib/explorer/diff/group-triples";
@@ -98,6 +98,14 @@ function useDiffCompare(
   const [compareTo, setCompareTo] = useState<string | null>(null);
   const [diffNote, setDiffNote] = useState<string | null>(null);
   const [diffError, setDiffError] = useState(false);
+  // engine.activate/deactivate mutate the OverlayEngine directly (no React
+  // state of their own) -- OverlayKey reads it back via useOverlayControls's
+  // legend, which only recomputes on a re-render. setDiffNote(null) doesn't
+  // force one when diffNote is *already* null (React bails out on an
+  // unchanged value), silently dropping the diff legend/note. This tick
+  // guarantees a re-render on every engine mutation, same pattern as
+  // use-overlay-controls.ts's own forceRender.
+  const [, forceRender] = useReducer((tick: number) => tick + 1, 0);
 
   const clearCompare = useCallback(() => {
     if (adapter && engine.isActive("diff")) engine.deactivate("diff", adapter);
@@ -105,6 +113,7 @@ function useDiffCompare(
     setCompareTo(null);
     setDiffNote(null);
     setDiffError(false);
+    forceRender();
   }, [adapter, engine]);
 
   const runCompare = useCallback(
@@ -126,6 +135,7 @@ function useDiffCompare(
       }
       engine.activate(createDiffOverlay(grouped, DIFF_GLYPHS), adapter);
       setDiffNote(null);
+      forceRender();
     },
     [adapter, engine, fetchDiff, fetchOntologyTypes]
   );

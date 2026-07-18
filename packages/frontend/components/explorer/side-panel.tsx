@@ -1,11 +1,10 @@
-import * as Dialog from "@radix-ui/react-dialog";
-
 import { ceEditingSurface } from "@/lib/explorer/ce-editing-surface";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Toast } from "@/components/ui/toast";
+import { toBpmoKind, toEdgeRows } from "@/lib/explorer/inspector-view";
+import { ErrorCard } from "@/components/ui/error-card";
+import { KindChip } from "@/components/molecules/KindChip";
 
 import { CommentsPanel } from "./comments-panel";
+import { ConflictNotice, DeleteConfirmDialog, DeleteFailedToast, EditDeleteButtons, PanelEditDrawer } from "./side-panel-edit";
 import type { UsePanelEditResult } from "./use-panel-edit";
 import type { SidePanelState } from "./use-node-spotlight";
 
@@ -24,10 +23,16 @@ export interface SidePanelProps {
   /** AC-8: UX-only gate -- hides Edit/Delete buttons for viewers and while
    * pinned to a read-only version. CE-WRITE-1 rejects server-side anyway. */
   canEdit?: boolean;
+  /** refit: clicking an Edges row re-runs the spotlight on the target node
+   * -- reuses useNodeSpotlight's own openNode, never a second fetch path. */
+  onOpenNode?: (nodeId: string) => void;
 }
 
+// refit: glass-panel treatment (GlassPanel.tsx's own utility classes,
+// inlined since that component doesn't accept a positioning className) --
+// canvas-overlay is one of the surfaces design.md reserves glass for.
 const PANEL_CLASSES =
-  "absolute right-[var(--space-4)] top-[var(--space-4)] z-[var(--z-panel)] w-80 max-w-[calc(100%-var(--space-8))] rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)] shadow-[var(--shadow-panel)]";
+  "absolute right-[var(--space-4)] top-[var(--space-4)] z-[var(--z-panel)] w-80 max-w-[calc(100%-var(--space-8))] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-5)] shadow-[var(--shadow-overlay)] backdrop-blur-md";
 
 function CloseButton({ onClose }: { onClose: () => void }) {
   return (
@@ -42,12 +47,23 @@ function CloseButton({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Heading({ label, typeLabel, onClose }: { label: string; typeLabel: string; onClose: () => void }) {
+interface HeadingProps {
+  label: string;
+  typeLabel: string;
+  bpmoKind: ReturnType<typeof toBpmoKind>;
+  onClose: () => void;
+}
+
+// refit: kind-coloured swatch (mock's `.canvas-inspector` header) when the
+// node's bpmo_kind resolves to a known BPMO kind -- KindChip always pairs
+// colour with a glyph (WCAG 1.4.1), never colour alone. Unrecognised/absent
+// falls back to the original plain-text type label.
+function Heading({ label, typeLabel, bpmoKind, onClose }: HeadingProps) {
   return (
     <div className="flex items-start justify-between gap-[var(--space-2)]">
       <div>
         <p className="break-words text-[length:var(--text-h4)] text-[var(--color-text-default)]">{label}</p>
-        <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">{typeLabel}</p>
+        {bpmoKind ? <KindChip kind={bpmoKind} label={typeLabel} /> : <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">{typeLabel}</p>}
       </div>
       <CloseButton onClose={onClose} />
     </div>
@@ -113,124 +129,47 @@ function MissingLinks({ nodeId, gaps, onEditGap }: MissingLinksProps) {
   );
 }
 
-/** AC-1: opens the edit form; AC-5: opens the delete confirm. Hidden
- * entirely when panelEdit is absent (M1 read-only callers) or canEdit is
- * false (AC-8). */
-function EditDeleteButtons({ panelEdit, canEdit }: { panelEdit: UsePanelEditResult; canEdit: boolean }) {
-  if (!canEdit) return null;
+interface EdgesSectionProps {
+  neighbours: Extract<SidePanelState, { status: "loaded" }>["neighbours"];
+  onOpenNode?: (nodeId: string) => void;
+}
+
+// refit: clickable relationship rows (mock's `.canvas-inspector` edges
+// list) -- reuses toEdgeRows' humanised predicate labels, never a raw IRI.
+function EdgesSection({ neighbours, onOpenNode }: EdgesSectionProps) {
+  const edges = toEdgeRows(neighbours);
+  if (edges.length === 0) return null;
   return (
-    <div className="mt-[var(--space-2)] flex gap-[var(--space-2)]">
-      <Button type="button" variant="secondary" onClick={panelEdit.openEdit}>
-        Edit
-      </Button>
-      <Button type="button" variant="danger" onClick={panelEdit.requestDelete}>
-        Delete
-      </Button>
+    <div className="mt-[var(--space-3)] border-t border-[var(--color-border)] pt-[var(--space-2)]">
+      <h2 className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Edges</h2>
+      <ul className="mt-[var(--space-2)] space-y-[var(--space-1)]">
+        {edges.map((edge) => (
+          <li key={edge.id}>
+            <button
+              type="button"
+              onClick={() => onOpenNode?.(edge.targetIri)}
+              className="text-[length:var(--text-body-sm)] text-[var(--color-text-default)] hover:text-[var(--color-accent-primary)]"
+            >
+              {edge.predicateLabel} → {edge.targetLabel}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-/** AC-1/AC-3/AC-4: the property edit form -- label + each key property as a
- * plain-text input (CE's SHACL datatype coercion validates server-side, see
- * use-panel-edit.ts). */
-function EditForm({ state, panelEdit }: { state: Extract<SidePanelState, { status: "loaded" }>; panelEdit: UsePanelEditResult }) {
-  if (panelEdit.edit.mode !== "edit") return null;
-  const { form } = panelEdit.edit;
+// refit: mock's "Instances" button -- links into the existing CE instances
+// list rather than duplicating it inside the panel.
+function InstancesLink() {
   return (
-    <div className="mt-[var(--space-3)] space-y-[var(--space-2)]">
-      <Input aria-label="Label" value={form.label} onChange={(e) => panelEdit.setLabel(e.target.value)} />
-      {state.keyProperties.map((property) => (
-        <Input
-          key={property.path}
-          aria-label={property.label}
-          value={form.properties[property.path] ?? ""}
-          onChange={(e) => panelEdit.setProperty(property.path, e.target.value)}
-        />
-      ))}
-      {panelEdit.violationMessages.map((message) => (
-        <p key={message} className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
-          {message}
-        </p>
-      ))}
-      <div className="flex gap-[var(--space-2)]">
-        <Button type="button" variant="primary" onClick={panelEdit.save}>
-          Save
-        </Button>
-        <Button type="button" variant="secondary" onClick={panelEdit.cancelEdit}>
-          Cancel
-        </Button>
-      </div>
-    </div>
+    <a
+      href="/ce/instances"
+      className="mt-[var(--space-3)] inline-block text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline"
+    >
+      View all instances
+    </a>
   );
-}
-
-/** AC-2: another writer committed since edit started -- shows both values
- * and lets the user overwrite (re-running save(), which re-checks the
- * drift head and this time commits) or discard their own edits. */
-function ConflictNotice({ panelEdit }: { panelEdit: UsePanelEditResult }) {
-  if (panelEdit.edit.mode !== "conflict") return null;
-  const { yours, server } = panelEdit.edit;
-  return (
-    <div className="mt-[var(--space-3)] rounded-[var(--radius-sm)] border border-[var(--color-danger)] p-[var(--space-3)]">
-      <p className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
-        This node changed since you started editing.
-      </p>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Your label</p>
-      <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-default)]">{yours.label}</p>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Current label</p>
-      <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-default)]">{server.label}</p>
-      <div className="mt-[var(--space-3)] flex gap-[var(--space-2)]">
-        <Button type="button" variant="primary" onClick={panelEdit.save}>
-          Save anyway
-        </Button>
-        <Button type="button" variant="secondary" onClick={panelEdit.cancelEdit}>
-          Discard my changes
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-const DELETE_DIALOG_CLASSES =
-  "fixed left-1/2 top-1/2 w-full max-w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-5)] shadow-[var(--shadow-panel)]";
-
-/** AC-5: shows the full incident-edge batch count (edges + the node itself)
- * before committing a delete -- straight confirm, no reference warning
- * (edges have no referential integrity to protect, per the task brief). */
-function DeleteConfirmDialog({ panelEdit }: { panelEdit: UsePanelEditResult }) {
-  const open = panelEdit.deleteConfirm !== null;
-  const incidentCount = panelEdit.deleteConfirm?.incidentCount ?? 0;
-  return (
-    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) panelEdit.cancelDelete(); }}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
-        <Dialog.Content aria-label="Confirm delete" className={DELETE_DIALOG_CLASSES}>
-          <Dialog.Title className="text-[length:var(--text-h4)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            Delete this node?
-          </Dialog.Title>
-          <Dialog.Description className="mt-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
-            This removes the node and its {incidentCount} connected edge{incidentCount === 1 ? "" : "s"}.
-          </Dialog.Description>
-          <div className="mt-[var(--space-4)] flex justify-end gap-[var(--space-2)]">
-            <Button type="button" variant="secondary" onClick={panelEdit.cancelDelete}>
-              Cancel
-            </Button>
-            <Button type="button" variant="danger" onClick={panelEdit.confirmDelete}>
-              Delete
-            </Button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-/** AC-6/AC-7: delete failed (timeout/error) -- canvas was left untouched
- * (commitDelete only calls adapter.removeElements on a 201), so this is
- * just a dismissable notice, not a rollback. */
-function DeleteFailedToast({ panelEdit }: { panelEdit: UsePanelEditResult }) {
-  if (!panelEdit.deleteFailed) return null;
-  return <Toast message="Delete failed -- canvas unchanged. Try again." onDismiss={panelEdit.dismissDeleteFailed} />;
 }
 
 interface LoadedPanelBodyProps {
@@ -238,14 +177,16 @@ interface LoadedPanelBodyProps {
   onEditGap?: (nodeId: string, predicateIri: string) => void;
   panelEdit?: UsePanelEditResult;
   canEdit: boolean;
+  onOpenNode?: (nodeId: string) => void;
 }
 
 /** The `status === "loaded"` branch's body -- split out of `SidePanel` to
  * keep it under Law E's complexity + line budgets. */
-function LoadedPanelBody({ state, onEditGap, panelEdit, canEdit }: LoadedPanelBodyProps) {
+function LoadedPanelBody({ state, onEditGap, panelEdit, canEdit, onOpenNode }: LoadedPanelBodyProps) {
+  const showViewContent = !panelEdit || panelEdit.edit.mode === "view";
   return (
     <div className="mt-[var(--space-3)] space-y-[var(--space-2)]">
-      {(!panelEdit || panelEdit.edit.mode === "view") &&
+      {showViewContent &&
         state.keyProperties.map((property) => (
           <div key={property.path}>
             <p className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">{property.label}</p>
@@ -253,16 +194,18 @@ function LoadedPanelBody({ state, onEditGap, panelEdit, canEdit }: LoadedPanelBo
           </div>
         ))}
       {panelEdit && panelEdit.edit.mode === "view" && <EditDeleteButtons panelEdit={panelEdit} canEdit={canEdit} />}
-      {panelEdit && <EditForm state={state} panelEdit={panelEdit} />}
+      {panelEdit && <PanelEditDrawer state={state} panelEdit={panelEdit} />}
       {panelEdit && <ConflictNotice panelEdit={panelEdit} />}
       <AdvancedDisclosure rawIri={state.rawIri} />
       <CommentsPanel targetKind="node" targetRef={state.nodeId} />
       <MissingLinks nodeId={state.nodeId} gaps={state.gaps ?? []} onEditGap={onEditGap} />
+      {showViewContent && <EdgesSection neighbours={state.neighbours} onOpenNode={onOpenNode} />}
+      {showViewContent && <InstancesLink />}
     </div>
   );
 }
 
-export function SidePanel({ state, onClose, onRetry, onEditGap, panelEdit, canEdit = false }: SidePanelProps) {
+export function SidePanel({ state, onClose, onRetry, onEditGap, panelEdit, canEdit = false, onOpenNode }: SidePanelProps) {
   if (state.status === "closed") return null;
 
   if (state.status === "not-found") {
@@ -276,29 +219,25 @@ export function SidePanel({ state, onClose, onRetry, onEditGap, panelEdit, canEd
     );
   }
 
+  const bpmoKind = state.status === "loaded" ? toBpmoKind(state.bpmoKind) : null;
+
   return (
     <div className={PANEL_CLASSES} data-testid="explorer-side-panel">
-      <Heading label={state.label} typeLabel={state.typeLabel} onClose={onClose} />
+      <Heading label={state.label} typeLabel={state.typeLabel} bpmoKind={bpmoKind} onClose={onClose} />
 
       {state.status === "loading" && (
         <p className="mt-[var(--space-3)] text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">Loading…</p>
       )}
 
+      {/* refit: the CE node-details 503 (unmerged PR #132's proxy issue)
+          surfaces here exactly like any other detail-fetch failure -- this
+          IS the correct rendering, not a bug to route around. */}
       {state.status === "error" && (
-        <div className="mt-[var(--space-3)]">
-          <p className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">Details unavailable — retry</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-[var(--space-2)] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-[var(--space-3)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)] hover:bg-[var(--color-hover)]"
-          >
-            Retry
-          </button>
-        </div>
+        <ErrorCard title="Details unavailable" body="Something went wrong loading this node." onRetry={onRetry} />
       )}
 
       {state.status === "loaded" && (
-        <LoadedPanelBody state={state} onEditGap={onEditGap} panelEdit={panelEdit} canEdit={canEdit} />
+        <LoadedPanelBody state={state} onEditGap={onEditGap} panelEdit={panelEdit} canEdit={canEdit} onOpenNode={onOpenNode} />
       )}
       {panelEdit && <DeleteConfirmDialog panelEdit={panelEdit} />}
       {panelEdit && <DeleteFailedToast panelEdit={panelEdit} />}

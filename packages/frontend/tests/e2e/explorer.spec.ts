@@ -26,7 +26,7 @@ async function waitForLayoutSettled(page: Page): Promise<void> {
   // The "layoutstop"-triggered "viewport" event's minimap update is
   // rAF-throttled (raf-throttle.ts) -- it can still be one animation frame
   // away from painting when the flag above flips. Flush two frames so the
-  // minimap's DOM style attribute reflects the final steady state before
+  // minimap's rect x/y attributes reflect the final steady state before
   // the "before" snapshot is taken (residual sub-pixel flake otherwise).
   await waitOneAnimationFrame(page);
   await waitOneAnimationFrame(page);
@@ -111,9 +111,12 @@ test("does not capture global Cmd+0 when a text input outside the canvas has key
   // "before" -- otherwise the layout's own ongoing motion (unrelated to the
   // Cmd+0 scoping under test) can still drift the indicator mid-snapshot.
   await waitForLayoutSettled(page);
-  const before = await page.getByTestId("explorer-minimap-viewport").getAttribute("style");
+  // Minimap renders the viewport indicator as an svg <rect> (x/y attributes,
+  // not a CSS `style` string -- see components/molecules/Minimap.tsx).
+  const indicator = page.getByTestId("explorer-minimap-viewport");
+  const before = { x: await indicator.getAttribute("x"), y: await indicator.getAttribute("y") };
   await page.keyboard.press(process.platform === "darwin" ? "Meta+0" : "Control+0");
-  const after = await page.getByTestId("explorer-minimap-viewport").getAttribute("style");
+  const after = { x: await indicator.getAttribute("x"), y: await indicator.getAttribute("y") };
 
-  expect(after).toBe(before);
+  expect(after).toEqual(before);
 });

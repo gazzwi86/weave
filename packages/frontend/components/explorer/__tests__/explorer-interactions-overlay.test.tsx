@@ -73,6 +73,10 @@ describe("ExplorerInteractions -- TASK-021 overlay controls mount", () => {
     const adapter = fakeAdapter();
     render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
 
+    // Refit: overlays now live behind the ControlDock's "Overlays" tab
+    // (single-open accordion, mock's `.dock`) rather than an always-visible
+    // side panel.
+    fireEvent.click(screen.getByRole("button", { name: "Overlays" }));
     expect(screen.getByTestId("explorer-overlay-panel")).toBeInTheDocument();
   });
 
@@ -80,6 +84,7 @@ describe("ExplorerInteractions -- TASK-021 overlay controls mount", () => {
     const adapter = fakeAdapter();
     render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Overlays" }));
     fireEvent.click(screen.getByRole("switch", { name: "Heatmap: Maturity" }));
 
     expect(adapter.applyNodeColours).toHaveBeenCalled();
@@ -90,6 +95,7 @@ describe("ExplorerInteractions -- TASK-021 overlay controls mount", () => {
     const adapter = fakeAdapter();
     render(<ExplorerInteractions adapter={adapter} config={DEFAULT_EXPLORER_CONFIG} fetchPalette={fetchPalette} />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Overlays" }));
     const toggle = screen.getByRole("switch", { name: "Heatmap: Maturity" });
     fireEvent.click(toggle);
     fireEvent.click(toggle);
