@@ -38,6 +38,16 @@ owner: gazzwi86
   task list and burn down: unchecked items in `BLOAT_REPORT.md` (dead organisms, EmptyState/
   DataTable/filter-bar consolidation, proxy-helper collapse, SPARQL-escape centralisation, CI
   stack-up composite action), plus any items from the final mock review not absorbed into R2 lanes.
+- [ ] **T4 · Tooltip integration pass** — the per-section pages (types, glossary, rules, audit,
+  instances, query, versions, brand, build, settings) each carry their own `data-qt` concept terms
+  in `refit-mock.html`'s `TIPS` map (`kinds`, `instances`, `query`, `versions`, `glossary`,
+  `brandrules`, `standards`, `rules`, `policies`, `audit`, `chainlogs`, `compliance`, `projects`,
+  `gates`, `studio`, `gantt`, `decisionlog`, `health`, `modeltiers`), but those pages live on
+  sibling refit branches not yet merged onto one branch. Only the shell/Home/operator surfaces
+  have their `InfoTip`s wired today (`operator` on the Companies header). Apply the rest of the
+  `TIPS` map, page by page via `PageHeader`'s `titleTrailing` slot, once all the per-section refit
+  branches land on a shared branch -- one pass, not scattered across each page's own PR, so the
+  `TIPS` copy stays a single source instead of drifting per-branch.
 
 ## API gaps behind the approved mock
 
@@ -100,6 +110,13 @@ breaches.
   audit events (backend emits these today). Conformance = pass rate over those events in the
   window; critical-rule failures tracked separately. → aggregation endpoint (or fold into the G6
   count-by-event-type work) returning `{window, passed, failed, critical_failures}`.
+
+- [ ] **G15 M · Operator console has no backend** — `app/operator/operator-console.tsx` runs
+  entirely against a hard-coded stub tenant list (`lib/operator/tenants.ts`); there is no
+  platform-level list/provision/suspend endpoint for super admins to manage tenants against.
+  → cross-tenant `CE-OPERATOR-1`-style endpoints: `GET /api/operator/tenants` (list + KPI
+  summary), `POST /api/operator/tenants` (provision), `POST /api/operator/tenants/{id}/suspend`,
+  gated to the platform-operator role (`isPlatformOperator`, not per-tenant admin).
 
 Cards D/E are shippable now against category buckets (approximate); exact splits arrive with G6.
 

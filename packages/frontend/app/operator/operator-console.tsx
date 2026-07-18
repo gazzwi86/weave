@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ExplainBand } from "@/components/ui/explain-band";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Input } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -140,6 +141,12 @@ export function OperatorConsole() {
       </div>
       <TablePage
         title="Companies"
+        titleTrailing={
+          <InfoTip
+            title="Operator console"
+            body="The platform-level area for super admins. Each company is a fully isolated tenant — its model, members and audit trail are invisible to every other company. Actions here provision, suspend or open those tenants."
+          />
+        }
         subtitle="Provision, open and manage isolated company tenants."
         actions={
           <>

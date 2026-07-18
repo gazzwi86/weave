@@ -19,7 +19,7 @@ describe("OperatorPage (super-admin gate)", () => {
 
     render(await OperatorPage());
 
-    expect(screen.getByRole("heading", { name: "Companies" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Companies/ })).toBeInTheDocument();
     expect(screen.queryByTestId("operator-denied")).not.toBeInTheDocument();
   });
 
@@ -30,6 +30,6 @@ describe("OperatorPage (super-admin gate)", () => {
     render(await OperatorPage());
 
     expect(screen.getByTestId("operator-denied")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Companies" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Companies/ })).not.toBeInTheDocument();
   });
 });

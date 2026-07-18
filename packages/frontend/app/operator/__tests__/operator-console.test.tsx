@@ -33,6 +33,12 @@ describe("OperatorConsole", () => {
     expect(screen.getByText(/You are outside any company/)).toBeInTheDocument();
   });
 
+  it("hangs an InfoTip off the Companies title (refit-mock data-qt=\"operator\")", () => {
+    render(<OperatorConsole />);
+
+    expect(screen.getByRole("button", { name: "Operator console" })).toBeInTheDocument();
+  });
+
   it("renders one row per seeded tenant with company, counts and status", () => {
     render(<OperatorConsole />);
 
