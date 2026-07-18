@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { cn } from "@/lib/utils";
 
 export interface BreadcrumbItem {
@@ -9,6 +10,8 @@ export interface BreadcrumbItem {
 }
 
 export interface PageHeaderProps {
+  /** Uppercase page kicker above the title (e.g. "Home"), accent-toned. */
+  eyebrow?: string;
   title: string;
   /** Inline node rendered inside the `<h1>` right after the title text --
    * the operator/CE screens hang an `InfoTip` "?" here (refit-mock.html
@@ -50,11 +53,20 @@ function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
  * resolve to (F-D07: built app was rendering titles too small and too
  * light instead).
  */
-export function PageHeader({ title, titleTrailing, subtitle, breadcrumb, actions, className }: PageHeaderProps) {
+export function PageHeader({
+  eyebrow,
+  title,
+  titleTrailing,
+  subtitle,
+  breadcrumb,
+  actions,
+  className,
+}: PageHeaderProps) {
   return (
     <header className={cn("flex items-start justify-between gap-[var(--space-4)]", className)}>
       <div>
         {breadcrumb && breadcrumb.length > 0 ? <Breadcrumb items={breadcrumb} /> : null}
+        {eyebrow ? <Eyebrow tone="accent">{eyebrow}</Eyebrow> : null}
         <h1 className="text-[length:var(--text-h1)] font-[var(--font-weight-bold)] text-[var(--color-text-default)]">
           {title}
           {titleTrailing}
