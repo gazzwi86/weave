@@ -161,6 +161,24 @@ async def append_graph(named_graph_iri: str, turtle_data: str) -> None:
     response.raise_for_status()
 
 
+async def run_update(update: str) -> None:
+    """POST a SPARQL 1.1 Update (`DELETE WHERE`/`DELETE ... WHERE`) to
+    Oxigraph's `/update` endpoint. Unlike `run_query`'s
+    `default-graph-uri`/`named-graph-uri` params, `/update` has no
+    dataset-scoping query param -- an update's WHERE/DELETE clauses must
+    name their target graph(s) explicitly via `GRAPH <iri> { ... }` (used
+    by `operations/governance_shapes.py`'s blank-node-closure retraction,
+    G2/G3 -- surgical per-subject delete, unlike `load_graph`'s
+    replace-whole-graph PUT).
+    """
+    response = await _get_client().post(
+        f"{oxigraph_url()}/update",
+        headers={"Content-Type": "application/sparql-update"},
+        content=update,
+    )
+    response.raise_for_status()
+
+
 async def clear_graph(named_graph_iri: str) -> None:
     """DELETE all triples in a specific named graph (test cleanup)."""
     response = await _get_client().delete(

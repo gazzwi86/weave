@@ -40,6 +40,11 @@ class RuleCoverage(BaseModel):
     description: str
     origin: Literal["framework", "tenant"]
     violation_count: int
+    #: G1 (remediation-2-api-gaps.md): `sh:targetClass` + a short rundown
+    #: of the shape's `sh:property` constraints, so the Rules page can show
+    #: what a rule targets/enforces without a second query.
+    target_class: str | None = None
+    constraint_summary: str | None = None
 
 
 class ValidationReport(BaseModel):
