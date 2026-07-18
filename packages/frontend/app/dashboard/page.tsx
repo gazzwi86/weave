@@ -13,6 +13,7 @@ import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
 import { PageHeaderSlot } from "@/components/templates/PageHeaderSlot";
 import { auth } from "@/auth";
 import { backendApiUrl } from "@/lib/backend-url";
+import { getSessionClaims } from "@/lib/auth/session-claims";
 
 interface WhoamiResponse {
   sub: string;
@@ -67,7 +68,13 @@ async function fetchLibraryItems(accessToken: string): Promise<LibraryItemOut[]>
  * upstream, so a non-admin (403) or any failure degrades to an empty feed --
  * same fail-soft posture as the widget/library reads. */
 async function fetchRecentActivity(accessToken: string): Promise<ActivityEntry[]> {
-  const response = await fetch(`${backendApiUrl()}/api/audit?page=1&per_page=6`, {
+  // GET /api/audit requires `tenant_id` (AuditQueryParams, server re-checks it
+  // against the caller's own tenant) -- the proxy route injects it from session
+  // claims, so this direct server-side call must too or it 422s (empty feed).
+  const { tenantId } = getSessionClaims(accessToken);
+  if (tenantId === null) return [];
+  const query = new URLSearchParams({ tenant_id: tenantId, page: "1", per_page: "6" });
+  const response = await fetch(`${backendApiUrl()}/api/audit?${query.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });

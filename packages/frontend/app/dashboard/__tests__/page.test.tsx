@@ -6,6 +6,12 @@ import { auth } from "@/auth";
 import DashboardPage from "../page";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
+// The recent-activity feed reads tenant_id off the session token (GET /api/audit
+// requires it). The mock accessToken "token-abc" isn't a real JWT, so stub the
+// claims decode to the same tenant WHOAMI_BODY carries.
+vi.mock("@/lib/auth/session-claims", () => ({
+  getSessionClaims: () => ({ role: "admin", tenantId: "tenant-1" }),
+}));
 
 const WHOAMI_BODY = {
   sub: "dev-user-1",

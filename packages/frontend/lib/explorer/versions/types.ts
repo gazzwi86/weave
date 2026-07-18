@@ -2,6 +2,8 @@
 export interface VersionEntry {
   version_iri: string;
   semver: string;
-  published_at: string;
+  // Null for unpublished drafts (they arrive in the list too) -- consumers
+  // must guard before comparing, see use-canvas-overlay-toggles.ts.
+  published_at: string | null;
   is_latest: boolean;
 }

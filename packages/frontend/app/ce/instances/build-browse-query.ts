@@ -27,11 +27,18 @@ export function buildBrowseQuery({ kindIri, searchTerm, page }: BrowseQueryParam
   if (kindIri) {
     filters.push(`FILTER(?kind = <${kindIri}>)`);
   }
+  // The WHERE body sits inside `GRAPH ?g { ... }` -- the backend's
+  // validate_query 400s any SELECT with no GRAPH clause (unscoped_query_rejected),
+  // exactly like rdf/patterns.py and app/ce/brand/queries.ts. Dataset scoping is
+  // still pinned server-side via the version param (protocol layer), the wrap
+  // only satisfies the structural "is this query scoped?" gate.
   return [
     "SELECT ?iri ?label ?kind WHERE {",
-    "  ?iri a ?kind .",
-    `  OPTIONAL { ?iri <${LABEL_PREDICATE_IRI}> ?label }`,
-    `  ${filters.join(" ")}`,
+    "  GRAPH ?g {",
+    "    ?iri a ?kind .",
+    `    OPTIONAL { ?iri <${LABEL_PREDICATE_IRI}> ?label }`,
+    `    ${filters.join(" ")}`,
+    "  }",
     `} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
   ].join("\n");
 }

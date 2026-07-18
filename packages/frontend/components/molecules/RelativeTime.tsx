@@ -47,6 +47,12 @@ export function RelativeTime({ iso, className }: RelativeTimeProps) {
     <time
       dateTime={iso}
       title={iso}
+      // The relative string is derived from Date.now(), so the SSR render (server
+      // clock) and the hydration render (browser clock, moments later) legitimately
+      // differ for recent timestamps -- React's sanctioned escape hatch for exactly
+      // this "the text is a timestamp" case. Without it, any "N seconds/minutes ago"
+      // item throws a hydration-mismatch error (seen on /dashboard's activity feed).
+      suppressHydrationWarning
       className={cn("text-[length:var(--text-caption)] text-[var(--color-text-muted)]", className)}
     >
       {toRelative(iso)}
