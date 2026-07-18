@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectDashboard } from "../project-dashboard";
@@ -10,21 +11,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-const DEMO = { output_location_ref: "s3://weave-artefacts/t1/run-1/", last_run_status: "passed" };
-const BUDGET = { label: "estimated", total_estimate_usd: 12.5, cap_usd: 100, level: "company" };
-const FORECAST = {
-  label: "estimated",
-  forecast_usd: 40,
-  forecast_inputs: {
-    basis: "calibrated",
-    mean_actual: 2,
-    completed_count: 3,
-    remaining_count: 4,
-    calibration: 1.1,
-  },
-};
-const TASKS = { ready: 2, blocked: 1, done: 3, revision: 0 };
-const BLOCKERS = { items: [{ task_id: "task-9", reason: "HITL pending" }] };
+const BUDGET = { label: "estimated", total_estimate_usd: 46, cap_usd: 100, level: "company" };
+const BLOCKERS = { items: [{ task_id: "task-9", reason: "needs a decision on partial refunds" }] };
 const RIBBON = {
   runs: [
     {
@@ -36,98 +24,114 @@ const RIBBON = {
     },
   ],
 };
+const BOARD = {
+  project_iri: "p-1",
+  lanes: ["Backlog", "Ready", "In Progress", "Review", "QA", "Done"],
+  cards: [
+    { id: "task-1", status: "Done", lane: "Done", failure_class: null, retry_attempt: null, retry_ceiling: null, hitl_escalated: false },
+    { id: "task-2", status: "Done", lane: "Done", failure_class: null, retry_attempt: null, retry_ceiling: null, hitl_escalated: false },
+    { id: "task-8", status: "In review", lane: "Review", failure_class: null, retry_attempt: null, retry_ceiling: null, hitl_escalated: true },
+    { id: "task-9", status: "Blocked", lane: "In Progress", failure_class: null, retry_attempt: null, retry_ceiling: null, hitl_escalated: false },
+  ],
+};
+const TREE = { project_iri: "p-1", nodes: [] };
 
-/** AC-1: each tile fetches its own `/dashboard/{tile}` endpoint. */
-function stubAllTilesOk(): void {
+function stubApis({ board = BOARD }: { board?: typeof BOARD } = {}): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = String(input);
-    if (url.endsWith("/dashboard/demo")) return Promise.resolve(jsonResponse(DEMO));
     if (url.endsWith("/dashboard/budget")) return Promise.resolve(jsonResponse(BUDGET));
-    if (url.endsWith("/dashboard/forecast")) return Promise.resolve(jsonResponse(FORECAST));
-    if (url.endsWith("/dashboard/tasks")) return Promise.resolve(jsonResponse(TASKS));
     if (url.endsWith("/dashboard/blockers")) return Promise.resolve(jsonResponse(BLOCKERS));
     if (url.endsWith("/dashboard/ribbon")) return Promise.resolve(jsonResponse(RIBBON));
+    if (url.endsWith("/board")) return Promise.resolve(jsonResponse(board));
+    if (url.endsWith("/task-tree")) return Promise.resolve(jsonResponse(TREE));
+    if (url.includes("/tasks/task-8")) {
+      return Promise.resolve(
+        jsonResponse({ brief: { acceptance_criteria: [] }, handoff: [], console: {}, captures_manifest_ref: null })
+      );
+    }
     return Promise.reject(new Error(`unexpected fetch ${url}`));
   });
   vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
-describe("ProjectDashboard", () => {
+describe("ProjectDashboard (refit-mock #sub-bld-dashboard)", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("renders all six tiles from their own per-tile endpoints (AC-1)", async () => {
-    stubAllTilesOk();
+  it("renders the page header and sub-copy", async () => {
+    stubApis();
     render(<ProjectDashboard projectId="p-1" />);
-
-    await waitFor(() => expect(screen.getAllByText(/estimated/i).length).toBeGreaterThan(0));
-    expect(screen.getByText("Demo readiness")).toBeInTheDocument();
-    expect(screen.getByText("Budget")).toBeInTheDocument();
-    expect(screen.getByText("Forecast")).toBeInTheDocument();
-    expect(screen.getByText("Tasks in flight")).toBeInTheDocument();
-    expect(screen.getByText("Blockers")).toBeInTheDocument();
-    expect(screen.getByText("Git ribbon")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByText(/where the build is/i)).toBeInTheDocument();
   });
 
-  it("keeps every other tile alive when one tile's source errors (AC-2, core isolation)", async () => {
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/dashboard/budget")) return Promise.resolve(jsonResponse({ error: "down" }, 503));
-      if (url.endsWith("/dashboard/demo")) return Promise.resolve(jsonResponse(DEMO));
-      if (url.endsWith("/dashboard/forecast")) return Promise.resolve(jsonResponse(FORECAST));
-      if (url.endsWith("/dashboard/tasks")) return Promise.resolve(jsonResponse(TASKS));
-      if (url.endsWith("/dashboard/blockers")) return Promise.resolve(jsonResponse(BLOCKERS));
-      if (url.endsWith("/dashboard/ribbon")) return Promise.resolve(jsonResponse(RIBBON));
-      return Promise.reject(new Error(`unexpected fetch ${url}`));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+  it("shows a gate band derived from a Review/QA lane card, and opens the review drawer (G12)", async () => {
+    stubApis();
+    const user = userEvent.setup();
     render(<ProjectDashboard projectId="p-1" />);
 
-    await waitFor(() => expect(screen.getByText(/couldn't load/i)).toBeInTheDocument());
-    // The failing tile shows a localized error + retry, everything else renders.
-    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
-    expect(screen.getByText("Tasks in flight")).toBeInTheDocument();
-    expect(screen.getByText("Blockers")).toBeInTheDocument();
-    expect(screen.getByText("Git ribbon")).toBeInTheDocument();
-    expect(await screen.findByText(/40/)).toBeInTheDocument();
+    expect(await screen.findByText(/review gate waiting on you/i)).toBeInTheDocument();
+    expect(screen.getByText(/task-8/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /review now/i }));
+    expect(await screen.findByText(/Review gate — task-8/i)).toBeInTheDocument();
   });
 
-  it("renders budget/forecast tiles with the estimated label, cascade level, and forecast inputs (AC-4)", async () => {
-    stubAllTilesOk();
+  it("shows no gate band when nothing is in Review/QA", async () => {
+    const board = { ...BOARD, cards: BOARD.cards.filter((c) => c.lane !== "Review") };
+    stubApis({ board });
     render(<ProjectDashboard projectId="p-1" />);
 
-    await waitFor(() => expect(screen.getAllByText(/estimated/i).length).toBeGreaterThan(0));
-    expect(screen.getByText(/capped at company/i)).toBeInTheDocument();
-    expect(screen.getByText(/3 done \/ 4 remaining/i)).toBeInTheDocument();
+    await screen.findByText("Dashboard");
+    expect(screen.queryByText(/review gate waiting on you/i)).not.toBeInTheDocument();
   });
 
-  it("renders the git ribbon from recorded runs with branch, sha, and repo link (AC-5)", async () => {
-    stubAllTilesOk();
+  it("renders the KPI row: real tasks/budget counts, pending epics (G9)", async () => {
+    stubApis();
     render(<ProjectDashboard projectId="p-1" />);
 
-    const link = await screen.findByRole("link", { name: /abc123/i });
-    expect(link).toHaveAttribute("href", "https://github.com/acme/widgets");
-    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(await screen.findByText("4")).toBeInTheDocument(); // tasks created
+    expect(screen.getByText("2")).toBeInTheDocument(); // tasks done
+    expect(screen.getByText("1")).toBeInTheDocument(); // blocked
+    expect(screen.getByText("$46")).toBeInTheDocument();
+    expect(screen.getByText(/of \$100 budget used/)).toBeInTheDocument();
+    expect(screen.getByText("epics created")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
-  it("shows the read-only self-improvement card only when the feed has items (AC-6)", async () => {
-    stubAllTilesOk();
-    const { rerender } = render(<ProjectDashboard projectId="p-1" selfImprovementItems={[]} />);
-    await waitFor(() => expect(screen.getByText("Demo readiness")).toBeInTheDocument());
-    expect(screen.queryByTestId("self-improvement-card")).not.toBeInTheDocument();
+  it("shows the roadmap panel as pending-state with the G10 gap note", async () => {
+    stubApis();
+    render(<ProjectDashboard projectId="p-1" />);
+    expect(await screen.findByText(/no epic timeline data yet/i)).toBeInTheDocument();
+  });
 
-    rerender(
-      <ProjectDashboard
-        projectId="p-1"
-        selfImprovementItems={[{ id: "si-1", title: "Tighten retry budget", href: "https://platform.example/si-1" }]}
-      />
-    );
-    expect(await screen.findByTestId("self-improvement-card")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /tighten retry budget/i })).toHaveAttribute(
-      "href",
-      "https://platform.example/si-1"
-    );
+  it("opens a real task-briefs DocDrawer listing board tasks (G11)", async () => {
+    stubApis();
+    const user = userEvent.setup();
+    render(<ProjectDashboard projectId="p-1" />);
+
+    await user.click(await screen.findByText("Task briefs"));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("task-1")).toBeInTheDocument();
+    expect(within(dialog).getByText("task-9")).toBeInTheDocument();
+  });
+
+  it("opens a static placeholder DocDrawer for Brief/PRD/Roadmap/Tech spec (G11)", async () => {
+    stubApis();
+    const user = userEvent.setup();
+    render(<ProjectDashboard projectId="p-1" />);
+
+    await user.click(await screen.findByText("Brief"));
+    expect(await screen.findByText(/not yet wired to a live spec source/i)).toBeInTheDocument();
+  });
+
+  it("renders activity merged from blockers and recent runs", async () => {
+    stubApis();
+    render(<ProjectDashboard projectId="p-1" />);
+
+    expect(await screen.findByText(/needs a decision on partial refunds/)).toBeInTheDocument();
+    expect(screen.getByText(/abc123/)).toBeInTheDocument();
   });
 });
