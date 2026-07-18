@@ -19,7 +19,7 @@ const AUDIT_LOG_FIELDS: FilterFormField[] = [
   { id: "target", label: "Target", type: "text", value: "", onChange: noop, width: "160px" },
   { id: "from", label: "From", type: "date", value: "2026-07-01", onChange: noop, width: "128px" },
   { id: "to", label: "To", type: "date", value: "2026-07-17", onChange: noop, width: "128px" },
-  { id: "contains", label: "Contains", type: "text", value: "", onChange: noop, width: "1" },
+  { id: "contains", label: "Contains", type: "text", value: "", onChange: noop, grow: true },
 ];
 
 const SIMPLE_FIELDS: FilterFormField[] = [

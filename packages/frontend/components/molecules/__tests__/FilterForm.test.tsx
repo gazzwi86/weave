@@ -31,6 +31,14 @@ describe("FilterForm", () => {
     expect(onChange).toHaveBeenCalledWith("publish");
   });
 
+  it("applies flex:1 via the flex-1 class for a grow field, not an invalid width style", () => {
+    const fields = [{ ...CONTAINS_FIELD, grow: true }];
+    render(<FilterForm fields={fields} onApply={vi.fn()} onReset={vi.fn()} />);
+    const group = screen.getByLabelText("Contains").parentElement;
+    expect(group).toHaveClass("flex-1");
+    expect(group).not.toHaveAttribute("style");
+  });
+
   it("calls onApply and onReset from the actions row", () => {
     const onApply = vi.fn();
     const onReset = vi.fn();

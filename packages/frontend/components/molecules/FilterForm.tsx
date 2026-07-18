@@ -16,10 +16,13 @@ export interface FilterFormField {
   /** Required when `type` is `"select"`. */
   options?: FilterFormFieldOption[];
   placeholder?: string;
-  /** Field column width as a raw CSS length string, or `"1"` for `flex:1`
+  /** Field column width as a raw CSS length string (must include a unit)
    * -- mirrors refit-mock.html's per-field inline widths (caller's choice,
-   * not a token -- these are one-off layout widths, not design values). */
+   * not a token -- these are one-off layout widths, not design values).
+   * Ignored when `grow` is set. */
   width?: string;
+  /** Field takes remaining row space (`flex: 1`) instead of a fixed width. */
+  grow?: boolean;
 }
 
 export interface FilterFormProps {
@@ -64,7 +67,10 @@ function FilterFormFieldInput({ field }: { field: FilterFormField }) {
 
 function FilterFormFieldGroup({ field }: { field: FilterFormField }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[var(--space-1)]" style={field.width ? { width: field.width } : undefined}>
+    <div
+      className={cn("flex min-w-0 flex-col gap-[var(--space-1)]", field.grow && "flex-1")}
+      style={!field.grow && field.width ? { width: field.width } : undefined}
+    >
       <label
         htmlFor={`ff-field-${field.id}`}
         className="text-[length:var(--text-caption)] font-[var(--font-weight-semibold)] tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)] uppercase"
