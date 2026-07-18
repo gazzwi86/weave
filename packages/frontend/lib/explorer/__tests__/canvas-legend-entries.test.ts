@@ -53,4 +53,13 @@ describe("nodeKindColorVar", () => {
   it("falls back to the fallback token for a kind KindChip doesn't recognise", () => {
     expect(nodeKindColorVar("Widget")).toBe("--color-kind-fallback");
   });
+
+  // Regression: a node discovered only as a triple's object (no bpmo_kind
+  // on its own row yet) reaches here with `bpmoKind` undefined via
+  // RendererAdapter's `node.data("bpmo_kind") as string` cast -- crashed
+  // `.toLowerCase()` on every minimap redraw (uncaught exception, once per
+  // repaint, surfaced in Playwright's `pageerror` log during manual repro).
+  it("falls back to the fallback token when bpmoKind is undefined", () => {
+    expect(nodeKindColorVar(undefined as unknown as string)).toBe("--color-kind-fallback");
+  });
 });

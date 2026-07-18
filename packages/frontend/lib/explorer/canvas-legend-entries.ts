@@ -61,6 +61,6 @@ const FALLBACK_KIND_COLOUR_VAR = "--color-kind-fallback";
  * matches its kind's legend swatch. CE-READ-1's `bpmo_kind` (not the
  * palette's own `colour`, which travels as a raw hex, not a design token). */
 export function nodeKindColorVar(bpmoKind: string): string {
-  const kind = bpmoKind.toLowerCase();
+  const kind = (bpmoKind ?? "").toLowerCase();
   return KNOWN_KINDS.has(kind) ? `--color-kind-${kind}` : FALLBACK_KIND_COLOUR_VAR;
 }
