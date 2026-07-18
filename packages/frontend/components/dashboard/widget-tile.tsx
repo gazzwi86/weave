@@ -12,6 +12,22 @@ function formatStaleTimestamp(fetchedAt: string | null): string {
   return new Date(fetchedAt).toLocaleString();
 }
 
+/** toLocaleString() renders in the server's timezone/locale at SSR and the
+ * browser's at hydration -- always divergent -- so the timestamp sits in a
+ * suppressHydrationWarning <time> to avoid a hydration-mismatch error. */
+function StaleBadge({ fetchedAt }: { fetchedAt: string | null }) {
+  return (
+    <Badge variant="warn">
+      Stale — last updated{" "}
+      {fetchedAt !== null && (
+        <time dateTime={fetchedAt} suppressHydrationWarning>
+          {formatStaleTimestamp(fetchedAt)}
+        </time>
+      )}
+    </Badge>
+  );
+}
+
 /** True only for CE-METRICS-1's "not ready yet" sentinel (ADR-013,
  * status.py::pending_fields_of) -- never a real 0/empty value.
  */
@@ -266,9 +282,7 @@ export function WidgetTile({
       </div>
       <footer className="mt-[var(--space-3)] flex items-center gap-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
         <span>{contracts}</span>
-        {widget.status === "stale" && (
-          <Badge variant="warn">{`Stale — last updated ${formatStaleTimestamp(widget.fetched_at)}`}</Badge>
-        )}
+        {widget.status === "stale" && <StaleBadge fetchedAt={widget.fetched_at} />}
       </footer>
     </Card>
   );

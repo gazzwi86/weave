@@ -12,6 +12,11 @@ describe("buildBrowseQuery", () => {
     expect(whereBlock).toMatch(/CONTAINS[\s\S]*\?kind = <https:\/\/weave\.io\/ontology\/Actor>/);
   });
 
+  it("scopes the WHERE body in GRAPH ?g (backend 400s unscoped queries)", () => {
+    const query = buildBrowseQuery({ kindIri: null, searchTerm: "", page: 1 });
+    expect(query).toContain("GRAPH ?g {");
+  });
+
   it("omits the kind filter when no chip is active", () => {
     const query = buildBrowseQuery({ kindIri: null, searchTerm: "", page: 1 });
     expect(query).not.toContain("?kind =");

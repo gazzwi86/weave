@@ -35,7 +35,13 @@ const CHANGE_HEATMAP_TOGGLE: OverlayToggle = {
 };
 
 function latestTwoVersions(versions: VersionEntry[]): [VersionEntry, VersionEntry] | [] {
-  const sorted = [...versions].sort((a, b) => a.published_at.localeCompare(b.published_at));
+  // Only published versions have a diff position -- unpublished drafts carry a
+  // null `published_at` (they now arrive in the list) and would crash the
+  // comparator, so exclude them before sorting rather than null-coercing them
+  // into a bogus diff endpoint.
+  const sorted = versions
+    .filter((v): v is VersionEntry & { published_at: string } => v.published_at != null)
+    .sort((a, b) => a.published_at.localeCompare(b.published_at));
   return sorted.length < 2 ? [] : (sorted.slice(-2) as [VersionEntry, VersionEntry]);
 }
 
