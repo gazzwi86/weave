@@ -19,6 +19,7 @@ import { QuickAddOverlay } from "./quick-add-overlay";
 import { SearchOverlay } from "./search-overlay";
 import { SidePanel } from "./side-panel";
 import { useCanvasLegend } from "./use-canvas-legend";
+import { useCanvasOverlayToggles } from "./use-canvas-overlay-toggles";
 import { useCompletenessOverlay } from "./use-completeness-overlay";
 import { useDomainFocus, type UseDomainFocusOptions } from "./use-domain-focus";
 import { useFilterPanel, type UseFilterPanelOptions } from "./use-filter-panel";
@@ -287,21 +288,26 @@ export function ExplorerInteractions({
     timeoutMs: config.ceTimeoutMs,
     relationships,
   });
+  // domainFocus + chrome move ahead of node-spotlight: canvasOverlayToggles
+  // needs chrome.versionsPanel to derive impactEnabled before
+  // useNodeSpotlight is called (refit deferred item 1).
+  const domainFocus = useDomainFocus({ adapter, config, fetchDomainMembers });
+  const chrome = useCanvasChromePanels(adapter, config, fetchLayerNodes, fetchPalette, domainFocus, overlayControls);
+  const canvasOverlayToggles = useCanvasOverlayToggles({ completenessOverlay, versionsPanel: chrome.versionsPanel });
   const { panel, openNode, close, retry } = useNodeSpotlight({
     adapter,
     config,
     fetchNodeProps,
     gapIndex: completenessOverlay.gapIndex,
+    impactEnabled: canvasOverlayToggles.impactEnabled,
   });
   useFocusParam(adapter, config, openNode);
   const search = useSearchOverlay({ adapter, config, onResultSelected: openNode });
   const neighbourExpansion = useNeighbourExpansion({ adapter, config });
   const { saveFailed, dismissSaveFailure, resetLayout } = useLayoutPersistence({ adapter, config, graphId: resolveGraphId(graphId, config) });
-  const domainFocus = useDomainFocus({ adapter, config, fetchDomainMembers });
   const { menu, closeMenu } = useNodeContextMenu({ adapter, config, panel });
   const actions = useContextMenuActions(adapter, menu, panel.status === "loaded" ? panel.neighbours : [], domainFocus, neighbourExpansion);
   const confirmState = neighbourExpansion.state;
-  const chrome = useCanvasChromePanels(adapter, config, fetchLayerNodes, fetchPalette, domainFocus, overlayControls);
   usePinnedImpact({ adapter });
   // AC-7 UX layer -- CE-WRITE-1 independently rejects server-side regardless
   // of this flag (ADR-019). isDraftCanvas mirrors NodeInteractionOverlays'
@@ -318,7 +324,7 @@ export function ExplorerInteractions({
         overlayControls={overlayControls}
         versionsPanel={chrome.versionsPanel}
         savedViewsPanel={chrome.savedViewsPanel}
-        completenessOverlay={completenessOverlay}
+        canvasOverlayToggles={canvasOverlayToggles}
       />
       <CompletenessNotice
         notice={completenessOverlay.notice}

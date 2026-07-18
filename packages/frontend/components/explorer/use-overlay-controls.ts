@@ -26,6 +26,10 @@ export interface OverlayToggle {
    * active -- the panel disables every sibling button rather than letting
    * a second click silently swap the active overlay underneath it. */
   disabled: boolean;
+  /** refit deferred item 1: a toggle disabled for its own reason (e.g. no
+   * data source, gap-tracked) rather than AC-2's mutual exclusion --
+   * overrides the panel's generic "turn off the active overlay" tooltip. */
+  disabledReason?: string;
 }
 
 export interface UseOverlayControlsOptions {
