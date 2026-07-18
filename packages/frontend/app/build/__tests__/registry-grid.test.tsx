@@ -64,6 +64,38 @@ describe("RegistryGrid", () => {
     );
   });
 
+  // Filter row restyle (V4): the phase filter is now a chip row (mock's
+  // `.filter-bar` idiom, refit-mock.html #sub-types), not a <select> --
+  // toggling a phase chip must still reach the backend query param.
+  it("filters by lifecycle phase via the restyled chip row", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ items: CARDS, next_cursor: null }))
+    );
+
+    render(<RegistryGrid />);
+
+    await waitFor(() => expect(screen.getByText(CARDS[0]!.name)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Building" }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenLastCalledWith(
+        expect.stringContaining("lifecycle_phase=Building"),
+        expect.anything()
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "All phases" }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenLastCalledWith(
+        expect.not.stringContaining("lifecycle_phase"),
+        expect.anything()
+      )
+    );
+  });
+
   it("shows an empty state with a clear-filters action when nothing matches (AC-2)", async () => {
     vi.stubGlobal(
       "fetch",

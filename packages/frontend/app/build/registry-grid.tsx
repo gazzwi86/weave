@@ -3,14 +3,27 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FilterBar, type FilterChip } from "@/components/ui/filter-bar";
 
 import { ProjectCard } from "./project-card";
 import { EMPTY_FILTERS, type GridFilters, useProjectGrid } from "./use-project-grid";
 
-const PHASE_OPTIONS = ["Speccing", "Building", "Live monitoring", "Archived"] as const;
+const ALL_PHASES_ID = "all";
 
-function FilterBar({
+/** refit-mock.html `.filter-bar` (`#sub-types`) treatment: search-input +
+ * chip row, same idiom the Types/Instances/Glossary screens already use --
+ * "Lifecycle phase" reads as a single-select chip group (one active id at a
+ * time) rather than a `<select>`, since the mock never renders a bare
+ * dropdown inside a filter-bar. */
+const PHASE_CHIPS: FilterChip[] = [
+  { id: ALL_PHASES_ID, label: "All phases" },
+  { id: "Speccing", label: "Speccing" },
+  { id: "Building", label: "Building" },
+  { id: "Live monitoring", label: "Live monitoring" },
+  { id: "Archived", label: "Archived" },
+];
+
+function RegistryFilterBar({
   filters,
   onChange,
 }: {
@@ -18,37 +31,17 @@ function FilterBar({
   onChange: (next: GridFilters) => void;
 }): React.JSX.Element {
   return (
-    <div className="flex flex-wrap items-end gap-[var(--space-4)]">
-      <label className="flex flex-col gap-[var(--space-1)]">
-        <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-          Search projects
-        </span>
-        <Input
-          aria-label="Search projects"
-          value={filters.search}
-          placeholder="Search by name"
-          onChange={(e) => onChange({ ...filters, search: e.target.value })}
-        />
-      </label>
-      <label className="flex flex-col gap-[var(--space-1)]">
-        <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-          Lifecycle phase
-        </span>
-        <select
-          aria-label="Lifecycle phase"
-          value={filters.lifecyclePhase}
-          onChange={(e) => onChange({ ...filters, lifecyclePhase: e.target.value })}
-          className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
-        >
-          <option value="">All phases</option>
-          {PHASE_OPTIONS.map((phase) => (
-            <option key={phase} value={phase}>
-              {phase}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
+    <FilterBar
+      chips={PHASE_CHIPS}
+      activeIds={[filters.lifecyclePhase || ALL_PHASES_ID]}
+      onToggle={(id) => onChange({ ...filters, lifecyclePhase: id === ALL_PHASES_ID ? "" : id })}
+      search={{
+        value: filters.search,
+        onChange: (value) => onChange({ ...filters, search: value }),
+        label: "Search projects",
+        placeholder: "Search by name",
+      }}
+    />
   );
 }
 
@@ -89,7 +82,7 @@ export function RegistryGrid(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-[var(--space-6)]">
-      <FilterBar filters={filters} onChange={setFilters} />
+      <RegistryFilterBar filters={filters} onChange={setFilters} />
       {page === null && !loadError && <GridSkeleton />}
       {loadError && (
         <p role="alert" className="text-[var(--color-danger)]">
