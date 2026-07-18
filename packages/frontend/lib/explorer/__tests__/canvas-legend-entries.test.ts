@@ -37,6 +37,7 @@ describe("overlayLegendToSections", () => {
         id: "overlay",
         label: "Heatmap — maturity",
         rows: [{ colorVar: "--color-success", label: "High" }],
+        note: "2 nodes unmatched",
       },
     ]);
   });

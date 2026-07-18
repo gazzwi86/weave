@@ -133,7 +133,7 @@ function PropertyFilterBuilder({
 }) {
   return (
     <div className={SECTION_CLASS}>
-      <h3 className={HEADING_CLASS}>Property filters</h3>
+      <h2 className={HEADING_CLASS}>Property filters</h2>
       <FilterChipsList filters={filters} onRemoveAt={(index) => onSetPropertyFilters(filters.filter((_, i) => i !== index))} />
       <PropertyFilterForm onAdd={(filter) => onSetPropertyFilters([...filters, filter])} />
     </div>
@@ -192,7 +192,7 @@ export function FilterPanel({
   return (
     <div data-testid="explorer-filter-panel" className="space-y-[var(--space-4)]">
       <div className={SECTION_CLASS}>
-        <h3 className={HEADING_CLASS}>Entity types</h3>
+        <h2 className={HEADING_CLASS}>Entity types</h2>
         <TypeToggleList
           items={entityTypes}
           offList={filterState.entityTypesOff}
@@ -201,7 +201,7 @@ export function FilterPanel({
         />
       </div>
       <div className={SECTION_CLASS}>
-        <h3 className={HEADING_CLASS}>Relationship types</h3>
+        <h2 className={HEADING_CLASS}>Relationship types</h2>
         <TypeToggleList
           items={relTypes}
           offList={filterState.relTypesOff}

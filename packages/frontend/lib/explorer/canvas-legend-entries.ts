@@ -38,10 +38,9 @@ export function paletteToLegendEntries(palette: NodeKind[]): CanvasLegendEntry[]
 
 /** The active colour-overlay's legend (if any) as `OverlayKey`'s section
  * list -- `OverlayKey` renders nothing for an empty array, matching the
- * mock's `#overlay-key` staying hidden while no overlay is active.
- * ponytail: `OverlayLegendModel.note` (unmatched-count/palette-cycle text)
- * has no slot on `OverlaySection` and is dropped here -- add a note row if
- * that free text turns out to matter for an overlay's legend. */
+ * mock's `#overlay-key` staying hidden while no overlay is active. Carries
+ * `OverlayLegendModel.note` (unmatched-count/palette-cycle text) through
+ * to the section so it can render under the swatch rows. */
 export function overlayLegendToSections(legend: OverlayLegendModel | null): OverlaySection[] {
   if (!legend) return [];
   return [
@@ -49,6 +48,7 @@ export function overlayLegendToSections(legend: OverlayLegendModel | null): Over
       id: "overlay",
       label: legend.title,
       rows: legend.entries.map((entry) => ({ colorVar: stripVarWrapper(entry.colour), label: entry.label })),
+      note: legend.note,
     },
   ];
 }
