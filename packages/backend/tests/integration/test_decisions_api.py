@@ -158,7 +158,9 @@ async def test_should_paginate_decisions_with_cursor(
     )
     assert first.status_code == 200
     first_body = first.json()
-    assert len(first_body["entries"]) == 3
+    # _create_project itself emits a `project.created` audit event (kind
+    # "system") -- that's the +1 beyond the 3 seeded gate_result_dor_i rows.
+    assert len(first_body["entries"]) == 4
     assert first_body["next_cursor"] is None
 
 
@@ -187,7 +189,9 @@ async def test_should_re_query_server_on_filter_chip_change_rather_than_hiding_r
         f"/api/projects/{project_iri}/decisions?kind=system", headers=headers
     )
 
-    assert len(all_response.json()["entries"]) == 3
+    # _create_project's own `project.created` event is kind "system" too, so
+    # it adds 1 to both "all" and "system" beyond the 3 rows seeded here.
+    assert len(all_response.json()["entries"]) == 4
     assert len(decision_response.json()["entries"]) == 1
-    assert len(system_response.json()["entries"]) == 1
+    assert len(system_response.json()["entries"]) == 2
     assert system_response.json()["entries"][0]["event_type"] == "authz_denied"
