@@ -101,6 +101,11 @@ breaches.
   window; critical-rule failures tracked separately. → aggregation endpoint (or fold into the G6
   count-by-event-type work) returning `{window, passed, failed, critical_failures}`.
 
+- [ ] **G19 UI-bug · Canvas node-click misses under overlay chrome** — the new ControlDock/legend/
+  overlay chrome likely needs pointer-events/z-order fixed so clicks pass through to cytoscape nodes
+  underneath (the explorer-a11y-m2 spec had to route around a flaky canvas click). Real fix = component
+  pointer-events; the test currently opens panels via the search box instead. (Escalation TASK-030.)
+
 Cards D/E are shippable now against category buckets (approximate); exact splits arrive with G6.
 
 - [ ] **G17 S · Change heatmap overlay (per-entity change frequency)** — Explorer's Overlays tab
