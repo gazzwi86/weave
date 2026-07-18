@@ -25,12 +25,15 @@ vi.mock("@/components/explorer/explorer-tour", () => ({
 }));
 
 describe("ExplorerPage", () => {
-  it("mounts the client-only canvas loader with no injected page heading (mock has none -- canvas fills the frame)", async () => {
+  it("mounts the canvas loader with a visually-hidden heading (mock shows no visible title; a11y needs an h1)", async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
     render(await ExplorerPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.queryByRole("heading", { name: "Graph Explorer" })).not.toBeInTheDocument();
+    // The heading exists for a11y (axe page-has-heading-one) but is sr-only --
+    // no VISIBLE page title, matching the mock's frame-filling canvas.
+    const heading = screen.getByRole("heading", { name: "Graph Explorer" });
+    expect(heading).toHaveClass("sr-only");
     expect(screen.getByTestId("explorer-canvas-loader-stub")).toBeInTheDocument();
     expect(screen.getByTestId("explorer-tour-stub")).toHaveTextContent("none");
   });
