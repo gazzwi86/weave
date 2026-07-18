@@ -31,6 +31,7 @@ function SidebarExpandButton({ onExpandSidebar }: { onExpandSidebar: () => void 
     <button
       type="button"
       aria-label="Expand sidebar"
+      title="Show sidebar"
       onClick={onExpandSidebar}
       className="flex h-[var(--space-6)] w-[var(--space-6)] shrink-0 items-center justify-center rounded-[var(--radius-base)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
     >
@@ -75,7 +76,10 @@ function NewSplitButton({
   newLabel?: string;
 }) {
   return (
-    <div className="mx-[var(--space-2)] flex h-[var(--space-6)] overflow-hidden rounded-[var(--radius-base)] border border-[var(--color-border-strong)]">
+    <div
+      title="New model entity"
+      className="mx-[var(--space-2)] flex h-[var(--space-6)] overflow-hidden rounded-[var(--radius-base)] border border-[var(--color-border-strong)]"
+    >
       <button
         type="button"
         onClick={onNewAction}
