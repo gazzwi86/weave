@@ -15,18 +15,26 @@ from weave_backend.audit.verify import verify_chain
 from weave_backend.billing.period import current_period
 
 _TOP_ACTORS_LIMIT = 5
+_TOP_TARGETS_LIMIT = 5
 
 # CE-WRITE-1 is the only mutation entry point and SHACL-validates every write,
 # so the published graph is conformant by construction -- these event types
 # are the compliance hub's actual signal: validation activity, not violations.
 _SHACL_VALIDATED_EVENTS = {"operations.applied", "write_back_success"}
 _SHACL_REJECTED_EVENT = "write_back_fail_shacl"
+_AUDIT_OUTAGE_EVENT = "audit_outage"
 
 
 @dataclass(frozen=True)
 class ActorCount:
     principal_iri: str
     event_count: int
+
+
+@dataclass(frozen=True)
+class TargetCount:
+    target_iri: str
+    count: int
 
 
 @dataclass(frozen=True)
@@ -37,8 +45,10 @@ class ComplianceSummary:
     first_broken_seq: int | None
     by_event_category: dict[str, int]
     top_actors: list[ActorCount]
+    top_targets: list[TargetCount]
     shacl_validated: int
     shacl_rejections: int
+    audit_outages: int
 
 
 def _event_category(event_type: str) -> str:
@@ -109,10 +119,36 @@ async def _fetch_top_actors(
     ]
 
 
-def _aggregate_event_types(rows: list[asyncpg.Record]) -> tuple[dict[str, int], int, int]:
+async def _fetch_top_targets(
+    conn: asyncpg.Connection, tenant_id: str, period: str | None
+) -> list[TargetCount]:
+    """G7 (audit card G): mirrors `_fetch_top_actors`, grouped by
+    `target_iri` instead of `actor_principal_iri`."""
+    if period is None:
+        rows = await conn.fetch(
+            "SELECT target_iri, COUNT(*) AS c FROM audit_entries WHERE tenant_id = $1"
+            " GROUP BY target_iri ORDER BY c DESC LIMIT $2",
+            tenant_id,
+            _TOP_TARGETS_LIMIT,
+        )
+    else:
+        start, end = _period_bounds(period)
+        rows = await conn.fetch(
+            "SELECT target_iri, COUNT(*) AS c FROM audit_entries WHERE tenant_id = $1"
+            " AND ts >= $2 AND ts < $3 GROUP BY target_iri ORDER BY c DESC LIMIT $4",
+            tenant_id,
+            start,
+            end,
+            _TOP_TARGETS_LIMIT,
+        )
+    return [TargetCount(target_iri=row["target_iri"], count=int(row["c"])) for row in rows]
+
+
+def _aggregate_event_types(rows: list[asyncpg.Record]) -> tuple[dict[str, int], int, int, int]:
     by_event_category: dict[str, int] = {}
     shacl_validated = 0
     shacl_rejections = 0
+    audit_outages = 0
     for row in rows:
         event_type = row["event_type"]
         count = int(row["c"])
@@ -122,7 +158,9 @@ def _aggregate_event_types(rows: list[asyncpg.Record]) -> tuple[dict[str, int], 
             shacl_validated += count
         elif event_type == _SHACL_REJECTED_EVENT:
             shacl_rejections += count
-    return by_event_category, shacl_validated, shacl_rejections
+        if event_type == _AUDIT_OUTAGE_EVENT:
+            audit_outages += count
+    return by_event_category, shacl_validated, shacl_rejections, audit_outages
 
 
 async def get_compliance_summary(
@@ -133,8 +171,11 @@ async def get_compliance_summary(
     verify_result = await verify_chain(conn, tenant_id)
 
     event_type_rows = await _fetch_event_type_counts(conn, tenant_id, period)
-    by_event_category, shacl_validated, shacl_rejections = _aggregate_event_types(event_type_rows)
+    by_event_category, shacl_validated, shacl_rejections, audit_outages = _aggregate_event_types(
+        event_type_rows
+    )
     top_actors = await _fetch_top_actors(conn, tenant_id, period)
+    top_targets = await _fetch_top_targets(conn, tenant_id, period)
 
     return ComplianceSummary(
         period=period if period is not None else current_period(),
@@ -143,6 +184,8 @@ async def get_compliance_summary(
         first_broken_seq=verify_result.first_broken_seq,
         by_event_category=by_event_category,
         top_actors=top_actors,
+        top_targets=top_targets,
         shacl_validated=shacl_validated,
         shacl_rejections=shacl_rejections,
+        audit_outages=audit_outages,
     )

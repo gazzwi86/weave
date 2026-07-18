@@ -25,6 +25,9 @@ from weave_backend.schemas.operations import (
     AddNodeOp,
     ApplyRequest,
     ApplyResponse,
+    DeleteEdgeOp,
+    DeleteNodeOp,
+    UpdateNodeOp,
     ViolationsResponse,
 )
 
@@ -284,3 +287,50 @@ async def test_recorded_actor_is_the_authenticated_principal_not_the_claimed_one
     emitted_event = enqueue_spy.call_args.args[1]
     assert emitted_event.actor_iri == AUTHENTICATED_PRINCIPAL
     assert emitted_event.payload["claimed_actor_iri"] == "urn:weave:principal:spoofed-someone-else"
+
+
+async def test_operations_applied_payload_carries_kind_counts_for_a_mixed_batch(
+    monkeypatch: pytest.MonkeyPatch, ctx: pipeline.ApplyContext
+) -> None:
+    """G5 (audit card A): `operations.applied` previously carried no entity
+    kind, so a "model edits by kind" dashboard card was unbuildable even
+    client-side. `kind_counts` is derived straight from the request's ops --
+    `add_node` ops bucket by `op.kind`; `add_edge`/`delete_edge` bucket under
+    "edges". `update_node`/`delete_node` carry no kind on the wire (only an
+    `iri`), so they're not counted -- narrower than "every op", but the
+    audit-card ask ("edits by kind") only needs kind-bearing ops.
+    """
+    monkeypatch.setattr(pipeline, "fetch_graph_ntriples", AsyncMock(return_value=""))
+    monkeypatch.setattr(pipeline, "load_graph", AsyncMock())
+    monkeypatch.setattr(
+        pipeline, "mint_version", AsyncMock(return_value=(f"{WORKING_GRAPH}:v0.1.0", "0.1.0"))
+    )
+    monkeypatch.setattr(
+        pipeline, "write_activity", AsyncMock(return_value="urn:weave:instances:activity-1")
+    )
+    monkeypatch.setattr(ops_metrics, "emit_mutation_outcome_metric", AsyncMock())
+    enqueue_spy = AsyncMock()
+    monkeypatch.setattr(pipeline, "enqueue", enqueue_spy)
+
+    request = ApplyRequest(
+        operations=[
+            AddNodeOp(op="add_node", ref="a1", kind="Actor", label="Billing Team"),
+            AddNodeOp(op="add_node", ref="a2", kind="Actor", label="Support Team"),
+            AddNodeOp(op="add_node", ref="p1", kind="Process", label="Invoicing"),
+            AddEdgeOp(op="add_edge", subject_ref="p1", predicate="performedBy", object_ref="a1"),
+            DeleteEdgeOp(
+                op="delete_edge",
+                subject="urn:weave:instances:p0",
+                predicate="performedBy",
+                object="urn:weave:instances:a0",
+            ),
+            UpdateNodeOp(op="update_node", iri="urn:weave:instances:a1", properties={}),
+            DeleteNodeOp(op="delete_node", iri="urn:weave:instances:stale"),
+        ],
+        actor="urn:weave:principal:test",
+    )
+
+    await pipeline.apply_operations_request(ctx, request, redis_client=None)
+
+    emitted_event = enqueue_spy.call_args.args[1]
+    assert emitted_event.payload["kind_counts"] == {"Actor": 2, "Process": 1, "edges": 2}

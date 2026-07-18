@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 import asyncpg
 
@@ -54,7 +55,11 @@ def _row_to_record(row: asyncpg.Record) -> AuditEntryRecord:
 # and entirely parameterised -- no per-call string construction to review.
 # Written out in full (not built via an f-string) so a static-analysis SQL-
 # injection scan sees only literal query text, never string interpolation.
-_LIST_QUERY = """
+# `r"""..."""` (raw string) is deliberate: a non-raw string reads `ESCAPE
+# '\'` as an escaped quote, collapsing it to `ESCAPE ''` -- which disables
+# escaping entirely, so a literal `%`/`_` in `q` or the event_type prefix
+# would silently wildcard-inject. Raw keeps the single backslash intact.
+_LIST_QUERY = r"""
     SELECT seq, ts, tenant_id, actor_principal_iri, engine, event_type,
            target_iri, diff_summary, prev_hash, hash, signature
     FROM audit_entries
@@ -70,11 +75,12 @@ _LIST_QUERY = """
         OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
         OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
       )
+      AND ($9::text IS NULL OR event_type LIKE $9 ESCAPE '\')
     ORDER BY seq DESC
-    LIMIT $9 OFFSET $10
+    LIMIT $10 OFFSET $11
     """
 
-_COUNT_QUERY = """
+_COUNT_QUERY = r"""
     SELECT COUNT(*) AS c
     FROM audit_entries
     WHERE tenant_id = $1
@@ -89,18 +95,79 @@ _COUNT_QUERY = """
         OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
         OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
       )
+      AND ($9::text IS NULL OR event_type LIKE $9 ESCAPE '\')
+    """
+
+# G6: same filter dimensions as `_LIST_QUERY`/`_COUNT_QUERY`, grouped by the
+# full event_type instead of listed -- powers dashboard cards D/E/F/I.
+_COUNTS_QUERY = r"""
+    SELECT event_type, COUNT(*) AS c
+    FROM audit_entries
+    WHERE tenant_id = $1
+      AND ($2::text IS NULL OR engine = $2)
+      AND ($3::text IS NULL OR event_type = $3)
+      AND ($4::text IS NULL OR actor_principal_iri = $4)
+      AND ($5::text IS NULL OR target_iri = $5)
+      AND ($6::timestamptz IS NULL OR ts::timestamptz >= $6)
+      AND ($7::timestamptz IS NULL OR ts::timestamptz <= $7)
+      AND (
+        $8::text IS NULL
+        OR target_iri ILIKE '%' || $8 || '%' ESCAPE '\'
+        OR diff_summary::text ILIKE '%' || $8 || '%' ESCAPE '\'
+      )
+      AND ($9::text IS NULL OR event_type LIKE $9 ESCAPE '\')
+    GROUP BY event_type
     """
 
 
-def _escape_like(value: str | None) -> str | None:
-    """Escapes ILIKE wildcards in a user-supplied `q` value so typing a
+def _escape_like(value: str) -> str:
+    """Escapes LIKE/ILIKE wildcards in a user-supplied value so typing a
     literal `%`/`_` filters for that literal, not an unintended wildcard.
     Backslash first, then the two wildcard chars -- order matters so the
     escape char itself doesn't get re-escaped. Paired with `ESCAPE '\\'` in
     the query."""
-    if value is None:
-        return None
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _optional_escape_like(value: str | None) -> str | None:
+    return None if value is None else _escape_like(value)
+
+
+_PREFIX_SUFFIX = ".*"
+
+
+def _event_type_clause_values(value: str | None) -> tuple[str | None, str | None]:
+    """G4/contracts.md:284-286: `event_type=ce.*` is a prefix match, not
+    literal. A value ending in `.*` is split into `(None, escaped_prefix +
+    ".%")` for the `LIKE ... ESCAPE '\\'` clause; anything else stays an
+    exact match via `(value, None)`. Exactly one of the pair is non-None
+    (or both None, unfiltered) -- the SQL ANDs both guards so whichever is
+    null is a no-op.
+    """
+    if value is None:
+        return None, None
+    if value.endswith(_PREFIX_SUFFIX):
+        prefix = value[: -len(_PREFIX_SUFFIX)]
+        return None, f"{_escape_like(prefix)}.%"
+    return value, None
+
+
+def _filter_args(tenant_id: str, f: AuditFilters) -> tuple[Any, ...]:
+    """Shared positional arg tuple ($1-$9) for `_LIST_QUERY`/`_COUNT_QUERY`
+    -- extracted so a future grouped-count query can compose the same
+    filter set as `list_entries` without duplicating it."""
+    exact_event_type, event_type_prefix = _event_type_clause_values(f.event_type)
+    return (
+        tenant_id,
+        f.engine,
+        exact_event_type,
+        f.actor_principal_iri,
+        f.target_iri,
+        f.date_from,
+        f.date_to,
+        _optional_escape_like(f.q),
+        event_type_prefix,
+    )
 
 
 async def list_entries(
@@ -111,18 +178,28 @@ async def list_entries(
     per_page: int,
     filters: AuditFilters | None = None,
 ) -> AuditEntryPage:
-    f = filters or AuditFilters()
-    filter_args = (
-        tenant_id,
-        f.engine,
-        f.event_type,
-        f.actor_principal_iri,
-        f.target_iri,
-        f.date_from,
-        f.date_to,
-        _escape_like(f.q),
-    )
-    rows = await conn.fetch(_LIST_QUERY, *filter_args, per_page, (page - 1) * per_page)
-    total_row = await conn.fetchrow(_COUNT_QUERY, *filter_args)
+    args = _filter_args(tenant_id, filters or AuditFilters())
+    rows = await conn.fetch(_LIST_QUERY, *args, per_page, (page - 1) * per_page)
+    total_row = await conn.fetchrow(_COUNT_QUERY, *args)
     total = int(total_row["c"]) if total_row is not None else 0
     return AuditEntryPage(entries=[_row_to_record(row) for row in rows], total=total)
+
+
+@dataclass(frozen=True)
+class EventTypeCount:
+    event_type: str
+    count: int
+
+
+async def count_by_event_type(
+    conn: asyncpg.Connection, *, tenant_id: str, filters: AuditFilters | None = None
+) -> list[EventTypeCount]:
+    """G6: per-`event_type` counts honouring the same `PLAT-AUDIT-1` filters
+    as `list_entries` (incl. G4's prefix semantics), grouped by the full
+    event_type rather than the first-segment category `compliance.py`
+    already aggregates -- e.g. `billing.cap.changed` vs
+    `billing.budget.breach` stay distinct.
+    """
+    args = _filter_args(tenant_id, filters or AuditFilters())
+    rows = await conn.fetch(_COUNTS_QUERY, *args)
+    return [EventTypeCount(event_type=row["event_type"], count=int(row["c"])) for row in rows]
