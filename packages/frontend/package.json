@@ -13,7 +13,11 @@
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test:behavioural": "playwright test --grep @behavioural"
+    "test:behavioural": "playwright test --grep @behavioural",
+    "test:visual": "playwright test --config=playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config=playwright.visual.config.ts --update-snapshots",
+    "test:storybook-visual": "npm run build-storybook && playwright test --config=playwright.storybook-visual.config.ts",
+    "test:storybook-visual:update": "npm run build-storybook && playwright test --config=playwright.storybook-visual.config.ts --update-snapshots"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.18",
