@@ -50,6 +50,8 @@ export const ANCHORS = {
   // M2 -- Constitution rules & policies trust tour (m2-delta.md §3; EPIC-002).
   "ce.rules.shape-list": { engine: "constitution", area: "constitution", phase: "m2", shipped: true, planted_by: "TASK-004" },
   "ce.rules.violation-report": { engine: "constitution", area: "constitution", phase: "m2", shipped: true, planted_by: "TASK-004" },
+  // v1 -- Instance browser v2 (CE-V1-EPIC-023); attribute planted by the design-system refit.
+  "ce.instances": { engine: "constitution", area: "constitution", phase: "m2", shipped: true, planted_by: "TASK-031" },
   // post-v1 -- registered now, no DOM yet (ADR-005).
   "build.project-list": { engine: "build", area: "build", phase: "post-v1", shipped: false, planted_by: "TASK-014" },
   "events.rule-list": { engine: "events", area: "events", phase: "post-v1", shipped: false, planted_by: "TASK-014" },
