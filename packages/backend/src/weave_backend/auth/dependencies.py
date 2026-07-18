@@ -30,9 +30,14 @@ class RoleGrant(BaseModel):
     tenant-wide grant (`scope="tenant"`) or a domain/project-scoped grant.
     `role` is an open string (e.g. "admin"/"owner"/"editor"); this shape does
     not enumerate the vocabulary, only validates the claim's structure.
+
+    `scope="platform"` (G15/ADR-023) is a distinct, higher tier: a platform
+    operator (`role="super_admin"`), not a member of any one tenant --
+    checked by `rbac.has_platform_grant`/`require_super_admin`, never by
+    the tenant/domain-scope `has_admin_grant` overlay.
     """
 
-    scope: Literal["tenant", "domain", "project"]
+    scope: Literal["tenant", "domain", "project", "platform"]
     role: str
     domain_iri: str | None = None
     project_iri: str | None = None

@@ -106,6 +106,16 @@ def has_admin_grant(roles: Sequence[RoleGrant], *, domain: str | None) -> bool:
     return False
 
 
+def has_platform_grant(roles: Sequence[RoleGrant]) -> bool:
+    """G15/ADR-023: true only for a `scope="platform", role="super_admin"`
+    grant. Deliberately NOT overlaid by `has_admin_grant`'s tenant/domain
+    admin check -- a tenant-admin grant (even tenant-wide) must never
+    satisfy this, since it would let company A's admin reach company B's
+    operator-console endpoints.
+    """
+    return any(grant.scope == "platform" and grant.role == "super_admin" for grant in roles)
+
+
 class InsufficientRole(HTTPException):
     def __init__(self, required_role: str) -> None:
         super().__init__(
@@ -290,4 +300,19 @@ async def require_tenant_admin(
         admin = await is_tenant_admin(conn, tenant_id=principal.tenant_id, user_sub=principal.sub)
     if not admin:
         raise InsufficientRole("admin")
+    return principal
+
+
+async def require_super_admin(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> Principal:
+    """G15/ADR-023: gates the operator-console cross-tenant routes
+    (`routers/operator.py`) -- the ONE surface allowed to see across
+    tenants, so this is the sole guard (no RLS backstop: the `tenants`
+    table carries no row-level security, by design -- ADR-023). Pure-JWT
+    check, unlike `require_tenant_admin` -- a platform operator has no
+    `workspace_members` row to look up in any tenant.
+    """
+    if not has_platform_grant(principal.roles):
+        raise InsufficientRole("super_admin")
     return principal
