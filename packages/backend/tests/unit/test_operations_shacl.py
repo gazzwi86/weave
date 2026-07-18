@@ -179,11 +179,21 @@ def test_list_rules_target_class_is_none_for_a_targetsubjectsof_shape() -> None:
     `sh:targetClass` -- must not fabricate a class."""
     merged = Graph()
     merged += shapes_graph()
+    merged.parse(
+        data="""
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix weave: <https://weave.io/ontology/> .
+
+        weave:AutomatableShape a sh:NodeShape ;
+            sh:targetSubjectsOf weave:automatable .
+        """,
+        format="turtle",
+    )
 
     rules = list_rules(merged, tenant_id="t1")
     by_iri = {r.shape_iri: r for r in rules}
-    process_rule = by_iri[str(WEAVE.ProcessShape)]
-    assert process_rule.target_class == str(WEAVE.Process)
+    automatable_rule = by_iri[str(WEAVE.AutomatableShape)]
+    assert automatable_rule.target_class is None
 
 
 def test_list_rules_carries_constraint_summary_for_a_known_framework_shape() -> None:
