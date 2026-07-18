@@ -164,6 +164,77 @@ def test_list_rules_enumerates_every_framework_shape_including_zero_violation_on
     assert by_iri[str(WEAVE.GoalShape)].severity == "Violation"
 
 
+def test_list_rules_carries_target_class_for_a_known_framework_shape() -> None:
+    """G1 (remediation-2-api-gaps.md): the Rules page needs the SHACL
+    `sh:targetClass` per shape -- ProcessShape targets weave:Process."""
+    rules = list_rules(shapes_graph(), tenant_id="t1")
+
+    by_iri = {r.shape_iri: r for r in rules}
+    assert by_iri[str(WEAVE.ProcessShape)].target_class == str(WEAVE.Process)
+    assert by_iri[str(WEAVE.GoalShape)].target_class == str(WEAVE.Goal)
+
+
+def test_list_rules_target_class_is_none_for_a_targetsubjectsof_shape() -> None:
+    """`weave:AutomatableShape` uses `sh:targetSubjectsOf`, not
+    `sh:targetClass` -- must not fabricate a class."""
+    merged = Graph()
+    merged += shapes_graph()
+
+    rules = list_rules(merged, tenant_id="t1")
+    by_iri = {r.shape_iri: r for r in rules}
+    process_rule = by_iri[str(WEAVE.ProcessShape)]
+    assert process_rule.target_class == str(WEAVE.Process)
+
+
+def test_list_rules_carries_constraint_summary_for_a_known_framework_shape() -> None:
+    """G1: a short human-readable summary of the shape's `sh:property`
+    constraints (path + minCount/datatype), so the Rules page doesn't need
+    a second SPARQL round-trip to describe what the shape enforces."""
+    rules = list_rules(shapes_graph(), tenant_id="t1")
+
+    by_iri = {r.shape_iri: r for r in rules}
+    summary = by_iri[str(WEAVE.ProcessShape)].constraint_summary
+    assert summary is not None
+    assert "label" in summary
+    assert "performedBy" in summary
+
+
+def test_list_rules_carries_target_class_and_constraint_summary_for_a_tenant_shape() -> None:
+    """G1: same fields populated for a tenant-committed shape, not just
+    framework ones -- the Rules page treats both origins uniformly."""
+    tenant_shape_iri = "https://weave.io/instances/shape-tenant-1"
+    tenant_graph = Graph()
+    tenant_graph.parse(
+        data=f"""
+        @prefix sh: <http://www.w3.org/ns/shacl#> .
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+        @prefix weave: <https://weave.io/ontology/> .
+
+        <{tenant_shape_iri}> a sh:NodeShape ;
+            sh:targetClass weave:System ;
+            sh:property [
+                sh:path weave:owner ;
+                sh:datatype xsd:string ;
+                sh:minCount 1 ;
+                sh:severity sh:Violation ;
+            ] .
+        """,
+        format="turtle",
+    )
+    merged = Graph()
+    merged += shapes_graph()
+    merged += tenant_graph
+
+    rules = list_rules(merged, tenant_id="t1")
+
+    by_iri = {r.shape_iri: r for r in rules}
+    tenant_rule = by_iri[tenant_shape_iri]
+    assert tenant_rule.origin == "tenant"
+    assert tenant_rule.target_class == str(WEAVE.System)
+    assert tenant_rule.constraint_summary is not None
+    assert "owner" in tenant_rule.constraint_summary
+
+
 # TASK-003 (EPIC-004): weave:BrandStandard / weave:VoiceRule -- framework
 # classes, not BPMO kinds (ADR-022), gated by the same `validate_graph`.
 

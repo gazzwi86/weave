@@ -60,6 +60,36 @@ async def test_build_report_maps_pyshacl_results_including_info_severity(
     assert report.version_resolved == "urn:v1"
 
 
+async def test_build_report_carries_target_class_and_constraint_summary_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """G1: `RuleCoverage` rows must forward `RuleSummary.target_class` and
+    `.constraint_summary` -- not just shape_iri/severity/description."""
+    monkeypatch.setattr(shacl, "tenant_shapes_for_validation", AsyncMock(return_value=Graph()))
+    monkeypatch.setattr(shacl, "validate_graph_with_shapes", lambda data_graph, shapes: [])
+    monkeypatch.setattr(
+        shacl,
+        "list_rules",
+        lambda shapes, *, tenant_id: [
+            RuleSummary(
+                shape_iri="urn:s1",
+                severity="Violation",
+                description="d",
+                origin="framework",
+                target_class="urn:weave:Process",
+                constraint_summary="label (min 1)",
+            )
+        ],
+    )
+
+    report = await validate_report.build_report(
+        Graph(), tenant_id="t1", redis_client=None, version_resolved="urn:v1"
+    )
+
+    assert report.rules[0].target_class == "urn:weave:Process"
+    assert report.rules[0].constraint_summary == "label (min 1)"
+
+
 async def test_build_report_groups_violations_by_shape_with_counts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
