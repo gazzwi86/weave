@@ -33,6 +33,11 @@ describe("PromptBar", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renders the trigger as a normal-sized button, not a full-width slab", () => {
+    render(<PromptBar generatedCount={0} />);
+    expect(screen.getByTestId("prompt-bar-trigger")).toHaveClass("self-start");
+  });
+
   it("has no axe violations when open", async () => {
     stubFetch(() =>
       new Response(JSON.stringify({ prompts: ["show entities"], hide_after: 3 }), { status: 200 })
