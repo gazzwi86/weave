@@ -16,6 +16,7 @@ describe("DataTable refit (TASK C2b-1)", () => {
     );
     expect(screen.getByText("Priya Shah")).toBeInTheDocument();
     expect(screen.getByText("urn:weave:actor:priya")).toBeInTheDocument();
+    expect(screen.getByText("Priya Shah").tagName).toBe("STRONG");
   });
 
   it("test_row_actions_column_renders_per_row_actions", () => {

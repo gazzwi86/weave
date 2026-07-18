@@ -56,7 +56,7 @@ export interface DataTableNameCellProps {
 export function DataTableNameCell({ label, id, className }: DataTableNameCellProps) {
   return (
     <span className={cn("flex flex-col gap-[var(--space-1)]", className)}>
-      <b className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">{label}</b>
+      <strong className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">{label}</strong>
       <span className="font-[var(--font-mono)] text-[length:var(--text-mono-sm)] text-[var(--color-text-subtle)]">
         {id}
       </span>
