@@ -2,7 +2,8 @@
 
 import { useState, useSyncExternalStore } from "react";
 
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Eyebrow } from "@/components/ui/eyebrow";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useGeneralSettings } from "./use-general-settings";
@@ -59,7 +60,9 @@ function useAppearanceState() {
 function WorkspaceCard({ workspaceName }: { workspaceName: string | null }) {
   return (
     <Card>
-      <CardTitle>Workspace</CardTitle>
+      <h3>
+        <Eyebrow as="span">Workspace</Eyebrow>
+      </h3>
       <CardContent className="flex flex-col gap-[var(--space-3)]">
         <label className="flex flex-col gap-[var(--space-1)]">
           <span className={FIELD_LABEL_CLASS}>Name</span>
@@ -109,7 +112,9 @@ function AppearanceCard() {
 
   return (
     <Card>
-      <CardTitle>Appearance</CardTitle>
+      <h3>
+        <Eyebrow as="span">Appearance</Eyebrow>
+      </h3>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
         <div className="flex items-center justify-between gap-[var(--space-3)]">
           <span className={FIELD_LABEL_CLASS}>Dark mode</span>
