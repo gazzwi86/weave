@@ -130,8 +130,10 @@ test("should manage contributors from settings tab", async ({ page }) => {
   const contributorIri = "urn:weave:principal:user:client";
 
   await page.getByRole("tab", { name: "Contributors" }).click();
-  await page.getByLabel("New contributor principal").fill(contributorIri);
   await page.getByRole("button", { name: "Add contributor" }).click();
+  const addDialog = page.getByRole("dialog");
+  await addDialog.getByLabel("Contributor principal").fill(contributorIri);
+  await addDialog.getByRole("button", { name: "Add contributor" }).click();
   await expect(page.getByText(contributorIri)).toBeVisible();
 
   const afterAdd = await page.request.get(`/api/build/projects/${projectId}/contributors`);
