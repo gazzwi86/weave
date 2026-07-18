@@ -140,3 +140,138 @@ async def test_commit_tenant_shape_appends_bumps_version_and_audits(
     assert event.subject_iri == GENERATED_IRI
     assert await redis.get(f"ce:governance:shapes-version:{TENANT_ID}") is not None
     assert activity_iri
+
+
+# G2 (remediation-2-api-gaps.md): commit_tenant_shape must retract the
+# incoming shape IRI's existing triple closure (itself + reachable blank
+# nodes) before appending the new version -- re-committing the same shape
+# IRI must never stack duplicate/conflicting constraint triples. Retract
+# is a surgical per-subject SPARQL Update (oxigraph_client.run_update),
+# never a whole-graph load_graph replace (would race other tenants'
+# concurrent shape edits) -- see ADR-028.
+
+
+async def test_commit_tenant_shape_retracts_existing_subject_before_appending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    append_spy = AsyncMock()
+    monkeypatch.setattr(governance_shapes, "append_graph", append_spy)
+    update_spy = AsyncMock()
+    monkeypatch.setattr(governance_shapes, "run_update", update_spy)
+    monkeypatch.setattr(provenance, "append_graph", AsyncMock())
+    monkeypatch.setattr(governance_shapes, "enqueue", AsyncMock())
+    redis = FakeRedis()
+    conn = object()
+
+    await governance_shapes.commit_tenant_shape(
+        conn,
+        redis,
+        governance_shapes.ShapeCommit(
+            tenant_id=TENANT_ID,
+            approver_iri=APPROVER_IRI,
+            shape_graph=_one_property_shape(),
+            shape_iri=GENERATED_IRI,
+            ai_generated=False,
+        ),
+    )
+
+    update_spy.assert_called_once()
+    retract_query = update_spy.call_args.args[0]
+    assert GENERATED_IRI in retract_query
+    assert shacl.tenant_shapes_graph_iri(TENANT_ID) in retract_query
+    # Retract must run before the new triples are appended -- otherwise the
+    # retract would delete the version it just wrote.
+    assert update_spy.call_args_list[0] is update_spy.call_args
+    append_spy.assert_called_once()
+
+
+async def test_commit_tenant_shape_rejects_shape_iri_with_sparql_breakout_chars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Defence in depth: `shape_iri` is embedded in a hand-built SPARQL
+    Update string -- reject anything that could break out of an IRIREF
+    (`<...>`) before it ever reaches the query text."""
+    monkeypatch.setattr(governance_shapes, "append_graph", AsyncMock())
+    monkeypatch.setattr(governance_shapes, "run_update", AsyncMock())
+    monkeypatch.setattr(provenance, "append_graph", AsyncMock())
+    monkeypatch.setattr(governance_shapes, "enqueue", AsyncMock())
+    malicious_iri = f"{GENERATED_IRI}> }} }} DELETE {{ ?s ?p ?o"
+
+    with pytest.raises(ValueError):
+        await governance_shapes.commit_tenant_shape(
+            object(),
+            FakeRedis(),
+            governance_shapes.ShapeCommit(
+                tenant_id=TENANT_ID,
+                approver_iri=APPROVER_IRI,
+                shape_graph=_one_property_shape(),
+                shape_iri=malicious_iri,
+                ai_generated=False,
+            ),
+        )
+
+
+# G3 (remediation-2-api-gaps.md): retire_tenant_shape -- the shared
+# blank-node-closure retract, reused from G2, with no re-append. Framework
+# shapes are immutable (403 at the router); an unknown tenant shape 404s.
+
+
+async def test_retire_tenant_shape_retracts_bumps_version_and_audits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    update_spy = AsyncMock()
+    monkeypatch.setattr(governance_shapes, "run_update", update_spy)
+    existing_ntriples = _one_property_shape().serialize(format="nt")
+    monkeypatch.setattr(
+        governance_shapes, "fetch_graph_ntriples", AsyncMock(return_value=existing_ntriples)
+    )
+    enqueue_spy = AsyncMock()
+    monkeypatch.setattr(governance_shapes, "enqueue", enqueue_spy)
+    redis = FakeRedis()
+    conn = object()
+
+    await governance_shapes.retire_tenant_shape(
+        conn,
+        redis,
+        tenant_id=TENANT_ID,
+        approver_iri=APPROVER_IRI,
+        shape_iri=GENERATED_IRI,
+    )
+
+    update_spy.assert_called_once()
+    assert GENERATED_IRI in update_spy.call_args.args[0]
+    enqueue_spy.assert_called_once()
+    event = enqueue_spy.call_args.args[1]
+    assert event.event_type == "governance.shape_retired"
+    assert event.subject_iri == GENERATED_IRI
+    assert await redis.get(f"ce:governance:shapes-version:{TENANT_ID}") is not None
+
+
+async def test_retire_tenant_shape_raises_not_found_for_unknown_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(governance_shapes, "run_update", AsyncMock())
+    monkeypatch.setattr(governance_shapes, "fetch_graph_ntriples", AsyncMock(return_value=""))
+    monkeypatch.setattr(governance_shapes, "enqueue", AsyncMock())
+
+    with pytest.raises(governance_shapes.ShapeNotFoundError):
+        await governance_shapes.retire_tenant_shape(
+            object(),
+            FakeRedis(),
+            tenant_id=TENANT_ID,
+            approver_iri=APPROVER_IRI,
+            shape_iri=GENERATED_IRI,
+        )
+
+
+async def test_retire_tenant_shape_raises_forbidden_for_framework_shape() -> None:
+    framework_iri = str(next(iter(shacl.framework_shape_iris())))
+
+    with pytest.raises(governance_shapes.FrameworkShapeImmutableError):
+        await governance_shapes.retire_tenant_shape(
+            object(),
+            FakeRedis(),
+            tenant_id=TENANT_ID,
+            approver_iri=APPROVER_IRI,
+            shape_iri=framework_iri,
+        )
