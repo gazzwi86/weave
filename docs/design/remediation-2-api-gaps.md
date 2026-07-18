@@ -54,13 +54,13 @@ breaches.
 
 ## Gaps (checkbox = closed when fixed + verified)
 
-- [ ] **G1 M · Rules list detail** — `GET /api/validate` `RuleCoverage` lacks `sh:targetClass` +
+- [x] **G1 M · Rules list detail** — `GET /api/validate` `RuleCoverage` lacks `sh:targetClass` +
   constraint summary; SPARQL over the tenant shapes graph unproven. → extend RuleCoverage (or add a
   shapes-catalogue endpoint).
-- [ ] **G2 M · Shape EDIT is unsafe** — `commit_tenant_shape` is append-only; re-committing the same
+- [x] **G2 M · Shape EDIT is unsafe** — `commit_tenant_shape` is append-only; re-committing the same
   shape IRI stacks duplicate/conflicting constraint triples. → replace-by-subject semantics before
   any edit UI ships. *(bug-class, not just gap)*
-- [ ] **G3 M · Shape DELETE/retire missing** — no retract path anywhere. → add retire endpoint
+- [x] **G3 M · Shape DELETE/retire missing** — no retract path anywhere. → add retire endpoint
   (retraction from shapes graph + audit event).
 - [x] **G4 S · `event_type` prefix filter not implemented** — contract promises `event_type=ce.*`;
   `audit/listing.py:63` does exact match only. → implement prefix match. *(contract violation)*

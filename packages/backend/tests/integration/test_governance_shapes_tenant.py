@@ -36,7 +36,7 @@ from unittest.mock import patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 from rdflib import RDF, Graph, URIRef
-from rdflib.namespace import PROV
+from rdflib.namespace import PROV, SH
 
 from weave_backend import app
 from weave_backend.auth.oidc_client import get_oidc_client
@@ -322,6 +322,239 @@ async def test_shape_commit_stamps_prov_o_with_llm_generator_and_human_approver(
         await clear_graph(workspace.named_graph_iri)
         await clear_graph(tenant_shapes_graph_iri(tenant_id))
         await clear_graph(prov_graph_iri(tenant_shapes_graph_iri(tenant_id)))
+
+
+#: G2 (remediation-2-api-gaps.md, ADR-028): two versions of the SAME
+#: `sh:NodeShape` subject, differing only in severity -- the second commit
+#: must REPLACE the first's `sh:property` closure, not stack a second one
+#: alongside it. A `sh:Violation` blocks `/api/operations/apply` with 422;
+#: `sh:Warning` does not -- so the edit's effect is directly observable
+#: through the write gate, not just by graph inspection.
+_EDIT_SHAPE_IRI = "https://weave.io/instances/shape-edit-target"
+_EDIT_SHAPE_VIOLATION_TTL = f"""
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix weave: <https://weave.io/ontology/> .
+<{_EDIT_SHAPE_IRI}> a sh:NodeShape ;
+    sh:targetClass weave:Activity ;
+    sh:property [
+        sh:path weave:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Violation ;
+        sh:message "Every Activity must carry a description."@en ;
+    ] .
+"""
+_EDIT_SHAPE_WARNING_TTL = f"""
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix weave: <https://weave.io/ontology/> .
+<{_EDIT_SHAPE_IRI}> a sh:NodeShape ;
+    sh:targetClass weave:Activity ;
+    sh:property [
+        sh:path weave:description ;
+        sh:minCount 1 ;
+        sh:severity sh:Warning ;
+        sh:message "An Activity should carry a description."@en ;
+    ] .
+"""
+
+
+async def test_recommitting_same_shape_iri_replaces_not_stacks_the_constraint(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """G2: re-committing `_EDIT_SHAPE_IRI` with a Warning-severity property
+    must fully replace the earlier Violation-severity property -- if the
+    old triples were still present (append-only bug), the write below
+    would still 422 on the stacked Violation.
+    """
+    tenant_id = _unique_tenant("gov-edit")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        first_commit = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _EDIT_SHAPE_VIOLATION_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert first_commit.status_code == 201, first_commit.text
+
+        blocked = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_activity_op("act-before-edit")], "actor": "urn:weave:t"},
+            headers=headers,
+        )
+        assert blocked.status_code == 422, blocked.text
+
+        second_commit = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _EDIT_SHAPE_WARNING_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert second_commit.status_code == 201, second_commit.text
+
+        allowed = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_activity_op("act-after-edit")], "actor": "urn:weave:t"},
+            headers=headers,
+        )
+        assert allowed.status_code == 201, allowed.text
+
+        turtle = await fetch_graph_turtle(tenant_shapes_graph_iri(tenant_id))
+        graph = Graph()
+        graph.parse(data=turtle, format="turtle")
+        properties = list(graph.objects(URIRef(_EDIT_SHAPE_IRI), URIRef(str(SH.property))))
+        assert len(properties) == 1, "second commit must replace, not stack, the property node"
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(tenant_shapes_graph_iri(tenant_id))
+
+
+async def test_editing_one_shape_leaves_unrelated_tenant_shape_untouched(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """G2/ADR-028: retract is scoped to the incoming shape's OWN subject --
+    re-committing `_EDIT_SHAPE_IRI` must not touch the unrelated
+    `_ACTOR_DESCRIPTION_REQUIRED_SHAPE_TTL` shape committed alongside it.
+    """
+    tenant_id = _unique_tenant("gov-edit-scope")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        for turtle in (_EDIT_SHAPE_VIOLATION_TTL, _ACTOR_DESCRIPTION_REQUIRED_SHAPE_TTL):
+            commit_response = await client.post(
+                "/api/ontology/authoring/nl/shapes/commit",
+                json={"shape_turtle": turtle, "ai_generated": False},
+                headers=headers,
+            )
+            assert commit_response.status_code == 201, commit_response.text
+
+        re_edit = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _EDIT_SHAPE_WARNING_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert re_edit.status_code == 201, re_edit.text
+
+        # The unrelated Actor shape must still be enforced after the edit.
+        actor_response = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_actor_op("actor-untouched")], "actor": "urn:weave:t"},
+            headers=headers,
+        )
+        assert actor_response.status_code == 422, actor_response.text
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(tenant_shapes_graph_iri(tenant_id))
+
+
+async def test_retiring_a_shape_stops_it_being_enforced_and_listed(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    """G3: after `DELETE /api/ontology/authoring/shapes`, the retired
+    shape's rule no longer blocks writes, and `GET /api/validate`'s rule
+    catalogue no longer lists it (both read the same shapes-graph state).
+    """
+    tenant_id = _unique_tenant("gov-retire")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        commit_response = await client.post(
+            "/api/ontology/authoring/nl/shapes/commit",
+            json={"shape_turtle": _DESCRIPTION_REQUIRED_SHAPE_TTL, "ai_generated": False},
+            headers=headers,
+        )
+        assert commit_response.status_code == 201, commit_response.text
+        shape_iri = commit_response.json()["shape_iri"]
+
+        retire_response = await client.request(
+            "DELETE",
+            "/api/ontology/authoring/shapes",
+            params={"shape_iri": shape_iri},
+            headers=headers,
+        )
+        assert retire_response.status_code == 204, retire_response.text
+
+        allowed = await client.post(
+            "/api/operations/apply",
+            json={"operations": [_bare_activity_op("act-after-retire")], "actor": "urn:weave:t"},
+            headers=headers,
+        )
+        assert allowed.status_code == 201, allowed.text
+
+        report = await client.get(
+            "/api/validate",
+            params={"workspace_id": workspace.id, "run": "true"},
+            headers=headers,
+        )
+        assert report.status_code == 200, report.text
+        rule_iris = {rule["shape_iri"] for rule in report.json()["rules"]}
+        assert shape_iri not in rule_iris
+
+        async with tenant_connection(tenant_id) as conn:
+            rows = await conn.fetch(
+                "SELECT event_type, target_iri FROM audit_entries"
+                " WHERE tenant_id = $1 AND event_type = 'governance.shape_retired'",
+                tenant_id,
+            )
+        assert len(rows) == 1
+        assert rows[0]["target_iri"] == shape_iri
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+        await clear_graph(tenant_shapes_graph_iri(tenant_id))
+
+
+async def test_retiring_an_unknown_shape_returns_404(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    tenant_id = _unique_tenant("gov-retire-404")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        response = await client.request(
+            "DELETE",
+            "/api/ontology/authoring/shapes",
+            params={"shape_iri": "https://weave.io/instances/shape-never-committed"},
+            headers=headers,
+        )
+        assert response.status_code == 404, response.text
+    finally:
+        await clear_graph(workspace.named_graph_iri)
+
+
+async def test_retiring_a_framework_shape_returns_403(
+    client: AsyncClient, platform_stack: Path
+) -> None:
+    tenant_id = _unique_tenant("gov-retire-403")
+    workspace = await _make_workspace(tenant_id, label="gov")
+    await _add_admin(tenant_id, workspace.id, user_sub="u-admin", email="admin@example.invalid")
+    headers = await _authed_headers(
+        client, tenant_id=tenant_id, user_sub="u-admin", workspace_id=workspace.id
+    )
+
+    try:
+        response = await client.request(
+            "DELETE",
+            "/api/ontology/authoring/shapes",
+            params={"shape_iri": "https://weave.io/ontology/ProcessShape"},
+            headers=headers,
+        )
+        assert response.status_code == 403, response.text
+    finally:
+        await clear_graph(workspace.named_graph_iri)
 
 
 async def test_ai_provider_unavailable_returns_503_and_raw_shacl_path_stays_live(
