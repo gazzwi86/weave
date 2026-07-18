@@ -78,3 +78,12 @@ describe("DEFAULT_EXPLORER_CONFIG -- TASK-021 additions", () => {
     });
   });
 });
+
+// V3b-2 item 1: de-hairball label-thinning -- orienting kinds stay labelled
+// below nodeLabelThreshold, never a literal inlined at the semantic-zoom
+// call site.
+describe("DEFAULT_EXPLORER_CONFIG -- V3b-2 additions", () => {
+  it("defaults alwaysLabelledKinds to the domain/process landmark kinds", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.alwaysLabelledKinds).toEqual(["BusinessDomain", "Process"]);
+  });
+});

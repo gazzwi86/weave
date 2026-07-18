@@ -141,7 +141,11 @@ interface WireCanvasParams {
  * can unregister it on unmount. */
 function wireCanvas(params: WireCanvasParams) {
   const { cy, adapter, config, onViewportChange } = params;
-  const thresholds = { nodeLabelThreshold: config.nodeLabelThreshold, edgeLabelThreshold: config.edgeLabelThreshold };
+  const thresholds = {
+    nodeLabelThreshold: config.nodeLabelThreshold,
+    edgeLabelThreshold: config.edgeLabelThreshold,
+    alwaysLabelledKinds: config.alwaysLabelledKinds,
+  };
   cy.on("zoom", () => applySemanticZoom(cy, thresholds));
 
   const updateMinimap = rafThrottle(() => {
