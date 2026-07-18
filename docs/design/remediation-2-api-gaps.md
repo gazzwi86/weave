@@ -2,7 +2,7 @@
 type: Design
 title: "UI refit — remediation step 2: active task list + API gaps"
 description: "Checkboxed rollout task list (visual regression, gap closure, post-refit burn-down)
-  plus the endpoint-level API gaps (G1-G14) behind the signed-off refit mock."
+  plus the endpoint-level API gaps (G1-G14, G17) behind the signed-off refit mock."
 tags: [design, refit, api-gaps, tasks]
 status: "Active — worked under the 2026-07-18 rollout goal"
 timestamp: 2026-07-17T00:00:00Z
@@ -20,11 +20,17 @@ owner: gazzwi86
   already exercised by the mock-verification scripts become the spec); Storybook stories covered
   via Chromatic or `@storybook/test-runner` + pixel diff; wire into CI as a required check; real
   click paths only (no evaluate shortcuts). Baselines captured from the signed-off refit.
-- [ ] **T1b · Dark-mode test coverage is fake** — the vitest browser-mode story runs and the
+- [x] **T1b · Dark-mode test coverage is fake** — the vitest browser-mode story runs and the
   visual suites don't flip `prefers-color-scheme`, so every "Dark" story variant currently runs in
   light mode (duplicate coverage, zero dark assertions). Fix: emulate `colorScheme: 'dark'` per
   Dark variant in the story test config + a dark projection in the visual-regression configs.
-  (Found during the a11y-contrast fix lane, 2026-07-18.)
+  (Found during the a11y-contrast fix lane, 2026-07-18.) Fixed 2026-07-18: `storybook.spec.ts`
+  emulates `colorScheme` per story keyed off the `-dark` id suffix, plus an acceptance test
+  asserting the `--color-bg` token actually differs between a Dark/Light story pair;
+  `playwright.visual.config.ts` gained a `chromium-dark` project. See
+  `packages/frontend/tests/visual/README.md` for the dark-coverage notes and two other findings
+  made along the way (a stale/rebuilt `storybook-static/` catalogue surfacing 34 unbaselined
+  portal-based dialog stories, and a pre-existing practice-mode-banner timing race).
 - [ ] **T2 · Close the API gaps** — G1–G14 below, as small TDD backend tasks (sonnet lanes),
   sequenced so each UI lane's data is live before its pages land (see lane table in session notes:
   R2a needs G1–G3; R2b needs G4–G8+G14; R2c needs G9–G12; R2d needs G13).
@@ -64,65 +70,50 @@ breaches.
   (retraction from shapes graph + audit event).
 - [x] **G4 S · `event_type` prefix filter not implemented** — contract promises `event_type=ce.*`;
   `audit/listing.py:63` does exact match only. → implement prefix match. *(contract violation)*
-  Closed: `event_type=prefix.*` now LIKE-prefix-matches in `audit/listing.py`.
 - [x] **G5 L · Audit card A (model edits by kind)** — `operations.applied` payload carries no entity
   kind and no per-op breakdown; unbuildable even client-side. → emit per-kind counts in the
   operations pipeline's audit payload.
-  Closed (emit-side only): `operations.applied` now carries `kind_counts` (`operations/pipeline.py`).
-  No consuming UI/dashboard card built in this lane.
 - [x] **G6 M · Audit card F (budget sub-events)** — compliance aggregates first-segment categories
   only; `cap.changed` vs `budget.breach` indistinguishable server-side. → sub-event aggregation
   (generalises to D/E/I too; one `group by event_type` with prefix filter closes G4/G6/G8 family).
-  Closed: `GET /api/audit/counts` groups by full `event_type` (`audit/listing.py`, `routers/audit.py`).
 - [x] **G7 M · Audit card G (top targets)** — compliance groups by actor only. → add top-target
   aggregation.
-  Closed: `GET /api/audit/compliance` now returns `top_targets` (`audit/compliance.py`).
 - [x] **G8 S · Audit card I (audit_outage)** — emitted but not aggregated. → include in compliance
   response.
-  Closed: `GET /api/audit/compliance` now returns `audit_outages` (`audit/compliance.py`).
 - [x] **G9 M · Epic grouping/counts** — board + state spine are task-level only; no epic entity in
   the API. → expose epic rollups (count, per-epic task status).
-  Closed: `GET /api/projects/{project_iri}/epics` (`routers/epics.py`) groups state-spine tasks by
-  an optional brief-supplied `epic_id`/`epic_title` (`briefs/store.py`'s `epic_refs`, threaded
-  through `POST /api/projects/{project_iri}/briefs`'s create request). No epic entity exists in the
-  DB — everything ungrouped lands in a flagged `"unassigned"` bucket rather than being dropped.
 - [x] **G10 L · Roadmap/gantt data** — no epic date-ranges/ordering endpoint. → smallest viable:
   epic list with status + ordinal + started/completed timestamps (gantt draws from that).
-  Closed (derived, not stored): same `GET /api/projects/{project_iri}/epics` response carries
-  `ordinal` + a `done`/`active`/`upcoming` `status` derived from `build.board.lane_for_status`, so
-  it can never drift from the board. **Deferred:** no task-transition timestamps exist in M1, so
-  `started_at`/`completed_at` are not returned — a gantt view built on this endpoint only gets
-  ordinal sequencing, not date ranges, until timestamp capture lands.
 - [x] **G11 M · Spec artifact links** — only per-task briefs retrievable; no PRD/roadmap/tech-spec
   retrieval or link metadata. → spec-artifact index endpoint (id, type, status, approved_at, link).
-  Closed (task-brief half only): `GET /api/projects/{project_iri}/spec-artifacts`
-  (`routers/spec_artifacts.py`) returns one `type: "task-brief"` entry per stored brief, `status`
-  derived from the matching state-spine task (`Done` → `approved`, `Blocked` → `pending_review`,
-  anything else/no task → `drafted`), `ref` pointing at the existing
-  `GET /api/projects/{iri}/briefs/{task_id}` route. **Deferred:** PRD/roadmap/tech-spec are
-  doc-served sections under `docs/specs/weave/engines/<entity>.md` (per `CLAUDE.md`'s spec artifact
-  table), not persisted rows — no API-served entry for them yet; `approved_at` also stays unset
-  (same "no task-transition timestamp in M1" deferral as G10).
 - [x] **G12 M · Pending-gates list** — no endpoint listing tasks awaiting a HITL gate; UI must know
   task_id and stitch 4 evidence routes. → `GET /api/projects/{iri}/gates?status=pending` returning
   gate + evidence bundle refs.
-  Closed: `GET /api/projects/{project_iri}/gates?status=pending` (`routers/gates.py`) lists every
-  state-spine task with `status == "Blocked"` (the same HITL-escalation signal
-  `build.board.lane_for_status`/`hitl_escalated` already read) with a bundled `evidence` object
-  (`task_detail`, `audit`, `console_log`, `captures`, `hitl_action` refs) so the UI no longer
-  stitches 4+1 routes by hand from a bare `task_id`. **Deferred:** no per-task gate-type (DoR vs DoD
-  vs pre-scaffold) is captured in the state spine, so every entry's `gate` field is the generic
-  `"hitl"` literal, not the specific gate that fired.
 
-- [ ] **G13 S · Allowed-models endpoint** — Settings > Models & AI picker needs the validated
+- [x] **G13 S · Allowed-models endpoint** — Settings > Models & AI picker needs the validated
   model allow-list + current tier routing; backend holds `ALLOWED_MODELS` + routing config
   internally but exposes no read/write endpoint for it. → `GET/PUT /api/settings/models`
   (admin-gated, values validated against the allow-list).
 
-- [ ] **G14 S · Brand-conformance rollup** — the "brand conformance, last 30 days" KPI. Source is
+- [x] **G14 S · Brand-conformance rollup** — the "brand conformance, last 30 days" KPI. Source is
   NOT OTel: every generated artefact already passes a brand gate that emits `gate_result_brand`
   audit events (backend emits these today). Conformance = pass rate over those events in the
   window; critical-rule failures tracked separately. → aggregation endpoint (or fold into the G6
   count-by-event-type work) returning `{window, passed, failed, critical_failures}`.
 
+- [ ] **G19 UI-bug · Canvas node-click misses under overlay chrome** — the new ControlDock/legend/
+  overlay chrome likely needs pointer-events/z-order fixed so clicks pass through to cytoscape nodes
+  underneath (the explorer-a11y-m2 spec had to route around a flaky canvas click). Real fix = component
+  pointer-events; the test currently opens panels via the search box instead. (Escalation TASK-030.)
+
 Cards D/E are shippable now against category buckets (approximate); exact splits arrive with G6.
+
+- [ ] **G17 S · Change heatmap overlay (per-entity change frequency)** — Explorer's Overlays tab
+  wants a "Change heatmap" toggle colouring nodes by recent edit frequency. No source exists:
+  `CE-METRICS-1` is aggregate-only (no per-entity breakdown) and the audit log's `target_iri`
+  linkage needed to derive it is tenant-admin-gated (not viewer-facing). → either extend
+  `CE-METRICS-1` with a per-entity change-count facet, or add a viewer-safe read over
+  `target_iri`-grouped audit counts. Shipped today as a permanently disabled toggle with this gap
+  cited in its tooltip (`use-canvas-overlay-toggles.ts`) rather than faked data.
+  *(numbered G17, not G15/16 — those were claimed by concurrent backend lanes in flight at the
+  time this gap was logged; renumber down if this doc is consolidated after those land.)*

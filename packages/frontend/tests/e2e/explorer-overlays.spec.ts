@@ -74,6 +74,9 @@ test.describe("Overlay engine + heatmap/domain-colouring (TASK-021)", () => {
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
 
+    // Refit: overlays live behind the ControlDock's "Overlays" tab
+    // (single-open accordion) rather than an always-visible side panel.
+    await page.getByRole("button", { name: "Overlays" }).click();
     const heatmapSwitch = page.getByRole("switch", { name: "Heatmap: Maturity" });
     await heatmapSwitch.focus();
     await page.keyboard.press("Enter");
@@ -96,9 +99,13 @@ test.describe("Overlay engine + heatmap/domain-colouring (TASK-021)", () => {
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
 
+    await page.getByRole("button", { name: "Overlays" }).click();
     await page.getByRole("switch", { name: "Domain colouring" }).click();
 
-    await expect(page.getByText("Domain colouring", { exact: true })).toBeVisible();
+    // Scoped to the OverlayKey's section-label div: the Overlays tab's own
+    // switch shares this exact text, which is ambiguous for a bare
+    // page-wide getByText lookup.
+    await expect(page.locator("div").filter({ hasText: /^Domain colouring$/ })).toBeVisible();
     await expect(page.getByText("palette cycled -- more domains than colours")).toBeVisible();
   });
 
@@ -112,6 +119,7 @@ test.describe("Overlay engine + heatmap/domain-colouring (TASK-021)", () => {
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
 
+    await page.getByRole("button", { name: "Overlays" }).click();
     const heatmapSwitch = page.getByRole("switch", { name: "Heatmap: Maturity" });
     const durations: number[] = [];
     for (let rep = 0; rep < 5; rep++) {

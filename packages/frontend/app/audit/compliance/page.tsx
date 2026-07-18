@@ -1,145 +1,206 @@
 "use client";
 
-import Link from "next/link";
-
-import { BarChartSlot as BarChart } from "@/components/templates/BarChartSlot";
-import { KpiTileSlot as KpiTile } from "@/components/templates/KpiTileSlot";
 import { Card, CardContent } from "@/components/ui/card";
+import { ExplainBand } from "@/components/ui/explain-band";
+import { StatCard } from "@/components/ui/stat-card";
+import { useToast } from "@/components/ui/toast/toast-provider";
 
+import { downloadBlob } from "../logs/logs-row-detail";
 import { useCompliance, type ComplianceSummary } from "./use-compliance";
 
-function eventLogsHref(category: string): string {
-  return `/audit/logs?event_type=${encodeURIComponent(category)}`;
+/** refit-mock.html `.chain-explainer` -- the page's one-line verdict. Scoped
+ * strictly to what the chain-verify endpoint actually measures: chain
+ * integrity + entries checked. It never claims "no policy violations" or
+ * "full coverage" -- this backend carries no data to back either claim
+ * (see the pending stat cards below). */
+function Verdict({ summary }: { summary: ComplianceSummary }) {
+  const valid = summary.chain_status === "valid";
+  const body = valid ? (
+    <>
+      <b className="text-[var(--color-text-default)]">Chain verifies end-to-end.</b>{" "}
+      {summary.entries_checked.toLocaleString()} entries checked, no gaps in the hash chain.
+    </>
+  ) : (
+    <>
+      <b className="text-[var(--color-text-default)]">Chain broken at entry {summary.first_broken_seq}.</b>{" "}
+      {summary.entries_checked.toLocaleString()} entries checked before the break was found.
+    </>
+  );
+  return (
+    <div data-testid="compliance-verdict">
+      <ExplainBand tone={valid ? "success" : "danger"} icon={valid ? "check" : "alert-triangle"} body={body} />
+    </div>
+  );
 }
 
-/** AC-1: chain-status/entries-checked/SHACL figures as `KpiTile` tiles,
- * not plain `<p>` text rows -- closes F-D21's tile finding. */
-function SummaryTiles({ summary }: { summary: ComplianceSummary }) {
+/** refit-mock.html `.kpi-row` of `.stat-card`s. Chain status is real data;
+ * policy-violations and coverage-gaps have no backing endpoint on any
+ * branch (no gap ticket exists for either yet); audit_outages is `G8`
+ * (`feat/audit-aggregation-gaps`, PR #135, unmerged in this worktree) --
+ * `undefined` means "not served yet", never "zero". */
+function StatCardsRow({ summary }: { summary: ComplianceSummary }) {
   return (
-    <div className="grid grid-cols-2 gap-[var(--space-4)] sm:grid-cols-4">
-      <div data-testid="chain-status">
-        <KpiTile
-          label="Chain status"
-          value={summary.chain_status}
-          variant={summary.chain_status === "valid" ? "success" : "danger"}
+    <div className="grid grid-cols-2 gap-[var(--space-3)] sm:grid-cols-4">
+      <div data-testid="stat-chain">
+        <StatCard
+          value={summary.chain_status === "valid" ? "Valid" : "Broken"}
+          label={`chain — ${summary.entries_checked.toLocaleString()} entries verified`}
+          tone={summary.chain_status === "valid" ? "ok" : "bad"}
         />
       </div>
-      <div data-testid="entries-checked">
-        <KpiTile label="Entries checked" value={String(summary.entries_checked)} />
+      <div data-testid="stat-policy-violations">
+        <StatCard value="—" label="policy violations — not available yet" tone="neutral" />
       </div>
-      <div data-testid="shacl-validated">
-        <KpiTile label="SHACL validated" value={String(summary.shacl_validated)} />
+      <div data-testid="stat-coverage-gaps">
+        <StatCard value="—" label="coverage gaps — not available yet" tone="neutral" />
       </div>
-      <div data-testid="shacl-rejections">
-        <KpiTile
-          label="SHACL rejections"
-          value={String(summary.shacl_rejections)}
-          variant={summary.shacl_rejections > 0 ? "warn" : "default"}
-        />
+      <div data-testid="stat-audit-outages">
+        {summary.audit_outages !== undefined ? (
+          <StatCard
+            value={String(summary.audit_outages)}
+            label="audit outages — 30 days"
+            tone={summary.audit_outages > 0 ? "bad" : "ok"}
+          />
+        ) : (
+          <StatCard value="—" label="audit outages — not available yet" tone="neutral" />
+        )}
       </div>
     </div>
   );
 }
 
-function SummaryCard({
-  summary,
-  previous,
-}: {
-  summary: ComplianceSummary;
-  previous: ComplianceSummary | null;
-}) {
-  const categories = Object.keys(summary.by_event_category);
+interface AttentionRow {
+  key: string;
+  dotTone: "danger" | "warn";
+  bold: string;
+  href?: string;
+}
 
+const DOT_COLOUR: Record<AttentionRow["dotTone"], string> = {
+  danger: "var(--color-danger)",
+  warn: "var(--color-warn)",
+};
+
+/** Only real, measured signals -- no illustrative rows invented from data
+ * this backend doesn't carry (refit-mock.html's example rows name process
+ * owners and per-kind rule coverage, neither of which has a source here). */
+function attentionRows(summary: ComplianceSummary): AttentionRow[] {
+  const rows: AttentionRow[] = [];
+  if (summary.chain_status === "broken") {
+    rows.push({
+      key: "chain-broken",
+      dotTone: "danger",
+      bold: `Chain broken at entry ${summary.first_broken_seq}`,
+      href: "/audit/logs",
+    });
+  }
+  if (summary.audit_outages !== undefined && summary.audit_outages > 0) {
+    rows.push({
+      key: "audit-outages",
+      dotTone: "warn",
+      bold: `${summary.audit_outages} audit outage${summary.audit_outages === 1 ? "" : "s"} in the last 30 days`,
+      href: "/audit/logs",
+    });
+  }
+  return rows;
+}
+
+function AttentionList({ summary }: { summary: ComplianceSummary }) {
+  const rows = attentionRows(summary);
   return (
     <Card>
-      <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        {summary.period}
-      </p>
-      <CardContent className="flex flex-col gap-[var(--space-4)]">
-        <SummaryTiles summary={summary} />
-
-        <div>
-          <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            By event category -- current vs previous period
+      <CardContent className="flex flex-col gap-[var(--space-2)]">
+        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">What needs attention</p>
+        {rows.length === 0 ? (
+          <p data-testid="attention-empty" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
+            Nothing outstanding from the signals this page can measure. Policy-violation and
+            coverage-gap detection aren&apos;t served by this backend yet.
           </p>
-          {/* AC-2: BarChart replaces the "▲ 1" text-glyph CategoryDelta;
-           * AC-3: category bars drill into /audit/logs, pre-filtered. */}
-          <BarChart
-            categories={categories}
-            series={
-              previous
-                ? [
-                    {
-                      label: previous.period,
-                      values: categories.map((c) => previous.by_event_category[c] ?? 0),
-                    },
-                    {
-                      label: summary.period,
-                      values: categories.map((c) => summary.by_event_category[c] ?? 0),
-                    },
-                  ]
-                : []
-            }
-            hrefFor={eventLogsHref}
-          />
-        </div>
-
-        <div>
-          <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            Top actors
-          </p>
-          <ul data-testid="top-actors-list" className="flex flex-col gap-[var(--space-1)]">
-            {summary.top_actors.map((actor) => (
-              <li key={actor.principal_iri}>
-                {actor.principal_iri}: {actor.event_count}
+        ) : (
+          <ul data-testid="attention-list" className="flex flex-col gap-[var(--space-2)]">
+            {rows.map((row) => (
+              <li key={row.key} className="flex items-start gap-[var(--space-2)]">
+                <span
+                  className="mt-[var(--space-1)] h-[var(--space-2)] w-[var(--space-2)] shrink-0 rounded-[var(--radius-full)]"
+                  style={{ background: DOT_COLOUR[row.dotTone] }}
+                />
+                {row.href ? (
+                  <a href={row.href} className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+                    <b className="text-[var(--color-text-default)]">{row.bold}</b>
+                  </a>
+                ) : (
+                  <span className="text-[length:var(--text-body-sm)]">
+                    <b className="text-[var(--color-text-default)]">{row.bold}</b>
+                  </span>
+                )}
               </li>
             ))}
           </ul>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function ConformanceCard({ summary }: { summary: ComplianceSummary }) {
+/** Downloads the current summary as an evidence JSON file and confirms via
+ * toast -- same `downloadBlob` helper the logs page's Export button uses. */
+function EvidenceExportButton({ summary }: { summary: ComplianceSummary }) {
+  const { toast } = useToast();
   return (
-    <Card>
-      {/* Plain text, not CardTitle -- same heading-order trap billing/page.tsx documents. */}
-      <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Model conformance
-      </p>
-      <CardContent className="flex flex-col gap-[var(--space-2)]">
-        <p>
-          Every write is SHACL-validated at the door (CE-WRITE-1) — the published graph is
-          conformant by construction.
-        </p>
-        <Link
-          href="/ce/types"
-          className="text-[var(--color-accent-primary)] hover:text-[var(--color-accent-hover)]"
-        >
-          View kinds & shape constraints
-        </Link>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      onClick={() => {
+        downloadBlob(
+          `audit-compliance-evidence-${summary.period}.json`,
+          JSON.stringify(summary, null, 2),
+          "application/json"
+        );
+        toast({ variant: "success", message: "Evidence exported." });
+      }}
+      className="rounded-[var(--radius-base)] border border-[var(--color-border)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] hover:bg-[var(--color-hover)]"
+    >
+      Export evidence
+    </button>
   );
 }
 
-/** PLAT-TASK-009 AC-7 / TASK-029 AC-1/2/3: compliance sub-view -- KpiTile
- * summary tiles, month-over-month BarChart per event category, plus a
- * SHACL-conformance hub. The backend's `GET /api/audit/compliance` response
- * shape never includes `diff_summary` for any role -- redaction is
- * structural, so this page has no raw diff payload to accidentally render.
- * Canonical route per AC-6 (`visual-direction.md` "Compliance placement");
- * legacy `/compliance` redirects here (`next.config.ts`).
+function ComplianceBody({ summary }: { summary: ComplianceSummary }) {
+  return (
+    <div className="flex flex-col gap-[var(--space-4)]">
+      <Verdict summary={summary} />
+      <StatCardsRow summary={summary} />
+      <AttentionList summary={summary} />
+    </div>
+  );
+}
+
+/** /audit/compliance (refit-mock.html `#sub-aud-compliance`): "is our record
+ * trustworthy, are our rules being kept, and where are the gaps?" -- a
+ * verdict band plus stat cards scoped to what `GET /api/audit/compliance`
+ * actually measures. Policy-violations and coverage-gaps have no backing
+ * endpoint on any branch; audit_outages lights up once `feat/audit-
+ * aggregation-gaps` (PR #135, G8) merges -- all three degrade to an honest
+ * pending state here rather than fabricated figures.
  */
 export default function CompliancePage() {
-  const { summary, previous, loadError } = useCompliance();
+  const { summary, loadError } = useCompliance();
 
   return (
     <main data-tour-id="compliance.page" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Audit compliance
-      </h1>
+      <div className="flex items-start justify-between gap-[var(--space-4)]">
+        <div>
+          <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
+            Audit trail
+          </p>
+          <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+            Compliance
+          </h1>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+            Is our record trustworthy, are our rules being kept, and where are the gaps?
+          </p>
+        </div>
+        {summary && <EvidenceExportButton summary={summary} />}
+      </div>
 
       {loadError && !summary && (
         <p data-testid="compliance-error" className="text-[var(--color-text-muted)]">
@@ -147,8 +208,7 @@ export default function CompliancePage() {
         </p>
       )}
 
-      {summary && <SummaryCard summary={summary} previous={previous} />}
-      {summary && <ConformanceCard summary={summary} />}
+      {summary && <ComplianceBody summary={summary} />}
     </main>
   );
 }

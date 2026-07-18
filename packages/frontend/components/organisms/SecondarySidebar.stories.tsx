@@ -6,9 +6,9 @@ const GROUPS = [
   {
     heading: "Model",
     items: [
-      { label: "Overview", href: "/ce/overview" },
-      { label: "Explore", href: "/explorer" },
-      { label: "Glossary", tag: "M2" },
+      { label: "Overview", href: "/ce/overview", icon: "home" as const },
+      { label: "Explore", href: "/explorer", icon: "graph" as const },
+      { label: "Strategy & motivation", tag: "soon", icon: "target" as const },
     ],
   },
 ];
@@ -29,3 +29,4 @@ export const WithHead: Story = {
   args: { groups: GROUPS, activeHref: "/explorer", title: "Constitution", onCollapse: () => {} },
 };
 export const WithHeadDark: Story = { ...WithHead, parameters: { theme: "dark" } };
+export const Collapsed: Story = { args: { ...WithHead.args, collapsed: true } };

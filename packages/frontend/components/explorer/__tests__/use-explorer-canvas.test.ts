@@ -8,7 +8,17 @@ const PALETTE = [{ id: "Process", label: "Process", colour: "#3B82F6" }];
 const ELEMENTS = [{ data: { id: "n1", label: "Customer Onboarding", bpmo_kind: "Process" } }];
 const CE_ERROR_MESSAGE = "CE error 503";
 
-function fakeCy() {
+// A real cytoscape NodeCollection is array-like (has .map/.forEach) --
+// createRendererAdapter's listNodes()/allNodePositions() (used to build the
+// minimap's node dots) call straight through to it via the CyLike->
+// AdaptableCy cast in loadCanvas, so the fake needs the same shape, not
+// just the narrower `{ style() }` CyLike declares.
+function fakeCy(nodes: { id: string; label: string; bpmoKind: string; x: number; y: number }[] = []) {
+  const fakeNodes = nodes.map((node) => ({
+    id: () => node.id,
+    data: (key: string) => ({ label: node.label, bpmo_kind: node.bpmoKind })[key],
+    position: () => ({ x: node.x, y: node.y }),
+  }));
   return {
     container: vi.fn(() => document.createElement("div")),
     json: vi.fn(),
@@ -19,7 +29,7 @@ function fakeCy() {
     elements: vi.fn(() => ({ boundingBox: () => ({ x1: 0, y1: 0, x2: 0, y2: 0 }) })),
     on: vi.fn(),
     fit: vi.fn(),
-    nodes: vi.fn(() => ({ style: vi.fn() })),
+    nodes: vi.fn(() => Object.assign([...fakeNodes], { style: vi.fn() })),
     edges: vi.fn(() => ({ style: vi.fn() })),
     destroy: vi.fn(),
   };
@@ -31,7 +41,7 @@ describe("useExplorerCanvas", () => {
   it("starts loading, then loads the palette+graph and constructs the canvas (AC-1)", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi.fn(async () => ELEMENTS);
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
 
     const { result } = renderHook(() =>
       useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
@@ -55,7 +65,7 @@ describe("useExplorerCanvas", () => {
     const fetchGraph = vi.fn(async () => {
       throw new CeReadError(CE_ERROR_MESSAGE);
     });
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
 
     const { result } = renderHook(() =>
       useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
@@ -74,7 +84,7 @@ describe("useExplorerCanvas", () => {
   it("reaches ready (not error) and constructs the canvas with zero elements for an empty graph", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi.fn(async () => []);
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
 
     const { result } = renderHook(() =>
       useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
@@ -93,7 +103,7 @@ describe("useExplorerCanvas", () => {
       .fn()
       .mockRejectedValueOnce(new CeReadError(CE_ERROR_MESSAGE))
       .mockResolvedValueOnce(ELEMENTS);
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
 
     const { result } = renderHook(() =>
       useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
@@ -112,7 +122,7 @@ describe("useExplorerCanvas", () => {
   it("restores saved positions onto matching elements and disables fcose randomize", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi.fn(async () => ELEMENTS);
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
     const fetchLayoutPositions = vi.fn(async () => [
       { node_iri: "n1", position_x: 10, position_y: 20, locked: false },
     ]);
@@ -133,7 +143,7 @@ describe("useExplorerCanvas", () => {
   it("loads with fcose's default randomize when there are no saved positions", async () => {
     const fetchPalette = vi.fn(async () => PALETTE);
     const fetchGraph = vi.fn(async () => ELEMENTS);
-    const createCy = vi.fn(fakeCy);
+    const createCy = vi.fn(() => fakeCy());
 
     const { result } = renderHook(() =>
       useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
@@ -143,5 +153,74 @@ describe("useExplorerCanvas", () => {
 
     const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
     expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", randomize: true }));
+  });
+
+  // Item 3 (layout): mock's entrance animation must honour
+  // `prefers-reduced-motion` -- fcose's own animate params stay ADR-014-pinned
+  // in fcose-params.ts, so the override happens only at this call site.
+  it("disables the fcose entrance animation when the user prefers reduced motion", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(() => fakeCy());
+    const prefersReducedMotion = vi.fn(() => true);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({
+        fetchPalette,
+        fetchGraph,
+        createCy,
+        fetchLayoutPositions: noSavedPositions,
+        prefersReducedMotion,
+      })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.layout).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "fcose", animate: false, animationDuration: 0 })
+    );
+  });
+
+  // Item 1 (minimap): node dots come from the renderer adapter
+  // (listNodes/allNodePositions), scaled the same way as the viewport rect --
+  // proves the wiring reaches useExplorerCanvas's own returned state, not
+  // just that computeMinimapState (unit-tested separately) is correct in
+  // isolation.
+  it("exposes minimap node dots scaled from the adapter's real node positions", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(() => fakeCy([{ id: "n1", label: "Customer Onboarding", bpmoKind: "Process", x: 0, y: 0 }]));
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+    await waitFor(() =>
+      expect(result.current.minimapNodes).toEqual([{ id: "n1", x: 0, y: 0, colorVar: "--color-kind-process" }])
+    );
+  });
+
+  it("keeps fcose's default animation when the user has no reduced-motion preference", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(() => fakeCy());
+    const prefersReducedMotion = vi.fn(() => false);
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({
+        fetchPalette,
+        fetchGraph,
+        createCy,
+        fetchLayoutPositions: noSavedPositions,
+        prefersReducedMotion,
+      })
+    );
+
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
+    expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", animate: true }));
   });
 });

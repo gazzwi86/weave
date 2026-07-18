@@ -29,7 +29,7 @@ export default defineConfig({
         setupFiles: ["./vitest.setup.ts"],
         // Playwright's own spec.ts files live under tests/e2e -- run only
         // via `playwright test`, never picked up by vitest.
-        exclude: ["node_modules/**", "tests/e2e/**"]
+        exclude: ["node_modules/**", "tests/e2e/**", "tests/visual/**"]
       }
     }, {
       extends: true,

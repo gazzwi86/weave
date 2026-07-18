@@ -21,4 +21,25 @@ describe("Toast", () => {
     expect(onAction).toHaveBeenCalled();
     expect(onDismiss).not.toHaveBeenCalled();
   });
+
+  it("defaults to variant='error' with role=alert (back-compat, TASK-023's existing callers)", () => {
+    render(<Toast message="Couldn't save" onDismiss={vi.fn()} />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["success", "status"],
+    ["info", "status"],
+    ["error", "alert"],
+  ] as const)("variant=%s renders role=%s", (variant, role) => {
+    render(<Toast message="Saved" onDismiss={vi.fn()} variant={variant} />);
+    expect(screen.getByRole(role)).toBeInTheDocument();
+  });
+
+  it("clicking Dismiss calls onDismiss synchronously (no animation delay for direct callers)", () => {
+    const onDismiss = vi.fn();
+    render(<Toast message="Saved" onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
 });

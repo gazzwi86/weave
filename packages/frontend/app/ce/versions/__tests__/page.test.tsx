@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
+import { ToastProvider } from "@/components/ui/toast";
+
 import CeVersionsPage from "../page";
 
 interface VersionEntry {
@@ -39,6 +41,8 @@ const DIFF_BODY = {
   modified: [{ subject: "urn:e", predicate: "urn:rel", before: "urn:f", after: "urn:g" }],
 };
 
+const RULES_BODY = { pending: false, results: [], rules: [], ran_at: "2026-07-17T00:00:00Z", version_resolved: "draft" };
+
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -47,43 +51,60 @@ interface FetchMockOptions {
   versionsSequence: VersionEntry[][];
   publish?: () => Response;
   diff?: () => Response;
+  validate?: () => Response;
 }
 
-function stubFetch({ versionsSequence, publish, diff }: FetchMockOptions): void {
-  let versionsCallIndex = 0;
+interface Route {
+  match: (url: string, method: string) => boolean;
+  handle: () => Response;
+}
+
+/** One handler per endpoint, kept out of the dispatching arrow so it stays
+ * under the complexity budget (data-driven route table instead of a chain
+ * of ifs). */
+function buildRoutes({ versionsSequence, publish, diff, validate }: FetchMockOptions): Route[] {
+  const versionsCallIndex = { current: 0 };
+  return [
+    { match: (url, method) => url.includes("/publish") && method === "POST", handle: () => (publish ? publish() : jsonResponse(200, {})) },
+    {
+      match: (url) => url.includes("/api/proxy/ontology/versions"),
+      handle: () => {
+        const list = versionsSequence[Math.min(versionsCallIndex.current, versionsSequence.length - 1)] ?? [];
+        versionsCallIndex.current += 1;
+        return jsonResponse(200, { versions: list, total: list.length, page: 1, per_page: 50 });
+      },
+    },
+    {
+      match: (url) => url.includes("/api/proxy/ontology/diff"),
+      handle: () => (diff ? diff() : jsonResponse(404, { error: "version_not_found" })),
+    },
+    {
+      match: (url) => url.includes("/api/proxy/validate"),
+      handle: () => (validate ? validate() : jsonResponse(200, RULES_BODY)),
+    },
+  ];
+}
+
+function stubFetch(options: FetchMockOptions): void {
+  const routes = buildRoutes(options);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
       const method = init?.method ?? "GET";
-      if (url.includes("/publish") && method === "POST") {
-        return publish ? publish() : jsonResponse(200, {});
-      }
-      if (url.includes("/api/proxy/ontology/versions")) {
-        const list = versionsSequence[Math.min(versionsCallIndex, versionsSequence.length - 1)] ?? [];
-        versionsCallIndex += 1;
-        return jsonResponse(200, { versions: list, total: list.length, page: 1, per_page: 50 });
-      }
-      if (url.includes("/api/proxy/ontology/diff")) {
-        return diff ? diff() : jsonResponse(404, { error: "version_not_found" });
-      }
-      throw new Error(`unhandled fetch ${url}`);
+      const route = routes.find((candidate) => candidate.match(url, method));
+      if (!route) throw new Error(`unhandled fetch ${url}`);
+      return route.handle();
     })
   );
 }
 
-function draftRow(): HTMLElement {
-  const rows = screen.getAllByRole("listitem");
-  const found = rows.find((row) => row.textContent?.includes(DRAFT.semver));
-  if (!found) throw new Error("draft row not found");
-  return found;
-}
-
-function publishedRow(): HTMLElement {
-  const rows = screen.getAllByRole("listitem");
-  const found = rows.find((row) => row.textContent?.includes(PUBLISHED.semver));
-  if (!found) throw new Error("published row not found");
-  return found;
+function renderPage() {
+  return render(
+    <ToastProvider>
+      <CeVersionsPage />
+    </ToastProvider>
+  );
 }
 
 describe("CeVersionsPage", () => {
@@ -92,102 +113,138 @@ describe("CeVersionsPage", () => {
   });
 
   it("has no axe violations", async () => {
-    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]] });
-    const { container } = render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]], diff: () => jsonResponse(200, DIFF_BODY) });
+    const { container } = renderPage();
+    await screen.findByTestId("versions-timeline");
     expect((await axe(container)).violations).toHaveLength(0);
   });
 
-  it("renders versions with correct status badges", async () => {
-    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]] });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+  it("shows the draft ExplainBand with a real change count from the diff endpoint", async () => {
+    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]], diff: () => jsonResponse(200, DIFF_BODY) });
+    renderPage();
 
-    expect(within(draftRow()).getByText("Draft")).toBeInTheDocument();
-    expect(within(publishedRow()).getByText("Published")).toBeInTheDocument();
+    await expect(screen.findByText(/3 changes since v0\.1\.0/i)).resolves.toBeInTheDocument();
+    expect(screen.getByText(/Publishing freezes them into v0\.2\.0/i)).toBeInTheDocument();
   });
 
-  it("shows a Publish button on a draft row but not on a published row", async () => {
-    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]] });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+  it("degrades to a first-version message when there is no published baseline", async () => {
+    stubFetch({ versionsSequence: [[DRAFT]] });
+    renderPage();
 
-    expect(within(draftRow()).getByRole("button", { name: "Publish" })).toBeInTheDocument();
-    expect(within(publishedRow()).queryByRole("button", { name: "Publish" })).not.toBeInTheDocument();
+    await expect(screen.findByText(/first version/i)).resolves.toBeInTheDocument();
   });
 
-  it("clicking Publish calls POST publish then refetches the list", async () => {
+  it("shows only published versions in the timeline, latest first", async () => {
+    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]], diff: () => jsonResponse(200, DIFF_BODY) });
+    renderPage();
+
+    const timeline = await screen.findByTestId("versions-timeline");
+    expect(within(timeline).getByText("v0.1.0")).toBeInTheDocument();
+    expect(within(timeline).queryByText("v0.2.0")).not.toBeInTheDocument();
+    expect(within(timeline).getByText("latest")).toBeInTheDocument();
+  });
+
+  it("renders no ExplainBand when there is no draft", async () => {
+    stubFetch({ versionsSequence: [[PUBLISHED]] });
+    renderPage();
+
+    await screen.findByTestId("versions-timeline");
+    expect(screen.queryByRole("button", { name: "Review & publish" })).not.toBeInTheDocument();
+  });
+
+  it("opens the publish drawer with the diff and a real Rules preflight row", async () => {
+    stubFetch({
+      versionsSequence: [[DRAFT, PUBLISHED]],
+      diff: () => jsonResponse(200, DIFF_BODY),
+      validate: () =>
+        jsonResponse(200, {
+          pending: false,
+          results: [{ shape_iri: "s", focus_node: "f", path: null, message: "m", severity: "Violation" }],
+          rules: [],
+          ran_at: "2026-07-17T00:00:00Z",
+          version_resolved: "draft",
+        }),
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Review & publish" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Publish draft → v0.2.0")).toBeInTheDocument();
+    await expect(within(dialog).findByTestId("diff-view")).resolves.toBeInTheDocument();
+    await expect(within(dialog).findByText(/1 violation/i)).resolves.toBeInTheDocument();
+    expect(within(dialog).getByText("Consistency")).toBeInTheDocument();
+    expect(within(dialog).getByText("Provenance")).toBeInTheDocument();
+  });
+
+  it("publishing from the drawer calls POST publish, refetches, toasts success and closes", async () => {
     stubFetch({
       versionsSequence: [[DRAFT, PUBLISHED], [DRAFT_PUBLISHED, PUBLISHED]],
+      diff: () => jsonResponse(200, DIFF_BODY),
       publish: () => jsonResponse(200, { version_iri: DRAFT.version_iri, status: "published" }),
     });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+    renderPage();
 
-    fireEvent.click(within(draftRow()).getByRole("button", { name: "Publish" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Review & publish" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Publish v0.2.0" }));
 
-    await waitFor(() => {
-      const rows = screen.getAllByRole("listitem");
-      const flipped = rows.find((row) => row.textContent?.includes(DRAFT.semver));
-      expect(flipped && within(flipped).queryByText("Draft")).toBeNull();
-    });
-    expect(screen.getAllByText("Published")).toHaveLength(2);
+    await expect(screen.findByText(/v0\.2\.0 published/i)).resolves.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("shows a publisher-role message on 403 without crashing", async () => {
+  it("shows a publisher-role message inside the drawer on 403 without crashing", async () => {
     stubFetch({
       versionsSequence: [[DRAFT]],
       publish: () => jsonResponse(403, { message: "insufficient role" }),
     });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+    renderPage();
 
-    fireEvent.click(within(draftRow()).getByRole("button", { name: "Publish" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Review & publish" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Publish v0.2.0" }));
 
-    await expect(screen.findByText(/need publisher role/i)).resolves.toBeInTheDocument();
+    await expect(within(dialog).findByText(/need publisher role/i)).resolves.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("treats 405 (already published) as a refetch, not an error", async () => {
+  it("treats 405 (already published) as a success refetch, not an error", async () => {
     stubFetch({
       versionsSequence: [[DRAFT], [DRAFT_PUBLISHED]],
       publish: () => jsonResponse(405, { message: "version is published and immutable" }),
     });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+    renderPage();
 
-    fireEvent.click(within(draftRow()).getByRole("button", { name: "Publish" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Review & publish" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Publish v0.2.0" }));
 
-    await waitFor(() => expect(screen.getByText("Published")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(screen.queryByText(/need publisher role/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/error/i)).not.toBeInTheDocument();
   });
 
-  it("Review changes fetches the diff and renders added/removed/modified", async () => {
+  it("gap-toasts when a release note is entered before publishing", async () => {
     stubFetch({
-      versionsSequence: [[DRAFT]],
+      versionsSequence: [[DRAFT, PUBLISHED], [DRAFT_PUBLISHED, PUBLISHED]],
       diff: () => jsonResponse(200, DIFF_BODY),
+      publish: () => jsonResponse(200, {}),
     });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+    renderPage();
 
-    fireEvent.click(within(draftRow()).getByRole("button", { name: "Review changes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Review & publish" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/release note/i), { target: { value: "Fixed the refund flow" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Publish v0.2.0" }));
 
-    const diffView = await screen.findByTestId("diff-view");
-    expect(within(diffView).getByText(/1 added/i)).toBeInTheDocument();
-    expect(within(diffView).getByText(/1 removed/i)).toBeInTheDocument();
-    expect(within(diffView).getByText(/1 modified/i)).toBeInTheDocument();
+    await expect(screen.findByText(/release notes aren't persisted yet/i)).resolves.toBeInTheDocument();
   });
 
-  it("degrades gracefully when there is no published baseline to diff against (404)", async () => {
-    stubFetch({
-      versionsSequence: [[DRAFT]],
-      diff: () => jsonResponse(404, { error: "version_not_found" }),
-    });
-    render(<CeVersionsPage />);
-    await screen.findByTestId("version-list");
+  it("gap-toasts View diff on canvas from the ExplainBand", async () => {
+    stubFetch({ versionsSequence: [[DRAFT, PUBLISHED]], diff: () => jsonResponse(200, DIFF_BODY) });
+    renderPage();
 
-    fireEvent.click(within(draftRow()).getByRole("button", { name: "Review changes" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View diff on canvas" }));
 
-    await expect(screen.findByText(/no published baseline/i)).resolves.toBeInTheDocument();
+    await expect(screen.findByText(/explore-canvas linking isn't wired yet/i)).resolves.toBeInTheDocument();
   });
 });

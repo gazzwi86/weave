@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 const COLLAPSE_STORAGE_KEY = "weave.sectionRail.collapsed";
 
@@ -30,4 +30,21 @@ export function useSidebarCollapsed(): [boolean, () => void] {
   };
 
   return [collapsed, toggle];
+}
+
+/** refit-mock.html's "Toggle sidebar" shortcut: Cmd+\ (or Ctrl+\), from
+ * anywhere. Bind once at the shell root -- `toggle` already flips whatever
+ * the current state is, so a single global listener is correct regardless
+ * of which component happens to be mounted. */
+export function useSidebarCollapseHotkey(toggle: () => void) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "\\") {
+        event.preventDefault();
+        toggle();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggle]);
 }

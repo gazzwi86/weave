@@ -23,6 +23,7 @@ export function Nav({ userName }: { userName?: string | null }) {
         label: item.label,
         href: item.href,
         icon: RAIL_ICONS[item.href] ?? null,
+        disabled: item.disabled,
       }))}
       activeHref={activeSection?.href}
       footer={

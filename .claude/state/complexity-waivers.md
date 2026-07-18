@@ -86,3 +86,16 @@ Format: one entry per waiver, non-empty reason required (Law E, `.claude/rules/p
   breached at 551 lines before this task). Splitting one new `describe` block while its 6 siblings
   stay over budget doesn't change the file's actual complexity profile. WARN-level, consistent with
   the file's existing (already-waived-by-convention) shape.
+
+## `BuildPage` (`packages/frontend/app/build/projects/[id]/request/page.tsx`)
+
+- **Threshold:** function ≤ 50 lines (Law E) — ESLint `max-lines-per-function` severity is WARN (not error).
+- **Actual:** 89 lint-counted lines.
+- **Reason:** pre-existing violation (67 lines before this task, refit-mock lane R2c `#sub-bld-studio`)
+  from the composition root wiring ~20 props onto `RequestForm`. This task's studio refit (conversational
+  thread + proposed-plan card + refine box) added the `Thread`/`PlanCard`/`RefineBox` render branch and a
+  handful of handlers; the turn-tracking state itself was already pulled out into its own hook
+  (`use-studio-thread.ts`, matching the existing `useRequestStatus`/`useDraftingProgress` pattern in this
+  folder) to keep the addition as small as possible. What remains is one line per handler plus the
+  `RequestForm` prop wiring, which is the intentional shape of a container component. WARN-level, out of
+  this task's data-binding scope to restructure `RequestForm`'s prop surface.

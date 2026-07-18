@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,5 +114,59 @@ describe("DecisionLogPanel", () => {
     render(<DecisionLogPanel projectId="p-1" />);
 
     await waitFor(() => expect(screen.getByTestId("decisions-unavailable")).toBeInTheDocument());
+  });
+
+  // refit-mock.html #sub-bld-decisions: DataTable + decision-detail Drawer,
+  // both bound to the real audit-log fields (the mock's question/why-
+  // blocked/options-A-B-C content is static, no backend model -- gap G14).
+  describe("refit-mock #sub-bld-decisions: detail drawer", () => {
+    it("opens the detail drawer with the real audit fields on row click", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ONE_ENTRY)));
+
+      render(<DecisionLogPanel projectId="p-1" />);
+      await waitFor(() => expect(screen.getByTestId("decision-row-3")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("decision-row-3"));
+
+      const drawer = await screen.findByRole("dialog");
+      expect(drawer).toHaveTextContent("2026-07-11T00:00:03+00:00");
+      expect(drawer).toHaveTextContent("urn:weave:principal:user:alice");
+      expect(drawer).toHaveTextContent("urn:weave:project:t1:acme");
+    });
+
+    it("names the gap for a decision-kind row -- the escalation workflow isn't wired to the audit log", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ONE_ENTRY)));
+
+      render(<DecisionLogPanel projectId="p-1" />);
+      await waitFor(() => expect(screen.getByTestId("decision-row-3")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("decision-row-3"));
+
+      await screen.findByRole("dialog");
+      expect(screen.getByTestId("decision-workflow-gap")).toBeInTheDocument();
+    });
+
+    it("omits the workflow gap note for a non-decision row", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ONE_ENTRY)));
+
+      render(<DecisionLogPanel projectId="p-1" />);
+      await waitFor(() => expect(screen.getByTestId("decision-row-2")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("decision-row-2"));
+
+      await screen.findByRole("dialog");
+      expect(screen.queryByTestId("decision-workflow-gap")).not.toBeInTheDocument();
+    });
+
+    it("closes the drawer via the Close button", async () => {
+      vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ONE_ENTRY)));
+
+      render(<DecisionLogPanel projectId="p-1" />);
+      await waitFor(() => expect(screen.getByTestId("decision-row-3")).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId("decision-row-3"));
+      await screen.findByRole("dialog");
+
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
   });
 });

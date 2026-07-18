@@ -1,31 +1,19 @@
 "use client";
 
-import { Fragment, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { DataTableSlot as DataTable, type DataTableRow } from "@/components/templates/DataTableSlot";
 import { EntityRefSlot as EntityRef } from "@/components/templates/EntityRefSlot";
+import { FilterFormSlot as FilterForm, type FilterFormField } from "@/components/templates/FilterFormSlot";
 import { RelativeTimeSlot as RelativeTime } from "@/components/templates/RelativeTimeSlot";
+import { TypeaheadFieldSlot as TypeaheadField, type TypeaheadOption } from "@/components/templates/TypeaheadFieldSlot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast/toast-provider";
 
-import {
-  EMPTY_FILTERS,
-  PER_PAGE,
-  useAuditLog,
-  type AuditEntry,
-  type AuditFilters,
-  type VerifyResult,
-} from "./use-audit-log";
-
-function downloadBlob(filename: string, text: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
+import { EMPTY_FILTERS, PER_PAGE, useAuditLog, type AuditEntry, type AuditFilters, type VerifyResult } from "./use-audit-log";
+import { downloadBlob, RowDetail } from "./logs-row-detail";
 
 /** Last colon-segment of a principal URN (e.g. `abc123` from
  * `urn:weave:principal:user:abc123`) -- the only "friendly" material an
@@ -35,219 +23,250 @@ function friendlyActorLabel(iri: string): string {
   return iri.split(":").at(-1) ?? iri;
 }
 
-function VerifyResultBadge({ result }: { result: VerifyResult }) {
-  return (
-    <p data-testid="verify-result">
-      Chain{" "}
-      {result.valid ? <Badge variant="success">valid</Badge> : <Badge variant="danger">broken</Badge>}{" "}
-      — {result.entries_checked} entries checked
-      {!result.valid && result.first_broken_seq !== null && (
-        <>, first broken seq {result.first_broken_seq}</>
-      )}
-    </p>
-  );
+/** Distinct actor URNs seen on the currently loaded page, as typeahead
+ * options -- there is no "list all actors" endpoint (`PLAT-AUDIT-1` only
+ * supports filtering, not enumeration), so the picker offers recently-seen
+ * real actors rather than an invented directory. */
+function actorOptions(entries: AuditEntry[]): TypeaheadOption[] {
+  const seen = new Set<string>();
+  const options: TypeaheadOption[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.actor_principal_iri)) continue;
+    seen.add(entry.actor_principal_iri);
+    options.push({
+      value: entry.actor_principal_iri,
+      label: friendlyActorLabel(entry.actor_principal_iri),
+      sub: entry.actor_principal_iri,
+    });
+  }
+  return options;
 }
 
-const FILTER_FIELDS: { key: keyof AuditFilters; label: string; type?: string }[] = [
-  { key: "engine", label: "Engine" },
-  { key: "event_type", label: "Event type" },
-  { key: "actor_principal_iri", label: "Actor" },
-  { key: "target_iri", label: "Target" },
-  { key: "date_from", label: "From", type: "date" },
-  { key: "date_to", label: "To", type: "date" },
-  { key: "q", label: "Search" },
+const ENGINE_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "ce", label: "ce" },
+  { value: "platform", label: "platform" },
+  { value: "build", label: "build" },
 ];
 
-/** AC-5: the full seven-dimension `PLAT-AUDIT-1` filter bar (engine,
- * event_type, actor_principal_iri, target_iri, date_from, date_to, q) --
- * replaces the single event-type-only input. */
-function FilterBar({
-  initialValue,
-  onApply,
-}: {
+interface FiltersProps {
+  /** Seeds the form's own draft state once, on mount -- this component is
+   * only rendered after `filters` hydrates from the URL (the `filters !==
+   * null` gate below), so a fresh mount always carries the right seed. */
   initialValue: AuditFilters;
+  actors: TypeaheadOption[];
   onApply: (filters: AuditFilters) => void;
-}) {
+  onReset: () => void;
+}
+
+interface BuildFieldsArgs {
+  draft: AuditFilters;
+  set: (key: keyof AuditFilters) => (value: string) => void;
+  actors: TypeaheadOption[];
+  actorOpen: boolean;
+  setActorOpen: (open: boolean) => void;
+}
+
+/** The seven `PLAT-AUDIT-1` field definitions -- split out of `LogsFilters`
+ * to keep that component under the function-length budget. */
+function buildFilterFields({ draft, set, actors, actorOpen, setActorOpen }: BuildFieldsArgs): FilterFormField[] {
+  return [
+    { id: "engine", label: "Engine", type: "select", value: draft.engine, onChange: set("engine"), options: ENGINE_OPTIONS },
+    {
+      id: "event_type",
+      label: "Event type",
+      type: "text",
+      value: draft.event_type,
+      onChange: set("event_type"),
+      placeholder: "ce.* or exact",
+    },
+    {
+      id: "actor",
+      label: "Actor",
+      type: "text",
+      value: draft.actor_principal_iri,
+      onChange: set("actor_principal_iri"),
+      render: () => (
+        <TypeaheadField
+          id="ff-field-actor"
+          label="Actor"
+          value={draft.actor_principal_iri}
+          onValueChange={set("actor_principal_iri")}
+          options={actors}
+          open={actorOpen}
+          onOpenChange={setActorOpen}
+          onPick={(option) => set("actor_principal_iri")(option.value)}
+        />
+      ),
+    },
+    {
+      id: "target",
+      label: "Target",
+      type: "text",
+      value: draft.target_iri,
+      onChange: set("target_iri"),
+      placeholder: "Entity name or IRI",
+    },
+    { id: "date_from", label: "From", type: "date", value: draft.date_from, onChange: set("date_from") },
+    { id: "date_to", label: "To", type: "date", value: draft.date_to, onChange: set("date_to") },
+    { id: "q", label: "Search", type: "text", value: draft.q, onChange: set("q"), grow: true },
+  ];
+}
+
+/** The full seven-dimension `PLAT-AUDIT-1` filter form (AC-5): engine,
+ * event_type, actor (typeahead), target, date_from/date_to, and free-text
+ * q -- Reset/Apply bottom-aligned via `FilterForm`'s own layout. */
+function LogsFilters({ initialValue, actors, onApply, onReset }: FiltersProps) {
   const [draft, setDraft] = useState(initialValue);
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    onApply(draft);
+  const [actorOpen, setActorOpen] = useState(false);
+  const set = (key: keyof AuditFilters) => (value: string) => setDraft({ ...draft, [key]: value });
+  const fields = buildFilterFields({ draft, set, actors, actorOpen, setActorOpen });
+
+  return (
+    <FilterForm
+      fields={fields}
+      onApply={() => onApply(draft)}
+      onReset={() => {
+        setDraft(EMPTY_FILTERS);
+        onReset();
+      }}
+    />
+  );
+}
+
+const COLUMNS = [
+  { key: "when", label: "When" },
+  { key: "event", label: "Event" },
+  { key: "actor", label: "Actor" },
+  { key: "target", label: "Target" },
+];
+
+function entryToRow(entry: AuditEntry): DataTableRow {
+  return {
+    id: String(entry.seq),
+    cells: {
+      when: <RelativeTime iso={entry.ts} />,
+      event: (
+        <span className="flex items-center gap-[var(--space-2)]">
+          <Badge variant="info">{entry.engine}</Badge>
+          {entry.event_type}
+        </span>
+      ),
+      actor: <EntityRef label={friendlyActorLabel(entry.actor_principal_iri)} id={entry.actor_principal_iri} />,
+      target: entry.target_iri,
+    },
   };
-
-  return (
-    <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-[var(--space-2)]">
-      {FILTER_FIELDS.map(({ key, label, type }) => (
-        <label key={key} className="flex flex-col gap-[var(--space-1)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
-          {label}
-          <Input
-            aria-label={label}
-            type={type ?? "text"}
-            value={draft[key]}
-            onChange={(event) => setDraft({ ...draft, [key]: event.target.value })}
-          />
-        </label>
-      ))}
-      <Button type="submit" variant="secondary">
-        Filter
-      </Button>
-    </form>
-  );
 }
 
-function ExportButtons({ entries }: { entries: AuditEntry[] }) {
-  return (
-    <>
-      <Button
-        variant="secondary"
-        onClick={() =>
-          downloadBlob("audit-log.json", JSON.stringify(entries, null, 2), "application/json")
-        }
-      >
-        Export JSON
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() =>
-          downloadBlob(
-            "audit-log.ndjson",
-            entries.map((entry) => JSON.stringify(entry)).join("\n"),
-            "application/x-ndjson"
-          )
-        }
-      >
-        Export NDJSON
-      </Button>
-    </>
-  );
+function paginationProps(page: number, total: number, onPage: (page: number) => void) {
+  const pageCount = Math.max(1, Math.ceil(total / PER_PAGE));
+  const from = total === 0 ? 0 : (page - 1) * PER_PAGE + 1;
+  const to = Math.min(page * PER_PAGE, total);
+  return { page, pageCount, rangeLabel: `Showing ${from}–${to} of ${total}`, onPageChange: onPage };
 }
 
-const CELL = "border-b border-[var(--color-border)] px-[var(--space-3)] py-[var(--space-2)]";
-const CELL_MONO = `${CELL} font-[var(--font-mono)] tabular-nums`;
-const COLUMNS = ["Seq", "Timestamp", "Actor", "Engine", "Event type", "Target"];
-
-function LogRow({
-  entry,
-  expanded,
-  onToggle,
-}: {
-  entry: AuditEntry;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Fragment>
-      <tr
-        data-testid={`log-row-${entry.seq}`}
-        className="cursor-pointer text-[var(--color-text-default)] hover:bg-[var(--color-hover)]"
-        onClick={onToggle}
-      >
-        <td className={CELL_MONO}>{entry.seq}</td>
-        <td className={CELL}>
-          <RelativeTime iso={entry.ts} />
-        </td>
-        <td className={CELL}>
-          <EntityRef label={friendlyActorLabel(entry.actor_principal_iri)} id={entry.actor_principal_iri} />
-        </td>
-        <td className={CELL}>{entry.engine}</td>
-        <td className={CELL}>{entry.event_type}</td>
-        <td className={CELL}>{entry.target_iri}</td>
-      </tr>
-      {expanded && (
-        <tr data-testid={`log-detail-${entry.seq}`}>
-          <td colSpan={COLUMNS.length} className={CELL}>
-            <pre className="overflow-x-auto text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
-              {JSON.stringify(entry, null, 2)}
-            </pre>
-          </td>
-        </tr>
-      )}
-    </Fragment>
-  );
-}
-
-function LogsTable({ entries }: { entries: AuditEntry[] }) {
-  const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr>
-            {COLUMNS.map((name) => (
-              <th
-                key={name}
-                className={`${CELL} font-[var(--font-weight-semibold)] text-[var(--color-text-default)]`}
-              >
-                {name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <LogRow
-              key={entry.seq}
-              entry={entry}
-              expanded={expandedSeq === entry.seq}
-              onToggle={() => setExpandedSeq(expandedSeq === entry.seq ? null : entry.seq)}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Pagination({
-  page,
-  total,
-  onPage,
-}: {
-  page: number;
-  total: number;
-  onPage: (page: number) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
-  return (
-    <div className="flex items-center gap-[var(--space-3)]">
-      <Button variant="secondary" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-        Previous
-      </Button>
-      <span className="text-[var(--color-text-muted)]">
-        Page {page} of {totalPages}
-      </span>
-      <Button variant="secondary" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
-        Next
-      </Button>
-    </div>
-  );
+/** Toasts the real `POST /api/audit/verify` outcome once per verify call --
+ * never a fabricated entry count. Fires only when `verifyResult` changes
+ * (a fresh object per call), so mount with a null result is silent. */
+function useVerifyResultToast(verifyResult: VerifyResult | null): void {
+  const { toast } = useToast();
+  useEffect(() => {
+    if (!verifyResult) return;
+    toast({
+      variant: verifyResult.valid ? "success" : "error",
+      message: verifyResult.valid
+        ? `Chain valid — ${verifyResult.entries_checked} entries checked.`
+        : `Chain broken at seq ${verifyResult.first_broken_seq} — ${verifyResult.entries_checked} entries checked.`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyResult]);
 }
 
 /** /audit/logs: row-level viewer over the immutable, hash-chained trail.
  * Admin-only upstream -- a 403 renders the denied copy (same style as
- * settings/workspaces). Expanding a row shows the full signed entry
- * (hash, prev_hash, signature, diff_summary); exports are client-side
- * over the currently loaded page.
+ * settings/workspaces). Sheds the page's former hand-rolled table/filter
+ * bar for the shared `DataTable`/`FilterForm`/`TypeaheadField` organisms;
+ * this file is now presentational glue over `use-audit-log`.
  */
-export default function AuditLogsPage() {
-  const {
-    data,
-    loadError,
-    denied,
-    page,
-    setPage,
-    filters,
-    applyFilters,
-    verifyResult,
-    verifying,
-    verifyChain,
-  } = useAuditLog();
+interface LogsHeaderProps {
+  data: ReturnType<typeof useAuditLog>["data"];
+  verifyChain: () => Promise<void>;
+}
 
+/** Title plus the header Export / Verify-chain actions -- hidden while
+ * denied or before the first page loads. */
+function LogsHeader({ data, verifyChain }: LogsHeaderProps) {
+  const { toast } = useToast();
   return (
-    <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+    <div className="flex items-center justify-between gap-[var(--space-4)]">
       <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
         View logs
       </h1>
+      {data && (
+        <div className="flex gap-[var(--space-2)]">
+          <Button
+            variant="ghost"
+            onClick={() => downloadBlob("audit-log.json", JSON.stringify(data.entries, null, 2), "application/json")}
+          >
+            Export
+          </Button>
+          <Button
+            onClick={() => {
+              toast({ variant: "info", message: `Verifying ${data.total} entries…` });
+              verifyChain();
+            }}
+          >
+            Verify chain
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface LogsTableProps {
+  data: NonNullable<ReturnType<typeof useAuditLog>["data"]>;
+  page: number;
+  setPage: (page: number) => void;
+  verifyResult: ReturnType<typeof useAuditLog>["verifyResult"];
+}
+
+/** The `DataTable` card: rows, expandable signed-entry detail, pagination. */
+function LogsTable({ data, page, setPage, verifyResult }: LogsTableProps) {
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const rows = useMemo(() => data.entries.map(entryToRow), [data]);
+  const entryBySeq = useMemo(() => new Map(data.entries.map((entry) => [String(entry.seq), entry])), [data]);
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-0 p-0">
+        <DataTable
+          columns={COLUMNS}
+          rows={rows}
+          expandable={{
+            expandedRowId,
+            onToggleRow: (id) => setExpandedRowId(expandedRowId === id ? null : id),
+            renderDetail: (row) => {
+              const entry = entryBySeq.get(row.id);
+              return entry ? <RowDetail entry={entry} lastVerify={verifyResult} /> : null;
+            },
+          }}
+          pagination={paginationProps(page, data.total, setPage)}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AuditLogsPage() {
+  const { data, loadError, denied, page, setPage, filters, applyFilters, verifyResult, verifyChain } =
+    useAuditLog();
+
+  useVerifyResultToast(verifyResult);
+
+  return (
+    <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+      <LogsHeader data={!denied ? data : null} verifyChain={verifyChain} />
 
       {denied ? (
         <p data-testid="logs-denied" className="text-[var(--color-text-muted)]">
@@ -255,15 +274,14 @@ export default function AuditLogsPage() {
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-            {filters !== null && <FilterBar initialValue={filters ?? EMPTY_FILTERS} onApply={applyFilters} />}
-            <Button onClick={verifyChain} disabled={verifying}>
-              {verifying ? "Verifying…" : "Verify chain"}
-            </Button>
-            {data && <ExportButtons entries={data.entries} />}
-          </div>
-
-          {verifyResult && <VerifyResultBadge result={verifyResult} />}
+          {filters !== null && (
+            <LogsFilters
+              initialValue={filters}
+              actors={actorOptions(data?.entries ?? [])}
+              onApply={applyFilters}
+              onReset={() => applyFilters(EMPTY_FILTERS)}
+            />
+          )}
 
           {loadError && !data && (
             <p data-testid="logs-error" className="text-[var(--color-text-muted)]">
@@ -271,14 +289,7 @@ export default function AuditLogsPage() {
             </p>
           )}
 
-          {data && (
-            <Card>
-              <CardContent className="flex flex-col gap-[var(--space-4)]">
-                <LogsTable entries={data.entries} />
-                <Pagination page={page} total={data.total} onPage={setPage} />
-              </CardContent>
-            </Card>
-          )}
+          {data && <LogsTable data={data} page={page} setPage={setPage} verifyResult={verifyResult} />}
         </>
       )}
     </main>

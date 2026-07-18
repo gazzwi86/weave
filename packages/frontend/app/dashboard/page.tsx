@@ -4,6 +4,9 @@ import { ActivityFeed, type ActivityEntry } from "@/components/dashboard/activit
 import { Card, CardContent } from "@/components/ui/card";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { ChecklistWidget } from "@/components/onboarding/checklist-widget";
+import { ExplainBand } from "@/components/ui/explain-band";
+import { GetGoing } from "@/components/dashboard/get-going";
+import { NeedsYou } from "@/components/dashboard/needs-you";
 import { PromptBarContainer } from "@/components/dashboard/prompt-bar-container";
 import type { LibraryItemOut, WidgetOut } from "@/components/dashboard/types";
 import { EntityRefSlot } from "@/components/templates/EntityRefSlot";
@@ -73,7 +76,18 @@ async function fetchRecentActivity(accessToken: string): Promise<ActivityEntry[]
   return body.entries ?? [];
 }
 
-function BentoGrid() {
+/** v5 Home kind-tiles: Constitution's live count comes from the same
+ * already-fetched `tenant_default` "Entities in model" widget the widget
+ * grid below renders -- no new ontology/CE-METRICS fetch (AC-6). Build and
+ * Audit have no equivalent seeded widget yet (`dashboard/default_tiles.py`
+ * only ships Constitution-shaped tiles), so those two stay the static nav
+ * card until a matching widget exists. */
+function findEntityCount(widgets: WidgetOut[]): number | null {
+  const widget = widgets.find((entry) => entry.spec.title === "Entities in model");
+  return typeof widget?.last_result === "number" ? widget.last_result : null;
+}
+
+function BentoGrid({ entityCount }: { entityCount: number | null }) {
   return (
     <div className="grid gap-[var(--space-4)] md:grid-cols-3">
       {BENTO.map((tile) => (
@@ -82,6 +96,11 @@ function BentoGrid() {
             {tile.heading}
           </p>
           <CardContent className="flex flex-col gap-[var(--space-3)]">
+            {tile.heading === "Constitution" && entityCount !== null ? (
+              <p className="text-[length:var(--text-h2)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+                {entityCount} entities
+              </p>
+            ) : null}
             <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">{tile.body}</p>
             <Link
               href={tile.href}
@@ -138,8 +157,28 @@ export default async function DashboardPage() {
       </div>
 
       <PromptBarContainer />
-      <BentoGrid />
-      <ActivityFeed entries={activity} />
+
+      <ExplainBand
+        tone="accent"
+        icon="graph"
+        body={
+          <>
+            <b className="text-[var(--color-text-default)]">How Weave works:</b> you model how the business runs in
+            the Constitution — its processes, people, systems and rules. Weave then builds and runs apps and
+            automations grounded in that model, and records every change in a tamper-evident audit trail. Change the
+            model, and everything built on it re-checks itself.
+          </>
+        }
+      />
+
+      <NeedsYou />
+      <BentoGrid entityCount={findEntityCount(defaultWidgets)} />
+
+      <div className="grid gap-[var(--space-4)] lg:grid-cols-[1.4fr_1fr]">
+        <ActivityFeed entries={activity} />
+        <GetGoing />
+      </div>
+
       <ChecklistWidget />
       <DashboardClient initialWidgets={widgets} initialLibraryItems={libraryItems} />
     </main>

@@ -1,7 +1,8 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import Link from "next/link";
+
+import { UserMenu, type UserMenuItem } from "@/components/organisms/UserMenu";
 
 export interface AvatarMenuProps {
   /** Display name from the session (`session.user.name`); "Signed in" is
@@ -11,50 +12,49 @@ export interface AvatarMenuProps {
   role: string | null;
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  return (parts[0]!.charAt(0) + (parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : "")).toUpperCase();
+}
+
 /** AC-7: profile name, canonical role, help link, and "Sign out" all live
  * inside one avatar menu -- "Sign out" never renders as a bare header link
  * outside it. Radix Dialog for the same focus-trap/Escape/restore-focus
- * behaviour already used by `HelpLauncher`/`NotificationCenter`. */
+ * behaviour already used by `HelpLauncher`/`NotificationCenter`. Presentation
+ * lives in the `UserMenu` organism (refit-mock.html's `#user-backdrop`);
+ * this wrapper owns the Dialog and the real hrefs.
+ *
+ * "Profile & preferences" and "Switch workspace" are the mock's items, added
+ * alongside (not instead of) the existing Help/Sign out links -- dropping
+ * Help would regress AC-7. "Theme" has no theme-switch feature yet (dark is
+ * the only shipped theme, design.md), so it renders as a static "Dark" pill
+ * rather than an interactive control that would do nothing. */
 export function AvatarMenu({ userName, role }: AvatarMenuProps) {
+  const items: UserMenuItem[] = [
+    { icon: "user", label: "Profile & preferences", href: "/settings" },
+    { icon: "swap", label: "Switch workspace", href: "/settings/workspaces" },
+    { icon: "moon", label: "Theme", trailing: <span>Dark</span> },
+    { icon: "help", label: "Help", href: "/help" },
+    { icon: "logout", label: "Sign out", href: "/api/auth/signout", separatorBefore: true },
+  ];
+
   return (
     <Dialog.Root>
       <Dialog.Trigger
         aria-label="Account menu"
-        className="flex h-[var(--space-6)] w-[var(--space-6)] items-center justify-center rounded-[var(--radius-full)] bg-[var(--color-surface)] text-[length:var(--text-caption)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] hover:bg-[var(--color-hover)]"
+        className="flex h-[var(--space-6)] w-[var(--space-6)] items-center justify-center rounded-[var(--radius-full)] bg-[image:var(--gradient-accent)] text-[length:var(--text-caption)] font-[var(--font-weight-bold)] text-[var(--color-bg)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)] data-[state=open]:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)]"
       >
-        {userName.charAt(0).toUpperCase()}
+        {initials(userName)}
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
         <Dialog.Content
           aria-label="Account menu"
-          className="fixed right-[var(--space-4)] top-[var(--space-10)] w-full max-w-[240px] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)]/80 p-[var(--space-3)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
+          className="fixed right-[var(--space-4)] top-[var(--space-10)] w-full max-w-[280px] rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)]/80 p-[var(--space-3)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
         >
-          <Dialog.Title className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            {userName}
-          </Dialog.Title>
-          {role ? (
-            <p className="mt-[var(--space-1)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
-              {role}
-            </p>
-          ) : null}
-          <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-2)] border-t border-[var(--color-border)] pt-[var(--space-2)]">
-            <Link
-              href="/help"
-              prefetch={false}
-              className="text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-            >
-              Help
-            </Link>
-            {/* next-auth's built-in signout confirmation page — zero custom code. */}
-            <Link
-              href="/api/auth/signout"
-              prefetch={false}
-              className="text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-            >
-              Sign out
-            </Link>
-          </div>
+          <Dialog.Title className="sr-only">Account menu</Dialog.Title>
+          <UserMenu name={userName} role={role} items={items} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

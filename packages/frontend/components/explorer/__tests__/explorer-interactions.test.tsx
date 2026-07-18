@@ -486,6 +486,10 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
     );
 
     expect(await screen.findByText("Process")).toBeInTheDocument();
+    // Refit: the filters panel now lives behind the ControlDock's "Filters"
+    // tab (single-open accordion, mock's `.dock`) rather than an
+    // always-visible side panel.
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(screen.getByTestId("explorer-filter-panel")).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", { name: "Process" }),
@@ -502,6 +506,7 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Process" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Policy" }));
 
@@ -527,6 +532,7 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.change(screen.getByLabelText("Property path"), {
       target: { value: "status" },
     });
@@ -544,6 +550,33 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
     expect(
       screen.queryByTestId("explorer-empty-state"),
     ).not.toBeInTheDocument();
+  });
+});
+
+// refit deferred item 1: the Overlays tab merges use-overlay-controls'
+// colour toggles (heatmap/domain-colouring) with useCanvasOverlayToggles'
+// completeness/impact/version-diff/change-heatmap rows -- one end-to-end
+// check that the merge/dispatch in canvas-filter-chrome.tsx actually
+// reaches the DOM, since neither hook is exercised together anywhere else.
+describe("ExplorerInteractions -- refit deferred item 1: Overlays tab merge", () => {
+  it("lists both the colour overlays and the new toggles under one Overlays tab", async () => {
+    const adapter = fakeAdapter();
+    render(
+      <ExplorerInteractions
+        adapter={adapter}
+        config={DEFAULT_EXPLORER_CONFIG}
+        fetchPalette={vi.fn(async () => [])}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Overlays" }));
+
+    expect(screen.getByRole("switch", { name: "Coverage gaps" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Impact of selection" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Version diff" })).toBeInTheDocument();
+    const heatmapToggle = screen.getByRole("switch", { name: "Change heatmap (pending)" });
+    expect(heatmapToggle).toBeDisabled();
+    expect(heatmapToggle).toHaveAttribute("title", expect.stringMatching(/G17/));
   });
 });
 
@@ -699,7 +732,7 @@ describe("ExplorerInteractions -- TASK-024 property edit + delete", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     bumpDraftHead(); // a second writer commits while this edit is open
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByText("This node changed since you started editing.")).toBeInTheDocument();
   });

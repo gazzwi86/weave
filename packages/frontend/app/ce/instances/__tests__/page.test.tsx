@@ -61,6 +61,22 @@ describe("InstancesPage (TASK-031)", () => {
     render(<InstancesPage />);
     await screen.findByRole("button", { name: /Process/ });
     expect(screen.getByRole("button", { name: /Actor/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
+  });
+
+  it("renders the name column as label + mono IRI, and a kind chip (refit-mock #sub-instances)", async () => {
+    stubFetch();
+    render(<InstancesPage />);
+    await screen.findByText("Invoice Approval");
+    expect(screen.getByText("urn:p1")).toBeInTheDocument();
+    expect(screen.getAllByText("Process").length).toBeGreaterThan(0);
+  });
+
+  it("renders pagination controls under the table", async () => {
+    stubFetch();
+    render(<InstancesPage />);
+    await screen.findByText("Invoice Approval");
+    expect(screen.getByText(/Showing/)).toBeInTheDocument();
   });
 
   it("test_row_select_opens_inspector_with_props_edges_prov", async () => {
@@ -72,13 +88,13 @@ describe("InstancesPage (TASK-031)", () => {
     expect(screen.getByText(/History unavailable/)).toBeInTheDocument();
   });
 
-  // R1: "Add entity" must let the user pick a kind, and relationship
+  // R1: "New instance" must let the user pick a kind, and relationship
   // properties must render as an entity picker, not raw-IRI free text.
-  it("add-entity offers a kind picker then relationship entity-pickers", async () => {
+  it("new-instance offers a kind picker then relationship entity-pickers", async () => {
     stubFetch();
     render(<InstancesPage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add entity" }));
+    fireEvent.click(await screen.findByRole("button", { name: "New instance" }));
 
     const kindSelect = await screen.findByRole("combobox", { name: "Kind" });
     expect(screen.getByRole("option", { name: "Process" })).toBeInTheDocument();

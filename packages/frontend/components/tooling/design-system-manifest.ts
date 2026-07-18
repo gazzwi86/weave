@@ -32,6 +32,17 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "AskBar", layer: "molecules", states: ["default", "loading"] },
   { name: "CanvasToolbar", layer: "molecules", states: ["default", "selected"] },
   { name: "EmptyState", layer: "molecules", states: ["default"] },
+  { name: "RelationshipsEditor", layer: "molecules", states: ["default", "empty"] },
+  { name: "FilterForm", layer: "molecules", states: ["default"] },
+  { name: "TypeaheadField", layer: "molecules", states: ["default", "selected"] },
+  { name: "Timeline", layer: "molecules", states: ["default"] },
+  { name: "Gantt", layer: "molecules", states: ["default"] },
+  { name: "KanbanCard", layer: "molecules", states: ["default"] },
+  { name: "KanbanLane", layer: "molecules", states: ["default"] },
+  { name: "KpiStrip", layer: "molecules", states: ["default"] },
+  { name: "ControlDock", layer: "molecules", states: ["default", "selected"] },
+  { name: "OverlayKey", layer: "molecules", states: ["default"] },
+  { name: "Minimap", layer: "molecules", states: ["default"] },
 
   // organisms
   { name: "NavRail", layer: "organisms", states: ["default", "selected"] },
@@ -39,15 +50,22 @@ export const DESIGN_SYSTEM_MANIFEST: ManifestEntry[] = [
   { name: "AppHeader", layer: "organisms", states: ["default"] },
   { name: "CommandBar", layer: "organisms", states: ["default", "loading", "empty"] },
   { name: "BellPanel", layer: "organisms", states: ["default", "empty"] },
+  { name: "UserMenu", layer: "organisms", states: ["default"] },
   { name: "DataTable", layer: "organisms", states: ["default", "loading", "empty", "error", "selected"] },
   { name: "InspectorPanel", layer: "organisms", states: ["default", "loading", "empty"] },
   { name: "GlassPanel", layer: "organisms", states: ["default"] },
+  { name: "EntityEditDrawer", layer: "organisms", states: ["default"] },
+  { name: "DocDrawer", layer: "organisms", states: ["default"] },
+  { name: "Drawer", layer: "organisms", states: ["default"] },
+  { name: "ModalShell", layer: "organisms", states: ["default"] },
+  { name: "EntityPickerModal", layer: "organisms", states: ["default"] },
 
   // templates
   { name: "CanvasPage", layer: "templates", states: ["default"] },
   { name: "TablePage", layer: "templates", states: ["default"] },
   { name: "FormDrawerPage", layer: "templates", states: ["default"] },
   { name: "DashboardGrid", layer: "templates", states: ["default"] },
+  { name: "FilterableTablePage", layer: "templates", states: ["default"] },
 ];
 
 function pascalState(state: StoryState): string {

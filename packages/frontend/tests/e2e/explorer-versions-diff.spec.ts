@@ -67,6 +67,8 @@ test.describe("Explorer -- Versions Panel + Diff (TASK-022)", () => {
   test("should select two versions, see the diff overlay incl. an edge modification, export JSON", async ({ page }) => {
     await loginAndGoToExplorer(page);
 
+    // Refit: the versions panel lives behind the ControlDock's "Versions" tab.
+    await page.getByRole("button", { name: "Versions" }).click();
     await expect(page.getByTestId("explorer-versions-panel")).toBeVisible();
     await page.getByRole("button", { name: "Select 1.0.0 for comparison" }).click();
     await page.getByRole("button", { name: /Select 1.1.0 \(latest\) for comparison/ }).click();
@@ -86,6 +88,8 @@ test.describe("Explorer -- Versions Panel + Diff (TASK-022)", () => {
 
     await expect(page.getByRole("button", { name: "Reset layout" })).toBeVisible();
 
+    // Refit: the versions panel lives behind the ControlDock's "Versions" tab.
+    await page.getByRole("button", { name: "Versions" }).click();
     await page.getByRole("button", { name: "Load version 1.0.0 read-only" }).click();
     await expect(page.getByRole("button", { name: "Return to draft" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Reset layout" })).toHaveCount(0);

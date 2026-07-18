@@ -18,7 +18,7 @@ const badgeVariants = cva(
       variant: {
         neutral: "bg-[var(--color-raised)] text-[var(--color-text-muted)]",
         success: "bg-[var(--color-success)]/10 text-[var(--color-success)]",
-        warn: "bg-[var(--color-warn)]/10 text-[var(--color-warn)]",
+        warn: "bg-[var(--color-warn)]/10 text-[var(--color-on-warn-soft)]",
         danger: "bg-[var(--color-danger-soft)] text-[var(--color-danger)]",
         info: "bg-[var(--color-info)]/10 text-[var(--color-info)]",
       },

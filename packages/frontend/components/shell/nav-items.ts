@@ -1,7 +1,10 @@
 /** Approved PoC IA (docs/design/poc-ia-proposal.md §1–§2): exactly six
- * top-level areas, each with a section-scoped left rail. Every surface
- * carries one of three status tags — built now / M1 this pass / phase X
- * placeholder — so the nav itself communicates the roadmap.
+ * top-level areas, each with a section-scoped left rail.
+ *
+ * No milestone jargon in the UI (feedback_no_phase_pills.md, 2026-07-17
+ * ruling): a shipped item (`built: true`) carries no pill at all; anything
+ * else renders a single plain "soon" pill, regardless of which internal
+ * milestone it's actually scheduled for.
  *
  * Existing green routes keep their URLs (/ce, /ce/query, /explorer,
  * /billing) — the IA re-homes them in the rail rather than moving them, so
@@ -10,24 +13,17 @@
  * next.config.ts) to resolve a route-naming conflict with the design ruling.
  */
 
-export type SurfaceTag = "built" | "m1" | "m2" | "v1.0" | "post-v1";
-
-/** Short pill text per tag; placeholder pages spell out "Delivered in phase X". */
-export const TAG_LABEL: Record<SurfaceTag, string> = {
-  built: "built now",
-  m1: "M1 — this pass",
-  m2: "M2",
-  "v1.0": "v1.0",
-  "post-v1": "post-v1",
-};
+import type { IconName } from "@/components/ui/icon";
 
 export interface SecondaryNavItem {
   label: string;
-  /** Absent for phase placeholders — rendered dimmed with a phase pill, no route. */
+  /** Absent for phase placeholders — rendered dimmed with a "soon" pill, no route. */
   href?: string;
-  tag: SurfaceTag;
+  built: boolean;
   /** Rendered only for workspace admins (RBAC display split, IA §5). */
   adminOnly?: boolean;
+  /** Small stroke icon shown left of the label (refit-mock.html's per-item `i-*` icons). */
+  icon: IconName;
 }
 
 export interface SecondaryNavGroup {
@@ -41,6 +37,9 @@ export interface PrimaryNavItem {
   /** Pathname prefixes owned by this section (drives active tab + rail). */
   prefixes: string[];
   groups: SecondaryNavGroup[];
+  /** Whole IA area not yet built (e.g. Events) -- the rail icon renders
+   * disabled with a "coming soon" tooltip instead of a link. */
+  disabled?: boolean;
 }
 
 export const PRIMARY_NAV: PrimaryNavItem[] = [
@@ -52,8 +51,8 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Home",
         items: [
-          { label: "What can Weave do for you?", href: "/role-home", tag: "built" },
-          { label: "Notifications", href: "/notifications", tag: "built" },
+          { label: "What can Weave do for you?", href: "/role-home", built: true, icon: "home" },
+          { label: "Notifications", href: "/notifications", built: true, icon: "bell" },
         ],
       },
     ],
@@ -66,33 +65,33 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Model",
         items: [
-          { label: "Overview", href: "/ce/overview", tag: "built" },
-          { label: "Explore", href: "/explorer", tag: "built" },
-          { label: "Ontology / Types", href: "/ce/types", tag: "built" },
-          { label: "Instances / Data", href: "/ce/instances", tag: "built" },
+          { label: "Overview", href: "/ce/overview", built: true, icon: "home" },
+          { label: "Explore", href: "/explorer", built: true, icon: "graph" },
+          { label: "Ontology / Types", href: "/ce/types", built: true, icon: "tag" },
+          { label: "Instances / Data", href: "/ce/instances", built: true, icon: "table" },
         ],
       },
       {
         heading: "Query",
         items: [
-          { label: "Query", href: "/ce/query", tag: "built" },
-          { label: "Versions", href: "/ce/versions", tag: "m1" },
+          { label: "Query", href: "/ce/query", built: true, icon: "sparkles" },
+          { label: "Versions", href: "/ce/versions", built: false, icon: "git" },
         ],
       },
       {
         heading: "Vocabulary & standards",
         items: [
-          { label: "Glossary", href: "/ce/glossary", tag: "built" },
-          { label: "Brand & voice", href: "/ce/brand", tag: "built" },
-          { label: "Rules & policies", href: "/ce/rules", tag: "built" },
-          { label: "Strategy & motivation", tag: "m2" },
+          { label: "Glossary", href: "/ce/glossary", built: true, icon: "book" },
+          { label: "Branding & standards", href: "/ce/brand", built: true, icon: "mic" },
+          { label: "Rules & policies", href: "/ce/rules", built: true, icon: "shield" },
+          { label: "Strategy & motivation", built: false, icon: "target" },
         ],
       },
       {
         heading: "Tools",
         items: [
-          { label: "Ingest", href: "/ce/import", tag: "v1.0" },
-          { label: "Reasoning", tag: "post-v1" },
+          { label: "Ingest", href: "/ce/import", built: false, icon: "upload" },
+          { label: "Reasoning", built: false, icon: "brain" },
         ],
       },
     ],
@@ -101,15 +100,17 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
     label: "Build",
     href: "/build",
     prefixes: ["/build"],
+    // refit-mock.html buildSidebarHTML(): a static "Projects" group
+    // (Registry) plus a dynamic "Current project" group (switcher + the
+    // 5 project-scoped links) -- the dynamic group is built at render
+    // time by `section-rail.tsx` (`useCurrentBuildProject`), since it
+    // needs the live project list + URL-derived current project id, data
+    // this static config can't carry. This groups array is the fallback
+    // used before that data loads / for any other consumer of `findSection`.
     groups: [
       {
-        heading: "Build",
-        items: [
-          { label: "Registry", href: "/build", tag: "built" },
-          { label: "Dashboard", tag: "v1.0" },
-          { label: "Kanban", href: "/build/board", tag: "built" },
-          { label: "Task briefs & decisions", tag: "v1.0" },
-        ],
+        heading: "Projects",
+        items: [{ label: "Registry", href: "/build", built: true, icon: "folder" }],
       },
     ],
   },
@@ -117,13 +118,14 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
     label: "Events",
     href: "/events",
     prefixes: ["/events"],
+    disabled: true,
     groups: [
       {
         heading: "Automation",
         items: [
-          { label: "Automations", href: "/events", tag: "post-v1" },
-          { label: "Triggers", tag: "post-v1" },
-          { label: "Runs", tag: "post-v1" },
+          { label: "Automations", href: "/events", built: false, icon: "zap" },
+          { label: "Triggers", built: false, icon: "swap" },
+          { label: "Runs", built: false, icon: "list" },
         ],
       },
     ],
@@ -139,20 +141,20 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Audit",
         items: [
-          { label: "Dashboard", href: "/audit", tag: "built" },
-          { label: "View logs", href: "/audit/logs", tag: "built" },
-          { label: "Compliance", href: "/audit/compliance", tag: "built" },
+          { label: "Dashboard", href: "/audit", built: true, icon: "gauge" },
+          { label: "View logs", href: "/audit/logs", built: true, icon: "list" },
+          { label: "Compliance", href: "/audit/compliance", built: true, icon: "shield" },
         ],
       },
       {
         heading: "Inference",
         items: [
-          { label: "Sentiment", tag: "post-v1" },
-          { label: "Intent & urgency", tag: "post-v1" },
-          { label: "Topics", tag: "post-v1" },
-          { label: "Satisfaction", tag: "post-v1" },
-          { label: "Quality & safety", tag: "post-v1" },
-          { label: "Model metrics", tag: "post-v1" },
+          { label: "Sentiment", built: false, icon: "sparkles" },
+          { label: "Intent & urgency", built: false, icon: "target" },
+          { label: "Topics", built: false, icon: "tag" },
+          { label: "Satisfaction", built: false, icon: "check" },
+          { label: "Quality & safety", built: false, icon: "shield" },
+          { label: "Model metrics", built: false, icon: "graph" },
         ],
       },
     ],
@@ -165,18 +167,25 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
-          { label: "Members", href: "/settings/members", tag: "built" },
-          { label: "Onboarding path", href: "/settings/onboarding-path", tag: "built" },
-          { label: "Notifications", href: "/settings/notifications", tag: "built" },
-          { label: "Models & AI", href: "/settings/models", tag: "built" },
-          { label: "Billing & budgets", href: "/billing", tag: "built" },
-          { label: "Integrations", href: "/settings/integrations", tag: "v1.0" },
+          { label: "General", href: "/settings", built: true, icon: "gear" },
+          { label: "Members", href: "/settings/members", built: true, icon: "user" },
+          { label: "Onboarding path", href: "/settings/onboarding-path", built: true, icon: "play" },
+          { label: "Notifications", href: "/settings/notifications", built: true, icon: "bell" },
+          { label: "Models & AI", href: "/settings/models", built: true, adminOnly: true, icon: "sparkles" },
+          { label: "Billing & budgets", href: "/billing", built: true, icon: "scroll" },
+          { label: "Integrations", href: "/settings/integrations", built: false, icon: "swap" },
         ],
       },
       {
         heading: "Provisioning",
         items: [
-          { label: "Workspaces", href: "/settings/workspaces", tag: "built", adminOnly: true },
+          {
+            label: "Workspaces",
+            href: "/settings/workspaces",
+            built: true,
+            adminOnly: true,
+            icon: "layers",
+          },
         ],
       },
     ],

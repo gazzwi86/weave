@@ -3,10 +3,15 @@
 import { useState } from "react";
 
 import { RequestForm, type TypeaheadResult } from "@/components/templates/RequestForm";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
+import { PlanCard } from "./plan-card";
+import { Thread, type ThreadMessage } from "./thread";
 import { useDraftingProgress } from "./use-drafting-progress";
 import { type BuildRequest, type RunMode, useRequestStatus } from "./use-request-status";
+import { type Turn, useStudioThread } from "./use-studio-thread";
 
 function StatusCard({ request }: { request: BuildRequest }) {
   const drafting = request.status === "drafting";
@@ -40,17 +45,52 @@ function StatusCard({ request }: { request: BuildRequest }) {
             ))}
           </ul>
         )}
-        {request.draft_content && (
-          <pre
-            data-testid="draft-content"
-            className="overflow-x-auto rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-3)] text-[length:var(--text-body)] text-[var(--color-text-default)]"
-          >
-            {JSON.stringify(request.draft_content, null, 2)}
-          </pre>
-        )}
       </CardContent>
     </Card>
   );
+}
+
+/** refit-mock.html `#sub-bld-studio` "Refine the plan or ask a follow-up" --
+ * re-submits through the same `useRequestStatus.submit` client as the
+ * initial request, adding a new thread turn. */
+function RefineBox({
+  value,
+  onChange,
+  onSend,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSend: () => void;
+}) {
+  return (
+    <div className="flex items-end gap-[var(--space-2)]">
+      <div className="flex flex-1 flex-col gap-[var(--space-2)]">
+        <label
+          htmlFor="build-refine"
+          className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]"
+        >
+          Refine the plan or ask a follow-up
+        </label>
+        <Input id="build-refine" value={value} onChange={(e) => onChange(e.target.value)} />
+      </div>
+      <Button onClick={onSend} disabled={!value.trim()}>
+        Send
+      </Button>
+    </div>
+  );
+}
+
+/** Turns the studio's turn history into thread messages: every turn shows
+ * its user prompt, and (once data exists) an AI bubble -- the live request
+ * for the newest turn, the frozen snapshot for superseded ones. */
+function buildThreadMessages(turns: Turn[], liveRequest: BuildRequest | null): ThreadMessage[] {
+  return turns.flatMap((turn, i) => {
+    const data = i === turns.length - 1 ? liveRequest : turn.snapshot;
+    return [
+      { role: "user" as const, content: <p>{turn.prompt}</p> },
+      ...(data ? [{ role: "ai" as const, content: <StatusCard request={data} /> }] : []),
+    ];
+  });
 }
 
 async function fetchTypeahead(q: string): Promise<TypeaheadResult[]> {
@@ -85,11 +125,49 @@ export default function BuildPage() {
   const [entityQuery, setEntityQuery] = useState("");
   const [entityResults, setEntityResults] = useState<TypeaheadResult[]>([]);
   const [selectedEntities, setSelectedEntities] = useState<TypeaheadResult[]>([]);
+  const [refineText, setRefineText] = useState("");
+  const { turns, startTurn } = useStudioThread(request);
 
   const requiresRepoName = runMode !== "draft_spec_only";
   const canSubmit = Boolean(
     prompt.trim() && name.trim() && (!requiresRepoName || targetRepoName.trim()) && !submitting
   );
+  const extras = {
+    name,
+    groundingEntityIris: selectedEntities.map((e) => e.iri),
+    targetRepoName,
+  };
+
+  function handleRefine() {
+    if (!refineText.trim()) {
+      return;
+    }
+    startTurn(refineText);
+    void submit(refineText, runMode, description, extras);
+    setRefineText("");
+  }
+
+  function handleInitialSubmit() {
+    startTurn(prompt);
+    void submit(prompt, runMode, description, extras);
+  }
+
+  function handleEntityQueryChange(q: string) {
+    setEntityQuery(q);
+    fetchTypeahead(q)
+      .then(setEntityResults)
+      .catch(() => setEntityResults([]));
+  }
+
+  function handleEntitySelect(entity: TypeaheadResult) {
+    setSelectedEntities((prev) => [...prev, entity]);
+    setEntityQuery("");
+    setEntityResults([]);
+  }
+
+  function handleEntityRemove(iri: string) {
+    setSelectedEntities((prev) => prev.filter((entity) => entity.iri !== iri));
+  }
 
   return (
     <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
@@ -108,33 +186,16 @@ export default function BuildPage() {
         targetRepoName={targetRepoName}
         onTargetRepoNameChange={setTargetRepoName}
         entityQuery={entityQuery}
-        onEntityQueryChange={(q) => {
-          setEntityQuery(q);
-          fetchTypeahead(q)
-            .then(setEntityResults)
-            .catch(() => setEntityResults([]));
-        }}
+        onEntityQueryChange={handleEntityQueryChange}
         entityResults={entityResults}
         selectedEntities={selectedEntities}
-        onEntitySelect={(entity) => {
-          setSelectedEntities((prev) => [...prev, entity]);
-          setEntityQuery("");
-          setEntityResults([]);
-        }}
-        onEntityRemove={(iri) =>
-          setSelectedEntities((prev) => prev.filter((entity) => entity.iri !== iri))
-        }
+        onEntitySelect={handleEntitySelect}
+        onEntityRemove={handleEntityRemove}
         description={description}
         onDescriptionChange={setDescription}
         submitting={submitting}
         canSubmit={canSubmit}
-        onSubmit={() =>
-          submit(prompt, runMode, description, {
-            name,
-            groundingEntityIris: selectedEntities.map((e) => e.iri),
-            targetRepoName,
-          })
-        }
+        onSubmit={handleInitialSubmit}
       />
 
       {error && (
@@ -143,7 +204,13 @@ export default function BuildPage() {
         </p>
       )}
 
-      {request && <StatusCard request={request} />}
+      {turns.length > 0 && (
+        <>
+          <Thread messages={buildThreadMessages(turns, request)} />
+          <PlanCard draftContent={request?.draft_content ?? null} />
+          <RefineBox value={refineText} onChange={setRefineText} onSend={handleRefine} />
+        </>
+      )}
     </main>
   );
 }

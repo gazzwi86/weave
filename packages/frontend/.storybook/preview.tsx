@@ -1,5 +1,8 @@
 import type { Preview } from '@storybook/nextjs-vite'
 
+// Design tokens + Tailwind pipeline — without this every story renders unstyled.
+import '../app/globals.css'
+
 const preview: Preview = {
   parameters: {
     controls: {

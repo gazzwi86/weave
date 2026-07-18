@@ -120,6 +120,8 @@ test("pinning an impact trace persists the highlight through pan, zoom, and filt
   await expect.poll(async () => borderWidth(page, PROCESS1)).toBe("3px");
 
   // Filter: toggle an unrelated entity kind off and back on.
+  // Refit: filters live behind the ControlDock's "Filters" tab.
+  await page.getByRole("button", { name: "Filters" }).click();
   await page.getByRole("checkbox", { name: "DataAsset" }).click();
   await expect.poll(async () => borderWidth(page, PROCESS1)).toBe("3px");
 

@@ -34,12 +34,38 @@
      "Command palette" brand moment), never a hardcoded literal in components. */
   --gradient-accent: linear-gradient(120deg, #22d3ee, #a78bfa);
 
+  /* full brand-spectrum gradient (refit-mock.html's command-bar border) --
+     same 7 stops as --color-series-1..6 plus the accent, theme-invariant. */
+  --gradient-brand: linear-gradient(
+    100deg,
+    #22d3ee,
+    #2dd4bf,
+    #e879f9,
+    #a78bfa,
+    #fbbf24,
+    #a3e635,
+    #60a5fa
+  );
+
   /* color: semantic status (dark) */
   --color-success: #10b981;
   --color-warn: #f59e0b;
   --color-danger: #ef4444;
   --color-danger-soft: rgba(239, 68, 68, 0.1);
   --color-info: #7dd3fc;
+  /* refit-mock.html `.btn-danger{color:#fff}` -- fixed white text on the
+     danger button fill, same in both themes (unlike the primary button's
+     text-follows-bg trick, --color-bg isn't white/dark enough for
+     --color-danger's mid-lightness red in dark mode). */
+  --color-on-danger: #ffffff;
+  /* text-on-tinted-background pair: --color-warn/--color-accent-primary at
+     10-12% tint (badge/chip/pill "soft" backgrounds) fall short of 4.5:1 in
+     light mode even though the base token passes on a solid surface (see
+     color.md OQ-08 -- tokens were only validated against solid backgrounds).
+     Dark passes through unchanged; light gets a darker shade. Same pattern
+     as --color-on-danger above -- fixed override, not a base token edit. */
+  --color-on-warn-soft: var(--color-warn);
+  --color-on-accent-soft: var(--color-accent-primary);
 
   /* color: BPMO kind palette (dark variants, docs/standards/design/color.md
    * OQ-08 table -- OKLCH-tuned to >=4.5:1 on navy). Token name is the kind
@@ -101,9 +127,39 @@
   --space-10: 64px;
 
   /* app-shell fixed dimensions (layout-grid.md: 56px icon rail, 232px
-     secondary sidebar, 44px top bar) */
+     secondary sidebar, 48px top bar -- refit-mock.html's .topbar) */
   --size-rail: 56px;
   --size-sidebar: 232px;
+  --size-topbar: 48px;
+  --size-topbar-zone: 320px;
+  --size-cmdbar: 440px;
+  /* header flyout width (refit-mock.html's `.flyout` -- Bell/Help panels). */
+  --size-flyout: 380px;
+  /* refit-mock.html `.qtip-pop` explainer popover width. */
+  --size-popover: 300px;
+  /* refit-mock.html `.modal` confirm/attach dialog width. */
+  --size-modal: 420px;
+  /* refit-mock.html `.modal.md`/`.modal.lg` -- entity-picker / attach-with-body widths. */
+  --size-modal-md: 440px;
+  --size-modal-lg: 460px;
+  /* refit-mock.html `.drawer` edit-drawer default width. */
+  --size-drawer: 440px;
+  /* refit-mock.html `.drawer.lg`. */
+  --size-drawer-lg: 480px;
+  /* refit-mock.html `.drawer.xl`. */
+  --size-drawer-xl: 520px;
+  /* refit-mock.html `.drawer.doc` -- brief/epics rich-content drawer. */
+  --size-drawer-doc: 640px;
+  /* refit-mock.html `.qtip-pop` title dot / kind-dot pattern diameter. */
+  --size-dot: 6px;
+  /* refit-mock.html `.picker-list` max-height before internal scroll. */
+  --size-picker-list-max: 220px;
+  /* refit-mock.html `.gantt-row`/`.gantt-scale` fixed label column. */
+  --size-gantt-label: 150px;
+  /* refit-mock.html `.kanban-lane` fixed width. */
+  --size-kanban-lane: 216px;
+  /* refit-mock.html `.kanban-lane` card-list max-height before internal scroll. */
+  --size-kanban-lane-max: 520px;
 
   /* radius */
   --radius-sm: 4px;
@@ -214,6 +270,11 @@
     --color-danger: #b91c1c;
     --color-danger-soft: rgba(185, 28, 28, 0.1);
     --color-info: #0369a1;
+    /* darker shades of --color-warn/--color-accent-primary for text sitting
+       on their own tinted (~10%) backgrounds -- 5.58:1 / 5.72:1 vs the base
+       tokens' 4.02:1 / 4.28:1 on the same tint (axe color-contrast). */
+    --color-on-warn-soft: #92400e;
+    --color-on-accent-soft: #155e75;
     /* BPMO kind palette, light variants (color.md OQ-08 table). */
     --color-kind-process: #dc2626;
     --color-kind-activity: #b36100;
@@ -230,6 +291,87 @@
     --color-kind-field: #498500;
     --color-kind-class: #bb5b00;
     --color-kind-fallback: #64748b;
+  }
+}
+
+/* Shell motion keyframes (refit-mock.html): GPU-friendly (transform/opacity
+ * only, plus box-shadow for the notification dot pulse). Curve is
+ * --ease-standard -- the mock's own --ease-out literal (cubic-bezier(.2,.8,
+ * .2,1)) is the SAME curve as this file's existing --ease-standard, not its
+ * existing --ease-out (cubic-bezier(0.16,1,0.3,1)), so shell animations
+ * reuse --ease-standard rather than redefining --ease-out and re-timing
+ * every other animation in the app that already reads it. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes flyDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes screenIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes flyUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

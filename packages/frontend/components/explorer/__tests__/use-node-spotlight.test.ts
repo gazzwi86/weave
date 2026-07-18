@@ -216,6 +216,32 @@ describe("useNodeSpotlight", () => {
     expect(result.current.panel).toMatchObject({ nodeId: "n1", neighbours });
   });
 
+  // refit: the loaded panel carries the fetched bpmoKind through -- the
+  // inspector header's kind-coloured chip reads this field.
+  it("includes the fetched bpmoKind in the loaded panel state", async () => {
+    const adapter = fakeAdapter();
+    const events = capture(adapter);
+    const fetchNodeProps = vi.fn(async () => ({
+      type: "ok" as const,
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        bpmoKind: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours: [],
+      },
+    }));
+
+    const { result } = renderHook(() =>
+      useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }),
+    );
+    events.tapNode("n1");
+
+    await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
+    expect(result.current.panel).toMatchObject({ bpmoKind: "Process" });
+  });
+
   // AC-3: a generic CE error/timeout keeps the already-loaded label/type and
   // appends the "Details unavailable" fallback -- never blank, never a throw.
   it("falls back to the already-loaded label/type with an error notice on a non-404 CE failure", async () => {
@@ -267,6 +293,27 @@ describe("useNodeSpotlight", () => {
     await waitFor(() =>
       expect(result.current.panel).toEqual({ status: "not-found" }),
     );
+  });
+
+  // refit deferred item 1 "Impact of selection": default (unset/true) keeps
+  // the existing AC-1 always-on dim -- disabling it drops the dim opacity
+  // to fully opaque (1) while the panel still opens normally.
+  it("spotlights at full opacity (no dim) when impactEnabled is explicitly false", async () => {
+    const adapter = fakeAdapter();
+    const events = capture(adapter);
+    const fetchNodeProps = vi.fn(() => new Promise<never>(() => {}));
+
+    renderHook(() =>
+      useNodeSpotlight({
+        adapter,
+        config: DEFAULT_EXPLORER_CONFIG,
+        fetchNodeProps,
+        impactEnabled: false,
+      }),
+    );
+    events.tapNode("n1");
+
+    expect(adapter.spotlightNode).toHaveBeenCalledWith("n1", 1);
   });
 
   // AC-4: background click restores opacity and closes the panel.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContributorsTab } from "../contributors-tab";
@@ -45,10 +45,11 @@ describe("ContributorsTab", () => {
       expect(screen.getByText("urn:weave:principal:user:client")).toBeInTheDocument()
     );
     expect(screen.queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("New contributor principal")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add contributor" })).not.toBeInTheDocument();
   });
 
-  it("adds and removes a contributor for an admin caller", async () => {
+  // refit-mock #sub-bld-settings: inline add row -> Add-contributor modal
+  it("adds and removes a contributor for an admin caller via the add-contributor modal", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(CONTRIBUTORS))
@@ -71,10 +72,12 @@ describe("ContributorsTab", () => {
       expect(screen.getByText("urn:weave:principal:user:client")).toBeInTheDocument()
     );
 
-    fireEvent.change(screen.getByLabelText("New contributor principal"), {
+    fireEvent.click(screen.getByRole("button", { name: "Add contributor" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Contributor principal"), {
       target: { value: "urn:weave:principal:user:new" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add contributor" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Add contributor" }));
 
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
@@ -82,6 +85,7 @@ describe("ContributorsTab", () => {
         expect.objectContaining({ method: "PUT" })
       )
     );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     const removeButtons = screen.getAllByRole("button", { name: /remove/i });
     expect(removeButtons.length).toBeGreaterThan(0);
@@ -93,5 +97,20 @@ describe("ContributorsTab", () => {
         expect.objectContaining({ method: "DELETE" })
       )
     );
+  });
+
+  it("closes the add-contributor modal via Cancel without submitting", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(CONTRIBUTORS)));
+    render(<ContributorsTab projectId="p-1" canManage={true} />);
+
+    await waitFor(() =>
+      expect(screen.getByText("urn:weave:principal:user:client")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add contributor" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

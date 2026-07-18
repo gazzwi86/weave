@@ -118,13 +118,22 @@ async function assertNoViolations(page: Page): Promise<void> {
 }
 
 test.describe("Explorer M2 panels — axe-core zero-violations (TASK-030 AC-2)", () => {
-  // Covers filter panel, overlay legend, versions panel and completeness
-  // notice in one pass -- all four are always-mounted controls, so one
-  // fully-loaded page IS the "every panel visible" state.
-  test("filters + overlays + versions + completeness (always-mounted panels)", async ({ page }) => {
+  // Refit: ControlDock is a single-open accordion -- only the active tab's
+  // panel is mounted at all (not just CSS-hidden), so filter/overlay/
+  // versions/completeness can no longer be swept in one axe pass. Opens
+  // each tab in turn and re-runs axe against whatever it mounts.
+  test("filters + overlays + versions + completeness (each ControlDock tab)", async ({ page }) => {
     await mockExplorer(page);
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
+
+    for (const tabName of ["Filters", "Layers", "Overlays", "Versions"]) {
+      await page.getByRole("button", { name: tabName }).click();
+      await assertNoViolations(page);
+    }
+
+    // Overlay legend + completeness notice appear once a toggle is active.
+    await page.getByRole("button", { name: "Overlays" }).click();
     await page.getByRole("switch", { name: "Heatmap: Maturity" }).click();
     await assertNoViolations(page);
   });

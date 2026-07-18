@@ -3,65 +3,90 @@
 import Link from "next/link";
 
 import { BarChartSlot as BarChart } from "@/components/templates/BarChartSlot";
-import { KpiTileSlot as KpiTile } from "@/components/templates/KpiTileSlot";
 import { Card, CardContent } from "@/components/ui/card";
+import { ChainStatusChip } from "@/components/ui/chain-status-chip";
 
-import { useCompliance, type ComplianceSummary } from "./compliance/use-compliance";
+import { useCompliance, type ComplianceSummary, type TargetCount } from "./compliance/use-compliance";
 
 function eventLogsHref(category: string): string {
   return `/audit/logs?event_type=${encodeURIComponent(category)}`;
 }
 
-/** "urn:weave:principal:user:admin" -> "admin". Friendly label for the top-
- * actors list (v5 mock) -- the raw IRI stays in the row title for reference.
- * ponytail: last-segment split, no directory lookup; swap for a name service
- * if actors ever need real display names. */
-function friendlyActor(principalIri: string): string {
-  return principalIri.split(/[:/]/).filter(Boolean).at(-1) ?? principalIri;
+/** "urn:weave:process:order-handling" -> "order-handling". Same last-segment
+ * friendly-label rule the top-actors list uses; the raw IRI stays available
+ * as the row title for reference. */
+function friendlyEntity(iri: string): string {
+  return iri.split(/[:/]/).filter(Boolean).at(-1) ?? iri;
 }
 
-/** SHACL pass rate as a percentage of all validated writes, or null when
- * there were none this period (renders an empty tile, not a fake 0%). */
-function shaclRate(summary: ComplianceSummary): string | undefined {
-  // ?? 0: a backend that omits these must not white-screen the whole page.
-  const validated = summary.shacl_validated ?? 0;
-  const total = validated + (summary.shacl_rejections ?? 0);
-  if (total === 0) return undefined;
-  return `${((validated / total) * 100).toFixed(1)}%`;
-}
-
-function KpiGrid({ summary }: { summary: ComplianceSummary }) {
-  const rate = shaclRate(summary);
+/** refit-mock.html "Model edits by kind" side-card -- no backend field
+ * carries a per-kind edit breakdown (G5 has no backing endpoint), so this
+ * always renders the honest pending state rather than fake data. */
+function ModelEditsByKindCard() {
   return (
-    <div className="grid grid-cols-2 gap-[var(--space-4)] md:grid-cols-4">
-      <div data-testid="chain-status">
-        <KpiTile
-          label="Chain status"
-          value={summary.chain_status === "valid" ? "Valid" : "Broken"}
-          variant={summary.chain_status === "valid" ? "success" : "danger"}
-        />
-      </div>
-      <div data-testid="entries-checked">
-        <KpiTile label="Entries checked" value={summary.entries_checked.toLocaleString()} />
-      </div>
-      <div data-testid="shacl-validated">
-        <KpiTile label="SHACL validated" value={rate} empty={rate === undefined} variant="success" />
-      </div>
-      <div data-testid="shacl-rejections">
-        <KpiTile
-          label="SHACL rejections"
-          value={(summary.shacl_rejections ?? 0).toLocaleString()}
-          variant={(summary.shacl_rejections ?? 0) > 0 ? "warn" : "default"}
-        />
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex flex-col gap-[var(--space-2)]">
+        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+          Model edits by kind — this month
+        </p>
+        <p data-testid="kind-edits-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
+          Not available yet — per-kind edit counts need a backend breakdown.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BusiestEntitiesList({ targets }: { targets: TargetCount[] }) {
+  return (
+    <ul className="flex flex-col gap-[var(--space-1)]">
+      {targets.map((target) => (
+        <li
+          key={target.target_iri}
+          title={target.target_iri}
+          className="flex items-center justify-between text-[length:var(--text-body-sm)]"
+        >
+          <span className="text-[var(--color-text-default)]">{friendlyEntity(target.target_iri)}</span>
+          <span className="font-[var(--font-mono)] tabular-nums text-[var(--color-text-muted)]">
+            {target.count.toLocaleString()}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** refit-mock.html "Busiest entities" side-card -- backed by `top_targets`
+ * (G7, `feat/audit-aggregation-gaps` PR #135, unmerged). Absent means
+ * "pending", not "zero busiest entities" -- see `use-compliance.ts`. */
+/** The header above already carries the page's one "View logs" hyperlink --
+ * a second anchor with the same accessible name here would make
+ * `getByRole("link", { name: "View logs" })` ambiguous, so this card is
+ * navigation-free (refit-mock.html's ghost button is decorative parity we
+ * skip; the header link covers the same journey). */
+function BusiestEntitiesCard({ targets }: { targets: TargetCount[] | undefined }) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-[var(--space-2)]">
+        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+          Busiest entities — 30 days
+        </p>
+        {targets ? (
+          <BusiestEntitiesList targets={targets} />
+        ) : (
+          <p data-testid="busiest-entities-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
+            Not available yet — busiest-entity ranking needs a backend breakdown.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 /** Current-vs-previous category series; falls back to the current period
  * alone when there is no prior period (the BarChart renders its own empty
  * state if even the current period has no categories). */
-function CategoryChart({
+function EventsByCategoryCard({
   summary,
   previous,
 }: {
@@ -76,80 +101,80 @@ function CategoryChart({
     { label: summary.period, values: categories.map((c) => summary.by_event_category[c] ?? 0) },
   ];
   return (
-    <div>
-      <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Entries by category{previous ? " — this period vs previous" : ""}
-      </p>
-      <div className="mt-[var(--space-1)] flex gap-[var(--space-4)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
-        {previous ? (
-          <span className="flex items-center gap-[var(--space-1)]">
-            <span aria-hidden="true" className="size-[var(--space-2)] rounded-[var(--radius-full)] bg-[var(--color-border-strong)]" />
-            {previous.period}
-          </span>
-        ) : null}
-        <span className="flex items-center gap-[var(--space-1)]">
-          <span aria-hidden="true" className="size-[var(--space-2)] rounded-[var(--radius-full)] bg-[var(--color-accent-primary)]" />
-          {summary.period}
-        </span>
-      </div>
-      <BarChart categories={categories} series={series} hrefFor={eventLogsHref} />
+    <Card>
+      <CardContent className="flex flex-col gap-[var(--space-2)]">
+        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+          Events by category — vs last month
+        </p>
+        <BarChart categories={categories} series={series} hrefFor={eventLogsHref} />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** refit-mock.html Security/Governance/Budget/Reliability health row -- none
+ * of these counts have a backing endpoint yet (G6), so every card renders
+ * the same honest pending state. */
+function EventCountsRow() {
+  const groups = ["Security", "Governance", "Budget", "Reliability"];
+  return (
+    <div className="grid grid-cols-2 gap-[var(--space-4)] md:grid-cols-4">
+      {groups.map((group) => (
+        <Card key={group}>
+          <CardContent className="flex flex-col gap-[var(--space-2)]">
+            <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">{group}</p>
+            <p data-testid="event-counts-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
+              Not available yet.
+            </p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
 
 function AuditBody({ summary, previous }: { summary: ComplianceSummary; previous: ComplianceSummary | null }) {
   return (
-    <div className="flex flex-col gap-[var(--space-5)]">
-      <KpiGrid summary={summary} />
-      <Card>
-        <CardContent className="flex flex-col gap-[var(--space-5)]">
-          <CategoryChart summary={summary} previous={previous} />
-          <div>
-            <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">Top actors</p>
-            <ul data-testid="top-actors-list" className="mt-[var(--space-2)] flex flex-col gap-[var(--space-1)]">
-              {summary.top_actors.map((actor) => (
-                <li
-                  key={actor.principal_iri}
-                  title={actor.principal_iri}
-                  className="flex items-center justify-between text-[length:var(--text-body-sm)]"
-                >
-                  <span className="text-[var(--color-text-default)]">{friendlyActor(actor.principal_iri)}</span>
-                  <span className="font-[var(--font-mono)] tabular-nums text-[var(--color-text-muted)]">
-                    {actor.event_count.toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col gap-[var(--space-4)]">
+      <div className="grid grid-cols-1 gap-[var(--space-4)] lg:grid-cols-3">
+        <ModelEditsByKindCard />
+        <BusiestEntitiesCard targets={summary.top_targets} />
+        <EventsByCategoryCard summary={summary} previous={previous} />
+      </div>
+      <EventCountsRow />
     </div>
   );
 }
 
-/** Audit trail dashboard (v5): chain-health + throughput KPI tiles and a
- * period-over-period category chart over the immutable log, from the same
- * tenant-scoped `GET /api/audit/compliance` summary the compliance sub-view
- * uses. Row-level inspection lives at /audit/logs. */
+/** Audit trail dashboard (refit-mock.html "Dashboard"): activity and
+ * operations at a glance -- the chain-status chip is a summary link through
+ * to /audit/compliance, which carries the full trust verdict. Backed by the
+ * same tenant-scoped `GET /api/audit/compliance` summary the Compliance page
+ * uses; row-level inspection lives at /audit/logs.
+ */
 export default function AuditDashboardPage() {
   const { summary, previous, loadError } = useCompliance();
 
   return (
     <main className="flex flex-col gap-[var(--space-4)] p-[var(--space-6)]">
-      <div>
-        <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
-          Audit engine
-        </p>
-        <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Audit trail
-        </h1>
-        <p className="mt-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
-          Tamper-evident, hash-chained record of every write — at-a-glance chain health, throughput, and
-          period-over-period volume.{" "}
-          <Link href="/audit/logs" className="text-[var(--color-accent-primary)] hover:underline">
-            View logs
-          </Link>
-        </p>
+      <div className="flex items-start justify-between gap-[var(--space-4)]">
+        <div>
+          <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
+            Audit trail
+          </p>
+          <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+            Dashboard
+          </h1>
+          <p className="mt-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+            What&apos;s happening across the workspace — every event, signed and chained.{" "}
+            <Link href="/audit/logs" className="text-[var(--color-accent-primary)] hover:underline">
+              View logs
+            </Link>
+          </p>
+        </div>
+        {summary && (
+          <ChainStatusChip status={summary.chain_status} href="/audit/compliance" data-testid="chain-status" />
+        )}
       </div>
 
       {loadError && !summary && (

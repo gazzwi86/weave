@@ -1,9 +1,17 @@
+import { Minimap } from "@/components/molecules/Minimap";
 import { DEFAULT_EXPLORER_CONFIG } from "@/lib/explorer/config";
 
 import { EmptyState } from "./empty-state";
 import { ExplorerInteractions } from "./explorer-interactions";
-import { MiniMap } from "./mini-map";
 import { useExplorerCanvas, type UseExplorerCanvasOptions } from "./use-explorer-canvas";
+
+// ponytail: no design-token entry covers a widget's own footprint (only
+// colour/spacing/radius/shadow/motion are tokenised) -- 160x100 is a fixed
+// functional plate size, not a decorative literal (mirrors the superseded
+// mini-map.tsx's own note). The svg's viewBox (148x88, refit-mock.html) is a
+// separate coordinate space -- see use-explorer-canvas.ts's MINIMAP_SIZE.
+const PLATE_WIDTH = 160;
+const PLATE_HEIGHT = 100;
 
 export interface ExplorerCanvasProps {
   options?: UseExplorerCanvasOptions;
@@ -17,7 +25,8 @@ export interface ExplorerCanvasProps {
  * force canvas container + bottom-right mini-map. TASK-003 adds the
  * spotlight side panel + search overlay once the renderer adapter exists. */
 export function ExplorerCanvas({ options, role = null }: ExplorerCanvasProps) {
-  const { loadState, errorMessage, minimapIndicator, containerRef, retry, adapter } = useExplorerCanvas(options);
+  const { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter } =
+    useExplorerCanvas(options);
   const config = options?.config ?? DEFAULT_EXPLORER_CONFIG;
 
   if (loadState === "error") {
@@ -36,7 +45,13 @@ export function ExplorerCanvas({ options, role = null }: ExplorerCanvasProps) {
        * "relative" (cytoscape.js core/index.js), which would null out an
        * inset-based size (inset only offsets absolute/fixed/sticky boxes). */}
       <div ref={containerRef} data-testid="explorer-canvas" className="h-full w-full" />
-      <MiniMap indicator={minimapIndicator} />
+      <div
+        data-testid="explorer-minimap"
+        className="pointer-events-none absolute right-[var(--space-4)] bottom-[var(--space-4)] overflow-hidden rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)]"
+        style={{ width: PLATE_WIDTH, height: PLATE_HEIGHT }}
+      >
+        {minimapIndicator && <Minimap nodes={minimapNodes} viewportRect={minimapIndicator} />}
+      </div>
       {adapter && <ExplorerInteractions adapter={adapter} config={config} graphId={config.layoutGraphId} role={role} />}
     </div>
   );

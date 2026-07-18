@@ -3,7 +3,8 @@
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { Badge } from "@/components/ui/badge";
-import { BellPanel, type BellPanelNotification } from "@/components/organisms/BellPanel";
+import { Icon } from "@/components/ui/icon";
+import { BellPanel, type BellCategory, type BellPanelNotification } from "@/components/organisms/BellPanel";
 import { groupBellEntries } from "@/app/notifications/group-bell-entries";
 
 import { useNotifications } from "./use-notifications";
@@ -13,6 +14,15 @@ import { useNotifications } from "./use-notifications";
  * mechanical fallback until product supplies one. */
 function labelFor(eventType: string): string {
   return eventType;
+}
+
+/** ponytail: mechanical prefix match, no per-type category table exists yet
+ * (same stopgap as `labelFor`). `undefined` -> BellPanel's neutral chip. */
+function categoryFor(eventType: string): BellCategory | undefined {
+  if (eventType.startsWith("model.") || eventType.startsWith("ontology.")) return "model";
+  if (eventType.startsWith("job.") || eventType.startsWith("build.")) return "build";
+  if (eventType.startsWith("workspace.member") || eventType.startsWith("member.")) return "member";
+  return undefined;
 }
 
 /** AC-4: bell icon + unread badge (never a bare text label) opening a
@@ -28,6 +38,7 @@ function toBellNotifications(notifications: ReturnType<typeof groupBellEntries>)
     createdAt: entry.created_at,
     targetIri: entry.target_iri,
     summary: entry.summary,
+    category: categoryFor(entry.event_type),
   }));
 }
 
@@ -55,6 +66,51 @@ function BellTrigger({ unreadCount }: { unreadCount: number }) {
   );
 }
 
+function CloseNotificationsButton() {
+  return (
+    <Dialog.Close asChild>
+      <button
+        type="button"
+        aria-label="Close notifications"
+        className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
+      >
+        <Icon name="x" size={14} />
+      </button>
+    </Dialog.Close>
+  );
+}
+
+function NotificationsBody({
+  error,
+  bellNotifications,
+  role,
+  markRead,
+  markAllRead,
+}: {
+  error: boolean;
+  bellNotifications: BellPanelNotification[];
+  role?: string | null;
+  markRead: (id: string) => void;
+  markAllRead: () => void;
+}) {
+  if (error) {
+    return (
+      <p className="w-[380px] max-w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] p-[var(--space-5)] text-[length:var(--text-body-sm)] text-[var(--color-danger)] shadow-[var(--shadow-overlay)]">
+        Couldn&apos;t load notifications.
+      </p>
+    );
+  }
+  return (
+    <BellPanel
+      notifications={bellNotifications}
+      role={role}
+      onMarkRead={markRead}
+      onMarkAllRead={markAllRead}
+      closeSlot={<CloseNotificationsButton />}
+    />
+  );
+}
+
 export function NotificationCenter({ role = null }: { role?: string | null }) {
   const { notifications, unreadCount, error, refresh, markRead } = useNotifications();
 
@@ -66,13 +122,7 @@ export function NotificationCenter({ role = null }: { role?: string | null }) {
   };
 
   return (
-    <Dialog.Root
-      onOpenChange={(open) => {
-        if (open) {
-          refresh();
-        }
-      }}
-    >
+    <Dialog.Root onOpenChange={(open) => open && refresh()}>
       <Dialog.Trigger
         aria-label="Notifications"
         className="relative flex items-center justify-center rounded-[var(--radius-full)] p-[var(--space-2)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
@@ -81,30 +131,16 @@ export function NotificationCenter({ role = null }: { role?: string | null }) {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-[var(--color-overlay)] opacity-80" />
-        <Dialog.Content asChild aria-label="Notifications" className="fixed right-0 top-0">
+        <Dialog.Content asChild aria-label="Notifications" className="fixed right-[var(--space-4)] top-[var(--space-10)]">
           <div>
             <Dialog.Title className="sr-only">Notifications</Dialog.Title>
-            {error ? (
-              <p className="w-full max-w-xs border-l border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-5)] text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
-                Couldn&apos;t load notifications.
-              </p>
-            ) : (
-              <BellPanel
-                notifications={bellNotifications}
-                role={role}
-                onMarkRead={markRead}
-                onMarkAllRead={markAllRead}
-              />
-            )}
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Close notifications"
-                className="absolute right-[var(--space-3)] top-[var(--space-3)] text-[length:var(--text-label)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
-              >
-                Close
-              </button>
-            </Dialog.Close>
+            <NotificationsBody
+              error={Boolean(error)}
+              bellNotifications={bellNotifications}
+              role={role}
+              markRead={markRead}
+              markAllRead={markAllRead}
+            />
           </div>
         </Dialog.Content>
       </Dialog.Portal>
