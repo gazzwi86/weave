@@ -14,6 +14,10 @@ export type SidePanelState =
       status: "loaded";
       label: string;
       typeLabel: string;
+      /** refit: CE's `bpmo_kind`, threaded through for the inspector
+       * header's kind-coloured swatch (inspector-view.ts's toBpmoKind) --
+       * absent/unrecognised falls back to a plain-text header. */
+      bpmoKind?: string;
       keyProperties: KeyProperty[];
       rawIri: string | null;
       /** TASK-005 AC-3: the tapped node's id and its already-fetched
@@ -66,6 +70,7 @@ async function loadNodeProps(
     status: "loaded",
     label: result.data.label,
     typeLabel: result.data.typeLabel,
+    bpmoKind: result.data.bpmoKind,
     keyProperties: result.data.keyProperties,
     rawIri: result.data.rawIri,
     nodeId,

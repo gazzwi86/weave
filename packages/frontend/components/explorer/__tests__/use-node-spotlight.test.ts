@@ -216,6 +216,32 @@ describe("useNodeSpotlight", () => {
     expect(result.current.panel).toMatchObject({ nodeId: "n1", neighbours });
   });
 
+  // refit: the loaded panel carries the fetched bpmoKind through -- the
+  // inspector header's kind-coloured chip reads this field.
+  it("includes the fetched bpmoKind in the loaded panel state", async () => {
+    const adapter = fakeAdapter();
+    const events = capture(adapter);
+    const fetchNodeProps = vi.fn(async () => ({
+      type: "ok" as const,
+      data: {
+        label: "Customer Onboarding",
+        typeLabel: "Process",
+        bpmoKind: "Process",
+        keyProperties: [],
+        rawIri: null,
+        neighbours: [],
+      },
+    }));
+
+    const { result } = renderHook(() =>
+      useNodeSpotlight({ adapter, config: DEFAULT_EXPLORER_CONFIG, fetchNodeProps }),
+    );
+    events.tapNode("n1");
+
+    await waitFor(() => expect(result.current.panel.status).toBe("loaded"));
+    expect(result.current.panel).toMatchObject({ bpmoKind: "Process" });
+  });
+
   // AC-3: a generic CE error/timeout keeps the already-loaded label/type and
   // appends the "Details unavailable" fallback -- never blank, never a throw.
   it("falls back to the already-loaded label/type with an error notice on a non-404 CE failure", async () => {
