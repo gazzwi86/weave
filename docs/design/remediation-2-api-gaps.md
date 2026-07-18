@@ -80,15 +80,39 @@ breaches.
 - [x] **G8 S · Audit card I (audit_outage)** — emitted but not aggregated. → include in compliance
   response.
   Closed: `GET /api/audit/compliance` now returns `audit_outages` (`audit/compliance.py`).
-- [ ] **G9 M · Epic grouping/counts** — board + state spine are task-level only; no epic entity in
+- [x] **G9 M · Epic grouping/counts** — board + state spine are task-level only; no epic entity in
   the API. → expose epic rollups (count, per-epic task status).
-- [ ] **G10 L · Roadmap/gantt data** — no epic date-ranges/ordering endpoint. → smallest viable:
+  Closed: `GET /api/projects/{project_iri}/epics` (`routers/epics.py`) groups state-spine tasks by
+  an optional brief-supplied `epic_id`/`epic_title` (`briefs/store.py`'s `epic_refs`, threaded
+  through `POST /api/projects/{project_iri}/briefs`'s create request). No epic entity exists in the
+  DB — everything ungrouped lands in a flagged `"unassigned"` bucket rather than being dropped.
+- [x] **G10 L · Roadmap/gantt data** — no epic date-ranges/ordering endpoint. → smallest viable:
   epic list with status + ordinal + started/completed timestamps (gantt draws from that).
-- [ ] **G11 M · Spec artifact links** — only per-task briefs retrievable; no PRD/roadmap/tech-spec
+  Closed (derived, not stored): same `GET /api/projects/{project_iri}/epics` response carries
+  `ordinal` + a `done`/`active`/`upcoming` `status` derived from `build.board.lane_for_status`, so
+  it can never drift from the board. **Deferred:** no task-transition timestamps exist in M1, so
+  `started_at`/`completed_at` are not returned — a gantt view built on this endpoint only gets
+  ordinal sequencing, not date ranges, until timestamp capture lands.
+- [x] **G11 M · Spec artifact links** — only per-task briefs retrievable; no PRD/roadmap/tech-spec
   retrieval or link metadata. → spec-artifact index endpoint (id, type, status, approved_at, link).
-- [ ] **G12 M · Pending-gates list** — no endpoint listing tasks awaiting a HITL gate; UI must know
+  Closed (task-brief half only): `GET /api/projects/{project_iri}/spec-artifacts`
+  (`routers/spec_artifacts.py`) returns one `type: "task-brief"` entry per stored brief, `status`
+  derived from the matching state-spine task (`Done` → `approved`, `Blocked` → `pending_review`,
+  anything else/no task → `drafted`), `ref` pointing at the existing
+  `GET /api/projects/{iri}/briefs/{task_id}` route. **Deferred:** PRD/roadmap/tech-spec are
+  doc-served sections under `docs/specs/weave/engines/<entity>.md` (per `CLAUDE.md`'s spec artifact
+  table), not persisted rows — no API-served entry for them yet; `approved_at` also stays unset
+  (same "no task-transition timestamp in M1" deferral as G10).
+- [x] **G12 M · Pending-gates list** — no endpoint listing tasks awaiting a HITL gate; UI must know
   task_id and stitch 4 evidence routes. → `GET /api/projects/{iri}/gates?status=pending` returning
   gate + evidence bundle refs.
+  Closed: `GET /api/projects/{project_iri}/gates?status=pending` (`routers/gates.py`) lists every
+  state-spine task with `status == "Blocked"` (the same HITL-escalation signal
+  `build.board.lane_for_status`/`hitl_escalated` already read) with a bundled `evidence` object
+  (`task_detail`, `audit`, `console_log`, `captures`, `hitl_action` refs) so the UI no longer
+  stitches 4+1 routes by hand from a bare `task_id`. **Deferred:** no per-task gate-type (DoR vs DoD
+  vs pre-scaffold) is captured in the state spine, so every entry's `gate` field is the generic
+  `"hitl"` literal, not the specific gate that fired.
 
 - [ ] **G13 S · Allowed-models endpoint** — Settings > Models & AI picker needs the validated
   model allow-list + current tier routing; backend holds `ALLOWED_MODELS` + routing config
