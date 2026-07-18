@@ -72,14 +72,16 @@ async def create_brief_route(
                     engine="build",
                 ),
             )
-            raise HTTPException(
-                status_code=500, detail={"error": "model_routing_miss"}
-            ) from exc
+            raise HTTPException(status_code=500, detail={"error": "model_routing_miss"}) from exc
 
         task_id = generate_task_id(project_iri, body.task_description)
         brief_iri = build_brief_iri(task_id)
         raw_brief["task_id"] = task_id
         raw_brief["project_iri"] = project_iri
+        if body.epic_id is not None:
+            raw_brief["epic_id"] = body.epic_id
+        if body.epic_title is not None:
+            raw_brief["epic_title"] = body.epic_title
         try:
             brief = TaskBrief.model_validate(raw_brief)
         except ValidationError as exc:

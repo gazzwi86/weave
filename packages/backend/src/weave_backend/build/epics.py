@@ -20,22 +20,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from weave_backend.briefs.store import EpicRef
 from weave_backend.build.board import lane_for_status
 from weave_backend.build.state_spine import StateSpine
 from weave_backend.schemas.epics import EpicRollupEntry, EpicRollupResponse, EpicTaskCounts
 
 UNASSIGNED_EPIC_ID = "unassigned"
 UNASSIGNED_EPIC_TITLE = "Unassigned tasks"
-
-
-@dataclass(frozen=True)
-class EpicRef:
-    """A brief's optional epic association (briefs.schema.TaskBrief's
-    `epic_id`/`epic_title` fields), keyed by `task_id` by the caller.
-    """
-
-    epic_id: str | None = None
-    epic_title: str | None = None
 
 
 @dataclass
@@ -56,9 +47,7 @@ def _epic_key(ref: EpicRef | None) -> tuple[str, str | None]:
     return UNASSIGNED_EPIC_ID, UNASSIGNED_EPIC_TITLE
 
 
-def _bucket_tasks(
-    spine: StateSpine, epic_refs: dict[str, EpicRef]
-) -> dict[str, _EpicAccumulator]:
+def _bucket_tasks(spine: StateSpine, epic_refs: dict[str, EpicRef]) -> dict[str, _EpicAccumulator]:
     groups: dict[str, _EpicAccumulator] = {}
     for task in spine.tasks:
         epic_id, title = _epic_key(epic_refs.get(task.id))
