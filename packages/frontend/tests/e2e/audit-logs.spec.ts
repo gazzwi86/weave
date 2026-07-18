@@ -14,24 +14,29 @@ async function loginAndGoToAuditLogs(page: Page): Promise<void> {
 }
 
 // Row-level viewer over the real, seeded hash-chained trail (no API mocks):
-// the table has rows, expanding one exposes the signed entry (hash et al),
-// and on-demand verification reports the chain valid.
-test("audit logs table renders seeded rows, expands to signed JSON, verifies chain", async ({
+// the table has rows, expanding one exposes the signed entry (hash et al,
+// via DataTable's own table-row-/table-row-detail- testids), and on-demand
+// verification reports the chain valid via a toast (logs page.tsx's
+// useVerifyResultToast -- there is no dedicated verify-result element).
+test("audit logs table renders seeded rows, expands to signed detail, verifies chain", async ({
   page,
 }) => {
   await loginAndGoToAuditLogs(page);
 
-  const rows = page.locator('[data-testid^="log-row-"]');
+  const rows = page.locator('[data-testid^="table-row-"]');
   await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(0);
 
   await rows.first().click();
-  await expect(page.locator('[data-testid^="log-detail-"]')).toContainText('"hash"');
+  await expect(page.locator('[data-testid^="table-row-detail-"]')).toContainText("Entry hash");
 
   await page.getByRole("button", { name: "Verify chain" }).click();
-  await expect(page.getByTestId("verify-result")).toContainText("valid");
+  // Filter, not a bare role query: the practice-mode banner (app-shell.tsx)
+  // is also role="status" once the demo user's sandbox fork completes, so a
+  // bare getByRole("status") is a strict-mode violation waiting to happen.
+  await expect(page.getByRole("status").filter({ hasText: /chain valid/i })).toBeVisible();
 
-  await expect(page.getByRole("button", { name: "Export JSON" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
 });
 
 // AC-5 must be a real filter, not decoration: filtering by a non-event_type
@@ -85,13 +90,13 @@ test("filtering audit logs by actor (a non-event_type dimension) narrows the ren
 
   await loginAndGoToAuditLogs(page);
 
-  const rows = page.locator('[data-testid^="log-row-"]');
+  const rows = page.locator('[data-testid^="table-row-"]');
   await expect(rows).toHaveCount(2);
 
   await page.getByLabel("Actor").fill("urn:weave:principal:tenant-1:human:bob");
-  await page.getByRole("button", { name: "Filter" }).click();
+  await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(rows).toHaveCount(1);
-  await expect(page.getByTestId("log-row-2")).toBeVisible();
-  await expect(page.getByTestId("log-row-1")).toHaveCount(0);
+  await expect(page.getByTestId("table-row-2")).toBeVisible();
+  await expect(page.getByTestId("table-row-1")).toHaveCount(0);
 });
