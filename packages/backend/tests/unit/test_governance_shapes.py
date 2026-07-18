@@ -155,10 +155,11 @@ async def test_commit_tenant_shape_appends_bumps_version_and_audits(
 async def test_commit_tenant_shape_retracts_existing_subject_before_appending(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    append_spy = AsyncMock()
-    monkeypatch.setattr(governance_shapes, "append_graph", append_spy)
-    update_spy = AsyncMock()
+    call_order: list[str] = []
+    update_spy = AsyncMock(side_effect=lambda *a, **kw: call_order.append("retract"))
     monkeypatch.setattr(governance_shapes, "run_update", update_spy)
+    append_spy = AsyncMock(side_effect=lambda *a, **kw: call_order.append("append"))
+    monkeypatch.setattr(governance_shapes, "append_graph", append_spy)
     monkeypatch.setattr(provenance, "append_graph", AsyncMock())
     monkeypatch.setattr(governance_shapes, "enqueue", AsyncMock())
     redis = FakeRedis()
@@ -180,10 +181,10 @@ async def test_commit_tenant_shape_retracts_existing_subject_before_appending(
     retract_query = update_spy.call_args.args[0]
     assert GENERATED_IRI in retract_query
     assert shacl.tenant_shapes_graph_iri(TENANT_ID) in retract_query
+    append_spy.assert_called_once()
     # Retract must run before the new triples are appended -- otherwise the
     # retract would delete the version it just wrote.
-    assert update_spy.call_args_list[0] is update_spy.call_args
-    append_spy.assert_called_once()
+    assert call_order == ["retract", "append"]
 
 
 async def test_commit_tenant_shape_rejects_shape_iri_with_sparql_breakout_chars(
