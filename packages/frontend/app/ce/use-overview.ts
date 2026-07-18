@@ -3,13 +3,18 @@
 import { useEffect, useState } from "react";
 
 import type { NodeKind, SparqlPage } from "@/lib/explorer/types";
-import type { VersionEntry } from "../versions/types";
+
+import { publishedEntriesDesc } from "./versions/version-page-helpers";
+import type { VersionEntry } from "./versions/types";
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const ONTOLOGY_PREFIX = "https://weave.io/ontology/";
 /** Sane cap on CE-READ-1 pages pulled for a stats read (fetch-graph.ts
  * bounds by node count instead; a count-only page needs far less). */
 const MAX_PAGES = 10;
+/** Widget only has room for a handful of rows -- the Versions page is the
+ * full timeline. */
+const RECENT_VERSIONS_LIMIT = 3;
 
 export interface OverviewStats {
   kinds: NodeKind[];
@@ -19,6 +24,9 @@ export interface OverviewStats {
   totalTriples: number;
   /** Latest published ontology version, or null when none/unavailable. */
   publishedSemver: string | null;
+  /** Newest-first published versions, capped for the widget -- empty when
+   * unavailable (fail-soft, not a page-wide error). */
+  recentVersions: VersionEntry[];
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -52,27 +60,34 @@ async function tallyTriples(): Promise<{
   return { countsByKind, totalTriples };
 }
 
-/** Fail-soft: the version card is optional, so an unavailable version list
- * degrades to "no version shown" rather than an overview-wide error. */
-async function fetchPublishedSemver(): Promise<string | null> {
+/** Fail-soft: the version widgets are optional, so an unavailable version
+ * list degrades to "nothing shown" rather than an overview-wide error. */
+async function fetchPublishedVersions(): Promise<VersionEntry[]> {
   try {
     const body = await fetchJson<{ versions: VersionEntry[] }>(
       "/api/proxy/ontology/versions?page=1&per_page=50"
     );
-    return body.versions.find((v) => v.status === "published")?.semver ?? null;
+    return publishedEntriesDesc(body.versions);
   } catch {
-    return null;
+    return [];
   }
 }
 
 async function fetchStats(): Promise<OverviewStats> {
-  const [{ kinds }, { countsByKind, totalTriples }, publishedSemver] = await Promise.all([
+  const [{ kinds }, { countsByKind, totalTriples }, published] = await Promise.all([
     fetchJson<{ kinds: NodeKind[] }>("/api/proxy/node-kinds"),
     tallyTriples(),
-    fetchPublishedSemver(),
+    fetchPublishedVersions(),
   ]);
   const totalInstances = Object.values(countsByKind).reduce((sum, n) => sum + n, 0);
-  return { kinds, countsByKind, totalInstances, totalTriples, publishedSemver };
+  return {
+    kinds,
+    countsByKind,
+    totalInstances,
+    totalTriples,
+    publishedSemver: published[0]?.semver ?? null,
+    recentVersions: published.slice(0, RECENT_VERSIONS_LIMIT),
+  };
 }
 
 /** Fetches the "model at a glance" stats once on mount. */

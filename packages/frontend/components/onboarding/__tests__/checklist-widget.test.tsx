@@ -35,7 +35,7 @@ describe("ChecklistWidget (TASK-010)", () => {
     expect(screen.getByText("See real data before you commit your own.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /visit the demo workspace/i })).toHaveAttribute(
       "href",
-      "/ce/overview"
+      "/ce"
     );
   });
 
