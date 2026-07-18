@@ -85,6 +85,22 @@ function CostCapField({
   );
 }
 
+/** refit-mock #sub-bld-settings: budget = cap + usage. The cap above is
+ * real; usage against it isn't -- `billing_usage` rows are tenant/workspace
+ * scoped only (no `project_id` column, see billing/usage.py), so there is
+ * no real per-project number to show here yet. Named rather than faked. */
+function BudgetUsageGapNote(): React.JSX.Element {
+  return (
+    <p
+      data-testid="budget-usage-gap"
+      className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]"
+    >
+      Usage against this cap isn&apos;t tracked at project granularity yet -- only tenant- and
+      workspace-level usage is metered today.
+    </p>
+  );
+}
+
 /** AC-2/AC-3/AC-4: the governance form itself -- split out of
  * `ProjectSettingsPanel` to stay under the Law E 50-line budget. Read-only
  * (`canManage=false`) disables both fields and hides Save entirely, per
@@ -124,6 +140,7 @@ export function GovernanceForm({
         errorId={errorId}
         onChange={(costCap) => onChange({ ...values, costCap })}
       />
+      <BudgetUsageGapNote />
       {canManage && (
         <Button type="button" disabled={saving} onClick={onSave} className="w-fit">
           Save

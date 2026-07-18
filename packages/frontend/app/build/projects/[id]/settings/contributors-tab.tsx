@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { AddContributorModal } from "@/components/ui/add-contributor-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface Contributor {
   principal_iri: string;
@@ -83,45 +83,26 @@ function ContributorTable({
   );
 }
 
-/** The admin-only add-contributor row -- split out of `ContributorsTab` to
- * keep both under the function-length budget (Law E). */
-function AddContributorForm({
+/** Explanatory copy + the admin-only add trigger -- split out of
+ * `ContributorsTab` to keep both under the function-length budget (Law E). */
+function ContributorsHeader({
+  canManage,
   onAdd,
 }: {
-  onAdd: (principalIri: string, role: "admin" | "editor") => void;
+  canManage: boolean;
+  onAdd: () => void;
 }): React.JSX.Element {
-  const [principal, setPrincipal] = useState("");
-  const [role, setRole] = useState<"admin" | "editor">("editor");
-
   return (
-    <div className="flex items-end gap-[var(--space-2)]">
-      <label className="flex flex-1 flex-col gap-[var(--space-1)]">
-        <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">
-          New contributor principal
-        </span>
-        <Input value={principal} onChange={(e) => setPrincipal(e.target.value)} />
-      </label>
-      <label className="flex flex-col gap-[var(--space-1)]">
-        <span className="text-[length:var(--text-label)] text-[var(--color-text-muted)]">Role</span>
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as "admin" | "editor")}
-          className="rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body)] text-[var(--color-text-default)]"
-        >
-          <option value="editor">Editor</option>
-          <option value="admin">Admin</option>
-        </select>
-      </label>
-      <Button
-        type="button"
-        disabled={!principal}
-        onClick={() => {
-          onAdd(principal, role);
-          setPrincipal("");
-        }}
-      >
-        Add contributor
-      </Button>
+    <div className="flex items-start justify-between gap-[var(--space-3)]">
+      <p className="text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
+        Every contributor listed here can read this project; read access is company-wide. A role
+        grant only adds write access.
+      </p>
+      {canManage && (
+        <Button type="button" onClick={onAdd} className="shrink-0">
+          Add contributor
+        </Button>
+      )}
     </div>
   );
 }
@@ -138,6 +119,7 @@ export function ContributorsTab({
   canManage: boolean;
 }): React.JSX.Element {
   const [version, setVersion] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
   const contributors = useContributorList(projectId, version);
 
   const addContributor = useCallback(
@@ -166,16 +148,13 @@ export function ContributorsTab({
 
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
-      <p className="text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
-        Every contributor listed here can read this project; read access is company-wide. A role
-        grant only adds write access.
-      </p>
+      <ContributorsHeader canManage={canManage} onAdd={() => setAddOpen(true)} />
       <ContributorTable
         contributors={contributors ?? []}
         canManage={canManage}
         onRemove={removeContributor}
       />
-      {canManage && <AddContributorForm onAdd={addContributor} />}
+      <AddContributorModal open={addOpen} onClose={() => setAddOpen(false)} onAdd={addContributor} />
     </div>
   );
 }

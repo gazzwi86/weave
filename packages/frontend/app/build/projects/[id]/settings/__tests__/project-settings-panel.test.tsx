@@ -40,6 +40,19 @@ describe("ProjectSettingsPanel", () => {
     expect(screen.getAllByText(/company/i).length).toBeGreaterThan(0);
   });
 
+  // refit-mock #sub-bld-settings: budget = cap (real, AC-2/AC-3) + usage.
+  // billing_usage has no project_id column (tenant/workspace scope only,
+  // see billing/usage.py) -- named here rather than faked.
+  it("names the gap that usage isn't tracked at project granularity next to the cost cap", async () => {
+    stubFetchSequence(jsonResponse(SETTINGS), jsonResponse(CONTRIBUTORS));
+    render(
+      <ProjectSettingsPanel projectId="p-1" tenantRole="admin" principalIri="urn:weave:principal:user:owner" />
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("standard")).toBeInTheDocument());
+    expect(screen.getByTestId("budget-usage-gap")).toBeInTheDocument();
+  });
+
   it("saves a governance change via PATCH and shows a success message (AC-2)", async () => {
     stubFetchSequence(
       jsonResponse(SETTINGS),
