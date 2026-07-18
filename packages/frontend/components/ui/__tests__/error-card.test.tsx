@@ -22,4 +22,11 @@ describe("ErrorCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  // Refit: query page failure states (ask-provider-missing/ask-timeout/
+  // ask-error/editor-error) attach their own testid onto the alert root.
+  it("forwards data-testid and other div attributes onto the alert root", () => {
+    render(<ErrorCard title="Failed" body="Try again." data-testid="ask-timeout" />);
+    expect(screen.getByTestId("ask-timeout")).toBe(screen.getByRole("alert"));
+  });
 });

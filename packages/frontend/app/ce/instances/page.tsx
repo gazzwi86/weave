@@ -5,32 +5,57 @@ import { useState } from "react";
 import type { KindEntry } from "../chat/types";
 import { AuthoringDrawer } from "./authoring-drawer";
 import { ChatAside } from "./chat-aside";
+import { PAGE_SIZE } from "./build-browse-query";
 import { useInspector, type InspectedResource } from "./use-inspector";
 import { useInstanceBrowser } from "./use-instance-browser";
+import type { InstanceRow } from "./types";
 import { kindIriToSlug } from "@/lib/instances/kind-slug";
 import { Button } from "@/components/ui/button";
-import {
-  InstanceBrowserPage,
-  KindCell,
-  type DataTableColumn,
-  type DataTableRow,
-  type KindFilterOption,
-} from "@/components/templates/InstanceBrowserPage";
+import { InfoTip } from "@/components/ui/info-tip";
+import type { FilterChip } from "@/components/ui/filter-bar";
+import { InstancesBrowsePage, type InstanceRowView } from "@/components/templates/InstanceBrowserPage";
 
-const COLUMNS: DataTableColumn[] = [
-  { key: "kind", label: "Kind" },
-  { key: "label", label: "Label" },
-];
-
-function buildKindOptions(kinds: KindEntry[]): KindFilterOption[] {
-  return kinds.map((kind) => ({ iri: kind.iri, label: kind.label, slug: kindIriToSlug(kind.iri) }));
+function kindLabelFor(kindIri: string, kinds: KindEntry[]): string {
+  return kinds.find((kind) => kind.iri === kindIri)?.label ?? kindIri;
 }
 
-function buildRows(rows: { iri: string; label: string; kindIri: string }[]): DataTableRow[] {
-  return rows.map((row) => ({
-    id: row.iri,
-    cells: { kind: <KindCell kind={kindIriToSlug(row.kindIri)} />, label: row.label },
-  }));
+function buildKindChips(kinds: KindEntry[]): FilterChip[] {
+  return [
+    { id: "all", label: "All" },
+    ...kinds.map((kind) => ({
+      id: kind.iri,
+      label: kind.label,
+      color: `var(--color-kind-${kindIriToSlug(kind.iri)})`,
+    })),
+  ];
+}
+
+// "All" clears whatever kind is active rather than being a filterable id of
+// its own -- clicking it again while nothing is filtered is a no-op.
+function toggleKindChip(id: string, activeKindFilter: string | null, toggleKindFilter: (iri: string) => void): void {
+  if (id === "all") {
+    if (activeKindFilter) toggleKindFilter(activeKindFilter);
+    return;
+  }
+  toggleKindFilter(id);
+}
+
+function toRowView(row: InstanceRow, kinds: KindEntry[]): InstanceRowView {
+  return {
+    iri: row.iri,
+    label: row.label,
+    kindSlug: kindIriToSlug(row.kindIri),
+    kindLabel: kindLabelFor(row.kindIri, kinds),
+  };
+}
+
+// No COUNT query backs the browse endpoint (build-browse-query.ts selects
+// only ?iri ?label ?kind), so the true total is unknown -- a has-more
+// heuristic off the current page's row count, not a fabricated total.
+function paginationRangeLabel(page: number, rowCount: number): string {
+  if (rowCount === 0) return "No results";
+  const start = (page - 1) * PAGE_SIZE + 1;
+  return `Showing ${start}–${start + rowCount - 1}`;
 }
 
 /** AC-4: "view on canvas" carries the focus IRI as a deep link into the
@@ -104,11 +129,89 @@ function buildInspectorProps(resource: InspectedResource | null, loading: boolea
   };
 }
 
+function PageEyebrowHeader({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="flex items-start justify-between gap-[var(--space-4)]">
+      <div>
+        <p className="text-[length:var(--text-overline)] tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
+          Constitution
+        </p>
+        <h1 className="text-[length:var(--text-h1)] font-[var(--font-weight-bold)] text-[var(--color-text-default)]">
+          Instances / Data
+          <InfoTip
+            title="Instances"
+            body={
+              "An instance is one real thing of a kind — “Order handling” is an instance of Process. " +
+              "Each gets a permanent identifier (IRI), so links to it never break even if it is renamed."
+            }
+          />
+        </h1>
+        <p className="mt-[var(--space-1)] text-[length:var(--text-body)] text-[var(--color-text-muted)]">
+          Every entity in the model — filter by kind, inspect, and jump to the canvas.
+        </p>
+      </div>
+      <Button type="button" variant="secondary" onClick={onAdd}>
+        New instance
+      </Button>
+    </div>
+  );
+}
+
+/** The browse table + inspector, once neither drawer is open -- split out
+ * of `InstancesPage` to keep it under the complexity/line budget (Law E). */
+function InstancesBrowseScreen({
+  browser,
+  selectedIri,
+  onSelectRow,
+  selectedRow,
+  inspectorProps,
+  onAdd,
+}: {
+  browser: ReturnType<typeof useInstanceBrowser>;
+  selectedIri: string | null;
+  onSelectRow: (iri: string) => void;
+  selectedRow: InstanceRow | undefined;
+  inspectorProps: ReturnType<typeof buildInspectorProps>;
+  onAdd: () => void;
+}) {
+  const activeChipIds = browser.activeKindFilter ? [browser.activeKindFilter] : ["all"];
+  const rowCount = browser.rows.length;
+
+  return (
+    <main data-tour-id="ce.instances" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
+      <PageEyebrowHeader onAdd={onAdd} />
+      <InstancesBrowsePage
+        rows={browser.rows.map((row) => toRowView(row, browser.kinds))}
+        loading={browser.loading}
+        errorMessage={browser.errorMessage}
+        selectedRowId={selectedIri ?? undefined}
+        onSelectRow={onSelectRow}
+        pagination={{
+          page: browser.page,
+          pageCount: rowCount === PAGE_SIZE ? browser.page + 1 : browser.page,
+          rangeLabel: paginationRangeLabel(browser.page, rowCount),
+          onPageChange: browser.setPage,
+        }}
+        kindChips={buildKindChips(browser.kinds)}
+        activeChipIds={activeChipIds}
+        onToggleChip={(id) => toggleKindChip(id, browser.activeKindFilter, browser.toggleKindFilter)}
+        search={{ value: browser.searchTerm, onChange: browser.setSearchTerm, label: "Search instances", placeholder: "Search instances…" }}
+        filterTrailing={<span className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">Status: any</span>}
+        inspector={inspectorProps}
+        inspectorKind={selectedRow ? { slug: kindIriToSlug(selectedRow.kindIri), label: kindLabelFor(selectedRow.kindIri, browser.kinds) } : null}
+        asideExtra={<ChatAside />}
+      />
+    </main>
+  );
+}
+
 /** AC-1..AC-7: container -- binds `useInstanceBrowser`/`useInspector` data
- * to the presentational `InstanceBrowserPage` template; the guided
- * `AuthoringDrawer` opens for create (via `KindPicker` -> chosen kind) and
- * edit (row-inspector "Edit" action). Both get SHACL fields + relationship
- * entity-pickers from the drawer. */
+ * to `InstancesBrowsePage` (refit-mock.html `#sub-instances`: FilterBar +
+ * DataTable + Pagination + InspectorPanel); the guided `AuthoringDrawer`
+ * opens for create (via `KindPicker` -> chosen kind) and edit (row-inspector
+ * "Edit" action). Both get SHACL fields + relationship entity-pickers from
+ * the drawer.
+ */
 export default function InstancesPage() {
   const browser = useInstanceBrowser();
   const [selectedIri, setSelectedIri] = useState<string | null>(null);
@@ -118,10 +221,6 @@ export default function InstancesPage() {
 
   const selectedRow = browser.rows.find((row) => row.iri === selectedIri);
   const selectedKind = browser.kinds.find((kind) => kind.iri === selectedRow?.kindIri) ?? null;
-
-  const openEdit = () => {
-    if (selectedKind) setDrawerShape(selectedKind);
-  };
 
   const closeDrawer = () => {
     setDrawerShape(null);
@@ -148,27 +247,13 @@ export default function InstancesPage() {
   }
 
   return (
-    <div className="grid grid-cols-[1fr_320px] gap-[var(--space-4)] p-[var(--space-4)]">
-      <InstanceBrowserPage
-        kinds={buildKindOptions(browser.kinds)}
-        activeKindFilter={browser.activeKindFilter}
-        onToggleKind={browser.toggleKindFilter}
-        searchTerm={browser.searchTerm}
-        onSearchChange={browser.setSearchTerm}
-        columns={COLUMNS}
-        rows={buildRows(browser.rows)}
-        loading={browser.loading}
-        errorMessage={browser.errorMessage}
-        selectedRowId={selectedIri ?? undefined}
-        onSelectRow={setSelectedIri}
-        addAction={
-          <Button type="button" onClick={() => setAddingKind(true)}>
-            Add entity
-          </Button>
-        }
-        inspector={buildInspectorProps(resource, inspectorLoading, openEdit)}
-      />
-      <ChatAside />
-    </div>
+    <InstancesBrowseScreen
+      browser={browser}
+      selectedIri={selectedIri}
+      onSelectRow={setSelectedIri}
+      selectedRow={selectedRow}
+      inspectorProps={buildInspectorProps(resource, inspectorLoading, () => selectedKind && setDrawerShape(selectedKind))}
+      onAdd={() => setAddingKind(true)}
+    />
   );
 }

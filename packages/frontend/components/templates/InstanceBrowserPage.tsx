@@ -1,115 +1,113 @@
 import type { ReactNode } from "react";
 
 import { KindChip, type BpmoKind } from "@/components/molecules/KindChip";
-import { PageHeader } from "@/components/molecules/PageHeader";
-import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/organisms/DataTable";
+import { DataTable, DataTableNameCell, type DataTableColumn } from "@/components/organisms/DataTable";
 import { InspectorPanel, type InspectorPanelProps } from "@/components/organisms/InspectorPanel";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { FilterBar, type FilterChip } from "@/components/ui/filter-bar";
+import type { PaginationProps } from "@/components/ui/pagination";
 
-export type { DataTableColumn, DataTableRow };
-
-export interface KindFilterOption {
+export interface InstanceRowView {
   iri: string;
   label: string;
-  slug: BpmoKind;
+  kindSlug: BpmoKind;
+  kindLabel: string;
 }
 
-/** Kind-chip cell for the "kind" column (AC-1) -- app layer builds rows with
- * this instead of importing `KindChip` directly (app-layer-boundary rule).
- */
-export function KindCell({ kind }: { kind: BpmoKind }) {
-  return <KindChip kind={kind} label="" />;
-}
-
-export interface InstanceBrowserPageProps {
-  kinds: KindFilterOption[];
-  activeKindFilter: string | null;
-  onToggleKind: (iri: string) => void;
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  columns: DataTableColumn[];
-  rows: DataTableRow[];
+export interface InstancesBrowsePageProps {
+  rows: InstanceRowView[];
   loading?: boolean;
   errorMessage?: string;
   selectedRowId?: string;
-  onSelectRow?: (id: string) => void;
-  addAction?: ReactNode;
-  inspector?: InspectorPanelProps | null;
-  className?: string;
+  onSelectRow: (id: string) => void;
+  pagination: PaginationProps;
+  kindChips: FilterChip[];
+  activeChipIds: readonly string[];
+  onToggleChip: (id: string) => void;
+  search: { value: string; onChange: (value: string) => void; label: string; placeholder?: string };
+  filterTrailing?: ReactNode;
+  /** `null` when no row is selected -- renders no aside panel. */
+  inspector: InspectorPanelProps | null;
+  /** The selected row's kind -- rendered as a swatch above the inspector
+   * (refit-mock.html `.ins-head`'s colour swatch, approximated with the
+   * existing `KindChip` atom rather than a new bespoke swatch component). */
+  inspectorKind: { slug: BpmoKind; label: string } | null;
+  /** Opaque slot for an app-layer widget (e.g. the instances page's chat
+   * aside) -- this template never imports or fetches it. */
+  asideExtra?: ReactNode;
 }
 
-function KindFilterChip({ kind, active, onToggle }: { kind: KindFilterOption; active: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onToggle}
-      className={cn(
-        "rounded-[var(--radius-sm)] outline-offset-2",
-        active && "ring-2 ring-[var(--color-accent-primary)]"
-      )}
-    >
-      <KindChip kind={kind.slug} label={kind.label} />
-    </button>
-  );
+const COLUMNS: DataTableColumn[] = [
+  { key: "name", label: "Name" },
+  { key: "kind", label: "Kind" },
+  { key: "status", label: "Status" },
+  { key: "updated", label: "Updated" },
+];
+
+// ponytail: Status/Updated have no backing data on `InstanceRow` or the
+// backend's `InstanceSummary` (iri/kind/label only) -- rendered as an
+// explicit "not available" dash rather than fabricated, same precedent as
+// the inspector's `history: "unavailable"` (TASK-031-blocker.md).
+function UnavailableCell() {
+  return <span className="text-[var(--color-text-subtle)]">—</span>;
 }
 
-function KindFilterRow({ kinds, activeKindFilter, onToggleKind }: Pick<InstanceBrowserPageProps, "kinds" | "activeKindFilter" | "onToggleKind">) {
-  return (
-    <div role="group" aria-label="Filter by kind" className="flex flex-wrap gap-[var(--space-2)]">
-      {kinds.map((kind) => (
-        <KindFilterChip
-          key={kind.iri}
-          kind={kind}
-          active={activeKindFilter === kind.iri}
-          onToggle={() => onToggleKind(kind.iri)}
-        />
-      ))}
-    </div>
-  );
+function buildRows(rows: InstanceRowView[]) {
+  return rows.map((row) => ({
+    id: row.iri,
+    cells: {
+      name: <DataTableNameCell label={row.label} id={row.iri} />,
+      kind: <KindChip kind={row.kindSlug} label={row.kindLabel} />,
+      status: <UnavailableCell />,
+      updated: <UnavailableCell />,
+    },
+  }));
 }
 
-/** Browse/search surface (TASK-031 AC-1/AC-2/AC-3): kind-chip filter row,
- * search box, dense table, right inspector -- data-only props, no fetch or
- * routing here (the app layer, `app/ce/instances/page.tsx`, binds data). */
-export function InstanceBrowserPage({
-  kinds,
-  activeKindFilter,
-  onToggleKind,
-  searchTerm,
-  onSearchChange,
-  columns,
+/** refit-mock.html `#sub-instances` -- FilterBar + DataTable (name/kind/
+ * status/updated) with an integrated Pagination footer, plus an
+ * InspectorPanel aside. Fully data-bound (Law 20 / dumb-component
+ * boundary): no fetch, every value is caller-supplied -- app/** builds row
+ * view-models and passes them in rather than importing `KindChip`/
+ * `DataTable`/`InspectorPanel` directly (`app-layer-boundary` rule).
+ */
+export function InstancesBrowsePage({
   rows,
   loading,
   errorMessage,
   selectedRowId,
   onSelectRow,
-  addAction,
+  pagination,
+  kindChips,
+  activeChipIds,
+  onToggleChip,
+  search,
+  filterTrailing,
   inspector,
-  className,
-}: InstanceBrowserPageProps) {
+  inspectorKind,
+  asideExtra,
+}: InstancesBrowsePageProps) {
   return (
-    <div className={cn("flex flex-col gap-[var(--space-4)]", className)}>
-      <PageHeader title="Instances / Data" actions={addAction} />
-      <KindFilterRow kinds={kinds} activeKindFilter={activeKindFilter} onToggleKind={onToggleKind} />
-      <Input
-        aria-label="Search instances"
-        placeholder="Search by name..."
-        value={searchTerm}
-        onChange={(event) => onSearchChange(event.target.value)}
-      />
-      <div className="flex gap-[var(--space-4)]">
+    <div className="flex flex-col gap-[var(--space-4)]">
+      <FilterBar chips={kindChips} activeIds={activeChipIds} onToggle={onToggleChip} search={search} trailing={filterTrailing} />
+      <div className="grid grid-cols-[1fr_320px] gap-[var(--space-4)]">
         <DataTable
-          className="flex-1"
-          columns={columns}
-          rows={rows}
+          columns={COLUMNS}
+          rows={buildRows(rows)}
           loading={loading}
           errorMessage={errorMessage}
           selectedRowId={selectedRowId}
           onSelectRow={onSelectRow}
+          pagination={pagination}
         />
-        {inspector && <InspectorPanel {...inspector} />}
+        <div className="flex flex-col gap-[var(--space-4)]">
+          {inspector && (
+            <div className="flex flex-col gap-[var(--space-2)]">
+              {inspectorKind && <KindChip kind={inspectorKind.slug} label={inspectorKind.label} />}
+              <InspectorPanel {...inspector} />
+            </div>
+          )}
+          {asideExtra}
+        </div>
       </div>
     </div>
   );
