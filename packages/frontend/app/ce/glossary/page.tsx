@@ -146,6 +146,7 @@ function buildDrawerProps(drawer: GlossaryDrawerState, onSave: () => void, onDel
     icon: "book" as const,
     tone: "var(--color-accent-primary)",
     title: drawer.term ? `Edit term — ${drawer.term.prefLabel}` : "New term",
+    error: drawer.error ?? undefined,
     label: drawer.label,
     onLabelChange: drawer.setLabel,
     description: drawer.definition,
@@ -164,6 +165,7 @@ async function saveGlossaryTerm(
   toast: ReturnType<typeof useToast>["toast"],
   reload: () => void
 ): Promise<void> {
+  drawer.setError(null);
   const input = { prefLabel: drawer.label, lang: "en", definition: drawer.definition };
   const result = drawer.term ? await updateGlossaryTerm(drawer.term.iri, input) : await createGlossaryTerm(input);
 
@@ -172,7 +174,9 @@ async function saveGlossaryTerm(
     reload();
     drawer.close();
   } else if (result.type === "violations") {
-    toast({ message: Object.values(result.errors).join(" "), variant: "error" });
+    // AC-002-04: anchored in the drawer, not a transient Toast -- a raw
+    // SHACL 422 stays fixable without the user losing their input.
+    drawer.setError(Object.values(result.errors).join(" "));
   } else {
     toast({ message: drawer.term ? "Could not save the term." : "Could not create the term.", variant: "error" });
   }

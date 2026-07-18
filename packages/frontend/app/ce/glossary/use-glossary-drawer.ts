@@ -15,11 +15,15 @@ export interface GlossaryDrawerState {
    * lets the caller gap-toast only when it matters (see `page.tsx`'s
    * `REL_EDIT_GAP_TOAST`), not on every save. */
   relsChanged: boolean;
+  /** A failed save's plain-language message, cleared on open/close (see
+   * `EntityEditDrawer`'s `error` prop -- AC-002-04). */
+  error: string | null;
   openNew: () => void;
   openEdit: (term: GlossaryBrowseRow, labels: Map<string, string>) => void;
   close: () => void;
   setLabel: (value: string) => void;
   setDefinition: (value: string) => void;
+  setError: (message: string | null) => void;
   addRel: (predicate: string, target: string) => void;
   removeRel: (index: number) => void;
 }
@@ -33,6 +37,16 @@ function seedRels(term: GlossaryBrowseRow, labels: Map<string, string>): Relatio
     ...term.broaderIris.map((iri) => ({ predicate: "broader", target: chipLabel(iri, labels) })),
     ...term.narrowerIris.map((iri) => ({ predicate: "narrower", target: chipLabel(iri, labels) })),
   ];
+}
+
+/** Assembles the hook's return value (kept out of `useGlossaryDrawer` for
+ * the Law E line budget -- same pattern as `page.tsx`'s `build*` helpers). */
+function buildDrawerState(
+  state: { open: boolean; term: GlossaryBrowseRow | null; label: string; definition: string; rels: Relationship[]; error: string | null },
+  actions: Pick<GlossaryDrawerState, "openNew" | "openEdit" | "close" | "setLabel" | "setDefinition" | "setError" | "addRel" | "removeRel">,
+  relsChanged: boolean
+): GlossaryDrawerState {
+  return { ...state, relsChanged, ...actions };
 }
 
 /** Local edit-drawer draft state for the Glossary page. Kept out of
@@ -50,6 +64,7 @@ export function useGlossaryDrawer(): GlossaryDrawerState {
   const [definition, setDefinition] = useState("");
   const [rels, setRels] = useState<Relationship[]>([]);
   const [initialRels, setInitialRels] = useState<Relationship[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const openNew = () => {
     setTerm(null);
@@ -57,6 +72,7 @@ export function useGlossaryDrawer(): GlossaryDrawerState {
     setDefinition("");
     setRels([]);
     setInitialRels([]);
+    setError(null);
     setOpen(true);
   };
 
@@ -67,14 +83,22 @@ export function useGlossaryDrawer(): GlossaryDrawerState {
     setDefinition(target.definition ?? "");
     setRels(seeded);
     setInitialRels(seeded);
+    setError(null);
     setOpen(true);
   };
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setError(null);
+    setOpen(false);
+  };
   const addRel = (predicate: string, targetLabel: string) => setRels((prev) => [...prev, { predicate, target: targetLabel }]);
   const removeRel = (index: number) => setRels((prev) => prev.filter((_, i) => i !== index));
 
   const relsChanged = JSON.stringify(rels) !== JSON.stringify(initialRels);
 
-  return { open, term, label, definition, rels, relsChanged, openNew, openEdit, close, setLabel, setDefinition, addRel, removeRel };
+  return buildDrawerState(
+    { open, term, label, definition, rels, error },
+    { openNew, openEdit, close, setLabel, setDefinition, setError, addRel, removeRel },
+    relsChanged
+  );
 }

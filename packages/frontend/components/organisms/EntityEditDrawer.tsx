@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { Button } from "../ui/button";
+import { ErrorCard } from "../ui/error-card";
 import type { IconName } from "../ui/icon";
 import { Drawer } from "./Drawer";
 
@@ -16,6 +17,10 @@ export interface EntityEditDrawerProps {
   icon: IconName;
   tone: string;
   title: ReactNode;
+  /** A failed save (e.g. a SHACL violation) -- rendered as a plain-language
+   * banner anchored inside the drawer, not a raw SHACL dump and not a
+   * transient Toast, so the user can fix the input without losing it. */
+  error?: string;
   label: string;
   onLabelChange: (value: string) => void;
   description: string;
@@ -35,7 +40,7 @@ const INPUT_CLASS =
 
 type FieldsProps = Pick<
   EntityEditDrawerProps,
-  "label" | "onLabelChange" | "description" | "onDescriptionChange" | "kindFields" | "relationships"
+  "label" | "onLabelChange" | "description" | "onDescriptionChange" | "kindFields" | "relationships" | "error"
 >;
 
 function EntityEditFields({
@@ -45,9 +50,11 @@ function EntityEditFields({
   onDescriptionChange,
   kindFields,
   relationships,
+  error,
 }: FieldsProps) {
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
+      {error && <ErrorCard title="Couldn't save" body={error} />}
       <div className={FIELD_CLASS}>
         <label htmlFor="entity-edit-label" className={LABEL_CLASS}>
           Label
