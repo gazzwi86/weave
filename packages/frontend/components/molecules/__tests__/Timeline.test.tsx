@@ -49,4 +49,14 @@ describe("Timeline", () => {
     render(<Timeline entries={entries} />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
+
+  it("does not warn on duplicate React keys when two actions on an entry share a label", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const entries = [
+      { ...LATEST_ENTRY, actions: [{ label: "Diff", onClick: vi.fn() }, { label: "Diff", onClick: vi.fn() }] },
+    ];
+    render(<Timeline entries={entries} />);
+    expect(errorSpy.mock.calls.join(" ")).not.toMatch(/same key/i);
+    errorSpy.mockRestore();
+  });
 });

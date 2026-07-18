@@ -53,8 +53,8 @@ function TimelineCard({ entry }: { entry: TimelineEntry }) {
       <p className="mb-[var(--space-3)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">{entry.description}</p>
       {entry.actions && entry.actions.length > 0 && (
         <div className="flex gap-[var(--space-2)]">
-          {entry.actions.map((action) => (
-            <Button key={action.label} type="button" variant="ghost" onClick={action.onClick}>
+          {entry.actions.map((action, index) => (
+            <Button key={`${action.label}-${index}`} type="button" variant="ghost" onClick={action.onClick}>
               {action.label}
             </Button>
           ))}

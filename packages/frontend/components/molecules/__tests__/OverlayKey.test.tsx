@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { OverlayKey, type OverlaySection } from "../OverlayKey";
 
@@ -40,5 +40,22 @@ describe("OverlayKey", () => {
   it("renders nothing when no overlay is active", () => {
     const { container } = render(<OverlayKey sections={[]} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("does not warn on duplicate React keys when two rows in a section share a label", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const sections: OverlaySection[] = [
+      {
+        id: "diff",
+        label: "diff",
+        rows: [
+          { colorVar: "--color-warn", label: "changed" },
+          { colorVar: "--color-success", label: "changed" },
+        ],
+      },
+    ];
+    render(<OverlayKey sections={sections} />);
+    expect(errorSpy.mock.calls.join(" ")).not.toMatch(/same key/i);
+    errorSpy.mockRestore();
   });
 });

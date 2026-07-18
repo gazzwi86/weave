@@ -37,8 +37,8 @@ export function OverlayKey({ sections, className }: OverlayKeyProps) {
           <div className="py-[var(--space-1)] font-[var(--font-weight-bold)] tracking-[var(--text-overline-tracking)] text-[var(--color-text-subtle)] uppercase">
             {section.label}
           </div>
-          {section.rows.map((row) => (
-            <div key={row.label} className="flex items-center gap-[var(--space-2)] py-[var(--space-1)]">
+          {section.rows.map((row, index) => (
+            <div key={`${row.label}-${index}`} className="flex items-center gap-[var(--space-2)] py-[var(--space-1)]">
               <span
                 aria-hidden="true"
                 className="h-[var(--size-dot)] w-[var(--size-dot)] shrink-0 rounded-[var(--radius-full)]"

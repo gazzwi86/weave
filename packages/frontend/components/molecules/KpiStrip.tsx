@@ -27,7 +27,7 @@ export function KpiStrip({ items, className }: KpiStripProps) {
     >
       {items.map((item, index) => (
         <div
-          key={item.label}
+          key={`${item.label}-${index}`}
           className={cn(
             "px-[var(--space-3)] py-[var(--space-2)] text-center",
             index < items.length - 1 && "border-r border-[var(--color-border)]"
