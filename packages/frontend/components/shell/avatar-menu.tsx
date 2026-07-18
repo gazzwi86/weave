@@ -66,7 +66,7 @@ export function AvatarMenu({ userName, role }: AvatarMenuProps) {
     <Dialog.Root onOpenChange={(open) => open && refresh()}>
       <Dialog.Trigger
         aria-label="Account menu"
-        className="flex h-[var(--space-6)] w-[var(--space-6)] items-center justify-center rounded-[var(--radius-full)] bg-[image:var(--gradient-accent)] text-[length:var(--text-caption)] font-[var(--font-weight-bold)] text-[var(--color-bg)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)] data-[state=open]:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)]"
+        className="flex h-[var(--space-6)] w-[var(--space-6)] items-center justify-center rounded-[var(--radius-full)] bg-[image:var(--gradient-accent)] text-[length:var(--text-caption)] font-[var(--font-weight-bold)] text-[var(--color-bg)] transition-shadow hover:shadow-[var(--ring-focus)] data-[state=open]:shadow-[var(--ring-focus)]"
       >
         {initials(userName)}
       </Dialog.Trigger>
