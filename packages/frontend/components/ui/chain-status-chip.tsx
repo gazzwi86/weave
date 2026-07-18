@@ -12,6 +12,7 @@ export interface ChainStatusChipProps {
    * full chain-verification detail behind this summary). */
   href: string;
   className?: string;
+  "data-testid"?: string;
 }
 
 const STATUS_LABEL: Record<ChainStatus, string> = {
@@ -28,10 +29,11 @@ const STATUS_STYLE: Record<ChainStatus, string> = {
  * clickable through to the Compliance page for the full detail. Distinct
  * from `StatusPill` (single-word pill, no icon/link): this is a compact
  * "explain band" pattern of its own. */
-export function ChainStatusChip({ status, href, className }: ChainStatusChipProps) {
+export function ChainStatusChip({ status, href, className, "data-testid": testId }: ChainStatusChipProps) {
   return (
     <Link
       href={href}
+      data-testid={testId}
       className={cn(
         "inline-flex items-center gap-[var(--space-1)] rounded-[var(--radius-full)] border",
         "px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-caption)] font-[var(--font-weight-semibold)]",
