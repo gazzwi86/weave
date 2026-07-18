@@ -11,6 +11,10 @@ export interface ExplorerConfig {
   nodeLabelThreshold: number;
   /** AC-6: zoom below this hides edge labels. */
   edgeLabelThreshold: number;
+  /** V3b-2 item 1: bpmo_kind values that stay labelled even below
+   * nodeLabelThreshold -- orienting landmarks (domains/processes) so a
+   * zoomed-out, hundreds-of-node canvas still reads at a glance. */
+  alwaysLabelledKinds: string[];
   /** AC-1: opacity applied to non-neighbourhood elements when spotlighting. */
   spotlightDimOpacity: number;
   /** AC-6: duration of the centre-on-select animation, ms. */
@@ -75,6 +79,7 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   ceTimeoutMs: 10_000,
   nodeLabelThreshold: 0.3,
   edgeLabelThreshold: 0.55,
+  alwaysLabelledKinds: ["BusinessDomain", "Process"],
   spotlightDimOpacity: 0.18,
   centreAnimationMs: 300,
   layoutSaveRetryDelaysMs: [2000, 4000, 8000],
