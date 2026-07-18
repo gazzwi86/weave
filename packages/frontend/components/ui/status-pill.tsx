@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type Status = "active" | "published" | "draft" | "custom";
+export type Status = "active" | "published" | "draft" | "custom" | "onboarding" | "suspended";
 
 export interface StatusPillProps {
   status: Status;
@@ -14,7 +14,9 @@ const STATUS_STYLE: Record<Status, string> = {
   active: "text-[var(--color-success)] bg-[var(--color-success)]/10",
   published: "text-[var(--color-success)] bg-[var(--color-success)]/10",
   draft: "text-[var(--color-on-warn-soft)] bg-[var(--color-warn)]/10",
+  onboarding: "text-[var(--color-on-warn-soft)] bg-[var(--color-warn)]/10",
   custom: "text-[var(--color-text-muted)] bg-[var(--color-overlay)]",
+  suspended: "text-[var(--color-danger)] bg-[var(--color-danger)]/10",
 };
 
 /** refit-mock.html `.status-pill`/`.status-*`. */

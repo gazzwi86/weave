@@ -39,6 +39,14 @@ describe("PageHeader", () => {
     expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).not.toBeInTheDocument();
   });
 
+  it("renders a titleTrailing node inline next to the heading", () => {
+    render(<PageHeader title={TITLE} titleTrailing={<span data-testid="trailing">tip</span>} />);
+    const heading = screen.getByRole("heading", { level: 1 });
+    const trailing = screen.getByTestId("trailing");
+    expect(heading).toHaveTextContent(TITLE);
+    expect(heading).toContainElement(trailing);
+  });
+
   it("supports a single primary action alongside secondary/ghost actions with no second bright button", () => {
     render(
       <PageHeader

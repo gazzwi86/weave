@@ -71,8 +71,10 @@ function PanelHeader({ closeSlot }: { closeSlot?: ReactNode }) {
 
 /** refit-mock.html's `.help-card`: tinted icon chip + title/subtitle, hover
  * translateX -- an `<a>` when `href` is given, else a button so the wrapper
- * can drive it (e.g. starting the guided tour). */
-function HelpCard({ card }: { card: HelpCardItem }) {
+ * can drive it (e.g. starting the guided tour). Exported so other "Get
+ * going" surfaces (Home dashboard) compose the same card instead of
+ * re-implementing it (refit-home-operator lane). */
+export function HelpCard({ card }: { card: HelpCardItem }) {
   const cardClass = cn(
     "flex items-center gap-[var(--space-2)] rounded-[var(--radius-lg)] border border-[var(--color-border)]",
     "bg-[var(--color-raised)] p-[var(--space-2)] text-left transition-[border-color,transform]",

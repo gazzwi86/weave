@@ -72,6 +72,29 @@ function stubFetch(url: string): Response {
   if (url.includes("/api/dashboard/widgets")) {
     return new Response(JSON.stringify(WIDGETS_BODY), { status: 200 });
   }
+  // "Needs you" rule-violations row: NeedsYou's own useRules() cache-only
+  // read (client component, not server-fetched -- same isolation pattern as
+  // the checklist widget's own bootstrap fetch above).
+  if (url.includes("/api/proxy/validate")) {
+    return new Response(
+      JSON.stringify({
+        pending: false,
+        results: [
+          {
+            shape_iri: "urn:weave:shape:ProcessOwnerShape",
+            focus_node: "urn:weave:instance:order-handling",
+            path: null,
+            message: "2 processes are missing owners",
+            severity: "Violation",
+          },
+        ],
+        rules: [],
+        ran_at: "2026-07-16T09:00:00Z",
+        version_resolved: "draft",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  }
   return new Response("not found", { status: 404 });
 }
 
@@ -127,12 +150,13 @@ describe("DashboardPage", () => {
     expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
-  it("issues a bounded set of outbound fetches (whoami + both widget scopes + library + recent activity + checklist state), no CE-METRICS creep", async () => {
+  it("issues a bounded set of outbound fetches (whoami + both widget scopes + library + recent activity + checklist state + rule-violations cache read), no CE-METRICS creep", async () => {
     render(await DashboardPage());
-    // Six: the five original SWR reads plus the v5 recent-activity feed. The
-    // point of this guard is "no unbounded/CE-METRICS-on-load creep" (AC-6),
-    // not a frozen literal -- every URL below is asserted explicitly.
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(6));
+    // Seven: the original six plus NeedsYou's own cache-only validate read
+    // (v5 Home "Needs you" row). The point of this guard is "no unbounded/
+    // CE-METRICS-on-load creep" (AC-6), not a frozen literal -- every URL
+    // below is asserted explicitly.
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(7));
 
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
     expect(calledUrls.some((url) => url.includes("/api/whoami"))).toBe(true);
@@ -141,5 +165,50 @@ describe("DashboardPage", () => {
     expect(calledUrls.some((url) => url.includes("/api/dashboard/library"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/audit"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/onboarding/state"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/proxy/validate"))).toBe(true);
+  });
+
+  // v5 Home #screen-home: "How Weave works" explain band, static copy.
+  it("renders the 'How Weave works' explain band", async () => {
+    render(await DashboardPage());
+
+    expect(screen.getByText(/How Weave works:/)).toBeInTheDocument();
+  });
+
+  // v5 Home "Needs you": gates + decisions have no cross-workspace feed yet
+  // (gap G12) -- rendered as an honest pending row, not faked data.
+  it("renders 'Needs you' gate and decision rows as pending with a gap note", async () => {
+    render(await DashboardPage());
+
+    expect(screen.getByText("Needs you")).toBeInTheDocument();
+    expect(screen.getAllByText(/gap G12/)).toHaveLength(2);
+  });
+
+  // v5 Home "Needs you": rule violations are live via useRules' cache-only
+  // validate read (the one feed that does exist).
+  it("renders the live rule-violations count in 'Needs you'", async () => {
+    render(await DashboardPage());
+
+    await waitFor(() => expect(screen.getByTestId("needs-you-violations")).toHaveTextContent("1"));
+  });
+
+  // v5 Home kind-tile row: Constitution's entity count comes from the
+  // already-fetched tenant_default widget, not a new ontology fetch.
+  it("renders the Constitution tile's live entity count from the fetched widget", async () => {
+    render(await DashboardPage());
+
+    expect(screen.getByText("42 entities")).toBeInTheDocument();
+  });
+
+  // v5 Home "Get going": guided tour / query / onboarding-path cards.
+  it("renders the 'Get going' cards", async () => {
+    render(await DashboardPage());
+
+    expect(screen.getByText("Guided tour")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ask your first question/ })).toHaveAttribute("href", "/ce/query");
+    expect(screen.getByRole("link", { name: /Tune your path/ })).toHaveAttribute(
+      "href",
+      "/settings/onboarding-path"
+    );
   });
 });
