@@ -39,15 +39,22 @@ class ActorCountResponse(BaseModel):
     event_count: int
 
 
+class TargetCountResponse(BaseModel):
+    target_iri: str
+    count: int
+
+
 class ComplianceResponse(BaseModel):
     chain_status: str
     entries_checked: int
     first_broken_seq: int | None
     by_event_category: dict[str, int]
     top_actors: list[ActorCountResponse]
+    top_targets: list[TargetCountResponse]
     period: str
     shacl_validated: int
     shacl_rejections: int
+    audit_outages: int
 
 
 class BrandConformanceResponse(BaseModel):

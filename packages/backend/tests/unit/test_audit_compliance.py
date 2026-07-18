@@ -23,6 +23,7 @@ async def test_compliance_view_redacts_diff_for_non_admin() -> None:
     conn.fetch.side_effect = [
         [{"event_type": "workspace.created", "c": 3}, {"event_type": "member.invited", "c": 2}],
         [{"actor_principal_iri": "urn:weave:principal:user:u-1", "c": 4}],
+        [{"target_iri": "urn:weave:instances:ws-1", "c": 4}],
     ]
     with patch(
         "weave_backend.audit.compliance.verify_chain",
@@ -36,14 +37,17 @@ async def test_compliance_view_redacts_diff_for_non_admin() -> None:
     assert summary.by_event_category == {"workspace": 3, "member": 2}
     assert summary.top_actors[0].principal_iri == "urn:weave:principal:user:u-1"
     assert summary.top_actors[0].event_count == 4
+    assert summary.top_targets[0].target_iri == "urn:weave:instances:ws-1"
+    assert summary.top_targets[0].count == 4
     assert summary.shacl_validated == 0
     assert summary.shacl_rejections == 0
+    assert summary.audit_outages == 0
 
 
 async def test_compliance_view_reports_broken_chain_status() -> None:
     """AC-7's "invalid" chain_status branch."""
     conn = AsyncMock()
-    conn.fetch.side_effect = [[], []]
+    conn.fetch.side_effect = [[], [], []]
     with patch(
         "weave_backend.audit.compliance.verify_chain",
         AsyncMock(
@@ -73,6 +77,7 @@ async def test_compliance_view_counts_shacl_validation_activity() -> None:
             {"event_type": "workspace.created", "c": 3},
         ],
         [],
+        [],
     ]
     with patch(
         "weave_backend.audit.compliance.verify_chain",
@@ -89,6 +94,59 @@ async def test_compliance_view_counts_shacl_validation_activity() -> None:
     assert summary.by_event_category["write_back_fail_shacl"] == 1
 
 
+async def test_compliance_view_ranks_top_targets() -> None:
+    """G7 (audit card G): compliance groups by target_iri too, same shape/
+    limit as `top_actors` (`_fetch_top_targets` mirrors `_fetch_top_actors`).
+    """
+    conn = AsyncMock()
+    conn.fetch.side_effect = [
+        [{"event_type": "workspace.created", "c": 3}],
+        [{"actor_principal_iri": "urn:weave:principal:user:u-1", "c": 3}],
+        [
+            {"target_iri": "urn:weave:instances:ws-1", "c": 3},
+            {"target_iri": "urn:weave:instances:ws-2", "c": 1},
+        ],
+    ]
+    with patch(
+        "weave_backend.audit.compliance.verify_chain",
+        AsyncMock(return_value=VerifyResult(valid=True, entries_checked=4)),
+    ):
+        summary = await get_compliance_summary(conn, _TENANT)
+
+    assert [t.target_iri for t in summary.top_targets] == [
+        "urn:weave:instances:ws-1",
+        "urn:weave:instances:ws-2",
+    ]
+    assert summary.top_targets[0].count == 3
+    target_call = conn.fetch.await_args_list[2]
+    assert target_call.args[-1] == 5  # LIMIT, same as top_actors
+
+
+async def test_compliance_view_counts_audit_outages() -> None:
+    """G8 (audit card I): `audit_outage` is emitted but was never aggregated
+    -- it's derived from the same per-event_type rows as `by_event_category`
+    (no extra query), same pattern as `shacl_validated`/`shacl_rejections`.
+    """
+    conn = AsyncMock()
+    conn.fetch.side_effect = [
+        [
+            {"event_type": "audit_outage", "c": 2},
+            {"event_type": "workspace.created", "c": 1},
+        ],
+        [],
+        [],
+    ]
+    with patch(
+        "weave_backend.audit.compliance.verify_chain",
+        AsyncMock(return_value=VerifyResult(valid=True, entries_checked=3)),
+    ):
+        summary = await get_compliance_summary(conn, _TENANT)
+
+    assert summary.audit_outages == 2
+    # Only event-type counts drive this -- unaffected by category rollup.
+    assert summary.by_event_category["audit_outage"] == 2
+
+
 async def test_compliance_view_period_filters_and_echoes_period() -> None:
     """A `period` of "YYYY-MM" scopes the category/actor queries to that
     calendar month (UTC) and is echoed back verbatim -- `verify_chain` is
@@ -98,6 +156,7 @@ async def test_compliance_view_period_filters_and_echoes_period() -> None:
     conn.fetch.side_effect = [
         [{"event_type": "workspace.created", "c": 1}],
         [{"actor_principal_iri": "urn:weave:principal:user:u-1", "c": 1}],
+        [{"target_iri": "urn:weave:instances:ws-1", "c": 1}],
     ]
     with patch(
         "weave_backend.audit.compliance.verify_chain",
@@ -114,13 +173,18 @@ async def test_compliance_view_period_filters_and_echoes_period() -> None:
     assert category_call.args[2] == datetime(2026, 7, 1, tzinfo=UTC).isoformat()
     assert category_call.args[3] == datetime(2026, 8, 1, tzinfo=UTC).isoformat()
 
+    target_call = conn.fetch.await_args_list[2]
+    assert target_call.args[1] == _TENANT
+    assert target_call.args[2] == datetime(2026, 7, 1, tzinfo=UTC).isoformat()
+    assert target_call.args[3] == datetime(2026, 8, 1, tzinfo=UTC).isoformat()
+
 
 async def test_compliance_view_default_period_unchanged() -> None:
     """No `period` argument keeps the pre-existing all-time behaviour and
     label (`current_period()`), with no `ts` bounds in the query.
     """
     conn = AsyncMock()
-    conn.fetch.side_effect = [[], []]
+    conn.fetch.side_effect = [[], [], []]
     with (
         patch(
             "weave_backend.audit.compliance.verify_chain",
@@ -133,3 +197,5 @@ async def test_compliance_view_default_period_unchanged() -> None:
     assert summary.period == "2099-12"
     category_call = conn.fetch.await_args_list[0]
     assert len(category_call.args) == 2  # query + tenant_id only, no ts bounds
+    target_call = conn.fetch.await_args_list[2]
+    assert len(target_call.args) == 3  # query + tenant_id + LIMIT only, no ts bounds

@@ -29,6 +29,7 @@ from weave_backend.schemas.audit import (
     ComplianceResponse,
     EventTypeCountResponse,
     EventTypeCountsResponse,
+    TargetCountResponse,
     VerifyChainResponse,
 )
 
@@ -120,9 +121,11 @@ async def compliance_view_route(
         first_broken_seq=summary.first_broken_seq,
         by_event_category=summary.by_event_category,
         top_actors=[ActorCountResponse(**actor.__dict__) for actor in summary.top_actors],
+        top_targets=[TargetCountResponse(**target.__dict__) for target in summary.top_targets],
         period=summary.period,
         shacl_validated=summary.shacl_validated,
         shacl_rejections=summary.shacl_rejections,
+        audit_outages=summary.audit_outages,
     )
 
 
