@@ -125,6 +125,35 @@ describe("GlossaryPage", () => {
     expect(await screen.findByText(/Created "Obligation"/)).toBeInTheDocument();
   });
 
+  it("renders a sh:uniqueLang 422 as a plain-language error anchored in the drawer, not a toast (AC-002-04)", async () => {
+    stubFetch({
+      browseRows: [APPLE_ROW],
+      applyResponse: () =>
+        jsonResponse(
+          {
+            violations: [
+              {
+                path: "http://www.w3.org/2004/02/skos/core#prefLabel",
+                message: "Values do not have unique language tags (duplicate language tag: en)",
+              },
+            ],
+          },
+          422
+        ),
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText("Apple")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "New term" }));
+    const labelInput = await screen.findByLabelText("Label");
+    fireEvent.change(labelInput, { target: { value: "Apple" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(/duplicate language tag/i);
+    expect(dialog).toBeInTheDocument();
+  });
+
   it("edits an existing term via update_node and shows a success toast", async () => {
     stubFetch({ browseRows: [APPLE_ROW], applyResponse: () => jsonResponse({}, 200) });
     renderPage();

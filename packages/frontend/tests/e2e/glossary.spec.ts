@@ -72,7 +72,7 @@ test("searches 'invoice', sees the match and its related chips (AC-002-01/-03)",
 // the header "New term" button + EntityEditDrawer, per the signed-off mock;
 // language is fixed to "en" in v1 -- the mock's drawer has no language
 // field.)
-test.fixme("creates a missing term via the drawer and finds it in the list (AC-002-02)", async ({
+test("creates a missing term via the drawer and finds it in the list (AC-002-02)", async ({
   page,
 }) => {
   let applyRequestBody: unknown = null;
@@ -98,14 +98,17 @@ test.fixme("creates a missing term via the drawer and finds it in the list (AC-0
   await routeBrowse(page, [OBLIGATION_BROWSE_ROW]);
   await drawer.getByRole("button", { name: /save/i }).click();
 
-  await expect(page.getByRole("status")).toContainText(/saved|created/i);
+  // .filter avoids a strict-mode clash with the persistent "Practice mode"
+  // sandbox banner, which is also role="status" whenever the demo workspace
+  // is a fork (components/onboarding/practice-mode-banner.tsx).
+  await expect(page.getByRole("status").filter({ hasText: /saved|created/i })).toBeVisible();
   expect(applyRequestBody).not.toBeNull();
   await expect(page.getByRole("table")).toContainText("Obligation");
 });
 
 // AC-002-04: a sh:uniqueLang 422 from the create pipeline renders as a
 // plain-language error anchored in the drawer -- not a raw SHACL dump.
-test.fixme("creating a duplicate-language term renders the 422 in the drawer (AC-002-04)", async ({
+test("creating a duplicate-language term renders the 422 in the drawer (AC-002-04)", async ({
   page,
 }) => {
   await routeBrowse(page, []);

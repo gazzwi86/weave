@@ -65,4 +65,18 @@ describe("useGlossaryDrawer", () => {
     act(() => result.current.close());
     expect(result.current.open).toBe(false);
   });
+
+  it("clears a failed-save error on close and on the next open (AC-002-04)", () => {
+    const { result } = renderHook(() => useGlossaryDrawer());
+    act(() => result.current.openNew());
+    act(() => result.current.setError("duplicate language tag: en"));
+    expect(result.current.error).toBe("duplicate language tag: en");
+
+    act(() => result.current.close());
+    expect(result.current.error).toBeNull();
+
+    act(() => result.current.setError("stale error"));
+    act(() => result.current.openEdit(TERM, LABELS));
+    expect(result.current.error).toBeNull();
+  });
 });
