@@ -705,7 +705,7 @@ describe("ExplorerInteractions -- TASK-024 property edit + delete", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     bumpDraftHead(); // a second writer commits while this edit is open
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(await screen.findByText("This node changed since you started editing.")).toBeInTheDocument();
   });
