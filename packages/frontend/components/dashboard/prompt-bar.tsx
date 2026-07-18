@@ -252,7 +252,10 @@ export function PromptBar({
 
   return (
     <>
-      <Button data-testid="prompt-bar-trigger" onClick={() => setOpen(true)}>
+      {/* self-start: without it, `main`'s flex-col default (align-items:
+       * stretch) blows this up into a full-width slab -- the mock treats
+       * primary actions as normal-sized, content-width buttons. */}
+      <Button className="self-start" data-testid="prompt-bar-trigger" onClick={() => setOpen(true)}>
         Generate a widget
       </Button>
       <PromptBarDialog
