@@ -173,6 +173,8 @@ tests** in turn. No bespoke CSS in pages.
   Remove the injected "Graph Explorer" H1.
 - [ ] **V3-axe-fix · Explorer a11y panels violation (blocks #152)** — explorer-a11y-m2 "Explorer M2 panels zero-violations" test fails on V3 core (#152). Repro locally (serve V3 app, run the spec) to get the exact axe rule+node, fix, re-push #152. Keep the sr-only h1.
 
+- [ ] **FLAKY-axe-m2 · Stabilise explorer-a11y-m2 panels test** — the `explorer-a11y-m2` "Explorer M2 panels zero-violations" test is flaky (false-failed on #149, #152, #158; #152 also base-sensitive). Cost real debugging effort mis-read as real regressions. Investigate timing (ControlDock accordion mount + axe race) and stabilise (await panel-ready before axe, or retry). Until then: an axe-m2 fail on an explorer-adjacent PR = rerun + rebase-check before assuming real.
+
 - [ ] **V3b · Explore ask-bar + KPI + de-hairball** — V3 core (PR #152) landed H1 removal + human labels.
   Remaining: wire the existing `components/molecules/AskBar.tsx` onto the canvas bottom-centre (partial unwired
   scaffold lib/explorer/fetch-ask-answer.ts exists in the v3 worktree); populate the KPI strip from loaded graph
@@ -183,7 +185,7 @@ tests** in turn. No bespoke CSS in pages.
   widget" CTA (intentional) but update it to match the mock's approaches/trends.
 - [x] **V5 · Profile menu → Operator (super-admin) console link** — avatar-menu.tsx lacks the mock's
   role-gated "Operator console — provision companies" entry (super-admins only). Add it.
-- [ ] **V6 · Super-admin company switcher (NUANCE — confirm before building)** — the mock's switcher
+- [x] **V6 · Super-admin company switcher (BUILT, merged #158) (was NUANCE — confirm before building)** — the mock's switcher
   is explicitly "company switcher — SUPER ADMIN ONLY (members never see this; workspace ≡ company)".
   A prior binding ruling (header-scope.ts cites v1-design-requirements.md R7) RETIRED the *general*
   header workspace switcher for all roles; provisioning lives in Settings->Workspaces. So the mock's
@@ -191,6 +193,6 @@ tests** in turn. No bespoke CSS in pages.
   one. CONFIRM with user: build the super-admin company switcher per mock, vs the existing
   Settings->Workspaces + operator console already cover it. Do NOT resurrect the general switcher
   against the ruling. The avatar "Switch workspace" item stays regardless.
-- [ ] **V7 · Card/panel styling + empty states** — audit/build cards render flat/borderless + empty
+- [x] **V7 · Card/panel styling (INVESTIGATED — no fix: cards already match mock; 'flatness' = empty placeholder data + faint by-design border, routed to data backlog) + empty states** — audit/build cards render flat/borderless + empty
   "Not available yet"; mock has bordered panels with populated data. Styling now (bordered panels,
   gradient bars); DATA population (G12, CE-METRICS, registry summary field) deferred per user.
