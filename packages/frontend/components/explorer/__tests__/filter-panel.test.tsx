@@ -14,6 +14,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof FilterPanel>
     onToggleEntityType: vi.fn(),
     onToggleRelType: vi.fn(),
     onSetPropertyFilters: vi.fn(),
+    onShowAllEntityTypes: vi.fn(),
     ...overrides,
   };
   render(<FilterPanel {...props} />);
@@ -69,4 +70,22 @@ describe("FilterPanel", () => {
     expect(props.onSetPropertyFilters).toHaveBeenCalledWith([]);
   });
 
+  // V3b-3 item 1: "show all" must be one click away, always -- not just when
+  // every kind happens to be off (that's the separate all-hidden empty-state
+  // recovery action). This button is a Filters-tab affordance so it's
+  // reachable regardless of how much of the default filter is still active.
+  it("shows a 'Show all' button that calls onShowAllEntityTypes when a default/manual filter has hidden kinds", () => {
+    const filterState: FilterState = { ...createFilterState(), entityTypesOff: ["Policy"] };
+    const props = renderPanel({ filterState });
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+
+    expect(props.onShowAllEntityTypes).toHaveBeenCalled();
+  });
+
+  it("hides the 'Show all' button once every entity type is already visible", () => {
+    renderPanel({ filterState: createFilterState() });
+
+    expect(screen.queryByRole("button", { name: "Show all" })).not.toBeInTheDocument();
+  });
 });

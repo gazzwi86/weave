@@ -32,6 +32,7 @@ describe("ExplorerCanvas", () => {
       minimapNodes: [],
       containerRef: { current: null },
       retry: vi.fn(),
+      totalElements: null,
       adapter: null,
     });
 
@@ -55,6 +56,7 @@ describe("ExplorerCanvas", () => {
       ],
       containerRef: { current: null },
       retry: vi.fn(),
+      totalElements: null,
       adapter: null,
     });
 
@@ -74,6 +76,7 @@ describe("ExplorerCanvas", () => {
       minimapNodes: [],
       containerRef: { current: null },
       retry: vi.fn(),
+      totalElements: null,
       adapter: {
         load: vi.fn(),
         getViewport: vi.fn(),
@@ -129,6 +132,7 @@ describe("ExplorerCanvas", () => {
       minimapNodes: [],
       containerRef: { current: null },
       retry,
+      totalElements: null,
       adapter: null,
     });
 

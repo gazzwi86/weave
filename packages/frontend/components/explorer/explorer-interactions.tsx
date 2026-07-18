@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ExplorerConfig } from "@/lib/explorer/config";
 import { fetchOntologyTypes } from "@/lib/explorer/fetch-ontology-types";
 import type { NeighbourElement, RendererAdapter } from "@/lib/explorer/renderer-adapter";
-import type { NodeKind, RelKind } from "@/lib/explorer/types";
+import type { CytoscapeElement, NodeKind, RelKind } from "@/lib/explorer/types";
 import type { OntologyRelationshipEntry } from "@/lib/explorer/validate-closure";
 import { canEditCanvas } from "@/lib/explorer/can-edit-canvas";
 
@@ -71,6 +71,11 @@ export interface ExplorerInteractionsProps {
    * app/explorer/page.tsx's server shell) -- the UX-only half of
    * canEditCanvas; CE-WRITE-1 independently rejects server-side. */
   role?: string | null;
+  /** V3b-3 item 2: the raw fetchGraph() result from useExplorerCanvas,
+   * captured once at load time -- the TRUE model total for the KPI strip,
+   * decoupled from the adapter's live (filter/layer/expand-dependent)
+   * element set. null until the canvas is ready. */
+  totalElements?: CytoscapeElement[] | null;
 }
 
 /** TASK-004: `graphId` defaults to config's single M1 canvas graph id --
@@ -279,6 +284,7 @@ export function ExplorerInteractions({
   fetchPalette,
   fetchRelTypes,
   role = null,
+  totalElements = null,
 }: ExplorerInteractionsProps) {
   const overlayControls = useOverlayControls({ adapter, config });
   const relTypes = useRelTypes(fetchRelTypes);
@@ -326,6 +332,7 @@ export function ExplorerInteractions({
         versionsPanel={chrome.versionsPanel}
         savedViewsPanel={chrome.savedViewsPanel}
         canvasOverlayToggles={canvasOverlayToggles}
+        totalElements={totalElements}
       />
       <CompletenessNotice
         notice={completenessOverlay.notice}

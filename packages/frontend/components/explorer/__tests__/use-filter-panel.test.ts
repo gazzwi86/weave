@@ -57,6 +57,15 @@ const twoConnectedNodes: CytoscapeElement[] = [
   { data: { id: "e1", source: "n1", target: "n2", label: "relatesTo" } },
 ];
 
+// V3b-3 item 1: a mixed-kind graph -- Process/BusinessDomain are landmark
+// kinds (config.defaultVisibleKinds), System is not, so the seeded default
+// filter should hide only n3.
+const mixedKindNodes: CytoscapeElement[] = [
+  { data: { id: "n1", label: "Onboarding", bpmo_kind: "Process" } },
+  { data: { id: "n2", label: "Sales", bpmo_kind: "BusinessDomain" } },
+  { data: { id: "n3", label: "CRM", bpmo_kind: "System" } },
+];
+
 describe("useFilterPanel", () => {
   it("hides a toggled-off entity type's nodes and incident edges (AC-1)", () => {
     const adapter = fakeAdapter({
@@ -305,6 +314,56 @@ describe("useFilterPanel", () => {
     expect(result.current.filterState.propertyFilters).toEqual([{ path: "status", op: "eq", value: "active" }]);
     await waitFor(() => expect(result.current.layerStatus.glossary).toBe("on"));
     expect(adapter.addLayerNodes).toHaveBeenCalledWith(layerElements);
+  });
+
+  // V3b-3 item 1: on first load, kinds outside config.defaultVisibleKinds
+  // start toggled off -- a hundreds-of-node demo workspace opens legible
+  // instead of a hairball, while landmark kinds (Process/BusinessDomain)
+  // stay visible.
+  it("seeds entityTypesOff with non-landmark kinds on first load (V3b-3 default filter)", () => {
+    const adapter = fakeAdapter({
+      listElements: vi.fn(() => mixedKindNodes),
+    });
+    const { result } = renderHook(() =>
+      useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }),
+    );
+
+    expect(result.current.filterState.entityTypesOff).toEqual(["System"]);
+  });
+
+  // V3b-3 item 1: "show all" is one click away -- the existing empty-state
+  // recovery action already clears entityTypesOff in one call, and it works
+  // the same for a seeded default as it does for a fully-manual toggle-off.
+  it("clearEntityTypesOff shows every kind, including the seeded default (V3b-3)", () => {
+    const adapter = fakeAdapter({
+      listElements: vi.fn(() => mixedKindNodes),
+    });
+    const { result } = renderHook(() =>
+      useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }),
+    );
+
+    expect(result.current.filterState.entityTypesOff).toEqual(["System"]);
+
+    act(() => result.current.clearEntityTypesOff());
+
+    expect(result.current.filterState.entityTypesOff).toEqual([]);
+  });
+
+  // V3b-3 item 1: the seed only ever fires once -- a user who clears the
+  // default and then toggles a kind back off manually keeps their own
+  // choice; the seed effect must not re-clobber it on a later render.
+  it("does not re-seed after the user has changed entityTypesOff themselves", () => {
+    const adapter = fakeAdapter({
+      listElements: vi.fn(() => mixedKindNodes),
+    });
+    const { result } = renderHook(() =>
+      useFilterPanel({ adapter, config: DEFAULT_EXPLORER_CONFIG }),
+    );
+
+    act(() => result.current.clearEntityTypesOff());
+    act(() => result.current.toggleEntityType("Process"));
+
+    expect(result.current.filterState.entityTypesOff).toEqual(["Process"]);
   });
 
   // AC-7: records the single applyFilterVisibility batch call's wall-clock

@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { overlayLegendToSections, paletteToLegendEntries } from "@/lib/explorer/canvas-legend-entries";
 import type { FilterVisibilityResult } from "@/lib/explorer/compute-filter-visibility";
 import type { RendererAdapter } from "@/lib/explorer/renderer-adapter";
+import type { CytoscapeElement } from "@/lib/explorer/types";
 
 import { canvasKpiItems } from "./canvas-kpi-items";
 import { CanvasToolbar } from "./canvas-toolbar";
@@ -104,6 +105,7 @@ function buildDockTabs({ filterPanel, versionsPanel, savedViewsPanel, toggles, o
           onToggleEntityType={filterPanel.toggleEntityType}
           onToggleRelType={filterPanel.toggleRelType}
           onSetPropertyFilters={filterPanel.setPropertyFilters}
+          onShowAllEntityTypes={filterPanel.clearEntityTypesOff}
         />
       ),
     },
@@ -141,6 +143,11 @@ interface CanvasFilterChromeProps {
   overlayControls: ReturnType<typeof useOverlayControls>;
   versionsPanel: ReturnType<typeof useVersionsPanel>;
   savedViewsPanel: ReturnType<typeof useSavedViewsWiring>;
+  /** The FULL unfiltered element set captured at load -- the KPI strip's
+   * entity/relation totals must reflect the whole model, NOT the default-
+   * filtered render (adapter.listElements()), else the counts drop when the
+   * default filter hides nodes. Falls back to the rendered set if absent. */
+  totalElements?: CytoscapeElement[] | null;
   /** refit deferred item 1: completeness/impact/version-diff/change-heatmap
    * -- none carry a "colour" exclusiveGroup, so they're appended as their
    * own OverlayPanel rows rather than folded into overlayControls.toggles. */
@@ -159,6 +166,7 @@ export function CanvasFilterChrome({
   overlayControls,
   versionsPanel,
   savedViewsPanel,
+  totalElements = null,
   canvasOverlayToggles,
 }: CanvasFilterChromeProps) {
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -180,7 +188,7 @@ export function CanvasFilterChrome({
         <SearchTriggerButton onOpenSearch={onOpenSearch} />
       </CanvasToolbar>
       <KpiStrip
-        items={canvasKpiItems(versionsPanel.versions, adapter?.listElements() ?? null)}
+        items={canvasKpiItems(versionsPanel.versions, totalElements ?? adapter?.listElements() ?? null)}
         className="absolute left-1/2 top-[var(--space-4)] z-[var(--z-panel)] -translate-x-1/2"
       />
       <ControlDock

@@ -204,6 +204,22 @@ export function useFilterPanel({
   const { visibility, entityTypes, relTypes } = useAppliedVisibility(adapter, filterState, config.spotlightDimOpacity);
   const { layerStatus, toggleLayer } = useLayerToggle(adapter, filterState, setFilterState, config, fetchLayerNodes);
 
+  // V3b-3 item 1: seeds a default filter once, the first time entity kinds
+  // are known, so a hundreds-of-node demo workspace opens legible instead of
+  // a hairball. Render-phase setState (react.dev "adjusting state when props
+  // change"), not an effect, so it lands in the same commit with no extra
+  // render round-trip -- state (not a ref) tracks "seeded", since
+  // react-hooks/refs disallows reading ref.current during render. Fires
+  // only once ever, so it never re-clobbers a user's own filter choice --
+  // including across a later adapter swap (e.g. version switch/retry);
+  // re-seeding then is an accepted M1 ceiling.
+  const [seededDefault, setSeededDefault] = useState(false);
+  if (!seededDefault && adapter && entityTypes.length > 0) {
+    setSeededDefault(true);
+    const offByDefault = entityTypes.filter((kind) => !config.defaultVisibleKinds.includes(kind));
+    if (offByDefault.length > 0) setFilterState((state) => ({ ...state, entityTypesOff: offByDefault }));
+  }
+
   const toggleEntityType = useCallback((kindIri: string) => {
     setFilterState((state) => ({ ...state, entityTypesOff: toggleArrayValue(state.entityTypesOff, kindIri) }));
   }, []);

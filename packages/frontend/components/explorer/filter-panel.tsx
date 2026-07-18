@@ -12,6 +12,10 @@ export interface FilterPanelProps {
   onToggleEntityType: (kindIri: string) => void;
   onToggleRelType: (predicateIri: string) => void;
   onSetPropertyFilters: (filters: PropertyFilter[]) => void;
+  /** V3b-3 item 1: "show all" one click away, always reachable from the
+   * Filters tab -- not gated behind the all-hidden empty-state's own
+   * recovery action, since a default/partial filter never reaches isEmpty. */
+  onShowAllEntityTypes: () => void;
 }
 
 export interface LayerPanelProps {
@@ -188,11 +192,23 @@ export function FilterPanel({
   onToggleEntityType,
   onToggleRelType,
   onSetPropertyFilters,
+  onShowAllEntityTypes,
 }: FilterPanelProps) {
   return (
     <div data-testid="explorer-filter-panel" className="space-y-[var(--space-4)]">
       <div className={SECTION_CLASS}>
-        <h2 className={HEADING_CLASS}>Entity types</h2>
+        <div className="flex items-center justify-between">
+          <h2 className={HEADING_CLASS}>Entity types</h2>
+          {filterState.entityTypesOff.length > 0 && (
+            <button
+              type="button"
+              onClick={onShowAllEntityTypes}
+              className="text-[length:var(--text-caption)] text-[var(--color-text-muted)] hover:text-[var(--color-text-default)]"
+            >
+              Show all
+            </button>
+          )}
+        </div>
         <TypeToggleList
           items={entityTypes}
           offList={filterState.entityTypesOff}
