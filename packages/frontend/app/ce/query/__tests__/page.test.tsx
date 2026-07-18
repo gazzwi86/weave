@@ -47,6 +47,18 @@ describe("QueryPage ask lifecycle", () => {
     vi.unstubAllGlobals();
   });
 
+  // Refit (mock #sub-query): page eyebrow/title/sub-header, matching the
+  // Instances page's PageEyebrowHeader pattern.
+  it("renders the Constitution / Query page header", () => {
+    stubVersionsFetch(() => Promise.resolve(jsonResponse(200, NL_SUCCESS)));
+    render(<QueryPage />);
+    expect(screen.getByText("Constitution")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Query" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Ask in plain language — Weave grounds the answer in the model and shows its SPARQL working.")
+    ).toBeInTheDocument();
+  });
+
   // AC-1: submitting -> success, never dead air.
   it("test_ask_lifecycle_submitting_to_success_never_dead_air", async () => {
     stubVersionsFetch(() => Promise.resolve(jsonResponse(200, NL_SUCCESS)));
@@ -57,6 +69,18 @@ describe("QueryPage ask lifecycle", () => {
 
     await waitFor(() => expect(screen.getByTestId("result-frame")).toBeInTheDocument());
     expect(screen.queryByTestId("ask-submitting")).not.toBeInTheDocument();
+  });
+
+  // Refit (mock #sub-query "Answer" card): the grounded-in caption uses the
+  // real client-known version, unlike "answered in Xs" or the NL summary
+  // sentence -- neither has a backing API field (see PR gap notes).
+  it("shows a grounded-in-version caption alongside the answer on success", async () => {
+    stubVersionsFetch(() => Promise.resolve(jsonResponse(200, NL_SUCCESS)));
+    render(<QueryPage />);
+
+    await askQuestion("What processes exist?");
+    await waitFor(() => expect(screen.getByTestId("result-frame")).toBeInTheDocument());
+    expect(screen.getByText(/grounded in latest/i)).toBeInTheDocument();
   });
 
   // AC-2: 503 -> provider-missing, with examples, editor stays live.
@@ -120,6 +144,26 @@ describe("QueryPage ask lifecycle", () => {
     render(<QueryPage />);
     const select = screen.getAllByLabelText("Version")[0] as HTMLSelectElement;
     expect(select.value).toBe("latest");
+  });
+
+  // Refit (mock #sub-query .sparql-card .error-card): a failed hand-typed
+  // run surfaces via the shared ErrorCard, not a bare <p role="alert">.
+  it("shows a failed SPARQL run via the shared ErrorCard", async () => {
+    stubVersionsFetch((input) => {
+      const url = String(input);
+      if (url.includes("/api/sparql")) {
+        return Promise.resolve(jsonResponse(400, { error: "malformed_query" }));
+      }
+      return Promise.resolve(jsonResponse(200, NL_SUCCESS));
+    });
+    render(<QueryPage />);
+
+    fireEvent.change(screen.getByLabelText("SPARQL query"), { target: { value: "SELECT * WHERE { ?s ?p ?o }" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+
+    await waitFor(() => expect(screen.getByTestId("editor-error")).toBeInTheDocument());
+    expect(screen.getByTestId("editor-error")).toBe(screen.getByRole("alert"));
+    expect(screen.getByTestId("editor-error")).toHaveTextContent("malformed_query");
   });
 
   // AC-9: Run is the sole primary action; Explain + coverage report are secondary.

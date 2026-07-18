@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { AskPanelTemplate } from "@/components/templates/AskPanelTemplate";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { ErrorCard } from "@/components/ui/error-card";
+import { Icon } from "@/components/ui/icon";
 
 import { EXAMPLE_QUESTIONS } from "./example-questions";
 import { ResultFrame } from "./result-frame";
@@ -30,7 +30,8 @@ function SubmittingState() {
 /** CE-V1-TASK-032 AC-2/AC-3/AC-4: the three failure states share one shape
  * (message + example questions) but stay visually/textually distinct via
  * `data-testid` and heading text -- split out to keep `AskPanel` under the
- * per-function line budget (Law E). */
+ * per-function line budget (Law E). refit-mock.html `.error-card`: the
+ * shared `ErrorCard` atom replaces the old ad-hoc `<p role="alert">` pair. */
 function FailureState({
   testId,
   heading,
@@ -44,15 +45,7 @@ function FailureState({
 }) {
   return (
     <>
-      <p role="alert" data-testid={testId} className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        {heading}
-      </p>
-      <p className="text-[var(--color-text-muted)]">{message}</p>
-      {onRetry && (
-        <Button variant="secondary" onClick={onRetry}>
-          Retry
-        </Button>
-      )}
+      <ErrorCard data-testid={testId} title={heading} body={message} onRetry={onRetry} />
       <div>
         <p className="text-[length:var(--text-caption)] text-[var(--color-text-muted)]">Try asking:</p>
         <ul className="list-inside list-disc text-[var(--color-text-muted)]">
@@ -94,7 +87,22 @@ function LifecycleBody({ nl, onCopyToEditor }: { nl: AskLifecycleState; onCopyTo
         <FailureState testId="ask-error" heading="Couldn't answer that" message={nl.errorMessage ?? "Something went wrong."} />
       );
     case "success":
-      return nl.result ? <ResultFrame result={nl.result} onCopyToEditor={onCopyToEditor} /> : null;
+      return nl.result ? (
+        <div className="flex flex-col gap-[var(--space-2)]">
+          <p className="flex items-center gap-[var(--space-2)] text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+            <Icon name="sparkles" size={13} />
+            Answer
+            {/* ponytail: "answered in Xs" and the NL summary sentence have no
+             * backing API field (grepped: no elapsed_ms/answer_text on
+             * NlSuccessBody) -- fabricating them would violate "data-binding
+             * only". "grounded in {version}" is real, client-known data. */}
+            <span className="ml-auto text-[length:var(--text-caption)] font-[var(--font-weight-regular)] text-[var(--color-text-subtle)]">
+              grounded in {nl.version}
+            </span>
+          </p>
+          <ResultFrame result={nl.result} onCopyToEditor={onCopyToEditor} />
+        </div>
+      ) : null;
     default:
       return null;
   }
@@ -104,27 +112,24 @@ function LifecycleBody({ nl, onCopyToEditor }: { nl: AskLifecycleState; onCopyTo
  * and, on success, the shared `ResultFrame`. Replaces the M1
  * `NlQuestionCard`'s single-branch (dead-air-prone) rendering. Data-fetch
  * lives in `useAskLifecycle`; this component binds it onto the dumb
- * `AskPanelTemplate` (app-layer boundary, Law 20). */
+ * `AskPanelTemplate` (app-layer boundary, Law 20). refit-mock.html
+ * `#sub-query`: the ask pill sits unboxed (no surrounding Card), unlike the
+ * SPARQL editor below it which stays in its own card. */
 export function AskPanel({ nl, onCopyToEditor }: { nl: AskLifecycleState; onCopyToEditor: (sparql: string) => void }) {
   const isFailure = nl.status === "provider-missing" || nl.status === "timeout" || nl.status === "error";
 
   return (
-    <Card>
-      <p className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-        Ask a question
-      </p>
-      <CardContent className="flex flex-col gap-[var(--space-3)]">
-        <VersionSelect value={nl.version} onChange={nl.setVersion} />
-        <AskPanelTemplate
-          question={nl.question}
-          loading={nl.status === "submitting"}
-          onQuestionChange={nl.setQuestion}
-          onSubmit={askFunction(nl)}
-          showGlass={isFailure}
-        >
-          <LifecycleBody nl={nl} onCopyToEditor={onCopyToEditor} />
-        </AskPanelTemplate>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-[var(--space-3)]">
+      <VersionSelect value={nl.version} onChange={nl.setVersion} />
+      <AskPanelTemplate
+        question={nl.question}
+        loading={nl.status === "submitting"}
+        onQuestionChange={nl.setQuestion}
+        onSubmit={askFunction(nl)}
+        showGlass={isFailure}
+      >
+        <LifecycleBody nl={nl} onCopyToEditor={onCopyToEditor} />
+      </AskPanelTemplate>
+    </div>
   );
 }

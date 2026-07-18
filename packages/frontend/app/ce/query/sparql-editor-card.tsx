@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ErrorCard } from "@/components/ui/error-card";
 
 import { ResultFrame } from "./result-frame";
 import { ResultsTable } from "./results-table";
@@ -37,6 +38,10 @@ function EditorActions({ editor }: { editor: SparqlEditorState }) {
 /** CE-TASK-007 AC-007-09/-10/-11/-12/-13/-14: the raw SPARQL editor and the
  * coverage_gap(process) report action -- split out of `page.tsx` to keep
  * each component under the complexity/line-count budget (Law E).
+ * refit-mock.html `.sparql-card`: heading text kept as "SPARQL editor"
+ * rather than the mock's "Generated SPARQL — edit and re-run" -- this card
+ * is dual-purpose (hand-typed runs + the coverage-gap report), so "Generated"
+ * would mislead outside the NL-copy-to-editor flow.
  */
 export function SparqlEditorCard({ editor }: { editor: SparqlEditorState }) {
   return (
@@ -56,9 +61,7 @@ export function SparqlEditorCard({ editor }: { editor: SparqlEditorState }) {
         <EditorActions editor={editor} />
 
         {editor.errorCode && (
-          <p role="alert" data-testid="editor-error" className="text-[var(--color-danger)]">
-            {editor.errorCode}
-          </p>
+          <ErrorCard data-testid="editor-error" title="Query failed" body={editor.errorCode} />
         )}
 
         {editor.explanation && (
