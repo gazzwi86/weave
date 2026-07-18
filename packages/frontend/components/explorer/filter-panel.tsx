@@ -9,10 +9,13 @@ export interface FilterPanelProps {
   entityTypes: string[];
   relTypes: string[];
   filterState: FilterState;
-  layerStatus: Record<GovernedLayer, LayerStatus>;
   onToggleEntityType: (kindIri: string) => void;
   onToggleRelType: (predicateIri: string) => void;
   onSetPropertyFilters: (filters: PropertyFilter[]) => void;
+}
+
+export interface LayerPanelProps {
+  layerStatus: Record<GovernedLayer, LayerStatus>;
   onToggleLayer: (layer: GovernedLayer) => void;
 }
 
@@ -23,13 +26,6 @@ const LAYER_LABEL: Record<GovernedLayer, string> = { glossary: "Glossary", brand
 const LABEL_CLASS = "text-[length:var(--text-body-sm)] text-[var(--color-text-default)]";
 const SECTION_CLASS = "space-y-[var(--space-2)]";
 const HEADING_CLASS = "text-[length:var(--text-caption)] text-[var(--color-text-subtle)]";
-
-// Dock: left edge, below CanvasToolbar's top-left row -- D-1..D-6 only
-// pin the legend/toolbar corners, so this panel's own placement is an
-// engineering choice, not a cited design requirement. --space-10 clears
-// the toolbar's own height without hard-coding a raw px offset.
-const SHELL_CLASS =
-  "absolute left-[var(--space-4)] top-[var(--space-10)] z-[var(--z-panel)] w-80 max-h-[calc(100%-var(--space-10)-var(--space-4))] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] p-[var(--space-4)] shadow-[var(--shadow-panel)]";
 
 // AC-1/AC-3: one checkbox per kind/predicate present on canvas -- checked
 // means "visible" (i.e. NOT in the off list), matching the toggle's own
@@ -180,47 +176,50 @@ function LayerToggleList({
   );
 }
 
-/** TASK-020: presentation-only Filters & Layers panel -- every field reads
- * from useFilterPanel's return value and every action calls straight back
- * into it (this component owns no filter state itself). */
+/** TASK-020, refit into ControlDock's "Filters" tab panel: entity/rel-type
+ * toggles + the property-filter builder -- every field reads from
+ * useFilterPanel's return value and every action calls straight back into
+ * it (this component owns no filter state itself). Governed layers moved
+ * to their own `LayerPanel` ("Layers" tab, mock's separate `panel-layers`). */
 export function FilterPanel({
   entityTypes,
   relTypes,
   filterState,
-  layerStatus,
   onToggleEntityType,
   onToggleRelType,
   onSetPropertyFilters,
-  onToggleLayer,
 }: FilterPanelProps) {
   return (
-    <div data-testid="explorer-filter-panel" className={SHELL_CLASS}>
-      <h2 className={HEADING_CLASS}>Filters &amp; layers</h2>
-      <div className="mt-[var(--space-3)] space-y-[var(--space-4)]">
-        <div className={SECTION_CLASS}>
-          <h3 className={HEADING_CLASS}>Entity types</h3>
-          <TypeToggleList
-            items={entityTypes}
-            offList={filterState.entityTypesOff}
-            onToggle={onToggleEntityType}
-            displayLabel={(kind) => kind}
-          />
-        </div>
-        <div className={SECTION_CLASS}>
-          <h3 className={HEADING_CLASS}>Relationship types</h3>
-          <TypeToggleList
-            items={relTypes}
-            offList={filterState.relTypesOff}
-            onToggle={onToggleRelType}
-            displayLabel={lastIriSegment}
-          />
-        </div>
-        <PropertyFilterBuilder filters={filterState.propertyFilters} onSetPropertyFilters={onSetPropertyFilters} />
-        <div className={SECTION_CLASS}>
-          <h3 className={HEADING_CLASS}>Layers</h3>
-          <LayerToggleList layerStatus={layerStatus} onToggleLayer={onToggleLayer} />
-        </div>
+    <div data-testid="explorer-filter-panel" className="space-y-[var(--space-4)]">
+      <div className={SECTION_CLASS}>
+        <h3 className={HEADING_CLASS}>Entity types</h3>
+        <TypeToggleList
+          items={entityTypes}
+          offList={filterState.entityTypesOff}
+          onToggle={onToggleEntityType}
+          displayLabel={(kind) => kind}
+        />
       </div>
+      <div className={SECTION_CLASS}>
+        <h3 className={HEADING_CLASS}>Relationship types</h3>
+        <TypeToggleList
+          items={relTypes}
+          offList={filterState.relTypesOff}
+          onToggle={onToggleRelType}
+          displayLabel={lastIriSegment}
+        />
+      </div>
+      <PropertyFilterBuilder filters={filterState.propertyFilters} onSetPropertyFilters={onSetPropertyFilters} />
+    </div>
+  );
+}
+
+/** ControlDock's "Layers" tab panel (mock's `panel-layers`) -- governed-layer
+ * toggles, split out of `FilterPanel` (TASK-020's original bundle). */
+export function LayerPanel({ layerStatus, onToggleLayer }: LayerPanelProps) {
+  return (
+    <div data-testid="explorer-layer-panel">
+      <LayerToggleList layerStatus={layerStatus} onToggleLayer={onToggleLayer} />
     </div>
   );
 }

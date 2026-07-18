@@ -3,22 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createFilterState } from "@/lib/explorer/filter-state";
 import type { FilterState } from "@/lib/explorer/filter-state";
-import type { LayerStatus } from "../use-filter-panel";
 
 import { FilterPanel } from "../filter-panel";
-
-const OFF_LAYERS: Record<string, LayerStatus> = { glossary: "off", brand: "off", governance: "off" };
 
 function renderPanel(overrides: Partial<React.ComponentProps<typeof FilterPanel>> = {}) {
   const props = {
     entityTypes: ["Process", "Policy"],
     relTypes: ["https://weave.example/ontology/bpmo#relatesTo"],
     filterState: createFilterState(),
-    layerStatus: OFF_LAYERS as React.ComponentProps<typeof FilterPanel>["layerStatus"],
     onToggleEntityType: vi.fn(),
     onToggleRelType: vi.fn(),
     onSetPropertyFilters: vi.fn(),
-    onToggleLayer: vi.fn(),
     ...overrides,
   };
   render(<FilterPanel {...props} />);
@@ -74,22 +69,4 @@ describe("FilterPanel", () => {
     expect(props.onSetPropertyFilters).toHaveBeenCalledWith([]);
   });
 
-  it("toggles a governed layer on click (AC-6)", () => {
-    const props = renderPanel();
-
-    fireEvent.click(screen.getByRole("switch", { name: "Toggle Glossary layer" }));
-
-    expect(props.onToggleLayer).toHaveBeenCalledWith("glossary");
-  });
-
-  it("disables an empty layer's toggle with an explanatory tooltip, and never calls onToggleLayer (AC-6)", () => {
-    const props = renderPanel({ layerStatus: { glossary: "off", brand: "empty", governance: "off" } });
-
-    const brandToggle = screen.getByRole("switch", { name: "Toggle Brand layer" });
-    expect(brandToggle).toBeDisabled();
-    expect(brandToggle).toHaveAttribute("title", "No Brand content");
-
-    fireEvent.click(brandToggle);
-    expect(props.onToggleLayer).not.toHaveBeenCalled();
-  });
 });

@@ -486,6 +486,10 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
     );
 
     expect(await screen.findByText("Process")).toBeInTheDocument();
+    // Refit: the filters panel now lives behind the ControlDock's "Filters"
+    // tab (single-open accordion, mock's `.dock`) rather than an
+    // always-visible side panel.
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(screen.getByTestId("explorer-filter-panel")).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", { name: "Process" }),
@@ -502,6 +506,7 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Process" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Policy" }));
 
@@ -527,6 +532,7 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.change(screen.getByLabelText("Property path"), {
       target: { value: "status" },
     });

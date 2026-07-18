@@ -311,6 +311,7 @@ export function ExplorerInteractions({
   return (
     <>
       <CanvasFilterChrome
+        adapter={adapter}
         onOpenSearch={search.openOverlay}
         filterPanel={chrome.filterPanel}
         legend={chrome.legend}

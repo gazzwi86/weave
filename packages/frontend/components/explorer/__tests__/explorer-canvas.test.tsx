@@ -29,6 +29,7 @@ describe("ExplorerCanvas", () => {
       loadState: "ready",
       errorMessage: null,
       minimapIndicator: { left: 1, top: 2, width: 3, height: 4 },
+      minimapNodes: [],
       containerRef: { current: null },
       retry: vi.fn(),
       adapter: null,
@@ -40,6 +41,29 @@ describe("ExplorerCanvas", () => {
     expect(screen.getByTestId("explorer-minimap")).toBeInTheDocument();
   });
 
+  // Item 1 (minimap): a node dot per `minimapNodes` entry, plus the
+  // viewport rect -- proves the `Minimap` molecule is actually mounted with
+  // real data, not just the plate div.
+  it("draws a dot per minimap node once the hook reports them", () => {
+    mockedUseExplorerCanvas.mockReturnValue({
+      loadState: "ready",
+      errorMessage: null,
+      minimapIndicator: { left: 1, top: 2, width: 3, height: 4 },
+      minimapNodes: [
+        { id: "n1", x: 10, y: 5, colorVar: "--color-kind-process" },
+        { id: "n2", x: 90, y: 60, colorVar: "--color-kind-actor" },
+      ],
+      containerRef: { current: null },
+      retry: vi.fn(),
+      adapter: null,
+    });
+
+    const { container } = render(<ExplorerCanvas />);
+
+    expect(container.querySelectorAll("circle")).toHaveLength(2);
+    expect(screen.getByTestId("explorer-minimap-viewport")).toBeInTheDocument();
+  });
+
   // TASK-003 (AC-5): the search trigger only mounts once the renderer
   // adapter exists -- there's nothing to search/spotlight before then.
   it("renders the search trigger once the renderer adapter is ready", () => {
@@ -47,6 +71,7 @@ describe("ExplorerCanvas", () => {
       loadState: "ready",
       errorMessage: null,
       minimapIndicator: null,
+      minimapNodes: [],
       containerRef: { current: null },
       retry: vi.fn(),
       adapter: {
@@ -101,6 +126,7 @@ describe("ExplorerCanvas", () => {
       loadState: "error",
       errorMessage: "CE error 503",
       minimapIndicator: null,
+      minimapNodes: [],
       containerRef: { current: null },
       retry,
       adapter: null,
