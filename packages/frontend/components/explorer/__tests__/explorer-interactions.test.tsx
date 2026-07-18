@@ -453,7 +453,11 @@ describe("ExplorerInteractions", () => {
 describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => {
   const twoTypeNodes: CytoscapeElement[] = [
     { data: { id: "n1", bpmo_kind: "Process" } },
-    { data: { id: "n2", bpmo_kind: "Policy" } },
+    // V3b-3 item 1: BusinessDomain (not e.g. Policy) so both kinds land in
+    // config.defaultVisibleKinds -- this describe block tests the manual
+    // toggle-off flow, not the default-filter seed, so both checkboxes must
+    // still start checked.
+    { data: { id: "n2", bpmo_kind: "BusinessDomain" } },
   ];
   const palette: NodeKind[] = [
     { id: "process", label: "Process", colour: "var(--color-kind-process)" },
@@ -508,7 +512,7 @@ describe("ExplorerInteractions -- TASK-020 filters/legend/toolbar mount", () => 
 
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Process" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Policy" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "BusinessDomain" }));
 
     expect(await screen.findByTestId("explorer-empty-state")).toHaveTextContent(
       /hidden/i,

@@ -104,6 +104,7 @@ function buildDockTabs({ filterPanel, versionsPanel, savedViewsPanel, toggles, o
           onToggleEntityType={filterPanel.toggleEntityType}
           onToggleRelType={filterPanel.toggleRelType}
           onSetPropertyFilters={filterPanel.setPropertyFilters}
+          onShowAllEntityTypes={filterPanel.clearEntityTypesOff}
         />
       ),
     },

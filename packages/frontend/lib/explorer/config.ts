@@ -15,6 +15,15 @@ export interface ExplorerConfig {
    * nodeLabelThreshold -- orienting landmarks (domains/processes) so a
    * zoomed-out, hundreds-of-node canvas still reads at a glance. */
   alwaysLabelledKinds: string[];
+  /** V3b-3 item 1: bpmo_kind values visible by default on first load -- every
+   * other kind starts toggled off in useFilterPanel's seeded FilterState, so
+   * a hundreds-of-node demo workspace opens legible instead of a hairball.
+   * Separate from alwaysLabelledKinds on purpose: that field controls label
+   * visibility at zoom, this controls initial node visibility -- changing
+   * one must not silently change the other, even though M1 ships the same
+   * landmark kinds for both. "Show all" is one click away via the existing
+   * clearEntityTypesOff() action (Filters tab). */
+  defaultVisibleKinds: string[];
   /** AC-1: opacity applied to non-neighbourhood elements when spotlighting. */
   spotlightDimOpacity: number;
   /** AC-6: duration of the centre-on-select animation, ms. */
@@ -80,6 +89,7 @@ export const DEFAULT_EXPLORER_CONFIG: ExplorerConfig = Object.freeze({
   nodeLabelThreshold: 0.3,
   edgeLabelThreshold: 0.55,
   alwaysLabelledKinds: ["BusinessDomain", "Process"],
+  defaultVisibleKinds: ["BusinessDomain", "Process"],
   spotlightDimOpacity: 0.18,
   centreAnimationMs: 300,
   layoutSaveRetryDelaysMs: [2000, 4000, 8000],

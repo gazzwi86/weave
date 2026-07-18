@@ -87,3 +87,12 @@ describe("DEFAULT_EXPLORER_CONFIG -- V3b-2 additions", () => {
     expect(DEFAULT_EXPLORER_CONFIG.alwaysLabelledKinds).toEqual(["BusinessDomain", "Process"]);
   });
 });
+
+// V3b-3 item 1: sensible default filter -- a separate field from
+// alwaysLabelledKinds (label visibility at zoom is a different concern from
+// initial node visibility), even though M1 ships the same landmark kinds.
+describe("DEFAULT_EXPLORER_CONFIG -- V3b-3 additions", () => {
+  it("defaults defaultVisibleKinds to the domain/process landmark kinds", () => {
+    expect(DEFAULT_EXPLORER_CONFIG.defaultVisibleKinds).toEqual(["BusinessDomain", "Process"]);
+  });
+});
