@@ -1,5 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ToastProvider } from "@/components/ui/toast";
 
 import CeTypesPage from "../page";
 
@@ -25,14 +27,6 @@ const TYPES = {
           max_count: 1,
           severity: "Violation",
         },
-        {
-          path: "https://weave.dev/ontology/bpmo#performedBy",
-          name: "performed by",
-          is_relationship: true,
-          min_count: 0,
-          max_count: null,
-          severity: "Violation",
-        },
       ],
     },
     {
@@ -42,23 +36,29 @@ const TYPES = {
       properties: [],
     },
   ],
-  relationships: [],
+  relationships: [
+    {
+      path: "https://weave.dev/ontology/bpmo#performedBy",
+      name: "performed by",
+      is_relationship: true,
+      min_count: 0,
+      max_count: null,
+      severity: "Violation",
+    },
+  ],
 };
 
-const PROCESS_ROW = "kind-row-Process";
+function stubFetch(typesResponse: Response): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn(async () => typesResponse.clone());
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
-const NODE_KINDS = {
-  kinds: [{ id: "Process", label: "Process", colour: "var(--color-kind-process)" }],
-};
-
-function stubFetch(typesResponse: Response): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (input: RequestInfo | URL) =>
-      String(input).includes("/api/proxy/node-kinds")
-        ? jsonResponse(NODE_KINDS)
-        : typesResponse.clone()
-    )
+function renderPage() {
+  return render(
+    <ToastProvider>
+      <CeTypesPage />
+    </ToastProvider>
   );
 }
 
@@ -67,99 +67,84 @@ describe("CeTypesPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the kind catalogue with property summaries", async () => {
+  it("renders the kind catalogue as a data table", async () => {
     stubFetch(jsonResponse(TYPES));
+    renderPage();
 
-    render(<CeTypesPage />);
-
-    await waitFor(() => expect(screen.getByTestId("kind-list")).toBeInTheDocument());
-    expect(screen.getByText("Process")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
     expect(screen.getByText("Actor")).toBeInTheDocument();
-    expect(screen.getByTestId(PROCESS_ROW)).toHaveTextContent(
-      "1 property · 1 relationship"
-    );
+    expect(screen.getAllByText("Framework").length).toBeGreaterThan(0);
   });
 
-  it("shows the kind's skos:definition description as secondary text under its label (AC-011-04)", async () => {
+  it("filters to an empty table on the Extensions chip (no extension kinds exist in M1)", async () => {
     stubFetch(jsonResponse(TYPES));
+    renderPage();
 
-    render(<CeTypesPage />);
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Extensions" }));
 
-    await waitFor(() => expect(screen.getByTestId(PROCESS_ROW)).toBeInTheDocument());
-    expect(screen.getByTestId(PROCESS_ROW)).toHaveTextContent(
-      "A repeatable sequence of activities performed to achieve a goal."
-    );
+    expect(screen.queryByText("Process")).not.toBeInTheDocument();
+    expect(screen.getByText("No rows.")).toBeInTheDocument();
   });
 
-  it("renders no secondary description line when description is null (AC-011-05)", async () => {
+  it("shows relationship shapes on the Relationships chip", async () => {
     stubFetch(jsonResponse(TYPES));
+    renderPage();
 
-    render(<CeTypesPage />);
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Relationships" }));
 
-    await waitFor(() => expect(screen.getByTestId("kind-row-Actor")).toBeInTheDocument());
-    expect(screen.queryByTestId("kind-row-description-Actor")).not.toBeInTheDocument();
+    expect(screen.getByText("performed by")).toBeInTheDocument();
+    expect(screen.queryByText("Process")).not.toBeInTheDocument();
   });
 
-  it("renders no secondary description line for an empty-string description (QA edge case)", async () => {
-    // Distinct from the null case above: "" !== null but is still JS-falsy,
-    // so `kind.description && (...)` must not render a stray empty node.
-    stubFetch(
-      jsonResponse({
-        kinds: [{ ...TYPES.kinds[0], iri: "https://weave.dev/ontology/bpmo#Empty", description: "" }],
-        relationships: [],
-      })
-    );
-
-    render(<CeTypesPage />);
-
-    await waitFor(() => expect(screen.getByTestId("kind-row-Empty")).toBeInTheDocument());
-    expect(screen.queryByTestId("kind-row-description-Empty")).not.toBeInTheDocument();
-  });
-
-  it("renders a very long description in full without truncation (QA edge case)", async () => {
-    const longDescription = "A ".repeat(200).trim() + " end-of-description-marker";
-    stubFetch(
-      jsonResponse({
-        kinds: [{ ...TYPES.kinds[0], iri: "https://weave.dev/ontology/bpmo#Long", description: longDescription }],
-        relationships: [],
-      })
-    );
-
-    render(<CeTypesPage />);
-
-    await waitFor(() => expect(screen.getByTestId("kind-row-Long")).toBeInTheDocument());
-    expect(screen.getByTestId("kind-row-description-Long")).toHaveTextContent(
-      "end-of-description-marker"
-    );
-  });
-
-  it("expands an inline view-only detail panel on click", async () => {
+  it("filters rows by the search box", async () => {
     stubFetch(jsonResponse(TYPES));
+    renderPage();
 
-    render(<CeTypesPage />);
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Search kinds"), { target: { value: "actor" } });
 
-    await waitFor(() => expect(screen.getByTestId(PROCESS_ROW)).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId(PROCESS_ROW));
-
-    const detail = screen.getByTestId("kind-detail-Process");
-    expect(detail).toHaveTextContent("https://weave.dev/ontology/bpmo#Process");
-    expect(detail).toHaveTextContent("name");
-    expect(detail).toHaveTextContent("1..1");
-    expect(detail).toHaveTextContent("performed by");
-    expect(detail).toHaveTextContent("0..*");
-    expect(detail).toHaveTextContent("Framework kind — view-only in M1; extensions land later.");
-
-    // Toggling again collapses it.
-    fireEvent.click(screen.getByTestId(PROCESS_ROW));
-    expect(screen.queryByTestId("kind-detail-Process")).not.toBeInTheDocument();
+    expect(screen.queryByText("Process")).not.toBeInTheDocument();
+    expect(screen.getByText("Actor")).toBeInTheDocument();
   });
 
-  it("shows a muted error state when the catalogue fetch fails", async () => {
-    stubFetch(jsonResponse({ error: "upstream_unavailable" }, 502));
+  it("opens the edit drawer prefilled and shows a not-yet-wired toast on save (no kind-mutation endpoint in M1)", async () => {
+    stubFetch(jsonResponse(TYPES));
+    renderPage();
 
-    render(<CeTypesPage />);
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Edit Process" }));
 
-    await waitFor(() => expect(screen.getByTestId("types-error")).toBeInTheDocument());
-    expect(screen.queryByTestId("kind-list")).not.toBeInTheDocument();
+    const labelInput = await screen.findByLabelText("Label");
+    expect(labelInput).toHaveValue("Process");
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText(/Kind editing isn't wired to a save endpoint yet/)).toBeInTheDocument();
+  });
+
+  it("opens a blank drawer from New extension kind", async () => {
+    stubFetch(jsonResponse(TYPES));
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "New extension kind" }));
+
+    const labelInput = await screen.findByLabelText("Label");
+    expect(labelInput).toHaveValue("");
+  });
+
+  it("shows an ErrorCard with retry when the catalogue fetch fails", async () => {
+    const fetchMock = stubFetch(jsonResponse({ error: "upstream_unavailable" }, 502));
+    renderPage();
+
+    const errorCard = await screen.findByRole("alert");
+    expect(within(errorCard).getByText(/Couldn't load the kind catalogue/)).toBeInTheDocument();
+
+    fetchMock.mockImplementation(async () => jsonResponse(TYPES));
+    fireEvent.click(within(errorCard).getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => expect(screen.getByText("Process")).toBeInTheDocument());
   });
 });

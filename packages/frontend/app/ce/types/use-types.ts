@@ -1,36 +1,33 @@
 import { useEffect, useState } from "react";
 
-import type { KindEntry } from "../chat/types";
+import type { KindEntry, PropertyShape } from "../chat/types";
 
 export interface TypesState {
   kinds: KindEntry[];
-  /** kind id (IRI last segment) → CSS colour token from /api/proxy/node-kinds. */
-  colourByKindId: Record<string, string>;
+  /** Relationship-typed property shapes CE-READ-1 already returns alongside
+   * `kinds` in the same response body -- the Types view's "Relationships"
+   * filter reads this instead of a second fetch. */
+  relationships: PropertyShape[];
   loading: boolean;
   loadError: boolean;
+  reload: () => void;
 }
 
-/** IRI last segment — same derivation the node-kinds proxy uses for its
- * `id`, so colours join back to catalogue kinds without a second mapping. */
+/** IRI last segment -- `KindChip` keys its token/glyph lookup on this. */
 export function kindId(iri: string): string {
   const segments = iri.split(/[/#]/).filter(Boolean);
   return segments[segments.length - 1] ?? iri;
 }
 
-interface NodeKind {
-  id: string;
-  colour: string;
-}
-
-/** Ontology/Types view state: the authoritative CE-READ-1 kind catalogue
- * plus the Explorer palette for colour dots. Palette failure is cosmetic
- * (rows fall back to the grey token); only a catalogue failure is an error.
- */
+/** Ontology/Types view state: the authoritative CE-READ-1 kind catalogue.
+ * `KindChip` derives its colour/glyph purely from the kind name via CSS
+ * tokens (`color.md`), so there is no second palette fetch to join. */
 export function useTypes(): TypesState {
   const [kinds, setKinds] = useState<KindEntry[]>([]);
-  const [colourByKindId, setColourByKindId] = useState<Record<string, string>>({});
+  const [relationships, setRelationships] = useState<PropertyShape[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -40,11 +37,13 @@ export function useTypes(): TypesState {
         if (!res.ok) {
           throw new Error("types_failed");
         }
-        return res.json() as Promise<{ kinds: KindEntry[] }>;
+        return res.json() as Promise<{ kinds: KindEntry[]; relationships?: PropertyShape[] }>;
       })
       .then((body) => {
         if (!controller.signal.aborted) {
           setKinds(body.kinds);
+          setRelationships(body.relationships ?? []);
+          setLoadError(false);
           setLoading(false);
         }
       })
@@ -55,21 +54,13 @@ export function useTypes(): TypesState {
         }
       });
 
-    fetch("/api/proxy/node-kinds", { signal: controller.signal })
-      .then((res) => (res.ok ? (res.json() as Promise<{ kinds: NodeKind[] }>) : null))
-      .then((body) => {
-        if (!controller.signal.aborted && body) {
-          setColourByKindId(
-            Object.fromEntries(body.kinds.map((kind) => [kind.id, kind.colour]))
-          );
-        }
-      })
-      .catch(() => {
-        /* palette is decorative — grey fallback covers it */
-      });
-
     return () => controller.abort();
-  }, []);
+  }, [reloadToken]);
 
-  return { kinds, colourByKindId, loading, loadError };
+  const reload = () => {
+    setLoading(true);
+    setReloadToken((token) => token + 1);
+  };
+
+  return { kinds, relationships, loading, loadError, reload };
 }
