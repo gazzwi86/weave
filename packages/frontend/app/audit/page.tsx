@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BarChartSlot as BarChart } from "@/components/templates/BarChartSlot";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChainStatusChip } from "@/components/ui/chain-status-chip";
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 import { useCompliance, type ComplianceSummary, type TargetCount } from "./compliance/use-compliance";
 
@@ -26,9 +27,7 @@ function ModelEditsByKindCard() {
   return (
     <Card>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
-        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Model edits by kind — this month
-        </p>
+        <Eyebrow>Model edits by kind — this month</Eyebrow>
         <p data-testid="kind-edits-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
           Not available yet — per-kind edit counts need a backend breakdown.
         </p>
@@ -68,9 +67,7 @@ function BusiestEntitiesCard({ targets }: { targets: TargetCount[] | undefined }
   return (
     <Card>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
-        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Busiest entities — 30 days
-        </p>
+        <Eyebrow>Busiest entities — 30 days</Eyebrow>
         {targets ? (
           <BusiestEntitiesList targets={targets} />
         ) : (
@@ -103,9 +100,7 @@ function EventsByCategoryCard({
   return (
     <Card>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
-        <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Events by category — vs last month
-        </p>
+        <Eyebrow>Events by category — vs last month</Eyebrow>
         <BarChart categories={categories} series={series} hrefFor={eventLogsHref} />
       </CardContent>
     </Card>
@@ -122,7 +117,7 @@ function EventCountsRow() {
       {groups.map((group) => (
         <Card key={group}>
           <CardContent className="flex flex-col gap-[var(--space-2)]">
-            <p className="font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">{group}</p>
+            <Eyebrow>{group}</Eyebrow>
             <p data-testid="event-counts-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
               Not available yet.
             </p>
@@ -159,9 +154,7 @@ export default function AuditDashboardPage() {
     <main className="flex flex-col gap-[var(--space-4)] p-[var(--space-6)]">
       <div className="flex items-start justify-between gap-[var(--space-4)]">
         <div>
-          <p className="text-[length:var(--text-overline)] font-[var(--font-weight-semibold)] uppercase tracking-[var(--text-overline-tracking)] text-[var(--color-accent-primary)]">
-            Audit trail
-          </p>
+          <Eyebrow tone="accent">Audit trail</Eyebrow>
           <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
             Dashboard
           </h1>
