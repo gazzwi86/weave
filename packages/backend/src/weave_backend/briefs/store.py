@@ -181,3 +181,30 @@ async def epic_refs(
             epic_id=parsed.get("epic_id"), epic_title=parsed.get("epic_title")
         )
     return result
+
+
+@dataclass(frozen=True)
+class BriefRef:
+    """G11 (docs/design/remediation-2-api-gaps.md): a project's brief
+    identity pair -- `build.spec_artifacts.build_spec_artifact_index`'s
+    only real (API-served) row source.
+    """
+
+    task_id: str
+    brief_iri: str
+
+
+async def list_project_briefs(
+    conn: asyncpg.Connection, *, tenant_id: str, project_iri: str
+) -> list[BriefRef]:
+    """Every brief's `task_id`/`brief_iri` for a project -- same query
+    shape as `estimates`/`epic_refs`, projecting identity columns instead
+    of `content`.
+    """
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    rows = await conn.fetch(
+        "SELECT task_id, brief_iri FROM task_briefs WHERE tenant_id = $1 AND project_iri = $2",
+        tenant_id,
+        project_iri,
+    )
+    return [BriefRef(task_id=row["task_id"], brief_iri=row["brief_iri"]) for row in rows]

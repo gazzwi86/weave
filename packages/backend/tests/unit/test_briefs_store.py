@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from weave_backend.briefs.store import EpicRef, epic_refs
+from weave_backend.briefs.store import BriefRef, EpicRef, epic_refs, list_project_briefs
 
 _TENANT = "t1"
 _PROJECT_IRI = "urn:weave:project:t1:acme"
@@ -44,3 +44,30 @@ async def test_epic_refs_empty_project_returns_empty_dict() -> None:
     result = await epic_refs(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
 
     assert result == {}
+
+
+async def test_list_project_briefs_returns_task_id_and_brief_iri_pairs() -> None:
+    """G11 (docs/design/remediation-2-api-gaps.md): the spec-artifact
+    index's only real data source today -- one entry per stored brief.
+    """
+    conn = _FakeBriefsConnection(
+        [
+            {"task_id": "t1", "brief_iri": "urn:weave:brief:t1"},
+            {"task_id": "t2", "brief_iri": "urn:weave:brief:t2"},
+        ]
+    )
+
+    result = await list_project_briefs(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
+
+    assert result == [
+        BriefRef(task_id="t1", brief_iri="urn:weave:brief:t1"),
+        BriefRef(task_id="t2", brief_iri="urn:weave:brief:t2"),
+    ]
+
+
+async def test_list_project_briefs_empty_project_returns_empty_list() -> None:
+    conn = _FakeBriefsConnection([])
+
+    result = await list_project_briefs(conn, tenant_id=_TENANT, project_iri=_PROJECT_IRI)
+
+    assert result == []
