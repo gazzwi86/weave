@@ -3,6 +3,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 
 import { UserMenu, type UserMenuItem } from "@/components/organisms/UserMenu";
+import { isPlatformOperator } from "@/lib/auth/session-claims";
 
 export interface AvatarMenuProps {
   /** Display name from the session (`session.user.name`); "Signed in" is
@@ -29,10 +30,20 @@ function initials(name: string): string {
  * alongside (not instead of) the existing Help/Sign out links -- dropping
  * Help would regress AC-7. "Theme" has no theme-switch feature yet (dark is
  * the only shipped theme, design.md), so it renders as a static "Dark" pill
- * rather than an interactive control that would do nothing. */
+ * rather than an interactive control that would do nothing.
+ *
+ * "Operator console" (refit-mock.html's `#user-backdrop`, "Operator console
+ * — provision companies") is gated by `isPlatformOperator` -- the same
+ * predicate the `/operator` route itself checks -- so this entry point and
+ * that route's gate can't drift apart. */
 export function AvatarMenu({ userName, role }: AvatarMenuProps) {
+  const operatorItems: UserMenuItem[] = isPlatformOperator(role)
+    ? [{ icon: "shield", label: "Operator console — provision companies", href: "/operator" }]
+    : [];
+
   const items: UserMenuItem[] = [
-    { icon: "user", label: "Profile & preferences", href: "/settings" },
+    ...operatorItems,
+    { icon: "user", label: "Profile & preferences", href: "/settings", separatorBefore: operatorItems.length > 0 },
     { icon: "swap", label: "Switch workspace", href: "/settings/workspaces" },
     { icon: "moon", label: "Theme", trailing: <span>Dark</span> },
     { icon: "help", label: "Help", href: "/help" },
