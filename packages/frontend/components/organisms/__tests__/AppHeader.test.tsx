@@ -20,6 +20,10 @@ describe("AppHeader", () => {
     render(<AppHeader breadcrumb="x" sidebarCollapsed onExpandSidebar={onExpandSidebar} />);
     const button = screen.getByRole("button", { name: /expand sidebar/i });
     expect(button.querySelector("svg")).toBeInTheDocument();
+    // refit-mock.html #sidebar-expand-btn title="Show sidebar" -- native
+    // hover hint alongside the existing aria-label (Law 3: fill the gap,
+    // don't touch the aria-label already there).
+    expect(button).toHaveAttribute("title", "Show sidebar");
     await userEvent.click(button);
     expect(onExpandSidebar).toHaveBeenCalledTimes(1);
   });
@@ -60,5 +64,11 @@ describe("AppHeader", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /new — more options/i }));
     expect(onNewMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("hints the New split button's purpose on hover (refit-mock.html #global-new)", () => {
+    render(<AppHeader breadcrumb="x" onNewAction={vi.fn()} />);
+    const mainButton = screen.getByRole("button", { name: "New" });
+    expect(mainButton.closest("div")).toHaveAttribute("title", "New model entity");
   });
 });

@@ -36,4 +36,19 @@ describe("SecondarySidebar", () => {
 
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
+
+  it("hints the collapse button's shortcut on hover (refit-mock.html .panel-toggle)", () => {
+    render(
+      <SecondarySidebar
+        groups={[{ heading: "Projects", items: [{ label: "Registry", href: "/build" }] }]}
+        title="Build"
+        onCollapse={() => {}}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Collapse sidebar" })).toHaveAttribute(
+      "title",
+      "Hide sidebar (⌘\\)"
+    );
+  });
 });
