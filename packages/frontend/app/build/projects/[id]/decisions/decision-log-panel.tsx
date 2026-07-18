@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { DecisionDetailDrawer } from "./decision-detail-drawer";
+import { actorLabel, KIND_CHIP } from "./decision-log-format";
 import { type DecisionEntry, type KindFilter, useDecisionLog } from "./use-decision-log";
 
 const KIND_FILTERS: { value: KindFilter; label: string }[] = [
@@ -14,23 +16,6 @@ const KIND_FILTERS: { value: KindFilter; label: string }[] = [
   { value: "task_update", label: "Task updates" },
   { value: "system", label: "System" },
 ];
-
-// AC-7: one namespace->kind map already drives the server's own
-// classification (audit/decisions.py's classify_kind) -- this is just the
-// display label/variant for each of that map's 3 outputs, never a second
-// source of truth for what a kind IS.
-const KIND_CHIP: Record<DecisionEntry["kind"], { label: string; variant: BadgeProps["variant"] }> = {
-  decision: { label: "Decision", variant: "info" },
-  task_update: { label: "Task update", variant: "neutral" },
-  system: { label: "System", variant: "warn" },
-};
-
-// AC-9: PLAT-IDENTITY-1 mints human principals as
-// urn:weave:principal:user:{cognito_sub} -- anything else is agent/service.
-// Parsed client-side from the already-fetched IRI, never a per-row lookup.
-function actorLabel(actorPrincipalIri: string): string {
-  return actorPrincipalIri.includes(":user:") ? "Human" : "Agent";
-}
 
 function FilterChips({ kind, onChange }: { kind: KindFilter; onChange: (k: KindFilter) => void }) {
   return (
@@ -68,7 +53,15 @@ function SearchForm({ onApply }: { onApply: (value: string) => void }) {
 
 const CELL = "border-b border-[var(--color-border)] px-[var(--space-3)] py-[var(--space-2)]";
 
-function DecisionRow({ entry, highlighted }: { entry: DecisionEntry; highlighted: boolean }) {
+function DecisionRow({
+  entry,
+  highlighted,
+  onOpen,
+}: {
+  entry: DecisionEntry;
+  highlighted: boolean;
+  onOpen: (entry: DecisionEntry) => void;
+}) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   useEffect(() => {
     if (highlighted) rowRef.current?.scrollIntoView({ block: "center" });
@@ -78,10 +71,10 @@ function DecisionRow({ entry, highlighted }: { entry: DecisionEntry; highlighted
     <tr
       ref={rowRef}
       data-testid={`decision-row-${entry.seq}`}
+      onClick={() => onOpen(entry)}
       className={
-        highlighted
-          ? "bg-[var(--color-accent-primary)]/10"
-          : "text-[var(--color-text-default)]"
+        "cursor-pointer " +
+        (highlighted ? "bg-[var(--color-accent-primary)]/10" : "text-[var(--color-text-default)]")
       }
     >
       <td className={CELL}>{entry.ts}</td>
@@ -94,6 +87,56 @@ function DecisionRow({ entry, highlighted }: { entry: DecisionEntry; highlighted
       </td>
       <td className={CELL}>{entry.event_type}</td>
     </tr>
+  );
+}
+
+function DecisionTable({
+  entries,
+  highlightSeq,
+  onOpen,
+  hasMore,
+  loadMore,
+}: {
+  entries: DecisionEntry[];
+  highlightSeq: number | null;
+  onOpen: (entry: DecisionEntry) => void;
+  hasMore: boolean;
+  loadMore: () => void;
+}) {
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr>
+              {["When", "Actor", "Kind", "Event"].map((name) => (
+                <th
+                  key={name}
+                  className={`${CELL} font-[var(--font-weight-semibold)] text-[var(--color-text-default)]`}
+                >
+                  {name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry) => (
+              <DecisionRow
+                key={entry.seq}
+                entry={entry}
+                highlighted={entry.seq === highlightSeq}
+                onOpen={onOpen}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {hasMore && (
+        <Button variant="secondary" onClick={loadMore}>
+          Load more
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -113,6 +156,7 @@ export function DecisionLogPanel({ projectId }: { projectId: string }): React.JS
     loadMore,
     highlightSeq,
   } = useDecisionLog(projectId);
+  const [openEntry, setOpenEntry] = useState<DecisionEntry | null>(null);
 
   if (auditUnavailable) {
     return (
@@ -133,39 +177,15 @@ export function DecisionLogPanel({ projectId }: { projectId: string }): React.JS
           No decisions match this search.
         </p>
       ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr>
-                  {["When", "Actor", "Kind", "Event"].map((name) => (
-                    <th
-                      key={name}
-                      className={`${CELL} font-[var(--font-weight-semibold)] text-[var(--color-text-default)]`}
-                    >
-                      {name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((entry) => (
-                  <DecisionRow
-                    key={entry.seq}
-                    entry={entry}
-                    highlighted={entry.seq === highlightSeq}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {hasMore && (
-            <Button variant="secondary" onClick={loadMore}>
-              Load more
-            </Button>
-          )}
-        </>
+        <DecisionTable
+          entries={entries}
+          highlightSeq={highlightSeq}
+          onOpen={setOpenEntry}
+          hasMore={hasMore}
+          loadMore={loadMore}
+        />
       )}
+      <DecisionDetailDrawer entry={openEntry} onClose={() => setOpenEntry(null)} />
     </div>
   );
 }
