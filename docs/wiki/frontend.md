@@ -146,3 +146,281 @@ Related: [backend](backend.md), [shared](shared.md)
 <!-- stale: packages/frontend/app/api/proxy/ontology/versions/route.ts --> <!-- at: 2026-07-16T12:12:40.873405+00:00 -->
 
 <!-- stale: packages/frontend/app/api/proxy/ontology/versions/__tests__/route.test.ts --> <!-- at: 2026-07-16T12:13:08.818822+00:00 -->
+
+<!-- stale: packages/frontend/app/globals.css --> <!-- at: 2026-07-17T11:11:07.426891+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/logo-mark.tsx --> <!-- at: 2026-07-17T11:12:38.542812+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/logo-mark.stories.tsx --> <!-- at: 2026-07-17T11:13:17.220142+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/logo-mark.test.tsx --> <!-- at: 2026-07-17T11:13:36.932215+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/nav-items.ts --> <!-- at: 2026-07-17T11:17:52.437835+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/section-rail.tsx --> <!-- at: 2026-07-17T11:18:26.428203+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/icon.tsx --> <!-- at: 2026-07-17T11:19:44.221054+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/icon.stories.tsx --> <!-- at: 2026-07-17T11:19:54.803029+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/icon.test.tsx --> <!-- at: 2026-07-17T11:20:04.707654+00:00 -->
+
+<!-- stale: packages/frontend/components/placeholder-page.tsx --> <!-- at: 2026-07-17T11:21:17.035812+00:00 -->
+
+<!-- stale: packages/frontend/app/events/page.tsx --> <!-- at: 2026-07-17T11:21:31.547430+00:00 -->
+
+<!-- stale: packages/frontend/app/settings/integrations/page.tsx --> <!-- at: 2026-07-17T11:21:45.309923+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/__tests__/nav.test.tsx --> <!-- at: 2026-07-17T11:22:10.614841+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/rail-icons.tsx --> <!-- at: 2026-07-17T11:22:49.008576+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/NavRail.tsx --> <!-- at: 2026-07-17T11:23:01.362872+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/nav.tsx --> <!-- at: 2026-07-17T11:23:57.235409+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/__tests__/zzz-debug.test.tsx --> <!-- at: 2026-07-17T11:24:39.286622+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/shell.a11y.test.tsx --> <!-- at: 2026-07-17T11:25:16.147152+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/NavRail.stories.tsx --> <!-- at: 2026-07-17T11:30:43.557962+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/AppHeader.test.tsx --> <!-- at: 2026-07-17T11:44:58.501244+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/AppHeader.tsx --> <!-- at: 2026-07-17T11:45:55.887705+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/AppHeader.stories.tsx --> <!-- at: 2026-07-17T11:46:22.676811+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/UserMenu.test.tsx --> <!-- at: 2026-07-17T11:47:09.712592+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/UserMenu.tsx --> <!-- at: 2026-07-17T11:47:33.148536+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/avatar-menu.tsx --> <!-- at: 2026-07-17T11:48:12.893176+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/app-shell.tsx --> <!-- at: 2026-07-17T11:49:05.643189+00:00 -->
+
+<!-- stale: packages/frontend/components/tooling/design-system-manifest.ts --> <!-- at: 2026-07-17T11:52:40.254303+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/UserMenu.stories.tsx --> <!-- at: 2026-07-17T11:52:54.908826+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/SecondarySidebar.tsx --> <!-- at: 2026-07-17T12:07:44.119194+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/use-sidebar-collapsed.ts --> <!-- at: 2026-07-17T12:13:05.647293+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/SecondarySidebar.stories.tsx --> <!-- at: 2026-07-17T12:14:18.980178+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/BellPanel.tsx --> <!-- at: 2026-07-17T12:29:35.798648+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/BellPanel.stories.tsx --> <!-- at: 2026-07-17T12:31:08.612468+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/notification-center.tsx --> <!-- at: 2026-07-17T12:31:59.950551+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/HelpPanel.tsx --> <!-- at: 2026-07-17T12:48:12.176550+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/help-launcher.tsx --> <!-- at: 2026-07-17T12:50:08.132773+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/HelpPanel.test.tsx --> <!-- at: 2026-07-17T12:51:04.826934+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/HelpPanel.stories.tsx --> <!-- at: 2026-07-17T12:51:29.431697+00:00 -->
+
+<!-- stale: packages/frontend/components/shell/__tests__/help-launcher.test.tsx --> <!-- at: 2026-07-17T12:52:51.280171+00:00 -->
+
+<!-- stale: packages/frontend/verify-shell.tmp.js --> <!-- at: 2026-07-17T12:57:40.897188+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/stat-card.test.tsx --> <!-- at: 2026-07-17T14:00:33.947404+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/stat-card.tsx --> <!-- at: 2026-07-17T14:00:52.034303+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/stat-card.stories.tsx --> <!-- at: 2026-07-17T14:01:08.866319+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/sev-chip.test.tsx --> <!-- at: 2026-07-17T14:01:50.076664+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/status-pill.test.tsx --> <!-- at: 2026-07-17T14:01:59.799302+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/sev-chip.tsx --> <!-- at: 2026-07-17T14:02:17.589266+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/status-pill.tsx --> <!-- at: 2026-07-17T14:02:29.330161+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/sev-chip.stories.tsx --> <!-- at: 2026-07-17T14:02:43.522851+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/status-pill.stories.tsx --> <!-- at: 2026-07-17T14:02:52.688332+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/search-input.test.tsx --> <!-- at: 2026-07-17T14:06:15.240212+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/search-input.tsx --> <!-- at: 2026-07-17T14:06:36.438436+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/search-input.stories.tsx --> <!-- at: 2026-07-17T14:07:14.023857+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/info-tip.test.tsx --> <!-- at: 2026-07-17T14:08:41.789587+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/info-tip.tsx --> <!-- at: 2026-07-17T14:11:32.416696+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/info-tip.stories.tsx --> <!-- at: 2026-07-17T14:11:45.922893+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/toast/toast.tsx --> <!-- at: 2026-07-17T14:17:21.419424+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/toast/toast-provider.tsx --> <!-- at: 2026-07-17T14:19:05.679243+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/toast/index.ts --> <!-- at: 2026-07-17T14:19:14.684886+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/toast.test.tsx --> <!-- at: 2026-07-17T14:19:39.067418+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/toast-provider.test.tsx --> <!-- at: 2026-07-17T14:19:57.924013+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/toast.stories.tsx --> <!-- at: 2026-07-17T14:20:46.978477+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/confirm-dialog.tsx --> <!-- at: 2026-07-17T14:23:46.094918+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/confirm-dialog.test.tsx --> <!-- at: 2026-07-17T14:24:07.058395+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/confirm-dialog.stories.tsx --> <!-- at: 2026-07-17T14:25:28.559043+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/error-card.test.tsx --> <!-- at: 2026-07-17T14:26:06.068855+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/error-card.tsx --> <!-- at: 2026-07-17T14:26:20.784177+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/error-card.stories.tsx --> <!-- at: 2026-07-17T14:30:43.633460+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/explain-band.tsx --> <!-- at: 2026-07-17T14:30:59.250802+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/explain-band.stories.tsx --> <!-- at: 2026-07-17T14:31:12.495378+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/explain-band.test.tsx --> <!-- at: 2026-07-17T14:31:23.922798+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/pagination.tsx --> <!-- at: 2026-07-17T14:31:41.381867+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/pagination.stories.tsx --> <!-- at: 2026-07-17T14:32:08.581014+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/pagination.test.tsx --> <!-- at: 2026-07-17T14:32:22.308125+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/filter-bar.tsx --> <!-- at: 2026-07-17T14:32:38.593409+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/filter-bar.stories.tsx --> <!-- at: 2026-07-17T14:32:50.443009+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/filter-bar.test.tsx --> <!-- at: 2026-07-17T14:33:07.448355+00:00 -->
+
+<!-- stale: packages/frontend/.storybook/preview.tsx --> <!-- at: 2026-07-17T14:44:54.623235+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/button.tsx --> <!-- at: 2026-07-17T15:00:09.403935+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/button.test.tsx --> <!-- at: 2026-07-17T15:00:49.285250+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/Drawer.test.tsx --> <!-- at: 2026-07-17T15:20:16.725360+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/Drawer.tsx --> <!-- at: 2026-07-17T15:20:42.771653+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/Drawer.stories.tsx --> <!-- at: 2026-07-17T15:21:49.725686+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/ModalShell.test.tsx --> <!-- at: 2026-07-17T15:22:35.315682+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/ModalShell.tsx --> <!-- at: 2026-07-17T15:22:55.530740+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/ModalShell.stories.tsx --> <!-- at: 2026-07-17T15:23:43.650455+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/EntityPickerModal.test.tsx --> <!-- at: 2026-07-17T15:27:01.410777+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/EntityPickerModal.tsx --> <!-- at: 2026-07-17T15:27:24.217980+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/EntityPickerModal.stories.tsx --> <!-- at: 2026-07-17T15:28:26.049080+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/RelationshipsEditor.test.tsx --> <!-- at: 2026-07-17T15:35:03.986281+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/EntityEditDrawer.test.tsx --> <!-- at: 2026-07-17T15:35:23.090517+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/DocDrawer.test.tsx --> <!-- at: 2026-07-17T15:35:36.702923+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/RelationshipsEditor.tsx --> <!-- at: 2026-07-17T15:36:49.836396+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/EntityEditDrawer.tsx --> <!-- at: 2026-07-17T15:38:20.034034+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/DocDrawer.tsx --> <!-- at: 2026-07-17T15:38:39.692292+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/RelationshipsEditor.stories.tsx --> <!-- at: 2026-07-17T15:40:48.430388+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/EntityEditDrawer.stories.tsx --> <!-- at: 2026-07-17T15:41:03.559815+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/DocDrawer.stories.tsx --> <!-- at: 2026-07-17T15:41:24.000407+00:00 -->
+
+<!-- stale: packages/frontend/scripts/styled-render-gate.mjs --> <!-- at: 2026-07-17T15:48:07.709767+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/__tests__/DataTable.test.tsx --> <!-- at: 2026-07-17T16:22:25.903740+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/DataTable.tsx --> <!-- at: 2026-07-17T16:23:04.173273+00:00 -->
+
+<!-- stale: packages/frontend/components/organisms/DataTable.stories.tsx --> <!-- at: 2026-07-17T16:23:34.180326+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/__tests__/filter-form.test.tsx --> <!-- at: 2026-07-17T16:36:53.733092+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/filter-form.tsx --> <!-- at: 2026-07-17T16:37:22.684074+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/FilterForm.tsx --> <!-- at: 2026-07-17T16:38:05.095956+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/FilterForm.test.tsx --> <!-- at: 2026-07-17T16:38:17.505728+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/FilterForm.stories.tsx --> <!-- at: 2026-07-17T16:38:34.091257+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/TypeaheadField.tsx --> <!-- at: 2026-07-17T16:50:16.613469+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/TypeaheadField.test.tsx --> <!-- at: 2026-07-17T16:53:37.100383+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/TypeaheadField.stories.tsx --> <!-- at: 2026-07-17T16:53:56.574821+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/Timeline.test.tsx --> <!-- at: 2026-07-17T17:08:55.506701+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Timeline.tsx --> <!-- at: 2026-07-17T17:09:29.758377+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Timeline.stories.tsx --> <!-- at: 2026-07-17T17:09:49.292059+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/Gantt.test.tsx --> <!-- at: 2026-07-17T17:13:30.839067+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Gantt.tsx --> <!-- at: 2026-07-17T17:13:53.424020+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/KanbanCard.test.tsx --> <!-- at: 2026-07-17T17:20:05.537777+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/KanbanLane.test.tsx --> <!-- at: 2026-07-17T17:20:15.743476+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KanbanCard.tsx --> <!-- at: 2026-07-17T17:20:32.902810+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KanbanLane.tsx --> <!-- at: 2026-07-17T17:20:44.836681+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KanbanCard.stories.tsx --> <!-- at: 2026-07-17T17:21:03.155029+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KanbanLane.stories.tsx --> <!-- at: 2026-07-17T17:21:32.457659+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Gantt.stories.tsx --> <!-- at: 2026-07-17T17:22:14.300601+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/KpiStrip.test.tsx --> <!-- at: 2026-07-17T17:33:20.363300+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KpiStrip.tsx --> <!-- at: 2026-07-17T17:33:38.744542+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/ControlDock.test.tsx --> <!-- at: 2026-07-17T17:36:43.894556+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/ControlDock.tsx --> <!-- at: 2026-07-17T17:37:03.158201+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/ControlDock.stories.tsx --> <!-- at: 2026-07-17T17:38:03.039240+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/KpiStrip.stories.tsx --> <!-- at: 2026-07-17T17:38:27.074203+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/OverlayKey.test.tsx --> <!-- at: 2026-07-17T17:41:16.290774+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/OverlayKey.tsx --> <!-- at: 2026-07-17T17:41:34.348659+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/OverlayKey.stories.tsx --> <!-- at: 2026-07-17T17:41:49.836899+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/CanvasLegend.test.tsx --> <!-- at: 2026-07-17T17:43:10.071139+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/CanvasLegend.tsx --> <!-- at: 2026-07-17T17:43:31.245240+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/CanvasLegend.stories.tsx --> <!-- at: 2026-07-17T17:43:50.892463+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/__tests__/Minimap.test.tsx --> <!-- at: 2026-07-17T17:44:49.574855+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Minimap.tsx --> <!-- at: 2026-07-17T17:45:10.338958+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/Minimap.stories.tsx --> <!-- at: 2026-07-17T17:45:30.615504+00:00 -->
+
+<!-- stale: packages/frontend/components/ui/badge.tsx --> <!-- at: 2026-07-17T18:07:28.843296+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/CanvasToolbar.tsx --> <!-- at: 2026-07-17T18:09:31.121327+00:00 -->
+
+<!-- stale: packages/frontend/components/molecules/EntityRef.tsx --> <!-- at: 2026-07-17T18:09:54.898807+00:00 -->

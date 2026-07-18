@@ -1,5 +1,10 @@
 ## Index
 
+- [Branding & standards naming](feedback_branding_standards_naming.md) — page/nav rename + brand-rule wording + CRUD both tabs
+- [Dumb/smart component split is enforced](feedback_dumb_smart_components.md) — all UI in Storybook atomic lib; pages = data-binding only, no CSS
+- [No milestone phase pills in UI](feedback_no_phase_pills.md) — shipped = no pill; unbuilt = disabled + "soon"; supersedes poc-ia-proposal pills
+- [UI refit program (mock-first)](project_ui_refit.md) — refit-mock.html per section → sign-off → apply; phase 1 shell signed off 2026-07-17
+
 - [Pre-delivery hardening decisions (2026-07-02)](decision_predelivery-hardening.md) — M1 scope, persona dispositions, two-tier models, hooks, engine-end HITL gates
 - [Platform strategy](decision_platform-strategy.md) — OS for AI-native company / DTO; model→generate→automate on open standards (moat = closure, not triples); BPMO framework; build order Platform shell → CE → Explorer → Build → Events → Onboarding; MVP = thin loop
 - [Ontology — the BPMO business brain](decision_ontology-bpmo.md) — CE ships a process-centric BPMO (~13 kinds, obpm-grounded), SUPERSEDES the thin 8-kind core; prototype-grounding (obpm = ontology ref, weave-prototype = impl ref); ingest pipeline + agent-grounding; OCEL/REA/UFO/federation = recorded doors, built none in v1
