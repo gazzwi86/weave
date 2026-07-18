@@ -9,6 +9,7 @@ import { canEditCanvas } from "@/lib/explorer/can-edit-canvas";
 
 import { Button } from "../ui/button";
 import { Toast } from "../ui/toast";
+import { CanvasAskBar } from "./canvas-ask-bar";
 import { CanvasFilterChrome } from "./canvas-filter-chrome";
 import { CompletenessNotice } from "./completeness-notice";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -356,6 +357,7 @@ export function ExplorerInteractions({
       />
       <QuickAddOverlay adapter={adapter} config={config} canEdit={editing.canEdit} kinds={chrome.legend.palette} />
       <DrawEdgeOverlay adapter={adapter} config={config} canEdit={editing.canEdit} relTypes={relTypes} />
+      <CanvasAskBar adapter={adapter} />
     </>
   );
 }

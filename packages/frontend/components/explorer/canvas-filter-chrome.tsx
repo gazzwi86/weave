@@ -179,7 +179,10 @@ export function CanvasFilterChrome({
       <CanvasToolbar>
         <SearchTriggerButton onOpenSearch={onOpenSearch} />
       </CanvasToolbar>
-      <KpiStrip items={canvasKpiItems(versionsPanel.versions)} className="absolute left-1/2 top-[var(--space-4)] z-[var(--z-panel)] -translate-x-1/2" />
+      <KpiStrip
+        items={canvasKpiItems(versionsPanel.versions, adapter?.listElements() ?? null)}
+        className="absolute left-1/2 top-[var(--space-4)] z-[var(--z-panel)] -translate-x-1/2"
+      />
       <ControlDock
         tabs={tabs}
         activeTab={activeTab}
