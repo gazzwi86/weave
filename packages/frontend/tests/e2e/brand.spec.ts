@@ -24,7 +24,7 @@ async function loginAndGoToBrand(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/ce$/);
   await page
     .getByRole("navigation", { name: "Secondary" })
-    .getByRole("link", { name: /Brand & voice/ })
+    .getByRole("link", { name: /Branding & standards/ })
     .click();
   await expect(page).toHaveURL(/\/ce\/brand$/);
   await page.waitForLoadState("networkidle");
@@ -64,7 +64,7 @@ async function routeSparqlList(page: Page, extraStandardRows: Record<string, str
   });
 }
 
-test.describe("Brand & voice authoring (TASK-004)", () => {
+test.describe("Branding & standards authoring (TASK-004)", () => {
   // AC-004-03: both tabs' lists render real rows from CE-READ-1 (SPARQL
   // proxy), not a stub -- proves the page is mounted + reachable via nav,
   // not orphaned (Law 17).
