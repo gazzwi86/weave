@@ -12,6 +12,7 @@ vi.mocked(useExplorerCanvas).mockReturnValue({
   minimapNodes: [],
   containerRef: { current: null },
   retry: vi.fn(),
+  totalElements: null,
   adapter: { highlightNodes: vi.fn(), resetOpacity: vi.fn() } as never,
 });
 

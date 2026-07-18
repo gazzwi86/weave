@@ -24,6 +24,7 @@ function stubExplorerCanvas(highlightNodes = vi.fn()) {
     minimapNodes: [],
     containerRef: { current: null },
     retry: vi.fn(),
+    totalElements: null,
     adapter: { highlightNodes, resetOpacity: vi.fn() } as never,
   });
   return highlightNodes;

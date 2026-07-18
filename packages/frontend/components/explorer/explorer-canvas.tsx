@@ -25,7 +25,7 @@ export interface ExplorerCanvasProps {
  * force canvas container + bottom-right mini-map. TASK-003 adds the
  * spotlight side panel + search overlay once the renderer adapter exists. */
 export function ExplorerCanvas({ options, role = null }: ExplorerCanvasProps) {
-  const { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter } =
+  const { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter, totalElements } =
     useExplorerCanvas(options);
   const config = options?.config ?? DEFAULT_EXPLORER_CONFIG;
 
@@ -52,7 +52,15 @@ export function ExplorerCanvas({ options, role = null }: ExplorerCanvasProps) {
       >
         {minimapIndicator && <Minimap nodes={minimapNodes} viewportRect={minimapIndicator} />}
       </div>
-      {adapter && <ExplorerInteractions adapter={adapter} config={config} graphId={config.layoutGraphId} role={role} />}
+      {adapter && (
+        <ExplorerInteractions
+          adapter={adapter}
+          config={config}
+          graphId={config.layoutGraphId}
+          role={role}
+          totalElements={totalElements}
+        />
+      )}
     </div>
   );
 }

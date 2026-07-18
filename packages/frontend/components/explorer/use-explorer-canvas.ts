@@ -112,6 +112,12 @@ export interface ExplorerCanvasState {
   /** TASK-003: the ADR-001 renderer-adapter seam for the tapped node/search
    * overlay to drive spotlight/highlight -- null until the canvas is ready. */
   adapter: RendererAdapter | null;
+  /** V3b-3 item 2: the raw fetchGraph() result, captured once at load time --
+   * the TRUE model total for the KPI strip, decoupled from the adapter's
+   * live element set (which drifts under a filter's default-visible-kinds
+   * seed, a governed layer toggle-on, or neighbour expansion). null until
+   * the canvas is ready. */
+  totalElements: CytoscapeElement[] | null;
 }
 
 function errorMessageFor(err: unknown): string {
@@ -232,6 +238,7 @@ interface LoadCanvasParams {
   setMinimapIndicator: (indicator: ViewportIndicator | null) => void;
   setMinimapNodes: (nodes: MinimapNode[]) => void;
   setAdapter: (adapter: RendererAdapter | null) => void;
+  setTotalElements: (elements: CytoscapeElement[] | null) => void;
 }
 
 // XT-008: pulled out of useExplorerCanvas's load effect to keep the hook
@@ -254,10 +261,12 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     setMinimapIndicator,
     setMinimapNodes,
     setAdapter,
+    setTotalElements,
   } = params;
 
   setLoadState("loading");
   setErrorMessage(null);
+  setTotalElements(null);
   const loadStartedAt = performance.now();
   resetDevIntrospection();
   try {
@@ -299,6 +308,9 @@ async function loadCanvas(params: LoadCanvasParams): Promise<void> {
     cyRef.current = cy;
     exposeDevIntrospection(cy, elements, loadStartedAt);
     setAdapter(canvasAdapter);
+    // V3b-3 item 2: the raw fetchGraph() result, before applySavedPositions/
+    // adapter.load/any filter or layer mutation -- the TRUE model total.
+    setTotalElements(elements);
     setLoadState("ready");
   } catch (err) {
     if (isCancelled()) return;
@@ -324,6 +336,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
   const [minimapNodes, setMinimapNodes] = useState<MinimapNode[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const [adapter, setAdapter] = useState<RendererAdapter | null>(null);
+  const [totalElements, setTotalElements] = useState<CytoscapeElement[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -344,6 +357,7 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       setMinimapIndicator,
       setMinimapNodes,
       setAdapter,
+      setTotalElements,
     });
 
     return () => {
@@ -352,11 +366,12 @@ export function useExplorerCanvas(options: UseExplorerCanvasOptions = {}): Explo
       cyRef.current?.destroy();
       cyRef.current = null;
       setAdapter(null);
+      setTotalElements(null);
       clearDevIntrospection();
     };
   }, [config, fetchPalette, fetchGraph, fetchLayoutPositions, prefersReducedMotion, createCy, retryToken]);
 
   const retry = useCallback(() => setRetryToken((token) => token + 1), []);
 
-  return { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter };
+  return { loadState, errorMessage, minimapIndicator, minimapNodes, containerRef, retry, adapter, totalElements };
 }

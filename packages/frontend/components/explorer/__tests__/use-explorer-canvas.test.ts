@@ -223,4 +223,23 @@ describe("useExplorerCanvas", () => {
     const cyInstance = createCy.mock.results[0]?.value as ReturnType<typeof fakeCy>;
     expect(cyInstance.layout).toHaveBeenCalledWith(expect.objectContaining({ name: "fcose", animate: true }));
   });
+
+  // V3b-3 item 2: the KPI strip needs the TRUE model total (the raw
+  // fetchGraph() result), not the canvas's live rendered/filtered element
+  // set -- captured once at load time, before any filter/layer/expand
+  // mutation touches the canvas.
+  it("exposes the raw loaded element set as totalElements once ready (V3b-3 KPI true-total)", async () => {
+    const fetchPalette = vi.fn(async () => PALETTE);
+    const fetchGraph = vi.fn(async () => ELEMENTS);
+    const createCy = vi.fn(() => fakeCy());
+
+    const { result } = renderHook(() =>
+      useExplorerCanvas({ fetchPalette, fetchGraph, createCy, fetchLayoutPositions: noSavedPositions })
+    );
+
+    expect(result.current.totalElements).toBeNull();
+    await waitFor(() => expect(result.current.loadState).toBe("ready"));
+
+    expect(result.current.totalElements).toEqual(ELEMENTS);
+  });
 });
