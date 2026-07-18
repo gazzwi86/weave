@@ -7,12 +7,17 @@ from typing import Annotated
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 
+from weave_backend.ai.config import MODEL_ROUTING_TABLE
 from weave_backend.audit.emitter import AuditEvent, default_audit_emitter
 from weave_backend.auth.dependencies import Principal, get_current_principal
+from weave_backend.build.model_routing import ALLOWED_MODELS
 from weave_backend.db.pool import tenant_connection
-from weave_backend.rbac import enforce_workspace_role
+from weave_backend.rbac import enforce_workspace_role, require_tenant_admin
 from weave_backend.schemas.settings import (
+    ModelsSettingsResponse,
+    ModelTierInfo,
     ResolvedSettingResponse,
+    SetModelSettingsRequest,
     SetSettingRequest,
     SetSettingResponse,
 )
@@ -23,10 +28,68 @@ from weave_backend.settings.resolver import (
     resolve_setting,
     set_setting,
 )
-from weave_backend.settings.scope import InvalidScopeIri, tenant_of, workspace_of
+from weave_backend.settings.scope import InvalidScopeIri, company_iri, tenant_of, workspace_of
 from weave_backend.tenancy.sessions import get_redis
 
 router = APIRouter(prefix="/api", tags=["settings"])
+
+#: G13 (docs/design/remediation-2-api-gaps.md): company-scoped override key
+#: per tier, resolved through the same PLAT-SETTINGS-1 cascade as every
+#: other setting -- `MODEL_ROUTING_TABLE[tier]` is the fallback default when
+#: no override was ever written.
+_MODEL_TIER_SETTING_KEY = "platform.models.{tier}.selected"
+
+
+async def _load_model_tiers(
+    conn: asyncpg.Connection, tenant_id: str
+) -> dict[str, ModelTierInfo]:
+    allowed = sorted(ALLOWED_MODELS)
+    tiers: dict[str, ModelTierInfo] = {}
+    for tier, default_model in MODEL_ROUTING_TABLE.items():
+        try:
+            resolved = await resolve_setting(
+                conn,
+                tenant_id=tenant_id,
+                key=_MODEL_TIER_SETTING_KEY.format(tier=tier),
+                context_iri=company_iri(tenant_id),
+            )
+            selected = resolved.value
+        except SettingNotFound:
+            selected = default_model
+        tiers[tier] = ModelTierInfo(selected=selected, allowed=allowed)
+    return tiers
+
+
+@router.get("/settings/models", response_model=ModelsSettingsResponse)
+async def get_model_settings_route(
+    principal: Annotated[Principal, Depends(get_current_principal)],
+) -> ModelsSettingsResponse:
+    async with tenant_connection(principal.tenant_id) as conn:
+        tiers = await _load_model_tiers(conn, principal.tenant_id)
+    return ModelsSettingsResponse(tiers=tiers)
+
+
+@router.put("/settings/models", response_model=ModelsSettingsResponse)
+async def set_model_settings_route(
+    body: SetModelSettingsRequest,
+    principal: Annotated[Principal, Depends(require_tenant_admin)],
+) -> ModelsSettingsResponse:
+    if body.tier not in MODEL_ROUTING_TABLE:
+        raise HTTPException(status_code=422, detail={"error": "unknown_tier", "tier": body.tier})
+    if body.model not in ALLOWED_MODELS:
+        raise HTTPException(
+            status_code=422, detail={"error": "model_not_allowed", "model": body.model}
+        )
+    async with tenant_connection(principal.tenant_id) as conn:
+        await set_setting(
+            conn,
+            tenant_id=principal.tenant_id,
+            key=_MODEL_TIER_SETTING_KEY.format(tier=body.tier),
+            scope_iri=company_iri(principal.tenant_id),
+            value=body.model,
+        )
+        tiers = await _load_model_tiers(conn, principal.tenant_id)
+    return ModelsSettingsResponse(tiers=tiers)
 
 
 def _require_own_tenant_scope(principal: Principal, scope_iri: str) -> None:
