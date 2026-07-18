@@ -22,9 +22,6 @@ export default async function ExplorerPage({ searchParams }: ExplorerPageProps) 
 
   return (
     <main data-tour-id="ge.canvas" className="flex h-screen flex-col overflow-hidden">
-      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)] p-[var(--space-6)]">
-        Graph Explorer
-      </h1>
       <ExplorerCanvasLoader role={role} />
       <ExplorerTour tourParam={tour ?? null} />
     </main>

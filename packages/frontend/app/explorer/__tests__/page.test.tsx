@@ -25,12 +25,12 @@ vi.mock("@/components/explorer/explorer-tour", () => ({
 }));
 
 describe("ExplorerPage", () => {
-  it("renders the page heading and mounts the client-only canvas loader", async () => {
+  it("mounts the client-only canvas loader with no injected page heading (mock has none -- canvas fills the frame)", async () => {
     vi.mocked(auth).mockResolvedValue(null as never);
 
     render(await ExplorerPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByRole("heading", { name: "Graph Explorer" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Graph Explorer" })).not.toBeInTheDocument();
     expect(screen.getByTestId("explorer-canvas-loader-stub")).toBeInTheDocument();
     expect(screen.getByTestId("explorer-tour-stub")).toHaveTextContent("none");
   });
