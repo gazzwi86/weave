@@ -2,8 +2,12 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 
+import { CompanySwitcher } from "@/components/organisms/CompanySwitcher";
 import { UserMenu, type UserMenuItem } from "@/components/organisms/UserMenu";
 import { isPlatformOperator } from "@/lib/auth/session-claims";
+
+import { resolveHeaderScope } from "./header-scope";
+import { useCompanySwitcher } from "./use-company-switcher";
 
 export interface AvatarMenuProps {
   /** Display name from the session (`session.user.name`); "Signed in" is
@@ -35,8 +39,16 @@ function initials(name: string): string {
  * "Operator console" (refit-mock.html's `#user-backdrop`, "Operator console
  * — provision companies") is gated by `isPlatformOperator` -- the same
  * predicate the `/operator` route itself checks -- so this entry point and
- * that route's gate can't drift apart. */
+ * that route's gate can't drift apart.
+ *
+ * V6: `resolveHeaderScope`'s `showHeaderSwitcher` (also `isPlatformOperator`
+ * underneath) additionally renders the super-admin company switcher above
+ * the item list. Data loads on open, not on mount, since this component
+ * renders on every page and most viewers never open it. */
 export function AvatarMenu({ userName, role }: AvatarMenuProps) {
+  const { showHeaderSwitcher } = resolveHeaderScope(role);
+  const { companies, activeId, loading, error, refresh, switchTo } = useCompanySwitcher(showHeaderSwitcher);
+
   const operatorItems: UserMenuItem[] = isPlatformOperator(role)
     ? [{ icon: "shield", label: "Operator console — provision companies", href: "/operator" }]
     : [];
@@ -51,7 +63,7 @@ export function AvatarMenu({ userName, role }: AvatarMenuProps) {
   ];
 
   return (
-    <Dialog.Root>
+    <Dialog.Root onOpenChange={(open) => open && refresh()}>
       <Dialog.Trigger
         aria-label="Account menu"
         className="flex h-[var(--space-6)] w-[var(--space-6)] items-center justify-center rounded-[var(--radius-full)] bg-[image:var(--gradient-accent)] text-[length:var(--text-caption)] font-[var(--font-weight-bold)] text-[var(--color-bg)] transition-shadow hover:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)] data-[state=open]:shadow-[0_0_0_2px_var(--color-bg),0_0_0_4px_var(--color-accent-primary)]"
@@ -65,7 +77,16 @@ export function AvatarMenu({ userName, role }: AvatarMenuProps) {
           className="fixed right-[var(--space-4)] top-[var(--space-10)] w-full max-w-[280px] rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)]/80 p-[var(--space-3)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
         >
           <Dialog.Title className="sr-only">Account menu</Dialog.Title>
-          <UserMenu name={userName} role={role} items={items} />
+          <UserMenu
+            name={userName}
+            role={role}
+            items={items}
+            beforeItems={
+              showHeaderSwitcher ? (
+                <CompanySwitcher companies={companies} activeId={activeId} loading={loading} error={error} onSelect={switchTo} />
+              ) : undefined
+            }
+          />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
