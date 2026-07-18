@@ -382,6 +382,8 @@ test.describe("explorer accessibility (axe-core, real browser)", () => {
     await loginAndGoToDashboard(page);
     await page.goto("/explorer");
     await page.waitForFunction(() => window.__explorerLayoutSettled === true);
+    // Refit: filters live behind the ControlDock's "Filters" tab.
+    await page.getByRole("button", { name: "Filters" }).click();
     await expect(page.getByTestId("explorer-filter-panel")).toBeVisible();
 
     // AC-8 keyboard operability: add then clear a property filter without

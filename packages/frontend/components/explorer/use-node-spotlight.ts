@@ -14,6 +14,10 @@ export type SidePanelState =
       status: "loaded";
       label: string;
       typeLabel: string;
+      /** refit: CE's `bpmo_kind`, threaded through for the inspector
+       * header's kind-coloured swatch (inspector-view.ts's toBpmoKind) --
+       * absent/unrecognised falls back to a plain-text header. */
+      bpmoKind?: string;
       keyProperties: KeyProperty[];
       rawIri: string | null;
       /** TASK-005 AC-3: the tapped node's id and its already-fetched
@@ -38,6 +42,13 @@ export interface UseNodeSpotlightOptions {
   /** TASK-027: the active completeness overlay's gap index, keyed by
    * entity_iri -- undefined/absent-key both resolve to an empty gaps list. */
   gapIndex?: Record<string, GapEntry[]>;
+  /** refit deferred item 1 "Impact of selection" Overlays-tab toggle --
+   * defaults to true (the existing AC-1 always-on dim-on-tap), so every
+   * caller that doesn't pass this stays byte-for-byte unchanged. Explicit
+   * false spotlights at full opacity (1) instead of config.spotlightDimOpacity
+   * -- the panel still opens/fetches exactly as before, only the dim is
+   * suppressed. */
+  impactEnabled?: boolean;
 }
 
 export interface UseNodeSpotlightResult {
@@ -66,6 +77,7 @@ async function loadNodeProps(
     status: "loaded",
     label: result.data.label,
     typeLabel: result.data.typeLabel,
+    bpmoKind: result.data.bpmoKind,
     keyProperties: result.data.keyProperties,
     rawIri: result.data.rawIri,
     nodeId,
@@ -81,6 +93,7 @@ export function useNodeSpotlight({
   config,
   fetchNodeProps = defaultFetchNodeProps,
   gapIndex,
+  impactEnabled = true,
 }: UseNodeSpotlightOptions): UseNodeSpotlightResult {
   const [panel, setPanel] = useState<SidePanelState>({ status: "closed" });
   const requestIdRef = useRef(0);
@@ -88,7 +101,8 @@ export function useNodeSpotlight({
 
   const openNode = useCallback(
     (nodeId: string) => {
-      if (!adapter || !adapter.spotlightNode(nodeId, config.spotlightDimOpacity)) return;
+      const dimOpacity = impactEnabled ? config.spotlightDimOpacity : 1;
+      if (!adapter || !adapter.spotlightNode(nodeId, dimOpacity)) return;
       lastNodeIdRef.current = nodeId;
 
       const known = adapter.getNodeData(nodeId);
@@ -101,7 +115,7 @@ export function useNodeSpotlight({
         if (requestId === requestIdRef.current) setPanel(next); // else a newer click superseded this one
       });
     },
-    [adapter, config.spotlightDimOpacity, config.ceTimeoutMs, fetchNodeProps, gapIndex]
+    [adapter, config.spotlightDimOpacity, config.ceTimeoutMs, fetchNodeProps, gapIndex, impactEnabled]
   );
 
   const close = useCallback(() => {

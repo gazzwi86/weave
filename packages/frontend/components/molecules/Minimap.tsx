@@ -36,6 +36,7 @@ export function Minimap({ nodes, viewportRect, viewBoxWidth = 148, viewBoxHeight
         <circle key={node.id} cx={node.x} cy={node.y} r={2.4} fill={`var(${node.colorVar})`} />
       ))}
       <rect
+        data-testid="explorer-minimap-viewport"
         x={viewportRect.left}
         y={viewportRect.top}
         width={viewportRect.width}
