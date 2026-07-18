@@ -1,7 +1,19 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ToastProvider } from "@/components/ui/toast/toast-provider";
+
 import CompliancePage from "../page";
+
+// Toasts require a ToastProvider ancestor -- same pattern as
+// app/audit/logs/__tests__/page.test.tsx.
+function renderPage() {
+  return render(
+    <ToastProvider>
+      <CompliancePage />
+    </ToastProvider>
+  );
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,21 +33,13 @@ const CURRENT_SUMMARY = {
   shacl_rejections: 2,
 };
 
-const PREVIOUS_SUMMARY = {
-  ...CURRENT_SUMMARY,
-  by_event_category: { workspace: 9, security: 3 },
-  period: "2026-06",
-  shacl_validated: 20,
-  shacl_rejections: 5,
-};
+const PREVIOUS_SUMMARY = { ...CURRENT_SUMMARY, period: "2026-06" };
+
+const BROKEN_SUMMARY = { ...CURRENT_SUMMARY, chain_status: "broken", first_broken_seq: 17 };
 
 /** Routes the mocked fetch by the `period` query param, same two-period
- * fetch pattern `useCompliance` issues (current + previous month).
- */
-function stubTwoPeriodFetch(opts: {
-  current?: Response;
-  previous?: Response | null;
-}): void {
+ * fetch pattern `useCompliance` issues (current + previous month). */
+function stubTwoPeriodFetch(opts: { current?: Response; previous?: Response | null }): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL) => {
@@ -56,85 +60,125 @@ describe("CompliancePage", () => {
     vi.unstubAllGlobals();
     // Fake Date only -- waitFor's internal polling needs real timers.
     vi.useFakeTimers({ toFake: ["Date"] }).setSystemTime(new Date(Date.UTC(2026, 6, 15)));
+    Object.assign(navigator, { clipboard: { writeText: vi.fn(async () => undefined) } });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("renders chain status and event category counts (AC-7)", async () => {
+  it("shows a success verdict band when the chain is valid, scoped to what's actually verified", async () => {
     stubTwoPeriodFetch({});
 
-    render(<CompliancePage />);
+    renderPage();
 
-    await waitFor(() => expect(screen.getByTestId("chain-status")).toHaveTextContent("valid"));
-    expect(screen.getByTestId("entries-checked")).toHaveTextContent("42");
-    expect(screen.getByRole("link", { name: "workspace" })).toHaveAttribute(
-      "href",
-      "/audit/logs?event_type=workspace"
-    );
+    await waitFor(() => expect(screen.getByTestId("compliance-verdict")).toBeInTheDocument());
+    const verdict = screen.getByTestId("compliance-verdict");
+    expect(verdict).toHaveTextContent("42");
+    // Must not assert a claim we have no data for.
+    expect(verdict).not.toHaveTextContent(/no (critical )?(policy )?violation/i);
   });
 
-  // AC-1: test_audit_dashboard_renders_kpi_tiles_not_text_rows (compliance side)
-  it("renders chain-status/entries-checked/SHACL figures as KpiTile tiles, not text rows", async () => {
-    stubTwoPeriodFetch({});
+  it("shows a danger verdict band when the chain is broken", async () => {
+    stubTwoPeriodFetch({ current: jsonResponse(BROKEN_SUMMARY) });
 
-    render(<CompliancePage />);
+    renderPage();
 
-    await waitFor(() => expect(screen.getByTestId("shacl-validated")).toHaveTextContent("30"));
-    expect(screen.getByTestId("shacl-rejections")).toHaveTextContent("2");
-    expect(screen.queryByText(/SHACL validated: 30/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("compliance-verdict")).toBeInTheDocument());
+    expect(screen.getByTestId("compliance-verdict")).toHaveTextContent(/broken/i);
+    expect(screen.getByTestId("compliance-verdict")).toHaveTextContent("17");
   });
 
-  it("never renders a diff_summary field, for any role (AC-7 structural redaction)", async () => {
+  it("renders the chain stat card with entries verified", async () => {
     stubTwoPeriodFetch({});
 
-    render(<CompliancePage />);
+    renderPage();
 
-    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
-    expect(screen.queryByText(/diff_summary/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("stat-chain")).toHaveTextContent("Valid"));
+    expect(screen.getByTestId("stat-chain")).toHaveTextContent("42");
+  });
+
+  it("renders policy-violations and coverage-gaps stat cards as pending -- no backend field exists for either", async () => {
+    stubTwoPeriodFetch({});
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("stat-policy-violations")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-policy-violations")).toHaveTextContent(/not available/i);
+    expect(screen.getByTestId("stat-coverage-gaps")).toHaveTextContent(/not available/i);
+  });
+
+  it("renders the audit-outages stat card as pending when the field is absent from the response (G8, PR #135 unmerged)", async () => {
+    stubTwoPeriodFetch({});
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("stat-audit-outages")).toBeInTheDocument());
+    expect(screen.getByTestId("stat-audit-outages")).toHaveTextContent(/not available/i);
+  });
+
+  it("renders a real audit-outages count once the backend serves it", async () => {
+    stubTwoPeriodFetch({ current: jsonResponse({ ...CURRENT_SUMMARY, audit_outages: 3 }) });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("stat-audit-outages")).toHaveTextContent("3"));
+    expect(screen.getByTestId("stat-audit-outages")).not.toHaveTextContent(/not available/i);
+  });
+
+  it("lists a chain-broken attention row with a jump link to the logs, when the chain is broken", async () => {
+    stubTwoPeriodFetch({ current: jsonResponse(BROKEN_SUMMARY) });
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("attention-list")).toBeInTheDocument());
+    const link = screen.getByRole("link", { name: /chain broken at entry 17/i });
+    expect(link).toHaveAttribute("href", "/audit/logs");
+  });
+
+  it("shows an honest empty state in the attention list when the chain is valid and no outages are reported", async () => {
+    stubTwoPeriodFetch({});
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("attention-empty")).toBeInTheDocument());
+  });
+
+  it("exports evidence as a JSON download and confirms with a toast", async () => {
+    stubTwoPeriodFetch({});
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      const el = originalCreateElement(tag);
+      if (tag === "a") el.click = clickSpy;
+      return el;
+    });
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /export evidence/i })).toBeInTheDocument());
+    screen.getByRole("button", { name: /export evidence/i }).click();
+
+    expect(clickSpy).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/evidence exported/i));
   });
 
   it("shows a load error when the current-month compliance fetch fails", async () => {
     stubTwoPeriodFetch({ current: jsonResponse({ error: "upstream_unavailable" }, 502) });
 
-    render(<CompliancePage />);
+    renderPage();
 
     await waitFor(() => expect(screen.getByTestId("compliance-error")).toBeInTheDocument());
   });
 
-  // AC-2: test_compliance_trend_renders_as_bar_chart_not_text_glyph
-  it("test_compliance_trend_renders_as_bar_chart_not_text_glyph", async () => {
+  it("never renders a diff_summary field, for any role (AC-7 structural redaction)", async () => {
     stubTwoPeriodFetch({});
 
-    render(<CompliancePage />);
+    renderPage();
 
-    await waitFor(() => expect(screen.getByTestId("bar-chart")).toBeInTheDocument());
-    // Two series (previous + current) x two categories = 4 segments.
-    expect(screen.getAllByTestId("bar-chart-segment")).toHaveLength(4);
-    expect(screen.queryByText("▲")).not.toBeInTheDocument();
-    expect(screen.queryByText("▼")).not.toBeInTheDocument();
-  });
-
-  it("degrades to an empty-state chart when the previous-month fetch fails (no fake zero bar)", async () => {
-    stubTwoPeriodFetch({ previous: null });
-
-    render(<CompliancePage />);
-
-    await waitFor(() => expect(screen.getByTestId("chain-status")).toBeInTheDocument());
-    expect(screen.queryByTestId("bar-chart")).not.toBeInTheDocument();
-    expect(screen.getByText(/no data yet/i)).toBeInTheDocument();
-    expect(screen.queryByTestId("compliance-error")).not.toBeInTheDocument();
-  });
-
-  it("renders the SHACL conformance section with counts and a link to /ce/types", async () => {
-    stubTwoPeriodFetch({});
-
-    render(<CompliancePage />);
-
-    await waitFor(() => expect(screen.getByTestId("shacl-validated")).toHaveTextContent("30"));
-    expect(screen.getByTestId("shacl-rejections")).toHaveTextContent("2");
-    const link = screen.getByRole("link", { name: /view kinds & shape constraints/i });
-    expect(link).toHaveAttribute("href", "/ce/types");
+    await waitFor(() => expect(screen.getByTestId("compliance-verdict")).toBeInTheDocument());
+    expect(screen.queryByText(/diff_summary/i)).not.toBeInTheDocument();
   });
 });
