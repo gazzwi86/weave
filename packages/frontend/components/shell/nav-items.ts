@@ -165,10 +165,11 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
       {
         heading: "Workspace",
         items: [
+          { label: "General", href: "/settings", built: true, icon: "gear" },
           { label: "Members", href: "/settings/members", built: true, icon: "user" },
           { label: "Onboarding path", href: "/settings/onboarding-path", built: true, icon: "play" },
           { label: "Notifications", href: "/settings/notifications", built: true, icon: "bell" },
-          { label: "Models & AI", href: "/settings/models", built: true, icon: "sparkles" },
+          { label: "Models & AI", href: "/settings/models", built: true, adminOnly: true, icon: "sparkles" },
           { label: "Billing & budgets", href: "/billing", built: true, icon: "scroll" },
           { label: "Integrations", href: "/settings/integrations", built: false, icon: "swap" },
         ],
