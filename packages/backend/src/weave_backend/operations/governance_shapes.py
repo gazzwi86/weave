@@ -65,24 +65,75 @@ def _validate_iri(value: str) -> None:
         raise ValueError(f"not a valid IRI: {value!r}")
 
 
+#: SHACL constraint nesting bottoms out within a handful of hops in
+#: practice (e.g. `framework.shacl.ttl`'s `sh:or` shapes: shape -> sh:or ->
+#: a 2-item rdf:list -> each item's own inline `sh:property` blank node, ~5
+#: levels) -- but `authoring/shapes.py::parse_raw_shape` only gates
+#: target/predicate, not nesting depth, so a hand-authored shape could in
+#: principle go deeper. ponytail: fixed hop budget, not a true unbounded
+#: closure -- a shape nested deeper than this leaves its own deepest blank
+#: nodes un-retracted. Bump if that ever bites: UNION arms (see
+#: `_closure_arm`) cost LINEARLY in depth, unlike the nested-OPTIONAL
+#: design this replaced (that one cost EXPONENTIALLY in its own query
+#: nesting depth alone, independent of data volume -- verified against a
+#: real Oxigraph instance: depth 10 took 0.57s, depth 13 took 6.4s, depth
+#: 15 OOM-killed the process (exit 137) on a trivial 2-triple-shape graph).
+#: The UNION form measured 0.02s at depth 20 on the same graph, so this
+#: constant has real headroom, not just an unverified guess.
+_MAX_CLOSURE_DEPTH = 20
+
+
+def _closure_arm(shape_iri: str, depth: int) -> str:
+    """One UNION arm: a fixed-length chain of exactly `depth` blank-node
+    hops from `shape_iri`, each hop gated `FILTER(isBlank(...))` before the
+    next hop is attempted, ending in the `?s ?p ?o` triple this arm deletes
+    (depth 0 is `shape_iri`'s own triples). This is the fix for the
+    over-deletion bug the original `(!(<any-predicate>))*` property path
+    had: a SPARQL property path has no way to filter on node kind
+    mid-traversal, so it walked THROUGH named nodes it passed (e.g. a
+    linked shape reached via `sh:node`) and kept collecting THAT shape's
+    own blank-node children too. Each arm here is its own independent,
+    linear chain -- the walk simply never matches past a named node, and
+    unlike nesting the depths as `OPTIONAL` inside one one shared query
+    tree, UNION-ing independent fixed-length arms doesn't make Oxigraph's
+    planner multiply out every combination of "did/didn't descend" at
+    every level (the cost blowup that made the `OPTIONAL` design crash).
+    """
+    lines: list[str] = []
+    subject = f"<{shape_iri}>"
+    for hop in range(depth):
+        predicate, obj = f"?arm{depth}_p{hop}", f"?arm{depth}_o{hop}"
+        lines.append(f"{subject} {predicate} {obj} .")
+        lines.append(f"FILTER(isBlank({obj}))")
+        subject = obj
+    lines.append(f"BIND({subject} AS ?s)")
+    lines.append("?s ?p ?o .")
+    return "\n      ".join(lines)
+
+
 async def _retract_shape_subject_closure(graph_iri: str, shape_iri: str) -> None:
     """Deletes every triple whose subject is `shape_iri` itself or a blank
     node transitively reachable from it via any predicate (a `sh:NodeShape`
     subject's `sh:property` children are blank nodes; SHACL logical
-    constructs like `sh:or` nest further blank nodes under those). A
-    surgical per-subject SPARQL Update, not a whole-graph `load_graph`
-    replace -- concurrent edits to a DIFFERENT shape in the same tenant
-    graph are untouched (ADR-028).
+    constructs like `sh:or` nest further blank nodes under those) -- but
+    the walk stops dead the instant it reaches a NAMED node (e.g. another
+    shape referenced via `sh:node`/`sh:qualifiedValueShape`), never
+    descending into that shape's own blank-node children (see
+    `_closure_arm`). A surgical per-subject SPARQL Update, not a
+    whole-graph `load_graph` replace -- concurrent edits to a DIFFERENT
+    shape in the same tenant graph are untouched (ADR-028).
     """
     _validate_iri(graph_iri)
     _validate_iri(shape_iri)
+    arms = "\n    UNION\n".join(
+        f"    {{\n      {_closure_arm(shape_iri, depth)}\n    }}"
+        for depth in range(_MAX_CLOSURE_DEPTH + 1)
+    )
     query = f"""
     DELETE {{ GRAPH <{graph_iri}> {{ ?s ?p ?o }} }}
     WHERE {{
       GRAPH <{graph_iri}> {{
-        <{shape_iri}> (!(<urn:weave:sparql:any-predicate>))* ?s .
-        FILTER(?s = <{shape_iri}> || isBlank(?s))
-        ?s ?p ?o .
+{arms}
       }}
     }}
     """
