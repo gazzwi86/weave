@@ -105,6 +105,7 @@ function SidebarHead({ title, onCollapse }: { title?: string; onCollapse?: () =>
         <button
           type="button"
           aria-label="Collapse sidebar"
+          title="Hide sidebar (⌘\)"
           onClick={onCollapse}
           className="flex h-[var(--space-6)] w-[var(--space-6)] shrink-0 items-center justify-center rounded-[var(--radius-base)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-hover)] hover:text-[var(--color-text-default)] focus-visible:outline-none focus-visible:shadow-[var(--ring-focus)]"
         >

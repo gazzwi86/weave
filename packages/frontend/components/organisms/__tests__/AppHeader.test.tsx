@@ -49,6 +49,9 @@ describe("AppHeader", () => {
     expect(screen.getByText("account-slot")).toBeInTheDocument();
   });
 
+});
+
+describe("AppHeader New split button", () => {
   it("omits the New split button when no action is wired (no dead CTA)", () => {
     render(<AppHeader breadcrumb="x" />);
     expect(screen.queryByRole("button", { name: /^New$/i })).not.toBeInTheDocument();
