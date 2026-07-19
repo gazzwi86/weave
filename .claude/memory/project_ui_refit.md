@@ -26,6 +26,11 @@ landing page = Home; v1 QA/baselines dark-only (light functional, unverified); o
 role-gated UI now, backend endpoints as tail gap lane; pushing/PRs authorized (user MCQ 1a,
 2026-07-18). STANDING RULE: during the rollout every turn ends with a running lane or an explicit blocker.
 `mock-v5-delta.html` stays the visual north star; refit-mock is the working artefact.
+BURN-DOWN STATUS 2026-07-19: the full-app review findings are ~2/3 closed (18 PRs, #171–#188 —
+all H-severity done except C5/explore-labels); demo seed enriched (#184). Remaining work is
+consolidated in ISSUES.md (Design squad = the design-shaped rebuilds: notifications page,
+billing, operator console, profile, new-instance authoring, C5+V3b explore); tracker checkboxes
+in remediation-2-api-gaps.md stay canonical for done/open.
 
 **Why:** User reviewed the autonomous build and found nav, styling, animations, and several pages
 broken or off-design; trusts high-tier model for UI direction with right-sized agents executing.

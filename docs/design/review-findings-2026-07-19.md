@@ -13,6 +13,12 @@ owner: gazzwi86
 
 # Review findings — remaining work after the 2026-07-19 session (2026-07-19)
 
+> **SUPERSEDED IN PART (2026-07-19, late):** since this handoff was written, the coordinator
+> session merged #181–#188 (SE2, A3, S2/S4/S5, H4+B2, S7/H8/C2/C6, B3/B4/B5) and tracker syncs
+> #187 +. Canonical open/closed state now lives in `docs/design/remediation-2-api-gaps.md`
+> (checkboxes) and `ISSUES.md` (unowned open work, per loop squad). Read those first; treat the
+> "still open" lists below as historical.
+
 This is a handoff doc. It says what got done today, and lists everything still open so nothing
 falls through the cracks. Written for a quick skim, not a deep read.
 

@@ -279,9 +279,12 @@ by severity.
   labels. (Overlaps V3b work.)
 - [x] **C6 M · Rules & policies phase pill** — **FIXED #186**: pill removed. The "nearly bare"
   half was stale — page already has full rules table + policies + drawer with standard empty states.
-- [ ] **C7 M · Glossary Definition/Related columns all "—"** — demo seed has no definitions (D2).
-- [ ] **C8 M · Branding & standards effectively empty** — conformance "—" with "(G14)" dev copy;
-  no seeded standards/brand rules (Hammerbarn content brief should drive the seed — D2).
+- [x] **C7 M · Glossary Definition/Related columns all "—"** — **FIXED via seed enrichment
+  (#184)**: definitions + skos:broader related links seeded; browse query surfaces
+  `?definition` (c1873669).
+- [ ] **C8 M · Branding & standards** — data half SEEDED (#184: brand rules + standards docs);
+  dev copy fixed (#176). REMAINING: bind the page + conformance KPI (G14 endpoint) and match
+  the mock's screen → ISSUES.md §Design.
 - [ ] **C9 L · "New instance" = bare "Choose a kind…" select on an empty page** vs the mock's
   authoring pattern.
 
@@ -295,10 +298,10 @@ by severity.
   hypotheses (clock-tie ordering; multi-tenant interleaved verify walk) were both refuted: `ts` is
   app-assigned text, verify orders by monotonic `seq` and is tenant-scoped. Code half **landed in
   PR #177**: verify now reports `entries_checked` on failure (was always 0), plus seed→verify
-  regression coverage (passes on a fresh stack). Remaining half is DATA: re-sign or reseed the
-  demo tenant's audit entries — likely mooted by the parallel session's demo-seed-enrichment
-  reseed (D2); after that lands, verify the banner is gone and tick this. Follow-up logged below
-  as A5 (signing-key divergence hardening).
+  regression coverage (passes on a fresh stack). Remaining half is DATA: the SHARED stack's
+  acme-corp audit_entries still carry the stale seq 2–9 signatures until operationally reseeded
+  (#184 added the fresh-seed→valid-chain regression; a fresh seed verifies clean) → ISSUES.md
+  §Ops. Follow-up A5 (signing-key hardening) → ISSUES.md §Bug squad.
 - [ ] **A2 M · Busiest-entities list shows raw UUIDs/version strings**, not entity labels.
 - [x] **A3 M · Audit dashboard cards** — **WIRED #182**: model-edits-by-kind sums G5 payloads via
   a new tenant-scoped /api/audit/counts proxy; health tiles read G6 sub-events; busiest entities
@@ -313,8 +316,8 @@ by severity.
 
 ### Build
 
-- [ ] **B1 L · Registry card dev copy** — "task counts and budget need a registry-card summary
-  field".
+- [ ] **B1 L · Registry card task-counts/budget** — copy humanized (#176); DATA still needs a
+  registry-card summary field + binding → ISSUES.md §Design.
 - [x] **B2 M · Build Roadmap panel** — copy fixed in #176; **WIRED #185**: binds the G9/G10 epic
   rollup (GET /api/projects/{id}/epics) — ordered epic list w/ status badge + done/total counts.
   No Gantt: G10's date fields still deferred, so no fabricated bars.
@@ -333,7 +336,8 @@ by severity.
   makes a native select display its first option. Select now renders the member's actual role
   (canonical → legacy map → raw slug). Backend was always correct. NOTE: legacy "admin" stays a
   super-admin sentinel — never canonicalize it (see memory reference_legacy-admin-role-sentinel).
-- [ ] **SE3 L · Models & AI shows "(gap G13)" dev copy.**
+- [x] **SE3 L · Models & AI "(gap G13)" dev copy** — **FIXED #176** (D1 sweep: "Model tiers are
+  fixed for now."). Editable model routing itself is G13's endpoint work, already [x] above.
 - [ ] **SE4 M · Billing page is a single sparse card** — mock carries the reference design (usage
   by engine/user/project, budget burn vs cap, counts-only note per FR-034/035).
 - [ ] **SE5 M · Operator console (Workspaces) is bare** — plain cards + form vs the signed-off
@@ -347,7 +351,11 @@ by severity.
   one sweep over 21 user-visible sites (gap IDs, "isn't wired yet", "M1" refs, endpoint talk)
   replaced with human empty-state copy; 10 test files updated to the new strings. Copy half of
   H4/B1/B2/SE1/SE3/C8 absorbed — their data-wiring halves stay open.
-- [ ] **D2 M · Demo seed gaps undercut the demo** — no glossary definitions, no brand
-  standards/rules, no build tasks/epics on the demo project, broken audit chain (A1), roles all
-  Viewer (SE2). Hammerbarn content brief (`docs/specs/weave/hammerbarn-content-brief.md`) should
-  drive a fuller seed. Absorbs the data half of C7/C8.
+- [x] **D2 M · Demo seed gaps undercut the demo** — **FIXED via seed enrichment (#184,
+  2026-07-19)**: glossary definitions, brand rules + 2 standards docs, 3 SHACL rules, a Build
+  project (3 epics / 10 tasks across kanban states), roles, audit — idempotent. Roles stay
+  LEGACY on purpose: "admin" is the super-admin sentinel the provisioning page +
+  `require_tenant_admin` gate on literally — do NOT re-canonicalize (see
+  `.claude/memory/reference_legacy-admin-role-sentinel.md`; display handled by #181).
+  Residual: the SHARED stack's acme-corp audit chain still needs an operational reseed →
+  ISSUES.md §Ops (A1 residual).
