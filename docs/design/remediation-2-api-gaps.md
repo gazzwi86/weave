@@ -108,13 +108,9 @@ breaches.
   window; critical-rule failures tracked separately. → aggregation endpoint (or fold into the G6
   count-by-event-type work) returning `{window, passed, failed, critical_failures}`.
 
-- [ ] **G19 UI-bug · Canvas node-click misses under overlay chrome** — the new ControlDock/legend/
-  overlay chrome likely needs pointer-events/z-order fixed so clicks pass through to cytoscape nodes
-  underneath (the explorer-a11y-m2 spec had to route around a flaky canvas click). Real fix = component
-  pointer-events; the test currently opens panels via the search box instead. (Escalation TASK-030.)
-
-Cards D/E are shippable now against category buckets (approximate); exact splits arrive with G6.
-
+- [x] **G19 UI-bug · Canvas clicks under overlay chrome** — **FIXED #192**: ControlDock +
+  CanvasAskBar wrappers are pointer-events-none; only opaque chrome opts back in. (The a11y
+  spec's search-box route-around can now be reverted — noted in ISSUES follow-ups.)
 - [ ] **G17 S · Change heatmap overlay (per-entity change frequency)** — Explorer's Overlays tab
   wants a "Change heatmap" toggle colouring nodes by recent edit frequency. No source exists:
   `CE-METRICS-1` is aggregate-only (no per-entity breakdown) and the audit log's `target_iri`
@@ -145,18 +141,12 @@ Cards D/E are shippable now against category buckets (approximate); exact splits
   they build an app / feature / data pipeline. Optionally model a project-level ontology linked to
   the parent graph. Feature-sized; own PR, off the T4 remediation path. Related canvas bug: G19.
 
-- [ ] **T7 S · `/events` → disabled "coming soon" nav item** — Events & Actions engine ships
-  post-MVP (build order) and the mock has no Events screen. Per the no-phase-pills rule
-  (`feedback_no_phase_pills`): keep it in the nav but disabled with a "soon" affordance, not a live
-  bare stub. Small; can land with the T4 remediation follow-up.
-
-- [ ] **T8 M · Onboarding exercise-availability (kill the 403 noise)** — the checklist widget POSTs
-  `/api/onboarding/exercises/{id}/check` for exercises the backend gates off (403: `read_only_locked`
-  for CE-02, `path_gated` for CE-03 — the client's checklist-item paths and the backend exercise
-  paths disagree, and the client doesn't know `path_variant`). User decision: **fix properly** —
-  backend exposes per-exercise availability (e.g. on `GET /api/onboarding/state`, an
-  `available_exercises` set computed via `gate_exercise`) so the client only checks available ones,
-  with no gate-logic duplication client-side. Fail-soft today (caught, no loop), so log-noise-only.
+- [x] **T7 S · /events soon-state** — verified already correct (disabled rail entry +
+  PlaceholderPage); the stale piece was ia-skeleton.spec.ts asserting the old behaviour —
+  **FIXED #192**.
+- [x] **T8 M · Onboarding exercise availability** — **FIXED #193**: GET /api/onboarding/state
+  returns `available_exercises` (computed by the same gate_exercise authority); the checklist
+  intersects before queuing checks. 403 noise gone, no client-side gate duplication.
 
 ## T4 visual-remediation directives (2026-07-18, user MCQ answers + follow-up asks)
 
@@ -178,8 +168,8 @@ tests** in turn. No bespoke CSS in pages.
   clustering + label-thinning so it's legible at scale (not a curated 8-node seed). Also: human-
   readable labels (not machine IDs), restore the "Ask the model" bar, populate the KPI strip.
   Remove the injected "Graph Explorer" H1.
-- [ ] **V3-axe-fix · Explorer a11y panels violation (blocks #152)** — explorer-a11y-m2 "Explorer M2 panels zero-violations" test fails on V3 core (#152). Repro locally (serve V3 app, run the spec) to get the exact axe rule+node, fix, re-push #152. Keep the sr-only h1.
-
+- [x] **V3-axe-fix** — STALE, closed 2026-07-19: PR #152 merged long ago; the axe race was
+  fixed for real in #167 (FLAKY-axe-m2).
 - [ ] **V3b-3 · Explore default-filter + KPI true-total** — V3b-2 item1 (label-thinning) landed; add a sensible DEFAULT view/filter (show-all one click away) AND fix the KPI strip to show the TRUE model total, not the filtered render count (V3b-1 sourced it from rendered elements — wrong once filtering exists). Coupled; land together. Stretch: clustering.
 
 - [x] **FLAKY-axe-m2 · Stabilise explorer-a11y-m2 panels test** — **FIXED #167 (2026-07-19)**: per-tab `data-testid` `control-dock-panel-<id>` awaited before each axe scan (generic "panel open" wait insta-passed on tabs 2–4 before React committed the new panel). Residual base-sensitivity (stale-base false reds) remains — rerun+rebase-check on a red run. Original: the `explorer-a11y-m2` "Explorer M2 panels zero-violations" test is flaky (false-failed on #149, #152, #158; #152 also base-sensitive). Cost real debugging effort mis-read as real regressions. Investigate timing (ControlDock accordion mount + axe race) and stabilise (await panel-ready before axe, or retry). Until then: an axe-m2 fail on an explorer-adjacent PR = rerun + rebase-check before assuming real. **Fix in flight 2026-07-19** (`feature/axe-m2-deflake`, user chose the real root-cause fix over a CI-retry stopgap): await the ControlDock accordion mount before each axe scan.
@@ -189,9 +179,10 @@ tests** in turn. No bespoke CSS in pages.
   scaffold lib/explorer/fetch-ask-answer.ts exists in the v3 worktree); populate the KPI strip from loaded graph
   data; de-hairball via strong default filters/clustering/label-thinning (the hard part). Scope as SMALL lanes.
 
-- [ ] **V4 · Off-spec elements** — user: REMOVE injected page H1s to match mock. KEEP value-adding
-  functionality (e.g. Build search/filter) but RESTYLE to the mock's look/feel. KEEP the "Generate a
-  widget" CTA (intentional) but update it to match the mock's approaches/trends.
+- [x] **V4 · Off-spec elements** — verified DONE 2026-07-19 (#192 evidence): both mocks keep a
+  visible h1.page-title on every screen except the Explore canvas (removed in #152); F-D07
+  mandates the visible h1 size. Search/filter bar + "Generate a widget" CTA audited: fully
+  token-styled. No changes needed.
 - [x] **V5 · Profile menu → Operator (super-admin) console link** — avatar-menu.tsx lacks the mock's
   role-gated "Operator console — provision companies" entry (super-admins only). Add it.
 - [x] **V6 · Super-admin company switcher (BUILT, merged #158) (was NUANCE — confirm before building)** — the mock's switcher
@@ -272,8 +263,12 @@ by severity.
   Verified live: /ce shows v0.1.6, "No data yet" gone.
 - [x] **C2 L · Versions copy/nav mismatch** — **FIXED #186**: /ce/versions is fully built but nav
   still flagged built:false ("soon" pill). Flag flipped; copy was already right.
-- [ ] **C3 M · Types page "Instances" column all "—"** (counts not wired).
-- [ ] **C4 M · Instances/Data: Ask panel overlaps the table** (Status column truncated).
+- [x] **C3 M · Types instance counts** — **FIXED #190**: bound to the same CE-READ-1 rdf:type
+  tally the Overview computes (one shared source).
+- [x] **C4 M · Instances table/Ask overlap** — **FIXED #190**: the DataTable outgrew its 1fr
+  grid track (table-layout:auto + min-width:auto) and overflow-hidden clipped Status/Updated
+  beside the panel. `table-fixed` + `min-w-0`; verified by bounding-box at 768–1440px.
+  DataTable-family story baselines regenerated.
 - [ ] **C5 H · Explore label soup** — raw RDF IRIs (`…rdf-syntax-ns#type`) as labels; orphaned
   description sentences as node labels; drawer edge list shows raw IRIs instead of resolved
   labels. (Overlaps V3b work.)
@@ -316,21 +311,22 @@ by severity.
 
 ### Build
 
-- [ ] **B1 L · Registry card task-counts/budget** — copy humanized (#176); DATA still needs a
-  registry-card summary field + binding → ISSUES.md §Design.
+- [x] **B1 L · Registry card task counts** — **FIXED #193**: cards derive counts from the G9
+  epics rollup (lazy per-project fetch). Budget stays "—" — no per-project budget source yet.
 - [x] **B2 M · Build Roadmap panel** — copy fixed in #176; **WIRED #185**: binds the G9/G10 epic
   rollup (GET /api/projects/{id}/epics) — ordered epic list w/ status badge + done/total counts.
   No Gantt: G10's date fields still deferred, so no fabricated bars.
-- [ ] **B3 M · Kanban default state reads as a filter failure** ("No tasks match this filter" +
-  bare "Task tree" card) instead of a designed empty board.
-- [ ] **B4 L · Decision log: default tab shows "No decisions match this search" before any
-  search; stray "Back to settings" link.**
-- [ ] **B5 L · Project settings "Review upgrade" is a giant full-width button** — off-design.
+- [x] **B3 M · Kanban empty board** — **FIXED #188**: no-tasks-at-all state ("No tasks yet —
+  they appear when a build run starts.") distinguished from filter-excluded (old copy + reset).
+- [x] **B4 L · Decision log** — **FIXED #188**: idle empty state before any search; stray
+  "Back to settings" link removed (mock reaches the page from left nav).
+- [x] **B5 L · "Review upgrade" full-width button** — **FIXED #188**: flex-column align-stretch
+  default; `w-fit`, matching GovernanceForm's identical fix.
 
 ### Settings
 
-- [ ] **SE1 L · General: Description placeholder is dev copy** ("the backend doesn't store a
-  workspace description").
+- [x] **SE1 L · Workspace description** — **FIXED #193**: `workspaces.description` (migration
+  0086) + tenant-admin PUT route + proxy; General textarea binds and saves on blur.
 - [x] **SE2 M · Members roles all "Viewer"** — **FIXED #181**: disabled select offered only the
   10 canonical slugs; seeded members carry ADR-020 legacy 4-tier slugs, and an unmatched value
   makes a native select display its first option. Select now renders the member's actual role
