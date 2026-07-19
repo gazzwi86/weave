@@ -274,7 +274,14 @@ by severity.
 ### Audit trail
 
 - [ ] **A1 H · "Chain broken at entry 2 · 0 entries checked" on the demo workspace** — seeded
-  audit chain fails verification; every demo shows a red integrity banner. Seed bug.
+  audit chain fails verification; every demo shows a red integrity banner. ~~Seed bug.~~
+  **ROOT CAUSE (coordinator-verified against the live dev DB 2026-07-19): NOT a seed bug — a
+  multi-tenant verify bug.** The chain is per-tenant (emitter scopes seq/prev_hash by tenant_id;
+  each tenant's chain is intact, seq restarts at 1 per tenant) but the verify path fetches entries
+  ordered by seq with NO tenant filter, so any DB with ≥2 tenants interleaves chains and "breaks
+  at entry 2". Fix: tenant-scope the verify fetch/walk. Secondary: `entries_checked` stays 0 on
+  failure (dataclass default never updated before the early return). Repro needs TWO tenants
+  emitting — a single-tenant repro passes verify.
 - [ ] **A2 M · Busiest-entities list shows raw UUIDs/version strings**, not entity labels.
 - [ ] **A3 M · Dashboard cards not wired to closed gaps** — "Model edits by kind" +
   Security/Governance/Budget/Reliability all "Not available yet" though G5–G8 aggregations landed.
