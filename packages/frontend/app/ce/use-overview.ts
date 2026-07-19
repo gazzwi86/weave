@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { NodeKind, SparqlPage } from "@/lib/explorer/types";
 
+import { fetchVersions } from "./versions/use-versions";
 import { publishedEntriesDesc } from "./versions/version-page-helpers";
 import type { VersionEntry } from "./versions/types";
 
@@ -64,10 +65,7 @@ async function tallyTriples(): Promise<{
  * list degrades to "nothing shown" rather than an overview-wide error. */
 async function fetchPublishedVersions(): Promise<VersionEntry[]> {
   try {
-    const body = await fetchJson<{ versions: VersionEntry[] }>(
-      "/api/proxy/ontology/versions?page=1&per_page=50"
-    );
-    return publishedEntriesDesc(body.versions);
+    return publishedEntriesDesc(await fetchVersions());
   } catch {
     return [];
   }
