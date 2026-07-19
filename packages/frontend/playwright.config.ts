@@ -30,6 +30,11 @@ export default defineConfig({
   // Parallel workers race real OIDC logins against that shared budget and hang
   // mid-callback. One worker always, not just in CI.
   workers: 1,
+  // PLAYWRIGHT_REUSE=1 lets a spec suite attach to servers the CI job already
+  // started (so the job can capture the backend's own log for the API-log
+  // sweep -- see .github/workflows/ci.yml `e2e-behavioural`). Without it, the
+  // default holds: reuse a locally-running stack, but in CI start a fresh one.
+  // Retries stay CI-gated (unaffected), so reuse doesn't weaken flake headroom.
   // TASK-029 AC-3: the GE-CANVAS-1 conformance report is the Build-M2
   // unblock evidence -- a tiny extra reporter alongside the existing html
   // one, not a replacement.
@@ -47,7 +52,7 @@ export default defineConfig({
     {
       command: "npm run dev",
       url: "http://localhost:3000",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: !!process.env.PLAYWRIGHT_REUSE || !process.env.CI,
       env: FRONTEND_ENV,
     },
     {
@@ -58,7 +63,7 @@ export default defineConfig({
       command: "uv run uvicorn weave_backend:app --port 8000",
       cwd: "../backend",
       url: "http://localhost:8000/api/health",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: !!process.env.PLAYWRIGHT_REUSE || !process.env.CI,
       env: {
         WEAVE_MODEL_PROVIDER: "ollama",
         OLLAMA_MODEL: "batiai/qwen3.6-27b:iq3",
@@ -68,7 +73,7 @@ export default defineConfig({
       command: "uv run weave-mock-oidc",
       cwd: "../backend",
       url: "http://localhost:9001/.well-known/openid-configuration",
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: !!process.env.PLAYWRIGHT_REUSE || !process.env.CI,
     },
   ],
 });

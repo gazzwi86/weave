@@ -7,6 +7,17 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual trigger used to (re)generate visual-regression baselines on the
+  # amd64 runner CI actually validates on -- the `visual` job below runs its
+  # `:update` scripts and uploads the screenshots as an artifact to commit.
+  # A dev's arm64 Mac produces different pixels at the 0.001 tolerance, so
+  # local `:update` is NOT the source of truth -- this dispatch is.
+  workflow_dispatch:
+    inputs:
+      update_visual_baselines:
+        description: "Regenerate visual baselines on this runner and upload them as an artifact"
+        type: boolean
+        default: false
 
 jobs:
   api:
@@ -591,3 +602,154 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - run: semgrep scan --config auto --error
+
+  visual:
+    # Visual regression (docs/design/remediation-2-api-gaps.md T1). Two suites:
+    #   * storybook-visual -- per-story component baselines (static storybook
+    #     build served by python http.server; no backend).
+    #   * shell-visual -- app-shell states (real `next dev` + mock OIDC, backend
+    #     deliberately down; see packages/frontend/tests/visual/README.md).
+    # Runs on ubuntu-latest (amd64): baselines are generated on THIS runner arch
+    # (workflow_dispatch `update_visual_baselines`) and validated on the same
+    # arch, so cross-machine pixel drift never enters the gate -- no pinned
+    # container needed. BLOCKING: a red visual job reddens the PR run. (This repo
+    # has no server-side required-check flag -- git-safety.md -- so "required" ==
+    # the job runs on pull_request and its failure fails the run.)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: packages/frontend
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      # weave-mock-oidc (below) authenticates the shell-visual suite -- it is a
+      # standalone Python entry point (no backend/db), so only uv + a sync is
+      # needed, not the full docker stack.
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/frontend/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: packages/shared
+      - run: npx playwright install --with-deps chromium
+      - name: Install backend (weave-mock-oidc auth for shell-visual)
+        working-directory: packages/backend
+        run: uv sync
+      # Normal PR/push run: validate against committed baselines. A dispatch with
+      # update_visual_baselines=true regenerates them (`:update`) instead, and the
+      # upload step below publishes them to commit.
+      - name: Storybook visual regression
+        env:
+          UPDATE: ${{ github.event.inputs.update_visual_baselines }}
+        run: |
+          if [ "$UPDATE" = "true" ]; then npm run test:storybook-visual:update; else npm run test:storybook-visual; fi
+      - name: Shell visual regression
+        env:
+          UPDATE: ${{ github.event.inputs.update_visual_baselines }}
+        run: |
+          if [ "$UPDATE" = "true" ]; then npm run test:visual:update; else npm run test:visual; fi
+      - name: Upload regenerated baselines (dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_visual_baselines == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-baselines
+          path: packages/frontend/tests/visual/__screenshots__/
+      - name: Upload diff report on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-diff-report
+          path: packages/frontend/playwright-report/
+
+  e2e-behavioural:
+    # Refit behavioural-certification e2e (`npm run test:behavioural`, the
+    # @behavioural-tagged specs) -- Law B: each test asserts backend state
+    # changed, not just the UI. Same seeded-stack precondition as
+    # lighthouse-explorer (workspace membership for the mock-oidc login).
+    #
+    # It also CODIFIES the manual T4 API-log sweep: the backend's own log is
+    # captured to a file and scanned for unexpected 5xx afterwards -- that sweep
+    # is how the role-home 500 and audit 422 were caught by hand; this makes the
+    # regression a gate. The suite reuses the manually-started backend/OIDC
+    # (PLAYWRIGHT_REUSE=1) so the log we scan is the one the tests actually hit;
+    # Playwright still starts the frontend itself.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/frontend/package-lock.json
+      - run: docker compose up -d --wait postgres redis oxigraph localstack
+      - name: Wait for oxigraph HTTP API
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf "http://localhost:7878/query?query=ASK%20%7B%20%3Fs%20%3Fp%20%3Fo%20%7D" && exit 0
+            sleep 2
+          done
+          echo "oxigraph never became ready" >&2
+          exit 1
+      - working-directory: packages/backend
+        run: uv sync
+      - working-directory: packages/backend
+        run: uv run python -m weave_backend.db.migrate
+      - name: Seed demo data (workspace membership for mock-oidc login)
+        working-directory: packages/backend
+        run: uv run python -m weave_backend.db.seed_demo
+      - name: Start backend + mock OIDC (capture backend log for the API sweep)
+        working-directory: packages/backend
+        run: |
+          uv run uvicorn weave_backend:app --port 8000 >"$GITHUB_WORKSPACE/backend.log" 2>&1 &
+          uv run weave-mock-oidc &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/health && break
+            sleep 2
+          done
+      - working-directory: packages/frontend
+        run: npm ci
+      - working-directory: packages/shared
+        run: npm ci
+      - working-directory: packages/frontend
+        run: npx playwright install --with-deps chromium
+      - name: Behavioural certification e2e
+        working-directory: packages/frontend
+        run: npm run test:behavioural
+        env:
+          # Attach to the backend/OIDC started above (so the sweep scans the log
+          # the tests hit); Playwright still boots the frontend it needs.
+          PLAYWRIGHT_REUSE: "1"
+          BACKEND_API_URL: http://localhost:8000
+          OIDC_ISSUER_URL: http://localhost:9001
+          OIDC_CLIENT_ID: weave-dev
+      - name: API-log sweep -- fail on unexpected 5xx in the backend log
+        # Default cwd is the workspace root, where the backend log was written.
+        if: always()
+        run: |
+          # Uvicorn access lines look like: ... "GET /api/... HTTP/1.1" 500 ...
+          # Any 5xx fails the gate EXCEPT the generate happy-path's 503, which is
+          # the known "no Ollama in CI" environment gap (ADR-018), not a defect.
+          if grep -aE '" 5[0-9]{2} ' backend.log | grep -avE '"(GET|POST) /api/[^"]*generate[^"]*" 503'; then
+            echo "::error::Backend emitted an unexpected 5xx during the behavioural e2e run (lines above)."
+            exit 1
+          fi
+          echo "API-log sweep clean: no unexpected 5xx."
+      - name: Upload backend log + report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-behavioural-artefacts
+          path: |
+            backend.log
+            packages/frontend/playwright-report/
+      - if: always()
+        run: docker compose down -v
