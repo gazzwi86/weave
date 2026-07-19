@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -79,12 +78,9 @@ export default function CeRulesPage() {
 
   return (
     <main data-tour-id="ce.rules" className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
-      <div className="flex items-center gap-[var(--space-3)]">
-        <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Rules & Policies
-        </h1>
-        <Badge variant="info">M1 — this pass</Badge>
-      </div>
+      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        Rules & Policies
+      </h1>
       <TabBar active={tab} onChange={setTab} />
       {tab === "rules" ? (
         <>
