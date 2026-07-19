@@ -132,15 +132,30 @@ def verify_entries(
     fetches rows from Postgres and delegates here.
     """
     prev_hash = ZERO_HASH
+    checked = 0
     for entry in entries:
         expected_hash = compute_hash(_entry_data_without_hash(entry))
         if entry.hash != expected_hash:
-            return VerifyResult(valid=False, first_broken_seq=entry.seq, error="hash_mismatch")
+            return VerifyResult(
+                valid=False,
+                entries_checked=checked,
+                first_broken_seq=entry.seq,
+                error="hash_mismatch",
+            )
         if entry.prev_hash != prev_hash:
-            return VerifyResult(valid=False, first_broken_seq=entry.seq, error="chain_broken")
+            return VerifyResult(
+                valid=False,
+                entries_checked=checked,
+                first_broken_seq=entry.seq,
+                error="chain_broken",
+            )
         if not verify_entry_signature(public_key, entry.hash, entry.prev_hash, entry.signature):
             return VerifyResult(
-                valid=False, first_broken_seq=entry.seq, error="signature_invalid"
+                valid=False,
+                entries_checked=checked,
+                first_broken_seq=entry.seq,
+                error="signature_invalid",
             )
         prev_hash = entry.hash
-    return VerifyResult(valid=True, entries_checked=len(entries))
+        checked += 1
+    return VerifyResult(valid=True, entries_checked=checked)
