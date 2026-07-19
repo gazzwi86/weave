@@ -19,7 +19,16 @@ class WorkspaceResponse(BaseModel):
     slug: str
     display_name: str
     named_graph_iri: str
+    description: str | None = None
     created_at: datetime
+
+
+class UpdateWorkspaceRequest(BaseModel):
+    """SE1 (docs/design/remediation-2-api-gaps.md): `PUT` body for the
+    tenant-admin-gated workspace-description write.
+    """
+
+    description: str = Field(max_length=2000)
 
 
 class InviteMemberRequest(BaseModel):

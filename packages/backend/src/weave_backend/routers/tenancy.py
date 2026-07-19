@@ -19,6 +19,7 @@ from weave_backend.schemas.tenancy import (
     MemberListResponse,
     MemberResponse,
     SwitchWorkspaceResponse,
+    UpdateWorkspaceRequest,
     WorkspaceResponse,
 )
 from weave_backend.tenancy.invite_gateway import InviteGateway, get_invite_gateway
@@ -39,6 +40,7 @@ from weave_backend.tenancy.workspaces import (
     create_workspace,
     get_workspace,
     list_workspaces,
+    update_workspace_description,
 )
 
 router = APIRouter(prefix="/api", tags=["tenancy"])
@@ -121,6 +123,37 @@ async def create_workspace_route(
                 actor_iri=principal.principal_iri,
                 subject_iri=workspace.named_graph_iri,
                 payload={"slug": workspace.slug},
+            ),
+        )
+    return WorkspaceResponse(**workspace.model_dump())
+
+
+@router.put("/tenants/{tenant_id}/workspaces/{workspace_id}", response_model=WorkspaceResponse)
+async def update_workspace_route(
+    tenant_id: str,
+    workspace_id: str,
+    body: UpdateWorkspaceRequest,
+    principal: Annotated[Principal, Depends(require_tenant_admin)],
+) -> WorkspaceResponse:
+    """SE1 (docs/design/remediation-2-api-gaps.md): tenant-admin-gated
+    workspace-description write -- same admin gate as
+    `list_workspaces_route`/`create_workspace_route` above.
+    """
+    _require_own_tenant(principal, tenant_id)
+    async with tenant_connection(tenant_id) as conn:
+        workspace = await update_workspace_description(
+            conn, tenant_id=tenant_id, workspace_id=workspace_id, description=body.description
+        )
+        if workspace is None:
+            raise HTTPException(status_code=404, detail={"error": "workspace_not_found"})
+        await default_audit_emitter.emit(
+            conn,
+            AuditEvent(
+                tenant_id=tenant_id,
+                event_type="workspace.updated",
+                actor_iri=principal.principal_iri,
+                subject_iri=workspace.named_graph_iri,
+                payload={"description": body.description},
             ),
         )
     return WorkspaceResponse(**workspace.model_dump())
