@@ -101,6 +101,31 @@ describe("MembersPanel table (mock #sub-set-members)", () => {
     expect(screen.getByText("Priya Shah")).toBeInTheDocument();
     expect(screen.queryByText("Marco Diaz")).not.toBeInTheDocument();
   });
+
+  it("shows a seeded member's real legacy role, not a Viewer fallback (SE2)", async () => {
+    // ADR-020: seeded M1 workspaces carry the pre-TASK-030 4-tier vocabulary
+    // (read/author/publish/admin), never migrated to the 10 canonical
+    // slugs -- "admin" is not one of CANONICAL_ROLES, so the seeded
+    // super-admin's role must still render as "Admin", not silently fall
+    // back to the select's first option ("Viewer").
+    stubFetch([
+      {
+        user_sub: "sub-admin",
+        email: "admin@weave.local",
+        display_name: "Demo Super Admin",
+        role: "admin",
+        status: "active",
+        invited_at: "2026-01-01T00:00:00Z",
+      },
+    ]);
+    render(<MembersPanel />);
+
+    await screen.findByText("Demo Super Admin");
+    const select = screen.getByRole("combobox", { name: /role for demo super admin/i });
+    expect(select).toHaveValue("admin");
+    expect(select).toHaveTextContent("Admin");
+    expect(select).not.toHaveTextContent("Viewer");
+  });
 });
 
 describe("MembersPanel invite modal (AC-2/AC-3)", () => {
