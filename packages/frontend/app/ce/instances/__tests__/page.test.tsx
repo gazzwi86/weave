@@ -116,4 +116,17 @@ describe("InstancesPage (TASK-031)", () => {
     const link = await screen.findByRole("link", { name: /View on canvas/ });
     expect(link).toHaveAttribute("href", `/explorer?focus=${encodeURIComponent("urn:p1")}`);
   });
+
+  // C4: the table must stay pinned to its 1fr grid track (table-fixed +
+  // min-w-0) rather than growing to fit long labels and overflowing into the
+  // Ask panel's column -- regression for the Ask-panel-overlaps-table bug.
+  it("keeps the table pinned to its grid track so it can never grow into the Ask panel's column", async () => {
+    stubFetch();
+    render(<InstancesPage />);
+    await screen.findByText("Invoice Approval");
+
+    const table = document.querySelector("table");
+    expect(table).toHaveClass("table-fixed");
+    expect(table?.closest(".grid > *")).toHaveClass("min-w-0");
+  });
 });
