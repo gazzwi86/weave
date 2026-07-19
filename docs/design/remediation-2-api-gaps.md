@@ -15,11 +15,18 @@ owner: gazzwi86
 
 ## Active task list (post-refit programme)
 
-- [ ] **T1 · Visual regression suite** — automated screenshot tests with baseline diffing so the
+- [x] **T1 · Visual regression suite** — automated screenshot tests with baseline diffing so the
   landed refit is defended: Playwright screenshot tests per shell state + per page (the states
   already exercised by the mock-verification scripts become the spec); Storybook stories covered
   via Chromatic or `@storybook/test-runner` + pixel diff; wire into CI as a required check; real
   click paths only (no evaluate shortcuts). Baselines captured from the signed-off refit.
+  **Wired into CI 2026-07-19** (`.github/workflows/ci.yml` `visual` job): storybook-visual +
+  shell-visual run on every PR; baselines regenerated on the amd64 runner via the
+  `workflow_dispatch` `update_visual_baselines` input (arm64-Mac `:update` would drift at the
+  0.001 tolerance — README §Testing documents the flow). Behavioural-certification e2e +
+  the codified API-log 5xx sweep landed alongside as the `e2e-behavioural` job. Honest ceiling:
+  "required check" == the job runs on `pull_request` and its failure reddens the run; this repo
+  has no server-side required-check flag (git-safety.md).
 - [x] **T1b · Dark-mode test coverage is fake** — the vitest browser-mode story runs and the
   visual suites don't flip `prefers-color-scheme`, so every "Dark" story variant currently runs in
   light mode (duplicate coverage, zero dark assertions). Fix: emulate `colorScheme: 'dark'` per
@@ -173,7 +180,9 @@ tests** in turn. No bespoke CSS in pages.
   Remove the injected "Graph Explorer" H1.
 - [ ] **V3-axe-fix · Explorer a11y panels violation (blocks #152)** — explorer-a11y-m2 "Explorer M2 panels zero-violations" test fails on V3 core (#152). Repro locally (serve V3 app, run the spec) to get the exact axe rule+node, fix, re-push #152. Keep the sr-only h1.
 
-- [ ] **FLAKY-axe-m2 · Stabilise explorer-a11y-m2 panels test** — the `explorer-a11y-m2` "Explorer M2 panels zero-violations" test is flaky (false-failed on #149, #152, #158; #152 also base-sensitive). Cost real debugging effort mis-read as real regressions. Investigate timing (ControlDock accordion mount + axe race) and stabilise (await panel-ready before axe, or retry). Until then: an axe-m2 fail on an explorer-adjacent PR = rerun + rebase-check before assuming real.
+- [ ] **V3b-3 · Explore default-filter + KPI true-total** — V3b-2 item1 (label-thinning) landed; add a sensible DEFAULT view/filter (show-all one click away) AND fix the KPI strip to show the TRUE model total, not the filtered render count (V3b-1 sourced it from rendered elements — wrong once filtering exists). Coupled; land together. Stretch: clustering.
+
+- [ ] **FLAKY-axe-m2 · Stabilise explorer-a11y-m2 panels test** — the `explorer-a11y-m2` "Explorer M2 panels zero-violations" test is flaky (false-failed on #149, #152, #158; #152 also base-sensitive). Cost real debugging effort mis-read as real regressions. Investigate timing (ControlDock accordion mount + axe race) and stabilise (await panel-ready before axe, or retry). Until then: an axe-m2 fail on an explorer-adjacent PR = rerun + rebase-check before assuming real. **Fix in flight 2026-07-19** (`feature/axe-m2-deflake`, user chose the real root-cause fix over a CI-retry stopgap): await the ControlDock accordion mount before each axe scan.
 
 - [ ] **V3b · Explore ask-bar + KPI + de-hairball** — V3 core (PR #152) landed H1 removal + human labels.
   Remaining: wire the existing `components/molecules/AskBar.tsx` onto the canvas bottom-centre (partial unwired

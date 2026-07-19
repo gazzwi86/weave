@@ -28,11 +28,14 @@ async function dismissOnboarding(page: Page): Promise<void> {
 // TASK-006: mirrors auth.spec.ts's flow against the mock OIDC provider, but
 // lands on /ce (return_to survives the round trip -- proven by auth.spec.ts).
 async function loginAndGoToCe(page: Page): Promise<void> {
-  await page.goto("/ce");
+  // The NL authoring chat (ChatPanel) moved off the /ce landing -- which the
+  // refit turned into the overview page -- and now lives beside the instance
+  // browser at /ce/instances (app/ce/instances/chat-aside.tsx).
+  await page.goto("/ce/instances");
   await page.getByRole("button", { name: "Sign in with Weave" }).click();
   await expect(page.getByRole("heading", { name: "Weave Mock OIDC — Sign in" })).toBeVisible();
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/ce$/);
+  await expect(page).toHaveURL(/\/ce\/instances$/);
   await dismissOnboarding(page);
   // Cold Next.js dev compile can lag behind first paint; without this, an
   // early click on the "Send" submit button races React's hydration and
