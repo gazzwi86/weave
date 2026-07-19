@@ -723,7 +723,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Behavioural certification e2e
         working-directory: packages/frontend
-        run: npm run test:behavioural
+        # `-- --reporter=line` overrides the config's quiet html reporter so
+        # failures print to the CI log (html buffers to a report dir and shows
+        # nothing on the console -- opaque on a red run).
+        run: npm run test:behavioural -- --reporter=line
         env:
           # Attach to the backend/OIDC started above (so the sweep scans the log
           # the tests hit); Playwright still boots the frontend it needs.
