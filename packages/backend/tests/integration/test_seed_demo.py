@@ -57,11 +57,20 @@ async def test_seed_demo_is_idempotent_and_activates_both_logins(
         workspace_id = str(first["workspace_id"])
         async with tenant_connection(tenant_id) as conn:
             members = await conn.fetch(
-                "SELECT email, status FROM workspace_members WHERE tenant_id = $1", tenant_id
+                "SELECT email, status, role FROM workspace_members WHERE tenant_id = $1",
+                tenant_id,
             )
             assert {m["email"]: m["status"] for m in members} == {
                 "admin@weave.local": "active",
                 "client@weave.local": "active",
+            }
+            # SE2: canonical role slugs (rbac.py's ROLE_RANK), not the
+            # legacy "admin"/"author" strings -- members-panel.tsx's
+            # <select> only offers CANONICAL_ROLES, so a non-canonical
+            # role silently fails to select any option (renders blank).
+            assert {m["email"]: m["role"] for m in members} == {
+                "admin@weave.local": "workspace_admin",
+                "client@weave.local": "brand_content_owner",
             }
             versions = await conn.fetch(
                 "SELECT status FROM graph_versions WHERE tenant_id = $1", tenant_id
