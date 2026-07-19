@@ -215,11 +215,12 @@ by severity.
 
 ### Shell (cross-cutting)
 
-- [ ] **S1 H · Horizontal overflow hides header right cluster** — with the secondary sidebar open,
-  page is wider than viewport at 1568px: bell / help "?" / avatar sit ~100–200px off-screen (plus
-  their flyouts anchor off-viewport). Pages without the secondary sidebar (404) fit. Likely a
-  fixed-width sum (rail + sidebar + min-width content) exceeding `100vw`. Fix at the shell layout
-  source, not per-page.
+- [x] **S1 H · Horizontal overflow hides header right cluster** — **FIXED #171 (2026-07-19)**.
+  Root cause: AppHeader's centre wrapper lacked `min-w-0`, so the command bar held intrinsic width
+  and pushed the fixed 320px right zone off-viewport once rail+sidebar narrowed the column (mock
+  shrinks the cmdbar via `min-width:0`+`max-width:100%`; app dropped it). Fix: `min-w-0` on the
+  wrapper + `truncate` on the label. New e2e (real login clicks, 1280×900) asserts bell+avatar
+  on-viewport; shell visual baselines regenerated on the amd64 runner.
 - [ ] **S2 M · Stale breadcrumbs** — CE subpages all show "Constitution / Overview"; Audit stays
   "Audit trail / Dashboard"; Build stays "Build / Registry". Settings/Billing updates correctly —
   pattern exists, other sections don't feed it.
@@ -242,12 +243,13 @@ by severity.
 
 ### Home / dashboard
 
-- [ ] **H1 H · Widget tiles broken** — header controls render as raw inline text
-  "↑↓ Pin Unpin Publish" (both Pin *and* Unpin always visible); titles wrap badly
-  ("Entities in / model").
-- [ ] **H2 H · "Latest published version" shows full URN** as display text — should be "v0.1.6" +
-  workspace label.
-- [ ] **H3 M · Stale-badge pill wraps over three lines** ("Stale — last updated / date / time").
+- [x] **H1 H · Widget tiles broken** — **FIXED #178 (2026-07-19)**: token-styled icon/text tile
+  controls (AppHeader icon-button pattern), exactly one of Pin/Unpin per pinned state, titles
+  truncate. Pin/Unpin stay text buttons deliberately — no pin glyph in the mock's icon sprite.
+- [x] **H2 H · "Latest published version" shows full URN** — **FIXED #178**: `formatKpiValue`
+  shortens `urn:…:vX.Y.Z` to the version tag, full URN in `title`. Display-layer only.
+- [x] **H3 M · Stale-badge pill wraps** — **FIXED #178**: single-word "Stale" nowrap badge,
+  timestamp in a deterministic tooltip (also removes an SSR/hydration-divergent toLocaleString).
 - [ ] **H4 M · "Needs you" rows carry internal gap copy** — "pending, no cross-workspace gate feed
   yet (gap G12)". G12's endpoint landed; wire the feed, kill the placeholder copy.
 - [ ] **H6 M · /notifications renders the bell-panel popover floating on an empty page** — should
@@ -331,10 +333,10 @@ by severity.
 
 ### Cross-cutting content
 
-- [ ] **D1 M · Internal tracker language leaks into product UI in ≥6 places** — "(gap G12)",
-  "(G13)", "(G14)", "backend aggregation pending", "needs an epics endpoint", "registry-card
-  summary field", "backend doesn't store…". ONE sweep replacing all with human empty-state copy
-  (mock's error/empty patterns are the reference). Absorbs the copy half of H4/B1/B2/SE1/SE3/C8.
+- [x] **D1 M · Internal tracker language leaks into product UI** — **FIXED #176 (2026-07-19)**:
+  one sweep over 21 user-visible sites (gap IDs, "isn't wired yet", "M1" refs, endpoint talk)
+  replaced with human empty-state copy; 10 test files updated to the new strings. Copy half of
+  H4/B1/B2/SE1/SE3/C8 absorbed — their data-wiring halves stay open.
 - [ ] **D2 M · Demo seed gaps undercut the demo** — no glossary definitions, no brand
   standards/rules, no build tasks/epics on the demo project, broken audit chain (A1), roles all
   Viewer (SE2). Hammerbarn content brief (`docs/specs/weave/hammerbarn-content-brief.md`) should
