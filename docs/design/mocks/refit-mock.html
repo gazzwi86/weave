@@ -765,6 +765,23 @@
   .tl-meta{font-size:11.5px; color:var(--text-subtle); font-family:var(--font-mono);}
   .tl-desc{font-size:12.5px; color:var(--text-muted); margin:4px 0 10px;}
   .tl-actions{display:flex; gap:8px;}
+
+  /* PART A additions — billing budget bar w/ tick markers */
+  .budget-bar{position:relative; height:10px; border-radius:5px; background:var(--overlay); margin:12px 0 26px;}
+  .budget-bar .fill{position:absolute; inset:0; background:var(--gradient-accent); border-radius:5px; transition:width .3s;}
+  .budget-bar .tick{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--danger);}
+  .budget-bar .tick .tlabel{position:absolute; top:15px; font-size:10px; color:var(--text-subtle); white-space:nowrap;}
+  .budget-bar .tick.t80 .tlabel{left:50%; transform:translateX(-50%);}
+  .budget-bar .tick.t100 .tlabel{right:0;}
+
+  /* PART B additions — future-phase reference screens */
+  /* ============ FUTURE-PHASE REFERENCE SCREENS ============ */
+  .phase-banner{display:flex; align-items:center; gap:10px; padding:10px 14px; margin-bottom:var(--sp-3);
+    border:1px dashed var(--border); border-radius:var(--radius-lg); color:var(--text-subtle); font-size:12px;}
+  .phase-banner b{color:var(--text);}
+  .phase-banner .pill{margin-left:auto;}
+  .rail-item.preview{color:var(--text-subtle); cursor:pointer;}
+  .rail-item.preview:hover{background:var(--hover); color:var(--text-muted);}
 </style>
 
 <body>
@@ -857,9 +874,9 @@
     <button class="rail-item" id="rail-build" onclick="switchSection('build')" aria-label="Build">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-layers"/></svg>
       <span class="tip">Build</span></button>
-    <button class="rail-item disabled" aria-label="Events (coming soon)">
+    <button class="rail-item preview" id="rail-events" onclick="switchSection('events')" aria-label="Events & Actions — future phase (preview)" title="Events & Actions — future phase (preview)">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-zap"/></svg>
-      <span class="tip">Events &amp; Actions — coming soon</span></button>
+      <span class="tip">Events &amp; Actions — future phase (preview)</span></button>
     <button class="rail-item" id="rail-audit" onclick="switchSection('audit')" aria-label="Audit trail">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-scroll"/></svg>
       <span class="tip">Audit trail</span></button>
@@ -908,7 +925,8 @@
     <div class="body-area">
 
       <!-- HOME (phase 6) -->
-      <section class="screen content-page" id="screen-home">
+      <section class="screen" id="screen-home">
+        <div class="subscreen content-page active" id="sub-home-dash">
         <div class="content-inner">
           <div class="page-eyebrow">Home</div>
           <h1 class="page-title">Welcome back, Priya</h1>
@@ -971,6 +989,60 @@
               <div class="help-card" onclick="switchSection('settings');showSub('set-onboarding','Onboarding path')">
                 <div class="hc-icon v-green"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg></div>
                 <div class="hc-body"><div class="hc-title">Tune your path</div><div class="hc-sub">tours &amp; tips match how you use Weave</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <!-- NOTIFICATIONS (page) -->
+        <div class="subscreen content-page" id="sub-notifications">
+          <div class="content-inner" style="max-width:760px;">
+            <div class="page-eyebrow">Home</div>
+            <h1 class="page-title">Notifications</h1>
+            <p class="page-sub">Approvals, budget alerts and automation outcomes — everything Weave needs you to see.</p>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+              <div class="tabs" style="margin-bottom:0;">
+                <button class="tab active" onclick="notifTab('all',this)">All</button>
+                <button class="tab" onclick="notifTab('unread',this)">Unread</button>
+                <button class="tab" onclick="notifTab('approval',this)">Approvals</button>
+                <button class="tab" onclick="notifTab('budget',this)">Budget</button>
+                <button class="tab" onclick="notifTab('system',this)">System</button>
+              </div>
+              <button class="ghost-btn" style="flex:0 0 auto;" onclick="pageMarkAllRead()">Mark all read</button>
+            </div>
+
+            <div class="table-card" style="margin-top:var(--sp-4);">
+              <div class="notif-row" data-cat="approval" style="cursor:pointer;" onclick="pageNotifRead(this);switchSection('constitution');showSub('rules','Rules &amp; policies')">
+                <div class="ni c-model"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg></div>
+                <div class="nt"><b>Decision needed — partial refunds</b> — the Refund policy is silent on partial returns; the build is blocked on your call.<span class="when">Returns flow · yesterday</span></div>
+                <div class="nd"></div>
+              </div>
+              <div class="notif-row" data-cat="budget" style="cursor:pointer;" onclick="pageNotifRead(this);switchSection('settings');showSub('set-billing','Billing &amp; budgets')">
+                <div class="ni" style="color:var(--warn);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-gauge"/></svg></div>
+                <div class="nt"><b>Budget 80% — Returns flow</b> — this project has used 80% of its monthly cap.<span class="when">Returns flow · 3h ago</span></div>
+                <div class="nd"></div>
+              </div>
+              <div class="notif-row read" data-cat="system" style="cursor:pointer;" onclick="pageNotifRead(this);switchSection('build')">
+                <div class="ni c-build"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-git"/></svg></div>
+                <div class="nt"><b>Publish v0.1.6 succeeded</b> — 132 entities, 6 changes, zero rule violations.<span class="when">Yesterday</span></div>
+                <div class="nd"></div>
+              </div>
+              <div class="notif-row read" data-cat="system" style="cursor:pointer;" onclick="pageNotifRead(this);switchSection('settings');showSub('set-members','Members')">
+                <div class="ni c-member"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg></div>
+                <div class="nt"><b>Invite accepted</b> — sam@hammerbarn.com.au joined as Viewer.<span class="when">2 days ago</span></div>
+                <div class="nd"></div>
+              </div>
+              <div class="notif-row read" data-cat="system" style="cursor:pointer;" onclick="pageNotifRead(this)">
+                <div class="ni c-model"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-graph"/></svg></div>
+                <div class="nt"><b>Weekly digest</b> — 214 model edits, 3 contributors, 1 decision resolved.<span class="when">Mon</span></div>
+                <div class="nd"></div>
+              </div>
+              <div class="notif-row read" data-cat="system" style="cursor:pointer;" onclick="pageNotifRead(this);switchSection('constitution');showSub('rules','Rules &amp; policies')">
+                <div class="ni" style="color:var(--danger);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg></div>
+                <div class="nt"><b>ProcessOwnerShape — 2 new violations</b> — 2 processes are missing owners since v13.<span class="when">Last week</span></div>
+                <div class="nd"></div>
               </div>
             </div>
           </div>
@@ -1465,6 +1537,99 @@
             </div>
           </div>
         </div>
+
+        <!-- INGEST (future phase — PART B) -->
+        <div class="subscreen content-page" id="sub-ce-ingest">
+          <div class="content-inner">
+            <div class="page-eyebrow">Constitution</div>
+            <h1 class="page-title">Ingest</h1>
+            <p class="page-sub">Bring what you already have — documents, spreadsheets and exports become proposed model changes you review before anything commits.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Constitution ingest phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="ph-card" style="padding:36px 24px;">
+              <div class="ph-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></div>
+              <h3>Drop files — PDF, DOCX, CSV, XLSX, Turtle</h3>
+              <p>Weave reads what's dropped here and proposes entities, links and mappings against the current model.</p>
+            </div>
+            <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:var(--sp-5) 0 10px;">In review</h6>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>File</th><th>Proposal</th><th style="width:90px;"></th></tr></thead>
+                <tbody>
+                  <tr><td><b>returns-process.docx</b></td><td class="cell-desc">14 proposed entities · 3 need you</td><td><button class="ghost-btn" onclick="toast('info','Opening review — 3 items need a decision.')">Review</button></td></tr>
+                  <tr><td><b>stock-codes.csv</b></td><td class="cell-desc">Column mapping ready · 2 rows fail rules (skip &amp; report)</td><td><button class="ghost-btn" onclick="toast('info','Opening review — mapping ready to confirm.')">Review</button></td></tr>
+                  <tr><td><b>org-chart.xlsx</b></td><td class="cell-desc">41 actors proposed</td><td><button class="ghost-btn" onclick="toast('info','Opening review — 41 actors proposed.')">Review</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p style="font-size:11px; color:var(--text-subtle); margin-top:10px;">Everything lands through the same validated write path as manual edits — rules run before commit, provenance recorded.</p>
+          </div>
+        </div>
+
+        <!-- REASONING (future phase — PART B) -->
+        <div class="subscreen content-page" id="sub-ce-reasoning">
+          <div class="content-inner">
+            <div class="page-eyebrow">Constitution</div>
+            <h1 class="page-title">Reasoning</h1>
+            <p class="page-sub">What the model can work out on its own — inferred links and consistency checks, computed at each publish.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Constitution reasoning phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv ok">v0.1.6</div><div class="sl">consistent</div></div>
+              <div class="stat-card"><div class="sv">34</div><div class="sl">inferred links</div></div>
+              <div class="stat-card"><div class="sv ok">0</div><div class="sl">contradictions</div></div>
+              <div class="stat-card"><div class="sv">4.2s</div><div class="sl">reasoner run time</div></div>
+            </div>
+            <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:var(--sp-5) 0 10px;">Inferred at v0.1.6</h6>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Inferred statement</th><th style="width:80px;"></th></tr></thead>
+                <tbody>
+                  <tr><td>Returns &amp; Refunds is part of Retail Operations <span style="color:var(--text-subtle);">(via Customer Order chain)</span></td><td><button class="ghost-btn" onclick="toast('info','SubClassOf chain: Returns & Refunds → Customer Order → Retail Operations.')">Why</button></td></tr>
+                  <tr><td>Goods-in task requires Stock management <span style="color:var(--text-subtle);">(via Activity dependency)</span></td><td><button class="ghost-btn" onclick="toast('info','Dependency rule: Activity.requires transitively closed over Process membership.')">Why</button></td></tr>
+                  <tr><td>Refund policy governs Order handling <span style="color:var(--text-subtle);">(via Domain scope)</span></td><td><button class="ghost-btn" onclick="toast('info','Scope rule: Policy.domain matches Process.domain.')">Why</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRATEGY & MOTIVATION (future phase — PART B) -->
+        <div class="subscreen content-page" id="sub-ce-strategy">
+          <div class="content-inner">
+            <div class="page-eyebrow">Constitution</div>
+            <h1 class="page-title">Strategy &amp; motivation</h1>
+            <p class="page-sub">Why the company does what it does — goals, drivers and the capabilities that serve them.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Constitution strategy phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div style="display:grid; grid-template-columns:2fr 1fr; gap:var(--sp-5); align-items:start;">
+              <div>
+                <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:0 0 10px;">Goals</h6>
+                <div class="side-card">
+                  <div style="font-size:13.5px; font-weight:600; margin-bottom:8px;">Same-day click-and-collect</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--k-capability);display:inline-block;"></span>Order handling</span>
+                    <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--k-capability);display:inline-block;"></span>Store fulfilment</span>
+                  </div>
+                </div>
+                <div class="side-card">
+                  <div style="font-size:13.5px; font-weight:600; margin-bottom:8px;">Shrinkage under 1.2%</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--k-capability);display:inline-block;"></span>Stock management</span>
+                    <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--k-capability);display:inline-block;"></span>Loss prevention</span>
+                  </div>
+                </div>
+              </div>
+              <div class="side-card">
+                <h6>Drivers</h6>
+                <div class="health-row"><span>Customer expectation</span><span class="v">2 goals</span></div>
+                <div class="health-row"><span>Cost pressure</span><span class="v">1 goal</span></div>
+                <div class="health-row"><span>Compliance</span><span class="v">1 goal</span></div>
+              </div>
+            </div>
+            <p style="font-size:11px; color:var(--text-subtle); margin-top:var(--sp-4);">Strategy heat &amp; motivation overlays on the Explore canvas light up when this ships.</p>
+          </div>
+        </div>
       </section>
 
       <!-- CONFIRM DELETE (shared modal — every destructive action routes here) -->
@@ -1886,6 +2051,30 @@
           </div>
         </div>
 
+        <!-- MODEL CANVAS -->
+        <div class="subscreen content-page" id="sub-bld-canvas">
+          <div class="content-inner wide" style="max-width:1100px;">
+            <div class="page-eyebrow">Build · <span class="bld-proj-name">Returns flow</span></div>
+            <h1 class="page-title">Model canvas</h1>
+            <p class="page-sub">The slice of the Constitution this project is grounded in — read-only here, editable in Explore.</p>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span class="fchip">project = Returns flow <button onclick="this.parentNode.remove()" aria-label="Remove filter"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><use href="#i-x"/></svg></button></span>
+              <span style="font-size:12px; color:var(--accent); cursor:pointer;" onclick="switchSection('constitution')">Show all →</span>
+            </div>
+            <div class="glass" style="margin-top:var(--sp-4); padding:16px; height:380px; box-sizing:border-box;">
+              <svg id="bld-canvas-graph" viewBox="0 0 680 340" style="width:100%; height:100%;"></svg>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px;">
+              <span class="echip"><span style="width:7px; height:7px; border-radius:50%; background:var(--k-process); display:inline-block;"></span>Process</span>
+              <span class="echip"><span style="width:7px; height:7px; border-radius:50%; background:var(--k-activity); display:inline-block;"></span>Activity</span>
+              <span class="echip"><span style="width:7px; height:7px; border-radius:50%; background:var(--k-event); display:inline-block;"></span>Event</span>
+              <span class="echip"><span style="width:7px; height:7px; border-radius:50%; background:var(--k-actor); display:inline-block;"></span>Actor</span>
+              <span class="echip"><span style="width:7px; height:7px; border-radius:50%; background:var(--k-policy); display:inline-block;"></span>Policy</span>
+              <button class="ghost-btn" style="margin-left:auto;" onclick="switchSection('constitution')">Open in Explore</button>
+            </div>
+          </div>
+        </div>
+
         <!-- REQUEST STUDIO -->
         <div class="subscreen content-page" id="sub-bld-studio">
           <div class="content-inner" style="max-width:860px;">
@@ -2099,6 +2288,205 @@
             </div>
           </div>
         </div>
+
+        <!-- SENTIMENT (future phase — PART B, full design) -->
+        <div class="subscreen content-page" id="sub-aud-sentiment">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Sentiment</h1>
+            <p class="page-sub">How people feel in what flows through Weave — comments, queries, and HITL feedback, scored per event.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv ok">+0.42</div><div class="sl">net sentiment · 30d</div></div>
+              <div class="stat-card"><div class="sv ok">▲ 0.08</div><div class="sl">vs last month</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">3</div><div class="sl">flagged threads</div></div>
+              <div class="stat-card"><div class="sv">1,204</div><div class="sl">scored events</div></div>
+            </div>
+            <div class="side-card">
+              <h6>Sentiment over time</h6>
+              <svg viewBox="0 0 640 140" style="width:100%; height:140px;">
+                <line x1="40" y1="10" x2="40" y2="120" stroke="var(--border)" stroke-width="1"/>
+                <line x1="40" y1="120" x2="620" y2="120" stroke="var(--border)" stroke-width="1"/>
+                <text x="34" y="14" text-anchor="end" font-size="9" fill="var(--text-subtle)">100%</text>
+                <text x="34" y="123" text-anchor="end" font-size="9" fill="var(--text-subtle)">0%</text>
+                <polyline points="60,56 220,53 380,49 540,51" fill="none" stroke="var(--success)" stroke-width="2"/>
+                <polyline points="60,96 220,99 380,104 540,101" fill="none" stroke="var(--danger)" stroke-width="2"/>
+                <circle cx="60" cy="56" r="3" fill="var(--success)"/><circle cx="220" cy="53" r="3" fill="var(--success)"/><circle cx="380" cy="49" r="3" fill="var(--success)"/><circle cx="540" cy="51" r="3" fill="var(--success)"/>
+                <circle cx="60" cy="96" r="3" fill="var(--danger)"/><circle cx="220" cy="99" r="3" fill="var(--danger)"/><circle cx="380" cy="104" r="3" fill="var(--danger)"/><circle cx="540" cy="101" r="3" fill="var(--danger)"/>
+                <text x="60" y="134" text-anchor="middle" font-size="10" fill="var(--text-subtle)">W1</text>
+                <text x="220" y="134" text-anchor="middle" font-size="10" fill="var(--text-subtle)">W2</text>
+                <text x="380" y="134" text-anchor="middle" font-size="10" fill="var(--text-subtle)">W3</text>
+                <text x="540" y="134" text-anchor="middle" font-size="10" fill="var(--text-subtle)">W4</text>
+              </svg>
+              <div style="display:flex; gap:14px; margin-top:6px;">
+                <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span>Positive share</span>
+                <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--danger);display:inline-block;"></span>Negative share</span>
+              </div>
+            </div>
+            <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:var(--sp-5) 0 10px;">By surface</h6>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Surface</th><th style="width:100px;">Net score</th></tr></thead>
+                <tbody>
+                  <tr><td>Comments</td><td><span class="sev sev-normal" style="color:var(--success);">+0.61</span></td></tr>
+                  <tr><td>Query asks</td><td><span class="sev sev-normal" style="color:var(--success);">+0.38</span></td></tr>
+                  <tr><td>HITL decisions</td><td><span class="sev sev-critical">−0.12</span></td></tr>
+                  <tr><td>Support notes</td><td><span class="sev sev-normal" style="color:var(--success);">+0.44</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:var(--sp-5) 0 10px;">Flagged for review</h6>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Excerpt</th><th style="width:130px;">Surface</th><th style="width:80px;">Score</th><th style="width:100px;">When</th><th style="width:40px;"></th></tr></thead>
+                <tbody>
+                  <tr><td class="cell-desc">"This refund rule keeps blocking legitimate trade returns…"</td><td>HITL decisions</td><td><span class="sev sev-critical">−0.71</span></td><td class="cell-count">3h ago</td>
+                    <td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Open event" onclick="showSub('aud-logs','Logs')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-list"/></svg></button></td></tr>
+                  <tr><td class="cell-desc">"Told the customer we'd expedite — still waiting on stock."</td><td>Support notes</td><td><span class="sev sev-critical">−0.54</span></td><td class="cell-count">Yesterday</td>
+                    <td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Open event" onclick="showSub('aud-logs','Logs')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-list"/></svg></button></td></tr>
+                  <tr><td class="cell-desc">"Why does the returns form ask for a photo every time?"</td><td>Comments</td><td><span class="sev sev-critical">−0.31</span></td><td class="cell-count">2 days ago</td>
+                    <td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Open event" onclick="showSub('aud-logs','Logs')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-list"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- INTENT & URGENCY (future phase — PART B, compact) -->
+        <div class="subscreen content-page" id="sub-aud-intent">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Intent &amp; urgency</h1>
+            <p class="page-sub">What people are trying to do, and how urgently.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+              <div class="stat-card"><div class="sv">Stock enquiry</div><div class="sl">top intent</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">12%</div><div class="sl">flagged urgent</div></div>
+              <div class="stat-card"><div class="sv">1.8h</div><div class="sl">urgent median response</div></div>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Intent</th><th style="width:100px;">Volume</th><th style="width:110px;">Urgency</th></tr></thead>
+                <tbody>
+                  <tr><td>Stock enquiry</td><td class="cell-count">412</td><td><span class="sev sev-info">normal</span></td></tr>
+                  <tr><td>Return &amp; refund</td><td class="cell-count">298</td><td><span class="sev sev-warning">elevated</span></td></tr>
+                  <tr><td>Delivery delay</td><td class="cell-count">165</td><td><span class="sev sev-critical">urgent</span></td></tr>
+                  <tr><td>Price match</td><td class="cell-count">88</td><td><span class="sev sev-info">normal</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TOPICS (future phase — PART B, compact) -->
+        <div class="subscreen content-page" id="sub-aud-topics">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Topics</h1>
+            <p class="page-sub">What people are talking about, clustered automatically.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
+              <div class="stat-card"><div class="sv">18</div><div class="sl">active topics</div></div>
+              <div class="stat-card"><div class="sv ok">Returns &amp; refunds</div><div class="sl">fastest riser · +34%</div></div>
+            </div>
+            <div class="side-card" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+              <span class="kchip" style="font-size:15px; padding:6px 12px;">Returns &amp; refunds <span class="mono" style="color:var(--text-subtle);">340</span></span>
+              <span class="kchip" style="font-size:14px; padding:5px 11px;">Stock enquiry <span class="mono" style="color:var(--text-subtle);">288</span></span>
+              <span class="kchip" style="font-size:13px;">Delivery delay <span class="mono" style="color:var(--text-subtle);">210</span></span>
+              <span class="kchip" style="font-size:12.5px;">Price match <span class="mono" style="color:var(--text-subtle);">150</span></span>
+              <span class="kchip" style="font-size:12px;">Click &amp; collect <span class="mono" style="color:var(--text-subtle);">120</span></span>
+              <span class="kchip" style="font-size:11.5px;">Warranty claim <span class="mono" style="color:var(--text-subtle);">95</span></span>
+              <span class="kchip" style="font-size:11px;">Store hours <span class="mono" style="color:var(--text-subtle);">60</span></span>
+              <span class="kchip" style="font-size:10.5px;">Loyalty points <span class="mono" style="color:var(--text-subtle);">40</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SATISFACTION (future phase — PART B, compact) -->
+        <div class="subscreen content-page" id="sub-aud-satisfaction">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Satisfaction</h1>
+            <p class="page-sub">CSAT computed from HITL feedback and support notes.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+              <div class="stat-card"><div class="sv ok">4.3/5</div><div class="sl">CSAT</div></div>
+              <div class="stat-card"><div class="sv">76%</div><div class="sl">response rate</div></div>
+              <div class="stat-card"><div class="sv ok">▲ 0.2</div><div class="sl">vs last month</div></div>
+            </div>
+            <div class="side-card">
+              <h6>Ratings distribution</h6>
+              <div class="actor-row"><span class="n">5 ★</span><span class="bar-track"><span class="bar-fill" style="width:52%;"></span></span><span class="c">52%</span></div>
+              <div class="actor-row"><span class="n">4 ★</span><span class="bar-track"><span class="bar-fill" style="width:28%;"></span></span><span class="c">28%</span></div>
+              <div class="actor-row"><span class="n">3 ★</span><span class="bar-track"><span class="bar-fill" style="width:12%;"></span></span><span class="c">12%</span></div>
+              <div class="actor-row"><span class="n">2 ★</span><span class="bar-track"><span class="bar-fill" style="width:5%;"></span></span><span class="c">5%</span></div>
+              <div class="actor-row"><span class="n">1 ★</span><span class="bar-track"><span class="bar-fill" style="width:3%;"></span></span><span class="c">3%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUALITY & SAFETY (future phase — PART B, compact) -->
+        <div class="subscreen content-page" id="sub-aud-quality">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Quality &amp; safety</h1>
+            <p class="page-sub">Policy blocks and scrubbing coverage across every scored event.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+              <div class="stat-card"><div class="sv ok">0</div><div class="sl">critical findings</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">3</div><div class="sl">policy blocks · 30d</div></div>
+              <div class="stat-card"><div class="sv ok">100%</div><div class="sl">scrub coverage</div></div>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Rule</th><th>Surface</th><th style="width:110px;">When</th></tr></thead>
+                <tbody>
+                  <tr><td>PII scrub — customer email</td><td>Support notes</td><td class="cell-count">2h ago</td></tr>
+                  <tr><td>Profanity filter</td><td>Comments</td><td class="cell-count">Yesterday</td></tr>
+                  <tr><td>Refund amount cap</td><td>HITL decisions</td><td class="cell-count">3 days ago</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODEL METRICS (future phase — PART B, full design) -->
+        <div class="subscreen content-page" id="sub-aud-model-metrics">
+          <div class="content-inner">
+            <div class="page-eyebrow">Audit trail</div>
+            <h1 class="page-title">Model metrics</h1>
+            <p class="page-sub">Latency, spend and error posture of every model call Weave makes.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Audit inference phase</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv">1.9s</div><div class="sl">p50 latency</div></div>
+              <div class="stat-card"><div class="sv">8.4s</div><div class="sl">p95 latency</div></div>
+              <div class="stat-card"><div class="sv ok">0.6%</div><div class="sl">error rate</div></div>
+              <div class="stat-card"><div class="sv">38</div><div class="sl">HITL escalations · 30d</div></div>
+            </div>
+            <h6 style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--text-subtle); margin:var(--sp-5) 0 10px;">By tier — 30 days</h6>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Tier</th><th style="width:90px;">Calls</th><th style="width:90px;">Tokens</th><th style="width:70px;">p95</th><th style="width:80px;">Errors</th><th style="width:100px;">Trend</th></tr></thead>
+                <tbody>
+                  <tr><td>High tier — judgement</td><td class="cell-count">1,180</td><td class="cell-count">640K</td><td class="cell-count">9.8s</td><td class="cell-count">0.4%</td><td class="mono" style="color:var(--success);">▂▃▄▅▆</td></tr>
+                  <tr><td>Mid tier — volume</td><td class="cell-count">9,840</td><td class="cell-count">3.1M</td><td class="cell-count">2.1s</td><td class="cell-count">0.7%</td><td class="mono" style="color:var(--accent);">▃▄▄▅▄</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="side-card">
+              <h6>Guardrail outcomes</h6>
+              <div class="actor-row"><span class="n">Passed</span><span class="bar-track"><span class="bar-fill" style="width:97.9%; background:var(--success);"></span></span><span class="c">97.9%</span></div>
+              <div class="actor-row"><span class="n">Blocked by rules</span><span class="bar-track"><span class="bar-fill" style="width:1.5%; background:var(--warn);"></span></span><span class="c">1.5%</span></div>
+              <div class="actor-row"><span class="n">Escalated</span><span class="bar-track"><span class="bar-fill" style="width:0.6%; background:var(--danger);"></span></span><span class="c">0.6%</span></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- SETTINGS -->
@@ -2209,7 +2597,84 @@
           </div>
         </div>
 
-        <!-- placeholder anchor (operator console lives outside settings) -->
+        <!-- BILLING & BUDGETS -->
+        <div class="subscreen content-page" id="sub-set-billing">
+          <div class="content-inner" style="max-width:820px;">
+            <div class="page-eyebrow">Settings</div>
+            <h1 class="page-title">Billing &amp; budgets</h1>
+            <p class="page-sub">What Weave is using, and the caps that keep it inside budget.</p>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv">1.24M</div><div class="sl">tokens · 30d</div></div>
+              <div class="stat-card"><div class="sv">312</div><div class="sl">runs · 30d</div></div>
+              <div class="stat-card"><div class="sv">$500/mo</div><div class="sl">workspace cap</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">62%</div><div class="sl">burn this month</div></div>
+            </div>
+            <div class="side-card">
+              <h6>Budget burn — this month</h6>
+              <div class="budget-bar">
+                <div class="fill" style="width:62%;"></div>
+                <div class="tick t80" style="left:80%;"><span class="tlabel">alert 80%</span></div>
+                <div class="tick t100" style="left:100%;"><span class="tlabel">hard stop 100%</span></div>
+              </div>
+              <p style="font-size:11px; color:var(--text-subtle); margin:0;">At 100% Weave hard-stops AI calls before they're made. Caps cascade Company → Domain → Project — the tighter value wins.</p>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:var(--sp-4);">
+              <h6 style="margin:0;">Usage by engine — 30 days</h6>
+              <div style="display:flex; gap:6px;">
+                <button class="kchip" onclick="billingGroup('engine',this)">Engine</button>
+                <button class="kchip off" onclick="billingGroup('user',this)">User</button>
+                <button class="kchip off" onclick="billingGroup('project',this)">Project</button>
+              </div>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Group</th><th style="width:120px;">Tokens</th><th style="width:100px;">Runs</th><th style="width:100px;">Trend</th></tr></thead>
+                <tbody id="billing-tbody"></tbody>
+              </table>
+            </div>
+            <p style="font-size:11px; color:var(--text-subtle); margin-top:8px;">Counts only — a dollar rate card lands post-v1. Last metered 4 min ago.</p>
+          </div>
+        </div>
+
+        <!-- PROFILE & PREFERENCES -->
+        <div class="subscreen content-page" id="sub-set-profile">
+          <div class="content-inner" style="max-width:640px;">
+            <div class="page-eyebrow">Settings</div>
+            <h1 class="page-title">Profile &amp; preferences</h1>
+            <p class="page-sub">You, across this workspace.</p>
+            <div class="side-card">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <button class="avatar-btn" style="width:44px; height:44px; font-size:15px; cursor:default;">PS</button>
+                <div style="flex:1;">
+                  <div style="font-size:14px; font-weight:600;">Priya Shah <span class="pill" style="margin-left:4px;">Company admin</span></div>
+                  <div style="font-size:12px; color:var(--text-subtle);">priya@hammerbarn.com.au</div>
+                </div>
+                <button class="ghost-btn">Sign out</button>
+              </div>
+            </div>
+            <div class="side-card">
+              <h6>Appearance</h6>
+              <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:6px;">Theme</div>
+              <div class="tabs" style="margin-bottom:14px;">
+                <button class="tab active">Dark</button>
+                <button class="tab">Light</button>
+                <button class="tab">System</button>
+              </div>
+              <div style="font-size:11.5px; color:var(--text-muted); margin-bottom:6px;">Density</div>
+              <div class="tabs" style="margin-bottom:0; border-bottom:none;">
+                <button class="tab active">Comfortable</button>
+                <button class="tab">Compact</button>
+              </div>
+            </div>
+            <div class="side-card">
+              <h6>Notification preferences</h6>
+              <div class="dock-row"><span>Approvals &amp; decisions</span><div class="toggle-sw on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="dock-row"><span>Budget alerts</span><div class="toggle-sw on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="dock-row"><span>Weekly digest</span><div class="toggle-sw" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+        </div>
+
         <!-- ONBOARDING PATH -->
         <div class="subscreen content-page" id="sub-set-onboarding">
           <div class="content-inner" style="max-width:720px;">
@@ -2235,6 +2700,133 @@
               </div>
             </div>
             <button class="ghost-btn" style="margin-top:16px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg>Restart the guided tour</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- EVENTS & ACTIONS (future phase — PART B) -->
+      <section class="screen" id="screen-events">
+
+        <!-- AUTOMATIONS -->
+        <div class="subscreen content-page active" id="sub-ev-automations">
+          <div class="content-inner">
+            <div class="page-eyebrow">Events &amp; Actions</div>
+            <h1 class="page-title">Automations</h1>
+            <p class="page-sub">Triggers, conditions and actions grounded in your model — every run traced back to the Constitution.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Events &amp; Actions engine</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv ok">12</div><div class="sl">active</div></div>
+              <div class="stat-card"><div class="sv">2</div><div class="sl">paused</div></div>
+              <div class="stat-card"><div class="sv ok">98.7%</div><div class="sl">success · 7d</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">1</div><div class="sl">stale pin</div></div>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th>Automation</th><th style="width:120px;">Trigger</th><th style="width:190px;">Grounded on</th><th style="width:150px;">Health</th><th style="width:90px;">Last run</th><th style="width:70px;">7d runs</th></tr></thead>
+                <tbody>
+                  <tr><td><b>Low-stock replenishment alert</b></td><td class="cell-desc mono" style="font-size:11px;">cron 06:00</td><td class="cell-desc">Process: Stock management</td><td><span class="status-pill status-active">Healthy</span></td><td class="cell-count">2h ago</td><td class="cell-count">84</td></tr>
+                  <tr><td><b>Supplier delivery → goods-in task</b></td><td class="cell-desc mono" style="font-size:11px;">webhook</td><td class="cell-desc">Activity: Goods inward</td><td><span class="status-pill status-active">Healthy</span></td><td class="cell-count">35m ago</td><td class="cell-count">61</td></tr>
+                  <tr><td><b>Refund spike → notify Finance</b></td><td class="cell-desc mono" style="font-size:11px;">graph-change</td><td class="cell-desc">Policy: Refund policy</td><td><span class="sev sev-warning">Stale pin · v0.1.4</span></td><td class="cell-count">1d ago</td><td class="cell-count">12</td></tr>
+                  <tr><td><b>Jira escalation sync</b></td><td class="cell-desc mono" style="font-size:11px;">Jira status-changed</td><td class="cell-desc">—</td><td><span class="status-pill status-draft">Paused</span></td><td class="cell-count">3d ago</td><td class="cell-count">0</td></tr>
+                  <tr><td><b>Store hours override broadcast</b></td><td class="cell-desc mono" style="font-size:11px;">schedule</td><td class="cell-desc">Activity: Store hours update</td><td><span class="sev sev-critical"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--danger);margin-right:4px;"></span>Failed</span></td><td class="cell-count">6h ago</td><td class="cell-count">9</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- BUILDER -->
+        <div class="subscreen content-page" id="sub-ev-builder">
+          <div class="content-inner wide" style="max-width:1180px;">
+            <div class="page-eyebrow">Events &amp; Actions</div>
+            <h1 class="page-title">Builder</h1>
+            <p class="page-sub">Describe the automation in plain language — Weave drafts the trigger, condition and action, grounded in your model.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Events &amp; Actions engine</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div style="display:flex; gap:16px; align-items:flex-start;">
+              <div class="glass" style="flex:1; min-width:0; padding:16px; box-sizing:border-box;">
+                <div class="thread">
+                  <div class="msg user">When a delivery arrives at a store, create a goods-in task and tell #store-ops.</div>
+                  <div class="msg ai">Drafted: trigger on <b>delivery.arrived</b> (webhook), condition <b>store.region = AU</b>, then create a goods-in task and post to <b>#store-ops</b>.
+                    <div class="ground-chips">
+                      <span class="echip"><span style="width:7px;height:7px;border-radius:50%;background:var(--k-activity);"></span>grounded on Activity: Goods inward, pinned v0.1.6</span>
+                    </div></div>
+                  <div class="msg user">Also flag anything over $5k for my approval first.</div>
+                </div>
+                <div class="ask-pill" style="width:100%; box-sizing:border-box;">
+                  <span class="spark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg></span>
+                  <input placeholder="Refine the automation or ask a follow-up…">
+                  <button class="ask-go" aria-label="Send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+                </div>
+              </div>
+              <div class="glass" style="flex:0 0 420px; padding:16px; box-sizing:border-box;">
+                <svg viewBox="0 0 420 300" style="width:100%; height:300px;">
+                  <line x1="110" y1="64" x2="110" y2="84" stroke="var(--border-strong)" stroke-width="1.5"/>
+                  <line x1="110" y1="130" x2="110" y2="150" stroke="var(--border-strong)" stroke-width="1.5"/>
+                  <line x1="110" y1="204" x2="110" y2="224" stroke="var(--border-strong)" stroke-width="1.5"/>
+                  <path d="M200,177 H215 V182 H230" stroke="var(--border-strong)" stroke-width="1.5" fill="none"/>
+
+                  <rect x="20" y="10" width="180" height="54" rx="8" fill="var(--raised)" stroke="var(--k-event)" stroke-width="1.5"/>
+                  <text x="32" y="26" font-size="8" letter-spacing="1" fill="var(--text-subtle)">TRIGGER</text>
+                  <text x="32" y="42" font-size="11" font-weight="600" fill="var(--text)">Webhook</text>
+                  <text x="32" y="56" font-size="9.5" fill="var(--text-subtle)">delivery.arrived</text>
+
+                  <rect x="20" y="84" width="180" height="46" rx="8" fill="var(--raised)" stroke="var(--accent)" stroke-width="1.5"/>
+                  <text x="32" y="100" font-size="8" letter-spacing="1" fill="var(--text-subtle)">CONDITION</text>
+                  <text x="32" y="116" font-size="11" font-weight="600" fill="var(--text)">store.region = AU</text>
+
+                  <rect x="20" y="150" width="180" height="54" rx="8" fill="var(--raised)" stroke="var(--k-activity)" stroke-width="1.5"/>
+                  <text x="32" y="166" font-size="8" letter-spacing="1" fill="var(--text-subtle)">ACTION</text>
+                  <text x="32" y="182" font-size="11" font-weight="600" fill="var(--text)">Create task</text>
+                  <text x="32" y="196" font-size="9.5" fill="var(--text-subtle)">Graph update</text>
+
+                  <rect x="20" y="224" width="180" height="54" rx="8" fill="var(--raised)" stroke="var(--k-system)" stroke-width="1.5"/>
+                  <text x="32" y="240" font-size="8" letter-spacing="1" fill="var(--text-subtle)">ACTION</text>
+                  <text x="32" y="256" font-size="11" font-weight="600" fill="var(--text)">Slack #store-ops</text>
+                  <text x="32" y="270" font-size="9.5" fill="var(--text-subtle)">Notify</text>
+
+                  <rect x="230" y="150" width="170" height="64" rx="8" fill="var(--raised)" stroke="var(--k-policy)" stroke-width="1.5"/>
+                  <text x="242" y="166" font-size="8" letter-spacing="1" fill="var(--text-subtle)">HITL GATE</text>
+                  <text x="242" y="182" font-size="11" font-weight="600" fill="var(--text)">if value &gt; $5k</text>
+                  <text x="242" y="196" font-size="9.5" fill="var(--text-subtle)">→ approval required</text>
+                </svg>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button class="btn-line" style="padding:8px 14px; border-radius:7px; font-size:12.5px;" onclick="toast('info','Draft saved.')">Save draft</button>
+              <button class="btn-line" style="padding:8px 14px; border-radius:7px; font-size:12.5px;" onclick="toast('info','Dry-run started — no live actions will fire.');setTimeout(()=>toast('success','Dry-run passed — 1 task would be created, 1 message would be sent.'),1200)">Test (dry-run)</button>
+              <button class="btn-grad" style="padding:8px 16px; border-radius:7px; font-size:12.5px; font-weight:600;" onclick="toast('success','Automation activated.')">Activate</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RUNS -->
+        <div class="subscreen content-page" id="sub-ev-runs">
+          <div class="content-inner wide" style="max-width:1180px;">
+            <div class="page-eyebrow">Events &amp; Actions</div>
+            <h1 class="page-title">Runs</h1>
+            <p class="page-sub">Every automation execution — status, duration and what it cost.</p>
+            <div class="phase-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-sparkles"/></svg>
+              <span><b>Future phase — reference design.</b> Arrives with the <b>Events &amp; Actions engine</b>; not in the current build.</span><span class="pill">soon</span></div>
+            <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+              <div class="stat-card"><div class="sv">312</div><div class="sl">runs · 30d</div></div>
+              <div class="stat-card"><div class="sv" style="color:var(--warn);">4</div><div class="sl">failed</div></div>
+              <div class="stat-card"><div class="sv bad">2</div><div class="sl">in DLQ</div></div>
+              <div class="stat-card"><div class="sv">3.1s</div><div class="sl">p95 duration</div></div>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead><tr><th style="width:90px;">Run</th><th>Automation</th><th style="width:130px;">Trigger event</th><th style="width:190px;">Status</th><th style="width:80px;">Duration</th><th style="width:110px;">Metered</th><th style="width:40px;"></th></tr></thead>
+                <tbody>
+                  <tr><td class="cell-count mono">RUN-4821</td><td>Low-stock replenishment alert</td><td class="cell-desc mono" style="font-size:11px;">cron 06:00</td><td><span class="status-pill status-active">Succeeded</span></td><td class="cell-count">1.2s</td><td class="cell-count">0.4k tokens · $—</td><td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Replay" onclick="toast('info','Replaying RUN-4821…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg></button></td></tr>
+                  <tr><td class="cell-count mono">RUN-4820</td><td>Supplier delivery → goods-in task</td><td class="cell-desc mono" style="font-size:11px;">webhook</td><td><span class="sev sev-warning">Failed → retried from step 3</span></td><td class="cell-count">3.4s</td><td class="cell-count">1.2k tokens · $—</td><td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Replay" onclick="toast('info','Replaying RUN-4820…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg></button></td></tr>
+                  <tr><td class="cell-count mono">RUN-4819</td><td>Refund spike → notify Finance</td><td class="cell-desc mono" style="font-size:11px;">graph-change</td><td><span class="sev sev-critical">DLQ — bad signature</span></td><td class="cell-count">—</td><td class="cell-count">0.2k tokens · $—</td><td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Replay" onclick="toast('info','Replaying RUN-4819…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg></button></td></tr>
+                  <tr><td class="cell-count mono">RUN-4818</td><td>Jira escalation sync</td><td class="cell-desc mono" style="font-size:11px;">status-changed</td><td><span class="status-pill status-active">Succeeded</span></td><td class="cell-count">0.8s</td><td class="cell-count">0.3k tokens · $—</td><td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Replay" onclick="toast('info','Replaying RUN-4818…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg></button></td></tr>
+                  <tr><td class="cell-count mono">RUN-4817</td><td>Store hours override broadcast</td><td class="cell-desc mono" style="font-size:11px;">schedule</td><td><span class="status-pill status-active">Succeeded</span></td><td class="cell-count">2.1s</td><td class="cell-count">0.5k tokens · $—</td><td><button class="icon-btn" style="width:26px;height:26px;" aria-label="Replay" onclick="toast('info','Replaying RUN-4817…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-play"/></svg></button></td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -2340,7 +2932,7 @@
       <div class="menu-item" onclick="closeFlyouts();switchSection('operator')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-shield"/></svg>Operator console — provision companies</div>
     </div>
     <div style="padding:6px 0;">
-      <div class="menu-item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg>Profile &amp; preferences</div>
+      <div class="menu-item" onclick="closeFlyouts();switchSection('settings');showSub('set-profile','Profile & preferences')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-user"/></svg>Profile &amp; preferences</div>
       <div class="menu-item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-moon"/></svg>Theme <span class="pill" style="margin-left:auto;">Dark</span></div>
       <div class="menu-sep"></div>
       <div class="menu-item"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-logout"/></svg>Sign out</div>
@@ -2393,7 +2985,12 @@
     `<div class="sb-item ${cls}" ${sub ? `data-sub="${sub}"` : ''}>${ICON(icon)}<span class="grow">${label}</span>${extra}</div>`;
 
   const SIDEBARS = {
-    home: null,
+    home: `
+      <div class="sidebar-head"><div class="sidebar-title">Home</div>${collapseBtn}</div>
+      <div class="sb-group"><div class="sb-group-label">Home</div>
+        ${item('i-gauge','Dashboard','', 'active','home-dash')}
+        ${item('i-bell','Notifications','','','notifications')}
+      </div>`,
     constitution: `
       <div class="sidebar-head"><div class="sidebar-title">Constitution</div>${collapseBtn}</div>
       <div class="sb-group"><div class="sb-group-label">Model</div>
@@ -2410,11 +3007,11 @@
         ${item('i-book','Glossary','','','glossary')}
         ${item('i-mic','Branding & standards','','','brand')}
         ${item('i-shield','Rules & policies','','','rules')}
-        ${item('i-target','Strategy & motivation','<span class="pill">soon</span>','disabled')}
+        ${item('i-target','Strategy & motivation','<span class="pill">soon</span>','','ce-strategy')}
       </div>
       <div class="sb-group"><div class="sb-group-label">Tools</div>
-        ${item('i-upload','Ingest','<span class="pill">soon</span>','disabled')}
-        ${item('i-brain','Reasoning','<span class="pill">soon</span>','disabled')}
+        ${item('i-upload','Ingest','<span class="pill">soon</span>','','ce-ingest')}
+        ${item('i-brain','Reasoning','<span class="pill">soon</span>','','ce-reasoning')}
       </div>`,
     build: null, // dynamic — buildSidebarHTML()
     audit: `
@@ -2423,6 +3020,14 @@
         ${item('i-gauge','Dashboard','', 'active','aud-dashboard')}
         ${item('i-list','Logs','','','aud-logs')}
         ${item('i-shield','Compliance','','','aud-compliance')}
+      </div>
+      <div class="sb-group"><div class="sb-group-label">Inference</div>
+        ${item('i-sparkles','Sentiment','<span class="pill">soon</span>','','aud-sentiment')}
+        ${item('i-target','Intent & urgency','<span class="pill">soon</span>','','aud-intent')}
+        ${item('i-tag','Topics','<span class="pill">soon</span>','','aud-topics')}
+        ${item('i-check','Satisfaction','<span class="pill">soon</span>','','aud-satisfaction')}
+        ${item('i-shield','Quality & safety','<span class="pill">soon</span>','','aud-quality')}
+        ${item('i-gauge','Model metrics','<span class="pill">soon</span>','','aud-model-metrics')}
       </div>`,
     settings: `
       <div class="sidebar-head"><div class="sidebar-title">Settings</div>${collapseBtn}</div>
@@ -2431,13 +3036,26 @@
         ${item('i-user','Members','','','set-members')}
         ${item('i-bell','Notifications','','','set-notifications')}
         ${item('i-sparkles','Models & AI','','','set-models')}
+        ${item('i-gauge','Billing & budgets','','','set-billing')}
+        ${item('i-git','Integrations','<span class="pill">soon</span>','disabled')}
       </div>
       <div class="sb-group"><div class="sb-group-label">You</div>
+        ${item('i-user','Profile & preferences','','','set-profile')}
         ${item('i-play','Onboarding path','','','set-onboarding')}
+      </div>
+      <div class="sb-group"><div class="sb-group-label">Provisioning</div>
+        ${item('i-layers','Workspaces','','','operator-jump')}
+      </div>`,
+    events: `
+      <div class="sidebar-head"><div class="sidebar-title">Events &amp; Actions</div>${collapseBtn}</div>
+      <div class="sb-group"><div class="sb-group-label">Automation</div>
+        ${item('i-list','Automations','', 'active','ev-automations')}
+        ${item('i-sparkles','Builder','','','ev-builder')}
+        ${item('i-play','Runs','','','ev-runs')}
       </div>`,
   };
-  const SECTION_LABEL = { home:'Home', constitution:'Constitution', build:'Build', audit:'Audit trail', settings:'Settings', operator:'Operator console' };
-  const SUB_LABEL = { home:'', constitution:'Explore', build:'Registry', audit:'Dashboard', settings:'General', operator:'Companies' };
+  const SECTION_LABEL = { home:'Home', constitution:'Constitution', build:'Build', audit:'Audit trail', settings:'Settings', operator:'Operator console', events:'Events & Actions' };
+  const SUB_LABEL = { home:'Dashboard', constitution:'Explore', build:'Registry', audit:'Dashboard', settings:'General', operator:'Companies', events:'Automations' };
 
   let currentSection = 'constitution';
   const sidebarEl = document.getElementById('sidebar');
@@ -2472,6 +3090,7 @@
 
   /* ============ Sub-screen switching (any section) ============ */
   function showSub(sub, label){
+    if (sub === 'operator-jump'){ switchSection('operator'); return; }
     const target = document.getElementById('sub-' + sub);
     if (!target) return;
     target.closest('.screen').querySelectorAll('.subscreen').forEach(s => s.classList.remove('active'));
@@ -2559,6 +3178,34 @@
         + shapeSVG(n.kind)
         + `<text class="node-kind" y="${-off-12}">${KINDS[n.kind].label}</text>`
         + `<text class="node-label" y="${off+16}">${n.name}</text></g>`;
+    });
+    svg.innerHTML = html;
+  }
+
+  /* ---- PART A: Build → Model canvas (static, project-scoped) ---- */
+  function buildBldCanvas(){
+    const svg = document.getElementById('bld-canvas-graph');
+    if (!svg) return;
+    const nodes = [
+      { id:'act-priya',   kind:'actor',    name:'Priya Shah',       x:340, y:40  },
+      { id:'actv-intake', kind:'activity', name:'RMA intake',       x:130, y:120 },
+      { id:'proc-returns',kind:'process',  name:'Returns handling', x:340, y:190 },
+      { id:'actv-refund', kind:'activity', name:'Refund calc',      x:550, y:120 },
+      { id:'ev-rma',      kind:'event',    name:'RMA approved',     x:130, y:290 },
+      { id:'pol-refund',  kind:'policy',   name:'Refund policy',    x:550, y:290 },
+    ];
+    const edges = [['act-priya','proc-returns'], ['proc-returns','actv-intake'],
+      ['proc-returns','actv-refund'], ['actv-intake','ev-rma'], ['pol-refund','actv-refund']];
+    const map = Object.fromEntries(nodes.map(n => [n.id, n]));
+    let html = '';
+    edges.forEach(([a,b]) => {
+      const A = map[a], B = map[b];
+      html += `<path class="edge" d="M${A.x} ${A.y} L${B.x} ${B.y}"/>`;
+    });
+    nodes.forEach(n => {
+      html += `<g class="node" transform="translate(${n.x},${n.y})" style="cursor:default;">`
+        + shapeSVG(n.kind)
+        + `<text class="node-label" y="34">${n.name}</text></g>`;
     });
     svg.innerHTML = html;
   }
@@ -2947,6 +3594,7 @@
         ${item('i-gauge','Dashboard','','','bld-dashboard')}
         ${item('i-sparkles','Request studio','','','bld-studio')}
         ${item('i-layers','Kanban','','','bld-kanban')}
+        ${item('i-graph','Model canvas','','','bld-canvas')}
         ${item('i-list','Decision log','','','bld-decisions')}
         ${item('i-gear','Settings','','','bld-settings')}
       </div>`;
@@ -3208,6 +3856,55 @@
     document.getElementById('notif-dot').style.display = 'none';
   }
 
+  /* ---------- PART A: notifications page ---------- */
+  let notifTabState = 'all';
+  function applyNotifFilter(){
+    document.querySelectorAll('#sub-notifications .notif-row').forEach(r => {
+      const show = notifTabState === 'all'
+        || (notifTabState === 'unread' ? !r.classList.contains('read') : r.dataset.cat === notifTabState);
+      r.style.display = show ? 'flex' : 'none';
+    });
+  }
+  function notifTab(which, el){
+    notifTabState = which;
+    document.querySelectorAll('#sub-notifications .tabs .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    applyNotifFilter();
+  }
+  function pageNotifRead(el){
+    el.classList.add('read');
+    toast('info', 'Marked as read.');
+    applyNotifFilter();
+  }
+  function pageMarkAllRead(){
+    document.querySelectorAll('#sub-notifications .notif-row').forEach(r => r.classList.add('read'));
+    toast('success', 'All notifications marked read.');
+    applyNotifFilter();
+  }
+
+  /* ---------- PART A: billing & budgets ---------- */
+  const BILLING_TBODY = {
+    engine: `
+      <tr><td>Constitution</td><td class="cell-count">612K</td><td class="cell-count">142</td><td class="mono" style="color:var(--success);">▂▃▅▆▇</td></tr>
+      <tr><td>Build</td><td class="cell-count">398K</td><td class="cell-count">94</td><td class="mono" style="color:var(--accent);">▃▄▄▆▅</td></tr>
+      <tr><td>Audit trail</td><td class="cell-count">154K</td><td class="cell-count">51</td><td class="mono" style="color:var(--text-subtle);">▂▂▃▂▃</td></tr>
+      <tr><td>Onboarding</td><td class="cell-count">76K</td><td class="cell-count">25</td><td class="mono" style="color:var(--danger);">▅▄▃▂▁</td></tr>`,
+    user: `
+      <tr><td>Priya Shah</td><td class="cell-count">540K</td><td class="cell-count">128</td><td class="mono" style="color:var(--success);">▃▄▅▆▇</td></tr>
+      <tr><td>Marco Diaz</td><td class="cell-count">410K</td><td class="cell-count">102</td><td class="mono" style="color:var(--accent);">▂▃▅▄▆</td></tr>
+      <tr><td>Build agent</td><td class="cell-count">290K</td><td class="cell-count">82</td><td class="mono" style="color:var(--text-subtle);">▃▃▄▃▄</td></tr>`,
+    project: `
+      <tr><td>Returns flow</td><td class="cell-count">720K</td><td class="cell-count">180</td><td class="mono" style="color:var(--success);">▃▅▆▇█</td></tr>
+      <tr><td>Supplier portal</td><td class="cell-count">340K</td><td class="cell-count">88</td><td class="mono" style="color:var(--accent);">▂▃▃▅▄</td></tr>
+      <tr><td>Store rollout tracker</td><td class="cell-count">180K</td><td class="cell-count">44</td><td class="mono" style="color:var(--text-subtle);">▁▂▂▃▂</td></tr>`,
+  };
+  function buildBilling(){ document.getElementById('billing-tbody').innerHTML = BILLING_TBODY.engine; }
+  function billingGroup(which, el){
+    document.querySelectorAll('#sub-set-billing .kchip').forEach(c => c.classList.add('off'));
+    el.classList.remove('off');
+    document.getElementById('billing-tbody').innerHTML = BILLING_TBODY[which];
+  }
+
   /* ---------- palette ---------- */
   function openPalette(){
     document.getElementById('palette-backdrop').classList.add('show');
@@ -3288,6 +3985,7 @@
   }
 
   buildInstances(); buildGlossary(); buildLogs(); buildBrand();
+  buildBilling(); buildBldCanvas();
   hydrateTips();
   renderSection();
 </script>
