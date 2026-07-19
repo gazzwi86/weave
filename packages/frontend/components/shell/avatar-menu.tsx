@@ -10,16 +10,17 @@ import { resolveHeaderScope } from "./header-scope";
 import { useCompanySwitcher } from "./use-company-switcher";
 
 export interface AvatarMenuProps {
-  /** Display name from the session (`session.user.name`); "Signed in" is
-   * the fallback when the OIDC profile carries none. */
-  userName: string;
+  /** Display name from the session (`session.user.name`); null when the
+   * OIDC profile carries none (renders "Signed in" as text, "?" as the
+   * avatar badge -- a placeholder sentence has no real initials). */
+  userName: string | null;
   /** Canonical role resolved via `PLAT-IDENTITY-1` (session-claims). */
   role: string | null;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
+function initials(name: string | null): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
   return (parts[0]!.charAt(0) + (parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : "")).toUpperCase();
 }
 

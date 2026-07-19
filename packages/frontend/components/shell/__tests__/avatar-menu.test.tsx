@@ -36,6 +36,21 @@ describe("AvatarMenu", () => {
     expect(screen.getByRole("link", { name: /operator console/i })).toHaveAttribute("href", "/operator");
   });
 
+  // S7: a session with no `name` claim previously fell back to the sentence
+  // "Signed in", which the initials-deriver then read as a first+last name
+  // ("SI") -- nonsense letters shown as the header avatar badge.
+  it("shows a '?' badge instead of deriving fake initials when there is no real name", () => {
+    render(<AvatarMenu userName={null} role="admin" />);
+
+    expect(screen.getByRole("button", { name: /account menu/i })).toHaveTextContent("?");
+  });
+
+  it("derives a single initial from a one-word name", () => {
+    render(<AvatarMenu userName="admin" role="admin" />);
+
+    expect(screen.getByRole("button", { name: /account menu/i })).toHaveTextContent("A");
+  });
+
   it("hides the Operator console link for a non-privileged role", () => {
     render(<AvatarMenu userName="Ada Lovelace" role="author" />);
     openMenu();

@@ -15,7 +15,10 @@ export interface UserMenuItem {
 }
 
 export interface UserMenuProps {
-  name: string;
+  /** Null when the session carries no name -- renders "Signed in" as text,
+   * "?" as the avatar badge rather than deriving fake initials from that
+   * placeholder sentence. */
+  name: string | null;
   email?: string;
   role?: string | null;
   items: UserMenuItem[];
@@ -25,9 +28,9 @@ export interface UserMenuProps {
   className?: string;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
+function initials(name: string | null): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
   const first = parts[0]!.charAt(0);
   const last = parts.length > 1 ? parts[parts.length - 1]!.charAt(0) : "";
   return (first + last).toUpperCase();
@@ -78,7 +81,7 @@ export function UserMenu({ name, email, role, items, beforeItems, className }: U
         </span>
         <div className="min-w-0">
           <p className="truncate text-[length:var(--text-body-sm)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-            {name}
+            {name ?? "Signed in"}
           </p>
           {email ? (
             <p className="truncate text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">{email}</p>

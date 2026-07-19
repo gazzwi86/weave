@@ -91,7 +91,7 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
             onOpenCommandBar={openCommandPalette}
             notifications={<NotificationCenter role={role} />}
             help={<HelpLauncher />}
-            account={<AvatarMenu userName={userName ?? "Signed in"} role={role} />}
+            account={<AvatarMenu userName={userName} role={role} />}
           />
           <PracticeModeBanner />
           <CommandPalette />
