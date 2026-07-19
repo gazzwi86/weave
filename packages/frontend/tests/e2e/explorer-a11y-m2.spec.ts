@@ -117,6 +117,18 @@ async function assertNoViolations(page: Page): Promise<void> {
   expect(results.violations).toEqual([]);
 }
 
+// ControlDock is a single-open accordion: clicking a tab conditionally mounts
+// that tab's panel. Axe must not scan mid-mount (transient violations, or a
+// clean scan that misses not-yet-attached content), so wait for the panel to
+// be attached+visible before scanning. The testid is keyed by tab id, so
+// switching tabs waits for the NEW panel to commit -- the wrapper div persists
+// across switches, so a generic selector would pass instantly on a swap and
+// leave the race. Tab labels are the ids capitalised (Filters->filters, ...).
+async function openDockTab(page: Page, tabName: string): Promise<void> {
+  await page.getByRole("button", { name: tabName }).click();
+  await expect(page.getByTestId(`control-dock-panel-${tabName.toLowerCase()}`)).toBeVisible();
+}
+
 test.describe("Explorer M2 panels — axe-core zero-violations (TASK-030 AC-2)", () => {
   // Refit: ControlDock is a single-open accordion -- only the active tab's
   // panel is mounted at all (not just CSS-hidden), so filter/overlay/
@@ -128,13 +140,16 @@ test.describe("Explorer M2 panels — axe-core zero-violations (TASK-030 AC-2)",
     await waitForLayoutSettled(page);
 
     for (const tabName of ["Filters", "Layers", "Overlays", "Versions"]) {
-      await page.getByRole("button", { name: tabName }).click();
+      await openDockTab(page, tabName);
       await assertNoViolations(page);
     }
 
     // Overlay legend + completeness notice appear once a toggle is active.
-    await page.getByRole("button", { name: "Overlays" }).click();
+    await openDockTab(page, "Overlays");
     await page.getByRole("switch", { name: "Heatmap: Maturity" }).click();
+    // Wait for the legend the toggle reveals (same assertion as
+    // explorer-overlays.spec.ts) so axe doesn't race its mount.
+    await expect(page.getByText("Heatmap — maturity")).toBeVisible();
     await assertNoViolations(page);
   });
 
