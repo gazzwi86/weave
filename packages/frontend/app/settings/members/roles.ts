@@ -21,3 +21,23 @@ export const CANONICAL_ROLES: CanonicalRole[] = [
   { slug: "compliance_officer", label: "Compliance officer" },
   { slug: "workspace_admin", label: "Workspace admin" },
 ];
+
+/** ADR-020: seeded M1 workspaces still carry the pre-TASK-030 4-tier
+ * vocabulary (`rbac.py`'s `ROLE_RANK`) and are never migrated to the 10
+ * canonical slugs above -- both coexist permanently. Labels for display
+ * only, matching the plain human-readable style of `CANONICAL_ROLES`.
+ */
+const LEGACY_ROLE_LABELS: Record<string, string> = {
+  read: "Viewer",
+  author: "Author",
+  publish: "Publisher",
+  admin: "Admin",
+};
+
+/** Display label for a `workspace_members.role` value, whether it's one of
+ * the 10 canonical in-tenant slugs or a legacy ADR-020 rank. Unknown slugs
+ * fall back to the raw value rather than a fabricated label.
+ */
+export function roleLabel(slug: string): string {
+  return CANONICAL_ROLES.find((r) => r.slug === slug)?.label ?? LEGACY_ROLE_LABELS[slug] ?? slug;
+}
