@@ -16,6 +16,7 @@ import pytest
 import redis.asyncio as redis
 
 import weave_backend.db.seed_demo as seed_demo
+from weave_backend.audit.verify import verify_chain
 from weave_backend.db.pool import tenant_connection
 from weave_backend.rdf.oxigraph_client import clear_graph, run_query
 
@@ -66,6 +67,13 @@ async def test_seed_demo_is_idempotent_and_activates_both_logins(
                 "SELECT status FROM graph_versions WHERE tenant_id = $1", tenant_id
             )
             assert [v["status"] for v in versions] == ["published"]
+
+            # A1 (docs/design/remediation-2-api-gaps.md): the seeded tenant's
+            # audit chain must pass verification -- this was the untested gap
+            # behind the demo "Chain broken" banner investigation.
+            audit_result = await verify_chain(conn, tenant_id)
+            assert audit_result.valid is True, audit_result
+            assert audit_result.entries_checked >= 1
 
         named_graph_iri = f"urn:weave:tenant:{tenant_id}:ws:{workspace_id}"
         assert await _triple_count(named_graph_iri) > 0
