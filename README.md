@@ -159,6 +159,58 @@ HITL gate. Kill switch: `touch .claude/state/run-loop.stop`. Toggles live in the
 
 ---
 
+## Testing
+
+The full pyramid (unit → integration → E2E, TDD-first, Playwright for browser) is defined in
+`docs/standards/testing-*.md`. The everyday commands run from `packages/frontend`:
+
+| Command | What it runs |
+|---|---|
+| `npm test` | Unit + component tests (vitest — jsdom + a `@vitest/browser-playwright` chromium project) |
+| `npm run test:e2e` | The full Playwright E2E suite (boots frontend + backend + mock OIDC; needs the stack up) |
+
+Beyond those, three **extra suites** gate the UI and are wired into CI (`.github/workflows/ci.yml`
+jobs `visual` and `e2e-behavioural`). Run them locally as below.
+
+### Visual regression — `visual` job
+
+Pixel baselines for the signed-off UI (see
+[`docs/design/remediation-2-api-gaps.md`](docs/design/remediation-2-api-gaps.md) T1 and
+`packages/frontend/tests/visual/README.md`). Two independent suites:
+
+| Command | What it covers |
+|---|---|
+| `npm run test:storybook-visual` | Per-story component baselines — every Storybook story, light + dark (builds `storybook-static/` then screenshots each story) |
+| `npm run test:visual` | App-shell states — `/ce` default, sidebar collapsed, notifications/help flyouts, user menu, ⌘K palette — light + dark, backend deliberately down |
+
+**Rebaselining is CI-driven, not local.** Baselines are committed for **amd64-Linux** (what CI
+validates on); a dev's **arm64 Mac** renders different sub-pixels at the 0.001 tolerance, so
+`:update` run locally would produce baselines that then fail in CI. To regenerate, trigger the
+CI workflow with the baseline input and commit the artifact it uploads:
+
+```bash
+gh workflow run ci.yml --ref <your-branch> -f update_visual_baselines=true
+# when it finishes, download the `visual-baselines` artifact and commit it:
+gh run download <run-id> -n visual-baselines -D packages/frontend/tests/visual/__screenshots__
+```
+
+(Running `npm run test:visual:update` locally is only correct if your machine is amd64-Linux.)
+
+### Behavioural certification — `e2e-behavioural` job
+
+```bash
+npm run test:behavioural        # the @behavioural-tagged specs
+```
+
+Each test asserts the **backend state actually changed** (API/DB), not just the UI (Law B) — e.g.
+creating an entity through the authoring form and reading the new IRI straight off the real
+`/api/operations/apply` response. It needs the **seeded** stack (`make dev` + demo seed) so the
+mock-OIDC login lands in a workspace with data. In CI this job also **codifies the API-log sweep**:
+the backend's own log is captured and scanned for unexpected `5xx` responses (the class that caught
+the role-home 500 and audit 422 by hand during the refit), failing the build on a regression.
+
+---
+
 ## Repository layout
 
 | Path | What it is |
