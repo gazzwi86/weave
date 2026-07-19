@@ -17,7 +17,10 @@ export interface VersionsState {
   publish: (versionIri: string) => Promise<PublishOutcome>;
 }
 
-async function fetchVersions(): Promise<VersionEntry[]> {
+/** Shared with `useOverview` -- both consumers must tolerate CE-READ-1's
+ * bare-array response as well as the `{ versions }` envelope (see comment
+ * below); a single parser keeps that trap fixed in one place. */
+export async function fetchVersions(): Promise<VersionEntry[]> {
   const response = await fetch("/api/proxy/ontology/versions?page=1&per_page=50");
   if (!response.ok) throw new Error(`versions_failed_${response.status}`);
   const body = (await response.json()) as VersionsResponse | VersionEntry[];
