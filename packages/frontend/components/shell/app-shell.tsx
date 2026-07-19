@@ -34,11 +34,18 @@ export interface AppShellProps {
 function Breadcrumb({ pathname }: { pathname: string }) {
   const section = findSection(pathname);
   if (!section) return null;
+  // Longest-match, not first-match: /ce/types and /ce (both prefix matches)
+  // both qualify, and the section's items aren't ordered by specificity, so
+  // taking array order silently picked /ce ("Overview") for every subpage.
   const page = section.groups
     .flatMap((group) => group.items)
-    .find((item) => item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`)));
+    .filter((item) => item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`)))
+    .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0];
   return (
-    <span className="truncate text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+    <span
+      data-testid="breadcrumb"
+      className="truncate text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]"
+    >
       <b className="font-[var(--font-weight-medium)] text-[var(--color-text-default)]">{section.label}</b>
       {page ? (
         <>
