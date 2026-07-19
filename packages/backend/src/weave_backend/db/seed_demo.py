@@ -260,13 +260,16 @@ async def seed() -> dict[str, object]:
             await _seed_build_project(conn, seeded.version_iri)
 
     if created:
-        # A1 investigation: `_seed_shapes`' `commit_tenant_shape` calls
-        # enqueue their `governance.shape_committed` audit events into the
-        # durable outbox (never emit inline) -- delivering them (hash-chain
-        # append + sign) only here, from a fresh connection acquired AFTER
-        # the seeding transaction above has actually committed. This mirrors
-        # real commit-then-flush timing instead of flushing inside the same
-        # transaction that enqueued the rows.
+        # A1 investigation: `_seed_shapes`' `commit_tenant_shape` enqueues its
+        # `governance.shape_committed` audit events into the durable outbox
+        # rather than emitting inline. Nothing else here ever delivered
+        # them, so without this call those rows stayed `delivered_at IS
+        # NULL` forever -- present in `audit_outbox`, absent from
+        # `audit_entries`, invisible to the Audit tab. Flushing from a fresh
+        # connection acquired AFTER the seeding transaction commits mirrors
+        # the timing `routers/{instances,authoring,operations}.py` already
+        # use. Durability/realism choice, not a chain-validity fix: flushing
+        # in-transaction on the same `conn` also verifies valid.
         async with tenant_connection(TENANT_ID) as flush_conn:
             await flush_pending(flush_conn, TENANT_ID)
 
