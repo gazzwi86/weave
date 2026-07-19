@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-import type { NodeKind, SparqlPage } from "@/lib/explorer/types";
+import type { NodeKind } from "@/lib/explorer/types";
 
+import { tallyTriples } from "./tally-triples";
 import { fetchVersions } from "./versions/use-versions";
 import { publishedEntriesDesc } from "./versions/version-page-helpers";
 import type { VersionEntry } from "./versions/types";
 
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const ONTOLOGY_PREFIX = "https://weave.io/ontology/";
-/** Sane cap on CE-READ-1 pages pulled for a stats read (fetch-graph.ts
- * bounds by node count instead; a count-only page needs far less). */
-const MAX_PAGES = 10;
 /** Widget only has room for a handful of rows -- the Versions page is the
  * full timeline. */
 const RECENT_VERSIONS_LIMIT = 3;
@@ -34,31 +30,6 @@ async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`overview_fetch_failed_${response.status}`);
   return (await response.json()) as T;
-}
-
-/** Pages CE-READ-1 triples, tallying rdf:type instances per BPMO kind. */
-async function tallyTriples(): Promise<{
-  countsByKind: Record<string, number>;
-  totalTriples: number;
-}> {
-  const countsByKind: Record<string, number> = {};
-  let totalTriples = 0;
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const response = await fetch(`/api/proxy/sparql?version=latest&page=${page}`);
-    // A workspace with no published version yet 404s on `latest` -- that is
-    // an EMPTY model, not a failure (fresh workspace after a switch).
-    if (response.status === 404) break;
-    if (!response.ok) throw new Error(`overview_fetch_failed_${response.status}`);
-    const data = (await response.json()) as SparqlPage;
-    totalTriples += data.rows.length;
-    for (const row of data.rows) {
-      if (row.predicate !== RDF_TYPE || !row.object.startsWith(ONTOLOGY_PREFIX)) continue;
-      const kindId = row.object.slice(ONTOLOGY_PREFIX.length);
-      countsByKind[kindId] = (countsByKind[kindId] ?? 0) + 1;
-    }
-    if (!data.has_more_pages) break;
-  }
-  return { countsByKind, totalTriples };
 }
 
 /** Fail-soft: the version widgets are optional, so an unavailable version
