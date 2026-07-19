@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { t } from "@/lib/onboarding/i18n";
+import { fetchOnboardingStateOnce } from "@/lib/onboarding/onboarding-state-client";
 
 import {
   CHECKLIST_ITEMS,
@@ -74,10 +75,9 @@ function useChecklistState(): {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/onboarding/state")
-      .then((res) => res.json())
-      .then((body: BootstrapState) => {
-        if (!cancelled) setState(body);
+    fetchOnboardingStateOnce()
+      .then((body) => {
+        if (!cancelled && body) setState(body as unknown as BootstrapState);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

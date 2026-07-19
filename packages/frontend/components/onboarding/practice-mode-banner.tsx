@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { fetchOnboardingStateOnce } from "@/lib/onboarding/onboarding-state-client";
+
 interface SandboxState {
   sandbox_forked_at: string | null;
   sandbox_batch_semver: string | null;
@@ -64,18 +66,21 @@ function ResetControls({
  * sandbox (`sandbox_forked_at` set), a persistent banner marks the session as
  * a safe practice copy, shows the demo batch version, and offers a
  * blue/green reset (backend keeps it under ~30s). Renders nothing outside a
- * sandbox. ponytail: fetches state itself (the codebase pattern -- no shared
- * onboarding-state hook exists) rather than adding one for a single reader. */
+ * sandbox. */
 export function PracticeModeBanner() {
   const [sandbox, setSandbox] = useState<SandboxState | null>(null);
   const [phase, setPhase] = useState<ResetPhase>("idle");
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/onboarding/state")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((body: SandboxState | null) => {
-        if (!cancelled && body) setSandbox({ sandbox_forked_at: body.sandbox_forked_at, sandbox_batch_semver: body.sandbox_batch_semver });
+    fetchOnboardingStateOnce()
+      .then((body) => {
+        if (!cancelled && body) {
+          setSandbox({
+            sandbox_forked_at: body.sandbox_forked_at as string | null,
+            sandbox_batch_semver: body.sandbox_batch_semver as string | null,
+          });
+        }
       })
       .catch(() => {});
     return () => {

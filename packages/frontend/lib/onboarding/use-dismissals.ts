@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { isDismissed as isDismissedIn, type DismissalKind, type DismissalRecord } from "./dismissals";
+import { fetchOnboardingStateOnce } from "./onboarding-state-client";
 import type { ChecklistSignals } from "../../../shared/onboarding/derive-checklist";
 import type { RolePath } from "../../../shared/onboarding/types";
 
@@ -58,13 +59,13 @@ export function useDismissals(): UseDismissalsResult {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/onboarding/state")
-      .then((res) => res.json())
-      .then((body: BootstrapBody) => {
-        if (cancelled) return;
-        setDismissals(body.dismissals ?? []);
-        setSignals(toSignals(body));
-        setRolePath(body.role_path ?? null);
+    fetchOnboardingStateOnce()
+      .then((body) => {
+        if (cancelled || !body) return;
+        const typed = body as unknown as BootstrapBody;
+        setDismissals(typed.dismissals ?? []);
+        setSignals(toSignals(typed));
+        setRolePath(typed.role_path ?? null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
