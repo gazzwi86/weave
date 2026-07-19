@@ -205,3 +205,123 @@ tests** in turn. No bespoke CSS in pages.
 - [x] **V7 · Card/panel styling (INVESTIGATED — no fix: cards already match mock; 'flatness' = empty placeholder data + faint by-design border, routed to data backlog) + empty states** — audit/build cards render flat/borderless + empty
   "Not available yet"; mock has bordered panels with populated data. Styling now (bordered panels,
   gradient bars); DATA population (G12, CE-METRICS, registry summary field) deferred per user.
+
+## 2026-07-19 full-app review findings (folded from review-findings-2026-07-19.md, user-approved)
+
+Source: click-through review of main @ 20bad2b1 (`docs/design/review-findings-2026-07-19.md` — kept
+as the detail record; work state lives HERE). Severity: **H** = breaks use/looks broken, **M** =
+clearly off, **L** = polish. Priority order per goal: S1, D1, A1, H1/H2/H3, C1, S6, then remainder
+by severity.
+
+### Shell (cross-cutting)
+
+- [ ] **S1 H · Horizontal overflow hides header right cluster** — with the secondary sidebar open,
+  page is wider than viewport at 1568px: bell / help "?" / avatar sit ~100–200px off-screen (plus
+  their flyouts anchor off-viewport). Pages without the secondary sidebar (404) fit. Likely a
+  fixed-width sum (rail + sidebar + min-width content) exceeding `100vw`. Fix at the shell layout
+  source, not per-page.
+- [ ] **S2 M · Stale breadcrumbs** — CE subpages all show "Constitution / Overview"; Audit stays
+  "Audit trail / Dashboard"; Build stays "Build / Registry". Settings/Billing updates correctly —
+  pattern exists, other sections don't feed it.
+- [ ] **S3 L · First-click dead-nav on icon rail — likely test-tool artifact** — reproduced on the
+  static mock too (plain inline onclick) → suspect synthetic click. Verify with a human hand once;
+  drop if unreproducible.
+- [ ] **S4 M · Bottom-left rail "?" does nothing** — header "?" opens the good Help panel; rail "?"
+  is dead. Two help affordances, one dead.
+- [ ] **S5 M · ⌘K palette: input not focused on open; typing goes nowhere** — also "No results."
+  before any query; entity-search only while placeholder promises "Search, ask, or jump to…".
+- [ ] **S6 H · Global search returns nothing for known entities** — `GET /api/search?q=order` → 200
+  empty while model contains "Customer order placed", "Order Fulfillment", glossary "Order".
+  Suspect workspace scoping or index not covering the demo workspace.
+- [ ] **S7 L · Avatar initials render "SI" for user `admin`** — initials derivation wrong (from
+  "Signed in"?).
+
+### Home / dashboard
+
+- [ ] **H1 H · Widget tiles broken** — header controls render as raw inline text
+  "↑↓ Pin Unpin Publish" (both Pin *and* Unpin always visible); titles wrap badly
+  ("Entities in / model").
+- [ ] **H2 H · "Latest published version" shows full URN** as display text — should be "v0.1.6" +
+  workspace label.
+- [ ] **H3 M · Stale-badge pill wraps over three lines** ("Stale — last updated / date / time").
+- [ ] **H4 M · "Needs you" rows carry internal gap copy** — "pending, no cross-workspace gate feed
+  yet (gap G12)". G12's endpoint landed; wire the feed, kill the placeholder copy.
+- [ ] **H6 M · /notifications renders the bell-panel popover floating on an empty page** — should
+  be a full-width notifications list page (mock carries the reference design).
+- [ ] **H7 L · "What can Weave do for you?" sidebar item re-shows the dashboard** (role-home folded
+  in per T5) — drop or rename.
+- [ ] **H8 L · `/api/onboarding/state` fetched 4× per dashboard load** — dedupe.
+
+### Constitution
+
+- [ ] **C1 H · Overview "Published version: No data yet" while Explore KPI + dashboard show
+  v0.1.6** — Overview reads a different (wrong) source.
+- [ ] **C2 L · Overview copy points to "the Versions screen" while nav "Versions" is soon** —
+  copy/nav mismatch.
+- [ ] **C3 M · Types page "Instances" column all "—"** (counts not wired).
+- [ ] **C4 M · Instances/Data: Ask panel overlaps the table** (Status column truncated).
+- [ ] **C5 H · Explore label soup** — raw RDF IRIs (`…rdf-syntax-ns#type`) as labels; orphaned
+  description sentences as node labels; drawer edge list shows raw IRIs instead of resolved
+  labels. (Overlaps V3b work.)
+- [ ] **C6 M · Rules & policies carries an "M1 — this pass" phase pill** (violates no-phase-pills
+  rule) and page is nearly bare — no rules list or designed empty state.
+- [ ] **C7 M · Glossary Definition/Related columns all "—"** — demo seed has no definitions (D2).
+- [ ] **C8 M · Branding & standards effectively empty** — conformance "—" with "(G14)" dev copy;
+  no seeded standards/brand rules (Hammerbarn content brief should drive the seed — D2).
+- [ ] **C9 L · "New instance" = bare "Choose a kind…" select on an empty page** vs the mock's
+  authoring pattern.
+
+### Audit trail
+
+- [ ] **A1 H · "Chain broken at entry 2 · 0 entries checked" on the demo workspace** — seeded
+  audit chain fails verification; every demo shows a red integrity banner. ~~Seed bug.~~
+  **ROOT CAUSE (coordinator-verified against the live dev DB 2026-07-19): NOT a seed bug — a
+  multi-tenant verify bug.** The chain is per-tenant (emitter scopes seq/prev_hash by tenant_id;
+  each tenant's chain is intact, seq restarts at 1 per tenant) but the verify path fetches entries
+  ordered by seq with NO tenant filter, so any DB with ≥2 tenants interleaves chains and "breaks
+  at entry 2". Fix: tenant-scope the verify fetch/walk. Secondary: `entries_checked` stays 0 on
+  failure (dataclass default never updated before the early return). Repro needs TWO tenants
+  emitting — a single-tenant repro passes verify.
+- [ ] **A2 M · Busiest-entities list shows raw UUIDs/version strings**, not entity labels.
+- [ ] **A3 M · Dashboard cards not wired to closed gaps** — "Model edits by kind" +
+  Security/Governance/Budget/Reliability all "Not available yet" though G5–G8 aggregations landed.
+- [ ] **A4 · Inference nav is "soon"** (Sentiment, Intent & urgency, Topics, Satisfaction,
+  Quality & safety, Model metrics) — now represented in the mock as future-phase reference
+  screens; no app work until those phases.
+
+### Build
+
+- [ ] **B1 L · Registry card dev copy** — "task counts and budget need a registry-card summary
+  field".
+- [ ] **B2 M · Dashboard Roadmap panel dev copy** — "needs an epics endpoint" though G9/G10
+  landed; wire it.
+- [ ] **B3 M · Kanban default state reads as a filter failure** ("No tasks match this filter" +
+  bare "Task tree" card) instead of a designed empty board.
+- [ ] **B4 L · Decision log: default tab shows "No decisions match this search" before any
+  search; stray "Back to settings" link.**
+- [ ] **B5 L · Project settings "Review upgrade" is a giant full-width button** — off-design.
+
+### Settings
+
+- [ ] **SE1 L · General: Description placeholder is dev copy** ("the backend doesn't store a
+  workspace description").
+- [ ] **SE2 M · Members: every role select shows "Viewer" — including the seeded super-admin.**
+  Role mapping/display bug.
+- [ ] **SE3 L · Models & AI shows "(gap G13)" dev copy.**
+- [ ] **SE4 M · Billing page is a single sparse card** — mock carries the reference design (usage
+  by engine/user/project, budget burn vs cap, counts-only note per FR-034/035).
+- [ ] **SE5 M · Operator console (Workspaces) is bare** — plain cards + form vs the signed-off
+  operator screen in the mock.
+- [ ] **SE6 M · "Profile & preferences" in the user menu lands on workspace General** — no
+  user-profile surface exists (mock carries one).
+
+### Cross-cutting content
+
+- [ ] **D1 M · Internal tracker language leaks into product UI in ≥6 places** — "(gap G12)",
+  "(G13)", "(G14)", "backend aggregation pending", "needs an epics endpoint", "registry-card
+  summary field", "backend doesn't store…". ONE sweep replacing all with human empty-state copy
+  (mock's error/empty patterns are the reference). Absorbs the copy half of H4/B1/B2/SE1/SE3/C8.
+- [ ] **D2 M · Demo seed gaps undercut the demo** — no glossary definitions, no brand
+  standards/rules, no build tasks/epics on the demo project, broken audit chain (A1), roles all
+  Viewer (SE2). Hammerbarn content brief (`docs/specs/weave/hammerbarn-content-brief.md`) should
+  drive a fuller seed. Absorbs the data half of C7/C8.
