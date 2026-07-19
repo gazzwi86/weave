@@ -22,7 +22,7 @@ from weave_backend.onboarding.exercise_checker import (
     UnsupportedCompletionKindError,
     check_completion,
 )
-from weave_backend.onboarding.exercises import EXERCISES, gate_exercise
+from weave_backend.onboarding.exercises import EXERCISES, available_exercises, gate_exercise
 from weave_backend.onboarding.hammerbarn_seed.compile import (
     CompiledArtefact,
     allowed_kinds_from_ontology_types,
@@ -64,7 +64,11 @@ _AUTO_DISMISS_SETTING_KEY = "onboarding.checklist_auto_dismiss_days"
 
 def _to_out(record: store.OnboardingStateRecord, *, auto_dismiss_days: int) -> OnboardingStateOut:
     return OnboardingStateOut(
-        **record.model_dump(), checklist_auto_dismiss_days=auto_dismiss_days
+        **record.model_dump(),
+        checklist_auto_dismiss_days=auto_dismiss_days,
+        available_exercises=available_exercises(
+            role_path=record.role_path, path_variant=record.path_variant
+        ),
     )
 
 

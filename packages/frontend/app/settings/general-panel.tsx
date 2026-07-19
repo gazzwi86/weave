@@ -51,13 +51,64 @@ function useAppearanceState() {
   };
 }
 
-/** Settings -> General (mock `#sub-set-general`): the Workspace card, at
- * a glance -- disabled per-field (no PATCH endpoint exists for any of
- * name/description/region yet, same "show not fabricate" gap as Members'
- * RoleCell/G16). Description and Region additionally have no backing data
- * at all (`WorkspaceResponse` carries neither field), so they render an
- * honest locked placeholder rather than invented business copy. */
-function WorkspaceCard({ workspaceName }: { workspaceName: string | null }) {
+/** SE1's tenant-admin-gated write (`PUT /api/tenancy/workspaces/{id}`):
+ * edits locally, saves on blur. Split out of `WorkspaceCard` to keep both
+ * under the 50-line function budget. */
+function WorkspaceDescriptionField({
+  description,
+  saveError,
+  saveDescription,
+}: {
+  description: string | null;
+  saveError: boolean;
+  saveDescription: (next: string) => Promise<void>;
+}) {
+  const [descriptionDraft, setDescriptionDraft] = useState(description ?? "");
+  // React's documented "adjusting state when a prop changes" pattern --
+  // setState during render (not in an effect) so a fresh `description` from
+  // the load resets the draft without an extra committed render.
+  const [trackedDescription, setTrackedDescription] = useState(description);
+  if (description !== trackedDescription) {
+    setTrackedDescription(description);
+    setDescriptionDraft(description ?? "");
+  }
+
+  return (
+    <label className="flex flex-col gap-[var(--space-1)]">
+      <span className={FIELD_LABEL_CLASS}>Description</span>
+      <textarea
+        aria-label="Workspace description"
+        rows={2}
+        value={descriptionDraft}
+        onChange={(e) => setDescriptionDraft(e.target.value)}
+        onBlur={() => {
+          if (descriptionDraft !== (description ?? "")) void saveDescription(descriptionDraft);
+        }}
+        className={NATIVE_FIELD_CLASS}
+      />
+      {saveError && (
+        <span className="text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
+          Couldn&apos;t save the description.
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Settings -> General (mock `#sub-set-general`): the Workspace card.
+ * Name and Region stay disabled -- no endpoint exists for either yet (same
+ * "show not fabricate" gap as Members' RoleCell/G16). */
+function WorkspaceCard({
+  workspaceName,
+  description,
+  saveError,
+  saveDescription,
+}: {
+  workspaceName: string | null;
+  description: string | null;
+  saveError: boolean;
+  saveDescription: (next: string) => Promise<void>;
+}) {
   return (
     <Card>
       <h3>
@@ -74,17 +125,11 @@ function WorkspaceCard({ workspaceName }: { workspaceName: string | null }) {
             title="Renaming a workspace isn't supported yet."
           />
         </label>
-        <label className="flex flex-col gap-[var(--space-1)]">
-          <span className={FIELD_LABEL_CLASS}>Description</span>
-          <textarea
-            aria-label="Workspace description"
-            disabled
-            rows={2}
-            placeholder="Workspace descriptions aren't available yet."
-            title="Workspace descriptions aren't supported yet."
-            className={NATIVE_FIELD_CLASS}
-          />
-        </label>
+        <WorkspaceDescriptionField
+          description={description}
+          saveError={saveError}
+          saveDescription={saveDescription}
+        />
         <label className="flex flex-col gap-[var(--space-1)]">
           <span className={FIELD_LABEL_CLASS}>Region</span>
           <select
@@ -142,7 +187,7 @@ function AppearanceCard() {
 /** Settings -> General (mock `#sub-set-general`): workspace identity +
  * appearance. The settings index route's landing page. */
 export function GeneralPanel() {
-  const { workspaceName, loadError } = useGeneralSettings();
+  const { workspaceName, description, loadError, saveError, saveDescription } = useGeneralSettings();
 
   if (loadError) {
     return (
@@ -154,7 +199,12 @@ export function GeneralPanel() {
 
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
-      <WorkspaceCard workspaceName={workspaceName} />
+      <WorkspaceCard
+        workspaceName={workspaceName}
+        description={description}
+        saveError={saveError}
+        saveDescription={saveDescription}
+      />
       <AppearanceCard />
     </div>
   );

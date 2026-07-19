@@ -78,6 +78,10 @@ class OnboardingStateOut(BaseModel):
     dismissals: list[DismissalOut]
     exercise_completions: list[ExerciseCompletionOut]
     activations: list[ActivationOut]
+    #: T8: exercise ids `gate_exercise` currently allows for this caller's
+    #: (role_path, path_variant) -- lets the checklist client skip checking
+    #: an exercise it can't complete instead of taking an avoidable 403.
+    available_exercises: list[str]
 
 
 class SelfMarkResponse(BaseModel):

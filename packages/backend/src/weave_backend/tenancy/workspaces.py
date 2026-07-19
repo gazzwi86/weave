@@ -18,7 +18,24 @@ class Workspace(BaseModel):
     slug: str
     display_name: str
     named_graph_iri: str
+    #: SE1 (docs/design/remediation-2-api-gaps.md): `None` until an admin
+    #: sets one via `update_workspace_description` -- no default copy.
+    #: Defaults to `None` so the pre-existing construction call sites (seed
+    #: data, other routers' test fixtures) that predate this column don't
+    #: all need a mechanical `description=None` added.
+    description: str | None = None
     created_at: datetime
+
+
+def _row_to_workspace(row: asyncpg.Record) -> Workspace:
+    return Workspace(
+        id=str(row["id"]),
+        slug=row["slug"],
+        display_name=row["display_name"],
+        named_graph_iri=row["named_graph_iri"],
+        description=row["description"],
+        created_at=row["created_at"],
+    )
 
 
 async def create_workspace(
@@ -38,7 +55,7 @@ async def create_workspace(
             """
             INSERT INTO workspaces (id, tenant_id, slug, display_name, named_graph_iri)
             VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, slug, display_name, named_graph_iri, created_at
+            RETURNING id, slug, display_name, named_graph_iri, description, created_at
             """,
             workspace_id,
             tenant_id,
@@ -48,13 +65,7 @@ async def create_workspace(
         )
     except asyncpg.UniqueViolationError as exc:
         raise WorkspaceSlugTaken(slug) from exc
-    return Workspace(
-        id=str(row["id"]),
-        slug=row["slug"],
-        display_name=row["display_name"],
-        named_graph_iri=row["named_graph_iri"],
-        created_at=row["created_at"],
-    )
+    return _row_to_workspace(row)
 
 
 async def get_workspace(
@@ -65,7 +76,7 @@ async def get_workspace(
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         """
-        SELECT id, slug, display_name, named_graph_iri, created_at
+        SELECT id, slug, display_name, named_graph_iri, description, created_at
         FROM workspaces WHERE tenant_id = $1 AND id = $2
         """,
         tenant_id,
@@ -73,13 +84,7 @@ async def get_workspace(
     )
     if row is None:
         return None
-    return Workspace(
-        id=str(row["id"]),
-        slug=row["slug"],
-        display_name=row["display_name"],
-        named_graph_iri=row["named_graph_iri"],
-        created_at=row["created_at"],
-    )
+    return _row_to_workspace(row)
 
 
 async def get_workspace_by_slug(
@@ -94,7 +99,7 @@ async def get_workspace_by_slug(
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     row = await conn.fetchrow(
         """
-        SELECT id, slug, display_name, named_graph_iri, created_at
+        SELECT id, slug, display_name, named_graph_iri, description, created_at
         FROM workspaces WHERE tenant_id = $1 AND slug = $2
         """,
         tenant_id,
@@ -102,13 +107,7 @@ async def get_workspace_by_slug(
     )
     if row is None:
         return None
-    return Workspace(
-        id=str(row["id"]),
-        slug=row["slug"],
-        display_name=row["display_name"],
-        named_graph_iri=row["named_graph_iri"],
-        created_at=row["created_at"],
-    )
+    return _row_to_workspace(row)
 
 
 async def list_workspaces(conn: asyncpg.Connection, *, tenant_id: str) -> list[Workspace]:
@@ -117,21 +116,38 @@ async def list_workspaces(conn: asyncpg.Connection, *, tenant_id: str) -> list[W
     # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
     rows = await conn.fetch(
         """
-        SELECT id, slug, display_name, named_graph_iri, created_at
+        SELECT id, slug, display_name, named_graph_iri, description, created_at
         FROM workspaces WHERE tenant_id = $1 ORDER BY created_at
         """,
         tenant_id,
     )
-    return [
-        Workspace(
-            id=str(row["id"]),
-            slug=row["slug"],
-            display_name=row["display_name"],
-            named_graph_iri=row["named_graph_iri"],
-            created_at=row["created_at"],
-        )
-        for row in rows
-    ]
+    return [_row_to_workspace(row) for row in rows]
+
+
+async def update_workspace_description(
+    conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str, description: str
+) -> Workspace | None:
+    """SE1 (docs/design/remediation-2-api-gaps.md): tenant-admin-gated write
+    (RBAC enforced by the router, `require_tenant_admin`) -- `None` when no
+    row matches `(tenant_id, id)`, so the router can 404 rather than fabricate
+    a response for a foreign/nonexistent workspace.
+    """
+    # False positive: static literal SQL; description/tenant_id/workspace_id
+    # are bound as positional parameters ($1..$3), never interpolated.
+    # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+    row = await conn.fetchrow(
+        """
+        UPDATE workspaces SET description = $1
+        WHERE tenant_id = $2 AND id = $3
+        RETURNING id, slug, display_name, named_graph_iri, description, created_at
+        """,
+        description,
+        tenant_id,
+        workspace_id,
+    )
+    if row is None:
+        return None
+    return _row_to_workspace(row)
 
 
 async def delete_workspace(conn: asyncpg.Connection, *, tenant_id: str, workspace_id: str) -> None:
