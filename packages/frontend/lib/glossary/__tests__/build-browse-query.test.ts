@@ -21,6 +21,12 @@ describe("buildGlossaryBrowseQuery", () => {
     expect(query).toMatch(/skos:narrower/);
   });
 
+  it("selects skos:definition so the definition column isn't always blank", () => {
+    const query = buildGlossaryBrowseQuery(1);
+    expect(query).toMatch(/SELECT[^]*\?definition/);
+    expect(query).toMatch(/OPTIONAL\s*\{\s*\?iri skos:definition \?definition\s*\}/);
+  });
+
   it("wraps the pattern in a GRAPH clause (CE-READ-1 requires GRAPH-scoped SELECT)", () => {
     expect(buildGlossaryBrowseQuery(1)).toMatch(/GRAPH\s+\?g\s*\{/);
   });

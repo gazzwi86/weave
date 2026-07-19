@@ -16,19 +16,20 @@ export function buildGlossaryBrowseQuery(page: number): string {
   const offset = (page - 1) * GLOSSARY_PAGE_SIZE;
 
   return `${PREFIXES}
-SELECT ?iri ?prefLabel ?owlRole
+SELECT ?iri ?prefLabel ?definition ?owlRole
   (GROUP_CONCAT(DISTINCT STR(?broaderIri); separator="|") AS ?broader)
   (GROUP_CONCAT(DISTINCT STR(?narrowerIri); separator="|") AS ?narrower)
 WHERE {
   GRAPH ?g {
     ?iri a skos:Concept ;
          skos:prefLabel ?prefLabel .
+    OPTIONAL { ?iri skos:definition ?definition }
     BIND(EXISTS { ?iri a owl:Class } AS ?owlRole)
     OPTIONAL { ?iri skos:broader ?broaderIri }
     OPTIONAL { ?iri skos:narrower ?narrowerIri }
   }
 }
-GROUP BY ?iri ?prefLabel ?owlRole
+GROUP BY ?iri ?prefLabel ?definition ?owlRole
 ORDER BY ?prefLabel
 LIMIT ${GLOSSARY_PAGE_SIZE}
 OFFSET ${offset}`;
