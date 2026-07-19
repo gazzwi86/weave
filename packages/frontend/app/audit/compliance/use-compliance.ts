@@ -5,10 +5,7 @@ export interface ActorCount {
   event_count: number;
 }
 
-/** `PLAT-AUDIT-1` G7 (feat/audit-aggregation-gaps, PR #135, unmerged at time
- * of writing) -- busiest audit targets. Optional because this worktree's
- * backend doesn't populate it yet; consumers must treat `undefined` as
- * "pending", never as "zero busiest entities". */
+/** `PLAT-AUDIT-1` G7 -- busiest audit targets, grouped by `target_iri`. */
 export interface TargetCount {
   target_iri: string;
   count: number;
@@ -23,10 +20,11 @@ export interface ComplianceSummary {
   period: string;
   shacl_validated: number;
   shacl_rejections: number;
-  /** G7 -- absent until PR #135 merges. */
-  top_targets?: TargetCount[];
-  /** G7 -- absent until PR #135 merges. */
-  audit_outages?: number;
+  /** G7 -- always present (possibly empty); an empty array is a real "no
+   * busiest entities this period", not "pending". */
+  top_targets: TargetCount[];
+  /** G8 -- always present. */
+  audit_outages: number;
 }
 
 export interface ComplianceState {
