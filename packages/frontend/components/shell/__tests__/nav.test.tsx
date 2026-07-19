@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { HelpLauncher } from "../help-launcher";
 import { Nav } from "../nav";
 import { SectionRail } from "../section-rail";
 
@@ -58,6 +59,36 @@ describe("Nav", () => {
       "aria-current",
       "page"
     );
+  });
+
+  // S4 (docs/design/remediation-2-api-gaps.md): the rail footer used to be a
+  // decorative, aria-hidden user-initial badge with no click handler --
+  // "two help affordances, one dead". It's now a real "Help" trigger that
+  // opens the SAME panel as the header's "?" (shared window event), proven
+  // here by rendering both together rather than spying on the dispatch.
+  describe("footer help trigger", () => {
+    beforeEach(() => {
+      vi.spyOn(global, "fetch").mockImplementation(() => Promise.resolve(Response.json({})));
+    });
+
+    it("opens the shared Help panel when clicked", () => {
+      pathname = "/dashboard";
+      render(
+        <>
+          <Nav />
+          <HelpLauncher />
+        </>
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      // Both Nav's footer trigger and HelpLauncher's own header trigger are
+      // accessibly named "Help" (same panel, two entry points) -- scope to
+      // the rail so this test exercises the footer button specifically.
+      const rail = screen.getByRole("navigation", { name: "Primary" });
+      fireEvent.click(within(rail).getByRole("button", { name: "Help" }));
+
+      expect(screen.getByRole("dialog", { name: /help/i })).toBeInTheDocument();
+    });
   });
 });
 

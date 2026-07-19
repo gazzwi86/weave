@@ -27,7 +27,11 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /help/i })).toBeInTheDocument();
+    // S4: two Help entry points now exist (header launcher + rail footer
+    // trigger, see nav.test.tsx), both accessibly named "Help" -- assert
+    // presence, not count, since this test's intent is just "help launcher
+    // renders here".
+    expect(screen.getAllByRole("button", { name: /help/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
 
@@ -128,5 +132,43 @@ describe("AppShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /expand sidebar/i }));
     expect(screen.getByRole("navigation", { name: "Secondary" })).toBeInTheDocument();
+  });
+});
+
+// S2 (docs/design/remediation-2-api-gaps.md): breadcrumb must resolve to the
+// CURRENT subpage, not always fall back to the section's first item (e.g.
+// /ce/types was showing "Constitution / Overview" for every CE subpage).
+// Covers CE, Audit trail, Build, and the Settings subpages the same bug also
+// broke (the brief's "Settings/Billing already works" claim only held for
+// the exact-match/no-collision routes -- /settings/members and
+// /settings/onboarding-path were broken by the identical root cause). Split
+// into its own describe (rather than growing "AppShell" above) to stay under
+// the function-length budget.
+describe("AppShell breadcrumb", () => {
+  beforeEach(() => {
+    vi.spyOn(global, "fetch").mockImplementation(() => Promise.resolve(Response.json({})));
+  });
+
+  it.each([
+    ["/ce/types", "Constitution", "Ontology / Types"],
+    ["/ce/instances", "Constitution", "Instances / Data"],
+    ["/ce/query", "Constitution", "Query"],
+    ["/ce/glossary", "Constitution", "Glossary"],
+    ["/ce/brand", "Constitution", "Branding & standards"],
+    ["/ce/rules", "Constitution", "Rules & policies"],
+    ["/audit/logs", "Audit trail", "View logs"],
+    ["/audit/compliance", "Audit trail", "Compliance"],
+    ["/settings/members", "Settings", "Members"],
+    ["/settings/onboarding-path", "Settings", "Onboarding path"],
+    ["/build", "Build", "Registry"],
+  ])("resolves the breadcrumb for %s to %s / %s", (path, sectionLabel, pageLabel) => {
+    pathname = path;
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>
+    );
+
+    expect(screen.getByTestId("breadcrumb").textContent).toBe(`${sectionLabel}/${pageLabel}`);
   });
 });

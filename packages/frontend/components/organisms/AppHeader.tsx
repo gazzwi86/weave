@@ -48,7 +48,7 @@ function CommandBarTrigger({ onOpenCommandBar }: { onOpenCommandBar: () => void 
     <button
       type="button"
       onClick={onOpenCommandBar}
-      aria-label="Search, ask, or jump to"
+      aria-label="Search entities"
       className={cn(
         "flex h-[var(--space-6)] w-[var(--size-cmdbar)] max-w-full items-center gap-[var(--space-2)] rounded-[var(--radius-full)]",
         "border border-transparent bg-[var(--color-raised)] px-[var(--space-3)] text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]",
@@ -58,7 +58,7 @@ function CommandBarTrigger({ onOpenCommandBar }: { onOpenCommandBar: () => void 
       )}
     >
       <Icon name="search" size={14} />
-      <span className="flex-1 truncate text-left">Search, ask, or jump to…</span>
+      <span className="flex-1 truncate text-left">Search entities…</span>
       <kbd className="rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)] px-[var(--space-1)] font-[var(--font-mono)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
         ⌘K
       </kbd>

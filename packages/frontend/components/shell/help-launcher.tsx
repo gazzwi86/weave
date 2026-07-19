@@ -241,6 +241,19 @@ function useShortcutOpen(setOpen: (open: boolean) => void) {
   }, [setOpen]);
 }
 
+/** S4 (docs/design/remediation-2-api-gaps.md): a second "?" trigger lives in
+ * the nav rail's footer (nav.tsx) -- it opens this SAME panel via a shared
+ * window event, the identical pattern command-palette.tsx already uses for
+ * its header trigger, rather than each caller lifting `open` state through
+ * the shell. */
+function useExternalOpen(setOpen: (open: boolean) => void) {
+  useEffect(() => {
+    const open = () => setOpen(true);
+    window.addEventListener("weave:open-help-panel", open);
+    return () => window.removeEventListener("weave:open-help-panel", open);
+  }, [setOpen]);
+}
+
 function CloseHelpButton() {
   return (
     <Dialog.Close asChild>
@@ -266,6 +279,7 @@ export function HelpLauncher() {
   const [open, setOpen] = useState(false);
   const { unread } = useWhatsNewUnread();
   useShortcutOpen(setOpen);
+  useExternalOpen(setOpen);
   const tourEngine = useTourEngine({ tour: CE_OVERVIEW_TOUR, onPersist: persistCeOverviewProgress });
   const cards = useHelpCards(tourEngine, () => setOpen(false));
 

@@ -31,7 +31,7 @@ describe("AppHeader", () => {
   it("fires onOpenCommandBar when the command bar is clicked", async () => {
     const onOpenCommandBar = vi.fn();
     render(<AppHeader breadcrumb="x" onOpenCommandBar={onOpenCommandBar} />);
-    await userEvent.click(screen.getByRole("button", { name: /search, ask, or jump to/i }));
+    await userEvent.click(screen.getByRole("button", { name: /search entities/i }));
     expect(onOpenCommandBar).toHaveBeenCalledTimes(1);
   });
 
