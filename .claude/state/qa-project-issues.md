@@ -422,3 +422,19 @@ Explorer engine was folded into Constitution (Explorer now ships under CE task I
 acceptance criteria (domain-focus, right-click context menu, confirmed neighbour-expansion). IF covered
 → drop `ge005-backup`. IF gaps → file a CE post-v1 task to port the missing behaviour. Branch kept until
 verified (never blind-delete unmerged unique work). See `.claude/state/kept-branches.md`.
+
+## PROJ-015: git-safety.md claims "no server-side branch protection" — now FALSE
+
+- **Title:** `.claude/rules/git-safety.md` states the repo has no server-side branch protection and
+  that the `check_force_push` hook is "the SOLE enforcement" for main. As of 2026-07-19 the repo has
+  an ACTIVE `main` branch **ruleset** (id 18363233): require-PR, required_linear_history,
+  non_fast_forward (blocks force-push server-side), deletion-block, and required_status_checks
+  (now incl. `visual` + `e2e-behavioural`). Discovered when a direct `git push` to main was rejected
+  by the ruleset during the CI-wiring session.
+- **Severity:** Project · **Raised in:** CI-wiring session (PR #168/#169).
+- **Owner:** Human + harness — `git-safety.md` is a governed rule file, so the correction needs an
+  advisor consult + HITL (rule 2). Fix: update git-safety.md to record the ruleset as the primary
+  server-side enforcement, with the local hook as defence-in-depth (as the file's own forward-looking
+  note already anticipated). No behaviour change — the hook stays.
+- **Deadline:** Next harness-focused pass (non-urgent — protection is STRONGER than the docs claim,
+  not weaker).
