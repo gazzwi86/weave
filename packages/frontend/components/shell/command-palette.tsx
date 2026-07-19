@@ -29,8 +29,17 @@ function matchingActions(query: string) {
 }
 
 /** PR #13 finding (4): a search failure must read as "Search unavailable",
- * never the same "No results." shown for a real empty search. */
-function SearchListEmptyState({ error }: { error: boolean }) {
+ * never the same "No results." shown for a real empty search. S5(b): before
+ * the user has typed anything there's no query to have failed or matched
+ * yet, so that's a third, distinct idle state -- not an empty-results one. */
+function SearchListEmptyState({ error, idle }: { error: boolean; idle: boolean }) {
+  if (idle) {
+    return (
+      <div className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
+        Search entities by name…
+      </div>
+    );
+  }
   if (error) {
     return (
       <div className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
@@ -50,17 +59,18 @@ interface CommandGroupsProps {
   results: ReturnType<typeof useEntitySearch>["results"];
   actions: ReturnType<typeof matchingActions>;
   error: boolean;
+  query: string;
   onSelectHref: (href: string) => void;
   onSelectEntity: (iri: string) => void;
 }
 
 /** AC-3: the three result groups (Navigation / Entities / Actions), split
  * out so `CommandPalette` itself stays under the function-length budget. */
-function CommandGroups({ navItems, results, actions, error, onSelectHref, onSelectEntity }: CommandGroupsProps) {
+function CommandGroups({ navItems, results, actions, error, query, onSelectHref, onSelectEntity }: CommandGroupsProps) {
   const hasNoResults = navItems.length === 0 && actions.length === 0 && results.length === 0;
   return (
     <Command.List>
-      {hasNoResults ? <SearchListEmptyState error={error} /> : null}
+      {hasNoResults ? <SearchListEmptyState error={error} idle={query.length === 0} /> : null}
       {navItems.length > 0 ? (
         <Command.Group heading="Navigation">
           {navItems.map((item) => (
@@ -170,6 +180,7 @@ export function CommandPalette() {
         results={results}
         actions={actions}
         error={error}
+        query={query}
         onSelectHref={handleSelectHref}
         onSelectEntity={handleSelectEntity}
       />
