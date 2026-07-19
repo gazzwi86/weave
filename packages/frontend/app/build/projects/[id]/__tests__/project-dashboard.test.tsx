@@ -124,7 +124,7 @@ describe("ProjectDashboard (refit-mock #sub-bld-dashboard)", () => {
     render(<ProjectDashboard projectId="p-1" />);
 
     await user.click(await screen.findByText("Brief"));
-    expect(await screen.findByText(/not yet wired to a live spec source/i)).toBeInTheDocument();
+    expect(await screen.findByText(/isn't available yet/i)).toBeInTheDocument();
   });
 
   it("renders activity merged from blockers and recent runs", async () => {

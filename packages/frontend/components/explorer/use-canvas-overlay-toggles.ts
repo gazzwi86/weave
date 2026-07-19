@@ -31,7 +31,7 @@ const CHANGE_HEATMAP_TOGGLE: OverlayToggle = {
   label: "Change heatmap (pending)",
   active: false,
   disabled: true,
-  disabledReason: "No per-entity change-frequency data source yet -- see gap G17.",
+  disabledReason: "Change heatmap needs per-entity change history, which isn't collected yet.",
 };
 
 function latestTwoVersions(versions: VersionEntry[]): [VersionEntry, VersionEntry] | [] {

@@ -236,7 +236,7 @@ describe("CeVersionsPage", () => {
     fireEvent.change(within(dialog).getByLabelText(/release note/i), { target: { value: "Fixed the refund flow" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Publish v0.2.0" }));
 
-    await expect(screen.findByText(/release notes aren't persisted yet/i)).resolves.toBeInTheDocument();
+    await expect(screen.findByText(/release notes aren't available yet/i)).resolves.toBeInTheDocument();
   });
 
   it("gap-toasts View diff on canvas from the ExplainBand", async () => {
@@ -245,6 +245,6 @@ describe("CeVersionsPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "View diff on canvas" }));
 
-    await expect(screen.findByText(/explore-canvas linking isn't wired yet/i)).resolves.toBeInTheDocument();
+    await expect(screen.findByText(/explore-canvas linking isn't available yet/i)).resolves.toBeInTheDocument();
   });
 });

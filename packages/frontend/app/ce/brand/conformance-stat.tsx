@@ -11,7 +11,7 @@ export function ConformanceStat() {
     <div className="flex flex-col gap-[var(--space-1)]">
       <StatCard value="—" label="Brand conformance (30d)" tone="neutral" />
       <p className="text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
-        Not yet available — backend aggregation pending (G14).
+        Not yet available.
       </p>
     </div>
   );

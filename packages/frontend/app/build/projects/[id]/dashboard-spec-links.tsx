@@ -39,8 +39,8 @@ function SpecLink({ label, sub, onOpen }: { label: string; sub: string; onOpen: 
 function StaticDocBody({ label }: { label: string }): React.JSX.Element {
   return (
     <p>
-      {label} is not yet wired to a live spec source. Once the spec artefacts are exposed via API,
-      this drawer will show the generated {label.toLowerCase()} for this project&apos;s spec.
+      {label} isn&apos;t available yet. This drawer will show the generated {label.toLowerCase()} for
+      this project&apos;s spec once it&apos;s ready.
     </p>
   );
 }

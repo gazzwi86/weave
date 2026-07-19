@@ -13,7 +13,7 @@ export function DashboardRoadmapPanel(): React.JSX.Element {
     <ExplainBand
       tone="accent"
       icon="gauge"
-      body="Roadmap — no epic timeline data yet. This needs an epics endpoint with per-epic status and dates; the board only tracks individual tasks, not the epics they roll up to."
+      body="Roadmap — no epic timeline data yet."
     />
   );
 }

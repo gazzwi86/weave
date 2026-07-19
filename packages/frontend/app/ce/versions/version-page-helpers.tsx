@@ -45,7 +45,7 @@ export function buildDraftBandBody(draft: VersionEntry, latestPublished: Version
 }
 
 const HISTORICAL_DIFF_GAP_NOTE =
-  "Diffing older published versions against each other isn't wired yet — only the current draft's diff " +
+  "Diffing older published versions against each other isn't available yet — only the current draft's diff " +
   'against the latest published version is available (see "Review & publish").';
 
 function formatTimestamp(iso: string): string {
@@ -89,7 +89,7 @@ export interface PreflightRow {
   detail: string;
 }
 
-const NOT_WIRED_DETAIL = "Not wired to a backend endpoint in M1.";
+const NOT_WIRED_DETAIL = "Not available yet.";
 
 /** The drawer's "Pre-publish checks" rows -- Rules is real (CE-TASK-006's
  * SHACL report via `useRules`); Consistency/Provenance have no backing

@@ -46,13 +46,13 @@ describe("OverlayPanel", () => {
   // exclusion message.
   it("shows a toggle's own disabledReason instead of the generic mutual-exclusion tooltip", () => {
     const toggles: OverlayToggle[] = [
-      { id: "change-heatmap", label: "Change heatmap (pending)", active: false, disabled: true, disabledReason: "No per-entity change-frequency data source yet -- see gap G17." },
+      { id: "change-heatmap", label: "Change heatmap (pending)", active: false, disabled: true, disabledReason: "Change heatmap needs per-entity change history, which isn't collected yet." },
     ];
     render(<OverlayPanel toggles={toggles} onToggleOverlay={vi.fn()} />);
 
     expect(screen.getByRole("switch", { name: "Change heatmap (pending)" })).toHaveAttribute(
       "title",
-      "No per-entity change-frequency data source yet -- see gap G17."
+      "Change heatmap needs per-entity change history, which isn't collected yet."
     );
   });
 });

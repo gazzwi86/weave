@@ -87,7 +87,7 @@ function RoleCell({ member }: { member: Member }) {
       aria-label={`Role for ${member.display_name}`}
       value={member.role}
       disabled
-      title="Role changes aren't supported yet (gap G16)."
+      title="Role changes are coming soon."
       className="rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)] disabled:opacity-70"
     >
       {CANONICAL_ROLES.map((r) => (

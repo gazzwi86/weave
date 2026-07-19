@@ -109,7 +109,7 @@ describe("CeTypesPage", () => {
     expect(screen.getByText("Actor")).toBeInTheDocument();
   });
 
-  it("opens the edit drawer prefilled and shows a not-yet-wired toast on save (no kind-mutation endpoint in M1)", async () => {
+  it("opens the edit drawer prefilled and shows a not-available-yet toast on save", async () => {
     stubFetch(jsonResponse(TYPES));
     renderPage();
 
@@ -121,7 +121,7 @@ describe("CeTypesPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
-    expect(await screen.findByText(/Kind editing isn't wired to a save endpoint yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/Kind editing isn't available yet/)).toBeInTheDocument();
   });
 
   it("opens a blank drawer from New extension kind", async () => {

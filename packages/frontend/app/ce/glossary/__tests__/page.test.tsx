@@ -167,7 +167,7 @@ describe("GlossaryPage", () => {
     expect(await screen.findByText(/Saved changes to "Apple"/)).toBeInTheDocument();
   });
 
-  it("gap-toasts when a relationship chip was edited (no target-IRI resolver in M1)", async () => {
+  it("toasts a not-available-yet message when a relationship chip was edited", async () => {
     stubFetch({ browseRows: [APPLE_ROW], applyResponse: () => jsonResponse({}, 200) });
     renderPage();
     await waitFor(() => expect(screen.getByText("Apple")).toBeInTheDocument());
@@ -178,7 +178,7 @@ describe("GlossaryPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
-    expect(await screen.findByText(/Relationship edits aren't wired/)).toBeInTheDocument();
+    expect(await screen.findByText(/Relationship edits aren't available yet/)).toBeInTheDocument();
   });
 
   it("deletes a term after confirmation, naming the dropped related-item count", async () => {

@@ -12,7 +12,7 @@ import { usePublishDrawer } from "./use-publish-drawer";
 import { useVersions } from "./use-versions";
 import { buildDraftBandBody, buildPublishedTimelineEntries, publishedEntriesDesc, selectDraft } from "./version-page-helpers";
 
-const VIEW_ON_CANVAS_GAP_TOAST = "Explore-canvas linking isn't wired yet.";
+const VIEW_ON_CANVAS_GAP_TOAST = "Explore-canvas linking isn't available yet.";
 
 type BodyState = "error" | "loading" | "empty" | "content";
 

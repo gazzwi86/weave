@@ -107,7 +107,7 @@ function ModelRoutingCard() {
         <TierSelect id="model-mid" label="Mid tier — volume work" hint="Generation, implementation, QA." models={ALLOWED_MODELS.mid} />
       </CardContent>
       <p className="mt-[var(--space-2)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]">
-        Fixed until the allowed-models endpoint ships (gap G13).
+        Model tiers are fixed for now.
       </p>
       <ExplainBand
         tone="accent"

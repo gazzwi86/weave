@@ -102,7 +102,7 @@ describe("buildPublishedTimelineEntries", () => {
       expandedId: PUBLISHED_OLD.version_iri,
     });
     render(<>{entries[1]!.expandedContent}</>);
-    expect(screen.getByText(/isn't wired yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/isn't available yet/i)).toBeInTheDocument();
     expect(entries[0]!.expandedContent).toBeUndefined();
   });
 

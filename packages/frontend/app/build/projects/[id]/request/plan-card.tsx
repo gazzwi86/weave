@@ -36,10 +36,10 @@ export function PlanCard({ draftContent }: { draftContent: Record<string, unknow
         </ol>
       )}
       <div className="mt-[var(--space-3)] flex gap-[var(--space-2)]">
-        <Button disabled title="Sign-off isn't wired up yet (gap G13)">
+        <Button disabled title="Sign-off is coming soon">
           Approve plan — soon
         </Button>
-        <Button variant="secondary" disabled title="Cost estimate isn't wired up yet (gap G13)">
+        <Button variant="secondary" disabled title="Cost estimates are coming soon">
           Estimate — soon
         </Button>
       </div>
