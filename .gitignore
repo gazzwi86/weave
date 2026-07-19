@@ -108,3 +108,5 @@ docs/specs/weave/viz.html
 .thinking.md
 # Weave — CE-TASK-008 perf-benchmark JSON output (CI artefact, not repo content)
 scripts/benchmarks/ce-perf/reports/*.json
+# Dev-runner + browser client-error logs (tee'd by `make dev`; see LOOPS.md)
+logs/

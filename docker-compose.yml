@@ -1,8 +1,19 @@
 # Local-first dev stack (AC-1b). `make up` / `make down`. No real AWS: every
 # AWS-shaped call goes to localstack. Never pushed anywhere, never applies
 # Terraform against this — it's a pure local sandbox.
+# Cap container log files: json-file's default is unbounded, and the LOOPS.md
+# maintenance squads rely on `docker compose logs --since` for error history —
+# bounded, but surviving container restarts.
+x-log-cap: &log-cap
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   postgres:
+    <<: *log-cap
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: weave
@@ -22,6 +33,7 @@ services:
       retries: 10
 
   redis:
+    <<: *log-cap
     image: redis:7-alpine
     ports:
       - "${WEAVE_REDIS_PORT:-6379}:6379"
@@ -32,6 +44,7 @@ services:
       retries: 10
 
   localstack:
+    <<: *log-cap
     image: localstack/localstack:3.8
     environment:
       # sts: PLAT-TASK-004 agent identity (STS GetCallerIdentity), Law F --
@@ -53,6 +66,7 @@ services:
   # `docker compose --profile ollama up`; from other containers reach the native
   # host daemon at host.docker.internal:11434.
   ollama:
+    <<: *log-cap
     image: ollama/ollama:latest
     profiles: ["ollama"]
     ports:
@@ -68,6 +82,7 @@ services:
   # inspect` + `docker run --entrypoint sh`), so readiness+seeding is polled
   # from the test/host side instead (see test_local_stack.py).
   oxigraph:
+    <<: *log-cap
     image: ghcr.io/oxigraph/oxigraph:latest
     ports:
       - "${WEAVE_OXIGRAPH_PORT:-7878}:7878"

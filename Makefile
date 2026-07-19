@@ -1,4 +1,4 @@
-.PHONY: dev test lint scaffold up down migrate seed
+.PHONY: dev dev-clean test lint scaffold up down migrate seed
 
 # AC-1: (re)create the monorepo directory tree, then prove the repo still
 # lints clean. Idempotent — safe to re-run on an already-scaffolded repo.
@@ -29,12 +29,19 @@ seed:
 # AC-2/AC-3: mock-oidc stands in for the Cognito hosted UI in dev.
 # FIX 3 (P0): backend defaults to AnthropicProvider, which 502s with no API
 # key -- dev points AI routing at host-native Ollama instead (ADR-011).
+# Each process is tee'd to logs/dev/ (gitignored) so the maintenance loops in
+# LOOPS.md can grep errors from runs nobody was watching. `make dev-clean`
+# truncates the history.
 dev:
+	mkdir -p logs/dev
 	cd packages/backend && WEAVE_ENV=dev WEAVE_MODEL_PROVIDER=ollama OLLAMA_MODEL=batiai/qwen3.6-27b:iq3 \
 		WEAVE_SPEC_DRAFT_TIMEOUT_S=600 OLLAMA_TIMEOUT_S=300 \
-		uv run uvicorn weave_backend:app --reload --port 8000 & \
-	cd packages/backend && uv run weave-mock-oidc & \
-	cd packages/frontend && AUTH_RATE_LIMIT_MAX=300 npm run dev
+		uv run uvicorn weave_backend:app --reload --port 8000 2>&1 | tee -a $(CURDIR)/logs/dev/backend.log & \
+	cd packages/backend && uv run weave-mock-oidc 2>&1 | tee -a $(CURDIR)/logs/dev/oidc.log & \
+	cd packages/frontend && AUTH_RATE_LIMIT_MAX=300 npm run dev 2>&1 | tee -a $(CURDIR)/logs/dev/frontend.log
+
+dev-clean:
+	rm -f logs/dev/*.log logs/dev/*.jsonl
 
 test:
 	cd packages/backend && uv run pytest -m "not docker and not e2e"
