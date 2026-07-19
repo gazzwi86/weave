@@ -75,7 +75,7 @@ export const PRIMARY_NAV: PrimaryNavItem[] = [
         heading: "Query",
         items: [
           { label: "Query", href: "/ce/query", built: true, icon: "sparkles" },
-          { label: "Versions", href: "/ce/versions", built: false, icon: "git" },
+          { label: "Versions", href: "/ce/versions", built: true, icon: "git" },
         ],
       },
       {

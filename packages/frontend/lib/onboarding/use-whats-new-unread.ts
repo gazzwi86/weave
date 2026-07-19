@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { WHATS_NEW_ITEMS } from "../../../shared/onboarding/content/whats-new";
+import { fetchOnboardingStateOnce } from "./onboarding-state-client";
 
 export interface UseWhatsNewUnreadResult {
   loading: boolean;
@@ -23,10 +24,9 @@ export function useWhatsNewUnread(): UseWhatsNewUnreadResult {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/onboarding/state")
-      .then((res) => res.json())
-      .then((body: { whats_new_seen_at?: string | null }) => {
-        if (!cancelled) setSeenAt(body.whats_new_seen_at ?? null);
+    fetchOnboardingStateOnce()
+      .then((body) => {
+        if (!cancelled) setSeenAt((body?.whats_new_seen_at as string | null | undefined) ?? null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
