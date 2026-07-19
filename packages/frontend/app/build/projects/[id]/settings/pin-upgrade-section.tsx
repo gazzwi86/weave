@@ -276,7 +276,9 @@ export function PinUpgradeSection({
 
   return (
     <>
-      <Button onClick={open}>Review upgrade</Button>
+      <Button onClick={open} className="w-fit">
+        Review upgrade
+      </Button>
       <dialog
         ref={dialogRef}
         aria-labelledby="pin-upgrade-title"

@@ -53,6 +53,13 @@ describe("PinUpgradeSection", () => {
     expect(screen.queryByRole("button", { name: /review upgrade/i })).not.toBeInTheDocument();
   });
 
+  // B5: was stretching to the full width of its flex-col parent -- w-fit
+  // matches the sizing GovernanceForm's Save button already uses.
+  it("B5: sizes the review-upgrade trigger to its content, not full width", () => {
+    render(<PinUpgradeSection projectId="p-1" canManage={true} />);
+    expect(screen.getByRole("button", { name: /review upgrade/i }).className).toContain("w-fit");
+  });
+
   it("shows the trigger for an admin and loads the diff on open (AC-1)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(NON_BREAKING_DIFF)));
     render(<PinUpgradeSection projectId="p-1" canManage={true} />);
