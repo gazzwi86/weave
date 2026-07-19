@@ -1,19 +1,41 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
 import { ExplainBand } from "@/components/ui/explain-band";
 
-/** G10 gap: a Gantt needs a per-epic ordering + status + date range, and
- * none exists -- there's no epics endpoint (G9), and neither the board nor
- * task-tree client carries an epic field to group tasks by, so even a
- * status-only derivation (done/active/up-next, no real dates) isn't
- * possible from what's already fetched. Full pending-state until an epics
- * endpoint ships with at least status; `Gantt` (components/molecules/Gantt)
- * stays unused here rather than rendering fabricated bars.
+import { useEpics } from "./use-epics";
+
+const STATUS_VARIANT = { done: "success", active: "info", upcoming: "neutral" } as const;
+
+/** B2 (docs/design/remediation-2-api-gaps.md): wires to the G9/G10 epic
+ * rollup endpoint (`GET /api/projects/{id}/epics`) -- no dates (G10 is
+ * still deferred, ordinal + status only), so this renders an ordered list
+ * rather than a `Gantt` (components/molecules/Gantt stays unused).
  */
-export function DashboardRoadmapPanel(): React.JSX.Element {
+export function DashboardRoadmapPanel({ projectId }: { projectId: string }): React.JSX.Element {
+  const rollup = useEpics(projectId);
+  const epics = [...(rollup?.epics ?? [])].sort((a, b) => a.ordinal - b.ordinal);
+
+  if (rollup && epics.length === 0) {
+    return <ExplainBand tone="accent" icon="gauge" body="Roadmap — no epics yet." />;
+  }
+
   return (
-    <ExplainBand
-      tone="accent"
-      icon="gauge"
-      body="Roadmap — no epic timeline data yet."
-    />
+    <ul className="flex flex-col gap-[var(--space-2)]">
+      {epics.map((epic) => (
+        <li
+          key={epic.epic_id}
+          className="flex items-center justify-between gap-[var(--space-2)] text-[length:var(--text-body-sm)]"
+        >
+          <span className="text-[var(--color-text-default)]">{epic.title ?? epic.epic_id}</span>
+          <span className="flex items-center gap-[var(--space-2)]">
+            <span className="text-[var(--color-text-subtle)]">
+              {epic.task_counts.done}/{epic.task_counts.total}
+            </span>
+            <Badge variant={STATUS_VARIANT[epic.status]}>{epic.status}</Badge>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
