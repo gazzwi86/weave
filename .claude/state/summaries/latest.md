@@ -1,13 +1,13 @@
 # Session Snapshot
 
-Captured at: 2026-07-14T23:31:43+00:00
+Captured at: 2026-07-19T06:44:16+00:00
 Event: session-end
 
 ## Current State
 
 {
   "project": "weave",
-  "phase": "onboarding/phase-1",
+  "phase": "program-v1-complete",
   "phase_plan": [
     "weave-platform/phase-1",
     "constitution-engine/phase-1",
@@ -196,42 +196,42 @@ Event: session-end
     },
     {
       "id": "CE-V1-EPIC-015",
-      "title": "Filters & Layers · M2",
+      "title": "Filters & Layers \u00b7 M2",
       "status": "done"
     },
     {
       "id": "CE-V1-EPIC-016",
-      "title": "Visual Overlays · M2",
+      "title": "Visual Overlays \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-020",
-      "title": "Version Views & Diff · M2",
+      "title": "Version Views & Diff \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-017",
-      "title": "Visual Editing on the Canvas · M2",
+      "title": "Visual Editing on the Canvas \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-019",
-      "title": "Saved Views & Layout · M2",
+      "title": "Saved Views & Layout \u00b7 M2",
       "status": "done"
     },
     {
       "id": "CE-V1-EPIC-018",
-      "title": "Async Share & Comments · M2",
+      "title": "Async Share & Comments \u00b7 M2",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-022",
-      "title": "Model-Completeness Map · M2 (new)",
+      "title": "Model-Completeness Map \u00b7 M2 (new)",
       "status": "backlog"
     },
     {
       "id": "CE-V1-EPIC-021",
-      "title": "Embeddable Canvas Component GE-CANVAS-1 · force mode M2, c4 mode post-v1",
+      "title": "Embeddable Canvas Component GE-CANVAS-1 \u00b7 force mode M2, c4 mode post-v1",
       "status": "backlog"
     },
     {
@@ -516,7 +516,7 @@ Event: session-end
       "id": "CE-TASK-006",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-011",
-      "title": "Authoring Surfaces — Chat Panel and Guided Forms",
+      "title": "Authoring Surfaces \u2014 Chat Panel and Guided Forms",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003",
@@ -529,7 +529,7 @@ Event: session-end
       "id": "CE-TASK-007",
       "engine": "constitution-engine",
       "epic": "CE-EPIC-007",
-      "title": "NL→SELECT Query and SPARQL Editor",
+      "title": "NL\u2192SELECT Query and SPARQL Editor",
       "status": "done",
       "blocked_by": [
         "CE-TASK-003"
@@ -746,7 +746,7 @@ Event: session-end
       "id": "PLAT-V1-TASK-012",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-001",
-      "title": "Declarative intent→component mapping + change visualisation (E1-S2)",
+      "title": "Declarative intent\u2192component mapping + change visualisation (E1-S2)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-011"
@@ -831,31 +831,31 @@ Event: session-end
     },
     {
       "id": "PLAT-V1-TASK-006",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Managed connector config and health monitoring (PLAT-CONNECTOR-1, v1.0)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-TASK-004"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-006.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-006.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-018",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Connector sync scheduler + ingestion framework (E7-S3 core, PLAT-CONNECTOR-1)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-006"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-018.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-018.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-019",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Atlassian connector: ingest + bidirectional write-back reference implementation",
       "status": "backlog",
@@ -863,24 +863,24 @@ Event: session-end
         "PLAT-V1-TASK-018",
         "PLAT-V1-TASK-025"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-019.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-019.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-020",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "ServiceNow connector: ingest + write-back",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-019"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-020.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-020.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-021",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "Read-only data connectors: Snowflake, Databricks, AWS, Azure Data Lake",
       "status": "backlog",
@@ -888,12 +888,12 @@ Event: session-end
         "PLAT-V1-TASK-018",
         "PLAT-V1-TASK-019"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-021.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-021.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-022",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-006",
       "title": "Slack connector + PLAT-NOTIFY-1 Slack delivery channel (EPIC-006 v1)",
       "status": "backlog",
@@ -901,12 +901,12 @@ Event: session-end
         "PLAT-V1-TASK-006",
         "PLAT-V1-TASK-018"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-022.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-022.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-023",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-002",
       "title": "Connector-health dashboard widget rows (E2-S8, v1 activation)",
       "status": "backlog",
@@ -914,19 +914,19 @@ Event: session-end
         "PLAT-V1-TASK-006",
         "PLAT-V1-TASK-016"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-023.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-023.md",
       "retry_count": 0
     },
     {
       "id": "PLAT-V1-TASK-025",
-      "engine": "weave-platform-v1",
+      "engine": "weave-platform-post-v1",
       "epic": "PLAT-V1-EPIC-007",
       "title": "OAuth authorization-code connector auth (authorize + callback, v1.0)",
       "status": "backlog",
       "blocked_by": [
         "PLAT-V1-TASK-006"
       ],
-      "brief": "docs/specs/weave/engines/weave-platform/v1/tasks/TASK-025.md",
+      "brief": "docs/specs/weave/engines/weave-platform/post-v1/tasks/TASK-025.md",
       "retry_count": 0
     },
     {
@@ -977,7 +977,7 @@ Event: session-end
       "id": "CE-V1-TASK-005",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-005",
-      "title": "Tenant-Scoped Governance Shapes (NL→SHACL, Isolation, Cache Invalidation)",
+      "title": "Tenant-Scoped Governance Shapes (NL\u2192SHACL, Isolation, Cache Invalidation)",
       "status": "done",
       "blocked_by": [
         "CE-V1-TASK-001"
@@ -1206,7 +1206,7 @@ Event: session-end
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-016",
       "title": "M2 Release-Gate Suite (isolation, a11y, perf, invariants)",
-      "status": "in_progress",
+      "status": "done",
       "blocked_by": [
         "CE-V1-TASK-022",
         "CE-V1-TASK-024",
@@ -1254,7 +1254,7 @@ Event: session-end
       "id": "BE-V1-TASK-004",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-008",
-      "title": "BE-SDK-1 Generator Core: Fetch → IR → TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
+      "title": "BE-SDK-1 Generator Core: Fetch \u2192 IR \u2192 TS/Python/OpenAPI Emitters (E8-S5, FR-059)",
       "status": "done",
       "blocked_by": [],
       "brief": "docs/specs/weave/engines/build-engine/v1/tasks/TASK-004.md",
@@ -1450,7 +1450,7 @@ Event: session-end
       "id": "BE-V1-TASK-021",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-003",
-      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt → Dark-Factory Run",
+      "title": "Direct Project Prompt (FR-065): Role-Gated Prompt \u2192 Dark-Factory Run",
       "status": "done",
       "blocked_by": [
         "BE-V1-TASK-012",
@@ -1568,7 +1568,7 @@ Event: session-end
       "id": "PLAT-V1-TASK-027",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-011",
-      "title": "App shell v2 — V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
+      "title": "App shell v2 \u2014 V4-hybrid chrome refit (R1 + R7 chrome copy + R10 bell/batching)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1592,7 +1592,7 @@ Event: session-end
       "id": "PLAT-V1-TASK-029",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-009",
-      "title": "Audit & compliance surfaces v2 — tiles/charts rebuild (R8)",
+      "title": "Audit & compliance surfaces v2 \u2014 tiles/charts rebuild (R8)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1604,7 +1604,7 @@ Event: session-end
       "id": "PLAT-V1-TASK-030",
       "engine": "weave-platform-v1",
       "epic": "PLAT-V1-EPIC-004",
-      "title": "Settings completeness — Members + notification preferences (R9 + R7 copy)",
+      "title": "Settings completeness \u2014 Members + notification preferences (R9 + R7 copy)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1616,7 +1616,7 @@ Event: session-end
       "id": "CE-V1-TASK-031",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-023",
-      "title": "Instance browser v2 — browse/search + SHACL drawer + glass chat aside (R3)",
+      "title": "Instance browser v2 \u2014 browse/search + SHACL drawer + glass chat aside (R3)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1628,7 +1628,7 @@ Event: session-end
       "id": "CE-V1-TASK-032",
       "engine": "constitution-engine-v1",
       "epic": "CE-V1-EPIC-024",
-      "title": "Query & ask v2 — lifecycle states + Graph/Table/Raw + speech input (R5)",
+      "title": "Query & ask v2 \u2014 lifecycle states + Graph/Table/Raw + speech input (R5)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1640,7 +1640,7 @@ Event: session-end
       "id": "BE-V1-TASK-024",
       "engine": "build-engine-v1",
       "epic": "BE-V1-EPIC-001",
-      "title": "Build request form v2 — labelled fields + visible request record (R11)",
+      "title": "Build request form v2 \u2014 labelled fields + visible request record (R11)",
       "status": "done",
       "blocked_by": [
         "PLAT-V1-TASK-026"
@@ -1707,7 +1707,7 @@ Event: session-end
       "id": "ONB-TASK-006",
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
-      "title": "Role-Path Resolution: 10→4 mapping, choose-path, change-path",
+      "title": "Role-Path Resolution: 10\u21924 mapping, choose-path, change-path",
       "status": "done",
       "blocked_by": [
         "ONB-TASK-001"
@@ -1815,7 +1815,7 @@ Event: session-end
       "id": "ONB-TASK-014",
       "engine": "onboarding",
       "epic": "ONB-EPIC-003",
-      "title": "Role→Starter-Widget Mapping handed to Platform",
+      "title": "Role\u2192Starter-Widget Mapping handed to Platform",
       "status": "done",
       "blocked_by": [
         "ONB-TASK-003",
@@ -1842,70 +1842,62 @@ Event: session-end
   ]
 }
 
+
 ## Last Phase Summary
 
 ---
-title: "Phase Gate: onboarding/phase-1 (batched program-v1 boundary)"
-status: Pending
-phase: onboarding/phase-1
+title: "Phase Gate: weave-platform-v1/phase-1 (TERMINAL program-v1 boundary)"
+status: Approved
+phase: weave-platform-v1/phase-1
 date: 2026-07-15
 security_verdict: PASS
 mutation_score: ">=60% (CI mutation a+b green on main)"
 ---
 
 ## Governing principle
-
-A phase gate protects the next phase from inheriting unresolved debt. If any quality signal is
-red, the phase is paused, not ended. Verdicts below are evidence-based (CI on merged `main`), not
-optimistic.
+Terminal boundary of the program-v1 wave. A gate protects downstream from unresolved debt; verdicts
+are evidence-based (CI on merged `main`), not optimistic. This is the last entry in `phase_plan`.
 
 ## Gate Criteria
-
 | Field | Value |
 |---|---|
-| Phase | onboarding/phase-1 (5th of 8 in phase_plan; batched program-v1 boundary) |
-| Triggered | `progress.sh phase-check` = COMPLETE (all onboarding tasks done) |
+| Phase | weave-platform-v1/phase-1 (last in phase_plan — program-v1 terminal) |
+| Triggered | `progress.sh phase-check` = COMPLETE after connector descope |
 | Approver | Human (HITL) |
 
 ## Deliverables
+- All in-scope weave-platform-v1 tasks done and merged to `main`.
+- **Scope change (this gate):** 8 managed connectors descoped v1 → post-v1 (PLAT-V1-TASK-006/018/
+  019/020/021/022/023/025). Briefs moved to `weave-platform/post-v1/tasks/` (preserved, not
+  deleted); spine retagged `engine=weave-platform-post-v1`. Per CLAUDE.md §Stack — connectors
+  (Snowflake, Databricks, S3, Azure Data Lake, Atlassian, ServiceNow, Slack) deferred to v1.0.
+- Commit `38793b89`.
 
-- Onboarding phase COMPLETE: ONB-001..015 merged (PRs #105/#107/#108/#109/#110). EPIC-001 closed.
-- Non-done program tasks are **not this phase**: 8 PLAT connectors (EPIC-002/006/007) parked → v1.0
-  (user-confirmed); CE-V1-TASK-030 in_progress (#106 HELD OPEN on Explorer a11y — see UI-verify).
-- main @ `c1fc56dc` (green apart from known-noise: ce-perf, mutation-strict, deploy-essential-dev).
-
-## Quality signals (evidence from CI on merged main)
-
+## Quality signals (evidence: CI on merged main)
 | Signal | Verdict | Evidence |
 |---|---|---|
-| Security (semgrep + secrets) | PASS | green on #105/#107/#108/#109/#110 |
-| Mutation (mutmut a+b splits) | GREEN | both jobs pass 9–13m on #109/#110/#106 |
-| Lint / tsc / unit / integration | PASS | web+shared+api+integration green on merged PRs |
-| **UI-verify (Playwright E2E + Lighthouse/axe)** | **RED** | sandbox has no Postgres → webServer fails-closed (all browser E2E `test.fixme`, enforced real-env at epic-close); **Explorer Lighthouse a11y <0.95 + axe fail** (#106 held; logged `PROJ-A11Y-EXPLORER`) |
+| Security (semgrep + secrets) | PASS | green on merged epic PRs |
+| Mutation (mutmut a+b) | GREEN | both jobs pass on main |
+| Lint / tsc / unit / integration | PASS | green on merged PRs |
+| UI-verify (Playwright/Lighthouse/axe) | RED | sandbox no-Postgres (fail-closed, real-env deferred) + Explorer a11y debt PROJ-A11Y-EXPLORER |
 
-Gate Law 6: UI-verify RED blocks a programmatic Approve. Human may Amend (fix + re-gate) or accept
-documented debt.
+Gate Law 6: UI-verify RED blocks a programmatic Approve. Human override (documented debt), identical
+profile to the three boundaries already approved this session.
 
-## Artifacts
-
-- Open PR: #106 (CE-016 partial, M2 Release-Gate Suite) — held on the a11y RED, not merged.
-- Conventional commits throughout; state committed `[skip ci]` to local main.
-- Durable brief + 6 morning decisions: `.claude/state/overnight-queue.md`.
-
-## Cost Summary
-
-| Metric | Estimated | Actual |
-|---|---|---|
-| Total tokens | — | N/A (not instrumented) |
-| Total cost | — | N/A |
+## Open debt carried forward (tracked, not blocking)
+- `PROJ-A11Y-EXPLORER` — Explorer Lighthouse a11y <0.95 + axe fail.
+- `PROJ-FLAKY-BILLING-PERF` — test_billing.py wall-clock flake.
+- 4 M2 gate jobs live in ci.yml (fail-loud) but **not** registered as branch-protection required
+  checks — user's repo-settings decision.
+- Real-env ui-verify sweep (sandbox has no Postgres) — deferred to real environment.
+- 8 connectors → post-v1 (this gate).
 
 ## Decision
-
-- [ ] Approve  — advance phase_plan → `constitution-engine-v1/phase-1` (engine boundary)
-- [ ] Amend    — fix Explorer a11y (PROJ-A11Y-EXPLORER) + real-env ui-verify, then re-gate
-- [ ] Reject   — replan
+- [x] Approve  — close program-v1 wave. Pointer stays terminal. Human override of UI-verify RED (documented debt). (2026-07-15)
+- [ ] Amend
+- [ ] Reject
 
 ## Notes
-
-_(human fills)_
+Terminal boundary — approving closes the program-v1 build wave. Remaining work (connectors, Explorer
+a11y, real-env ui-verify) is tracked debt/post-v1, not blocking this gate.
 
