@@ -7,6 +7,8 @@ import { Eyebrow } from "@/components/ui/eyebrow";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
+import { usePendingGatesCount } from "./use-pending-gates-count";
+
 const DOT_TONE: Record<"warn" | "danger", string> = {
   warn: "bg-[var(--color-warn)]",
   danger: "bg-[var(--color-danger)]",
@@ -35,6 +37,23 @@ function NeedsYouRow({
   );
 }
 
+function gatesBody(loading: boolean, count: number | null): React.ReactNode {
+  if (loading) return "Review gates — checking…";
+  if (count === null || count === 0) {
+    return (
+      <>
+        <strong className="text-[var(--color-text-default)]">Review gates</strong> — nothing waiting right now.
+      </>
+    );
+  }
+  return (
+    <>
+      <strong className="text-[var(--color-text-default)]">{count}</strong>{" "}
+      {count === 1 ? "review gate" : "review gates"} waiting on you.
+    </>
+  );
+}
+
 function violationsBody(loading: boolean, error: boolean, violationCount: number | null): React.ReactNode {
   if (loading) return "Rule violations — checking…";
   if (error || violationCount === null) return "Rule violations — nothing to review yet.";
@@ -46,14 +65,27 @@ function violationsBody(loading: boolean, error: boolean, violationCount: number
   );
 }
 
-/** v5 Home "Needs you": gates and blocked decisions have no cross-workspace
- * feed yet (gap G12 -- `docs/design/remediation-2-api-gaps.md`), so those two
- * rows render an honest pending note rather than fake per-project data.
- * Rule violations are the one feed that does exist -- CE-TASK-006's
- * cache-only `useRules()` (client-side, isolated fetch, same fail-soft
- * posture as every other Home tile). */
+function RowAction({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
+      {label}
+    </Link>
+  );
+}
+
+/** v5 Home "Needs you": review-gates row is wired to G12's per-project
+ * pending-gates feed via `usePendingGatesCount` (H4 --
+ * `docs/design/remediation-2-api-gaps.md`), aggregated across the current
+ * workspace's projects. Decisions has no distinct pending-action source:
+ * G12's gate entries carry a single literal `gate: "hitl"` (no gate-type
+ * split), and the separate `/api/projects/{id}/decisions` route is a past
+ * decisions audit log, not a pending feed -- so that row stays static.
+ * Rule violations are the other live feed -- CE-TASK-006's cache-only
+ * `useRules()` (client-side, isolated fetch, same fail-soft posture as
+ * every other Home tile). */
 export function NeedsYou() {
   const { report, loading, error } = useRules();
+  const { count: gatesCount, loading: gatesLoading } = usePendingGatesCount();
   const violationCount =
     report && !report.pending ? report.results.filter((entry) => entry.severity === "Violation").length : null;
 
@@ -69,16 +101,8 @@ export function NeedsYou() {
       <NeedsYouRow
         tone="warn"
         testId="needs-you-gates"
-        body={
-          <>
-            <strong className="text-[var(--color-text-default)]">Review gates</strong> — nothing waiting right now.
-          </>
-        }
-        action={
-          <Link href="/build/board" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-            Browse
-          </Link>
-        }
+        body={gatesBody(gatesLoading, gatesCount)}
+        action={<RowAction href="/build/board" label="Browse" />}
       />
       <NeedsYouRow
         tone="danger"
@@ -88,21 +112,13 @@ export function NeedsYou() {
             <strong className="text-[var(--color-text-default)]">Decisions</strong> — nothing waiting right now.
           </>
         }
-        action={
-          <Link href="/build/board" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-            Browse
-          </Link>
-        }
+        action={<RowAction href="/build/board" label="Browse" />}
       />
       <NeedsYouRow
         tone="danger"
         testId="needs-you-violations"
         body={violationsBody(loading, Boolean(error), violationCount)}
-        action={
-          <Link href="/ce/rules" className="text-[length:var(--text-body-sm)] text-[var(--color-accent-primary)] hover:underline">
-            Fix
-          </Link>
-        }
+        action={<RowAction href="/ce/rules" label="Fix" />}
       />
     </section>
   );
