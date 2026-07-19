@@ -5,6 +5,13 @@ import { normalizeUrn } from "@/lib/build/normalize-urn";
 export type DecisionKind = "decision" | "task_update" | "system";
 export type KindFilter = "all" | DecisionKind;
 
+/** The panel's landing view -- kind=decision, no search text. B4: a project
+ * that genuinely has no decisions yet lands here, so this is also the
+ * "idle" state the empty-state copy needs to distinguish from a filtered
+ * zero-match.
+ */
+export const DEFAULT_KIND: KindFilter = "decision";
+
 export interface DecisionEntry {
   seq: number;
   ts: string;
@@ -120,7 +127,7 @@ function chaseDecisionPages(
  * found (AC-3) -- capped by the log simply running out of pages.
  */
 export function useDecisionLog(projectId: string): DecisionLogState {
-  const [kind, setKind] = useState<KindFilter>("decision");
+  const [kind, setKind] = useState<KindFilter>(DEFAULT_KIND);
   const [search, setSearch] = useState("");
   const [entries, setEntries] = useState<DecisionEntry[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
