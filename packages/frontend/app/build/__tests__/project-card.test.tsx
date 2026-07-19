@@ -44,7 +44,7 @@ describe("ProjectCard", () => {
   it("shows an honest pending state for task counts and budget (no backing field)", () => {
     render(<ProjectCard project={BASE} />);
     expect(screen.getByTestId("project-card-meta-pending")).toHaveTextContent(
-      /not available yet/i
+      /available yet/i
     );
   });
 

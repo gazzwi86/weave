@@ -145,7 +145,7 @@ function RulesSummaryCard() {
       </p>
       <CardContent>
         <p data-testid="rules-placeholder" className="text-[var(--color-text-muted)]">
-          Live rule and violation counts land once enforcement metrics are wired up.
+          Live rule and violation counts aren&apos;t available yet.
         </p>
         <Link
           href="/ce/rules"

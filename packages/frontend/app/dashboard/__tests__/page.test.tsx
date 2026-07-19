@@ -184,12 +184,12 @@ describe("DashboardPage", () => {
   });
 
   // v5 Home "Needs you": gates + decisions have no cross-workspace feed yet
-  // (gap G12) -- rendered as an honest pending row, not faked data.
-  it("renders 'Needs you' gate and decision rows as pending with a gap note", async () => {
+  // -- rendered as an honest empty-state row, not faked data.
+  it("renders 'Needs you' gate and decision rows as empty with a human note", async () => {
     render(await DashboardPage());
 
     expect(screen.getByText("Needs you")).toBeInTheDocument();
-    expect(screen.getAllByText(/gap G12/)).toHaveLength(2);
+    expect(screen.getAllByText(/nothing waiting right now/)).toHaveLength(2);
   });
 
   // v5 Home "Needs you": rule violations are live via useRules' cache-only

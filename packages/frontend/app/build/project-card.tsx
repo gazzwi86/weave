@@ -48,7 +48,7 @@ export function ProjectCard({ project }: { project: ProjectCardData }): React.JS
           data-testid="project-card-meta-pending"
           className="mt-[var(--space-1)] text-[length:var(--text-caption)] text-[var(--color-text-subtle)]"
         >
-          Not available yet — task counts and budget need a registry-card summary field.
+          Task counts and budget aren&apos;t available yet.
         </p>
       </Link>
       {/* TASK-024 + v5 discoverability: the Request Studio (F-D20) and the

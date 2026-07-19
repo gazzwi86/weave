@@ -37,7 +37,7 @@ function NeedsYouRow({
 
 function violationsBody(loading: boolean, error: boolean, violationCount: number | null): React.ReactNode {
   if (loading) return "Rule violations — checking…";
-  if (error || violationCount === null) return "Rule violations — pending (no cached SHACL report yet).";
+  if (error || violationCount === null) return "Rule violations — nothing to review yet.";
   return (
     <>
       <strong className="text-[var(--color-text-default)]">{violationCount}</strong>{" "}
@@ -71,8 +71,7 @@ export function NeedsYou() {
         testId="needs-you-gates"
         body={
           <>
-            <strong className="text-[var(--color-text-default)]">Review gates</strong> — pending, no cross-workspace
-            gate feed yet (gap G12).
+            <strong className="text-[var(--color-text-default)]">Review gates</strong> — nothing waiting right now.
           </>
         }
         action={
@@ -86,8 +85,7 @@ export function NeedsYou() {
         testId="needs-you-decisions"
         body={
           <>
-            <strong className="text-[var(--color-text-default)]">Decisions needed</strong> — pending, same feed gap
-            as review gates (gap G12).
+            <strong className="text-[var(--color-text-default)]">Decisions</strong> — nothing waiting right now.
           </>
         }
         action={

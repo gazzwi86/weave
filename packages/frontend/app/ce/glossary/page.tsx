@@ -35,8 +35,7 @@ const GLOSSARY_COLUMNS = [
   { key: "related", label: "Related" },
 ];
 
-const REL_EDIT_GAP_TOAST =
-  "Relationship edits aren't wired to add_edge/delete_edge yet -- the editor has no target-IRI picker for glossary terms in M1.";
+const REL_EDIT_GAP_TOAST = "Relationship edits aren't available yet.";
 
 function GlossaryHeader({ onNew }: { onNew: () => void }) {
   return (

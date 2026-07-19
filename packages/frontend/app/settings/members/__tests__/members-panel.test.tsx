@@ -70,7 +70,7 @@ describe("MembersPanel table (mock #sub-set-members)", () => {
     expect(screen.queryByRole("button", { name: /revoke marco diaz/i })).not.toBeInTheDocument();
   });
 
-  it("disables the inline role select (no update-role endpoint yet, gap G16)", async () => {
+  it("disables the inline role select (role changes coming soon)", async () => {
     stubFetch();
     render(<MembersPanel />);
 

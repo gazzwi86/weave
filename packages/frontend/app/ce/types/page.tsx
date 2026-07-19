@@ -32,9 +32,8 @@ const TYPE_COLUMNS = [
   { key: "origin", label: "Origin" },
 ];
 
-const KIND_FIELDS_GAP_TOAST =
-  "Kind editing isn't wired to a save endpoint yet — there is no CE-WRITE-1 op for SHACL-shape mutation in M1.";
-const VIEW_ON_CANVAS_GAP_TOAST = "Explore-canvas linking isn't wired yet.";
+const KIND_FIELDS_GAP_TOAST = "Kind editing isn't available yet.";
+const VIEW_ON_CANVAS_GAP_TOAST = "Explore-canvas linking isn't available yet.";
 
 function TypesHeader({ onNew }: { onNew: () => void }) {
   return (

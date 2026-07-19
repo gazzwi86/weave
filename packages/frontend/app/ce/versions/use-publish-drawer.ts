@@ -7,8 +7,7 @@ import type { DiffState } from "./use-diff";
 import type { PublishOutcome } from "./use-versions";
 import type { VersionEntry } from "./types";
 
-const RELEASE_NOTE_GAP_TOAST =
-  "Release notes aren't persisted yet — the publish endpoint takes no request body in M1.";
+const RELEASE_NOTE_GAP_TOAST = "Release notes aren't available yet.";
 
 const PUBLISH_MESSAGE: Partial<Record<PublishOutcome, string>> = {
   forbidden: "You need publisher role to publish this version.",

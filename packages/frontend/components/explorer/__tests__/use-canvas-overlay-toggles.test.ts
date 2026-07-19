@@ -110,16 +110,16 @@ describe("useCanvasOverlayToggles", () => {
     expect(versionsPanel.selectForCompare).not.toHaveBeenCalled();
   });
 
-  // Change heatmap has no backing data source yet (gap G17) -- always a
+  // Change heatmap has no backing data source yet -- always a
   // disabled, reasoned, inert toggle rather than fake data.
-  it("renders the change-heatmap toggle as permanently disabled with a gap reason", () => {
+  it("renders the change-heatmap toggle as permanently disabled with a reason", () => {
     const { result } = renderHook(() =>
       useCanvasOverlayToggles({ completenessOverlay: fakeCompleteness(), versionsPanel: fakeVersionsPanel() })
     );
 
     const toggle = result.current.toggles.find((t) => t.id === "change-heatmap");
     expect(toggle).toMatchObject({ active: false, disabled: true });
-    expect(toggle?.disabledReason).toMatch(/G17/);
+    expect(toggle?.disabledReason).toMatch(/change history, which isn't collected yet/);
 
     act(() => result.current.onToggleOverlay("change-heatmap"));
 

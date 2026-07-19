@@ -80,7 +80,7 @@ function WorkspaceCard({ workspaceName }: { workspaceName: string | null }) {
             aria-label="Workspace description"
             disabled
             rows={2}
-            placeholder="Not available yet -- the backend doesn't store a workspace description."
+            placeholder="Workspace descriptions aren't available yet."
             title="Workspace descriptions aren't supported yet."
             className={NATIVE_FIELD_CLASS}
           />
