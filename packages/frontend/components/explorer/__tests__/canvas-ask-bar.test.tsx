@@ -59,4 +59,17 @@ describe("CanvasAskBar", () => {
     await askQuestion("gibberish");
     await waitFor(() => expect(screen.getByText(/rephrasing/i)).toBeInTheDocument());
   });
+
+  // G19: the positioning wrapper has no background of its own -- its
+  // horizontal padding (beyond the pill) and the transparent canvas above
+  // it are real canvas, but the wrapper <div> still sits over them. It
+  // opts out of pointer events; only the actual ask-bar pill opts back in.
+  it("lets clicks in the wrapper's padding pass through to the canvas (G19)", () => {
+    const { container } = render(<CanvasAskBar adapter={adapter} />);
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper).toHaveClass("pointer-events-none");
+
+    const askBarForm = screen.getByRole("textbox", { name: "Ask a question" }).closest("form") as HTMLElement;
+    expect(askBarForm).toHaveClass("pointer-events-auto");
+  });
 });

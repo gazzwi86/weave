@@ -20,14 +20,21 @@ export interface ControlDockProps {
 }
 
 /** refit-mock.html `.dock`/`.dock-tabs`/`.dock-panel` -- vertical glass tab
- * stack over the canvas, single-open accordion panel below it. */
+ * stack over the canvas, single-open accordion panel below it.
+ *
+ * G19: the outer wrapper carries no background of its own -- the `gap-2`
+ * between the tab bar and the open panel is transparent canvas underneath,
+ * but as a real positioned `<div>` it still swallows clicks meant for a
+ * cytoscape node there (default `pointer-events: auto`). The wrapper opts
+ * out and each visibly-opaque row (tab bar, panel) opts back in, so only
+ * the actual chrome blocks canvas clicks. */
 export function ControlDock({ tabs, activeTab, onTabChange, className }: ControlDockProps) {
   const openTab = tabs.find((tab) => tab.id === activeTab);
   return (
     // ponytail: mock fixes a dock width; no matching token exists, and the
     // caller already controls placement/width via `className` (see stories).
-    <div className={cn("flex flex-col gap-[var(--space-2)]", className)}>
-      <div className="flex gap-[var(--space-1)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-1)] shadow-[var(--shadow-overlay)] backdrop-blur-md">
+    <div className={cn("pointer-events-none flex flex-col gap-[var(--space-2)]", className)}>
+      <div className="pointer-events-auto flex gap-[var(--space-1)] rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-1)] shadow-[var(--shadow-overlay)] backdrop-blur-md">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -48,7 +55,7 @@ export function ControlDock({ tabs, activeTab, onTabChange, className }: Control
       {openTab && (
         <div
           data-testid={`control-dock-panel-${openTab.id}`}
-          className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-4)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
+          className="pointer-events-auto rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-4)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
         >
           {openTab.panel}
         </div>
