@@ -221,16 +221,17 @@ by severity.
   shrinks the cmdbar via `min-width:0`+`max-width:100%`; app dropped it). Fix: `min-w-0` on the
   wrapper + `truncate` on the label. New e2e (real login clicks, 1280×900) asserts bell+avatar
   on-viewport; shell visual baselines regenerated on the amd64 runner.
-- [ ] **S2 M · Stale breadcrumbs** — CE subpages all show "Constitution / Overview"; Audit stays
-  "Audit trail / Dashboard"; Build stays "Build / Registry". Settings/Billing updates correctly —
-  pattern exists, other sections don't feed it.
+- [x] **S2 M · Stale breadcrumbs** — **FIXED #183**: resolution used first-match over nav items;
+  now longest-href (most specific) match. Also silently fixed /settings/members + onboarding-path.
 - [ ] **S3 L · First-click dead-nav on icon rail — likely test-tool artifact** — reproduced on the
   static mock too (plain inline onclick) → suspect synthetic click. Verify with a human hand once;
   drop if unreproducible.
-- [ ] **S4 M · Bottom-left rail "?" does nothing** — header "?" opens the good Help panel; rail "?"
-  is dead. Two help affordances, one dead.
-- [ ] **S5 M · ⌘K palette: input not focused on open; typing goes nowhere** — also "No results."
-  before any query; entity-search only while placeholder promises "Search, ask, or jump to…".
+- [x] **S4 M · Bottom-left rail "?" does nothing** — **FIXED #183**: it was a decorative
+  aria-hidden user-initial badge with no handler; now a real Help trigger opening the same panel.
+- [x] **S5 M · ⌘K palette** — **FIXED #183** (partly): idle state before typing added; header
+  trigger copy reworded to honest "Search entities" until ask/jump ship (deliberate temporary
+  divergence from the mock's aspirational copy). Focus-on-open did NOT reproduce in real Chromium —
+  likely S6's dead search read as "typing goes nowhere". Ask/jump remain future work.
 - [x] **S6 H · Global search returns nothing for known entities** — **FIXED #175 (2026-07-19)**.
   Root cause: search SPARQL matched only `rdfs:label`, but the store holds zero such triples —
   entities carry `weave:label` (every AddNodeOp) and glossary concepts `skos:prefLabel`. The
@@ -238,8 +239,8 @@ by severity.
   all three predicates; test now seeds via the real apply_operations path + skos-only case; all
   tenancy assertions preserved. Verified via real API on an isolated stack. Known pre-existing
   edge (logged, unfixed): `OPTIONAL {?iri a ?kind}` fans out one row per rdf:type.
-- [ ] **S7 L · Avatar initials render "SI" for user `admin`** — initials derivation wrong (from
-  "Signed in"?).
+- [x] **S7 L · Avatar initials "SI"** — **FIXED #186**: AppShell defaulted a missing session name
+  to "Signed in" before the initials deriver. Nullable name now passes through; "?" fallback.
 
 ### Home / dashboard
 
@@ -250,13 +251,17 @@ by severity.
   shortens `urn:…:vX.Y.Z` to the version tag, full URN in `title`. Display-layer only.
 - [x] **H3 M · Stale-badge pill wraps** — **FIXED #178**: single-word "Stale" nowrap badge,
   timestamp in a deterministic tooltip (also removes an SSR/hydration-divergent toLocaleString).
-- [ ] **H4 M · "Needs you" rows carry internal gap copy** — "pending, no cross-workspace gate feed
-  yet (gap G12)". G12's endpoint landed; wire the feed, kill the placeholder copy.
+- [x] **H4 M · "Needs you" gates feed** — copy fixed in #176 (D1); feed **WIRED #185**:
+  review-gates row aggregates G12 pending gates across the workspace's projects. Decisions row
+  stays static — G12 entries carry only gate:"hitl", no distinct decisions source exists yet.
 - [ ] **H6 M · /notifications renders the bell-panel popover floating on an empty page** — should
   be a full-width notifications list page (mock carries the reference design).
-- [ ] **H7 L · "What can Weave do for you?" sidebar item re-shows the dashboard** (role-home folded
-  in per T5) — drop or rename.
-- [ ] **H8 L · `/api/onboarding/state` fetched 4× per dashboard load** — dedupe.
+- [ ] **H7 L · "What can Weave do for you?" nav item — FOLDED INTO T5, do not work standalone.**
+  Investigation (#186 lane) showed the premise is stale: /role-home still owns three surfaces
+  /dashboard lacks (next-action banner, capability cards, completeness map) and T5 forbids
+  delisting before those migrate. Delist happens as part of T5's migration, not before.
+- [x] **H8 L · `/api/onboarding/state` fetched 4×/load** — **FIXED #186**: four components each
+  fetched on mount; all share one in-flight-cached client now (explicit refreshes still bypass).
 
 ### Constitution
 
@@ -265,15 +270,15 @@ by severity.
   array; the fail-soft catch swallowed the shape error. Fix: reuse the tolerant `fetchVersions()`
   from use-versions.ts (one parser, two consumers) + hook-level regression tests for both shapes.
   Verified live: /ce shows v0.1.6, "No data yet" gone.
-- [ ] **C2 L · Overview copy points to "the Versions screen" while nav "Versions" is soon** —
-  copy/nav mismatch.
+- [x] **C2 L · Versions copy/nav mismatch** — **FIXED #186**: /ce/versions is fully built but nav
+  still flagged built:false ("soon" pill). Flag flipped; copy was already right.
 - [ ] **C3 M · Types page "Instances" column all "—"** (counts not wired).
 - [ ] **C4 M · Instances/Data: Ask panel overlaps the table** (Status column truncated).
 - [ ] **C5 H · Explore label soup** — raw RDF IRIs (`…rdf-syntax-ns#type`) as labels; orphaned
   description sentences as node labels; drawer edge list shows raw IRIs instead of resolved
   labels. (Overlaps V3b work.)
-- [ ] **C6 M · Rules & policies carries an "M1 — this pass" phase pill** (violates no-phase-pills
-  rule) and page is nearly bare — no rules list or designed empty state.
+- [x] **C6 M · Rules & policies phase pill** — **FIXED #186**: pill removed. The "nearly bare"
+  half was stale — page already has full rules table + policies + drawer with standard empty states.
 - [ ] **C7 M · Glossary Definition/Related columns all "—"** — demo seed has no definitions (D2).
 - [ ] **C8 M · Branding & standards effectively empty** — conformance "—" with "(G14)" dev copy;
   no seeded standards/brand rules (Hammerbarn content brief should drive the seed — D2).
@@ -295,8 +300,9 @@ by severity.
   reseed (D2); after that lands, verify the banner is gone and tick this. Follow-up logged below
   as A5 (signing-key divergence hardening).
 - [ ] **A2 M · Busiest-entities list shows raw UUIDs/version strings**, not entity labels.
-- [ ] **A3 M · Dashboard cards not wired to closed gaps** — "Model edits by kind" +
-  Security/Governance/Budget/Reliability all "Not available yet" though G5–G8 aggregations landed.
+- [x] **A3 M · Audit dashboard cards** — **WIRED #182**: model-edits-by-kind sums G5 payloads via
+  a new tenant-scoped /api/audit/counts proxy; health tiles read G6 sub-events; busiest entities
+  bind G7 top_targets. Cards distinguish denied/error vs genuinely-empty vs populated.
 - [ ] **A5 S · Signing-key divergence hardening (follow-up from A1)** — local dev with multiple
   processes/worktrees sharing one LocalStack can cache diverging audit signing keys and silently
   corrupt chain signatures. Consider failing loudly in `signing_key.py` when the cached key no
@@ -309,8 +315,9 @@ by severity.
 
 - [ ] **B1 L · Registry card dev copy** — "task counts and budget need a registry-card summary
   field".
-- [ ] **B2 M · Dashboard Roadmap panel dev copy** — "needs an epics endpoint" though G9/G10
-  landed; wire it.
+- [x] **B2 M · Build Roadmap panel** — copy fixed in #176; **WIRED #185**: binds the G9/G10 epic
+  rollup (GET /api/projects/{id}/epics) — ordered epic list w/ status badge + done/total counts.
+  No Gantt: G10's date fields still deferred, so no fabricated bars.
 - [ ] **B3 M · Kanban default state reads as a filter failure** ("No tasks match this filter" +
   bare "Task tree" card) instead of a designed empty board.
 - [ ] **B4 L · Decision log: default tab shows "No decisions match this search" before any
@@ -321,8 +328,11 @@ by severity.
 
 - [ ] **SE1 L · General: Description placeholder is dev copy** ("the backend doesn't store a
   workspace description").
-- [ ] **SE2 M · Members: every role select shows "Viewer" — including the seeded super-admin.**
-  Role mapping/display bug.
+- [x] **SE2 M · Members roles all "Viewer"** — **FIXED #181**: disabled select offered only the
+  10 canonical slugs; seeded members carry ADR-020 legacy 4-tier slugs, and an unmatched value
+  makes a native select display its first option. Select now renders the member's actual role
+  (canonical → legacy map → raw slug). Backend was always correct. NOTE: legacy "admin" stays a
+  super-admin sentinel — never canonicalize it (see memory reference_legacy-admin-role-sentinel).
 - [ ] **SE3 L · Models & AI shows "(gap G13)" dev copy.**
 - [ ] **SE4 M · Billing page is a single sparse card** — mock carries the reference design (usage
   by engine/user/project, budget burn vs cap, counts-only note per FR-034/035).
