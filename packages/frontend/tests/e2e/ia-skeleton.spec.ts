@@ -1,10 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // PoC IA skeleton (docs/design/poc-ia-proposal.md): a human can log in, land
-// on Home, reach every one of the six top areas, hit the green CE + Audit
-// screens, see the shipped Build request form and the still-placeholder
-// Events area, and get the marketing index logged out. Uses the two seeded
-// demo logins
+// on Home, reach five of the six top areas, hit the green CE + Audit
+// screens, see the shipped Build request form and the disabled Events rail
+// item (post-MVP, T7 -- no clickable entry), and get the marketing index
+// logged out. Uses the two seeded demo logins
 // (seed_demo.py): admin@weave.local (admin) / client@weave.local (author).
 
 async function loginAs(page: Page, email: string): Promise<void> {
@@ -31,11 +31,16 @@ test("marketing index renders logged-out with login CTAs and no app chrome", asy
 test("admin can navigate all six IA areas end to end", async ({ page }) => {
   await loginAs(page, "admin@weave.local");
 
-  // Home: six top tabs + tenant chip + sign-out.
+  // Home: five clickable top tabs + tenant chip + sign-out. Events is
+  // disabled (post-MVP, T7) -- a non-link "coming soon" button, not a tab.
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Home", "Constitution", "Build", "Events", "Audit trail", "Settings"]) {
+  for (const label of ["Home", "Constitution", "Build", "Audit trail", "Settings"]) {
     await expect(nav.getByRole("link", { name: label })).toBeVisible();
   }
+  await expect(nav.getByRole("button", { name: "Events — coming soon" })).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  );
   await expect(page.getByText("acme-corp").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign out" })).toBeVisible();
 
@@ -52,12 +57,9 @@ test("admin can navigate all six IA areas end to end", async ({ page }) => {
   await expect(page.getByTestId("kind-list")).toBeVisible();
   await expect(page.getByTestId("kind-list").getByText("Process", { exact: true })).toBeVisible();
 
-  // Build: shipped M1 "Request application" form. Events: still a
-  // phase-labelled placeholder.
+  // Build: shipped M1 "Request application" form.
   await nav.getByRole("link", { name: "Build" }).click();
   await expect(page.getByRole("heading", { name: "Request application" })).toBeVisible();
-  await nav.getByRole("link", { name: "Events" }).click();
-  await expect(page.getByText("Delivered in phase post-v1.", { exact: true })).toBeVisible();
 
   // Audit trail: M1 dashboard stub, rail reaches the green compliance screen.
   await nav.getByRole("link", { name: "Audit trail" }).click();
