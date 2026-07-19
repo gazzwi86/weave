@@ -58,7 +58,7 @@ function CommandBarTrigger({ onOpenCommandBar }: { onOpenCommandBar: () => void 
       )}
     >
       <Icon name="search" size={14} />
-      <span className="flex-1 text-left">Search, ask, or jump to…</span>
+      <span className="flex-1 truncate text-left">Search, ask, or jump to…</span>
       <kbd className="rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-overlay)] px-[var(--space-1)] font-[var(--font-mono)] text-[length:var(--text-caption)] text-[var(--color-text-muted)]">
         ⌘K
       </kbd>
@@ -134,7 +134,7 @@ export function AppHeader({
         {tenantChip}
         {breadcrumb}
       </div>
-      <div className="flex flex-1 justify-center">
+      <div className="flex min-w-0 flex-1 justify-center">
         {onOpenCommandBar ? <CommandBarTrigger onOpenCommandBar={onOpenCommandBar} /> : null}
       </div>
       <div className="flex w-[var(--size-topbar-zone)] shrink-0 items-center justify-end gap-[var(--space-2)]">
