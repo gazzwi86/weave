@@ -30,17 +30,23 @@ def sanitize_search_term(term: str) -> str:
 
 
 def build_search_query(term: str) -> str:
-    """Case-insensitive substring match over `rdfs:label`, with the entity's
-    `rdf:type` (if any) returned as `?kind`. Caller is responsible for the
-    `len(term) < MIN_QUERY_LENGTH` short-circuit (kept out of this pure
-    query-building function).
+    """Case-insensitive substring match over every real label predicate an
+    entity may carry -- `weave:label` (`https://weave.io/ontology/label`,
+    written by every `AddNodeOp`, see `operations/graph_ops.py`) and
+    `skos:prefLabel` (glossary/vocabulary concepts). `rdfs:label` is kept
+    too for robustness even though no current write path emits it. The
+    entity's `rdf:type` (if any) is returned as `?kind`. Caller is
+    responsible for the `len(term) < MIN_QUERY_LENGTH` short-circuit (kept
+    out of this pure query-building function).
     """
     safe_term = sanitize_search_term(term)
     return f"""
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    PREFIX weave: <https://weave.io/ontology/>
     SELECT ?iri ?label ?kind WHERE {{
       GRAPH ?g {{
-        ?iri rdfs:label ?label .
+        ?iri rdfs:label|skos:prefLabel|weave:label ?label .
         OPTIONAL {{ ?iri a ?kind }}
         FILTER(CONTAINS(LCASE(?label), LCASE("{safe_term}")))
       }}
