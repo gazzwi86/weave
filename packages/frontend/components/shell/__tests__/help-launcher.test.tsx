@@ -112,6 +112,19 @@ describe("HelpLauncher", () => {
     expect(screen.queryByRole("link", { name: /take the rules-policies tour/i })).not.toBeInTheDocument();
   });
 
+  // S4 (docs/design/remediation-2-api-gaps.md): the rail's bottom "?" (in
+  // nav.tsx) is a separate DOM element from this launcher's own trigger, so
+  // it opens the SAME panel via a shared window event -- the identical
+  // pattern command-palette.tsx already uses for its header trigger.
+  it("opens on the shared weave:open-help-panel window event", () => {
+    render(<HelpLauncher />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent(window, new CustomEvent("weave:open-help-panel"));
+
+    expect(screen.getByRole("dialog", { name: /help/i })).toBeInTheDocument();
+  });
+
   describe("keyboard shortcut (AC-013-03)", () => {
     it("opens on ? pressed outside a text field", () => {
       render(<HelpLauncher />);

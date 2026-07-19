@@ -87,7 +87,7 @@ export function AppShell({ children, role = null, tenantId = null, userName = nu
   return (
     <ToastProvider>
       <div className="flex h-screen overflow-hidden">
-        <Nav userName={userName} />
+        <Nav />
         <SectionRail role={role} />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader

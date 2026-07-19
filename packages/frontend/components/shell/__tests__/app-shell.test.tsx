@@ -27,7 +27,11 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /help/i })).toBeInTheDocument();
+    // S4: two Help entry points now exist (header launcher + rail footer
+    // trigger, see nav.test.tsx), both accessibly named "Help" -- assert
+    // presence, not count, since this test's intent is just "help launcher
+    // renders here".
+    expect(screen.getAllByRole("button", { name: /help/i }).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
 
