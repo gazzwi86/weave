@@ -102,3 +102,19 @@ def gate_exercise(
     if path_variant == "read_only" and exercise_id in WRITE_EXERCISE_IDS:
         return GateResult(available=False, reason="read_only_locked")
     return GateResult(available=True)
+
+
+def available_exercises(
+    *, role_path: RolePath, path_variant: Literal["default", "read_only"]
+) -> list[str]:
+    """T8: exercise ids `gate_exercise` currently allows this caller to
+    check -- `GET /onboarding/state` exposes this so the checklist client
+    can skip an exercise it can't complete, instead of POSTing to `/check`
+    and taking a 403 (`path_gated` / `read_only_locked`) it could have
+    avoided.
+    """
+    return [
+        exercise_id
+        for exercise_id in EXERCISES
+        if gate_exercise(exercise_id, role_path=role_path, path_variant=path_variant).available
+    ]

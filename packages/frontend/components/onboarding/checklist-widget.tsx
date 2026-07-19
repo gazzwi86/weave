@@ -28,6 +28,10 @@ interface BootstrapState {
   tours: { tour_id: string; completed_at: string | null }[];
   exercise_completions: { exercise_id: string; completed_at: string }[];
   activations: { milestone_id: string; activated_at: string; source: string }[];
+  // T8: exercise ids the backend's gate_exercise currently allows for this
+  // caller -- skip checking anything else (path_gated / read_only_locked
+  // would only earn an avoidable 403).
+  available_exercises: string[];
 }
 
 function toSignals(body: BootstrapState): ChecklistSignals {
@@ -46,13 +50,14 @@ function toSignals(body: BootstrapState): ChecklistSignals {
  * to check) so it never fires for non-demo users. Exported for its unit test. */
 export function pendingExerciseChecks(state: BootstrapState): string[] {
   if (!state.sandbox_forked_at) return [];
+  const available = new Set(state.available_exercises);
   const done = new Set(state.exercise_completions.map((c) => c.exercise_id));
   const ids = CHECKLIST_ITEMS.filter(
     (item) =>
       item.autoCompleteOn === "exercise_complete" &&
       item.paths.includes(state.role_path) &&
       !(item.signalRefs ?? []).some((ref) => done.has(ref))
-  ).flatMap((item) => item.signalRefs ?? []);
+  ).flatMap((item) => (item.signalRefs ?? []).filter((ref) => available.has(ref)));
   return [...new Set(ids)];
 }
 
