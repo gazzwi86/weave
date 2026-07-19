@@ -580,7 +580,7 @@ describe("ExplorerInteractions -- refit deferred item 1: Overlays tab merge", ()
     expect(screen.getByRole("switch", { name: "Version diff" })).toBeInTheDocument();
     const heatmapToggle = screen.getByRole("switch", { name: "Change heatmap (pending)" });
     expect(heatmapToggle).toBeDisabled();
-    expect(heatmapToggle).toHaveAttribute("title", expect.stringMatching(/G17/));
+    expect(heatmapToggle).toHaveAttribute("title", expect.stringMatching(/change history, which isn't collected yet/));
   });
 });
 
