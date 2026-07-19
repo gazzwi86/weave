@@ -51,7 +51,7 @@ export default function BoardPage(): React.JSX.Element {
       <FilterBar active={filter} onChange={setFilter} />
 
       {visibleCards.length === 0 ? (
-        <EmptyState onReset={() => setFilter("All")} />
+        <EmptyState hasAnyTasks={board.cards.length > 0} onReset={() => setFilter("All")} />
       ) : (
         <LaneGrid cards={visibleCards} projectId={id} />
       )}

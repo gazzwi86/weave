@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 
 import { DecisionDetailDrawer } from "./decision-detail-drawer";
 import { actorLabel, KIND_CHIP } from "./decision-log-format";
-import { type DecisionEntry, type KindFilter, useDecisionLog } from "./use-decision-log";
+import { DEFAULT_KIND, type DecisionEntry, type KindFilter, useDecisionLog } from "./use-decision-log";
 
 const KIND_FILTERS: { value: KindFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -151,12 +151,14 @@ export function DecisionLogPanel({ projectId }: { projectId: string }): React.JS
     auditUnavailable,
     kind,
     setKind,
+    search,
     applySearch,
     hasMore,
     loadMore,
     highlightSeq,
   } = useDecisionLog(projectId);
   const [openEntry, setOpenEntry] = useState<DecisionEntry | null>(null);
+  const isIdle = kind === DEFAULT_KIND && search === "";
 
   if (auditUnavailable) {
     return (
@@ -174,7 +176,9 @@ export function DecisionLogPanel({ projectId }: { projectId: string }): React.JS
       </div>
       {entries.length === 0 ? (
         <p data-testid="decisions-empty" className="text-[var(--color-text-muted)]">
-          No decisions match this search.
+          {isIdle
+            ? "No decisions logged yet — they appear as the build makes judgement calls."
+            : "No decisions match this search."}
         </p>
       ) : (
         <DecisionTable

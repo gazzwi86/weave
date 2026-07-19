@@ -1,10 +1,9 @@
-import Link from "next/link";
-
 import { DecisionLogPanel } from "./decision-log-panel";
 
 /** TASK-020 (build-engine EPIC-007): read-only Decision Log view over
- * PLAT-AUDIT-1, reachable from the project settings page (see the "Decision
- * log" link there) -- mirrors `settings/page.tsx`'s shell shape.
+ * PLAT-AUDIT-1. Reachable from the left nav (refit-mock.html
+ * #sub-bld-decisions), not a settings sub-page -- B4 dropped the stray
+ * "Back to settings" link that used to live here.
  */
 export default async function ProjectDecisionsPage({
   params,
@@ -14,17 +13,9 @@ export default async function ProjectDecisionsPage({
   const { id } = await params;
   return (
     <main className="flex min-h-screen flex-col gap-[var(--space-4)] p-[var(--space-6)]">
-      <div className="flex items-center justify-between gap-[var(--space-3)]">
-        <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          Decision log
-        </h1>
-        <Link
-          href={`/build/projects/${encodeURIComponent(id)}/settings`}
-          className="text-[length:var(--text-body)] text-[var(--color-accent-primary)] hover:underline"
-        >
-          Back to settings
-        </Link>
-      </div>
+      <h1 className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        Decision log
+      </h1>
       <DecisionLogPanel projectId={id} />
     </main>
   );

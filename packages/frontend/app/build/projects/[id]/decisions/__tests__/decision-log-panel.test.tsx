@@ -54,6 +54,45 @@ describe("DecisionLogPanel", () => {
     await waitFor(() => expect(screen.getByTestId("decisions-empty")).toBeInTheDocument());
   });
 
+  // B4: the default (no search yet) tab is not a filter failure.
+  it("B4: shows the idle no-decisions-yet copy on the default tab before any search", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ entries: [], next_cursor: null }))
+    );
+
+    render(<DecisionLogPanel projectId="p-1" />);
+
+    await waitFor(() => expect(screen.getByTestId("decisions-empty")).toBeInTheDocument());
+    expect(screen.getByTestId("decisions-empty")).toHaveTextContent(
+      "No decisions logged yet"
+    );
+    expect(screen.queryByText("No decisions match this search.")).not.toBeInTheDocument();
+  });
+
+  // B4: once the user actually searches and gets zero rows, keep the
+  // filtered-out copy -- that IS a "match this search" case.
+  it("B4: shows the filtered-out copy once a search returns no rows", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ entries: [], next_cursor: null }))
+    );
+
+    render(<DecisionLogPanel projectId="p-1" />);
+    await waitFor(() => expect(screen.getByTestId("decisions-empty")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Search decision log"), {
+      target: { value: "nonexistent" },
+    });
+    fireEvent.submit(screen.getByLabelText("Search decision log").closest("form")!);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("decisions-empty")).toHaveTextContent(
+        "No decisions match this search."
+      )
+    );
+  });
+
   // AC-4
   it("renders read-only, with no mutation affordance on the surface", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(ONE_ENTRY)));
