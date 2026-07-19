@@ -10,6 +10,14 @@ function rowsWith(cells: DataTableRow["cells"]): DataTableRow[] {
 }
 
 describe("DataTable refit (TASK C2b-1)", () => {
+  // C4: table-layout:auto lets the table outgrow a narrow grid/flex track
+  // to fit long content, overflowing past its container (read as the Ask
+  // panel "overlapping" the table on the instances page).
+  it("test_table_uses_fixed_layout_so_it_cannot_outgrow_its_container", () => {
+    render(<DataTable columns={COLUMNS} rows={rowsWith({ name: "Row" })} />);
+    expect(document.querySelector("table")).toHaveClass("table-fixed");
+  });
+
   it("test_name_cell_stacks_label_over_mono_id", () => {
     render(
       <DataTable columns={COLUMNS} rows={rowsWith({ name: <DataTableNameCell label="Priya Shah" id="urn:weave:actor:priya" /> })} />

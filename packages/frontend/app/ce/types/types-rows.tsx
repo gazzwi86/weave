@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTableNameCell, KindCell, type BpmoKind, type DataTableRow } from "@/components/templates/FilterableTablePage";
 
 import type { KindEntry, PropertyShape } from "../chat/types";
+import type { TypeCounts } from "./use-type-counts";
 import { kindId } from "./use-types";
 
 export type TypesCategory = "all" | "framework" | "extensions" | "relationships";
@@ -10,19 +11,27 @@ export type TypesCategory = "all" | "framework" | "extensions" | "relationships"
  * returns the fixed BPMO_KINDS set — no extension-kind concept exists yet
  * server-side), so "Origin" is truthfully "Framework" for every row rather
  * than a fabricated value; the Extensions filter is truthfully always
- * empty until extension kinds ship. No CE-READ-1 field carries a per-kind
- * instance count either -- "Instances" renders "—" rather than inventing
- * one (keeping the reshape-only scope of this refit: CE-READ-1 stays the
- * only fetch, `entity_count_by_kind` lives on CE-METRICS-1 instead). */
+ * empty until extension kinds ship. "Instances" is wired from the same
+ * CE-READ-1 SPARQL tally the Overview widget uses (`use-type-counts.ts`,
+ * C3) -- it renders "—" only while that tally is loading or has failed,
+ * never a fabricated value. Relationship rows keep "—" always: the tally
+ * counts rdf:type instances per kind, not per relationship path, so there
+ * is genuinely no count to show there yet. */
 const EMPTY_PLACEHOLDER = "—";
 
-function kindRow(kind: KindEntry): DataTableRow {
+function instancesLabel(id: string, counts: TypeCounts): string {
+  if (!counts.ready) return EMPTY_PLACEHOLDER;
+  return String(counts.countsByKind[id] ?? 0);
+}
+
+function kindRow(kind: KindEntry, counts: TypeCounts): DataTableRow {
+  const id = kindId(kind.iri);
   return {
     id: kind.iri,
     cells: {
-      kind: <KindCell kind={kindId(kind.iri).toLowerCase() as BpmoKind} label={kind.label} />,
+      kind: <KindCell kind={id.toLowerCase() as BpmoKind} label={kind.label} />,
       description: kind.description || EMPTY_PLACEHOLDER,
-      instances: EMPTY_PLACEHOLDER,
+      instances: instancesLabel(id, counts),
       origin: <Badge variant="neutral">Framework</Badge>,
     },
   };
@@ -53,7 +62,8 @@ export function buildTypeRows(
   kinds: KindEntry[],
   relationships: PropertyShape[],
   category: TypesCategory,
-  search: string
+  search: string,
+  counts: TypeCounts
 ): DataTableRow[] {
   if (category === "extensions") return [];
   if (category === "relationships") {
@@ -61,5 +71,7 @@ export function buildTypeRows(
       .filter((rel) => matchesSearch([rel.name, rel.path], search))
       .map(relationshipRow);
   }
-  return kinds.filter((kind) => matchesSearch([kind.label, kind.description], search)).map(kindRow);
+  return kinds
+    .filter((kind) => matchesSearch([kind.label, kind.description], search))
+    .map((kind) => kindRow(kind, counts));
 }

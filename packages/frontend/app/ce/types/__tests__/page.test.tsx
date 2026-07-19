@@ -15,12 +15,12 @@ function jsonResponse(body: unknown, status = 200): Response {
 const TYPES = {
   kinds: [
     {
-      iri: "https://weave.dev/ontology/bpmo#Process",
+      iri: "https://weave.io/ontology/Process",
       label: "Process",
       description: "A repeatable sequence of activities performed to achieve a goal.",
       properties: [
         {
-          path: "https://weave.dev/ontology/bpmo#name",
+          path: "https://weave.io/ontology/name",
           name: "name",
           is_relationship: false,
           min_count: 1,
@@ -30,7 +30,7 @@ const TYPES = {
       ],
     },
     {
-      iri: "https://weave.dev/ontology/bpmo#Actor",
+      iri: "https://weave.io/ontology/Actor",
       label: "Actor",
       description: null,
       properties: [],
@@ -38,7 +38,7 @@ const TYPES = {
   ],
   relationships: [
     {
-      path: "https://weave.dev/ontology/bpmo#performedBy",
+      path: "https://weave.io/ontology/performedBy",
       name: "performed by",
       is_relationship: true,
       min_count: 0,
@@ -48,8 +48,21 @@ const TYPES = {
   ],
 };
 
-function stubFetch(typesResponse: Response): ReturnType<typeof vi.fn> {
-  const fetchMock = vi.fn(async () => typesResponse.clone());
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+const SPARQL_PAGE = {
+  rows: [{ subject: "urn:a", predicate: RDF_TYPE, object: "https://weave.io/ontology/Process" }],
+  columns: ["subject", "predicate", "object"],
+  has_more_pages: false,
+  page: 0,
+};
+
+function stubFetch(typesResponse: Response, sparqlResponse: Response = jsonResponse(SPARQL_PAGE)): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("sparql")) return sparqlResponse.clone();
+    return typesResponse.clone();
+  });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -133,6 +146,26 @@ describe("CeTypesPage", () => {
 
     const labelInput = await screen.findByLabelText("Label");
     expect(labelInput).toHaveValue("");
+  });
+
+  it("wires the Instances column from the CE-READ-1 tally (C3)", async () => {
+    stubFetch(jsonResponse(TYPES));
+    renderPage();
+
+    const processRow = (await screen.findByText("Process")).closest("tr");
+    expect(processRow).not.toBeNull();
+    await waitFor(() => expect(within(processRow as HTMLElement).getByText("1")).toBeInTheDocument());
+
+    const actorRow = screen.getByText("Actor").closest("tr");
+    expect(within(actorRow as HTMLElement).getByText("0")).toBeInTheDocument();
+  });
+
+  it("keeps the Instances placeholder when the tally fetch fails", async () => {
+    stubFetch(jsonResponse(TYPES), jsonResponse({ error: "down" }, 502));
+    renderPage();
+
+    const processRow = (await screen.findByText("Process")).closest("tr");
+    expect(within(processRow as HTMLElement).getByText("—")).toBeInTheDocument();
   });
 
   it("shows an ErrorCard with retry when the catalogue fetch fails", async () => {

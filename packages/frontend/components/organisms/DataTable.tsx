@@ -255,7 +255,12 @@ export function DataTable({
         className
       )}
     >
-      <table className="w-full border-collapse text-[length:var(--text-body-sm)]">
+      {/* table-fixed: table-layout:auto lets the table grow past its grid/flex
+          track to fit unbroken content (e.g. long instance labels), overflowing
+          the min-w-0 container and getting clipped -- reading as the aside
+          panel overlapping the table (C4). Fixed layout keeps table width
+          pinned to the container; content wraps in its cell instead. */}
+      <table className="w-full table-fixed border-collapse text-[length:var(--text-body-sm)]">
         <DataTableHead columns={columns} renderRowActions={renderRowActions} expandable={expandable} />
         <tbody>
           <DataTableBody

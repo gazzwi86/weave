@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import type { KindEntry, PropertyShape } from "../chat/types";
 import { buildTypeRows, type TypesCategory } from "./types-rows";
 import type { TypeDrawerState } from "./use-type-drawer";
+import { useTypeCounts } from "./use-type-counts";
 import { useTypeDrawer } from "./use-type-drawer";
 import { useTypes } from "./use-types";
 
@@ -160,13 +161,14 @@ function buildDrawerProps(drawer: TypeDrawerState, onSave: () => void) {
  */
 export default function CeTypesPage() {
   const { kinds, relationships, loading, loadError, reload } = useTypes();
+  const counts = useTypeCounts();
   const drawer = useTypeDrawer();
   const { toast } = useToast();
   const [category, setCategory] = useState<TypesCategory>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const rows = buildTypeRows(kinds, relationships, category, search);
+  const rows = buildTypeRows(kinds, relationships, category, search, counts);
   const { pageRows, pageCount, rangeStart, rangeEnd } = paginate(rows, page, PAGE_SIZE);
 
   const handleCategory = (id: string) => {

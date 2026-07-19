@@ -98,6 +98,7 @@ export function InstancesBrowsePage({
           selectedRowId={selectedRowId}
           onSelectRow={onSelectRow}
           pagination={pagination}
+          className="min-w-0"
         />
         <div className="flex flex-col gap-[var(--space-4)]">
           {inspector && (
