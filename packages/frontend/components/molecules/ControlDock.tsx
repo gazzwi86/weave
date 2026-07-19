@@ -46,7 +46,10 @@ export function ControlDock({ tabs, activeTab, onTabChange, className }: Control
         ))}
       </div>
       {openTab && (
-        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-4)] shadow-[var(--shadow-overlay)] backdrop-blur-md">
+        <div
+          data-testid={`control-dock-panel-${openTab.id}`}
+          className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-overlay)] p-[var(--space-4)] shadow-[var(--shadow-overlay)] backdrop-blur-md"
+        >
           {openTab.panel}
         </div>
       )}
