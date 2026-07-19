@@ -36,4 +36,22 @@ describe("ControlDock", () => {
     await userEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(onTabChange).toHaveBeenCalledWith(null);
   });
+
+  // G19: the outer wrapper has no background of its own -- the gap between
+  // the tab bar and the open panel is transparent canvas, but the wrapper
+  // <div> still sits over it and (with default pointer-events: auto) swallows
+  // clicks meant for a cytoscape node underneath. The wrapper opts out
+  // (pointer-events-none) and each real, backgrounded row opts back in
+  // (pointer-events-auto) so only the visibly-opaque chrome blocks clicks.
+  it("lets clicks in the gap between tab bar and panel pass through to the canvas (G19)", () => {
+    const { container } = render(<ControlDock tabs={TABS} activeTab="layers" onTabChange={vi.fn()} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root).toHaveClass("pointer-events-none");
+
+    const tabBar = screen.getByRole("button", { name: "Layers" }).parentElement as HTMLElement;
+    expect(tabBar).toHaveClass("pointer-events-auto");
+
+    const panel = screen.getByTestId("control-dock-panel-layers");
+    expect(panel).toHaveClass("pointer-events-auto");
+  });
 });

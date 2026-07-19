@@ -14,6 +14,13 @@ export interface CanvasAskBarProps {
 // /api/query/nl), not a new backend call. Feedback is a single grounded
 // sentence (ask-view.ts's existing mapper); a full canvas answer overlay
 // (entity chips on nodes, SPARQL disclosure) is the separate de-hairball task.
+//
+// G19: this wrapper has no background of its own -- its horizontal padding
+// (beyond the pill) and the gap above the feedback line are transparent
+// canvas, but the wrapper <div> still sits over them and would swallow a
+// click meant for a cytoscape node there. It opts out of pointer events;
+// only the actual ask-bar pill opts back in (the feedback text stays
+// pass-through -- it's read-only, not an interactive target).
 export function CanvasAskBar({ adapter }: CanvasAskBarProps) {
   const ask = useAskLifecycle();
   const feedback =
@@ -22,13 +29,14 @@ export function CanvasAskBar({ adapter }: CanvasAskBarProps) {
       : ask.errorMessage;
 
   return (
-    <div className="absolute bottom-[var(--space-6)] left-1/2 z-[var(--z-panel)] w-full max-w-xl -translate-x-1/2 px-[var(--space-4)]">
+    <div className="pointer-events-none absolute bottom-[var(--space-6)] left-1/2 z-[var(--z-panel)] w-full max-w-xl -translate-x-1/2 px-[var(--space-4)]">
       <AskBar
         placeholder="Ask the model — what depends on Orders DB?"
         value={ask.question}
         loading={ask.status === "submitting"}
         onChange={ask.setQuestion}
         onSubmit={ask.ask}
+        className="pointer-events-auto"
       />
       {feedback && (
         <p
