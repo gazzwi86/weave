@@ -170,39 +170,15 @@ describe("WidgetTile", () => {
 
     expect(screen.getByText(/re-baselined/i)).toBeInTheDocument();
   });
+});
 
+describe("WidgetTile refit fixes: H1b title truncation, H2 KPI URN, H3 stale badge", () => {
   it("H1b: truncates a long title and keeps the full text available via a title attribute", () => {
     render(<WidgetTile widget={kpiWidget()} />);
 
     const heading = screen.getByRole("heading", { name: "Entities in model" });
     expect(heading).toHaveClass("truncate");
     expect(heading).toHaveAttribute("title", "Entities in model");
-  });
-
-  it("H1: exactly one of Pin/Unpin renders on a suggested (not-yet-pinned) user widget", () => {
-    render(
-      <WidgetTile
-        widget={kpiWidget({ scope: "user", suggested: true })}
-        onPin={vi.fn()}
-        onUnpin={vi.fn()}
-      />
-    );
-
-    expect(screen.getByRole("button", { name: /^pin/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^unpin/i })).not.toBeInTheDocument();
-  });
-
-  it("H1: exactly one of Pin/Unpin renders on an already-pinned user widget", () => {
-    render(
-      <WidgetTile
-        widget={kpiWidget({ scope: "user", suggested: false })}
-        onPin={vi.fn()}
-        onUnpin={vi.fn()}
-      />
-    );
-
-    expect(screen.getByRole("button", { name: /^unpin/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^pin/i })).not.toBeInTheDocument();
   });
 
   it("H2: a KPI URN with a :vX.Y.Z tail displays just the version, full URN in a title attribute", () => {
@@ -228,5 +204,33 @@ describe("WidgetTile", () => {
     expect(badge).toHaveClass("whitespace-nowrap");
     expect(badge).toHaveAttribute("title");
     expect(badge.getAttribute("title")).toMatch(/last updated/i);
+  });
+});
+
+describe("WidgetTile refit fixes: H1 Pin/Unpin exclusivity", () => {
+  it("H1: exactly one of Pin/Unpin renders on a suggested (not-yet-pinned) user widget", () => {
+    render(
+      <WidgetTile
+        widget={kpiWidget({ scope: "user", suggested: true })}
+        onPin={vi.fn()}
+        onUnpin={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /^pin/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^unpin/i })).not.toBeInTheDocument();
+  });
+
+  it("H1: exactly one of Pin/Unpin renders on an already-pinned user widget", () => {
+    render(
+      <WidgetTile
+        widget={kpiWidget({ scope: "user", suggested: false })}
+        onPin={vi.fn()}
+        onUnpin={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /^unpin/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^pin/i })).not.toBeInTheDocument();
   });
 });

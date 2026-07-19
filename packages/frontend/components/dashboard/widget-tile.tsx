@@ -4,26 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EntityRef } from "@/components/molecules/EntityRef";
 import { RelativeTime } from "@/components/molecules/RelativeTime";
+import { formatKpiValue } from "@/lib/dashboard/format-kpi-value";
 
+import { TileControls } from "./tile-controls";
 import type { WidgetOut } from "./types";
 
-function formatStaleTimestamp(fetchedAt: string | null): string {
-  if (fetchedAt === null) return "";
-  return new Date(fetchedAt).toLocaleString();
-}
-
-/** toLocaleString() renders in the server's timezone/locale at SSR and the
- * browser's at hydration -- always divergent -- so the timestamp sits in a
- * suppressHydrationWarning <time> to avoid a hydration-mismatch error. */
+/** H3: "Stale — last updated <datetime>" wrapped over 3 lines -- the badge
+ * now shows only "Stale" and moves the full detail to `title`. The raw ISO
+ * string (mirroring `RelativeTime`'s own `title={iso}`) keeps this
+ * deterministic across SSR/hydration -- no `toLocaleString()` (locale/tz
+ * dependent) in the tooltip, so no hydration-mismatch risk either. */
 function StaleBadge({ fetchedAt }: { fetchedAt: string | null }) {
   return (
-    <Badge variant="warn">
-      Stale — last updated{" "}
-      {fetchedAt !== null && (
-        <time dateTime={fetchedAt} suppressHydrationWarning>
-          {formatStaleTimestamp(fetchedAt)}
-        </time>
-      )}
+    <Badge variant="warn" className="whitespace-nowrap" title={fetchedAt ? `Last updated ${fetchedAt}` : undefined}>
+      Stale
     </Badge>
   );
 }
@@ -35,10 +29,24 @@ function isPendingSentinel(value: unknown): boolean {
   return typeof value === "object" && value !== null && (value as { pending?: unknown }).pending === true;
 }
 
+/** H2: a KPI string that's a Weave URN (e.g. the latest published version)
+ * renders unreadably long -- shorten it via `formatKpiValue` and keep the
+ * full value inspectable through `title`. */
 function KpiValue({ value }: { value: unknown }) {
+  if (typeof value === "number") {
+    return (
+      <p className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
+        {value}
+      </p>
+    );
+  }
+  const { display, title } = formatKpiValue(value);
   return (
-    <p className="text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-      {typeof value === "number" ? value : String(value)}
+    <p
+      className="truncate text-[length:var(--text-h2)] leading-[var(--text-h2-line)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]"
+      title={title}
+    >
+      {display}
     </p>
   );
 }
@@ -186,9 +194,10 @@ export interface WidgetTileProps {
   dragHandleProps?: HTMLAttributes<HTMLDivElement>;
 }
 
-/** Extracted from `WidgetTile` so the button-row conditionals don't push
- * the parent component over the complexity budget. */
-function TileControls({
+/** H1b: the row is a flex parent, so the title needs `min-w-0` for
+ * `truncate` to actually take effect (a flex child's default min-width is
+ * `auto`, which lets it overflow rather than ellipsize). */
+function TileHeader({
   title,
   onPin,
   onUnpin,
@@ -196,42 +205,27 @@ function TileControls({
   onMoveDown,
   onPublish,
   showPin,
-}: {
-  title: string;
-  onPin?: () => void;
-  onUnpin?: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-  onPublish?: () => void;
-  showPin: boolean;
-}) {
+}: { title: string; showPin: boolean } & Pick<
+  WidgetTileProps,
+  "onPin" | "onUnpin" | "onMoveUp" | "onMoveDown" | "onPublish"
+>) {
   return (
-    <div className="flex items-center gap-[var(--space-1)]">
-      {onMoveUp && (
-        <button type="button" aria-label={`Move ${title} up`} onClick={onMoveUp}>
-          ↑
-        </button>
-      )}
-      {onMoveDown && (
-        <button type="button" aria-label={`Move ${title} down`} onClick={onMoveDown}>
-          ↓
-        </button>
-      )}
-      {onPin && showPin && (
-        <button type="button" aria-label={`Pin ${title}`} onClick={onPin}>
-          Pin
-        </button>
-      )}
-      {onUnpin && (
-        <button type="button" aria-label={`Unpin ${title}`} onClick={onUnpin}>
-          Unpin
-        </button>
-      )}
-      {onPublish && (
-        <button type="button" aria-label={`Publish ${title} to library`} onClick={onPublish}>
-          Publish
-        </button>
-      )}
+    <div className="flex items-start justify-between gap-[var(--space-2)]">
+      <h3
+        className="min-w-0 truncate text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]"
+        title={title}
+      >
+        {title}
+      </h3>
+      <TileControls
+        title={title}
+        onPin={onPin}
+        onUnpin={onUnpin}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onPublish={onPublish}
+        showPin={showPin}
+      />
     </div>
   );
 }
@@ -250,20 +244,15 @@ export function WidgetTile({
 
   return (
     <Card data-testid={`widget-tile-${widget.id}`} style={style} {...dragHandleProps}>
-      <div className="flex items-start justify-between gap-[var(--space-2)]">
-        <h3 className="text-[length:var(--text-body)] font-[var(--font-weight-semibold)] text-[var(--color-text-default)]">
-          {widget.spec.title}
-        </h3>
-        <TileControls
-          title={widget.spec.title}
-          onPin={onPin}
-          onUnpin={onUnpin}
-          onMoveUp={onMoveUp}
-          onMoveDown={onMoveDown}
-          onPublish={onPublish}
-          showPin={widget.suggested}
-        />
-      </div>
+      <TileHeader
+        title={widget.spec.title}
+        onPin={onPin}
+        onUnpin={onUnpin}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        onPublish={onPublish}
+        showPin={widget.suggested}
+      />
       <div className="mt-[var(--space-3)]">
         {widget.status === "unavailable" && (
           <p className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
