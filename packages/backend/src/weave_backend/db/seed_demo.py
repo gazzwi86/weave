@@ -60,12 +60,17 @@ WORKSPACE_NAME = "Demo Workspace"
 # as email.split("@")[0], reproduced here so we invite/activate the exact
 # same identity a real login will present.
 #
-# SE2: roles must be the CANONICAL slugs from `rbac.py`'s `ROLE_RANK` --
-# `members-panel.tsx`'s `RoleCell` `<select>` only offers `CANONICAL_ROLES`,
-# so a non-canonical slug (the old "admin"/"author") silently fails to
-# select any option and renders blank.
-ADMIN = ("admin@weave.local", "admin", "Demo Super Admin", "workspace_admin")
-CLIENT = ("client@weave.local", "client", "Demo Client User", "brand_content_owner")
+# SE2: keep the legacy "admin"/"author" roles -- they are NOT a bug. "admin"
+# is the platform super-admin sentinel the operator/provisioning surfaces gate
+# on literally: `settings/workspaces/page.tsx` (`role !== "admin"`) and the
+# backend `require_tenant_admin` on `GET /tenants/{id}/workspaces`. Renaming it
+# to a canonical in-tenant slug (workspace_admin) locks the demo admin out of
+# that surface. The Members-panel "shows as Viewer" symptom was fixed at its
+# true source in #181: `roles.ts::roleLabel` now maps the legacy "admin"/
+# "author" via LEGACY_ROLE_LABELS, which "coexist permanently" with the 10
+# canonical slugs -- so no seed change is needed for the display.
+ADMIN = ("admin@weave.local", "admin", "Demo Super Admin", "admin")
+CLIENT = ("client@weave.local", "client", "Demo Client User", "author")
 
 
 async def _ensure_workspace(conn: asyncpg.Connection) -> tuple[Workspace, bool]:
