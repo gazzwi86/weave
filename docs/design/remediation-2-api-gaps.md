@@ -230,9 +230,13 @@ by severity.
   is dead. Two help affordances, one dead.
 - [ ] **S5 M · ⌘K palette: input not focused on open; typing goes nowhere** — also "No results."
   before any query; entity-search only while placeholder promises "Search, ask, or jump to…".
-- [ ] **S6 H · Global search returns nothing for known entities** — `GET /api/search?q=order` → 200
-  empty while model contains "Customer order placed", "Order Fulfillment", glossary "Order".
-  Suspect workspace scoping or index not covering the demo workspace.
+- [x] **S6 H · Global search returns nothing for known entities** — **FIXED #175 (2026-07-19)**.
+  Root cause: search SPARQL matched only `rdfs:label`, but the store holds zero such triples —
+  entities carry `weave:label` (every AddNodeOp) and glossary concepts `skos:prefLabel`. The
+  tenancy test hand-loaded `rdfs:label` triples, masking it. Fix: property-path alternation over
+  all three predicates; test now seeds via the real apply_operations path + skos-only case; all
+  tenancy assertions preserved. Verified via real API on an isolated stack. Known pre-existing
+  edge (logged, unfixed): `OPTIONAL {?iri a ?kind}` fans out one row per rdf:type.
 - [ ] **S7 L · Avatar initials render "SI" for user `admin`** — initials derivation wrong (from
   "Signed in"?).
 
@@ -254,8 +258,11 @@ by severity.
 
 ### Constitution
 
-- [ ] **C1 H · Overview "Published version: No data yet" while Explore KPI + dashboard show
-  v0.1.6** — Overview reads a different (wrong) source.
+- [x] **C1 H · Overview "Published version: No data yet"** — **FIXED #172 (2026-07-19)**. Root
+  cause: `use-overview.ts` parsed the versions endpoint as `{versions: []}` but it returns a bare
+  array; the fail-soft catch swallowed the shape error. Fix: reuse the tolerant `fetchVersions()`
+  from use-versions.ts (one parser, two consumers) + hook-level regression tests for both shapes.
+  Verified live: /ce shows v0.1.6, "No data yet" gone.
 - [ ] **C2 L · Overview copy points to "the Versions screen" while nav "Versions" is soon** —
   copy/nav mismatch.
 - [ ] **C3 M · Types page "Instances" column all "—"** (counts not wired).
@@ -273,18 +280,25 @@ by severity.
 
 ### Audit trail
 
-- [ ] **A1 H · "Chain broken at entry 2 · 0 entries checked" on the demo workspace** — seeded
-  audit chain fails verification; every demo shows a red integrity banner. ~~Seed bug.~~
-  **ROOT CAUSE (coordinator-verified against the live dev DB 2026-07-19): NOT a seed bug — a
-  multi-tenant verify bug.** The chain is per-tenant (emitter scopes seq/prev_hash by tenant_id;
-  each tenant's chain is intact, seq restarts at 1 per tenant) but the verify path fetches entries
-  ordered by seq with NO tenant filter, so any DB with ≥2 tenants interleaves chains and "breaks
-  at entry 2". Fix: tenant-scope the verify fetch/walk. Secondary: `entries_checked` stays 0 on
-  failure (dataclass default never updated before the early return). Repro needs TWO tenants
-  emitting — a single-tenant repro passes verify.
+- [ ] **A1 H · "Chain broken at entry 2 · 0 entries checked" on the demo workspace** — root cause
+  settled 2026-07-19 (evidence: `.claude/state/escalations/A1-audit-chain-seed-blocker.md`):
+  **NOT a code bug.** Per-entry recomputation on the live dev DB shows hash + prev_hash linkage
+  100% intact for the demo tenant; only the **signatures on seq 2–9** fail — a one-time
+  signing-key divergence between processes during the 2026-07-16 dev session. Two earlier
+  hypotheses (clock-tie ordering; multi-tenant interleaved verify walk) were both refuted: `ts` is
+  app-assigned text, verify orders by monotonic `seq` and is tenant-scoped. Code half **landed in
+  PR #177**: verify now reports `entries_checked` on failure (was always 0), plus seed→verify
+  regression coverage (passes on a fresh stack). Remaining half is DATA: re-sign or reseed the
+  demo tenant's audit entries — likely mooted by the parallel session's demo-seed-enrichment
+  reseed (D2); after that lands, verify the banner is gone and tick this. Follow-up logged below
+  as A5 (signing-key divergence hardening).
 - [ ] **A2 M · Busiest-entities list shows raw UUIDs/version strings**, not entity labels.
 - [ ] **A3 M · Dashboard cards not wired to closed gaps** — "Model edits by kind" +
   Security/Governance/Budget/Reliability all "Not available yet" though G5–G8 aggregations landed.
+- [ ] **A5 S · Signing-key divergence hardening (follow-up from A1)** — local dev with multiple
+  processes/worktrees sharing one LocalStack can cache diverging audit signing keys and silently
+  corrupt chain signatures. Consider failing loudly in `signing_key.py` when the cached key no
+  longer matches the persisted secret. Flagged by the A1 lane; not built on a hunch.
 - [ ] **A4 · Inference nav is "soon"** (Sentiment, Intent & urgency, Topics, Satisfaction,
   Quality & safety, Model metrics) — now represented in the mock as future-phase reference
   screens; no app work until those phases.
