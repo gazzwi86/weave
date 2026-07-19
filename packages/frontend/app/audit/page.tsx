@@ -8,6 +8,9 @@ import { ChainStatusChip } from "@/components/ui/chain-status-chip";
 import { Eyebrow } from "@/components/ui/eyebrow";
 
 import { useCompliance, type ComplianceSummary, type TargetCount } from "./compliance/use-compliance";
+import { EVENT_COUNT_GROUPS } from "./event-count-groups";
+import { sumEventCounts, useEventCounts, type EventCounts } from "./use-event-counts";
+import { useKindCounts, type KindCounts } from "./use-kind-counts";
 
 function eventLogsHref(category: string): string {
   return `/audit/logs?event_type=${encodeURIComponent(category)}`;
@@ -20,17 +23,58 @@ function friendlyEntity(iri: string): string {
   return iri.split(/[:/]/).filter(Boolean).at(-1) ?? iri;
 }
 
-/** refit-mock.html "Model edits by kind" side-card -- no backend field
- * carries a per-kind edit breakdown (G5 has no backing endpoint), so this
- * always renders the honest pending state rather than fake data. */
-function ModelEditsByKindCard() {
+function PendingNote({ testId, children }: { testId: string; children: string }) {
+  return (
+    <p data-testid={testId} className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
+      {children}
+    </p>
+  );
+}
+
+function KindCountsList({ counts }: { counts: Record<string, number> }) {
+  const rows = Object.entries(counts).sort(([, a], [, b]) => b - a);
+  return (
+    <ul className="flex flex-col gap-[var(--space-1)]">
+      {rows.map(([kind, count]) => (
+        <li key={kind} className="flex items-center justify-between text-[length:var(--text-body-sm)]">
+          <span className="text-[var(--color-text-default)]">{kind}</span>
+          <span className="font-[var(--font-mono)] tabular-nums text-[var(--color-text-muted)]">
+            {count.toLocaleString()}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** refit-mock.html "Model edits by kind" side-card -- G5 embeds a per-kind
+ * breakdown on every `operations.applied` audit event; `useKindCounts` sums
+ * it across this month's entries. Three states: pending (denied/error),
+ * genuinely empty (loaded, zero edits this month), or a populated list --
+ * an empty object is a real zero, never confused with "not available". */
+function ModelEditsByKindCard({ state }: { state: KindCounts }) {
+  const { denied, loadError, counts } = state;
+  if (denied || loadError) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col gap-[var(--space-2)]">
+          <Eyebrow>Model edits by kind — this month</Eyebrow>
+          <PendingNote testId="kind-edits-pending">
+            {denied ? "Only workspace admins can see this." : "Not available yet — couldn't load this from the backend."}
+          </PendingNote>
+        </CardContent>
+      </Card>
+    );
+  }
+  const hasCounts = counts && Object.keys(counts).length > 0;
   return (
     <Card>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
         <Eyebrow>Model edits by kind — this month</Eyebrow>
-        <p data-testid="kind-edits-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
-          Not available yet — per-kind edit counts need a backend breakdown.
-        </p>
+        {hasCounts && <KindCountsList counts={counts} />}
+        {counts !== null && !hasCounts && (
+          <PendingNote testId="kind-edits-empty">No model edits recorded this period.</PendingNote>
+        )}
       </CardContent>
     </Card>
   );
@@ -56,24 +100,23 @@ function BusiestEntitiesList({ targets }: { targets: TargetCount[] }) {
 }
 
 /** refit-mock.html "Busiest entities" side-card -- backed by `top_targets`
- * (G7, `feat/audit-aggregation-gaps` PR #135, unmerged). Absent means
- * "pending", not "zero busiest entities" -- see `use-compliance.ts`. */
+ * (G7, landed). The backend always returns an array now (possibly empty),
+ * so "pending" here means "no busiest entities this period", the honest
+ * empty state rather than a stale "needs a backend breakdown" claim. */
 /** The header above already carries the page's one "View logs" hyperlink --
  * a second anchor with the same accessible name here would make
  * `getByRole("link", { name: "View logs" })` ambiguous, so this card is
  * navigation-free (refit-mock.html's ghost button is decorative parity we
  * skip; the header link covers the same journey). */
-function BusiestEntitiesCard({ targets }: { targets: TargetCount[] | undefined }) {
+function BusiestEntitiesCard({ targets }: { targets: TargetCount[] }) {
   return (
     <Card>
       <CardContent className="flex flex-col gap-[var(--space-2)]">
         <Eyebrow>Busiest entities — 30 days</Eyebrow>
-        {targets ? (
+        {targets.length > 0 ? (
           <BusiestEntitiesList targets={targets} />
         ) : (
-          <p data-testid="busiest-entities-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
-            Not available yet — busiest-entity ranking needs a backend breakdown.
-          </p>
+          <PendingNote testId="busiest-entities-pending">No busiest entities recorded this period.</PendingNote>
         )}
       </CardContent>
     </Card>
@@ -107,20 +150,62 @@ function EventsByCategoryCard({
   );
 }
 
-/** refit-mock.html Security/Governance/Budget/Reliability health row -- none
- * of these counts have a backing endpoint yet (G6), so every card renders
- * the same honest pending state. */
-function EventCountsRow() {
-  const groups = ["Security", "Governance", "Budget", "Reliability"];
+/** One metric row within a health group -- pending when the whole group's
+ * fetch is denied/errored/loading, OR when this specific metric has no
+ * backend `event_type` source yet (`eventTypes === null`, see
+ * `event-count-groups.ts`) regardless of the rest of the card. */
+function EventCountRow({
+  label,
+  eventTypes,
+  counts,
+  wholeRowPending,
+}: {
+  label: string;
+  eventTypes: string[] | null;
+  counts: Record<string, number> | null;
+  wholeRowPending: boolean;
+}) {
+  const pending = eventTypes === null || wholeRowPending;
+  return (
+    <li className="flex items-center justify-between text-[length:var(--text-body-sm)]">
+      <span className="text-[var(--color-text-default)]">{label}</span>
+      {pending ? (
+        <span data-testid="event-counts-pending" className="text-[var(--color-text-subtle)]">
+          Not available yet
+        </span>
+      ) : (
+        <span className="font-[var(--font-mono)] tabular-nums text-[var(--color-text-muted)]">
+          {sumEventCounts(counts, eventTypes).toLocaleString()}
+        </span>
+      )}
+    </li>
+  );
+}
+
+/** refit-mock.html Security/Governance/Budget/Reliability health row -- G6
+ * (event_type counts) + G8 (audit_outages folded into the same counts call).
+ * A denied/errored fetch pends every row uniformly (see
+ * `use-event-counts.ts`); a successful fetch still leaves "Policies changed"
+ * pending on its own (no backend source, see `event-count-groups.ts`). */
+function EventCountsRow({ state }: { state: EventCounts }) {
+  const wholeRowPending = state.denied || state.loadError || state.counts === null;
   return (
     <div className="grid grid-cols-2 gap-[var(--space-4)] md:grid-cols-4">
-      {groups.map((group) => (
-        <Card key={group}>
+      {EVENT_COUNT_GROUPS.map((group) => (
+        <Card key={group.name}>
           <CardContent className="flex flex-col gap-[var(--space-2)]">
-            <Eyebrow>{group}</Eyebrow>
-            <p data-testid="event-counts-pending" className="text-[length:var(--text-body-sm)] text-[var(--color-text-subtle)]">
-              Not available yet.
-            </p>
+            <Eyebrow>{group.name}</Eyebrow>
+            <ul className="flex flex-col gap-[var(--space-1)]">
+              {group.metrics.map((metric) => (
+                <EventCountRow
+                  key={metric.label}
+                  label={metric.label}
+                  eventTypes={metric.eventTypes}
+                  counts={state.counts}
+                  wholeRowPending={wholeRowPending}
+                />
+              ))}
+            </ul>
           </CardContent>
         </Card>
       ))}
@@ -128,15 +213,25 @@ function EventCountsRow() {
   );
 }
 
-function AuditBody({ summary, previous }: { summary: ComplianceSummary; previous: ComplianceSummary | null }) {
+function AuditBody({
+  summary,
+  previous,
+  kindCounts,
+  eventCounts,
+}: {
+  summary: ComplianceSummary;
+  previous: ComplianceSummary | null;
+  kindCounts: KindCounts;
+  eventCounts: EventCounts;
+}) {
   return (
     <div className="flex flex-col gap-[var(--space-4)]">
       <div className="grid grid-cols-1 gap-[var(--space-4)] lg:grid-cols-3">
-        <ModelEditsByKindCard />
+        <ModelEditsByKindCard state={kindCounts} />
         <BusiestEntitiesCard targets={summary.top_targets} />
         <EventsByCategoryCard summary={summary} previous={previous} />
       </div>
-      <EventCountsRow />
+      <EventCountsRow state={eventCounts} />
     </div>
   );
 }
@@ -149,6 +244,8 @@ function AuditBody({ summary, previous }: { summary: ComplianceSummary; previous
  */
 export default function AuditDashboardPage() {
   const { summary, previous, loadError } = useCompliance();
+  const kindCounts = useKindCounts();
+  const eventCounts = useEventCounts();
 
   return (
     <main className="flex flex-col gap-[var(--space-4)] p-[var(--space-6)]">
@@ -176,7 +273,9 @@ export default function AuditDashboardPage() {
         </p>
       )}
 
-      {summary && <AuditBody summary={summary} previous={previous} />}
+      {summary && (
+        <AuditBody summary={summary} previous={previous} kindCounts={kindCounts} eventCounts={eventCounts} />
+      )}
     </main>
   );
 }
