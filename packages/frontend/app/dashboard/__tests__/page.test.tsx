@@ -57,6 +57,12 @@ function stubFetch(url: string): Response {
   if (url.includes("/api/dashboard/library")) {
     return new Response(JSON.stringify({ items: [] }), { status: 200 });
   }
+  // "Needs you" gates row: usePendingGatesCount()'s project-list fetch
+  // (H4). No projects in this stub -> zero-count fail-soft, no per-project
+  // gates fan-out fires.
+  if (url.includes("/api/build/projects")) {
+    return new Response(JSON.stringify({ items: [] }), { status: 200 });
+  }
   // v5 Home: recent-activity feed reads the newest audit entries (admin-only
   // upstream; fail-soft to [] otherwise).
   if (url.includes("/api/audit")) {
@@ -156,13 +162,14 @@ describe("DashboardPage", () => {
     expect(container).toHaveTextContent("urn:weave:principal:dev-user-1");
   });
 
-  it("issues a bounded set of outbound fetches (whoami + both widget scopes + library + recent activity + checklist state + rule-violations cache read), no CE-METRICS creep", async () => {
+  it("issues a bounded set of outbound fetches (whoami + both widget scopes + library + recent activity + checklist state + rule-violations cache read + gates project list), no CE-METRICS creep", async () => {
     render(await DashboardPage());
-    // Seven: the original six plus NeedsYou's own cache-only validate read
-    // (v5 Home "Needs you" row). The point of this guard is "no unbounded/
-    // CE-METRICS-on-load creep" (AC-6), not a frozen literal -- every URL
-    // below is asserted explicitly.
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(7));
+    // Eight: the original seven plus NeedsYou's usePendingGatesCount()
+    // project-list read (H4, G12 gates feed). The point of this guard is
+    // "no unbounded/CE-METRICS-on-load creep" (AC-6), not a frozen literal
+    // -- every URL below is asserted explicitly. No per-project gates
+    // fan-out fires here since the stub's project list is empty.
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(8));
 
     const calledUrls = vi.mocked(fetch).mock.calls.map((call) => String(call[0]));
     expect(calledUrls.some((url) => url.includes("/api/whoami"))).toBe(true);
@@ -174,6 +181,7 @@ describe("DashboardPage", () => {
     expect(calledUrls.some((url) => url.includes("/api/audit") && url.includes("tenant_id=tenant-1"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/onboarding/state"))).toBe(true);
     expect(calledUrls.some((url) => url.includes("/api/proxy/validate"))).toBe(true);
+    expect(calledUrls.some((url) => url.includes("/api/build/projects"))).toBe(true);
   });
 
   // v5 Home #screen-home: "How Weave works" explain band, static copy.
@@ -189,7 +197,10 @@ describe("DashboardPage", () => {
     render(await DashboardPage());
 
     expect(screen.getByText("Needs you")).toBeInTheDocument();
-    expect(screen.getAllByText(/nothing waiting right now/)).toHaveLength(2);
+    // The gates row is async (H4: usePendingGatesCount) -- it briefly shows
+    // "checking..." before settling to the same empty-state copy as the
+    // still-static decisions row.
+    await waitFor(() => expect(screen.getAllByText(/nothing waiting right now/)).toHaveLength(2));
   });
 
   // v5 Home "Needs you": rule violations are live via useRules' cache-only

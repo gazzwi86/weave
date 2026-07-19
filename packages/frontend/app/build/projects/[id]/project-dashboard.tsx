@@ -20,12 +20,13 @@ import { useTile } from "./use-tile";
  * (BE-V1-TASK-019) -- budget/blockers/ribbon are still per-tile fetches
  * (AC-1/AC-2 isolation preserved), demo/forecast/tasks/prompt-box/
  * self-improvement dropped, board/task-tree now drive the gate band + KPI
- * counts. Gaps: G9 (no epics endpoint -- KPI "epics created" stays
- * pending), G10 (no epic timeline data -- roadmap panel stays
- * pending-state), G11 (no live spec-artefact API -- Brief/PRD/Roadmap/Tech
- * spec/Epics open a static placeholder DocDrawer; "Task briefs" is real),
- * G12 (no pending-review-gates endpoint -- gate band derives from the
- * board's Review/QA lane).
+ * counts. Gaps: G9 (epics endpoint now wired into the roadmap panel below,
+ * B2 -- KPI "epics created" still stays pending, out of B2's scope), G10
+ * (status + ordinal only, no dates -- roadmap panel renders an ordered
+ * list, not a Gantt), G11 (no live spec-artefact API -- Brief/PRD/Roadmap/
+ * Tech spec/Epics open a static placeholder DocDrawer; "Task briefs" is
+ * real), G12 (no pending-review-gates endpoint -- gate band derives from
+ * the board's Review/QA lane).
  */
 export function ProjectDashboard({ projectId }: { projectId: string }): React.JSX.Element {
   const { board } = useBoard(projectId);
@@ -45,7 +46,7 @@ export function ProjectDashboard({ projectId }: { projectId: string }): React.JS
         <Card>
           <CardTitle>Roadmap</CardTitle>
           <div className="mt-[var(--space-2)]">
-            <DashboardRoadmapPanel />
+            <DashboardRoadmapPanel projectId={projectId} />
           </div>
         </Card>
         <Card>

@@ -35,6 +35,18 @@ const BOARD = {
   ],
 };
 const TREE = { project_iri: "p-1", nodes: [] };
+const EPICS = {
+  project_iri: "p-1",
+  epics: [
+    {
+      epic_id: "EPIC-001",
+      title: "Board",
+      ordinal: 0,
+      status: "active",
+      task_counts: { total: 4, done: 2, in_progress: 1, blocked: 1 },
+    },
+  ],
+};
 
 function stubApis({ board = BOARD }: { board?: typeof BOARD } = {}): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
@@ -42,6 +54,7 @@ function stubApis({ board = BOARD }: { board?: typeof BOARD } = {}): ReturnType<
     if (url.endsWith("/dashboard/budget")) return Promise.resolve(jsonResponse(BUDGET));
     if (url.endsWith("/dashboard/blockers")) return Promise.resolve(jsonResponse(BLOCKERS));
     if (url.endsWith("/dashboard/ribbon")) return Promise.resolve(jsonResponse(RIBBON));
+    if (url.endsWith("/epics")) return Promise.resolve(jsonResponse(EPICS));
     if (url.endsWith("/board")) return Promise.resolve(jsonResponse(board));
     if (url.endsWith("/task-tree")) return Promise.resolve(jsonResponse(TREE));
     if (url.includes("/tasks/task-8")) {
@@ -101,10 +114,11 @@ describe("ProjectDashboard (refit-mock #sub-bld-dashboard)", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
-  it("shows the roadmap panel as pending-state with the G10 gap note", async () => {
+  it("shows the roadmap panel wired to the epic rollup (B2)", async () => {
     stubApis();
     render(<ProjectDashboard projectId="p-1" />);
-    expect(await screen.findByText(/no epic timeline data yet/i)).toBeInTheDocument();
+    expect(await screen.findByText("Board")).toBeInTheDocument();
+    expect(screen.getByText("active")).toBeInTheDocument();
   });
 
   it("opens a real task-briefs DocDrawer listing board tasks (G11)", async () => {

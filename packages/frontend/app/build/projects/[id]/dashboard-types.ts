@@ -65,3 +65,27 @@ export interface SelfImprovementItem {
   title: string;
   href: string;
 }
+
+/** B2 (docs/design/remediation-2-api-gaps.md G9/G10): mirrors
+ * `schemas/epics.py`'s `EpicRollupResponse` -- status is derived purely
+ * from task-status lanes, no `started_at`/`completed_at` (G10, deferred).
+ */
+export interface EpicTaskCounts {
+  total: number;
+  done: number;
+  in_progress: number;
+  blocked: number;
+}
+
+export interface EpicRollupEntry {
+  epic_id: string;
+  title: string | null;
+  ordinal: number;
+  status: "done" | "active" | "upcoming";
+  task_counts: EpicTaskCounts;
+}
+
+export interface EpicRollupResponse {
+  project_iri: string;
+  epics: EpicRollupEntry[];
+}
