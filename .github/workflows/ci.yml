@@ -612,9 +612,9 @@ jobs:
     # Runs on ubuntu-latest (amd64): baselines are generated on THIS runner arch
     # (workflow_dispatch `update_visual_baselines`) and validated on the same
     # arch, so cross-machine pixel drift never enters the gate -- no pinned
-    # container needed. BLOCKING: a red visual job reddens the PR run. (This repo
-    # has no server-side required-check flag -- git-safety.md -- so "required" ==
-    # the job runs on pull_request and its failure fails the run.)
+    # container needed. BLOCKING: `visual` is in the `main` branch ruleset's
+    # required-status-checks (added 2026-07-19), so a red visual job blocks the
+    # merge -- not merely reddens the run. (`e2e-behavioural` is required too.)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
