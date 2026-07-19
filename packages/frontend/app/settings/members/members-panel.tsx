@@ -8,7 +8,7 @@ import { FilterBar, type FilterChip } from "@/components/ui/filter-bar";
 import { Icon } from "@/components/ui/icon";
 import { StatusPill, type Status } from "@/components/ui/status-pill";
 import { InviteMemberModal } from "./invite-member-modal";
-import { CANONICAL_ROLES } from "./roles";
+import { roleLabel } from "./roles";
 import { useMembers, type Member } from "./use-members";
 
 type DataTableColumn = TablePageProps["columns"][number];
@@ -80,7 +80,15 @@ function MemberCell({ member }: { member: Member }) {
 /** Role is shown, not editable: `invite()` (the only role-touching client
  * call) upserts by email and 409s on an already-active member, so there is
  * no update-role-for-active-member endpoint yet -- disabled rather than a
- * control that would always fail (gap G16). */
+ * control that would always fail (gap G16).
+ *
+ * Single option = the member's actual role (SE2): a seeded member's role
+ * may be a legacy ADR-020 slug (e.g. "admin") that isn't one of the 10
+ * canonical slugs the (disabled, non-functional) invite selector offers --
+ * rendering only those 10 options meant a legacy role matched none of them,
+ * and the browser silently fell back to displaying the first option
+ * ("Viewer") regardless of the real value.
+ */
 function RoleCell({ member }: { member: Member }) {
   return (
     <select
@@ -90,11 +98,7 @@ function RoleCell({ member }: { member: Member }) {
       title="Role changes are coming soon."
       className="rounded-[var(--radius-base)] border border-[var(--color-border)] bg-[var(--color-surface)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--text-body-sm)] text-[var(--color-text-default)] disabled:opacity-70"
     >
-      {CANONICAL_ROLES.map((r) => (
-        <option key={r.slug} value={r.slug}>
-          {r.label}
-        </option>
-      ))}
+      <option value={member.role}>{roleLabel(member.role)}</option>
     </select>
   );
 }
