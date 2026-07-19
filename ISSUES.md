@@ -19,15 +19,11 @@ Source for all: `docs/design/remediation-2-api-gaps.md` (mock reference:
 - C8 · M · Branding & standards page — data half seeded (#184: brand rules + standards docs);
   remaining: bind the page + conformance KPI (G14 endpoint) and match the mock's screen.
 - C9 · L · "New instance" is a bare kind-select — apply the mock's authoring pattern.
-- A2 · M · Busiest-entities list shows raw UUIDs/version strings — resolve to entity labels
+- A2 · M · (Tuesday) Busiest-entities list shows raw UUIDs/version strings — resolve to entity labels
   (A3's `friendlyEntity` last-segment trim landed #182; verify against live data, finish label
   resolution).
 - A4 · — · Inference nav stays "soon" — future-phase reference screens live in the mock; no app
   work until those phases ship. Parking pointer only.
-- B1 · L · Registry card task-counts/budget — copy humanized (#176); the DATA needs a
-  registry-card summary field (backend) + binding.
-- SE1 · L · Workspace description — copy humanized (#176); real fix needs a backend
-  workspace-description field + General-panel binding.
 - SE4 · M · Billing page is one sparse card — build usage-by-engine/user/project + budget burn
   vs cap (counts-only per FR-034/035); mock carries the reference design.
 - SE5 · M · Operator console (Workspaces) bare — build to the signed-off operator screen in the
@@ -36,23 +32,13 @@ Source for all: `docs/design/remediation-2-api-gaps.md` (mock reference:
   (mock carries one).
 - G17 · S · Change-heatmap overlay needs a per-entity change-frequency source (extend
   CE-METRICS-1 or a viewer-safe audit-count read); toggle ships disabled with honest tooltip.
-- G19 · UI-bug · Canvas node-clicks miss under overlay chrome — pointer-events/z-order fix in
-  the ControlDock/legend components (tests currently route around it).
-- V3-axe-fix · — · explorer-a11y-m2 panels violation blocks PR #152 — repro locally, fix,
-  re-push #152.
 - V3b / V3b-3 · — · Explore ask-bar wiring, KPI true-total, default filters + de-hairball
   (label-thinning landed; clustering stretch).
-- V4 · — · Off-spec elements: remove injected page H1s; restyle kept extras (Build
-  search/filter, "Generate a widget" CTA) to the mock's look.
 - T5 · L · Consolidate Home → /dashboard (migrate role-home's next-action banner, capability
   cards, completeness map + re-anchor tour, THEN delist role-home). **Absorbs H7** (the nav
   item goes only as part of this migration — its "duplicate page" premise was stale).
 - T6 · L · /build/ge-canvas-preview → project-scoped filtered Explore, linked from
   build-project nav.
-- T7 · S · /events → disabled "coming soon" nav item (no live bare stub).
-- T8 · M · Onboarding exercise-availability — backend exposes per-exercise availability on
-  GET /api/onboarding/state so the client only checks available ones (kills the 403 noise).
-
 ## Refactor squad — tech debt / bloat
 
 - BLOAT_REPORT.md (repo root) — 46 open items (dead organisms, EmptyState/DataTable/filter-bar
@@ -71,6 +57,9 @@ Source for all: `docs/design/remediation-2-api-gaps.md` (mock reference:
 - Pre-existing e2e bug (flagged in #183): `tests/e2e/global-search.spec.ts` presses ⌘K on
   /dashboard where the route guard hands it to PromptBar by design — the test asserts the wrong
   dialog on that route.
+
+- G19 follow-up · S · explorer-a11y-m2 spec still opens panels via the search box
+  (route-around from before #192's pointer-events fix) — revert to real canvas clicks.
 
 ## Engine build — escalation blockers
 
