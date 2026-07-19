@@ -140,6 +140,9 @@ def test_audit_chain_verification_broken() -> None:
     result = verify_entries(entries, private_key.public_key())
     assert result.valid is False
     assert result.first_broken_seq == 3
+    # A1: entries_checked must count the 2 entries that passed before the
+    # break (seq 1, seq 2), not silently default to 0.
+    assert result.entries_checked == 2
 
 
 def test_audit_chain_verification_detects_single_entry_tampering_mid_chain() -> None:
@@ -155,6 +158,7 @@ def test_audit_chain_verification_detects_single_entry_tampering_mid_chain() -> 
     assert result.valid is False
     assert result.first_broken_seq == 50
     assert result.error == "hash_mismatch"
+    assert result.entries_checked == 49
 
 
 def test_audit_chain_verification_detects_broken_prev_hash_link() -> None:
@@ -173,6 +177,7 @@ def test_audit_chain_verification_detects_broken_prev_hash_link() -> None:
     assert result.valid is False
     assert result.first_broken_seq == 3
     assert result.error == "chain_broken"
+    assert result.entries_checked == 2
 
 
 def test_audit_chain_verification_detects_reordered_entries() -> None:
@@ -191,9 +196,11 @@ def test_audit_chain_verification_detects_reordered_entries() -> None:
     result = verify_entries(reordered, private_key.public_key())
     assert result.valid is False
     assert result.error == "chain_broken"
-    # The swapped-in entry (seq=3) is checked at list position 2 (0-indexed),
-    # where entry seq=2's prev_hash was expected -- it fails there first.
+    # The swapped-in entry (seq=3) is checked at list position 1 (0-indexed),
+    # where entry seq=2's prev_hash was expected -- it fails there first,
+    # after only seq=1 has passed.
     assert result.first_broken_seq == 3
+    assert result.entries_checked == 1
 
 
 def test_audit_chain_verification_detects_invalid_signature() -> None:
@@ -209,3 +216,4 @@ def test_audit_chain_verification_detects_invalid_signature() -> None:
     assert result.valid is False
     assert result.first_broken_seq == 1
     assert result.error == "signature_invalid"
+    assert result.entries_checked == 0
