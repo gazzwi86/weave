@@ -16,19 +16,40 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from dataclasses import dataclass
+from typing import Any
 
 import asyncpg
 from rdflib import Graph
 
 from weave_backend.audit.emitter import AuditEvent, HashChainAuditEmitter
+from weave_backend.authoring.shapes import parse_raw_shape, shape_subject_iri
+from weave_backend.briefs.store import (
+    NewBrief,
+    build_brief_iri,
+    generate_task_id,
+    insert_task_brief,
+)
+from weave_backend.build.state_spine import StateSpine, TaskState, commit_state_spine
 from weave_backend.db.pool import close_app_pool, tenant_connection
+from weave_backend.db.seed_demo_data import (
+    BUILD_PROJECT_NAME,
+    EPIC_TASKS,
+    SHAPE_TTL_TEMPLATE,
+    STANDARDS_DOCS,
+    TENANT_SHAPES,
+)
+from weave_backend.db.seed_demo_graph import DEMO_OPS
 from weave_backend.identity.registry import ensure_human_principal, human_principal_iri
+from weave_backend.operations.governance_shapes import ShapeCommit, commit_tenant_shape
 from weave_backend.operations.graph_ops import apply_operations
+from weave_backend.operations.outbox import flush_pending
 from weave_backend.operations.versioning import mint_version, publish_version
+from weave_backend.projects.model import NewProject, create_project, slugify
 from weave_backend.rdf.oxigraph_client import load_graph
-from weave_backend.schemas.operations import AddEdgeOp, AddNodeOp, Op
+from weave_backend.standards.store import NewStandard, upsert_standard
 from weave_backend.tenancy.members import MemberAlreadyActive, activate_member, invite_member
-from weave_backend.tenancy.sessions import set_active_workspace
+from weave_backend.tenancy.sessions import get_redis, set_active_workspace
 from weave_backend.tenancy.workspaces import Workspace, create_workspace
 
 TENANT_ID = "acme-corp"  # matches mock_oidc's _DEFAULT_TENANT_ID
@@ -38,40 +59,13 @@ WORKSPACE_NAME = "Demo Workspace"
 # (email, sub, display_name, workspace role) -- sub is derived by mock-oidc
 # as email.split("@")[0], reproduced here so we invite/activate the exact
 # same identity a real login will present.
-ADMIN = ("admin@weave.local", "admin", "Demo Super Admin", "admin")
-CLIENT = ("client@weave.local", "client", "Demo Client User", "author")
-
-# Demo BPMO graph: only kinds/predicates confirmed live in
-# `ontology/shapes/framework.shacl.ttl` (weave:label on every kind,
-# weave:performedBy Process->Actor, weave:servesGoal
-# BusinessCapability->Goal, weave:description on Activity) -- never an
-# invented predicate (ontology-standards.md).
-DEMO_OPS: list[Op] = [
-    AddNodeOp(op="add_node", ref="actor", kind="Actor", label="Order Desk Team"),
-    AddNodeOp(
-        op="add_node", ref="process", kind="Process", label="Order Fulfillment"
-    ),
-    AddNodeOp(
-        op="add_node",
-        ref="activity",
-        kind="Activity",
-        label="Pick Items from Warehouse",
-        properties={"description": "Pick ordered items from warehouse shelves."},
-    ),
-    AddNodeOp(op="add_node", ref="goal", kind="Goal", label="Reduce order cycle time"),
-    AddNodeOp(
-        op="add_node",
-        ref="capability",
-        kind="BusinessCapability",
-        label="Fulfilment Operations",
-    ),
-    AddNodeOp(op="add_node", ref="system", kind="System", label="Warehouse Management System"),
-    AddNodeOp(op="add_node", ref="data", kind="DataAsset", label="Customer Order"),
-    AddEdgeOp(op="add_edge", subject_ref="process", predicate="performedBy", object_ref="actor"),
-    AddEdgeOp(
-        op="add_edge", subject_ref="capability", predicate="servesGoal", object_ref="goal"
-    ),
-]
+#
+# SE2: roles must be the CANONICAL slugs from `rbac.py`'s `ROLE_RANK` --
+# `members-panel.tsx`'s `RoleCell` `<select>` only offers `CANONICAL_ROLES`,
+# so a non-canonical slug (the old "admin"/"author") silently fails to
+# select any option and renders blank.
+ADMIN = ("admin@weave.local", "admin", "Demo Super Admin", "workspace_admin")
+CLIENT = ("client@weave.local", "client", "Demo Client User", "brand_content_owner")
 
 
 async def _ensure_workspace(conn: asyncpg.Connection) -> tuple[Workspace, bool]:
@@ -106,9 +100,22 @@ async def _ensure_member(
     await activate_member(conn, workspace_id=workspace_id, email=email, user_sub=sub)
 
 
-async def _seed_graph(conn: asyncpg.Connection, workspace: Workspace) -> str:
+@dataclass(frozen=True)
+class _SeededGraph:
+    """Bundles `_seed_graph`'s results (Law E's 5-parameter budget) -- the
+    later steps need `ref_map` (to cross-link `standards_documents.policy_iri`
+    to the `BrandStandard` individuals actually minted) and `version_iri`
+    (to pin the Build project) alongside the existing `semver`.
+    """
+
+    semver: str
+    version_iri: str
+    ref_map: dict[str, str]
+
+
+async def _seed_graph(conn: asyncpg.Connection, workspace: Workspace) -> _SeededGraph:
     graph = Graph()
-    apply_operations(graph, DEMO_OPS)
+    result = apply_operations(graph, DEMO_OPS)
     turtle = graph.serialize(format="turtle")
 
     actor_iri = human_principal_iri(ADMIN[1])
@@ -131,7 +138,95 @@ async def _seed_graph(conn: asyncpg.Connection, workspace: Workspace) -> str:
     # inconsistency at the router level.
     await load_graph(version_iri, turtle)
     await load_graph(workspace.named_graph_iri, turtle)
-    return semver
+    return _SeededGraph(semver=semver, version_iri=version_iri, ref_map=result.ref_map)
+
+
+async def _seed_shapes(conn: asyncpg.Connection, redis_client: Any) -> None:
+    """Deliverable 3: commits `TENANT_SHAPES` via the sole writer to a
+    tenant's governance shapes graph (`governance_shapes.commit_tenant_shape`)
+    -- never a raw graph load, so the same PROV-O stamping, audit-outbox
+    enqueue, and shapes-version bump a real compliance-officer commit gets
+    also applies to the seeded demo shapes.
+    """
+    approver_iri = human_principal_iri(ADMIN[1])
+    for iri, target, message in TENANT_SHAPES:
+        turtle = SHAPE_TTL_TEMPLATE.format(iri=iri, target=target, message=message)
+        shape_graph = parse_raw_shape(turtle)
+        shape_iri = shape_subject_iri(shape_graph)
+        await commit_tenant_shape(
+            conn,
+            redis_client,
+            ShapeCommit(
+                tenant_id=TENANT_ID,
+                approver_iri=approver_iri,
+                shape_graph=shape_graph,
+                shape_iri=shape_iri,
+                ai_generated=False,
+            ),
+        )
+
+
+async def _seed_standards(conn: asyncpg.Connection, ref_map: dict[str, str]) -> None:
+    approver_iri = human_principal_iri(ADMIN[1])
+    for key, title, body_md, policy_ref in STANDARDS_DOCS:
+        await upsert_standard(
+            conn,
+            NewStandard(
+                tenant_id=TENANT_ID,
+                scope="company",
+                project_id=None,
+                standard_key=key,
+                title=title,
+                body_md=body_md,
+                stack_pins=None,
+                policy_iri=ref_map[policy_ref],
+                status="active",
+                created_by=approver_iri,
+            ),
+        )
+
+
+async def _seed_build_project(conn: asyncpg.Connection, version_iri: str) -> None:
+    slug = slugify(BUILD_PROJECT_NAME)
+    project = await create_project(
+        conn,
+        NewProject(
+            tenant_id=TENANT_ID,
+            slug=slug,
+            name=BUILD_PROJECT_NAME,
+            description="Store operations platform: fulfilment, trade pricing, "
+            "and online ordering.",
+            pinned_graph_version_iri=version_iri,
+        ),
+    )
+
+    tasks = []
+    for epic_id, epic_title, title, status in EPIC_TASKS:
+        task_id = generate_task_id(project.project_iri, title)
+        await insert_task_brief(
+            conn,
+            NewBrief(
+                tenant_id=TENANT_ID,
+                task_id=task_id,
+                project_iri=project.project_iri,
+                brief_iri=build_brief_iri(task_id),
+                schema_version="1.0",
+                content={"epic_id": epic_id, "epic_title": epic_title, "title": title},
+            ),
+        )
+        tasks.append(TaskState(id=task_id, status=status))
+
+    await commit_state_spine(
+        conn,
+        StateSpine(
+            project_iri=project.project_iri,
+            tenant_id=TENANT_ID,
+            run_id="demo-seed",
+            phase="halted_hitl",
+            turn_cap=50,
+            tasks=tasks,
+        ),
+    )
 
 
 async def seed() -> dict[str, object]:
@@ -146,7 +241,8 @@ async def seed() -> dict[str, object]:
 
         semver = None
         if created:
-            semver = await _seed_graph(conn, workspace)
+            seeded = await _seed_graph(conn, workspace)
+            semver = seeded.semver
             await HashChainAuditEmitter().emit(
                 conn,
                 AuditEvent(
@@ -157,6 +253,22 @@ async def seed() -> dict[str, object]:
                     payload={"workspace_slug": WORKSPACE_SLUG},
                 ),
             )
+
+            redis_client: Any = get_redis()
+            await _seed_shapes(conn, redis_client)
+            await _seed_standards(conn, seeded.ref_map)
+            await _seed_build_project(conn, seeded.version_iri)
+
+    if created:
+        # A1 investigation: `_seed_shapes`' `commit_tenant_shape` calls
+        # enqueue their `governance.shape_committed` audit events into the
+        # durable outbox (never emit inline) -- delivering them (hash-chain
+        # append + sign) only here, from a fresh connection acquired AFTER
+        # the seeding transaction above has actually committed. This mirrors
+        # real commit-then-flush timing instead of flushing inside the same
+        # transaction that enqueued the rows.
+        async with tenant_connection(TENANT_ID) as flush_conn:
+            await flush_pending(flush_conn, TENANT_ID)
 
     # Active-workspace pointer lives in Redis, not Postgres -- set outside
     # the tenant_connection transaction. Without this, a fresh login 400s
