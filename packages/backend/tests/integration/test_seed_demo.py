@@ -64,13 +64,15 @@ async def test_seed_demo_is_idempotent_and_activates_both_logins(
                 "admin@weave.local": "active",
                 "client@weave.local": "active",
             }
-            # SE2: canonical role slugs (rbac.py's ROLE_RANK), not the
-            # legacy "admin"/"author" strings -- members-panel.tsx's
-            # <select> only offers CANONICAL_ROLES, so a non-canonical
-            # role silently fails to select any option (renders blank).
+            # Legacy sentinel roles are correct and required: "admin" is the
+            # platform super-admin string the operator/provisioning surfaces
+            # gate on literally (settings/workspaces page.tsx + backend
+            # require_tenant_admin). SE2's "shows as Viewer" symptom was fixed
+            # at the frontend label layer in #181 (roles.ts LEGACY_ROLE_LABELS),
+            # not by changing the seed -- so these stay "admin"/"author".
             assert {m["email"]: m["role"] for m in members} == {
-                "admin@weave.local": "workspace_admin",
-                "client@weave.local": "brand_content_owner",
+                "admin@weave.local": "admin",
+                "client@weave.local": "author",
             }
             versions = await conn.fetch(
                 "SELECT status FROM graph_versions WHERE tenant_id = $1", tenant_id
