@@ -41,7 +41,9 @@ test.describe("shell states", () => {
 
   test("help flyout open", async ({ page }) => {
     await gotoCeShell(page);
-    await page.getByRole("button", { name: "Help", exact: true }).click();
+    // Two "Help" triggers exist since S4 (header "?" + rail footer "?") --
+    // scope to the header so the locator stays unambiguous.
+    await page.locator("header").getByRole("button", { name: "Help", exact: true }).click();
     // help-launcher.tsx sets an explicit aria-label="Help" on Dialog.Content
     // (same string as the trigger and the Dialog.Title copy) -- that
     // aria-label wins the accessible-name computation over Dialog.Title.
