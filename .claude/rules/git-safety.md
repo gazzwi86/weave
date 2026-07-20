@@ -21,9 +21,12 @@ by `check_force_push` in `modules/git_safety.py`, not a settings.json glob:
 - **A bare `git push --force` / `-f` is refused everywhere.** It overwrites unconditionally. Always
   use `--force-with-lease`.
 - **Any force-push at `main` / `master` is refused**, with or without lease — including `+refspec`
-  force syntax and a no-refspec `--force-with-lease` while HEAD is on `main`. **This hook is the
-  SOLE enforcement:** this repo has no server-side branch protection (private repo on a plan without
-  protected branches). If the repo later gains branch protection, the hook stays as defence in depth.
+  force syntax and a no-refspec `--force-with-lease` while HEAD is on `main`. Server-side branch
+  protection on `main` is now LIVE (observed 2026-07-19: direct pushes rejected by repository
+  rules, 12 required status checks, auto-merge disabled — all main-bound work goes through a PR).
+  The hook remains as defence in depth: it fails locally before a push round-trip and covers
+  force-push shapes independently of the remote ruleset (whether the ruleset also blocks
+  force-pushes has not been audited — treat the hook as primary enforcement for force-push shapes).
 
 ## Enforcement
 

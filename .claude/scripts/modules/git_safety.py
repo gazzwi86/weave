@@ -38,10 +38,10 @@ _FIX = (
 # branch is allowed; a bare `--force`/`-f`/`+refspec` is refused everywhere (all
 # clobber the remote unconditionally); any force aimed at main/master is refused.
 #
-# THIS HOOK IS THE SOLE ENFORCEMENT. This repo has no server-side branch
-# protection (private repo on a plan without protected branches — verified), so
-# the checks below must be airtight, not "a first line". If the repo later gains
-# branch protection, this stays as defence-in-depth.
+# Server-side branch protection on main is LIVE (observed 2026-07-19: direct
+# pushes rejected, 12 required status checks). Whether the remote ruleset also
+# blocks force-pushes has NOT been audited, so the checks below stay airtight —
+# treat this hook as primary enforcement for force-push shapes.
 _FORCE_WITH_LEASE_RE = re.compile(r"--force-with-lease\b")
 _BARE_FORCE_RE = re.compile(r"--force\b(?!-with-lease)")
 # short `-f` (or clustered like -fv); the (?<![-\w]) guards against matching the
