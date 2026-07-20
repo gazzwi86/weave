@@ -34,12 +34,6 @@ async function waitForLayoutSettled(page: Page): Promise<void> {
   await waitOneAnimationFrame(page);
 }
 
-async function clickNode(page: Page, nodeId: string): Promise<void> {
-  const info = await page.evaluate((id) => window.__explorerNodeInfo?.(id), nodeId);
-  if (!info) throw new Error(`node ${nodeId} not found on canvas`);
-  await page.mouse.click(info.x, info.y);
-}
-
 const JSON_CONTENT_TYPE = "application/json";
 const NODE_KINDS = {
   kinds: [{ id: "Process", label: "Process", colour: "#3B82F6" }],
@@ -48,7 +42,14 @@ const NODE_KINDS = {
 const ONBOARDING = "https://weave.example/process/onboarding";
 const CREATE_ACCOUNT = "https://weave.example/domain/create-account";
 const SPARQL_PAGE = {
-  rows: [{ subject: ONBOARDING, predicate: "https://weave.example/hasStep", object: CREATE_ACCOUNT, bpmo_kind: "Process", label: "Customer Onboarding" }],
+  rows: [
+    { subject: ONBOARDING, predicate: "https://weave.example/hasStep", object: CREATE_ACCOUNT, bpmo_kind: "Process", label: "Customer Onboarding" },
+    // A node's human label is its own weave:label triple (ADR-005 --
+    // map-rows-to-elements.ts ignores the row-level `label` field), and the
+    // search overlay matches on that node label. Without this row the node
+    // falls back to its IRI tail ("onboarding") and search finds nothing.
+    { subject: ONBOARDING, predicate: "https://weave.io/ontology/label", object: "Customer Onboarding", bpmo_kind: "Process" },
+  ],
   columns: ["subject", "predicate", "object"],
   has_more_pages: false,
   page: 0,
@@ -153,13 +154,26 @@ test.describe("Explorer M2 panels — axe-core zero-violations (TASK-030 AC-2)",
     await assertNoViolations(page);
   });
 
-  // SidePanel (edit/save affordances) + CommentsPanel mount on node click.
+  // SidePanel (edit/save affordances) + CommentsPanel mount on node select.
+  // Mounted via the search overlay's result-select (the proven AC-6 flow in
+  // explorer-node-spotlight.spec.ts, wired to the same openNode path as a
+  // canvas tap) instead of a coordinate `page.mouse.click` on the canvas:
+  // cytoscape's hit-test intermittently drops a tap at the node's exact
+  // rendered centre (elementFromPoint confirmed CANVAS at identical coords
+  // on both passing and failing runs), which was axe-m2's recurring CI
+  // flake. This test's job is axe-scanning the mounted panel -- tap-to-open
+  // behaviour itself is covered by explorer-node-spotlight.spec.ts.
   test("side panel with comments (save/library/share surface)", async ({ page }) => {
     await mockExplorer(page);
     await loginAndGoToExplorer(page);
     await waitForLayoutSettled(page);
-    await clickNode(page, ONBOARDING);
-    await expect(page.getByText("Customer Onboarding")).toBeVisible();
+    await page.getByTestId("explorer-search-button").click();
+    const overlay = page.getByTestId("explorer-search-overlay");
+    await overlay.getByPlaceholder("Search nodes…").fill("Customer");
+    await overlay.getByText("Customer Onboarding").click();
+    const panel = page.getByTestId("explorer-side-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText("Customer Onboarding")).toBeVisible();
     await assertNoViolations(page);
   });
 
