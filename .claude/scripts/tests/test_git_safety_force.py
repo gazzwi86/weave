@@ -5,7 +5,8 @@ Runnable standalone: `python3 .claude/scripts/tests/test_git_safety_force.py`
 `--force-with-lease` on feature branches while refusing every unconditional
 force (`--force`/`-f`/`+refspec`) and any force-push at main/master.
 
-This hook is the SOLE enforcement (no server-side branch protection), so the
+This hook is the primary enforcement for force-push shapes (server-side branch
+protection on main is live, but its force-push coverage is unaudited), so the
 cases below deliberately include the bypass classes an adversary would try.
 """
 

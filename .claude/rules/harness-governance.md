@@ -55,5 +55,6 @@ If a path is ambiguous, treat it as a harness change (fail safe).
 
 Honest limit: local enforcement verifies a consult *record* exists, not that the consult was
 genuine. Rule 2's human prompt on the enforcement core is what makes a fabricated consult
-non-silent. This is as strong as local enforcement gets without server-side branch protection
-(which this repo does not have — see [`git-safety.md`](git-safety.md)).
+non-silent. Server-side branch protection on `main` (live since 2026-07-19 — direct pushes
+rejected, 12 required status checks; see [`git-safety.md`](git-safety.md)) now adds a server-side
+backstop: a harness change reaches `main` only via a PR that passes the required checks.
